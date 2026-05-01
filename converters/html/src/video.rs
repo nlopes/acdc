@@ -8,7 +8,7 @@ use acdc_parser::{AttributeValue, Video};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
             return visit_video_semantic(video, self);
@@ -136,7 +136,7 @@ fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(),
 
 fn visit_video_semantic<W: Write>(
     video: &Video,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !video.title.is_empty();
     let mut w = visitor.writer_mut();

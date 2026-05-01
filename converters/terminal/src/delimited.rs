@@ -88,7 +88,7 @@ fn render_boxed_content<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Visit a delimited block in terminal format.
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
         match &block.inner {
@@ -141,7 +141,10 @@ impl<W: Write> TerminalVisitor<'_, W> {
             }
             _ => {
                 // Handle any future block types
-                tracing::warn!(?block.inner, "Unknown delimited block type");
+                self.diagnostics.warn(format!(
+                    "unsupported delimited block in terminal output, skipping content: {:?}",
+                    block.inner
+                ));
                 Ok(())
             }
         }
@@ -273,7 +276,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
         // Render content to buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        let mut temp_visitor =
+            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
         for nested_block in blocks {
             temp_visitor.visit_block(nested_block)?;
         }
@@ -306,7 +310,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
         // Render content to temporary buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        let mut temp_visitor =
+            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
 
         for nested_block in blocks {
             temp_visitor.visit_block(nested_block)?;
@@ -359,7 +364,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
         // Render content to buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        let mut temp_visitor =
+            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
         for nested_block in blocks {
             temp_visitor.visit_block(nested_block)?;
         }
@@ -395,7 +401,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
         // Render verse content to buffer to process line by line
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+        let mut temp_visitor =
+            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
         temp_visitor.visit_inline_nodes(inlines)?;
         let buffer = temp_visitor
             .into_writer()
@@ -546,7 +553,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -574,7 +584,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -602,7 +615,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -630,7 +646,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -666,7 +685,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -698,7 +720,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -732,7 +757,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -762,7 +790,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -797,7 +828,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -829,7 +863,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -863,7 +900,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -899,7 +939,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -931,7 +974,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -960,7 +1006,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -989,7 +1038,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1014,7 +1066,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1038,7 +1093,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1065,7 +1123,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1090,7 +1151,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1113,7 +1177,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1136,7 +1203,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1162,7 +1232,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1191,7 +1264,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_delimited_block(&block)?;
         let output = visitor.into_writer();
 
@@ -1243,15 +1319,27 @@ mod tests {
         .with_title(create_test_title("Third Example"));
 
         let mut buffer1 = Vec::new();
-        let mut visitor1 = TerminalVisitor::new(&mut buffer1, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor1 =
+            TerminalVisitor::new(&mut buffer1, processor.clone(), diagnostics.reborrow());
         visitor1.visit_delimited_block(&block1)?;
 
         let mut buffer2 = Vec::new();
-        let mut visitor2 = TerminalVisitor::new(&mut buffer2, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor2 =
+            TerminalVisitor::new(&mut buffer2, processor.clone(), diagnostics.reborrow());
         visitor2.visit_delimited_block(&block2)?;
 
         let mut buffer3 = Vec::new();
-        let mut visitor3 = TerminalVisitor::new(&mut buffer3, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor3 =
+            TerminalVisitor::new(&mut buffer3, processor.clone(), diagnostics.reborrow());
         visitor3.visit_delimited_block(&block3)?;
 
         let output1 = String::from_utf8_lossy(&buffer1);

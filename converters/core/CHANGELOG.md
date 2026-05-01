@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Structured converter warnings** — `Warning`, `WarningSource`,
+  and `Diagnostics` let converters return non-fatal user-facing warnings
+  alongside `ConversionResult` without baking backend-specific warning categories
+  into the core crate.
 - Converter conversion methods now return output metadata containing the written
   file path when applicable.
 - **Typography replacements API** — `Replacements` struct, `apply()`, and

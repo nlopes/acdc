@@ -30,7 +30,7 @@ fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
     }
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_unordered_list(
         &mut self,
         list: &UnorderedList,
@@ -99,7 +99,9 @@ impl<W: Write> HtmlVisitor<'_, W> {
     pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
         let raw_depth = list.marker.matches('.').count().max(1);
         if raw_depth > usize::from(u8::MAX) {
-            tracing::warn!(raw_depth, "ordered list marker depth exceeds 255, clamping");
+            self.diagnostics.warn(format!(
+                "ordered list marker depth {raw_depth} exceeds 255, clamping"
+            ));
         }
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
         let (style, type_attr) = ordered_list_style(depth);
@@ -403,7 +405,7 @@ fn render_list_item_content<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
 
@@ -547,7 +549,7 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
 /// should not have their outer wrapper div/section — just the bare list element.
 fn render_block_in_semantic_list_context<W: Write>(
     block: &Block,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     match block {
         Block::UnorderedList(list) => render_bare_ulist_semantic(list, visitor),
@@ -574,7 +576,7 @@ fn render_block_in_semantic_list_context<W: Write>(
 /// Render an unordered list without the wrapper div/section (bare `<ul>` only).
 fn render_bare_ulist_semantic<W: Write>(
     list: &UnorderedList,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let is_checklist = has_checklist_items(&list.items);
     let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
@@ -595,7 +597,7 @@ fn render_bare_ulist_semantic<W: Write>(
 /// Render an ordered list without the wrapper div/section (bare `<ol>` only).
 fn render_bare_olist_semantic<W: Write>(
     list: &OrderedList,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let raw_depth = list.marker.matches('.').count().max(1);
     let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
@@ -618,7 +620,7 @@ fn render_bare_olist_semantic<W: Write>(
 /// Render a description list without the wrapper div/section (bare `<dl>` only).
 fn render_bare_dlist_semantic<W: Write>(
     list: &DescriptionList,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<dl>")?;
@@ -671,7 +673,7 @@ fn render_bare_dlist_semantic<W: Write>(
 /// - Simple `<dd>` text not wrapped in `<p>` unless there are also blocks
 fn visit_description_list_semantic<W: Write>(
     list: &DescriptionList,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !list.title.is_empty();
     let is_qanda = list.metadata.style == Some("qanda");

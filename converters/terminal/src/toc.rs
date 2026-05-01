@@ -5,7 +5,7 @@ use acdc_parser::{TableOfContents, TocEntry};
 
 use crate::TerminalVisitor;
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     fn render_toc_entries(
         &mut self,
         entries: &[TocEntry],

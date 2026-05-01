@@ -9,7 +9,7 @@ use crossterm::{
 
 use crate::TerminalVisitor;
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), crate::Error> {
         let processor = self.processor.clone();
         let w = self.writer_mut();

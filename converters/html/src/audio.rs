@@ -5,7 +5,7 @@ use acdc_parser::{AttributeValue, Audio};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_audio(&mut self, audio: &Audio) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
             return visit_audio_semantic(audio, self);
@@ -108,7 +108,7 @@ fn render_audio_element(audio: &Audio, w: &mut dyn std::io::Write) -> Result<(),
 
 fn visit_audio_semantic<W: Write>(
     audio: &Audio,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !audio.title.is_empty();
     let mut w = visitor.writer_mut();

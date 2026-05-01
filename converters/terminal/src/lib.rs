@@ -6,7 +6,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Options, decode_numeric_char_refs,
+    Converter, Diagnostics, Options, decode_numeric_char_refs,
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
     visitor::Visitor,
 };
@@ -121,6 +121,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         doc: &Document<'a>,
         writer: W,
         _source_file: Option<&Path>,
+        _output_path: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
         let part_number_tracker =
@@ -142,9 +144,8 @@ impl<'a> Converter<'a> for Processor<'a> {
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             list_indent: Rc::new(Cell::new(0)),
         };
-        let mut visitor = TerminalVisitor::new(writer, processor);
-        visitor.visit_document(doc)?;
-        Ok(())
+        let mut visitor = TerminalVisitor::new(writer, processor, diagnostics.reborrow());
+        visitor.visit_document(doc)
     }
 
     fn name(&self) -> &'static str {

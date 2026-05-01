@@ -9,7 +9,7 @@ use crate::{
     inlines::escape_href,
 };
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_image(&mut self, img: &Image) -> Result<(), Error> {
         let processor = self.processor.clone();
         if processor.variant() == HtmlVariant::Semantic {

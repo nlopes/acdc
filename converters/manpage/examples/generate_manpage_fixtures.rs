@@ -15,7 +15,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .embedded(embedded)
             .build();
         let processor = Processor::new(options, doc.attributes.clone());
-        processor.write_document(doc, output, None)?;
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("manpage");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_document(doc, output, None, &mut diagnostics)?;
         Ok(())
     })
 }

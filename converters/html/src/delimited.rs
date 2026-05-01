@@ -43,7 +43,7 @@ fn write_semantic_tag_open<W: Write>(
     Ok(())
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn write_example_block(
         &mut self,
         block: &DelimitedBlock,
@@ -213,7 +213,7 @@ impl<W: Write> HtmlVisitor<'_, W> {
     }
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render a delimited block to HTML.
     #[allow(clippy::too_many_lines)]
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
@@ -515,7 +515,7 @@ fn process_callout_guards<'a>(
     result
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn render_listing_code(
         &mut self,
         inlines: &[InlineNode],
@@ -798,7 +798,7 @@ fn render_stem_content_semantic<W: Write + ?Sized>(
     Ok(())
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render verse, literal, and stem blocks in semantic HTML5 mode.
     fn render_delimited_block_inner_semantic(
         &mut self,
@@ -987,7 +987,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1010,7 +1014,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1043,7 +1051,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1077,7 +1089,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1112,7 +1128,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor.clone(), options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor.clone(), options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1175,7 +1195,15 @@ mod tests {
         };
 
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor.clone(), options.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = crate::HtmlVisitor::new(
+            output,
+            processor.clone(),
+            options.clone(),
+            diagnostics.reborrow(),
+        );
 
         // Render first block
         visitor.visit_delimited_block(&block1)?;
@@ -1193,7 +1221,11 @@ mod tests {
 
         // Render second block
         let output2 = Vec::new();
-        let mut visitor2 = crate::HtmlVisitor::new(output2, processor.clone(), options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor2 =
+            crate::HtmlVisitor::new(output2, processor.clone(), options, diagnostics.reborrow());
         visitor2.visit_delimited_block(&block2)?;
         let html2 = String::from_utf8(visitor2.into_writer())?;
 
@@ -1227,7 +1259,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1257,7 +1293,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1287,7 +1327,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1317,7 +1361,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1347,7 +1395,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1380,7 +1432,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1425,7 +1481,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1451,7 +1511,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;
@@ -1481,7 +1545,11 @@ mod tests {
         let output = Vec::new();
         let processor = create_test_processor();
         let options = RenderOptions::default();
-        let mut visitor = crate::HtmlVisitor::new(output, processor, options);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
         visitor.visit_delimited_block(&block)?;
         let html = String::from_utf8(visitor.into_writer())?;

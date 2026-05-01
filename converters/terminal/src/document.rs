@@ -9,12 +9,13 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_header(&mut self, header: &acdc_parser::Header) -> Result<(), Error> {
         let cloned_processor = self.processor.clone();
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, cloned_processor);
+        let mut temp_visitor =
+            TerminalVisitor::new(inner, cloned_processor, self.diagnostics.reborrow());
 
         for node in &header.title {
             temp_visitor.visit_inline_node(node)?;
@@ -34,7 +35,7 @@ impl<W: Write> TerminalVisitor<'_, W> {
             .map_err(io::IntoInnerError::into_error)?;
         let title_content = String::from_utf8(buffer)
             .map_err(|e| {
-                tracing::error!(?e, "Failed to convert document title to UTF-8 string");
+                tracing::debug!(?e, "failed to convert document title to UTF-8 string");
                 e
             })
             .unwrap_or_default()
@@ -144,7 +145,10 @@ mod tests {
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
         let buffer = Vec::new();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_document(&doc)?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"");
@@ -191,7 +195,10 @@ mod tests {
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_document(&doc)?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
@@ -256,7 +263,10 @@ mod tests {
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
         };
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_document(&doc)?;
         let buffer = visitor.into_writer();
         let output = String::from_utf8_lossy(&buffer);

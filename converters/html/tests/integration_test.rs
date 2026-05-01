@@ -1,11 +1,15 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{GeneratorMetadata, Options as ConverterOptions};
+use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
 use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode};
 
 type Error = Box<dyn std::error::Error>;
+
+fn temp_output_path(name: &str, extension: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
+}
 
 fn run_fixture_test(
     path: &Path,
@@ -35,7 +39,10 @@ fn run_fixture_test(
     };
 
     let mut output = Vec::new();
-    processor.convert_to_writer(doc, &mut output, &render_options)?;
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("html");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
 
     let expected = std::fs::read_to_string(&expected_path)?;
     let actual = String::from_utf8(output)?;
@@ -121,8 +128,36 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
     );
     let render_options = RenderOptions::default();
     let mut output = Vec::new();
-    processor.convert_to_writer(doc, &mut output, &render_options)?;
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("html");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
     Ok(String::from_utf8(output)?)
+}
+
+#[test]
+fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Error> {
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse("[big]#large#\n", &parser_options)?;
+    let doc = parsed.document();
+    let converter_options = ConverterOptions::builder().embedded(true).build();
+    let processor = Processor::new_with_variant(
+        converter_options,
+        doc.attributes.to_static(),
+        HtmlVariant::Standard,
+    );
+    let output_path = temp_output_path("html-warning", "html");
+
+    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let _ = std::fs::remove_file(&output_path);
+
+    assert!(result.warnings().iter().any(|warning| {
+        warning.source.converter == "html"
+            && warning.source.variant.as_deref() == Some("standard")
+            && warning.message.contains("deprecated role `big`")
+    }));
+    Ok(())
 }
 
 #[cfg(feature = "highlighting")]
@@ -458,13 +493,20 @@ mod copycss {
             HtmlVariant::Standard,
         );
 
-        // Write HTML output
+        // Run a full file conversion: this writes HTML and copies CSS as
+        // companion artifacts in one step.
         let mut html_output = Vec::new();
-        processor.convert_to_writer(doc, &mut html_output, &RenderOptions::default())?;
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(
+            doc,
+            &mut html_output,
+            None,
+            Some(&html_path),
+            &mut diagnostics,
+        )?;
         std::fs::write(&html_path, &html_output)?;
-
-        // Trigger after_write to copy CSS
-        processor.after_write(doc, &html_path);
 
         // The built-in stylesheet should have been written to disk
         let css_path = tmp.path().join("asciidoctor-light-mode.css");
@@ -517,13 +559,20 @@ mod copycss {
             HtmlVariant::Standard,
         );
 
-        // Write HTML output
+        // Run a full file conversion: this writes HTML and copies CSS as
+        // companion artifacts in one step.
         let mut html_output = Vec::new();
-        processor.convert_to_writer(doc, &mut html_output, &RenderOptions::default())?;
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(
+            doc,
+            &mut html_output,
+            None,
+            Some(&html_path),
+            &mut diagnostics,
+        )?;
         std::fs::write(&html_path, &html_output)?;
-
-        // Trigger after_write
-        processor.after_write(doc, &html_path);
 
         // The custom CSS should have been copied to target.css
         let target_path = tmp.path().join("target.css");
@@ -569,8 +618,17 @@ mod copycss {
             HtmlVariant::Standard,
         );
 
-        std::fs::write(&html_path, "dummy")?;
-        processor.after_write(doc, &html_path);
+        let mut html_output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(
+            doc,
+            &mut html_output,
+            None,
+            Some(&html_path),
+            &mut diagnostics,
+        )?;
 
         // No CSS files should be written
         let css_files: Vec<_> = std::fs::read_dir(tmp.path())?
@@ -612,8 +670,17 @@ mod copycss {
             HtmlVariant::Standard,
         );
 
-        std::fs::write(&html_path, "dummy")?;
-        processor.after_write(doc, &html_path);
+        let mut html_output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(
+            doc,
+            &mut html_output,
+            None,
+            Some(&html_path),
+            &mut diagnostics,
+        )?;
 
         // No CSS files should be written in embedded mode
         let css_files: Vec<_> = std::fs::read_dir(tmp.path())?
@@ -1045,7 +1112,10 @@ mod toc_footnote {
             ..RenderOptions::default()
         };
         let mut output = Vec::new();
-        processor.convert_to_writer(doc, &mut output, &render_options)?;
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
         Ok(String::from_utf8(output)?)
     }
 

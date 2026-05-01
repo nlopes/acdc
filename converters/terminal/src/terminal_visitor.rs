@@ -2,7 +2,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Diagnostics,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
     Header, Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
@@ -16,19 +19,22 @@ use crossterm::{
 use crate::Processor;
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
-pub struct TerminalVisitor<'a, W: Write> {
+pub struct TerminalVisitor<'a, 'd, W: Write> {
     writer: W,
     pub(crate) processor: Processor<'a>,
+    /// Per-conversion diagnostics handle.
+    pub(crate) diagnostics: Diagnostics<'d>,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
 }
 
-impl<'a, W: Write> TerminalVisitor<'a, W> {
-    pub fn new(writer: W, processor: Processor<'a>) -> Self {
+impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
+    pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
             processor,
+            diagnostics,
             in_inline_span: false,
         }
     }
@@ -39,7 +45,7 @@ impl<'a, W: Write> TerminalVisitor<'a, W> {
     }
 }
 
-impl<W: Write> Visitor for TerminalVisitor<'_, W> {
+impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
     type Error = crate::Error;
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
@@ -193,7 +199,7 @@ impl<W: Write> Visitor for TerminalVisitor<'_, W> {
     }
 }
 
-impl<W: Write> WritableVisitor for TerminalVisitor<'_, W> {
+impl<W: Write> WritableVisitor for TerminalVisitor<'_, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

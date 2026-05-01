@@ -506,19 +506,37 @@ type TimedParseResult = (
     Option<Duration>,
 );
 
-/// Print any parser warnings to stderr using the same miette-rendered
-/// rich-diagnostic treatment as errors (colored squiggles under the
-/// offending span, source snippet, advice line). Drains warnings off
-/// the `ParseResult` so subsequent accesses see an empty slice, then
-/// leaks the rest so its arena outlives the process. The CLI is
-/// one-shot, so leaking is acceptable and gives converters the
+/// Render the parser warnings to stderr with miette's rich-diagnostic
+/// treatment (colored squiggles under the offending span, source snippet,
+/// advice line), then leak the `ParseResult` so its arena outlives the process.
+/// The CLI is one-shot, so leaking is acceptable and gives converters the
 /// `'static` lifetime they expect.
-fn report_warnings(mut parsed: ParseResult, file: Option<&Path>) -> &'static ParseResult {
-    for warning in parsed.take_warnings() {
-        let report = error::display_warning(&warning, file);
-        eprintln!("{report:?}");
+///
+/// Terminal pager paths can't use this because they need to leak before the
+/// pager opens but print after it closes (otherwise stderr is buried under
+/// the pager's screen takeover). Those paths inline `Box::leak` and call
+/// [`print_parser_warnings`] after `pager.wait()` instead.
+fn report_warnings(parsed: ParseResult, file: Option<&Path>) -> &'static ParseResult {
+    let parsed = Box::leak(Box::new(parsed));
+    print_parser_warnings(parsed, file);
+    parsed
+}
+
+/// Render parser warnings to stderr without leaking.
+fn print_parser_warnings(parsed: &ParseResult, file: Option<&Path>) {
+    for warning in parsed.warnings() {
+        eprintln!("{:?}", error::parser_warning_report(warning, file));
     }
-    Box::leak(Box::new(parsed))
+}
+
+/// Render converter warnings to stderr with the same miette treatment.
+fn render_converter_warnings(
+    warnings: impl IntoIterator<Item = acdc_converters_core::Warning>,
+    file: Option<&Path>,
+) {
+    for warning in warnings {
+        eprintln!("{:?}", error::converter_warning_report(&warning, file));
+    }
 }
 
 fn report_errors<E: std::error::Error + 'static>(
@@ -530,7 +548,9 @@ fn report_errors<E: std::error::Error + 'static>(
     for (file, result) in results {
         match result {
             Ok(result) => {
-                if let Some(output_path) = result.into_output_path() {
+                let (output_path, warnings) = result.into_parts();
+                render_converter_warnings(warnings, Some(&file));
+                if let Some(output_path) = output_path {
                     output_paths.push(output_path);
                 }
             }
@@ -552,7 +572,9 @@ fn report_errors<E: std::error::Error + 'static>(
 }
 
 fn output_paths_from_result(result: ConversionResult) -> Vec<PathBuf> {
-    result.into_output_path().into_iter().collect()
+    let (output_path, warnings) = result.into_parts();
+    render_converter_warnings(warnings, None);
+    output_path.into_iter().collect()
 }
 
 #[cfg(test)]
@@ -715,26 +737,75 @@ fn run_terminal_stdin(
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
     let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
-    // Leak into 'static: CLI is a one-shot process.
-    let parsed = report_warnings(parsed, None);
-    let doc = parsed.document();
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
-        return processor.convert(doc, None).map(output_paths_from_result);
+        let parsed = report_warnings(parsed, None);
+        return processor
+            .convert(parsed.document(), None)
+            .map(output_paths_from_result);
     }
 
-    // Try pager for stdin too
+    // Try pager. The pager's screen takeover would visually bury anything
+    // we eprintln! before it exits, so we leak the parsed doc up front but
+    // defer the warning print until after pager.wait().
     if let Some(mut pager) = spawn_pager(args.no_pager) {
+        // Leak into 'static: CLI is a one-shot process.
+        let parsed: &'static ParseResult = Box::leak(Box::new(parsed));
+        let mut converter_warnings = Vec::new();
         if let Some(pager_stdin) = pager.stdin.take() {
             let writer = BufWriter::new(pager_stdin);
-            processor.write_to(doc, writer, None)?;
+            let source = processor.warning_source();
+            let mut diagnostics =
+                acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
+            processor.write_to(parsed.document(), writer, None, None, &mut diagnostics)?;
         }
         let _ = pager.wait()?;
+        print_parser_warnings(parsed, None);
+        render_converter_warnings(converter_warnings, None);
         return Ok(Vec::new());
     }
-    processor.convert(doc, None)?;
+    let parsed = report_warnings(parsed, None);
+    let result = processor.convert(parsed.document(), None)?;
+    let (_, warnings) = result.into_parts();
+    render_converter_warnings(warnings, None);
     Ok(Vec::new())
+}
+
+/// Drive the terminal converter through a spawned pager.
+///
+/// The pager's screen takeover would visually bury anything we eprintln!
+/// before it exits, so we leak each parsed doc up front, write to the pager,
+/// then wait for it to close before printing parser/converter warnings.
+#[cfg(feature = "terminal")]
+fn run_terminal_through_pager(
+    processor: &acdc_converters_terminal::Processor<'static>,
+    parse_results: Vec<ParseResultEntry>,
+    mut pager: std::process::Child,
+) -> Result<(), acdc_converters_terminal::Error> {
+    use std::io::BufWriter;
+
+    let mut deferred: Vec<(&'static ParseResult, PathBuf)> = Vec::new();
+    let mut converter_warnings = Vec::new();
+    if let Some(pager_stdin) = pager.stdin.take() {
+        let mut writer = BufWriter::new(pager_stdin);
+        let source = processor.warning_source();
+        let mut diagnostics =
+            acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
+        for (file, parse_result) in parse_results {
+            let parsed: &'static ParseResult = Box::leak(Box::new(parse_result?));
+            processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
+            deferred.push((parsed, file));
+        }
+        drop(writer); // Flush and close stdin
+    }
+    // Wait for pager, ignore exit status (user may quit with 'q')
+    let _ = pager.wait()?;
+    for (parsed, file) in &deferred {
+        print_parser_warnings(parsed, Some(file));
+    }
+    render_converter_warnings(converter_warnings, None);
+    Ok(())
 }
 
 #[cfg(feature = "terminal")]
@@ -743,8 +814,6 @@ fn run_terminal_with_pager(
     base_options: Options,
     document_attributes: DocumentAttributes<'static>,
 ) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
-    use std::io::BufWriter;
-
     use acdc_converters_terminal::Processor;
 
     if !args.stdin && args.files.is_empty() {
@@ -819,30 +888,18 @@ fn run_terminal_with_pager(
         return Ok(output_paths);
     }
 
-    // Try to spawn pager
-    if let Some(mut pager) = spawn_pager(args.no_pager) {
-        if let Some(pager_stdin) = pager.stdin.take() {
-            let mut writer = BufWriter::new(pager_stdin);
-            for (file, parse_result) in parse_results {
-                match parse_result {
-                    Ok(parsed) => {
-                        let parsed = report_warnings(parsed, Some(&file));
-                        processor.write_to(parsed.document(), &mut writer, None)?;
-                    }
-                    Err(e) => return Err(e.into()),
-                }
-            }
-            drop(writer); // Flush and close stdin
-        }
-        // Wait for pager, ignore exit status (user may quit with 'q')
-        let _ = pager.wait()?;
+    // Try to spawn pager.
+    if let Some(pager) = spawn_pager(args.no_pager) {
+        run_terminal_through_pager(&processor, parse_results, pager)?;
     } else {
         // No pager - use convert() which writes to stdout
         for (file, parse_result) in parse_results {
             match parse_result {
                 Ok(parsed) => {
                     let parsed = report_warnings(parsed, Some(&file));
-                    processor.convert(parsed.document(), Some(&file))?;
+                    let result = processor.convert(parsed.document(), Some(&file))?;
+                    let (_, warnings) = result.into_parts();
+                    render_converter_warnings(warnings, Some(&file));
                 }
                 Err(e) => return Err(e.into()),
             }

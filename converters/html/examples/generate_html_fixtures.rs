@@ -30,7 +30,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     embedded,
                     ..RenderOptions::default()
                 };
-                processor.convert_to_writer(doc, output, &render_options)?;
+                let mut warnings = Vec::new();
+                let source = acdc_converters_core::WarningSource::new("html");
+                let mut diagnostics =
+                    acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+                processor.convert_to_writer(doc, output, &render_options, &mut diagnostics)?;
                 Ok(())
             })?;
     }

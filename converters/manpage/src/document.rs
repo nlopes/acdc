@@ -103,7 +103,7 @@ pub(crate) fn extract_plain_text(nodes: &[InlineNode]) -> String {
     result
 }
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit document start - generates the .TH header and preamble.
     ///
     /// Reads manpage attributes that were derived by the parser:

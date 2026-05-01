@@ -12,7 +12,7 @@ use acdc_parser::{
 
 use crate::{Error, ManpageVisitor};
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     fn with_list_scope(
         &mut self,
         title: &[InlineNode],

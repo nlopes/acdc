@@ -32,7 +32,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Diagnostics, Options, visitor::Visitor};
+
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
 
 mod admonition;
@@ -69,6 +70,7 @@ impl<'a> Processor<'a> {
         doc: &Document<'a>,
         writer: W,
         source_file: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
         let mut attrs: DocumentAttributes<'a> = doc.attributes.clone();
 
@@ -82,12 +84,11 @@ impl<'a> Processor<'a> {
         }
 
         let processor = Processor {
+            options: self.options.clone(),
             document_attributes: attrs,
-            ..self.clone()
         };
-        let mut visitor = ManpageVisitor::new(writer, processor);
-        visitor.visit_document(doc)?;
-        Ok(())
+        let mut visitor = ManpageVisitor::new(writer, processor, diagnostics.reborrow());
+        visitor.visit_document(doc)
     }
 
     /// Determine the output file extension based on the volume number.
@@ -155,8 +156,10 @@ impl<'a> Converter<'a> for Processor<'a> {
         doc: &Document<'a>,
         writer: W,
         source_file: Option<&Path>,
+        _output_path: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
-        self.write_document(doc, writer, source_file)
+        self.write_document(doc, writer, source_file, diagnostics)
     }
 
     fn name(&self) -> &'static str {

@@ -276,7 +276,7 @@ struct CurvedForm<'a> {
     literal: char,
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Internal implementation for visiting inline nodes.
     pub(crate) fn render_inline_node(
         &mut self,
@@ -553,18 +553,14 @@ impl<W: Write> HtmlVisitor<'_, W> {
     ) -> Result<(), Error> {
         // Warn about deprecated built-in roles.
         if let Some(role) = h.role {
-            for r in role.split_whitespace() {
-                match r {
-                    "big" => tracing::warn!(
-                        role = %r,
-                        "Role is deprecated. Consider using `+++<big>+++text+++</big>+++` or CSS font-size instead."
-                    ),
-                    "small" => tracing::warn!(
-                        role = %r,
-                        "Role is deprecated. Consider using `+++<small>+++text+++</small>+++` or CSS font-size instead."
-                    ),
-                    _ => {}
-                }
+            for r in role
+                .split_whitespace()
+                .filter(|r| matches!(*r, "big" | "small"))
+            {
+                self.diagnostics.warn_with_advice(
+                    format!("deprecated role `{r}`"),
+                    "Replace the deprecated built-in role with explicit passthrough markup or CSS.",
+                );
             }
         }
 
@@ -1187,7 +1183,7 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
         "substitution_text called with empty text - caller should filter empty content"
     );
     if text.is_empty() {
-        tracing::warn!(
+        tracing::debug!(
             "substitution_text called with empty text - caller should filter empty content"
         );
         return String::new();

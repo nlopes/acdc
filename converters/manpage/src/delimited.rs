@@ -13,7 +13,7 @@ use crate::{
     escape::{EscapeMode, manify},
 };
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a delimited block.
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
         // Handle title if present

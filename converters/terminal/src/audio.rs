@@ -9,7 +9,7 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_audio(&mut self, audio: &Audio) -> Result<(), Error> {
         let w = self.writer_mut();
         match &audio.source {

@@ -42,7 +42,7 @@ fn render_checked_status<W: Write + ?Sized>(
     Ok(())
 }
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render a title with italic styling.
     ///
     /// This helper function renders inline nodes to a buffer, converts to a string,
@@ -53,7 +53,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
             let processor = self.processor.clone();
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
-            let mut temp_visitor = TerminalVisitor::new(inner, processor);
+            let mut temp_visitor =
+                TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
             for node in title {
                 temp_visitor.visit_inline_node(node)?;
             }
@@ -256,7 +257,7 @@ impl<W: Write> TerminalVisitor<'_, W> {
         let processor = self.processor.clone();
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for node in &item.term {
             temp_visitor.visit_inline_node(node)?;
         }
@@ -302,7 +303,7 @@ impl<W: Write> TerminalVisitor<'_, W> {
         let processor = self.processor.clone();
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for node in &item.term {
             temp_visitor.visit_inline_node(node)?;
         }
@@ -350,7 +351,7 @@ impl<W: Write> TerminalVisitor<'_, W> {
         let processor = self.processor.clone();
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, processor);
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for node in &item.term {
             temp_visitor.visit_inline_node(node)?;
         }

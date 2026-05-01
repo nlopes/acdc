@@ -5,7 +5,7 @@ use acdc_parser::{Author, Header, inlines_to_string};
 
 use crate::{Error, HtmlVisitor};
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render header metadata for HTML head (<title> and <meta> tags)
     ///
     /// This generates HTML-specific metadata tags for the `<head>` element.

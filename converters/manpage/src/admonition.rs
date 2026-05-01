@@ -10,7 +10,7 @@ use acdc_parser::Admonition;
 
 use crate::{Error, ManpageVisitor};
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit an admonition block.
     pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
         let w = self.writer_mut();

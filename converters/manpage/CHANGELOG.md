@@ -16,6 +16,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- User-facing converter warnings are now collected in `ConversionResult` for
+  recoverable manpage convention issues, including NAME/SYNOPSIS section order.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 

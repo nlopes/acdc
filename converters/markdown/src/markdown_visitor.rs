@@ -2,8 +2,11 @@
 
 use std::io::Write;
 
-use acdc_converters_core::code::detect_language;
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Diagnostics,
+    code::detect_language,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
@@ -13,9 +16,11 @@ use acdc_parser::{
 use crate::{Error, MarkdownVariant, Processor};
 
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
-pub struct MarkdownVisitor<'a, W: Write> {
+pub struct MarkdownVisitor<'a, 'd, W: Write> {
     writer: W,
     pub(crate) processor: Processor<'a>,
+    /// Per-conversion diagnostics handle.
+    pub(crate) diagnostics: Diagnostics<'d>,
     /// Current heading level (for nested sections).
     pub(crate) heading_level: usize,
     /// Collected footnotes for rendering at document end.
@@ -24,12 +29,13 @@ pub struct MarkdownVisitor<'a, W: Write> {
     pub(crate) footnotes: Vec<(String, String)>,
 }
 
-impl<'a, W: Write> MarkdownVisitor<'a, W> {
+impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     /// Create a new Markdown visitor.
-    pub fn new(writer: W, processor: Processor<'a>) -> Self {
+    pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
             processor,
+            diagnostics,
             heading_level: 0,
             footnotes: Vec::new(),
         }
@@ -42,7 +48,10 @@ impl<'a, W: Write> MarkdownVisitor<'a, W> {
 
     /// Write a warning comment to the output for unsupported features.
     fn write_warning(&mut self, feature: &str, fallback: &str) -> Result<(), Error> {
-        tracing::warn!("Markdown does not support {feature}, using {fallback}");
+        self.diagnostics.warn_with_advice(
+            format!("{feature} not natively supported in Markdown, {fallback}"),
+            "Check whether the selected Markdown variant can represent this construct, or use a backend that preserves it.",
+        );
         // Markdown comments are not standard, but HTML comments work in most renderers
         writeln!(
             self.writer,
@@ -85,13 +94,13 @@ impl<'a, W: Write> MarkdownVisitor<'a, W> {
     }
 }
 
-impl<W: Write> WritableVisitor for MarkdownVisitor<'_, W> {
+impl<W: Write> WritableVisitor for MarkdownVisitor<'_, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }
 }
 
-impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
+impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
@@ -135,9 +144,12 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
         let level = level.min(6); // Markdown only supports 6 heading levels
 
         if section.level >= 6 {
-            tracing::warn!(
-                "Section level {} exceeds Markdown maximum (6), capping at level 6",
-                section.level + 1
+            self.diagnostics.warn_with_advice(
+                format!(
+                    "section level {} exceeds Markdown maximum 6, capping at level 6",
+                    section.level + 1
+                ),
+                "Markdown only has six heading levels. Reduce the source section depth if the distinction matters.",
             );
         }
 
@@ -301,7 +313,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
                 self.write_warning("STEM/math blocks", "skipping (use LaTeX-enabled renderer)")?;
             }
             _ => {
-                tracing::warn!("Unsupported delimited block type");
+                self.diagnostics
+                    .warn("unsupported delimited block type in Markdown, skipping content");
             }
         }
         Ok(())
@@ -500,7 +513,9 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
                 // Skip silently
             }
             _ => {
-                tracing::warn!(?node, "Unsupported inline node type");
+                self.diagnostics.warn(format!(
+                    "unsupported inline node in Markdown, skipping node: {node:?}"
+                ));
             }
         }
         Ok(())
@@ -512,7 +527,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, W> {
     }
 }
 
-impl<W: Write> MarkdownVisitor<'_, W> {
+impl<W: Write> MarkdownVisitor<'_, '_, W> {
     /// Write code block content as raw text (no inline formatting).
     fn write_code_block_content(&mut self, content: &[InlineNode]) -> Result<(), Error> {
         for node in content {
@@ -597,6 +612,7 @@ impl<W: Write> MarkdownVisitor<'_, W> {
                             let mut tmp = MarkdownVisitor {
                                 writer: &mut buffer,
                                 processor: self.processor.clone(),
+                                diagnostics: self.diagnostics.reborrow(),
                                 heading_level: self.heading_level,
                                 footnotes: Vec::new(),
                             };
@@ -651,7 +667,9 @@ impl<W: Write> MarkdownVisitor<'_, W> {
             | InlineMacro::Stem(_)
             | InlineMacro::IndexTerm(_)
             | _ => {
-                tracing::warn!("Unsupported inline macro type");
+                self.diagnostics.warn(format!(
+                    "unsupported inline macro in Markdown, skipping macro: {mac:?}"
+                ));
             }
         }
         Ok(())

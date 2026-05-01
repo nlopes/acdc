@@ -9,7 +9,7 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
         if video.sources.is_empty() {
             return Ok(());

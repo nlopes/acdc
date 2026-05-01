@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- User-facing converter warnings are now collected in `ConversionResult` for
+  recoverable Markdown conversion fallbacks such as skipped unsupported blocks,
+  unsupported inline constructs, and capped heading levels.
 - **`MarkdownVariant` enum** (`CommonMark` / `GitHubFlavored`) with `FromStr`
   and `Display`. `Processor::new` defaults to `GitHubFlavored`; use
   `Processor::with_variant` for another flavour.

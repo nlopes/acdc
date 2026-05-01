@@ -2,7 +2,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Diagnostics,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
     Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
@@ -14,9 +17,11 @@ use crate::escape::{EscapeMode, manify};
 use crate::{Error, Processor};
 
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
-pub struct ManpageVisitor<'a, W: Write> {
-    writer: W,
+pub struct ManpageVisitor<'a, 'd, W: Write> {
+    pub(crate) writer: W,
     pub(crate) processor: Processor<'a>,
+    /// Per-conversion diagnostics handle.
+    pub(crate) diagnostics: Diagnostics<'d>,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
     /// Whether we're currently in the NAME section (which shouldn't have .sp before content).
@@ -33,12 +38,13 @@ pub struct ManpageVisitor<'a, W: Write> {
     second_section_title: Option<String>,
 }
 
-impl<'a, W: Write> ManpageVisitor<'a, W> {
+impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Create a new manpage visitor.
-    pub fn new(writer: W, processor: Processor<'a>) -> Self {
+    pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
             processor,
+            diagnostics,
             list_depth: 0,
             in_name_section: false,
             strip_next_leading_space: false,
@@ -77,12 +83,13 @@ impl<'a, W: Write> ManpageVisitor<'a, W> {
     /// - The number of fully consumed nodes to skip
     /// - The number of bytes consumed from a partially consumed `PlainText` (0 if none)
     fn collect_trailing_for_mailto(
-        &self,
+        &mut self,
         nodes: &[InlineNode],
     ) -> Result<(String, usize, usize), Error> {
         let mut buf = Vec::new();
         let processor = self.processor.clone();
-        let mut trailing_visitor = ManpageVisitor::new(&mut buf, processor);
+        let mut trailing_visitor =
+            ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
         let mut skip_count = 0;
         let mut partial_bytes = 0;
 
@@ -137,7 +144,7 @@ impl<'a, W: Write> ManpageVisitor<'a, W> {
     }
 }
 
-impl<W: Write> Visitor for ManpageVisitor<'_, W> {
+impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
@@ -193,20 +200,25 @@ impl<W: Write> Visitor for ManpageVisitor<'_, W> {
 
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
         // Validate manpage section order conventions
+        const SECTION_ORDER_ADVICE: &str =
+            "Manpage output conventionally starts with NAME followed by SYNOPSIS.";
+
         if let Some(ref first) = self.first_section_title
             && !first.eq_ignore_ascii_case("NAME")
         {
-            tracing::warn!(
-                first_section = %first,
-                "manpage convention: NAME should be the first section"
+            self.diagnostics.warn_with_advice(
+                format!("manpage convention: NAME should be the first section, got `{first}`"),
+                SECTION_ORDER_ADVICE,
             );
         }
         if let Some(ref second) = self.second_section_title
             && !second.eq_ignore_ascii_case("SYNOPSIS")
         {
-            tracing::warn!(
-                second_section = %second,
-                "manpage convention: SYNOPSIS should be the second section"
+            self.diagnostics.warn_with_advice(
+                format!(
+                    "manpage convention: SYNOPSIS should be the second section, got `{second}`"
+                ),
+                SECTION_ORDER_ADVICE,
             );
         }
         Ok(())
@@ -409,7 +421,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, W> {
     }
 }
 
-impl<W: Write> WritableVisitor for ManpageVisitor<'_, W> {
+impl<W: Write> WritableVisitor for ManpageVisitor<'_, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

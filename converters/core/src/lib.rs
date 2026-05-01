@@ -32,6 +32,7 @@
 use std::{
     borrow::Cow,
     path::{Path, PathBuf},
+    time::Instant,
 };
 
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
@@ -46,8 +47,10 @@ pub mod table;
 pub mod toc;
 pub mod video;
 pub mod visitor;
+mod warning;
 
 pub use doctype::Doctype;
+pub use warning::{Diagnostics, Warning, WarningSource};
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
 ///
@@ -143,42 +146,42 @@ pub fn default_rendering_attributes() -> DocumentAttributes<'static> {
 
     // HTML lang attribute (default: "en")
     attrs.set(
-        std::borrow::Cow::Borrowed("lang"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("en")),
+        Cow::Borrowed("lang"),
+        AttributeValue::String(Cow::Borrowed("en")),
     );
 
     // Admonition captions (capitalized to match asciidoctor)
     attrs.set(
-        std::borrow::Cow::Borrowed("note-caption"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("Note")),
+        Cow::Borrowed("note-caption"),
+        AttributeValue::String(Cow::Borrowed("Note")),
     );
     attrs.set(
-        std::borrow::Cow::Borrowed("tip-caption"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("Tip")),
+        Cow::Borrowed("tip-caption"),
+        AttributeValue::String(Cow::Borrowed("Tip")),
     );
     attrs.set(
-        std::borrow::Cow::Borrowed("important-caption"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("Important")),
+        Cow::Borrowed("important-caption"),
+        AttributeValue::String(Cow::Borrowed("Important")),
     );
     attrs.set(
-        std::borrow::Cow::Borrowed("warning-caption"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("Warning")),
+        Cow::Borrowed("warning-caption"),
+        AttributeValue::String(Cow::Borrowed("Warning")),
     );
     attrs.set(
-        std::borrow::Cow::Borrowed("caution-caption"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("Caution")),
+        Cow::Borrowed("caution-caption"),
+        AttributeValue::String(Cow::Borrowed("Caution")),
     );
 
     // TOC levels (only used when :toc: is set)
     attrs.set(
-        std::borrow::Cow::Borrowed("toclevels"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("2")),
+        Cow::Borrowed("toclevels"),
+        AttributeValue::String(Cow::Borrowed("2")),
     );
 
     // Section numbering levels (for future section numbering feature)
     attrs.set(
-        std::borrow::Cow::Borrowed("sectnumlevels"),
-        AttributeValue::String(std::borrow::Cow::Borrowed("3")),
+        Cow::Borrowed("sectnumlevels"),
+        AttributeValue::String(Cow::Borrowed("3")),
     );
 
     // NOTE: :toc: is intentionally NOT set - TOC should only appear when explicitly requested
@@ -207,24 +210,33 @@ pub enum OutputDestination {
 }
 
 /// Result metadata for a completed conversion.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+///
+/// Not `Clone` / `Eq`: `Warning` carries a `SourceLocation` from `acdc-parser`
+/// which is intentionally non-cloneable. If you need to inspect both warnings
+/// and the output path, destructure with [`Self::into_parts`].
+#[derive(Debug, Default, PartialEq)]
 #[non_exhaustive]
 pub struct ConversionResult {
     output_path: Option<PathBuf>,
+    warnings: Vec<Warning>,
 }
 
 impl ConversionResult {
     /// Conversion wrote to stdout or another non-file destination.
     #[must_use]
-    pub fn stdout() -> Self {
-        Self { output_path: None }
+    pub fn stdout(warnings: Vec<Warning>) -> Self {
+        Self {
+            output_path: None,
+            warnings,
+        }
     }
 
     /// Conversion wrote to a file at `path`.
     #[must_use]
-    pub fn file(path: PathBuf) -> Self {
+    pub fn file(path: PathBuf, warnings: Vec<Warning>) -> Self {
         Self {
             output_path: Some(path),
+            warnings,
         }
     }
 
@@ -232,6 +244,18 @@ impl ConversionResult {
     #[must_use]
     pub fn output_path(&self) -> Option<&Path> {
         self.output_path.as_deref()
+    }
+
+    /// Borrow collected converter warnings.
+    #[must_use]
+    pub fn warnings(&self) -> &[Warning] {
+        &self.warnings
+    }
+
+    /// Consume the result, returning `(output_path, warnings)`.
+    #[must_use]
+    pub fn into_parts(self) -> (Option<PathBuf>, Vec<Warning>) {
+        (self.output_path, self.warnings)
     }
 
     /// Consume the result and return the file path written by this conversion, if any.
@@ -559,20 +583,26 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if the derived output path is invalid (e.g., same as input).
     fn derive_output_path(
         &self,
-        input: &std::path::Path,
+        input: &Path,
         doc: &acdc_parser::Document<'a>,
-    ) -> Result<Option<std::path::PathBuf>, Self::Error>;
+    ) -> Result<Option<PathBuf>, Self::Error>;
 
-    /// Core conversion: write the document to any writer.
+    /// Convert the document and produce all output for one conversion.
     ///
-    /// This is the only method converters MUST implement with real conversion logic.
-    /// All other output methods delegate to this.
+    /// Writes the primary serialized form into `writer`. When `output_path` is
+    /// `Some`, the conversion is bound to that file path: backends that produce
+    /// companion artifacts on disk (for example HTML's stylesheet sidecar) use
+    /// it as the anchor for their dest directory. When `output_path` is `None`,
+    /// the conversion is going to stdout or an in-memory buffer and no
+    /// file-adjacent side effects happen.
     ///
     /// # Arguments
     ///
-    /// * `doc` - The parsed document
-    /// * `writer` - Any type implementing `Write`
-    /// * `source_file` - Optional source file path (for metadata, last modified, etc.)
+    /// * `doc` - The parsed document.
+    /// * `writer` - Where the primary output goes.
+    /// * `source_file` - Optional source path (for metadata such as last-modified).
+    /// * `output_path` - Optional destination path on disk for the primary output.
+    /// * `diagnostics` - Per-conversion diagnostics handle (source tag + sink).
     ///
     /// # Errors
     ///
@@ -581,14 +611,10 @@ pub trait Converter<'a>: Sized {
         &self,
         doc: &acdc_parser::Document<'a>,
         writer: W,
-        source_file: Option<&std::path::Path>,
+        source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error>;
-
-    /// Post-processing after successful file write.
-    ///
-    /// Override for converter-specific cleanup (e.g., CSS copying for HTML).
-    /// Default implementation does nothing.
-    fn after_write(&self, _doc: &acdc_parser::Document<'a>, _output_path: &std::path::Path) {}
 
     /// Returns the converter's display name (e.g. `"html"`, `"html5s"`,
     /// `"manpage"`, `"markdown"`, `"terminal"`).
@@ -600,6 +626,17 @@ pub trait Converter<'a>: Sized {
     #[must_use]
     fn name(&self) -> &'static str;
 
+    /// Tag used on warnings emitted by this converter.
+    ///
+    /// The default uses [`Self::name`] verbatim, which suits backends with a
+    /// single output flavour (manpage, terminal). Backends with variants
+    /// (html standard/semantic, markdown commonmark/gfm) override this to
+    /// split the variant out into [`WarningSource::variant`].
+    #[must_use]
+    fn warning_source(&self) -> WarningSource {
+        WarningSource::new(self.name())
+    }
+
     /// Convert to stdout.
     ///
     /// # Errors
@@ -608,11 +645,20 @@ pub trait Converter<'a>: Sized {
     fn convert_to_stdout(
         &self,
         doc: &acdc_parser::Document<'a>,
-        source_file: Option<&std::path::Path>,
+        source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         let stdout = std::io::stdout();
-        self.write_to(doc, std::io::BufWriter::new(stdout.lock()), source_file)?;
-        Ok(ConversionResult::stdout())
+        let source = self.warning_source();
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        self.write_to(
+            doc,
+            std::io::BufWriter::new(stdout.lock()),
+            source_file,
+            None,
+            &mut diagnostics,
+        )?;
+        Ok(ConversionResult::stdout(warnings))
     }
 
     /// Convert to a specific file path.
@@ -625,10 +671,10 @@ pub trait Converter<'a>: Sized {
     fn convert_to_file(
         &self,
         doc: &acdc_parser::Document<'a>,
-        source_file: Option<&std::path::Path>,
-        output_path: &std::path::Path,
+        source_file: Option<&Path>,
+        output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {
-        let start = self.options().timings().then(std::time::Instant::now);
+        let start = self.options().timings().then(Instant::now);
 
         if let Some(f) = source_file.filter(|_| self.options().timings()) {
             println!("Input file: {}", f.display());
@@ -645,7 +691,16 @@ pub trait Converter<'a>: Sized {
             std::fs::create_dir_all(parent)?;
         }
         let file = std::fs::File::create(output_path)?;
-        self.write_to(doc, std::io::BufWriter::new(file), source_file)?;
+        let source = self.warning_source();
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        self.write_to(
+            doc,
+            std::io::BufWriter::new(file),
+            source_file,
+            Some(output_path),
+            &mut diagnostics,
+        )?;
 
         if let Some(start) = start {
             let elapsed = start.elapsed();
@@ -659,9 +714,7 @@ pub trait Converter<'a>: Sized {
         }
 
         println!("Generated {} file: {}", self.name(), output_path.display());
-
-        self.after_write(doc, output_path);
-        Ok(ConversionResult::file(output_path.to_path_buf()))
+        Ok(ConversionResult::file(output_path.to_path_buf(), warnings))
     }
 
     /// Main entry point: route based on [`OutputDestination`].
@@ -677,7 +730,7 @@ pub trait Converter<'a>: Sized {
     fn convert(
         &self,
         doc: &acdc_parser::Document<'a>,
-        source_file: Option<&std::path::Path>,
+        source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         match self.options().output_destination() {
             OutputDestination::Stdout => self.convert_to_stdout(doc, source_file),

@@ -9,7 +9,7 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Visit an admonition block (NOTE, TIP, IMPORTANT, WARNING, CAUTION).
     ///
     /// Renders with bold caption and left border.
@@ -74,7 +74,11 @@ impl<W: Write> TerminalVisitor<'_, W> {
             write!(w, " ")?;
             let mut title_buffer = Vec::new();
             let title_processor = processor.clone();
-            let mut title_visitor = TerminalVisitor::new(&mut title_buffer, title_processor);
+            let mut title_visitor = TerminalVisitor::new(
+                &mut title_buffer,
+                title_processor,
+                self.diagnostics.reborrow(),
+            );
             title_visitor.visit_inline_nodes(&admon.title)?;
 
             let title_text = String::from_utf8_lossy(&title_buffer);
@@ -86,7 +90,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
         for block in &admon.blocks {
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
-            let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+            let mut temp_visitor =
+                TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
             temp_visitor.visit_block(block)?;
 
             let buffer = temp_visitor

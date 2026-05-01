@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- User-facing converter warnings are now collected in `ConversionResult` for
+  recoverable terminal conversion issues such as image display failures and
+  unsupported delimited block fallbacks.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 

@@ -16,7 +16,7 @@ use crate::{
     escape::{EscapeMode, manify},
 };
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit an inline node.
     pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), Error> {
         match node {
@@ -151,7 +151,8 @@ impl<W: Write> ManpageVisitor<'_, W> {
         } else {
             let mut buf = Vec::new();
             let processor = self.processor.clone();
-            let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
+            let mut text_visitor =
+                ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
             text_visitor.visit_inline_nodes(&link.text)?;
             String::from_utf8_lossy(&buf).trim().to_string()
         };
@@ -187,7 +188,8 @@ impl<W: Write> ManpageVisitor<'_, W> {
         } else {
             let mut buf = Vec::new();
             let processor = self.processor.clone();
-            let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
+            let mut text_visitor =
+                ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
             text_visitor.visit_inline_nodes(&mailto.text)?;
             String::from_utf8_lossy(&buf).trim().to_string()
         };
@@ -281,7 +283,8 @@ impl<W: Write> ManpageVisitor<'_, W> {
                     // Render text to a buffer for the .URL macro
                     let mut buf = Vec::new();
                     let processor = self.processor.clone();
-                    let mut text_visitor = ManpageVisitor::new(&mut buf, processor);
+                    let mut text_visitor =
+                        ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
                     text_visitor.visit_inline_nodes(&url.text)?;
                     let display_text = String::from_utf8_lossy(&buf).trim().to_string();
                     let w = self.writer_mut();

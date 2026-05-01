@@ -5,7 +5,7 @@ use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
         let processor = self.processor.clone();
 

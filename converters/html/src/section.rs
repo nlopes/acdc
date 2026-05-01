@@ -5,7 +5,7 @@ use acdc_parser::{DiscreteHeader, Section, UNNUMBERED_SECTION_STYLES};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Visit a section using the visitor pattern
     ///
     /// Renders the section header, walks nested blocks, then renders footer.

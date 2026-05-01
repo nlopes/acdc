@@ -6,7 +6,7 @@ use acdc_parser::{AttributeValue, Paragraph};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_attribution, write_id};
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render a paragraph to HTML.
     ///
     /// This is called from the `HtmlVisitor` trait implementation.

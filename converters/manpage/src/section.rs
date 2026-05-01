@@ -13,7 +13,7 @@ use crate::{
     escape::{escape_quoted, uppercase_title},
 };
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a section and its content.
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
         let title_text = extract_plain_text(&section.title);

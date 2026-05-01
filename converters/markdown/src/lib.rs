@@ -47,7 +47,7 @@
 //! - **Complex tables** - GFM tables are simpler than `AsciiDoc` tables
 //!
 //! When unsupported features are encountered, the converter will:
-//! - Emit a warning to stderr via `tracing::warn!`
+//! - Collect a structured converter warning
 //! - Provide a reasonable fallback (e.g., blockquote for admonitions)
 //! - Preserve content as appropriate (e.g., raw text, URL/path)
 
@@ -56,7 +56,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource, visitor::Visitor};
 use acdc_parser::{Document, DocumentAttributes};
 
 mod error;
@@ -93,12 +93,20 @@ impl std::str::FromStr for MarkdownVariant {
     }
 }
 
+impl MarkdownVariant {
+    /// Lower-case static name for this variant (`"commonmark"` / `"gfm"`).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::CommonMark => "commonmark",
+            Self::GitHubFlavored => "gfm",
+        }
+    }
+}
+
 impl std::fmt::Display for MarkdownVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::CommonMark => f.write_str("commonmark"),
-            Self::GitHubFlavored => f.write_str("gfm"),
-        }
+        f.write_str(self.as_str())
     }
 }
 
@@ -162,19 +170,24 @@ impl<'a> Converter<'a> for Processor<'a> {
         doc: &Document<'a>,
         writer: W,
         _source_file: Option<&Path>,
+        _output_path: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         let processor = Processor {
             options: self.options.clone(),
             document_attributes: doc.attributes.clone(),
             variant: self.variant,
         };
-        let mut visitor = MarkdownVisitor::new(writer, processor);
-        visitor.visit_document(doc)?;
-        Ok(())
+        let mut visitor = MarkdownVisitor::new(writer, processor, diagnostics.reborrow());
+        visitor.visit_document(doc)
     }
 
     fn name(&self) -> &'static str {
         "markdown"
+    }
+
+    fn warning_source(&self) -> WarningSource {
+        WarningSource::new("markdown").with_variant(self.variant.as_str())
     }
 }
 

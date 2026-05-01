@@ -7,6 +7,10 @@ use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
+fn temp_output_path(name: &str, extension: &str) -> PathBuf {
+    std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
+}
+
 /// Parses the input `.adoc` file, converts to Markdown (GFM), and compares with expected output.
 /// Excludes commonmark_* files which have their own test function.
 #[rstest::rstest]
@@ -40,7 +44,10 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .build();
     let processor = Processor::new(converter_options, doc.attributes.to_static())
         .with_variant(MarkdownVariant::GitHubFlavored);
-    processor.write_to(doc, &mut output, Some(&path))?;
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("markdown");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -87,7 +94,10 @@ fn test_commonmark_variant(
         .build();
     let processor = Processor::new(converter_options, doc.attributes.to_static())
         .with_variant(MarkdownVariant::CommonMark);
-    processor.write_to(doc, &mut output, Some(&path))?;
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("markdown");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
     let expected = std::fs::read_to_string(&expected_path)?;
@@ -102,5 +112,26 @@ fn test_commonmark_variant(
         actual_normalized,
         "CommonMark output mismatch for fixture: {file_name}",
     );
+    Ok(())
+}
+
+#[test]
+fn unsupported_block_warning_is_returned_in_conversion_result() -> Result<(), Error> {
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse("++++\n<p>raw</p>\n++++\n", &parser_options)?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static());
+    let output_path = temp_output_path("markdown-warning", "md");
+
+    let result = processor.convert_to_file(doc, None, &output_path)?;
+    let _ = std::fs::remove_file(&output_path);
+
+    assert!(result.warnings().iter().any(|warning| {
+        warning.source.converter == "markdown"
+            && warning
+                .message
+                .contains("passthrough blocks not natively supported")
+    }));
     Ok(())
 }

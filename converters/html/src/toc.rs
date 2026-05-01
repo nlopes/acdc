@@ -145,7 +145,7 @@ fn compute_toc_section_numbers(
 /// when pre-part sections exist before the first level-0 section.
 fn render_entries<W: Write>(
     entries: &[TocEntry],
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
     config: &TocRenderConfig,
     current_level: u8,
     base_index: usize,
@@ -292,7 +292,7 @@ fn section_number_config<'p>(processor: &'p crate::Processor<'_>) -> SectionNumb
     }
 }
 
-impl<W: Write> HtmlVisitor<'_, W> {
+impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_toc(
         &mut self,
         toc_macro: Option<&TableOfContents>,

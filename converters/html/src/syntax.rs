@@ -19,6 +19,8 @@
 use std::{collections::HashMap, io::Write};
 
 #[cfg(feature = "highlighting")]
+use acdc_converters_core::Diagnostics;
+#[cfg(feature = "highlighting")]
 use acdc_parser::InlineNode;
 
 #[cfg(feature = "highlighting")]
@@ -65,8 +67,9 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     language: &str,
     theme_name: &str,
     mode: HighlightMode,
+    diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
-    let (code, callouts) = extract_text_and_callouts(inlines);
+    let (code, callouts) = extract_text_and_callouts(inlines, diagnostics);
     let syntax_set = syntect::parsing::SyntaxSet::load_defaults_newlines();
 
     let syntax = syntax_set
@@ -251,7 +254,7 @@ fn write_escaped_code_with_callouts<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
 ) -> Result<(), Error> {
-    let (code, callouts) = extract_text_and_callouts(inlines);
+    let (code, callouts) = extract_text_and_callouts(inlines, None);
 
     if callouts.is_empty() {
         let escaped = html_escape(&code);
@@ -279,7 +282,10 @@ fn write_escaped_code_with_callouts<W: Write + ?Sized>(
 /// Returns the code text (without callout markers) and a map of line numbers
 /// to callout numbers.
 #[cfg(feature = "highlighting")]
-fn extract_text_and_callouts(inlines: &[InlineNode]) -> (String, HashMap<usize, usize>) {
+fn extract_text_and_callouts(
+    inlines: &[InlineNode],
+    mut diagnostics: Option<&mut Diagnostics<'_>>,
+) -> (String, HashMap<usize, usize>) {
     let mut result = String::new();
     let mut callouts: HashMap<usize, usize> = HashMap::new();
     let mut current_line = 0;
@@ -330,10 +336,11 @@ fn extract_text_and_callouts(inlines: &[InlineNode]) -> (String, HashMap<usize, 
             | InlineNode::InlineAnchor(_)
             | InlineNode::Macro(_) => {}
             node => {
-                tracing::warn!(
-                    ?node,
-                    "this type of node is not yet implemented for code highlighting"
-                );
+                if let Some(diagnostics) = diagnostics.as_deref_mut() {
+                    diagnostics.warn(format!(
+                        "unsupported inline node in highlighted code, skipping node: {node:?}"
+                    ));
+                }
             }
         }
     }
@@ -363,7 +370,7 @@ mod tests {
     #[test]
     fn test_extract_text_and_callouts_from_verbatim() {
         let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
-        let (text, callouts) = extract_text_and_callouts(&inlines);
+        let (text, callouts) = extract_text_and_callouts(&inlines, None);
         assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
         assert!(callouts.is_empty());
     }
@@ -387,7 +394,7 @@ mod tests {
             }),
         ];
 
-        let (text, callouts) = extract_text_and_callouts(&inlines);
+        let (text, callouts) = extract_text_and_callouts(&inlines, None);
         assert_eq!(text, "let x = 1; \nlet y = 2; \n");
         assert_eq!(callouts.get(&0), Some(&1));
         assert_eq!(callouts.get(&1), Some(&2));
@@ -417,6 +424,7 @@ mod tests {
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Inline,
+            None,
         )?;
 
         let html = String::from_utf8(buffer).expect("valid utf8");
@@ -449,6 +457,7 @@ mod tests {
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Inline,
+            None,
         )?;
 
         let html = String::from_utf8(buffer).expect("valid utf8");
@@ -473,6 +482,7 @@ mod tests {
             "unknown_lang_xyz",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Inline,
+            None,
         )?;
 
         assert!(
@@ -499,6 +509,7 @@ mod tests {
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Class,
+            None,
         )?;
 
         let html = String::from_utf8(buffer).expect("valid utf8");
@@ -536,6 +547,7 @@ mod tests {
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Class,
+            None,
         )?;
 
         let html = String::from_utf8(buffer).expect("valid utf8");

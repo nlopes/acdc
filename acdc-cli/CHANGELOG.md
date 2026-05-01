@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Terminal backend warnings are now visible. Parser and converter warnings
+  emitted during a `--backend terminal` run with a pager were previously
+  written to stderr before the pager took over the screen, leaving them
+  visually buried. They are now deferred until after the pager exits, and the
+  no-pager terminal path also renders converter warnings (previously dropped
+  alongside the discarded `ConversionResult`).
+
 ### Added
 
+- Converter warnings are now rendered on stderr with the same miette warning
+  styling used for parser warnings.
 - `convert --open` now opens converter-reported output files, including
   volume-aware manpage outputs such as `cmd.1` and `cmd.7`.
 - **`--variant` flag for `convert`** — pick a backend-specific output style.

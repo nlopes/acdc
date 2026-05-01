@@ -235,7 +235,7 @@ fn render_inline_node_to_writer<W: Write>(
     Ok(())
 }
 
-impl<W: Write> crate::TerminalVisitor<'_, W> {
+impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     /// Internal implementation for visiting inline nodes
     pub(crate) fn render_inline_node(
         &mut self,
@@ -645,7 +645,10 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = TerminalVisitor::new(buffer, processor);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
         visitor.visit_paragraph(&paragraph)?;
         let output = visitor.into_writer();
 

@@ -11,7 +11,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     FixtureGenerator::new("terminal", "txt").generate(|_subdir, doc, output| {
         let processor =
             Processor::new(Options::default(), doc.attributes.clone()).with_terminal_width(80);
-        processor.write_to(doc, output, None)?;
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(doc, output, None, None, &mut diagnostics)?;
         Ok(())
     })
 }

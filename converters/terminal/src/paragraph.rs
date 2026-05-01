@@ -13,7 +13,7 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Visit a paragraph, handling styled paragraphs (quote, verse, literal).
     pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
         // Check for styled paragraphs
@@ -44,7 +44,8 @@ impl<W: Write> TerminalVisitor<'_, W> {
         // Render content to temporary buffer for processing
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor = TerminalVisitor::new(inner, self.processor.clone());
+        let mut temp_visitor =
+            TerminalVisitor::new(inner, self.processor.clone(), self.diagnostics.reborrow());
 
         temp_visitor.visit_inline_nodes(&para.content)?;
 

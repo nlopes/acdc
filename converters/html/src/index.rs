@@ -119,7 +119,7 @@ fn render_links(anchors: &[String]) -> String {
 /// This generates nested definition lists organized alphabetically by first letter.
 pub(crate) fn render<W: Write>(
     _section: &Section,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor.clone();
     let entries = processor.index_entries().borrow();

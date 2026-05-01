@@ -9,11 +9,11 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, W> {
+impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_image(&mut self, img: &Image) -> Result<(), Error> {
-        let w = self.writer_mut();
         match &img.source {
             Source::Url(url) => {
+                let w = self.writer_mut();
                 w.queue(PrintStyledContent(format!("[Image: {url}]").italic()))?;
             }
             Source::Path(path) => {
@@ -21,21 +21,25 @@ impl<W: Write> TerminalVisitor<'_, W> {
                 {
                     // Keep this flush else the image will render before any text in the
                     // buffer.
-                    w.flush()?;
+                    self.writer_mut().flush()?;
                     let conf = viuer::Config::default();
-                    viuer::print_from_file(path, &conf).unwrap_or_else(|e| {
-                        tracing::warn!(?path, ?e, "Failed to display image");
-                        (0, 0)
-                    });
-                    w.flush()?;
+                    if viuer::print_from_file(path, &conf).is_err() {
+                        self.diagnostics.warn_with_advice(
+                            format!("failed to display image `{}`", path.display()),
+                            "Verify the image path is relative to the input document and that the terminal image feature can load it.",
+                        );
+                    }
+                    self.writer_mut().flush()?;
                 }
                 #[cfg(not(feature = "images"))]
                 {
                     let display = path.display();
+                    let w = self.writer_mut();
                     w.queue(PrintStyledContent(format!("[Image: {display}]").italic()))?;
                 }
             }
             Source::Name(name) => {
+                let w = self.writer_mut();
                 w.queue(PrintStyledContent(format!("[Image: {name}]").italic()))?;
             }
         }

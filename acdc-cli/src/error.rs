@@ -6,7 +6,8 @@
 
 use std::{path::Path, process::exit};
 
-use acdc_parser::{SourceLocation, Warning};
+use acdc_converters_core::Warning as ConverterWarning;
+use acdc_parser::{SourceLocation, Warning as ParserWarning};
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 
 /// Rich error wrapper for beautiful miette display with source code
@@ -37,7 +38,7 @@ pub(crate) struct RichWarning {
     message: String,
 
     #[help]
-    advice: Option<&'static str>,
+    advice: Option<String>,
 
     #[source_code]
     src: NamedSource<String>,
@@ -56,7 +57,7 @@ pub(crate) struct PlainWarning {
     message: String,
 
     #[help]
-    advice: Option<&'static str>,
+    advice: Option<String>,
 }
 
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
@@ -114,30 +115,27 @@ fn calculate_offset_from_position(source: &str, line: usize, column: usize) -> u
     source.len().saturating_sub(1)
 }
 
-/// Render a parser `Warning` as a miette `Report` with the same rich source-snippet
-/// treatment the error path gets. Falls back to a source-less `PlainWarning` when the
-/// warning has no location (e.g. preprocessor safe-mode warnings) or when the referenced
-/// file can't be read.
+/// Build a miette `Report` from extracted warning fields.
 ///
-/// When the warning's `SourceLocation` has no file path attached, the caller's
-/// `fallback_file` (typically the file being converted) is used so the snippet still
-/// shows the right source. Pass `None` for stdin input.
-pub(crate) fn display_warning(warning: &Warning, fallback_file: Option<&Path>) -> Report {
-    let message = warning.kind.to_string();
-    let advice = warning.advice();
-
-    let rich = warning.source_location().and_then(|source_location| {
-        // Prefer the file attached to the warning; fall back to the file the caller is
-        // processing. Preprocessor warnings usually carry their own file; grammar
-        // warnings often rely on the fallback (they only know `current_file` when
-        // explicitly set).
-        let path = source_location.file.as_deref().or(fallback_file)?;
+/// Tries to load the referenced source file and produce a `RichWarning` with a
+/// span/snippet; falls back to a source-less `PlainWarning` when the warning has
+/// no location, no file path, or the file can't be read. `fallback_file`
+/// (typically the file being processed) is used when the warning's own
+/// `SourceLocation` has no path; pass `None` for stdin input.
+fn build_warning_report(
+    message: String,
+    advice: Option<String>,
+    location: Option<&SourceLocation>,
+    fallback_file: Option<&Path>,
+) -> Report {
+    let rich = location.and_then(|loc| {
+        let path = loc.file.as_deref().or(fallback_file)?;
         let source_str = std::fs::read_to_string(path).ok()?;
-        let span = source_span_from_source_location(source_location, &source_str);
-        let (line, column) = positioning_line_column(&source_location.positioning);
+        let span = source_span_from_source_location(loc, &source_str);
+        let (line, column) = positioning_line_column(&loc.positioning);
         Some(RichWarning {
             message: message.clone(),
-            advice,
+            advice: advice.clone(),
             src: NamedSource::new(path.display().to_string(), source_str),
             span,
             position_advice: format!("warning occurred here (line {line}, column {column})"),
@@ -148,6 +146,32 @@ pub(crate) fn display_warning(warning: &Warning, fallback_file: Option<&Path>) -
         Some(rich) => Report::new(rich),
         None => Report::new(PlainWarning { message, advice }),
     }
+}
+
+/// Render a parser warning as a miette `Report`.
+pub(crate) fn parser_warning_report(
+    warning: &ParserWarning,
+    fallback_file: Option<&Path>,
+) -> Report {
+    build_warning_report(
+        warning.kind.to_string(),
+        warning.advice().map(str::to_string),
+        warning.source_location(),
+        fallback_file,
+    )
+}
+
+/// Render a converter warning as a miette `Report`.
+pub(crate) fn converter_warning_report(
+    warning: &ConverterWarning,
+    fallback_file: Option<&Path>,
+) -> Report {
+    build_warning_report(
+        warning.to_string(),
+        warning.advice().map(str::to_string),
+        warning.source_location(),
+        fallback_file,
+    )
 }
 
 pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {

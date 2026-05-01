@@ -13,7 +13,7 @@ use crate::{
     escape::{EscapeMode, manify},
 };
 
-impl<W: Write> ManpageVisitor<'_, W> {
+impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a paragraph, handling styled paragraphs (quote, verse, literal).
     pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
         // Check for styled paragraphs

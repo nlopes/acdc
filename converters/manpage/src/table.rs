@@ -6,6 +6,7 @@
 
 use std::io::Write;
 
+use acdc_converters_core::Diagnostics;
 use acdc_converters_core::table::{CellKind, GridRow, build_grid, determine_column_count};
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{DelimitedBlock, HorizontalAlignment, Table, TableColumn};
@@ -48,14 +49,18 @@ fn format_entry(
 }
 
 /// Render a data row from the grid, producing a colon-separated string.
-fn render_grid_row(grid_row: &GridRow<'_>, processor: &Processor<'_>) -> Result<String, Error> {
+fn render_grid_row(
+    grid_row: &GridRow<'_>,
+    processor: &Processor<'_>,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<String, Error> {
     let mut data_cells = Vec::with_capacity(grid_row.cells.len());
 
     for kind in &grid_row.cells {
         match kind {
             CellKind::Content { cell_index } => {
                 if let Some(cell) = grid_row.ast_row.columns.get(*cell_index) {
-                    data_cells.push(format_cell_with_inlines(cell, processor)?);
+                    data_cells.push(format_cell_with_inlines(cell, processor, diagnostics)?);
                 } else {
                     data_cells.push(String::new());
                 }
@@ -77,7 +82,7 @@ fn render_grid_row(grid_row: &GridRow<'_>, processor: &Processor<'_>) -> Result<
 pub(crate) fn visit_table<W: Write>(
     table: &Table,
     _block: &DelimitedBlock,
-    visitor: &mut ManpageVisitor<'_, W>,
+    visitor: &mut ManpageVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor.clone();
 
@@ -113,7 +118,7 @@ pub(crate) fn visit_table<W: Write>(
     // Pre-render all data rows
     let data_rows: Vec<String> = grid
         .iter()
-        .map(|row| render_grid_row(row, &processor))
+        .map(|row| render_grid_row(row, &processor, &mut visitor.diagnostics))
         .collect::<Result<Vec<_>, _>>()?;
 
     // Write output
@@ -144,9 +149,10 @@ pub(crate) fn visit_table<W: Write>(
 fn format_cell_with_inlines(
     cell: &TableColumn,
     processor: &Processor<'_>,
+    diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
     let mut buf = Vec::new();
-    let mut cell_visitor = ManpageVisitor::new(&mut buf, processor.clone());
+    let mut cell_visitor = ManpageVisitor::new(&mut buf, processor.clone(), diagnostics.reborrow());
 
     for block in &cell.content {
         if let acdc_parser::Block::Paragraph(para) = block {

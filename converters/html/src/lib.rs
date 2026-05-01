@@ -5,7 +5,7 @@ use std::{
     rc::Rc,
 };
 
-use acdc_converters_core::{Converter, Options, visitor::Visitor};
+use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource, visitor::Visitor};
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
@@ -69,12 +69,20 @@ impl std::str::FromStr for HtmlVariant {
     }
 }
 
+impl HtmlVariant {
+    /// Lower-case static name for this variant (`"standard"` / `"semantic"`).
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::Semantic => "semantic",
+        }
+    }
+}
+
 impl std::fmt::Display for HtmlVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Standard => f.write_str("standard"),
-            Self::Semantic => f.write_str("semantic"),
-        }
+        f.write_str(self.as_str())
     }
 }
 
@@ -247,6 +255,7 @@ impl<'a> Processor<'a> {
         doc: &Document<'a>,
         writer: W,
         options: &RenderOptions,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
         let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
         let part_number_tracker =
@@ -269,15 +278,23 @@ impl<'a> Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };
-        let mut visitor = HtmlVisitor::new(writer, std::rc::Rc::new(processor), options.clone());
-        visitor.visit_document(doc)?;
-        Ok(())
+        let mut visitor = HtmlVisitor::new(
+            writer,
+            Rc::new(processor),
+            options.clone(),
+            diagnostics.reborrow(),
+        );
+        visitor.visit_document(doc)
     }
 
     /// Convert a document to an HTML string.
     ///
     /// Use `RenderOptions::embedded` to control whether output includes the full
     /// document frame (DOCTYPE, html, head, body) or just embeddable content.
+    ///
+    /// Any warnings emitted during conversion are discarded; callers that need
+    /// to surface them should use [`Self::convert_to_writer`] with their own
+    /// [`Diagnostics`].
     ///
     /// # Errors
     ///
@@ -288,7 +305,10 @@ impl<'a> Processor<'a> {
         options: &RenderOptions,
     ) -> Result<String, Error> {
         let mut output = Vec::new();
-        self.convert_to_writer(doc, &mut output, options)?;
+        let source = <Self as Converter<'a>>::warning_source(self);
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        self.convert_to_writer(doc, &mut output, options, &mut diagnostics)?;
         Ok(String::from_utf8(output)?)
     }
 }
@@ -335,6 +355,10 @@ pub(crate) const STYLESHEET_DARK_MODE: &str = "asciidoctor-dark-mode.css";
 pub(crate) const STYLESHEET_HTML5S_LIGHT_MODE: &str = "html5s-light-mode.css";
 pub(crate) const STYLESHEET_HTML5S_DARK_MODE: &str = "html5s-dark-mode.css";
 pub(crate) const WEBFONTS_DEFAULT: &str = "";
+
+/// Stylesheet I/O failures all advise the same fix; centralize the wording.
+pub(crate) const STYLESHEET_ADVICE: &str =
+    "Check stylesheet paths and filesystem permissions, then rerun the conversion.";
 
 pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
     match (variant, dark_mode) {
@@ -444,6 +468,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         doc: &Document<'a>,
         writer: W,
         source_file: Option<&Path>,
+        output_path: Option<&Path>,
+        diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         let render_options = RenderOptions {
             last_updated: source_file.and_then(|f| {
@@ -460,15 +486,16 @@ impl<'a> Converter<'a> for Processor<'a> {
                 .map(String::from),
             ..RenderOptions::default()
         };
-        self.convert_to_writer(doc, writer, &render_options)
-    }
+        self.convert_to_writer(doc, writer, &render_options, diagnostics)?;
 
-    fn after_write(&self, doc: &Document<'a>, output_path: &Path) {
-        if self.options.embedded() {
-            return;
+        // Embedded fragments have no <head> to link companion stylesheets from.
+        if let Some(output_path) = output_path
+            && !self.options.embedded()
+        {
+            self.handle_copycss(doc, output_path, diagnostics);
+            self.handle_copy_syntax_css(doc, output_path, diagnostics);
         }
-        self.handle_copycss(doc, output_path);
-        self.handle_copy_syntax_css(doc, output_path);
+        Ok(())
     }
 
     fn name(&self) -> &'static str {
@@ -476,6 +503,10 @@ impl<'a> Converter<'a> for Processor<'a> {
             HtmlVariant::Semantic => "html5s",
             HtmlVariant::Standard => "html",
         }
+    }
+
+    fn warning_source(&self) -> WarningSource {
+        WarningSource::new("html").with_variant(self.variant.as_str())
     }
 }
 
@@ -535,7 +566,12 @@ impl<'a> Processor<'a> {
     /// directly to disk since there is no source file to copy.  When `copycss` has a
     /// non-empty string value it is used as the source path override (the file to read
     /// from), decoupling the source location from the output reference.
-    fn handle_copycss(&self, doc: &acdc_parser::Document<'a>, html_path: &std::path::Path) {
+    fn handle_copycss(
+        &self,
+        doc: &acdc_parser::Document<'a>,
+        html_path: &std::path::Path,
+        diagnostics: &mut Diagnostics<'_>,
+    ) {
         // No-stylesheet mode — nothing to copy
         let stylesheet_disabled = doc
             .attributes
@@ -593,9 +629,12 @@ impl<'a> Processor<'a> {
             // Write built-in CSS content to disk (no source file exists)
             let css_content = load_css(is_dark, self.variant);
             if let Err(e) = std::fs::write(&dest_path, css_content) {
-                tracing::warn!(
-                    "Failed to write built-in stylesheet to {}: {e}",
-                    dest_path.display(),
+                diagnostics.warn_with_advice(
+                    format!(
+                        "failed to write built-in stylesheet to {}: {e}",
+                        dest_path.display()
+                    ),
+                    STYLESHEET_ADVICE,
                 );
             } else {
                 tracing::debug!("Wrote built-in stylesheet to {}", dest_path.display());
@@ -617,10 +656,13 @@ impl<'a> Processor<'a> {
 
             if source_path != dest_path && source_path.exists() {
                 if let Err(e) = std::fs::copy(&source_path, &dest_path) {
-                    tracing::warn!(
-                        "Failed to copy stylesheet from {} to {}: {e}",
-                        source_path.display(),
-                        dest_path.display(),
+                    diagnostics.warn_with_advice(
+                        format!(
+                            "failed to copy stylesheet from {} to {}: {e}",
+                            source_path.display(),
+                            dest_path.display()
+                        ),
+                        STYLESHEET_ADVICE,
                     );
                 } else {
                     tracing::debug!(
@@ -639,7 +681,12 @@ impl<'a> Processor<'a> {
     /// Analogous to how asciidoctor writes `asciidoctor-coderay.css` /
     /// `asciidoctor-pygments.css` alongside the output.
     #[cfg(feature = "highlighting")]
-    fn handle_copy_syntax_css(&self, doc: &Document<'a>, html_path: &Path) {
+    fn handle_copy_syntax_css(
+        &self,
+        doc: &Document<'a>,
+        html_path: &Path,
+        diagnostics: &mut Diagnostics<'_>,
+    ) {
         let linkcss = doc.attributes.get("linkcss").is_some();
         if !linkcss {
             return;
@@ -688,17 +735,23 @@ impl<'a> Processor<'a> {
         let dest_path = dest_dir.join(SYNTECT_STYLESHEET);
 
         if let Err(e) = std::fs::create_dir_all(&dest_dir) {
-            tracing::warn!(
-                path = %dest_dir.display(),
-                "could not create stylesdir for syntax CSS: {e}"
+            diagnostics.warn_with_advice(
+                format!(
+                    "could not create stylesdir for syntax CSS {}: {e}",
+                    dest_dir.display()
+                ),
+                STYLESHEET_ADVICE,
             );
             return;
         }
 
         if let Err(e) = std::fs::write(&dest_path, css) {
-            tracing::warn!(
-                path = %dest_path.display(),
-                "could not write syntax highlighting stylesheet: {e}"
+            diagnostics.warn_with_advice(
+                format!(
+                    "could not write syntax highlighting stylesheet {}: {e}",
+                    dest_path.display()
+                ),
+                STYLESHEET_ADVICE,
             );
         } else {
             tracing::debug!(
@@ -709,7 +762,13 @@ impl<'a> Processor<'a> {
     }
 
     #[cfg(not(feature = "highlighting"))]
-    fn handle_copy_syntax_css(&self, _doc: &Document<'a>, _html_path: &Path) {}
+    fn handle_copy_syntax_css(
+        &self,
+        _doc: &Document<'a>,
+        _html_path: &Path,
+        _diagnostics: &mut Diagnostics<'_>,
+    ) {
+    }
 }
 
 /// Write the `id` attribute from metadata (explicit id or first anchor).
@@ -777,7 +836,7 @@ fn apply_attribute_subs<'a>(
 pub(crate) fn render_pre_code<W: std::io::Write>(
     inlines: &[InlineNode<'_>],
     language: Option<&str>,
-    visitor: &mut HtmlVisitor<'_, W>,
+    visitor: &mut HtmlVisitor<'_, '_, W>,
     subs: &[Substitution],
 ) -> Result<(), Error> {
     use acdc_converters_core::visitor::{Visitor, WritableVisitor};
@@ -802,12 +861,15 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
             let (theme_name, mode) = resolve_highlight_settings(&processor);
             let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
             let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
+            // Split-borrow writer and diagnostics so highlight_code can have
+            // both without overlapping &mut self calls on the visitor.
             syntax::highlight_code(
-                visitor.writer_mut(),
+                &mut visitor.writer,
                 highlight_inlines,
                 lang,
                 &theme_name,
                 mode,
+                Some(&mut visitor.diagnostics),
             )?;
             w = visitor.writer_mut();
             writeln!(w, "</code></pre>")?;

@@ -1,5 +1,6 @@
 use std::io::{self, BufWriter};
 
+use acdc_converters_core::Diagnostics;
 use acdc_converters_core::table::{
     CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count, table_has_spans,
 };
@@ -26,10 +27,11 @@ fn render_cell_content(
     col_index: usize,
     columns: &[acdc_parser::ColumnFormat],
     processor: &Processor<'_>,
+    diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Cell, Error> {
     let buffer = Vec::new();
     let inner = BufWriter::new(buffer);
-    let mut temp_visitor = TerminalVisitor::new(inner, processor.clone());
+    let mut temp_visitor = TerminalVisitor::new(inner, processor.clone(), diagnostics.reborrow());
     col.content
         .iter()
         .try_for_each(|block| temp_visitor.visit_block(block))?;
@@ -436,13 +438,15 @@ fn build_comfy_cells_from_grid(
     grid_row: &GridRow<'_>,
     tbl: &acdc_parser::Table,
     processor: &Processor<'_>,
+    diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<Cell>, Error> {
     let mut cells = Vec::with_capacity(grid_row.cells.len());
     for (col_idx, kind) in grid_row.cells.iter().enumerate() {
         let cell = match kind {
             CellKind::Content { cell_index } => {
                 if let Some(col) = grid_row.ast_row.columns.get(*cell_index) {
-                    let mut c = render_cell_content(col, col_idx, &tbl.columns, processor)?;
+                    let mut c =
+                        render_cell_content(col, col_idx, &tbl.columns, processor, diagnostics)?;
                     if grid_row.is_header {
                         c = c
                             .fg(processor.appearance.colors.table_header)
@@ -490,9 +494,9 @@ fn apply_column_widths(table_widget: &mut Table, tbl: &acdc_parser::Table, num_c
     }
 }
 
-pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
+pub(crate) fn visit_table<W: std::io::Write>(
     tbl: &acdc_parser::Table,
-    visitor: &mut V,
+    visitor: &mut TerminalVisitor<'_, '_, W>,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
     let terminal_width = processor.terminal_width;
@@ -515,7 +519,8 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
         let mut header_set = false;
         let mut body_row_idx = 0;
         for grid_row in &grid {
-            let cells = build_comfy_cells_from_grid(grid_row, tbl, processor)?;
+            let cells =
+                build_comfy_cells_from_grid(grid_row, tbl, processor, &mut visitor.diagnostics)?;
 
             if grid_row.is_header && !header_set {
                 table_widget.set_header(cells);
@@ -555,7 +560,8 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
             .iter()
             .enumerate()
             .map(|(i, col)| {
-                let mut cell = render_cell_content(col, i, &tbl.columns, processor)?;
+                let mut cell =
+                    render_cell_content(col, i, &tbl.columns, processor, &mut visitor.diagnostics)?;
                 cell = cell
                     .fg(processor.appearance.colors.table_header)
                     .add_attribute(Attribute::Bold);
@@ -571,7 +577,13 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
             .iter()
             .enumerate()
             .map(|(col_idx, col)| {
-                let mut cell = render_cell_content(col, col_idx, &tbl.columns, processor)?;
+                let mut cell = render_cell_content(
+                    col,
+                    col_idx,
+                    &tbl.columns,
+                    processor,
+                    &mut visitor.diagnostics,
+                )?;
                 if row_idx % 2 == 1 {
                     cell = cell.add_attribute(Attribute::Dim);
                 }
@@ -587,7 +599,8 @@ pub(crate) fn visit_table<V: WritableVisitor<Error = Error>>(
             .iter()
             .enumerate()
             .map(|(i, col)| {
-                let mut cell = render_cell_content(col, i, &tbl.columns, processor)?;
+                let mut cell =
+                    render_cell_content(col, i, &tbl.columns, processor, &mut visitor.diagnostics)?;
                 cell = cell
                     .fg(processor.appearance.colors.table_footer)
                     .add_attribute(Attribute::Bold);
@@ -679,7 +692,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
@@ -712,7 +729,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
@@ -735,7 +756,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
@@ -763,7 +788,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
@@ -794,7 +823,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
@@ -824,7 +857,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();
@@ -851,7 +888,11 @@ mod tests {
 
         let buffer = Vec::new();
         let processor = create_test_processor();
-        let mut visitor = crate::TerminalVisitor::new(buffer, processor.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor =
+            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
         visit_table(&table, &mut visitor, &processor)?;
         let output = visitor.into_writer();

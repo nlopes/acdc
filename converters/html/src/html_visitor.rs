@@ -2,7 +2,10 @@
 
 use std::{io::Write, rc::Rc, string::ToString};
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    Diagnostics,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
@@ -73,6 +76,7 @@ fn link_css<W: Write>(
 fn resolve_custom_css(
     attributes: &DocumentAttributes,
     source_dir: Option<&std::path::Path>,
+    diagnostics: &mut Diagnostics<'_>,
 ) -> Option<String> {
     let stylesheet = attributes.get("stylesheet").and_then(|v| {
         let s = v.to_string();
@@ -93,9 +97,12 @@ fn resolve_custom_css(
     match std::fs::read_to_string(&path) {
         Ok(contents) => Some(contents),
         Err(e) => {
-            tracing::warn!(
-                path = %path.display(),
-                "could not read custom stylesheet, falling back to default: {e}"
+            diagnostics.warn_with_advice(
+                format!(
+                    "could not read custom stylesheet {}, falling back to default: {e}",
+                    path.display()
+                ),
+                crate::STYLESHEET_ADVICE,
             );
             None
         }
@@ -148,10 +155,12 @@ MathJax = {{
 }
 
 /// HTML visitor that generates HTML from `AsciiDoc` AST
-pub struct HtmlVisitor<'a, W: Write> {
-    writer: W,
+pub struct HtmlVisitor<'a, 'd, W: Write> {
+    pub(crate) writer: W,
     pub(crate) processor: Rc<Processor<'a>>,
     pub(crate) render_options: RenderOptions,
+    /// Per-conversion diagnostics handle (warning source + sink borrow).
+    pub(crate) diagnostics: Diagnostics<'d>,
     /// Current effective substitutions for inline rendering.
     /// Set per-block in `visit_delimited_block`, defaults to normal substitutions.
     pub(crate) current_subs: Vec<Substitution>,
@@ -162,8 +171,13 @@ pub struct HtmlVisitor<'a, W: Write> {
     docinfo: DocInfo,
 }
 
-impl<'a, W: Write> HtmlVisitor<'a, W> {
-    pub fn new(writer: W, processor: Rc<Processor<'a>>, render_options: RenderOptions) -> Self {
+impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
+    pub fn new(
+        writer: W,
+        processor: Rc<Processor<'a>>,
+        render_options: RenderOptions,
+        mut diagnostics: Diagnostics<'d>,
+    ) -> Self {
         let docinfo = if render_options.embedded {
             DocInfo::empty()
         } else {
@@ -172,12 +186,14 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
                 processor.options.safe_mode(),
                 render_options.source_dir.as_deref(),
                 render_options.docname.as_deref(),
+                &mut diagnostics,
             )
         };
         Self {
             writer,
             processor,
             render_options,
+            diagnostics,
             current_subs: NORMAL.to_vec(),
             section_style: None,
             docinfo,
@@ -286,6 +302,7 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
             let custom_css = resolve_custom_css(
                 &self.processor.document_attributes,
                 self.render_options.source_dir.as_deref(),
+                &mut self.diagnostics,
             );
             let css = custom_css
                 .as_deref()
@@ -301,7 +318,9 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
             self.processor.document_attributes.get("max-width")
             && !max_width.is_empty()
         {
-            tracing::warn!(%max_width, "`max-width` usage is not recommended. Use CSS stylesheet instead.");
+            self.diagnostics.warn(format!(
+                "`max-width` usage is not recommended. Use CSS stylesheet instead: {max_width}"
+            ));
             writeln!(
                 self.writer,
                 "<style>
@@ -446,7 +465,7 @@ impl<'a, W: Write> HtmlVisitor<'a, W> {
     }
 }
 
-impl<W: Write> Visitor for HtmlVisitor<'_, W> {
+impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
     type Error = Error;
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
@@ -903,7 +922,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, W> {
     }
 }
 
-impl<W: Write> WritableVisitor for HtmlVisitor<'_, W> {
+impl<W: Write> WritableVisitor for HtmlVisitor<'_, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }
