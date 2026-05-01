@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Non-fatal warnings from both the parser and the HTML converter surface in the
+  parse-status badge as a yellow "N warnings" pill. Click to expand the full
+  list with line/column references and any advice attached.
+
 ### Changed
 
 - Memory no longer grows across edits — long editing sessions stay flat.

@@ -207,7 +207,7 @@ body.resizing .preview-pane {
     color: #333; /* Default text color */
 }
 
-/* Parse status floating badge */
+/* Parse status floating pill (bottom-right of the editor) */
 #parse-status {
     position: absolute;
     bottom: 8px;
@@ -216,9 +216,9 @@ body.resizing .preview-pane {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: 14px;
+    font-size: 13px;
     font-family: "Open Sans", "DejaVu Sans", sans-serif;
     cursor: default;
     transition: background 0.2s, color 0.2s, box-shadow 0.2s, padding 0.2s;
@@ -228,9 +228,10 @@ body.resizing .preview-pane {
 }
 
 #parse-status.parse-ok {
-    background: rgba(40, 167, 69, 0.15);
-    color: #28a745;
-    padding: 4px 8px;
+    background: #e6f4ea;
+    color: #1e7e34;
+    padding: 6px 10px;
+    box-shadow: 0 1px 4px rgba(40, 167, 69, 0.18);
 }
 
 #parse-status.parse-ok .parse-status-text {
@@ -238,9 +239,9 @@ body.resizing .preview-pane {
 }
 
 #parse-status.parse-error {
-    background: rgba(220, 53, 69, 0.12);
-    color: #dc3545;
-    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.15);
+    background: #f8d7da;
+    color: #842029;
+    box-shadow: 0 1px 4px rgba(220, 53, 69, 0.25);
     cursor: pointer;
 }
 
@@ -256,6 +257,68 @@ body.resizing .preview-pane {
     white-space: normal;
     max-width: none;
     overflow: visible;
+}
+
+#parse-status.parse-warning {
+    background: #fff3cd;
+    color: #664d03;
+    box-shadow: 0 1px 4px rgba(255, 193, 7, 0.25);
+    cursor: pointer;
+}
+
+#parse-status.parse-warning .parse-status-text {
+    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 250px;
+}
+
+#parse-status .parse-status-list {
+    display: none;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+#parse-status.expanded {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding-top: 12px;
+    padding-bottom: 12px;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+#parse-status.parse-warning.expanded .parse-status-list {
+    display: block;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(102, 77, 3, 0.25);
+    font-size: 11px;
+    line-height: 1.4;
+}
+
+#parse-status .parse-status-list li {
+    padding: 2px 0;
+}
+
+#parse-status .parse-status-loc {
+    display: inline-block;
+    font-family: "Droid Sans Mono", monospace;
+    font-size: 10px;
+    background: rgba(102, 77, 3, 0.15);
+    padding: 0 4px;
+    border-radius: 3px;
+    margin-right: 4px;
+}
+
+#parse-status .parse-status-advice {
+    display: block;
+    font-style: italic;
+    opacity: 0.85;
+    margin-left: 8px;
 }
 
 /* Stale preview indicator — reuses the pane label when parser fails */
@@ -1316,8 +1379,11 @@ body.resizing .preview-pane {
     #line-numbers pre { color: #666; }
     #editor { caret-color: #e0e0e0; }
     #highlight { color: #d4d4d4; }
-    #parse-status.parse-ok { background: rgba(40, 167, 69, 0.25); color: #4caf50; }
-    #parse-status.parse-error { background: rgba(220, 53, 69, 0.2); color: #ef5350; box-shadow: 0 1px 4px rgba(220, 53, 69, 0.3); }
+    #parse-status.parse-ok { background: #1f3a26; color: #6bcf7f; box-shadow: 0 1px 4px rgba(40, 167, 69, 0.3); }
+    #parse-status.parse-error { background: #3a1a1f; color: #ef5350; box-shadow: 0 1px 4px rgba(220, 53, 69, 0.35); }
+    #parse-status.parse-warning { background: #3a2f0d; color: #ffc107; box-shadow: 0 1px 4px rgba(255, 193, 7, 0.3); }
+    #parse-status.parse-warning.expanded .parse-status-list { border-top-color: rgba(255, 193, 7, 0.3); }
+    #parse-status .parse-status-loc { background: rgba(255, 193, 7, 0.15); color: #ffd54f; }
     .preview-pane.preview-stale .pane-label { background: rgba(255, 193, 7, 0.15); color: #ffc107; border-bottom-color: rgba(255, 193, 7, 0.3); }
     .preview-placeholder { color: #8b929a; }
 

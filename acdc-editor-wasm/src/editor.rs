@@ -4,6 +4,7 @@
 //! logic from JavaScript into Rust/WASM via `web-sys`.
 
 use std::cell::Cell;
+use std::fmt::Write as _;
 use std::rc::Rc;
 
 use wasm_bindgen::closure::Closure;
@@ -11,6 +12,8 @@ use wasm_bindgen::prelude::*;
 use web_sys::{
     Document, Element, Event, HtmlElement, HtmlTextAreaElement, KeyboardEvent, MouseEvent, Window,
 };
+
+use crate::EditorWarning;
 
 #[wasm_bindgen]
 extern "C" {
@@ -118,56 +121,109 @@ impl EditorState {
 // Parse status badge
 // ---------------------------------------------------------------------------
 
-fn set_parse_status(state: &EditorState, msg: &str, is_error: bool) {
+enum ParseStatus<'a> {
+    Ok,
+    Warnings(&'a [EditorWarning]),
+    Error(&'a str),
+}
+
+fn set_parse_status(state: &EditorState, status: &ParseStatus<'_>) {
     let cl = state.parse_status.class_list();
-    if is_error {
-        let _ = cl.remove_1("parse-ok");
-        let _ = cl.add_1("parse-error");
-        let _ = cl.remove_1("expanded");
-        // Update the text span with the error message
-        if let Some(text_el) = state
-            .parse_status
-            .query_selector(".parse-status-text")
-            .ok()
-            .flatten()
-        {
-            text_el.set_text_content(Some(msg));
-        }
-        // Update the icon to an exclamation triangle
-        if let Some(icon_el) = state
-            .parse_status
-            .query_selector(".parse-status-icon")
-            .ok()
-            .flatten()
-        {
-            icon_el.set_inner_html(r#"<i class="fa-solid fa-triangle-exclamation"></i>"#);
-        }
-        state.parse_status.set_attribute("title", msg).unwrap_or(());
-    } else {
-        let _ = cl.remove_1("parse-error");
-        let _ = cl.remove_1("expanded");
-        let _ = cl.add_1("parse-ok");
-        if let Some(text_el) = state
-            .parse_status
-            .query_selector(".parse-status-text")
-            .ok()
-            .flatten()
-        {
-            text_el.set_text_content(Some(""));
-        }
-        if let Some(icon_el) = state
-            .parse_status
-            .query_selector(".parse-status-icon")
-            .ok()
-            .flatten()
-        {
-            icon_el.set_inner_html(r#"<i class="fa-solid fa-check"></i>"#);
-        }
-        state
-            .parse_status
-            .set_attribute("title", "Parse OK")
-            .unwrap_or(());
+    let _ = cl.remove_1("parse-ok");
+    let _ = cl.remove_1("parse-warning");
+    let _ = cl.remove_1("parse-error");
+    let _ = cl.remove_1("expanded");
+
+    let text_el = state
+        .parse_status
+        .query_selector(".parse-status-text")
+        .ok()
+        .flatten();
+    let icon_el = state
+        .parse_status
+        .query_selector(".parse-status-icon")
+        .ok()
+        .flatten();
+    let list_el = state
+        .parse_status
+        .query_selector(".parse-status-list")
+        .ok()
+        .flatten();
+
+    if let Some(el) = list_el.as_ref() {
+        el.set_inner_html("");
     }
+
+    match status {
+        ParseStatus::Ok => {
+            let _ = cl.add_1("parse-ok");
+            if let Some(el) = text_el {
+                el.set_text_content(Some(""));
+            }
+            if let Some(el) = icon_el {
+                el.set_inner_html(r#"<i class="fa-solid fa-check"></i>"#);
+            }
+            state
+                .parse_status
+                .set_attribute("title", "Parse OK")
+                .unwrap_or(());
+        }
+        ParseStatus::Warnings(warnings) => {
+            let _ = cl.add_1("parse-warning");
+            let count = warnings.len();
+            let summary = if count == 1 {
+                "1 warning".to_string()
+            } else {
+                format!("{count} warnings")
+            };
+            if let Some(el) = text_el {
+                el.set_text_content(Some(&summary));
+            }
+            if let Some(el) = icon_el {
+                el.set_inner_html(r#"<i class="fa-solid fa-triangle-exclamation"></i>"#);
+            }
+            if let Some(el) = list_el {
+                el.set_inner_html(&render_warnings_list(warnings));
+            }
+            state
+                .parse_status
+                .set_attribute("title", &summary)
+                .unwrap_or(());
+        }
+        ParseStatus::Error(msg) => {
+            let _ = cl.add_1("parse-error");
+            if let Some(el) = text_el {
+                el.set_text_content(Some(msg));
+            }
+            if let Some(el) = icon_el {
+                el.set_inner_html(r#"<i class="fa-solid fa-triangle-exclamation"></i>"#);
+            }
+            state.parse_status.set_attribute("title", msg).unwrap_or(());
+        }
+    }
+}
+
+/// Render the warnings list as `<li>` items. Locations render as `Lline:col`
+/// when known; advice (when present) goes on its own line beneath the message.
+fn render_warnings_list(warnings: &[EditorWarning]) -> String {
+    let mut html = String::new();
+    for w in warnings {
+        html.push_str("<li>");
+        if let (Some(line), Some(col)) = (w.line, w.column) {
+            let _ = write!(
+                html,
+                r#"<span class="parse-status-loc">L{line}:{col}</span> "#
+            );
+        }
+        html.push_str(&crate::ast_highlight::escape_html(&w.message));
+        if let Some(advice) = &w.advice {
+            html.push_str(r#" <span class="parse-status-advice">"#);
+            html.push_str(&crate::ast_highlight::escape_html(advice));
+            html.push_str("</span>");
+        }
+        html.push_str("</li>");
+    }
+    html
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +283,11 @@ fn parse_and_update_both(state: &EditorState) {
             if result.has_stem {
                 typeset_math_preview();
             }
-            set_parse_status(state, "OK", false);
+            if result.warnings.is_empty() {
+                set_parse_status(state, &ParseStatus::Ok);
+            } else {
+                set_parse_status(state, &ParseStatus::Warnings(&result.warnings));
+            }
             if let Some(pane) = state.preview.parent_element() {
                 let _ = pane.class_list().remove_1("preview-stale");
             }
@@ -253,7 +313,7 @@ fn parse_and_update_both(state: &EditorState) {
             }
 
             let msg = format!("Parse error: {e}");
-            set_parse_status(state, &msg, true);
+            set_parse_status(state, &ParseStatus::Error(&msg));
         }
     }
     update_line_numbers(state);
@@ -603,12 +663,12 @@ pub fn setup() -> Result<(), JsValue> {
     attach_copy_listener(&state, &doc)?;
     attach_issue_listener(&state, &doc)?;
 
-    // Click-to-expand on error badge
+    // Click-to-expand on error or warning badge
     {
         let s = Rc::clone(&state);
         let badge_cb: Closure<dyn Fn()> = Closure::new(move || {
             let cl = s.parse_status.class_list();
-            if cl.contains("parse-error") {
+            if cl.contains("parse-error") || cl.contains("parse-warning") {
                 let _ = cl.toggle("expanded");
             }
         });
@@ -621,7 +681,7 @@ pub fn setup() -> Result<(), JsValue> {
     // Keep the debounce closure alive for the lifetime of the page
     parse_cb.forget();
 
-    set_parse_status(&state, "OK", false);
+    set_parse_status(&state, &ParseStatus::Ok);
 
     // Populate build info in footer (if the element and git info exist)
     if let (Some(build_info), Some(sha), Some(short_sha)) = (
