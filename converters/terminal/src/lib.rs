@@ -110,7 +110,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         _input: &Path,
-        _doc: &Document<'a>,
+        _doc: &Document<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         // Terminal converter always outputs to stdout by default
         Ok(None)
@@ -118,7 +118,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
         writer: W,
         _source_file: Option<&Path>,
         _output_path: Option<&Path>,
@@ -130,6 +130,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         let appendix_tracker =
             AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
 
+        // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor = Processor {
             document_attributes: doc.attributes.clone(),
             toc_entries: doc.toc_entries.clone(),

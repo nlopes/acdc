@@ -30,7 +30,7 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .embedded(embedded)
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.to_static());
+    let processor = Processor::new(converter_options, doc.attributes.clone());
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("manpage");
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
@@ -78,7 +78,7 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
         &parser_options,
     )?;
     let doc = parsed.document();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static());
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
     let output_path = temp_output_path("manpage-warning", "1");
 
     let result = processor.convert_to_file(doc, None, &output_path)?;

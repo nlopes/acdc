@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Peak memory during multi-file conversion no longer grows linearly with
+  the input set. The CLI used to leak each parsed document via `Box::leak`
+  to satisfy `'static`, holding every bumpalo arena until the process
+  exited; arenas now drop after each file's conversion finishes.
 - Terminal backend warnings are now visible. Parser and converter warnings
   emitted during a `--backend terminal` run with a pager were previously
   written to stderr before the pager took over the screen, leaving them

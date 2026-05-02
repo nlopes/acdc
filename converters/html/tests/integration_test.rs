@@ -31,8 +31,7 @@ fn run_fixture_test(
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor =
-        Processor::new_with_variant(converter_options, doc.attributes.to_static(), variant);
+    let processor = Processor::new_with_variant(converter_options, doc.attributes.clone(), variant);
     let render_options = RenderOptions {
         embedded,
         ..RenderOptions::default()
@@ -123,7 +122,7 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
         .build();
     let processor = Processor::new_with_variant(
         converter_options,
-        doc.attributes.to_static(),
+        doc.attributes.clone(),
         HtmlVariant::Standard,
     );
     let render_options = RenderOptions::default();
@@ -144,7 +143,7 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     let converter_options = ConverterOptions::builder().embedded(true).build();
     let processor = Processor::new_with_variant(
         converter_options,
-        doc.attributes.to_static(),
+        doc.attributes.clone(),
         HtmlVariant::Standard,
     );
     let output_path = temp_output_path("html-warning", "html");
@@ -489,7 +488,7 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
 
@@ -555,7 +554,7 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
 
@@ -614,7 +613,7 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
 
@@ -666,7 +665,7 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
 
@@ -729,7 +728,7 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
         let render_options = RenderOptions {
@@ -988,7 +987,7 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
         let render_options = RenderOptions {
@@ -1104,7 +1103,7 @@ mod toc_footnote {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
             HtmlVariant::Standard,
         );
         let render_options = RenderOptions {

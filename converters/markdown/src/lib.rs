@@ -155,7 +155,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'a>,
+        _doc: &Document<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let md_path = input.with_extension("md");
         // Avoid overwriting the input file
@@ -167,12 +167,13 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
         writer: W,
         _source_file: Option<&Path>,
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
+        // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor = Processor {
             options: self.options.clone(),
             document_attributes: doc.attributes.clone(),

@@ -60,6 +60,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING**: `Converter::write_to`, `derive_output_path`, and the
+  provided `convert*` methods now accept `&Document<'_>` of any lifetime
+  instead of `&Document<'a>` tied to the converter's stored-attribute
+  lifetime. Stored attributes still use `'a`; the per-call doc lifetime is
+  independent, so a `Converter<'static>` can convert short-lived parsed
+  documents without leaking or `to_static`-ing them.
 - **`detect_language()` now returns any source block language** — instead of matching against
   a hardcoded list of known languages, the function returns the first positional attribute
   for any `[source,LANG]` block. This means `[source,text]` and other unlisted languages

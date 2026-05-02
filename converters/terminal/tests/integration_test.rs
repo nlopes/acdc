@@ -67,8 +67,8 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
 
     // Convert to Terminal output
     let mut output = Vec::new();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static())
-        .with_terminal_width(80);
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
@@ -116,8 +116,8 @@ fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error>
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
     let parsed = acdc_parser::parse("image::definitely-missing-image.png[]\n", &parser_options)?;
     let doc = parsed.document();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static())
-        .with_terminal_width(80);
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
     let output_path = temp_output_path("terminal-warning", "txt");
 
     let result = processor.convert_to_file(doc, None, &output_path)?;

@@ -59,20 +59,20 @@ pub struct Processor<'a> {
     document_attributes: DocumentAttributes<'a>,
 }
 
-impl<'a> Processor<'a> {
+impl Processor<'_> {
     /// Convert a document to manpage output, writing to the provided writer.
     ///
     /// # Errors
     ///
     /// Returns an error if conversion or writing fails.
-    pub fn write_document<W: Write>(
+    pub fn write_document<'doc, W: Write>(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'doc>,
         writer: W,
         source_file: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let mut attrs: DocumentAttributes<'a> = doc.attributes.clone();
+        let mut attrs: DocumentAttributes<'doc> = doc.attributes.clone();
 
         if !attrs.contains_key("revdate")
             && let Some(date_str) = source_file.and_then(file_modified_date)
@@ -83,7 +83,8 @@ impl<'a> Processor<'a> {
             );
         }
 
-        let processor = Processor {
+        // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
+        let processor: Processor<'doc> = Processor {
             options: self.options.clone(),
             document_attributes: attrs,
         };
@@ -140,7 +141,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let extension = Self::output_extension(doc);
         let manpage_path = input.with_extension(&extension);
@@ -153,7 +154,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
         writer: W,
         source_file: Option<&Path>,
         _output_path: Option<&Path>,

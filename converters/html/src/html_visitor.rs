@@ -225,7 +225,8 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             .get("source-highlighter")
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)))
         {
-            let (theme_name, mode) = crate::resolve_highlight_settings(&self.processor);
+            let (theme_name, mode) =
+                crate::resolve_highlight_settings(&self.processor.document_attributes);
             if mode == crate::syntax::HighlightMode::Class {
                 let linkcss = self.processor.document_attributes.get("linkcss").is_some();
 

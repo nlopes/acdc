@@ -250,9 +250,9 @@ impl<'a> Processor<'a> {
     /// # Errors
     ///
     /// Returns an error if document conversion or writing fails.
-    pub fn convert_to_writer<W: Write>(
+    pub fn convert_to_writer<'doc, W: Write>(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'doc>,
         writer: W,
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
@@ -262,7 +262,9 @@ impl<'a> Processor<'a> {
             PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
         let appendix_tracker =
             AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
-        let processor: Processor<'a> = Processor {
+        // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
+        // independent of `self`'s stored-attribute lifetime.
+        let processor: Processor<'doc> = Processor {
             toc_entries: doc.toc_entries.clone(),
             document_attributes: doc.attributes.clone(),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
@@ -301,11 +303,11 @@ impl<'a> Processor<'a> {
     /// Returns an error if document conversion fails.
     pub fn convert_to_string(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
         options: &RenderOptions,
     ) -> Result<String, Error> {
         let mut output = Vec::new();
-        let source = <Self as Converter<'a>>::warning_source(self);
+        let source = WarningSource::new("html").with_variant(self.variant.as_str());
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         self.convert_to_writer(doc, &mut output, options, &mut diagnostics)?;
@@ -375,15 +377,13 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 /// - `:syntect-css: class` switches to CSS-class mode (default is inline).
 #[cfg(feature = "highlighting")]
 pub(crate) fn resolve_highlight_settings(
-    processor: &Processor<'_>,
+    document_attributes: &DocumentAttributes<'_>,
 ) -> (String, syntax::HighlightMode) {
-    let dark_mode = processor
-        .document_attributes
+    let dark_mode = document_attributes
         .get("dark-mode")
         .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
 
-    let theme_name: String = processor
-        .document_attributes
+    let theme_name: String = document_attributes
         .get("syntect-style")
         .and_then(|v| match v {
             AttributeValue::String(s) if !s.is_empty() => Some(s.to_string()),
@@ -397,8 +397,7 @@ pub(crate) fn resolve_highlight_settings(
             }
         });
 
-    let mode = if processor
-        .document_attributes
+    let mode = if document_attributes
         .get("syntect-css")
         .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "class"))
     {
@@ -453,7 +452,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn derive_output_path(
         &self,
         input: &Path,
-        _doc: &Document<'a>,
+        _doc: &Document<'_>,
     ) -> Result<Option<PathBuf>, Error> {
         let html_path = input.with_extension("html");
         // Avoid overwriting the input file
@@ -465,7 +464,7 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn write_to<W: Write>(
         &self,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
         writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -493,7 +492,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             && !self.options.embedded()
         {
             self.handle_copycss(doc, output_path, diagnostics);
-            self.handle_copy_syntax_css(doc, output_path, diagnostics);
+            Self::handle_copy_syntax_css(doc, output_path, diagnostics);
         }
         Ok(())
     }
@@ -568,7 +567,7 @@ impl<'a> Processor<'a> {
     /// from), decoupling the source location from the output reference.
     fn handle_copycss(
         &self,
-        doc: &acdc_parser::Document<'a>,
+        doc: &acdc_parser::Document<'_>,
         html_path: &std::path::Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
@@ -682,8 +681,7 @@ impl<'a> Processor<'a> {
     /// `asciidoctor-pygments.css` alongside the output.
     #[cfg(feature = "highlighting")]
     fn handle_copy_syntax_css(
-        &self,
-        doc: &Document<'a>,
+        doc: &Document<'_>,
         html_path: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
@@ -700,14 +698,7 @@ impl<'a> Processor<'a> {
             return;
         }
 
-        // Build a temporary processor to resolve settings from doc attributes
-        let (theme_name, mode) = {
-            let tmp: Processor<'a> = Processor {
-                document_attributes: doc.attributes.clone(),
-                ..self.clone()
-            };
-            crate::resolve_highlight_settings(&tmp)
-        };
+        let (theme_name, mode) = crate::resolve_highlight_settings(&doc.attributes);
 
         if mode != syntax::HighlightMode::Class {
             return;
@@ -763,8 +754,7 @@ impl<'a> Processor<'a> {
 
     #[cfg(not(feature = "highlighting"))]
     fn handle_copy_syntax_css(
-        &self,
-        _doc: &Document<'a>,
+        _doc: &Document<'_>,
         _html_path: &Path,
         _diagnostics: &mut Diagnostics<'_>,
     ) {
@@ -858,7 +848,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
             )?;
             let _ = w;
             let processor = visitor.processor.clone();
-            let (theme_name, mode) = resolve_highlight_settings(&processor);
+            let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
             let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
             let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
             // Split-borrow writer and diagnostics so highlight_code can have
@@ -1035,7 +1025,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let render_options = RenderOptions {
             embedded: true,
@@ -1092,7 +1082,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1120,7 +1110,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1160,7 +1150,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1205,7 +1195,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1243,7 +1233,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1283,7 +1273,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1315,7 +1305,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1354,7 +1344,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1394,7 +1384,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1426,7 +1416,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1454,7 +1444,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1482,7 +1472,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1506,7 +1496,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1526,7 +1516,7 @@ This is a paragraph.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1554,7 +1544,7 @@ Content.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1597,7 +1587,7 @@ Content.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1647,7 +1637,7 @@ More appendix content.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1708,7 +1698,7 @@ Content.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1742,7 +1732,7 @@ Content.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
@@ -1771,7 +1761,7 @@ Content.
 
         let processor = Processor::new(
             acdc_converters_core::Options::default(),
-            doc.attributes.to_static(),
+            doc.attributes.clone(),
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 

@@ -42,7 +42,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.to_static())
+    let processor = Processor::new(converter_options, doc.attributes.clone())
         .with_variant(MarkdownVariant::GitHubFlavored);
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("markdown");
@@ -92,7 +92,7 @@ fn test_commonmark_variant(
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.to_static())
+    let processor = Processor::new(converter_options, doc.attributes.clone())
         .with_variant(MarkdownVariant::CommonMark);
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("markdown");
@@ -121,7 +121,7 @@ fn unsupported_block_warning_is_returned_in_conversion_result() -> Result<(), Er
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
     let parsed = acdc_parser::parse("++++\n<p>raw</p>\n++++\n", &parser_options)?;
     let doc = parsed.document();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.to_static());
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
     let output_path = temp_output_path("markdown-warning", "md");
 
     let result = processor.convert_to_file(doc, None, &output_path)?;
