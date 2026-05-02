@@ -874,10 +874,10 @@ fn run_terminal_with_pager(
             match parse_result {
                 Ok(parsed) => {
                     let parsed = report_warnings(parsed, Some(&file));
-                    if let Some(output_path) = processor
-                        .convert(parsed.document(), Some(&file))?
-                        .into_output_path()
-                    {
+                    let result = processor.convert(parsed.document(), Some(&file))?;
+                    let (output_path, warnings) = result.into_parts();
+                    render_converter_warnings(warnings, Some(&file));
+                    if let Some(output_path) = output_path {
                         output_paths.push(output_path);
                     }
                 }

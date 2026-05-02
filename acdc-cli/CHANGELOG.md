@@ -17,8 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   emitted during a `--backend terminal` run with a pager were previously
   written to stderr before the pager took over the screen, leaving them
   visually buried. They are now deferred until after the pager exits, and the
-  no-pager terminal path also renders converter warnings (previously dropped
-  alongside the discarded `ConversionResult`).
+  no-pager terminal paths also render converter warnings (previously dropped
+  alongside the discarded `ConversionResult`), including file input converted
+  with `--out-file`.
 
 ### Added
 
