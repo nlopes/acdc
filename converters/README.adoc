@@ -4,3 +4,10 @@
 - `link:./manpage[manpage]` - `AsciiDoc` manpage backend
 - `link:./markdown[markdown]` - `AsciiDoc` markdown backend (CommonMark & GitHub Flavored Markdown)
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
+
+== Development prerequisites
+
+Converter tests are run with `cargo nextest run --all-features`. The terminal
+converter has headless rendering tests backed by Ghostty's virtual terminal
+library, so full converter test and clippy runs require the prerequisites listed
+in link:../CONTRIBUTING.md[CONTRIBUTING.md].

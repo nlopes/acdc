@@ -66,3 +66,25 @@ fn main() {
 ....
 
 The highlighted code will display with appropriate colors for your terminal. If a language isn't recognized or no language is specified, the code block renders as plain text.
+
+## Development
+
+The terminal converter includes headless integration tests that feed converter
+output through Ghostty's virtual terminal emulator and assert on rendered cells.
+These tests use `libghostty-vt`, whose native build requires the prerequisites
+listed in link:../../CONTRIBUTING.md[CONTRIBUTING.md].
+
+To reuse an existing Ghostty checkout instead of letting the build fetch one,
+set `GHOSTTY_SOURCE_DIR` to a checkout containing `build.zig`:
+
+[source,bash]
+----
+GHOSTTY_SOURCE_DIR=/path/to/ghostty cargo nextest run -p acdc-converters-terminal --all-features
+----
+
+To run only the Ghostty-backed tests:
+
+[source,bash]
+----
+cargo nextest run -p acdc-converters-terminal --test headless_terminal_test --all-features
+----
