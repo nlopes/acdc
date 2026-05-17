@@ -76,6 +76,9 @@ acdc/
 
 == Building & testing
 
+Before running all-features checks, install the development prerequisites in
+link:./CONTRIBUTING.md[CONTRIBUTING.md].
+
 [source,bash]
 ----
 # Build all crates

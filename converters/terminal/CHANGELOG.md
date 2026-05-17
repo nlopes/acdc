@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Box-drawing characters for example, sidebar, and open blocks.
 - Comprehensive test fixture covering all major terminal output features.
 - Index section test fixture.
+- Headless terminal integration tests now verify rendered cell content and
+  styling through Ghostty's virtual terminal emulator.
 
 ### Fixed
 
