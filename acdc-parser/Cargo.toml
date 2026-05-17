@@ -32,7 +32,7 @@ bumpalo = { version = "3", features = ["collections"] }
 csv = "1.4"
 encoding_rs = "0.8"
 evalexpr = "13"
-peg = "0.8"
+peg = "0.8.6"
 rustc-hash.workspace = true
 self_cell = "1"
 serde.workspace = true

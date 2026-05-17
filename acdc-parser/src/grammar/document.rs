@@ -659,6 +659,16 @@ peg::parser! {
         use crate::model::{substitute, Substitution};
         use crate::grammar::inlines::inline_parser;
 
+        // Injected span endpoints — `span_start`/`span_end` are bound in every
+        // action block to the byte range of the sequence leading up to it.
+        // This replaces the boilerplate `start:position!() ... end:position!()`
+        // captures that previously wrapped most rules. Pass-through bodies
+        // keep this zero-cost; the heavy `offset_to_position` lookup is
+        // still done explicitly via `state.create_location` only where a
+        // `Location` is actually constructed.
+        inject span_start(_input, l, _r) -> usize { l }
+        inject span_end(_input, _l, r) -> usize { r }
+
         // We ignore empty lines before we set the start position of the document because
         // the asciidoc document should not consider empty lines at the beginning or end
         // of the file.
@@ -903,7 +913,7 @@ peg::parser! {
         /// Only enabled when the setext feature is compiled in AND the runtime
         /// option is enabled.
         rule document_title_setext() -> (Title<'input>, Option<Subtitle<'input>>)
-        = start:position!() title:$([^'\n']+) end:position!() eol()
+        = title:$([^'\n']+) end:position!() eol()
           underline:$("="+) &(eol() / ![_])
         {?
             // Check if setext mode is enabled
@@ -932,20 +942,20 @@ peg::parser! {
                 let subtitle_raw = &title[colon_pos + 1..];
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {
-                    let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
+                    let inlines = process_inlines(state, &block_metadata, span_start, end, 0, title)
                         .map_err(|_| "could not process setext document title")?;
                     (inlines, None)
                 } else {
                     // Title: trim trailing whitespace before colon
                     let title_raw = &title[..colon_pos];
                     let title_text = title_raw.trim_end();
-                    let title_end = start + title_text.len();
-                    let inlines = process_inlines(state, &block_metadata, start, title_end, 0, title_text)
+                    let title_end = span_start + title_text.len();
+                    let inlines = process_inlines(state, &block_metadata, span_start, title_end, 0, title_text)
                         .map_err(|_| "could not process setext document title")?;
 
                     // Subtitle: trim leading whitespace after colon
                     let sub_leading = subtitle_raw.len() - subtitle_raw.trim_start().len();
-                    let sub_start_offset = start + colon_pos + 1 + sub_leading;
+                    let sub_start_offset = span_start + colon_pos + 1 + sub_leading;
                     let subtitle_start = PositionWithOffset {
                         offset: sub_start_offset,
                         position: state.line_map.offset_to_position(sub_start_offset, state.input),
@@ -957,7 +967,7 @@ peg::parser! {
                     (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
             } else {
-                let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
+                let inlines = process_inlines(state, &block_metadata, span_start, end, 0, title)
                     .map_err(|_| "could not process setext document title")?;
                 (inlines, None)
             };
@@ -1033,7 +1043,7 @@ peg::parser! {
             }
 
         pub(crate) rule revision() -> ()
-            = start:position!() number:$("v"? digits() ++ ".") date:revision_date()? remark:revision_remark()? end:position!() {
+            = number:$("v"? digits() ++ ".") date:revision_date()? remark:revision_remark()? {
                 let revision_info = RevisionInfo {
                     number: Cow::Owned(number.to_string()),
                     date: date.map(|d| Cow::Owned(d.to_string())),
@@ -1043,7 +1053,7 @@ peg::parser! {
                     // No revision number found, nothing to do
                     return;
                 }
-                let revision_location = state.create_location(start, end);
+                let revision_location = state.create_location(span_start, span_end);
                 let ignored: IgnoredRevisionFields = {
                     let document_attributes = Rc::make_mut(&mut state.document_attributes);
                     process_revision_info(revision_info, document_attributes)
@@ -1164,11 +1174,13 @@ peg::parser! {
         /// Single-line comment that becomes a block in the AST.
         /// Line comments begin with `//` (but not `///` or `////` which are block comment delimiters).
         rule comment_line_block(offset: usize) -> Result<Block<'input>, Error>
-        = start:position!() "//" !("/") content:$([^'\n']*) end:position!() (eol() / ![_])
+        = "//" !("/") content:$([^'\n']*) end:position!() (eol() / ![_])
         {
+            // `end` is captured before consuming the trailing newline so the
+            // comment's location doesn't include it.
             Ok(Block::Comment(Comment {
                 content,
-                location: state.create_location(start + offset, end + offset),
+                location: state.create_location(span_start + offset, end + offset),
             }))
         }
 
@@ -1248,21 +1260,22 @@ peg::parser! {
         }
 
         rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
-        = start:position!()
-        block_metadata:(bm:block_metadata(offset, None) {?
+        = block_metadata:(bm:block_metadata(offset, None) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in discrete_header");
                 "block metadata parse error"
             })
         })
         section_level:section_level(offset, None) whitespace()
-        title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() end:position!() &(eol()*<1,2> / ![_])
+        title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_])
         {
             let title = title?;
             tracing::debug!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
             let level = section_level.1;
-            let location = state.create_block_location(start, end, offset);
+            // `span_end` lands at title_end here because the trailing `&(...)` is a
+            // zero-width lookahead.
+            let location = state.create_block_location(span_start, span_end, offset);
 
             Ok(Block::DiscreteHeader(DiscreteHeader {
                 metadata: block_metadata.metadata,
@@ -1273,7 +1286,7 @@ peg::parser! {
         }
 
         pub(crate) rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
-        = start:position!() att:document_attribute_match() end:position!()
+        = att:document_attribute_match()
         {
             let AttributeEntry{ key, value, .. } = att;
             // Apply definition-time substitution (matching asciidoctor behavior)
@@ -1288,13 +1301,12 @@ peg::parser! {
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
                 value,
-                location: state.create_location(start+offset, end+offset)
+                location: state.create_location(span_start+offset, span_end+offset)
             }))
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
-        = start:position!()
-        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+        = block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section");
                 "block metadata parse error"
@@ -1322,7 +1334,7 @@ peg::parser! {
 
             Ok::<(Title<'input>, &'input str), Error>((title, section_id))
         })
-        content:section_content(offset, Some(section_level.1+1))? end:position!()
+        content:section_content(offset, Some(section_level.1+1))?
         {
             let (title, section_id) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
@@ -1338,7 +1350,7 @@ peg::parser! {
             }
 
             let level = section_level.1;
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(span_start, span_end, offset);
 
             // Derive manname/manpurpose from NAME section in manpage documents
             //
@@ -1421,8 +1433,7 @@ peg::parser! {
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
         pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
-        = start:position!()
-        !check_line_is_description_list(offset)
+        = !check_line_is_description_list(offset)
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section_setext");
@@ -1454,10 +1465,10 @@ peg::parser! {
                 Err(e) => Err(e),
             }
         })
-        content:section_content(offset, Some(setext_level + 1))? end:position!()
+        content:section_content(offset, Some(setext_level + 1))?
         {
             let (title, _section_id) = section_header?;
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(span_start, span_end, offset);
 
             // Derive manname/manpurpose from NAME section in manpage documents
             if setext_level == 1 && is_manpage_doctype(&state.document_attributes) {
@@ -1587,23 +1598,22 @@ peg::parser! {
         }
 
         rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
-        = start:position!() level:$(("=" / "#")*<1,6>) end:position!()
+        = level:$(("=" / "#")*<1,6>)
         {
             let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
-            let byte_offset = start + offset;
+            let byte_offset = span_start + offset;
             (level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes))
         }
 
         rule section_level_at_line_start(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
-        = start:position!() level:$(("=" / "#")*<1,6>) end:position!()
+        = level:$(("=" / "#")*<1,6>)
         {?
             // This rule is invoked as a negative lookahead from paragraph
             // parsing, so it runs speculatively on every continuation line.
-            // `position!()` captures only the byte offset — the cheap
-            // line-start byte check below rejects most speculations, so the
-            // (line, column) pair that `position()` would materialise is
-            // virtually always discarded.
-            let absolute_pos = start + offset;
+            // The injected `span_start` is just a byte offset — the cheap line-start
+            // byte check below rejects most speculations before any expensive
+            // (line, column) materialisation happens.
+            let absolute_pos = span_start + offset;
             let at_line_start = absolute_pos == 0 || {
                 let prev_byte_pos = absolute_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| b == b'\n')
@@ -1614,15 +1624,15 @@ peg::parser! {
             }
 
             let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
-            let byte_offset = start + offset;
+            let byte_offset = span_start + offset;
             Ok((level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes)))
         }
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Title<'input>, Error>
-        = title_start:position!() title:$([^'\n']*) end:position!()
+        = title:$([^'\n']*)
         {
-            tracing::debug!(?title, ?title_start, ?end, offset, "Found section title");
-            let content = process_inlines(state, block_metadata, title_start, end, offset, title)?;
+            tracing::debug!(?title, title_start = span_start, title_end = span_end, offset, "Found section title");
+            let content = process_inlines(state, block_metadata, span_start, span_end, offset, title)?;
             Ok(Title::new(content))
         }
 
@@ -1815,19 +1825,19 @@ peg::parser! {
         rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = open_start:position!() open_delim:example_delimiter() eol()
         content_start:position!() content:until_example_delimiter(open_delim) content_end:position!()
-        eol() close_start:position!() close_delim:example_delimiter() end:position!()
+        eol() close_start:position!() close_delim:example_delimiter()
         {
             tracing::debug!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
 
-            check_delimiters(open_delim, close_delim, "example", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "example", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -1861,19 +1871,19 @@ peg::parser! {
         rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:comment_delimiter() eol()
             content_start:position!() content:until_comment_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:comment_delimiter() end:position!()
+            eol() close_start:position!() close_delim:comment_delimiter()
         {
-            check_delimiters(open_delim, close_delim, "comment", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "comment", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
 
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
                 metadata,
@@ -1897,18 +1907,18 @@ peg::parser! {
         rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:listing_delimiter() eol()
             content_start:position!() content:until_listing_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:listing_delimiter() end:position!()
+            eol() close_start:position!() close_delim:listing_delimiter()
         {
-            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
             state.last_block_was_verbatim = true;
@@ -1928,9 +1938,9 @@ peg::parser! {
         rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
             content_start:position!() content:until_markdown_code_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:markdown_code_delimiter() end:position!()
+            eol() close_start:position!() close_delim:markdown_code_delimiter()
         {
-            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
 
             // If we captured a language, add it as a positional attribute and set style
@@ -1942,13 +1952,13 @@ peg::parser! {
             }
 
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
             state.last_block_was_verbatim = true;
@@ -1974,18 +1984,17 @@ peg::parser! {
         eol()
         close_start:position!()
         close_delim:literal_delimiter()
-        end:position!()
         {
-            check_delimiters(open_delim, close_delim, "literal", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "literal", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
             state.last_block_was_verbatim = true;
@@ -2005,17 +2014,17 @@ peg::parser! {
         rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:open_delimiter() eol()
             content_start:position!() content:until_open_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:open_delimiter() end:position!()
+            eol() close_start:position!() close_delim:open_delimiter()
         {
-            check_delimiters(open_delim, close_delim, "open", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "open", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -2040,19 +2049,19 @@ peg::parser! {
         rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:sidebar_delimiter() eol()
             content_start:position!() content:until_sidebar_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:sidebar_delimiter() end:position!()
+            eol() close_start:position!() close_delim:sidebar_delimiter()
         {
             tracing::debug!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
 
-            check_delimiters(open_delim, close_delim, "sidebar", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "sidebar", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -2093,11 +2102,11 @@ peg::parser! {
         rule pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() eol()
               content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:pipe_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:pipe_table_delimiter()
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: "|",
                     closing: TableClosing::Terminated { close_delim, close_start },
                 },
@@ -2109,11 +2118,11 @@ peg::parser! {
         rule excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:excl_table_delimiter() eol()
               content_start:position!() content:until_excl_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:excl_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:excl_table_delimiter()
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: "!",
                     closing: TableClosing::Terminated { close_delim, close_start },
                 },
@@ -2125,11 +2134,11 @@ peg::parser! {
         rule comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:comma_table_delimiter() eol()
               content_start:position!() content:until_comma_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:comma_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:comma_table_delimiter()
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: ",",
                     closing: TableClosing::Terminated { close_delim, close_start },
                 },
@@ -2141,11 +2150,11 @@ peg::parser! {
         rule colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:colon_table_delimiter() eol()
               content_start:position!() content:until_colon_table_delimiter() content_end:position!()
-              eol() close_start:position!() close_delim:colon_table_delimiter() end:position!()
+              eol() close_start:position!() close_delim:colon_table_delimiter()
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: ":",
                     closing: TableClosing::Terminated { close_delim, close_start },
                 },
@@ -2169,11 +2178,11 @@ peg::parser! {
         rule unterminated_pipe_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:pipe_table_delimiter() (eol() / ![_])
               content_start:position!() content:until_pipe_table_delimiter() content_end:position!()
-              end:position!() ![_]
+              ![_]
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: "|",
                     closing: TableClosing::Unterminated,
                 },
@@ -2185,11 +2194,11 @@ peg::parser! {
         rule unterminated_excl_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:excl_table_delimiter() (eol() / ![_])
               content_start:position!() content:until_excl_table_delimiter() content_end:position!()
-              end:position!() ![_]
+              ![_]
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: "!",
                     closing: TableClosing::Unterminated,
                 },
@@ -2201,11 +2210,11 @@ peg::parser! {
         rule unterminated_comma_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:comma_table_delimiter() (eol() / ![_])
               content_start:position!() content:until_comma_table_delimiter() content_end:position!()
-              end:position!() ![_]
+              ![_]
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: ",",
                     closing: TableClosing::Unterminated,
                 },
@@ -2217,11 +2226,11 @@ peg::parser! {
         rule unterminated_colon_table_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = table_start:position!() open_delim:colon_table_delimiter() (eol() / ![_])
               content_start:position!() content:until_colon_table_delimiter() content_end:position!()
-              end:position!() ![_]
+              ![_]
         {
             parse_table_block_impl(
                 &TableParseParams {
-                    start, offset, table_start, content_start, content_end, end,
+                    start, offset, table_start, content_start, content_end, end: span_end,
                     open_delim, content, default_separator: ":",
                     closing: TableClosing::Unterminated,
                 },
@@ -2233,18 +2242,18 @@ peg::parser! {
         rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:pass_delimiter() eol()
             content_start:position!() content:until_pass_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:pass_delimiter() end:position!()
+            eol() close_start:position!() close_delim:pass_delimiter()
         {
-            check_delimiters(open_delim, close_delim, "pass", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "pass", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             // Check if this is a stem block
             let inner = if let Some(style) = metadata.style {
@@ -2293,7 +2302,7 @@ peg::parser! {
         rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:quote_delimiter() eol()
             content_start:position!() content:until_quote_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:quote_delimiter() end:position!()
+            eol() close_start:position!() close_delim:quote_delimiter()
         {
             // Parse attribution/citetitle through the inline pipeline so that URLs,
             // macros, and other inline markup are properly resolved (#373).
@@ -2305,16 +2314,16 @@ peg::parser! {
                     || content.contains("<<") || content.contains("link:") || content.contains("mailto:")
             }
 
-            check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, end, offset)))?;
+            check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
             let mut metadata = block_metadata.metadata.clone();
             metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
             let content_location = state.create_block_location(content_start, content_end, offset);
             let open_delimiter_location = state.create_location(
                 open_start + offset,
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
-            let close_delimiter_location = state.create_block_location(close_start, end, offset);
+            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
             // Collect params first (releases the borrow on metadata.attribution
             // before we reassign below).
@@ -2501,18 +2510,18 @@ peg::parser! {
                / "- - -"
                / "***"
                / "* * *"
-            ) end:position!()
+            )
         {
             tracing::debug!("Found thematic break block");
             Ok(Block::ThematicBreak(ThematicBreak {
                 anchors: block_metadata.metadata.anchors.clone(), // TODO(nlopes): should this simply be metadata?
                 title: block_metadata.title.clone(),
-                location: state.create_block_location(start, end, offset),
+                location: state.create_block_location(start, span_end, offset),
             }))
         }
 
         rule page_break(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = "<<<" end:position!() &eol()*<2,2>
+            = "<<<" &eol()*<2,2>
         {
             tracing::debug!("Found page break block");
             let mut metadata = block_metadata.metadata.clone();
@@ -2521,7 +2530,7 @@ peg::parser! {
             Ok(Block::PageBreak(PageBreak {
                 title: block_metadata.title.clone(),
                 metadata,
-                location: state.create_location(start+offset, end+offset),
+                location: state.create_location(start+offset, span_end+offset),
             }))
         }
 
@@ -2650,14 +2659,13 @@ peg::parser! {
         = whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
         first:unordered_list_item_after_marker(offset, block_metadata, allow_continuation, base_marker, marker_start, parent_ordered_marker)
         rest:(unordered_list_rest_item(offset, block_metadata, parent_ordered_marker, allow_continuation, base_marker))*
-        end:position!()
         {
             tracing::debug!("Found unordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
-            let end = content.last().map_or(end, |(_, item_end)| *item_end);
+            let end = content.last().map_or(span_end, |(_, item_end)| *item_end);
             let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or("", |item| item.marker);
 
@@ -2711,14 +2719,13 @@ peg::parser! {
         = whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
         first:ordered_list_item_after_marker(offset, block_metadata, allow_continuation, base_marker, marker_start, parent_unordered_marker)
         rest:(ordered_list_rest_item(offset, block_metadata, parent_unordered_marker, allow_continuation, base_marker))*
-        end:position!()
         {
             tracing::debug!("Found ordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
-            let end = content.last().map_or(end, |(_, item_end)| *item_end);
+            let end = content.last().map_or(span_end, |(_, item_end)| *item_end);
             let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or("", |item| item.marker);
 
@@ -2762,8 +2769,7 @@ peg::parser! {
         / item:unordered_list_item_no_continuation(offset, block_metadata, parent_ordered_marker) { item }
 
         rule unordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()*
+        = whitespace()*
         marker:unordered_list_marker()
         whitespace()
         checked:checklist_item()?
@@ -2790,12 +2796,11 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             // Process principal text as inline nodes
             let principal = if principal_text.trim().is_empty() {
@@ -2813,7 +2818,7 @@ peg::parser! {
             blocks.extend(explicit_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -2821,7 +2826,7 @@ peg::parser! {
                 level,
                 marker,
                 checked,
-                location: state.create_location(start+offset, actual_end+offset),
+                location: state.create_location(span_start+offset, actual_end+offset),
             }, actual_end))
         }
 
@@ -2829,8 +2834,7 @@ peg::parser! {
         // Nested items consume continuations with 0 empty lines (immediate attachment).
         // Continuations with 1+ empty lines bubble up to ancestor items.
         rule unordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()*
+        = whitespace()*
         marker:unordered_list_marker()
         whitespace()
         checked:checklist_item()?
@@ -2845,12 +2849,11 @@ peg::parser! {
         // Parse immediate continuations (0 empty lines) - these attach to this item
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
@@ -2867,7 +2870,7 @@ peg::parser! {
             blocks.extend(immediate_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -2875,7 +2878,7 @@ peg::parser! {
                 level,
                 marker,
                 checked,
-                location: state.create_location(start+offset, actual_end+offset),
+                location: state.create_location(span_start+offset, actual_end+offset),
             }, actual_end))
         }
 
@@ -2883,8 +2886,7 @@ peg::parser! {
         // These are identical to the regular variants except they take marker as a parameter
         // instead of parsing it, and start after the marker position
         rule unordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()
+        = whitespace()
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
@@ -2895,12 +2897,11 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
@@ -2914,7 +2915,7 @@ peg::parser! {
             }
             blocks.extend(explicit_continuations.into_iter().flatten());
 
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -2927,8 +2928,7 @@ peg::parser! {
         }
 
         rule unordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_ordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()
+        = whitespace()
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
@@ -2936,12 +2936,11 @@ peg::parser! {
         first_line_end:position!()
         nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
@@ -2955,7 +2954,7 @@ peg::parser! {
             }
             blocks.extend(immediate_continuations.into_iter().flatten());
 
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -3002,14 +3001,13 @@ peg::parser! {
           first:unordered_list_item_after_marker(offset, block_metadata, false, base_marker, marker_start, parent_ordered_marker)
           // Parse rest items - only those at same level as base_marker (not deeper, not shallower than parent)
           rest:(unordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_ordered_marker))*
-          end:position!()
         {
             tracing::debug!(?parent_marker, ?base_marker, "Found nested unordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
-            let end = content.last().map_or(end, |(_, item_end)| *item_end);
+            let end = content.last().map_or(span_end, |(_, item_end)| *item_end);
             let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or("", |item| item.marker);
 
@@ -3054,8 +3052,7 @@ peg::parser! {
         / item:ordered_list_item_no_continuation(offset, block_metadata, parent_unordered_marker) { item }
 
         rule ordered_list_item_with_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()*
+        = whitespace()*
         marker:ordered_list_marker()
         whitespace()
         checked:checklist_item()?
@@ -3082,12 +3079,11 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             // Process principal text as inline nodes
             let principal = if principal_text.trim().is_empty() {
@@ -3105,7 +3101,7 @@ peg::parser! {
             blocks.extend(explicit_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -3113,7 +3109,7 @@ peg::parser! {
                 level,
                 marker,
                 checked,
-                location: state.create_location(start+offset, actual_end+offset),
+                location: state.create_location(span_start+offset, actual_end+offset),
             }, actual_end))
         }
 
@@ -3121,8 +3117,7 @@ peg::parser! {
         // Nested items consume continuations with 0 empty lines (immediate attachment).
         // Continuations with 1+ empty lines bubble up to ancestor items.
         rule ordered_list_item_no_continuation(offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()*
+        = whitespace()*
         marker:ordered_list_marker()
         whitespace()
         checked:checklist_item()?
@@ -3137,12 +3132,11 @@ peg::parser! {
         // Parse immediate continuations (0 empty lines) - these attach to this item
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
@@ -3159,7 +3153,7 @@ peg::parser! {
             blocks.extend(immediate_continuations.into_iter().flatten());
 
             // Use end position after all blocks if we have any, otherwise use item_end
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -3167,14 +3161,13 @@ peg::parser! {
                 level,
                 marker,
                 checked,
-                location: state.create_location(start+offset, actual_end+offset),
+                location: state.create_location(span_start+offset, actual_end+offset),
             }, actual_end))
         }
 
         // After-marker variants for ordered lists: used when marker has already been consumed by parent rule
         rule ordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()
+        = whitespace()
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
@@ -3185,12 +3178,11 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
@@ -3204,7 +3196,7 @@ peg::parser! {
             }
             blocks.extend(explicit_continuations.into_iter().flatten());
 
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -3217,8 +3209,7 @@ peg::parser! {
         }
 
         rule ordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
-        = start:position!()
-        whitespace()
+        = whitespace()
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
@@ -3226,12 +3217,11 @@ peg::parser! {
         first_line_end:position!()
         nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
-        end:position!()
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
-            let item_end = calculate_item_end(principal_text.is_empty(), start, first_line_end);
+            let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
 
             let principal = if principal_text.trim().is_empty() {
                 vec![]
@@ -3245,7 +3235,7 @@ peg::parser! {
             }
             blocks.extend(immediate_continuations.into_iter().flatten());
 
-            let actual_end = if blocks.is_empty() { item_end } else { end.saturating_sub(1) };
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
 
             Ok((ListItem {
                 principal,
@@ -3292,14 +3282,13 @@ peg::parser! {
           first:ordered_list_item_after_marker(offset, block_metadata, false, base_marker, marker_start, parent_unordered_marker)
           // Parse rest items - only those at same level as base_marker (not deeper, not shallower than parent)
           rest:(ordered_list_nested_rest_item(offset, block_metadata, parent_marker, base_marker, parent_unordered_marker))*
-          end:position!()
         {
             tracing::debug!(?parent_marker, ?base_marker, "Found nested ordered list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
-            let end = content.last().map_or(end, |(_, item_end)| *item_end);
+            let end = content.last().map_or(span_end, |(_, item_end)| *item_end);
             let items: Vec<ListItem<'input>> = content.into_iter().map(|(item, _)| item).collect();
             let marker = items.first().map_or("", |item| item.marker);
 
@@ -3359,14 +3348,13 @@ peg::parser! {
         &(whitespace()* callout_list_marker() whitespace())
         first:callout_list_item(offset, block_metadata)
         rest:(callout_list_rest_item(offset, block_metadata))*
-        end:position!()
         {
             tracing::debug!("Found callout list block");
             let mut content = vec![first?];
             for item in rest {
                 content.push(item?);
             }
-            let end = content.last().map_or(end, |(_, _, item_end)| *item_end);
+            let end = content.last().map_or(span_end, |(_, _, item_end)| *item_end);
 
             // Resolve auto-numbered callouts and collect items
             let mut auto_number = 1usize;
@@ -3428,8 +3416,7 @@ peg::parser! {
         }
 
         rule callout_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(CalloutListItem<'input>, String, usize), Error>
-        = start:position!()
-        whitespace()*
+        = whitespace()*
         marker:callout_list_marker()
         whitespace()
         first_line_start:position!()
@@ -3460,7 +3447,7 @@ peg::parser! {
 
             // The end position for the list item should be at the last character of content
             let item_end = if principal_text.is_empty() {
-                start
+                span_start
             } else {
                 first_line_end.saturating_sub(1)
             };
@@ -3475,7 +3462,7 @@ peg::parser! {
             // For callout lists, we don't support nested content or attached blocks
             let blocks = vec![];
 
-            let location = state.create_location(start+offset, item_end+offset);
+            let location = state.create_location(span_start+offset, item_end+offset);
 
             // Create a placeholder callout - will be resolved in callout_list
             // We pass the marker string to the parent rule for resolution
@@ -3537,7 +3524,6 @@ peg::parser! {
         = check_start_of_description_list(offset)
         first_item:description_list_item(offset, block_metadata)
         additional_items:description_list_additional_items(offset, block_metadata)*
-        end:position!()
         {
             tracing::debug!("Found description list block with auto-attachment support");
             let mut items = vec![first_item?];
@@ -3546,7 +3532,7 @@ peg::parser! {
                 items.push(additional?);
             }
 
-            let actual_end = items.last().map_or(end, |item| {
+            let actual_end = items.last().map_or(span_end, |item| {
                 let loc_end = item.location.absolute_end;
                 loc_end - offset
             });
@@ -3574,8 +3560,7 @@ peg::parser! {
         }
 
         rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
-        = start:position!()
-        term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
+        = term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
         whitespace()?
         principal_start:position!()
@@ -3607,16 +3592,15 @@ peg::parser! {
         )
         // Now handle auto-attachment and explicit continuation
         attached_content:description_list_attached_content(offset, block_metadata)*
-        end:position!()
         {
             tracing::debug!(%term, %delimiter, "parsing description list item with auto-attachment");
 
-            state.inline_ctx.offset = start + offset;
+            state.inline_ctx.offset = span_start + offset;
             state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
             state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
             let term = inline_parser::inlines(term.trim(), state)
                 .unwrap_or_else(|e| {
-                    adjust_and_log_parse_error(&e, term.trim(), start+offset, state, "Error parsing term as inline content");
+                    adjust_and_log_parse_error(&e, term.trim(), span_start+offset, state, "Error parsing term as inline content");
                     vec![]
                 });
 
@@ -3639,9 +3623,10 @@ peg::parser! {
                 }
             }
 
-            // Calculate actual end from last attached block, or fall back to end of principal/term
-            // Note: end:position!() captures position after consuming blank lines looking for more
-            // continuations, which ends up at the start of the next item. We need the actual content end.
+            // Calculate actual end from last attached block, or fall back to end of principal/term.
+            // The injected `span_end` captures position after consuming blank lines looking for more
+            // continuations (start of the next item), so it's not the right end either — we want
+            // the actual content end.
             let actual_end = description.last().map_or_else(
                 || {
                     // No attached content: use end of principal text line
@@ -3666,7 +3651,7 @@ peg::parser! {
                 delimiter_location: Some(delimiter_location),
                 principal_text,
                 description,
-                location: state.create_location(start+offset, actual_end+offset),
+                location: state.create_location(span_start+offset, actual_end+offset),
             })
         }
 
@@ -3746,7 +3731,6 @@ peg::parser! {
           "\"" quoted_content:$((!"\"" [_])+) "\""
           eol()
           "-- " attr_start:position!() attribution_line:$([^'\n']+)
-          end:position!()
         {
             tracing::debug!(?quoted_content, ?attribution_line, "found quoted paragraph");
 
@@ -3808,7 +3792,7 @@ peg::parser! {
                 delimiter: "\"",
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
                 title: block_metadata.title.clone(),
-                location: state.create_block_location(start, end, offset),
+                location: state.create_block_location(start, span_end, offset),
                 open_delimiter_location: None,
                 close_delimiter_location: None,
             }))
@@ -3826,7 +3810,7 @@ peg::parser! {
         /// The content after `> ` on each line is joined and parsed as blocks.
         /// Attribution is extracted from a line matching `> -- Author[, Citation]`.
         rule markdown_blockquote(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = lines:markdown_blockquote_content_line()+ attribution:markdown_blockquote_attribution()? end:position!()
+        = lines:markdown_blockquote_content_line()+ attribution:markdown_blockquote_attribution()?
         {
             tracing::debug!(?lines, ?attribution, "found markdown blockquote");
 
@@ -3873,7 +3857,7 @@ peg::parser! {
                 }
             }
 
-            let location = state.create_block_location(start, end, offset);
+            let location = state.create_block_location(start, span_end, offset);
 
             // Parse the content as blocks
             let blocks = if content.trim().is_empty() {
@@ -3939,7 +3923,6 @@ peg::parser! {
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
             / eol()* &((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
         ) [_])+)
-        end:position!()
         {
             // Reset the verbatim flag since paragraph is not a verbatim block
             state.last_block_was_verbatim = false;
@@ -3949,10 +3932,10 @@ peg::parser! {
             // Literal paragraphs start with a space and should not have inline
             // preprocessing applied
             if content.starts_with(' ') {
-                return Ok(get_literal_paragraph(state, content, start, end, offset, block_metadata));
+                return Ok(get_literal_paragraph(state, content, start, span_end, offset, block_metadata));
             }
 
-            let content = process_inlines(state, block_metadata, content_start, end, offset, content)?;
+            let content = process_inlines(state, block_metadata, content_start, span_end, offset, content)?;
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
             let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
@@ -3981,9 +3964,9 @@ peg::parser! {
                         content,
                         metadata: block_metadata.metadata.clone(),
                         title: Title::default(),
-                        location: state.create_block_location(content_start, end, offset),
+                        location: state.create_block_location(content_start, span_end, offset),
                     })],
-                    location: state.create_block_location(start, end, offset),
+                    location: state.create_block_location(start, span_end, offset),
                     variant: parsed_variant,
 
                 }))
@@ -3996,15 +3979,15 @@ peg::parser! {
                     content,
                     metadata,
                     title,
-                    location: state.create_block_location(start, end, offset),
+                    location: state.create_block_location(start, span_end, offset),
                 }))
             }
         }
 
         rule admonition() -> (String, usize, usize)
-            = start:position!() variant:$("NOTE" / "WARNING" / "TIP" / "IMPORTANT" / "CAUTION") ": " end:position!()
+            = variant:$("NOTE" / "WARNING" / "TIP" / "IMPORTANT" / "CAUTION") ": "
         {
-            (variant.to_string(), start, end)
+            (variant.to_string(), span_start, span_end)
         }
 
         // Lookahead rule that warns about anchor ID-like patterns containing whitespace.
@@ -4012,13 +3995,11 @@ peg::parser! {
         // This uses negative lookahead and emits a warning if it detects whitespace. It
         // does not consume the input.
         rule warn_anchor_id_with_whitespace() -> ()
-        = start:position!()
-        &(
+        = &(
             id:$([^'\'' | ',' | ']' | '.' | '#']+)
-            end:position!()
             {?
                 if id.chars().any(char::is_whitespace) {
-                    let location = state.create_location(start, end);
+                    let location = state.create_location(span_start, span_end);
                     state.add_generic_warning_at(
                         format!("anchor id '{id}' contains whitespace which is not allowed, treating as literal text"),
                         location,
@@ -4031,8 +4012,7 @@ peg::parser! {
         )
 
         rule anchor() -> Anchor<'input>
-        = start:position!()
-        result:(
+        = result:(
             // Double-bracket [[id]] syntax - allows dots in ID since no role shorthand
             // possible.
             //
@@ -4041,7 +4021,7 @@ peg::parser! {
             double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) double_close_square_bracket() {
                 (id, Some(reftext))
             } /
-            start:position!() double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) double_close_square_bracket() {
+            double_open_square_bracket() warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+) double_close_square_bracket() {
                 (id, None)
             } /
             // Single-bracket [#id] shorthand - exclude '.', '%' as they start role/option
@@ -4049,10 +4029,10 @@ peg::parser! {
             //
             // Whitespace is excluded per AsciiDoc documentation at
             // https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#valid-id-characters
-            start:position!() open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) close_square_bracket() {
+            open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) close_square_bracket() {
                 (id, Some(reftext))
             } /
-            start:position!() open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) close_square_bracket() {
+            open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) close_square_bracket() {
                 (id, None)
             }
         )
@@ -4062,16 +4042,17 @@ peg::parser! {
             let (id, reftext) = result;
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
             let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
+            // `end` is captured before the trailing eol() so the anchor's
+            // location doesn't include the newline.
             Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_location(start, end)
+                location: state.create_location(span_start, end)
             }
         }
 
         rule inline_anchor(offset: usize) -> InlineNode<'input>
-        = start:position!()
-        double_open_square_bracket()
+        = double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+)
@@ -4084,14 +4065,13 @@ peg::parser! {
             }
         )
         double_close_square_bracket()
-        end:position!()
         {
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
             let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_block_location(start, end, offset)
+                location: state.create_block_location(span_start, span_end, offset)
             })
         }
 
@@ -4101,20 +4081,18 @@ peg::parser! {
         /// Bibliography anchor: `[[[id]]]` or `[[[id,reftext]]]`
         /// Must be parsed before inline_anchor to avoid capturing `[id` as the ID
         rule bibliography_anchor(offset: usize) -> InlineNode<'input>
-        = start:position!()
-        "[[["
+        = "[[["
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '[' | '.' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(comma() reftext:$([^']']+) { Some(reftext) } / { None })
         "]]]"
-        end:position!()
         {
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
             let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_block_location(start, end, offset)
+                location: state.create_block_location(span_start, span_end, offset)
             })
         }
 
@@ -4132,7 +4110,7 @@ peg::parser! {
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
         pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = start:position!() open_square_bracket() content:(
+            = open_square_bracket() content:(
                 // The case in which we keep the style empty
                 attributes:(comma() att:attribute() { att })+ {
                     tracing::debug!(?attributes, "Found empty style with attributes");
@@ -4153,7 +4131,7 @@ peg::parser! {
                     tracing::debug!(?attributes, "Found attributes");
                     (false, None, attributes)
                 })
-            close_square_bracket() end:position!() {
+            close_square_bracket() {
                 let mut discrete = false;
                 let (_empty, maybe_style, attributes) = content;
                 let mut metadata = BlockMetadata::default();
@@ -4179,8 +4157,8 @@ peg::parser! {
                     attributes.iter().cloned(),
                     &mut metadata,
                     state,
-                    start,
-                    end,
+                    span_start,
+                    span_end,
                     AttributeProcessingMode::BLOCK,
                 );
 
@@ -4189,7 +4167,7 @@ peg::parser! {
                     for (k, v, pos) in attributes.iter().flatten() {
                         if *k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
                             let location = pos.map_or_else(
-                                || state.create_location(start, end),
+                                || state.create_location(span_start, span_end),
                                 |(s, e)| state.create_location(s, e),
                             );
                             state.add_generic_warning_at(
@@ -4248,17 +4226,17 @@ peg::parser! {
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
         pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = start:position!() open_square_bracket()
+            = open_square_bracket()
               attrs:(att:macro_attribute() comma()? { att })*
-              close_square_bracket() end:position!()
+              close_square_bracket()
         {
             let mut metadata = BlockMetadata::default();
             let title_position = process_attribute_list(
                 attrs,
                 &mut metadata,
                 state,
-                start,
-                end,
+                span_start,
+                span_end,
                 AttributeProcessingMode::MACRO,
             );
             // macro_attributes never sets discrete flag (that's block-level only)
@@ -4348,7 +4326,7 @@ peg::parser! {
         // immediately after the optional block style. The order of the entries does not
         // matter, except for the style, which must come first.
         pub(crate) rule block_style() -> (Option<Cow<'input, str>>, Option<Anchor<'input>>, Vec<Cow<'input, str>>, Vec<Cow<'input, str>>)
-            = start:position!() content:(
+            = content:(
                 style:positional_attribute_value() shorthands:(
                     "#" id_start:position!() id:block_style_id() id_end:position!() {
                         (Shorthand::Id(Cow::Owned(id.to_string())), Some((id_start, id_end)))
@@ -4370,7 +4348,7 @@ peg::parser! {
                     (None, shorthands)
                }
             )
-            end:position!() {
+            {
                 let (style, shorthands) = content;
                 let mut maybe_anchor = None;
                 let mut roles = Vec::new();
@@ -4378,7 +4356,7 @@ peg::parser! {
                 for (shorthand, pos) in shorthands {
                     match shorthand {
                         Shorthand::Id(id) => {
-                            let (id_start, id_end) = pos.unwrap_or((start, end));
+                            let (id_start, id_end) = pos.unwrap_or((span_start, span_end));
                             maybe_anchor = Some(Anchor {
                                 id: state.intern_cow(id),
                                 xreflabel: None,

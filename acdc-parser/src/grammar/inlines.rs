@@ -156,6 +156,14 @@ peg::parser! {
         use crate::model::{substitute, Substitution};
         use crate::model::substitution::parse_substitution;
 
+        // Injected span endpoints — `span_start`/`span_end` are bound in every
+        // action block to the byte range of the sequence leading up to it,
+        // replacing the boilerplate `start:position!() ... end:position!()`
+        // captures that previously wrapped most rules. See document.rs for the
+        // same pair on the document grammar.
+        inject span_start(_input, l, _r) -> usize { l }
+        inject span_end(_input, _l, r) -> usize { r }
+
         pub(crate) rule inlines() -> Vec<InlineNode<'input>>
         = (non_plain_text() / plain_text())+
 
@@ -294,10 +302,10 @@ peg::parser! {
         /// Only matches when there's a complete pattern (content with no spaces
         /// followed by closing marker).
         rule escaped_superscript_subscript() -> InlineNode<'input>
-        = start:position!() "\\" content:escaped_super_sub_pattern() end:position!() {
+        = "\\" content:escaped_super_sub_pattern() {
             InlineNode::PlainText(Plain {
                 content,
-                location: state.create_location(start + state.inline_ctx.offset, end + state.inline_ctx.offset),
+                location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
                 escaped: true,
             })
         }
@@ -312,10 +320,10 @@ peg::parser! {
         /// Handles paired delimiters (`<<...>>`, `[...]`) as complete units,
         /// and simple content until stop characters (space, punctuation).
         rule escaped_syntax() -> InlineNode<'input>
-        = start:position!() "\\" content:escaped_content() end:position!() {
+        = "\\" content:escaped_content() {
             InlineNode::PlainText(Plain {
                 content,
-                location: state.create_location(start + state.inline_ctx.offset, end + state.inline_ctx.offset),
+                location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
                 escaped: false,
             })
         }
@@ -437,13 +445,11 @@ peg::parser! {
         }
 
         rule footnote_match() -> (usize, Option<&'input str>, usize, &'input str, usize)
-        = start:position!()
-        "footnote:"
+        = "footnote:"
         // TODO(nlopes): we should change this so that we require an id if content is empty
         id:id()? "[" content_start:position!() content:balanced_bracket_content() "]"
-        end:position!()
         {
-            (start, id, content_start, content, end)
+            (span_start, id, content_start, content, span_end)
 
         }
 
@@ -508,19 +514,17 @@ peg::parser! {
         / regular_text:$((!("," whitespace()* (attribute_name() "=" / "]")) [^'[' | ']'])+) { Cow::Borrowed(regular_text) }
 
         rule inline_pass() -> InlineNode<'input>
-        = start:position!()
-        "pass:"
+        = "pass:"
         substitutions:($([^(']' | ',')]+) ** comma())
         "["
         content:$([^']']+)
         "]"
-        end:position!()
         {
             tracing::debug!(?content, "Found pass inline");
             InlineNode::Macro(InlineMacro::Pass(Pass {
                 text: Some(content.trim()),
                 substitutions: substitutions.into_iter().filter_map(|s| parse_substitution(s.trim())).collect(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                 kind: PassthroughKind::Macro,
             }))
         }
@@ -533,11 +537,9 @@ peg::parser! {
         /// Only appears in the index, not in the text.
         /// Supports hierarchical entries with up to three levels.
         rule index_term_concealed() -> InlineNode<'input>
-        = start:position!()
-        "((("
+        = "((("
         terms:index_term_list()
         ")))"
-        end:position!()
         {
             let mut iter = terms.into_iter();
             let term = iter.next().unwrap_or_default();
@@ -546,7 +548,7 @@ peg::parser! {
             tracing::debug!(%term, ?secondary, ?tertiary, "Found concealed index term");
             InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
                 kind: IndexTermKind::Concealed { term, secondary, tertiary },
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -554,29 +556,25 @@ peg::parser! {
         /// Appears both in the text and in the index.
         /// Only supports a primary term.
         rule index_term_flow() -> InlineNode<'input>
-        = start:position!()
-        "(("
+        = "(("
         !("(")  // Ensure this is not the start of a concealed term
         term:$((!"))" [_])+)
         "))"
-        end:position!()
         {
             let term = term.trim();
             tracing::debug!(%term, "Found flow index term");
             InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
                 kind: IndexTermKind::Flow(term),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
         /// indexterm macro: indexterm:[primary, secondary, tertiary]
         /// Concealed (hidden) form - same as (((primary, secondary, tertiary)))
         rule indexterm_macro() -> InlineNode<'input>
-        = start:position!()
-        "indexterm:["
+        = "indexterm:["
         terms:index_term_list()
         "]"
-        end:position!()
         {
             let mut iter = terms.into_iter();
             let term = iter.next().unwrap_or_default();
@@ -585,24 +583,22 @@ peg::parser! {
             tracing::debug!(%term, ?secondary, ?tertiary, "Found indexterm macro");
             InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
                 kind: IndexTermKind::Concealed { term, secondary, tertiary },
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
         /// indexterm2 macro: indexterm2:[term]
         /// Flow (visible) form - same as ((term))
         rule indexterm2_macro() -> InlineNode<'input>
-        = start:position!()
-        "indexterm2:["
+        = "indexterm2:["
         term:$([^']']+)
         "]"
-        end:position!()
         {
             let term = term.trim();
             tracing::debug!(%term, "Found indexterm2 macro");
             InlineNode::Macro(InlineMacro::IndexTerm(IndexTerm {
                 kind: IndexTermKind::Flow(term),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -634,19 +630,17 @@ peg::parser! {
         / "indexterm2:[" [^']']* "]"  // indexterm2:[term]
 
         rule inline_menu() -> InlineNode<'input>
-        = start:position!()
-        "menu:"
+        = "menu:"
         target:$([^'[']+)
         "["
         items:((item:$([^(']' | '>')]+) { item.trim() }) ** (">" whitespace()?))
         "]"
-        end:position!()
         {
             tracing::debug!(%target, ?items, "Found menu inline");
             InlineNode::Macro(InlineMacro::Menu(Menu {
                 target,
                 items,
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -655,13 +649,12 @@ peg::parser! {
         = "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
 
         rule inline_button() -> InlineNode<'input>
-        = start:position!()
-        "btn:[" label:$balanced_bracket_content() "]" end:position!()
+        = "btn:[" label:$balanced_bracket_content() "]"
         {
             tracing::debug!(?label, "Found button inline");
             InlineNode::Macro(InlineMacro::Button(Button {
                 label: label.trim(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -670,16 +663,14 @@ peg::parser! {
         = "btn:[" balanced_bracket_content() "]"
 
         rule inline_keyboard() -> InlineNode<'input>
-        = start:position!()
-        "kbd:["
+        = "kbd:["
         keys:((key:$([^(']' | '+' | ',')]+) { key.trim() }) ** (("," / "+") whitespace()?))
         "]"
-        end:position!()
         {
             tracing::debug!(?keys, "Found keyboard inline");
             InlineNode::Macro(InlineMacro::Keyboard(Keyboard {
                 keys,
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -694,8 +685,7 @@ peg::parser! {
         /// This is similar to link macros but the URL is directly specified rather than
         /// using the `link:` prefix.
         rule url_macro() -> InlineNode<'input>
-        = start:position!()
-        target:url()
+        = target:url()
         "["
         content_start:position!()
         content:(
@@ -707,7 +697,6 @@ peg::parser! {
             }
         )
         "]"
-        end:position!()
         {?
             tracing::debug!(?target, "Found url macro");
             let bm = BlockParsingMetadata {
@@ -723,7 +712,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, text)
+                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process URL macro text");
                         "could not process URL macro text"
@@ -737,7 +726,7 @@ peg::parser! {
                 text,
                 target: target_source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
@@ -753,8 +742,7 @@ peg::parser! {
         /// This is similar to link macros but the `mailto:` is directly specified rather
         /// than using the `link:` prefix.
         rule mailto_macro() -> InlineNode<'input>
-        = start:position!()
-        &"mailto:"
+        = &"mailto:"
         target:url()
         "["
         content_start:position!()
@@ -767,7 +755,6 @@ peg::parser! {
             }
         )
         "]"
-        end:position!()
         {?
             tracing::debug!(?target, "Found mailto macro");
             let bm = BlockParsingMetadata {
@@ -783,7 +770,7 @@ peg::parser! {
                 }
             }
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, text)
+                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, url_text = text, "could not process mailto macro text");
                         "could not process mailto macro text"
@@ -797,7 +784,7 @@ peg::parser! {
                 text,
                 target: target_source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
@@ -813,15 +800,12 @@ peg::parser! {
         = {? if state.inline_ctx.macros_enabled { Ok(()) } else { Err("macros disabled") } }
 
         rule inline_autolink() -> InlineNode<'input>
-        =
-        start:position!()
-        url_info:(
+        = url_info:(
             "<" url:url() ">" { (url, true) }
             / "<" url:email_address() ">" { (Cow::Owned(format!("mailto:{url}")), true) }
             / url:bare_url() { (url, false) }
             / email_at_sign_ahead() url:email_address() { (Cow::Owned(format!("mailto:{url}")), false) }
         )
-        end:position!()
         {?
             let (url, bracketed) = url_info;
             tracing::debug!(?url, bracketed, "Found autolink inline");
@@ -830,7 +814,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::Autolink(Autolink {
                 url: url_source,
                 bracketed,
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
@@ -844,13 +828,16 @@ peg::parser! {
         / email_at_sign_ahead() email_address()
 
         rule inline_line_break() -> InlineNode<'input>
-        = start:position!() " +" end:position!() eol()
+        = " +" end:position!() eol()
         {?
             // Hard line break requires `text +` where text is actual content (non-whitespace)
             // When `+` appears indented at the start of a line (after newline + whitespace),
             // it should be treated as literal text, not a hard break.
             // See: https://github.com/nlopes/acdc/issues/234
-            let absolute_pos = start + state.inline_ctx.offset;
+            //
+            // `end` captures position before the trailing eol so the line break's
+            // location doesn't include the newline.
+            let absolute_pos = span_start + state.inline_ctx.offset;
             let valid = absolute_pos > 0 && {
                 let prev_byte_pos = absolute_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| {
@@ -864,15 +851,15 @@ peg::parser! {
 
             tracing::debug!("Found inline line break");
             Ok(InlineNode::LineBreak(LineBreak {
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, end, state.inline_ctx.offset),
             }))
         }
 
         /// Match inline line break without consuming - for use in negative lookaheads.
         rule inline_line_break_match()
-        = start:position!() " +" eol()
+        = " +" eol()
         {?
-            let absolute_pos = start + state.inline_ctx.offset;
+            let absolute_pos = span_start + state.inline_ctx.offset;
             let valid = absolute_pos > 0 && {
                 let prev_byte_pos = absolute_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| {
@@ -883,11 +870,13 @@ peg::parser! {
         }
 
         rule hard_wrap() -> InlineNode<'input>
-            = start:position!() " + \\" end:position!() &eol()
+            = " + \\" &eol()
         {
             tracing::debug!("Found hard wrap inline");
+            // The trailing `&eol()` is a zero-width lookahead, so `span_end` matches
+            // the position right after `\` (before the newline).
             InlineNode::LineBreak(LineBreak {
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })
         }
 
@@ -896,7 +885,7 @@ peg::parser! {
         = " + \\" &eol()
 
         rule inline_icon() -> InlineNode<'input>
-        = start:position!() "icon:" source:source() attributes:macro_attributes() end:position!()
+        = "icon:" source:source() attributes:macro_attributes()
         {
             let (_discrete, metadata, _title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -933,7 +922,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Icon(Icon {
                 target: source,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -944,7 +933,7 @@ peg::parser! {
         = "icon:" source() "[" (!"]" [_])* "]"
 
         rule inline_stem() -> InlineNode<'input>
-        = start:position!() prefix:$("latexmath" / "asciimath" / "stem") ":[" content:escaped_bracket_content() "]" end:position!()
+        = prefix:$("latexmath" / "asciimath" / "stem") ":[" content:escaped_bracket_content() "]"
         {
             let notation = match prefix {
                 "latexmath" => StemNotation::Latexmath,
@@ -961,7 +950,7 @@ peg::parser! {
             InlineNode::Macro(InlineMacro::Stem(Stem {
                 content,
                 notation,
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
@@ -971,7 +960,7 @@ peg::parser! {
         = ("latexmath" / "asciimath" / "stem") ":[" ("\\\\" / "\\" ['[' | ']'] / [^(']' | '\\')]+ / "\\")* "]"
 
         rule inline_image() -> InlineNode<'input>
-        = start:position!() "image:" source:source() attributes:macro_attributes() end:position!()
+        = "image:" source:source() attributes:macro_attributes()
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -980,7 +969,7 @@ peg::parser! {
                 // For inline images, the first positional attribute is the alt text (title)
                 title = crate::Title::new(vec![InlineNode::PlainText(Plain {
                     content: style,
-                    location: state.create_block_location(start, end, state.inline_ctx.offset),
+                    location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                     escaped: false,
                 })]);
             }
@@ -1023,7 +1012,7 @@ peg::parser! {
                 title,
                 source,
                 metadata: metadata.clone(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
 
             }))))
         }
@@ -1065,7 +1054,7 @@ peg::parser! {
         /// regressions in other parts of the parser while correctly handling edge cases
         /// like quotes, special characters, and mixed content.
         rule link_macro() -> InlineNode<'input>
-        = start:position!() "link:" target:source() fragment:path_fragment()? "["
+        = "link:" target:source() fragment:path_fragment()? "["
         content_start:position!()
         content:(
             title:link_title() attributes:("," att:attribute() { att })* {
@@ -1074,7 +1063,7 @@ peg::parser! {
             attributes:(att:attribute() comma()? { att })* {
                 (None, attributes.into_iter().flatten().collect::<Vec<_>>())
             }
-        ) "]" end:position!()
+        ) "]"
         {?
             tracing::debug!(?target, ?content, "Found link macro inline");
             let bm = BlockParsingMetadata {
@@ -1097,7 +1086,7 @@ peg::parser! {
                 None => target,
             };
             let text = if let Some(text) = text {
-                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, text)
+                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, link_text = text, "could not process link macro text");
                         "could not process link macro text"
@@ -1109,7 +1098,7 @@ peg::parser! {
                 text,
                 target,
                 attributes: metadata.attributes.clone(),
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
@@ -1119,7 +1108,7 @@ peg::parser! {
 
         /// Parse cross-reference shorthand syntax: <<id>> or <<id,custom text>>
         rule cross_reference_shorthand() -> InlineNode<'input>
-        = start:position!() shorthand:cross_reference_shorthand_pattern() end:position!()
+        = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
             let target_str: &'input str = target.trim();
@@ -1144,7 +1133,7 @@ peg::parser! {
                         offset: content_start,
                         position: state.line_map.offset_to_position(content_start, state.input),
                     };
-                    process_inlines_no_autolinks(state, &bm, content_pos.offset, end, state.inline_ctx.offset, trimmed)
+                    process_inlines_no_autolinks(state, &bm, content_pos.offset, span_end, state.inline_ctx.offset, trimmed)
                         .map_err(|e| {
                             tracing::error!(?e, xref_text = trimmed, "could not process xref text");
                             "could not process xref text"
@@ -1157,7 +1146,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text,
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
@@ -1170,7 +1159,7 @@ peg::parser! {
 
         /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro() -> InlineNode<'input>
-        = start:position!() "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:$((!"]" [_])*) "]" end:position!()
+        = "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:$((!"]" [_])*) "]"
         {?
             let target_str: &'input str = match fragment {
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
@@ -1184,7 +1173,7 @@ peg::parser! {
             let text = if raw_text.is_empty() {
                 vec![]
             } else {
-                process_inlines_no_autolinks(state, &bm, content_start, end, state.inline_ctx.offset, raw_text)
+                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, raw_text)
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
@@ -1194,7 +1183,7 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
                 target: target_str,
                 text,
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             })))
         }
 
@@ -1793,22 +1782,20 @@ peg::parser! {
 
         /// Parse standalone curved apostrophe (`')
         rule standalone_curved_apostrophe() -> InlineNode<'input>
-            = start:position!() "`'" end:position!()
+            = "`'"
         {?
-            tracing::debug!(?start, ?end, offset = ?state.inline_ctx.offset, "Found standalone curved apostrophe inline");
+            tracing::debug!(start = span_start, end = span_end, offset = ?state.inline_ctx.offset, "Found standalone curved apostrophe inline");
             Ok(InlineNode::StandaloneCurvedApostrophe(StandaloneCurvedApostrophe {
-                location: state.create_block_location(start, end, state.inline_ctx.offset),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))
         }
 
         rule warn_anchor_id_with_whitespace() -> ()
-        = start:position!()
-        &(
+        = &(
             id:$([^'\'' | ',' | ']' | '.' | '#']+)
-            end:position!()
             {?
                 if id.chars().any(char::is_whitespace) {
-                    let location = state.create_block_location(start, end, state.inline_ctx.offset);
+                    let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
                     state.add_generic_warning_at(
                         format!("anchor id '{id}' contains whitespace which is not allowed, treating as literal text"),
                         location,
@@ -1821,8 +1808,7 @@ peg::parser! {
         )
 
         rule inline_anchor() -> InlineNode<'input>
-        = start:position!()
-        double_open_square_bracket()
+        = double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+)
@@ -1835,14 +1821,13 @@ peg::parser! {
             }
         )
         double_close_square_bracket()
-        end:position!()
         {
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
             let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_block_location(start, end, state.inline_ctx.offset)
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset)
             })
         }
 
@@ -1852,20 +1837,18 @@ peg::parser! {
         /// Bibliography anchor: `[[[id]]]` or `[[[id,reftext]]]`
         /// Must be parsed before inline_anchor to avoid capturing `[id` as the ID
         rule bibliography_anchor() -> InlineNode<'input>
-        = start:position!()
-        "[[["
+        = "[[["
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '[' | '.' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(comma() reftext:$([^']']+) { Some(reftext) } / { None })
         "]]]"
-        end:position!()
         {
             let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
             let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_block_location(start, end, state.inline_ctx.offset)
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset)
             })
         }
 
@@ -1991,17 +1974,17 @@ peg::parser! {
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
         pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = start:position!() open_square_bracket()
+            = open_square_bracket()
               attrs:(att:macro_attribute() comma()? { att })*
-              close_square_bracket() end:position!()
+              close_square_bracket()
         {
             let mut metadata = BlockMetadata::default();
             let title_position = process_attribute_list(
                 attrs,
                 &mut metadata,
                 state,
-                start,
-                end,
+                span_start,
+                span_end,
                 AttributeProcessingMode::MACRO,
             );
             // macro_attributes never sets discrete flag (that's block-level only)

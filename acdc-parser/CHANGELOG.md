@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Updated the parser grammar implementation to reduce location-tracking
+  overhead while preserving the same parse output and diagnostics.
+
 ## [0.9.0] - 2026-04-26
 
 ### Packaging
