@@ -46,6 +46,8 @@ terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI co
 
 # Syntax highlighting for source blocks (requires html feature)
 highlighting = ["acdc-converters-html?/highlighting"]
+# Enable optional terminal previews in the HTML converter.
+terminal-preview = ["html", "acdc-converters-html/terminal-preview"]
 
 # Development tools
 inspect = []  # AST inspection tool for debugging parser output

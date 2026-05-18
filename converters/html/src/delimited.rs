@@ -540,6 +540,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return self.render_listing_block_semantic(inlines, title, metadata);
         }
 
+        #[cfg(feature = "terminal-preview")]
+        if crate::terminal_preview::is_terminal_listing(&processor.document_attributes, metadata) {
+            return self.render_terminal_listing_block(inlines, title, metadata);
+        }
+
         let mut w = self.writer_mut();
         write_block_div_open(&mut w, metadata, "listingblock")?;
         let _ = w;
@@ -580,6 +585,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         title: &[InlineNode],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
+        #[cfg(feature = "terminal-preview")]
+        if crate::terminal_preview::is_terminal_listing(
+            &self.processor.document_attributes,
+            metadata,
+        ) {
+            return self.render_terminal_listing_block_semantic(inlines, title, metadata);
+        }
+
         let mut w = self.writer_mut();
         if title.is_empty() {
             // Untitled: use div
@@ -595,6 +608,69 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
             self.render_listing_code(inlines, metadata)?;
             let w = self.writer_mut();
+            writeln!(w, "</figure>")?;
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "terminal-preview")]
+    fn render_terminal_listing_block(
+        &mut self,
+        inlines: &[InlineNode],
+        title: &[InlineNode],
+        metadata: &BlockMetadata,
+    ) -> Result<(), Error> {
+        let attrs = self.processor.document_attributes.clone();
+        let options = self.processor.options.clone();
+        let mut w = self.writer_mut();
+        write_block_div_open(&mut w, metadata, "listingblock terminal-preview-block")?;
+        let _ = w;
+
+        if !title.is_empty() {
+            self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+        }
+
+        w = self.writer_mut();
+        writeln!(w, "<div class=\"content\">")?;
+        crate::terminal_preview::render_listing(w, inlines, metadata, options, &attrs)?;
+        w = self.writer_mut();
+        writeln!(w, "</div>")?;
+        writeln!(w, "</div>")?;
+        Ok(())
+    }
+
+    #[cfg(feature = "terminal-preview")]
+    fn render_terminal_listing_block_semantic(
+        &mut self,
+        inlines: &[InlineNode],
+        title: &[InlineNode],
+        metadata: &BlockMetadata,
+    ) -> Result<(), Error> {
+        let attrs = self.processor.document_attributes.clone();
+        let options = self.processor.options.clone();
+        let mut w = self.writer_mut();
+        if title.is_empty() {
+            write_semantic_tag_open(
+                &mut w,
+                "div",
+                metadata,
+                "listing-block terminal-preview-block",
+            )?;
+            crate::terminal_preview::render_listing(w, inlines, metadata, options, &attrs)?;
+            w = self.writer_mut();
+            writeln!(w, "</div>")?;
+        } else {
+            write_semantic_tag_open(
+                &mut w,
+                "figure",
+                metadata,
+                "listing-block terminal-preview-block",
+            )?;
+            let _ = w;
+            self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+            w = self.writer_mut();
+            crate::terminal_preview::render_listing(w, inlines, metadata, options, &attrs)?;
+            w = self.writer_mut();
             writeln!(w, "</figure>")?;
         }
         Ok(())

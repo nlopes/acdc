@@ -10,6 +10,7 @@ publish = false
 default = []
 images = ["dep:viuer"]
 highlighting = ["dep:syntect"]
+render-state = ["dep:libghostty-vt"]
 
 [dependencies]
 acdc-converters-core.workspace = true
@@ -19,6 +20,7 @@ crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 unicode-width.workspace = true
+libghostty-vt = { version = "0.1.1", optional = true }
 # syntax highlighting (optional - saves ~7s compile time when disabled)
 syntect = { version = "5.3", optional = true }
 # images on the terminal (optional - saves ~16s compile time when disabled)

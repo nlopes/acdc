@@ -14,6 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Feature-gated `terminal-preview` support lets both standard and semantic HTML
+  conversions include selectable terminal-styled previews via `libghostty-vt`
+  when the document opts in with `:terminal-preview:`. Previews follow
+  `:dark-mode:`, preserve terminal-converter ANSI colors for source/listing
+  blocks, and auto-size to the rendered terminal text unless rows are explicitly
+  configured with `:terminal-preview-rows:` or `:terminal-rows:`. Preview width
+  can be configured with `:terminal-preview-cols:` or `:terminal-cols:`. The
+  terminal preview base styles live in the built-in HTML stylesheets, so they
+  follow the same embedded, linked, and copied stylesheet modes as the rest of
+  the converter output. This is an acdc-only HTML extension; Asciidoctor does
+  not provide a `:terminal-preview:` attribute or equivalent built-in terminal
+  preview feature.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.

@@ -25,6 +25,16 @@ impl Appearance {
     #[must_use]
     pub(crate) fn detect() -> Self {
         let theme = Theme::detect();
+        Self::for_theme(theme)
+    }
+
+    #[must_use]
+    pub(crate) fn for_dark_mode(dark_mode: bool) -> Self {
+        Self::for_theme(if dark_mode { Theme::Dark } else { Theme::Light })
+    }
+
+    #[must_use]
+    fn for_theme(theme: Theme) -> Self {
         let capabilities = Capabilities::detect();
         let colors = ColorScheme::for_theme(theme);
         Self {

@@ -12,9 +12,12 @@ default = ["pre-spec-subs"]
 pre-spec-subs = ["acdc-parser/pre-spec-subs"]
 # Enable syntax highlighting for source blocks using syntect
 highlighting = ["dep:syntect"]
+# Render terminal-converter output into selectable HTML previews via libghostty-vt.
+terminal-preview = ["dep:acdc-converters-terminal", "acdc-converters-terminal/render-state", "acdc-converters-terminal/highlighting"]
 
 [dependencies]
 acdc-converters-core.workspace = true
+acdc-converters-terminal = { path = "../terminal", optional = true }
 acdc-parser.workspace = true
 chrono.workspace = true
 syntect = { version = "5.3", optional = true, default-features = false, features = ["default-fancy"] }

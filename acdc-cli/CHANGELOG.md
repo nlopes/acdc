@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `terminal-preview` feature forwards optional terminal preview support to
+  the HTML converter. This is an acdc-only extension for selectable terminal
+  previews in HTML output; Asciidoctor does not provide a `:terminal-preview:`
+  attribute or equivalent built-in feature.
 - Converter warnings are now rendered on stderr with the same miette warning
   styling used for parser warnings.
 - `convert --open` now opens converter-reported output files, including

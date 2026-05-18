@@ -1,0 +1,87 @@
+= Terminal Preview Sample
+:author: ACDC
+:toc:
+:sectnums:
+:terminal-preview:
+:terminal-preview-cols: 88
+
+This document is normal HTML content with terminal-style source blocks rendered
+as selectable terminal previews when the HTML converter is built with the
+`terminal-preview` feature.
+
+The content below is intentionally written like a terminal workflow so the
+preview has terminal-shaped material to render.
+
+== Terminal Session
+
+[source,console]
+----
+$ acdc --version
+acdc 0.2.0
+
+$ acdc convert README.adoc --backend html --variant semantic -o /tmp/readme.html
+Generated html5s file: /tmp/readme.html
+
+$ acdc convert converters/html/samples/terminal_preview.adoc \
+    --backend html \
+    -o /tmp/terminal-preview.html
+Generated html file: /tmp/terminal-preview.html
+----
+
+== Output Checklist
+
+The terminal preview should make these details visible as selectable browser
+text:
+
+* command prompts beginning with `$`
+* wrapped command lines
+* generated output paths
+* *bold text*, _italic text_, `monospace text`, and [.underline]#underlined text#
+
+Keyboard shortcuts such as kbd:[Ctrl+K] and menu paths such as
+menu:File[Export, HTML] should render visibly in both the HTML page and terminal
+preview.
+
+== Lists
+
+* Terminal previews should show list bullets.
+* Wrapped lines should stay readable inside the configured terminal width.
+* Nested content should keep indentation:
+** child item one
+** child item two
+
+== Source Block
+
+[source,rust]
+----
+fn main() {
+    let message = "terminal preview";
+    println!("{message}");
+}
+----
+
+== Table
+
+[cols="1,2,1",options="header"]
+|===
+|Status |Work |Owner
+
+|Done
+|Render AsciiDoc to ANSI bytes in the terminal converter
+|terminal
+
+|Done
+|Capture ANSI bytes into a CellGrid with libghostty-vt
+|terminal
+
+|Done
+|Render CellGrid rows as selectable HTML
+|html
+|===
+
+== Admonition
+
+NOTE: The `:terminal-preview:` attribute is the document-level opt-in. Use
+`:terminal-preview-cols:` / `:terminal-preview-rows:` to control the terminal
+grid size, or omit rows to let acdc size the preview from the rendered text.
+Without `:terminal-preview:`, standard and semantic HTML output stay unchanged.

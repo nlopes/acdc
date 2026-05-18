@@ -10,6 +10,8 @@ use acdc_converters_core::{
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
     visitor::Visitor,
 };
+#[cfg(feature = "render-state")]
+use acdc_parser::BlockMetadata;
 use acdc_parser::{Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, TocEntry};
 
 pub(crate) use appearance::Appearance;
@@ -164,6 +166,13 @@ impl Processor<'_> {
         self
     }
 
+    /// Override the detected terminal appearance from an explicit dark-mode value.
+    #[must_use]
+    pub fn with_dark_mode(mut self, dark_mode: bool) -> Self {
+        self.appearance = Appearance::for_dark_mode(dark_mode);
+        self
+    }
+
     /// Returns the terminal capabilities.
     #[must_use]
     pub fn terminal_capabilities(&self) -> &Capabilities {
@@ -192,6 +201,102 @@ impl Processor<'_> {
     #[must_use]
     pub(crate) fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
+    }
+}
+
+/// Render an `AsciiDoc` document to ANSI terminal bytes at a deterministic width.
+///
+/// This is intended for downstream converters that need terminal-rendered bytes
+/// without depending on terminal implementation details such as color handling.
+///
+/// # Errors
+///
+/// Returns an error if terminal conversion or writing fails.
+pub fn render_document_to_ansi(
+    options: Options,
+    doc: &Document<'_>,
+    width: usize,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<Vec<u8>, Error> {
+    let processor = Processor::new(options, doc.attributes.clone()).with_terminal_width(width);
+    let mut output = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("terminal").with_variant("preview");
+    let mut warnings = Vec::new();
+    let mut terminal_diagnostics = Diagnostics::new(&source, &mut warnings);
+
+    let color_guard = ColorOutputGuard::force_enabled();
+    processor.write_to(doc, &mut output, None, None, &mut terminal_diagnostics)?;
+    drop(color_guard);
+
+    for warning in warnings {
+        diagnostics.emit(warning);
+    }
+
+    Ok(output)
+}
+
+/// Render a single listing/source block to ANSI terminal bytes.
+///
+/// This keeps terminal syntax highlighting and ANSI generation inside the
+/// terminal converter crate while allowing other converters to render the
+/// resulting bytes through a terminal emulator.
+///
+/// # Errors
+///
+/// Returns an error if syntax highlighting or writing fails.
+#[cfg(feature = "render-state")]
+pub fn render_listing_to_ansi(
+    options: Options,
+    document_attributes: DocumentAttributes<'_>,
+    inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    width: usize,
+    dark_mode: bool,
+) -> Result<Vec<u8>, Error> {
+    let processor = Processor::new(options, document_attributes)
+        .with_terminal_width(width)
+        .with_dark_mode(dark_mode);
+    let mut output = Vec::new();
+    let color_guard = ColorOutputGuard::force_enabled();
+
+    if let Some(language) = acdc_converters_core::code::detect_language(metadata) {
+        crate::syntax::highlight_code(
+            &mut output,
+            inlines,
+            preview_highlight_language(language),
+            &processor,
+        )?;
+    } else {
+        write!(output, "{}", extract_inline_text(inlines, "\n"))?;
+    }
+
+    drop(color_guard);
+    Ok(output)
+}
+
+#[cfg(feature = "render-state")]
+fn preview_highlight_language(language: &str) -> &str {
+    match language {
+        "console" | "terminal" | "shell" => "bash",
+        other => other,
+    }
+}
+
+struct ColorOutputGuard {
+    previous_disabled: bool,
+}
+
+impl ColorOutputGuard {
+    fn force_enabled() -> Self {
+        let previous_disabled = crossterm::style::Colored::ansi_color_disabled_memoized();
+        crossterm::style::force_color_output(true);
+        Self { previous_disabled }
+    }
+}
+
+impl Drop for ColorOutputGuard {
+    fn drop(&mut self) {
+        crossterm::style::Colored::set_ansi_color_disabled(self.previous_disabled);
     }
 }
 
@@ -287,6 +392,8 @@ pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
 mod admonition;
 mod appearance;
 mod audio;
+#[cfg(feature = "render-state")]
+pub mod cell_grid;
 mod delimited;
 mod document;
 mod error;
