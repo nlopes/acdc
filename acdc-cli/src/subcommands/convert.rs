@@ -59,6 +59,7 @@ pub struct Args {
     ///
     /// `--backend html5s` is preserved as a shortcut for
     /// `--backend html --variant semantic` and rejects `--variant`.
+    #[cfg(any(feature = "html", feature = "markdown"))]
     #[arg(long, value_enum, verbatim_doc_comment)]
     pub variant: Option<VariantArg>,
 
@@ -145,7 +146,10 @@ impl Args {
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
+    #[cfg(any(feature = "html", feature = "markdown"))]
     let backend = args.backend.resolve(args.variant)?;
+    #[cfg(not(any(feature = "html", feature = "markdown")))]
+    let backend = args.backend.resolve();
 
     let safe_mode = if args.safe {
         SafeMode::Safe
@@ -951,6 +955,7 @@ impl std::fmt::Display for BackendArg {
 /// with the backend into the typed [`Backend`]. Each arm is feature-gated
 /// so disabling its converter removes its variant names from `--variant`
 /// entirely.
+#[cfg(any(feature = "html", feature = "markdown"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum VariantArg {
     #[cfg(feature = "html")]
@@ -965,6 +970,7 @@ pub enum VariantArg {
     Gfm,
 }
 
+#[cfg(any(feature = "html", feature = "markdown"))]
 impl std::fmt::Display for VariantArg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -1005,7 +1011,10 @@ enum Backend {
 /// the backend name keeps the error consistent across no-variant backends
 /// and means a future addition only needs one `resolve` arm, not a bespoke
 /// error string.
-#[cfg(any(feature = "manpage", feature = "terminal"))]
+#[cfg(all(
+    any(feature = "manpage", feature = "terminal"),
+    any(feature = "html", feature = "markdown")
+))]
 fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> miette::Result<()> {
     if variant.is_some() {
         return Err(miette::miette!(
@@ -1021,6 +1030,7 @@ impl BackendArg {
     /// converter layer can't honour: the `html5s` alias paired with any
     /// variant, a markdown variant on the html backend (or vice versa),
     /// or any variant on a backend that has none.
+    #[cfg(any(feature = "html", feature = "markdown"))]
     fn resolve(self, variant: Option<VariantArg>) -> miette::Result<Backend> {
         match (self, variant) {
             // The `html5s` alias is the surface spelling of "html + semantic".
@@ -1061,6 +1071,17 @@ impl BackendArg {
             (Self::Manpage, v) => require_no_variant("manpage", v).map(|()| Backend::Manpage),
             #[cfg(feature = "terminal")]
             (Self::Terminal, v) => require_no_variant("terminal", v).map(|()| Backend::Terminal),
+        }
+    }
+
+    /// Resolve the backend when no compiled converter accepts `--variant`.
+    #[cfg(not(any(feature = "html", feature = "markdown")))]
+    fn resolve(self) -> Backend {
+        match self {
+            #[cfg(feature = "manpage")]
+            Self::Manpage => Backend::Manpage,
+            #[cfg(feature = "terminal")]
+            Self::Terminal => Backend::Terminal,
         }
     }
 }

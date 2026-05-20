@@ -57,6 +57,8 @@ generate_tests!([
 ///
 /// Parses the input `.adoc` file, converts to Terminal output, and compares with expected output.
 fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
+    crossterm::style::force_color_output(true);
+
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
 
     // Parse the `AsciiDoc` input with rendering defaults

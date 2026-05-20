@@ -49,6 +49,7 @@ version = "0.1.0"
 dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
+ "acdc-converters-terminal",
  "acdc-parser",
  "chrono",
  "pretty_assertions",

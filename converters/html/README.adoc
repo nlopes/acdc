@@ -193,6 +193,53 @@ Set `:dark-mode:` to use the dark variant of the built-in stylesheet. This adds 
 acdc convert -a dark-mode document.adoc
 ....
 
+#### Terminal previews
+
+When the HTML converter is built with the `terminal-preview` Cargo feature,
+acdc can render terminal-like source blocks as selectable terminal previews.
+This is an acdc-only extension; Asciidoctor does not provide a
+`:terminal-preview:` attribute or equivalent built-in terminal preview feature.
+
+[source,asciidoc]
+....
+= Demo
+:terminal-preview:
+:terminal-preview-cols: 88
+
+[source,console]
+----
+$ acdc --version
+acdc 0.2.0
+----
+....
+
+Terminal previews are supported for terminal-like source languages such as
+`console`, `terminal`, `shell`, `sh`, `bash`, `zsh`, `fish`, `powershell`,
+`ps1`, and `cmd`.
+
+[cols="1,2", options="header"]
+|===
+| Attribute | Effect
+
+| `:terminal-preview:`
+| Enables terminal previews for terminal-like source blocks.
+
+| `:terminal-preview-cols: N`
+| Sets the terminal grid width used to render previews. Defaults to `80`.
+
+| `:terminal-preview-rows: N`
+| Sets a fixed terminal grid height. When unset, acdc derives the height from the rendered terminal text plus a small padding row.
+
+| `:terminal-cols: N`
+| Alias for `:terminal-preview-cols:` when rendering HTML terminal previews.
+
+| `:terminal-rows: N`
+| Alias for `:terminal-preview-rows:` when rendering HTML terminal previews.
+
+| `:dark-mode:`
+| Uses the dark terminal preview shell colors, matching the HTML converter's dark stylesheet mode.
+|===
+
 #### Syntax highlighting CSS
 
 When using class-based syntax highlighting (`:syntect-css: class`), the highlighting CSS is handled the same way — embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
