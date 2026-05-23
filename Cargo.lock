@@ -30,6 +30,7 @@ name = "acdc-converters-core"
 version = "0.1.0"
 dependencies = [
  "acdc-parser",
+ "bitflags",
  "thiserror",
  "tracing",
 ]
@@ -144,6 +145,7 @@ dependencies = [
 name = "acdc-parser"
 version = "0.9.0"
 dependencies = [
+ "bitflags",
  "bumpalo",
  "criterion",
  "crossterm",

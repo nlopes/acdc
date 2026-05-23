@@ -9,7 +9,10 @@ use crate::{
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{process_inlines, process_inlines_no_autolinks},
     },
-    model::{strip_quotes, substitution::HEADER},
+    model::{
+        strip_quotes,
+        substitution::{HEADER, SubsFlags},
+    },
 };
 
 use super::helpers::{
@@ -255,7 +258,7 @@ peg::parser! {
             / check_macros() &['['] inline_anchor:inline_anchor() { inline_anchor }
             / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
             / check_macros() &['x'] cross_reference_macro:cross_reference_macro() { cross_reference_macro }
-            / &[' '] hard_wrap:hard_wrap() { hard_wrap }
+            / check_post_replacements() &[' '] hard_wrap:hard_wrap() { hard_wrap }
             / check_macros() &"footnote:" footnote:footnote() { footnote }
             / check_macros() &['s' | 'a' | 'l'] stem:inline_stem() { stem }
             / check_macros() &['i'] image:inline_image() { image }
@@ -275,20 +278,20 @@ peg::parser! {
             // email candidates before we reach non_plain_text, so this
             // alternative is only tried on positions that actually need it.
             / check_macros() check_autolinks() inline_autolink:inline_autolink() { inline_autolink }
-            / &[' '] inline_line_break:inline_line_break() { inline_line_break }
-            / &['[' | '*'] bold_text_unconstrained:bold_text_unconstrained() { bold_text_unconstrained }
-            / &['[' | '*'] bold_text_constrained:bold_text_constrained() { bold_text_constrained }
-            / &['[' | '_'] italic_text_unconstrained:italic_text_unconstrained() { italic_text_unconstrained }
-            / &['[' | '_'] italic_text_constrained:italic_text_constrained() { italic_text_constrained }
-            / &['[' | '`'] monospace_text_unconstrained:monospace_text_unconstrained() { monospace_text_unconstrained }
-            / &['[' | '`'] monospace_text_constrained:monospace_text_constrained() { monospace_text_constrained }
-            / &['[' | '#'] highlight_text_unconstrained:highlight_text_unconstrained() { highlight_text_unconstrained }
-            / &['[' | '#'] highlight_text_constrained:highlight_text_constrained() { highlight_text_constrained }
-            / &['[' | '^'] superscript_text:superscript_text() { superscript_text }
-            / &['[' | '~'] subscript_text:subscript_text() { subscript_text }
-            / &['[' | '"'] curved_quotation_text:curved_quotation_text() { curved_quotation_text }
-            / &['[' | '\''] curved_apostrophe_text:curved_apostrophe_text() { curved_apostrophe_text }
-            / &['`'] standalone_curved_apostrophe:standalone_curved_apostrophe() { standalone_curved_apostrophe }
+            / check_post_replacements() &[' '] inline_line_break:inline_line_break() { inline_line_break }
+            / check_quotes() &['[' | '*'] bold_text_unconstrained:bold_text_unconstrained() { bold_text_unconstrained }
+            / check_quotes() &['[' | '*'] bold_text_constrained:bold_text_constrained() { bold_text_constrained }
+            / check_quotes() &['[' | '_'] italic_text_unconstrained:italic_text_unconstrained() { italic_text_unconstrained }
+            / check_quotes() &['[' | '_'] italic_text_constrained:italic_text_constrained() { italic_text_constrained }
+            / check_quotes() &['[' | '`'] monospace_text_unconstrained:monospace_text_unconstrained() { monospace_text_unconstrained }
+            / check_quotes() &['[' | '`'] monospace_text_constrained:monospace_text_constrained() { monospace_text_constrained }
+            / check_quotes() &['[' | '#'] highlight_text_unconstrained:highlight_text_unconstrained() { highlight_text_unconstrained }
+            / check_quotes() &['[' | '#'] highlight_text_constrained:highlight_text_constrained() { highlight_text_constrained }
+            / check_quotes() &['[' | '^'] superscript_text:superscript_text() { superscript_text }
+            / check_quotes() &['[' | '~'] subscript_text:subscript_text() { subscript_text }
+            / check_quotes() &['[' | '"'] curved_quotation_text:curved_quotation_text() { curved_quotation_text }
+            / check_quotes() &['[' | '\''] curved_apostrophe_text:curved_apostrophe_text() { curved_apostrophe_text }
+            / check_quotes() &['`'] standalone_curved_apostrophe:standalone_curved_apostrophe() { standalone_curved_apostrophe }
             ) {
                 inline
             }
@@ -415,8 +418,7 @@ peg::parser! {
             tracing::debug!(?id, content = %content_str, "Found footnote inline");
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
 
@@ -700,8 +702,7 @@ peg::parser! {
         {?
             tracing::debug!(?target, "Found url macro");
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             let (text, attributes) = content;
@@ -758,8 +759,7 @@ peg::parser! {
         {?
             tracing::debug!(?target, "Found mailto macro");
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             let (text, attributes) = content;
@@ -797,7 +797,13 @@ peg::parser! {
         = {? if state.inline_ctx.allow_autolinks { Ok(()) } else { Err("autolinks suppressed") } }
 
         rule check_macros() -> ()
-        = {? if state.inline_ctx.macros_enabled { Ok(()) } else { Err("macros disabled") } }
+        = {? if state.inline_ctx.subs_flags.contains(SubsFlags::MACROS) { Ok(()) } else { Err("macros disabled") } }
+
+        rule check_post_replacements() -> ()
+        = {? if state.inline_ctx.subs_flags.contains(SubsFlags::POST_REPLACEMENTS) { Ok(()) } else { Err("post_replacements disabled") } }
+
+        rule check_quotes() -> ()
+        = {? if state.inline_ctx.subs_flags.contains(SubsFlags::QUOTES) { Ok(()) } else { Err("quotes disabled") } }
 
         rule inline_autolink() -> InlineNode<'input>
         = url_info:(
@@ -992,8 +998,7 @@ peg::parser! {
                 // with local borrows from metadata.attributes
                 let content: &'input str = &state.input[title_start..title_end];
                 let bm = BlockParsingMetadata {
-                    macros_enabled: state.inline_ctx.macros_enabled,
-                    attributes_enabled: state.inline_ctx.attributes_enabled,
+                    subs_flags: state.inline_ctx.subs_flags,
                     ..BlockParsingMetadata::default()
                 };
                 // Use the captured position from the named_attribute rule
@@ -1067,8 +1072,7 @@ peg::parser! {
         {?
             tracing::debug!(?target, ?content, "Found link macro inline");
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             let (text, attributes) = content;
@@ -1113,8 +1117,7 @@ peg::parser! {
             let (target, raw_text) = shorthand;
             let target_str: &'input str = target.trim();
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             // Shorthand-specific pre-trim: asciidoctor treats whitespace-only
@@ -1166,8 +1169,7 @@ peg::parser! {
                 None => state.intern_fmt(format_args!("{target}")),
             };
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             let text = if raw_text.is_empty() {
@@ -1208,8 +1210,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained bold text inline");
@@ -1261,8 +1262,7 @@ peg::parser! {
             }
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained bold text inline");
@@ -1335,8 +1335,7 @@ peg::parser! {
             }
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained italic text inline");
@@ -1391,8 +1390,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained italic text inline");
@@ -1426,8 +1424,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained monospace text inline");
@@ -1479,8 +1476,7 @@ peg::parser! {
             }
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained monospace text inline");
@@ -1535,8 +1531,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained highlight text inline");
@@ -1589,8 +1584,7 @@ peg::parser! {
             }
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found constrained highlight text inline");
@@ -1646,8 +1640,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found superscript text inline");
@@ -1682,8 +1675,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found subscript text inline");
@@ -1718,8 +1710,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved quotation text inline");
@@ -1754,8 +1745,7 @@ peg::parser! {
             let id = attrs.as_ref().and_then(|(_roles, id)| *id);
 
             let bm = BlockParsingMetadata {
-                macros_enabled: state.inline_ctx.macros_enabled,
-                attributes_enabled: state.inline_ctx.attributes_enabled,
+                subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved apostrophe text inline");
@@ -1892,13 +1882,13 @@ peg::parser! {
                     eol()*<2,>
                     / ![_]
                     / &['\\'] escaped_syntax_match()
-                    / &[' '] (hard_wrap_match() / inline_line_break_match())
+                    / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())
                     // Macro guard: [ ( < for delimiters, then first letters of each macro:
                     // a=asciimath, b=btn, f=footnote/ftp, h=http(s), i=image/icon/indexterm/irc,
                     // k=kbd, l=link/latexmath, m=menu/mailto, p=pass, s=stem, x=xref
                     / (check_macros() &['[' | '(' | '<' | 'a' | 'b' | 'f' | 'h' | 'i' | 'k' | 'l' | 'm' | 'p' | 's' | 'x'] (inline_anchor_match() / index_term_match() / cross_reference_shorthand_match() / cross_reference_macro_match() / footnote_match() / inline_image_match() / inline_icon_match() / inline_stem_match() / inline_keyboard_match() / inline_button_match() / inline_menu_match() / mailto_macro_match() / url_macro_match() / inline_pass_match() / link_macro_match()))
                     / (check_macros() check_autolinks() inline_autolink_match())
-                    / &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match())
+                    / (check_quotes() &['*' | '_' | '`' | '#' | '^' | '~' | '"' | '\'' | '['] (bold_text_unconstrained_match() / bold_text_constrained_match() / italic_text_unconstrained_match() / italic_text_constrained_match() / monospace_text_unconstrained_match() / monospace_text_constrained_match() / highlight_text_unconstrained_match() / highlight_text_constrained_match() / superscript_text_match() / subscript_text_match() / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()))
                 ) [_]
             )
         )+)

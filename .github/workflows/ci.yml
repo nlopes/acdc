@@ -88,8 +88,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
-      - name: Run parser tests
+      - name: Run parser tests - all features
         run: cargo nextest run -p acdc-parser --all-features --verbose
+      - name: Run parser tests - no default features
+        run: cargo nextest run -p acdc-parser --no-default-features --verbose
       - name: Check parser fixtures
         run: |
           cargo run -p acdc-parser --example generate_parser_fixtures --all-features

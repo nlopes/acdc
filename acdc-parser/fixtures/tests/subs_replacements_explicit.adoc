@@ -1,0 +1,2 @@
+[subs="normal"]
+This has -- dashes, (C), (R), (TM), and -> arrows.

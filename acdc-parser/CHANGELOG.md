@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `[subs="-post_replacements"]` now suppresses trailing-`+` hard line breaks.
+- `[subs="-quotes"]` now leaves `*bold*`, `_italic_`, `` `mono` ``,
+  `#highlight#`, `^super^`, `~sub~`, and curved quotes/apostrophes as literal
+  text.
+- `[subs="-callouts"]` on listing/literal blocks now leaves `<1>` and `<.>`
+  markers as literal text.
+
+  All three require the default-on `pre-spec-subs` feature.
+
 ### Changed
 
 - Updated the parser grammar implementation to reduce location-tracking

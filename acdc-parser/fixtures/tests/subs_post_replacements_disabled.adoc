@@ -1,0 +1,3 @@
+[subs="-post_replacements"]
+Rubies are red, +
+Topazes are blue.

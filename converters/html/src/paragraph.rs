@@ -1,6 +1,10 @@
 use std::io::Write;
 
 use acdc_converters_core::code::detect_language;
+#[cfg(not(feature = "pre-spec-subs"))]
+use acdc_converters_core::substitutions::baseline_subs;
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::effective_subs;
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{AttributeValue, Paragraph};
 
@@ -181,7 +185,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render a listing/source-styled paragraph as a listing block.
     fn render_listing_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
         let language = detect_language(&para.metadata);
-        let subs = crate::html_visitor::effective_subs(para.metadata.substitutions.as_ref(), true);
+        #[cfg(feature = "pre-spec-subs")]
+        let subs = effective_subs(para.metadata.substitutions.as_ref(), true);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let subs = baseline_subs(true);
 
         if self.processor.variant() == HtmlVariant::Semantic {
             let w = self.writer_mut();

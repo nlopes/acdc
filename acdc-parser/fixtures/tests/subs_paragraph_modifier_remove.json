@@ -9,107 +9,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "This has ",
+          "value": "This has *bold* and _italic_ text.",
           "location": [
             {
               "line": 2,
               "col": 1
-            },
-            {
-              "line": 2,
-              "col": 9
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "bold",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 11
-                },
-                {
-                  "line": 2,
-                  "col": 14
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 2,
-              "col": 10
-            },
-            {
-              "line": 2,
-              "col": 15
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " and ",
-          "location": [
-            {
-              "line": 2,
-              "col": 16
-            },
-            {
-              "line": 2,
-              "col": 20
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "emphasis",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "italic",
-              "location": [
-                {
-                  "line": 2,
-                  "col": 22
-                },
-                {
-                  "line": 2,
-                  "col": 27
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 2,
-              "col": 21
-            },
-            {
-              "line": 2,
-              "col": 28
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " text.",
-          "location": [
-            {
-              "line": 2,
-              "col": 29
             },
             {
               "line": 2,

@@ -1,9 +1,37 @@
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "tck",
+))]
 use clap::{Parser, Subcommand};
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal"
+))]
 mod error;
 mod subcommands;
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal"
+))]
 mod timing;
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "tck",
+))]
 #[derive(Parser)]
 #[command(name = "acdc")]
 #[command(author, version, about = "AsciiDoc toolchain", long_about = None)]
@@ -12,8 +40,22 @@ struct Cli {
     command: Commands,
 }
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "tck",
+))]
 #[derive(Subcommand)]
 enum Commands {
+    #[cfg(any(
+        feature = "html",
+        feature = "manpage",
+        feature = "markdown",
+        feature = "terminal"
+    ))]
     /// Convert `AsciiDoc` documents to various output formats
     Convert(subcommands::convert::Args),
 
@@ -42,25 +84,60 @@ fn setup_logging() {
     }
 }
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "tck",
+))]
 fn main() {
     setup_logging();
     let cli = Cli::parse();
 
-    let result = match &cli.command {
-        Commands::Convert(args) => subcommands::convert::run(args),
+    let result = match cli.command {
+        #[cfg(any(
+            feature = "html",
+            feature = "manpage",
+            feature = "markdown",
+            feature = "terminal"
+        ))]
+        Commands::Convert(args) => subcommands::convert::run(&args),
 
         #[cfg(feature = "inspect")]
         Commands::Inspect(args) => {
-            subcommands::inspect::run(args).map_err(|e| miette::miette!("Inspect failed: {e}"))
+            subcommands::inspect::run(&args).map_err(|e| miette::miette!("Inspect failed: {e}"))
         }
 
         #[cfg(feature = "tck")]
         Commands::Tck(args) => {
-            subcommands::tck::run(args).map_err(|e| miette::miette!("TCK failed: {e}"))
+            subcommands::tck::run(&args).map_err(|e| miette::miette!("TCK failed: {e}"))
         }
     };
 
     if let Err(e) = result {
         eprintln!("{e:?}");
     }
+}
+
+/// Stub entry point compiled when **no** subcommand feature is enabled
+/// (e.g. `--no-default-features` with nothing added back). The binary is
+/// not useful in this configuration; emit a clear diagnostic instead of
+/// shipping something that does nothing.
+#[cfg(not(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "tck",
+)))]
+fn main() {
+    setup_logging();
+    eprintln!(
+        "acdc was built without any subcommand features. Enable at least \
+         one of: html, manpage, markdown, terminal, inspect, tck."
+    );
+    std::process::exit(2);
 }

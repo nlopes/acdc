@@ -1,0 +1,57 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "This has -- dashes, (C), (R), (TM), and -> arrows.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "special_chars",
+          "attributes",
+          "quotes",
+          "replacements",
+          "macros",
+          "post_replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 50
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 50
+    }
+  ]
+}

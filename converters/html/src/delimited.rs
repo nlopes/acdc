@@ -4,10 +4,19 @@ use acdc_converters_core::{
     code::{default_line_comment, detect_language},
     visitor::{Visitor, WritableVisitor},
 };
+
+#[cfg(not(feature = "pre-spec-subs"))]
+use acdc_converters_core::substitutions::baseline_subs;
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::effective_subs;
+
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode, Location,
-    Plain, StemContent, StemNotation, Substitution, SubstitutionSpec, substitute,
+    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
+    StemContent, StemNotation,
 };
+
+#[cfg(feature = "pre-spec-subs")]
+use acdc_parser::{Location, Plain, Substitution, SubstitutionSpec, substitute};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor, Processor, build_class, write_attribution,
@@ -524,7 +533,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let language = detect_language(metadata);
         let comment_prefix = default_line_comment(language);
         let processed_inlines = process_callout_guards(inlines, comment_prefix);
-        let subs = crate::html_visitor::effective_subs(metadata.substitutions.as_ref(), true);
+        #[cfg(feature = "pre-spec-subs")]
+        let subs = effective_subs(metadata.substitutions.as_ref(), true);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let subs = {
+            let _ = metadata;
+            baseline_subs(true)
+        };
 
         crate::render_pre_code(&processed_inlines, language, self, &subs)
     }
@@ -681,6 +696,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Passthrough blocks default to no substitutions, emitting raw content.
     /// When `subs=` is specified, the raw content is processed through the
     /// substitution pipeline (attributes, quotes, specialchars, replacements).
+    #[cfg(feature = "pre-spec-subs")]
     fn render_pass_block_with_subs(
         &mut self,
         inlines: &[InlineNode],
@@ -739,11 +755,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         match inner {
             DelimitedBlockType::DelimitedPass(inlines) => {
+                #[cfg(feature = "pre-spec-subs")]
                 if let Some(spec) = &metadata.substitutions {
                     self.render_pass_block_with_subs(inlines, spec)?;
                 } else {
                     self.visit_inline_nodes(inlines)?;
                 }
+                #[cfg(not(feature = "pre-spec-subs"))]
+                self.visit_inline_nodes(inlines)?;
             }
             DelimitedBlockType::DelimitedListing(inlines) => {
                 self.render_listing_block(inlines, title, metadata)?;

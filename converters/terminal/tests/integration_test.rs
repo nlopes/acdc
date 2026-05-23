@@ -7,13 +7,20 @@ use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
+#[cfg(feature = "images")]
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
 }
 
+/// Generate a `#[test]` for each fixture. The optional `requires:` clause
+/// gates the test on a cfg predicate so fixtures whose expected output
+/// depends on a specific terminal feature (e.g. `images`, `highlighting`)
+/// are simply absent from the test run when that feature is off, rather
+/// than failing with a stale expected output.
 macro_rules! generate_tests {
-    ( [ $( ($name:ident, $uses_osc8_links:expr) ),* $(,)? ] ) => {
+    ( [ $( ($name:ident, $uses_osc8_links:expr $(, requires: $cfg:meta )? ) ),* $(,)? ] ) => {
         $(
+            $( #[cfg($cfg)] )?
             #[cfg(test)]
             mod $name {
                 use super::*;
@@ -27,7 +34,7 @@ macro_rules! generate_tests {
     };
 }
 
-// List of test fixtures: (fixture_name, uses_osc8_links)
+// List of test fixtures: (fixture_name, uses_osc8_links [, requires: <cfg>])
 generate_tests!([
     (document, false),
     (nested_sections, false),
@@ -43,20 +50,31 @@ generate_tests!([
     (admonition_block, false),
     (footnotes, false),
     (url_macro, true),
-    (basic_image_block, false),
-    (source_block_with_attribute_in_title, false),
-    (source_block_complete, false),
-    (macros_with_quoted_attributes, false),
+    (basic_image_block, false, requires: feature = "images"),
+    (source_block_with_attribute_in_title, false, requires: feature = "highlighting"),
+    (source_block_complete, false, requires: feature = "highlighting"),
+    (macros_with_quoted_attributes, false, requires: feature = "images"),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
-    (comprehensive, true),
+    (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
     (index_section, false),
+    (subs_replacements_disabled, false),
+    (subs_replacements_explicit, false),
 ]);
 
 /// Helper function to run a single integration test.
 ///
 /// Parses the input `.adoc` file, converts to Terminal output, and compares with expected output.
 fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
+    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
+    // only takes effect under the `pre-spec-subs` feature. When the feature
+    // is off, skip — the expected output captures the feature-on behaviour
+    // and cannot match.
+    #[cfg(not(feature = "pre-spec-subs"))]
+    if fixture_name.contains("subs") {
+        return Ok(());
+    }
+
     crossterm::style::force_color_output(true);
 
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));

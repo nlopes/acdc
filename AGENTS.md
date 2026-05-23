@@ -11,14 +11,25 @@
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)
 - **asciidoctor is reference**: when output differs, use `compare-asciidoc-output` agent
 
+## Workspace features
+
+All declared in `acdc-parser` and forwarded by every crate that consumes them. A workspace `--no-default-features` build turns each off consistently.
+
+| Feature | Default | Owner doc |
+|---------|---------|-----------|
+| `pre-spec-subs` | on | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (plumbing & fixtures) |
+| `setext` | on | parser |
+| `images`, `highlighting`, `render-state`, `terminal-preview` | on | converter-specific; independent of `pre-spec-subs` |
+
+New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.
+
 ## Debugging
 
 When tests fail, identify the category and follow the appropriate path:
 
 - **Fixture mismatches** → run `regen-fixtures` skill (ask first)
-- **Parser/grammar failures** → see `acdc-parser/AGENTS.md`
-- **Converter failures** → see `converters/AGENTS.md`
-- **Preprocessor failures** → see `acdc-parser/AGENTS.md`
+- **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
+- **Converter failures** → `converters/AGENTS.md`
 
 ## Versioning
 

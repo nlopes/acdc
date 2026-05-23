@@ -2,6 +2,9 @@
 
 Architecture docs for the `acdc-converters-html` crate, focused on the stylesheet and CSS pipeline.
 
+For `[subs="…"]` plumbing (the `pre-spec-subs` feature, `effective_subs` call
+sites, fixture-naming conventions), see `converters/AGENTS.md`.
+
 ## Stylesheet rendering pipeline
 
 The entry point is `render_head()` in `html_visitor.rs`, which calls `render_stylesheet()` as part of the `<head>` output. In embedded mode, `visit_document_start()` returns early and `render_head()` is never called, so none of the stylesheet pipeline runs. Similarly, `after_write()` returns early when embedded, skipping `copycss` and syntax CSS file writes.

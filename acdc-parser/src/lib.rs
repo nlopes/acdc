@@ -74,11 +74,13 @@ pub use model::{
     Link, ListItem, ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto,
     Menu, Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain,
     Position, Raw, Role, Section, Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent,
-    StemNotation, Subscript, Substitution, SubstitutionOp, SubstitutionSpec, Subtitle, Superscript,
-    Table, TableColumn, TableOfContents, TableRow, ThematicBreak, Title, TocEntry,
-    UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
-    inlines_to_string, strip_quotes, substitute,
+    StemNotation, Subscript, Substitution, Subtitle, Superscript, Table, TableColumn,
+    TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES,
+    UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video, inlines_to_string,
+    strip_quotes, substitute,
 };
+#[cfg(feature = "pre-spec-subs")]
+pub use model::{SubstitutionOp, SubstitutionSpec};
 pub use options::{Options, OptionsBuilder, SafeMode};
 pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
 pub use warning::{Warning, WarningKind};
@@ -767,6 +769,40 @@ mod tests {
                 result.warnings().is_empty(),
                 "expected no warnings, got: {:?}",
                 result.warnings(),
+            );
+        }
+
+        /// `[subs="…"]` should always surface a warning. When the
+        /// `pre-spec-subs` feature is on, the warning says the attribute is
+        /// experimental. When off, the warning says the attribute is being
+        /// silently dropped because this build follows the draft spec. Both
+        /// signals make sure users notice the spec-related shift.
+        #[test]
+        fn subs_attribute_always_surfaces_a_warning() {
+            let input = "[subs=\"-quotes\"]\nContent\n";
+            let options = Options::default();
+            let result = parse(input, &options).expect("document should parse");
+
+            let messages: Vec<String> = result
+                .warnings()
+                .iter()
+                .map(|w| w.kind.to_string())
+                .collect();
+            assert!(
+                messages.iter().any(|m| m.contains("subs=")),
+                "expected a `subs=` warning, got: {messages:?}",
+            );
+            #[cfg(feature = "pre-spec-subs")]
+            assert!(
+                messages.iter().any(|m| m.contains(
+                    "https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16"
+                )),
+                "expected warning with feature on, got: {messages:?}",
+            );
+            #[cfg(not(feature = "pre-spec-subs"))]
+            assert!(
+                messages.iter().any(|m| m.contains("not honoured")),
+                "expected feature-off warning, got: {messages:?}",
             );
         }
     }

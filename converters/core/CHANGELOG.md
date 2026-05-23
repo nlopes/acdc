@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
+  per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
+  Previously lived in the HTML converter; promoted so terminal, manpage, and
+  future backends can honour `subs=` uniformly.
 - **Structured converter warnings** — `Warning`, `WarningSource`,
   and `Diagnostics` let converters return non-fatal user-facing warnings
   alongside `ConversionResult` without baking backend-specific warning categories

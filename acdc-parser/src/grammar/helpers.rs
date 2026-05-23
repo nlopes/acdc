@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     Anchor, AttributeValue, BlockMetadata, Title, grammar::ParserState, model::SectionLevel,
+    model::substitution::SubsFlags,
 };
 
 #[derive(Debug)]
@@ -29,25 +30,12 @@ pub(crate) enum HeaderMetadataLine<'input> {
 }
 
 // Used purely in the grammar to represent the parsed block details
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) metadata: BlockMetadata<'input>,
     pub(crate) title: Title<'input>,
     pub(crate) parent_section_level: Option<SectionLevel>,
-    pub(crate) macros_enabled: bool,
-    pub(crate) attributes_enabled: bool,
-}
-
-impl Default for BlockParsingMetadata<'_> {
-    fn default() -> Self {
-        Self {
-            metadata: BlockMetadata::default(),
-            title: Title::default(),
-            parent_section_level: None,
-            macros_enabled: true,
-            attributes_enabled: true,
-        }
-    }
+    pub(crate) subs_flags: SubsFlags,
 }
 
 /// Attribute shorthand syntax: .role, #id, %option

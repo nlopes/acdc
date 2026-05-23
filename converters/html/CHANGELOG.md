@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Fixture coverage for `[subs="-specialchars"]` and `[subs="-replacements"]`,
+  pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
+  specialchars are disabled; literal `--`, `(C)`, `->` preserved when
+  replacements are disabled). The underlying gating was already in place.
 - Feature-gated `terminal-preview` support lets both standard and semantic HTML
   conversions include selectable terminal-styled previews via `libghostty-vt`
   when the document opts in with `:terminal-preview:`. Previews follow

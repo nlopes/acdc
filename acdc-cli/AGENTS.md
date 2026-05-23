@@ -1,5 +1,9 @@
 # CLI — Developer Guide
 
+## Features
+
+`pre-spec-subs` (default-on) is forwarded to every selected converter (`acdc-converters-html?`, `acdc-converters-manpage?`, `acdc-converters-terminal?`) and to `acdc-parser`. For the contract see `acdc-parser/AGENTS.md`; for converter plumbing see `converters/AGENTS.md`.
+
 ## TCK compliance
 
 The CLI supports the AsciiDoc TCK (Test Compatibility Kit) behind a feature flag.

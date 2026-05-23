@@ -673,6 +673,10 @@ mod tests {
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: std::rc::Rc::new(std::cell::Cell::new(
+                acdc_converters_core::substitutions::SubsFlags::all(),
+            )),
         }
     }
 

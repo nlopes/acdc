@@ -1,0 +1,5 @@
+[subs="-callouts"]
+----
+line one <1>
+line two <2>
+----

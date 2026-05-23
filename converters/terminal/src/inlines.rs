@@ -1,5 +1,8 @@
+use std::borrow::Cow;
 use std::io::Write;
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     decode_numeric_char_refs,
     substitutions::Replacements,
@@ -15,6 +18,36 @@ use crossterm::{
 };
 
 use crate::{Error, Processor};
+
+/// Apply Unicode typography replacements to a `PlainText` leaf.
+///
+/// When `pre-spec-subs` is enabled, defers to
+/// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
+/// so that `[subs="-replacements"]` can suppress the transform.
+/// Otherwise, always applies — matching the asciidoctor default and the
+/// pre-`pre-spec-subs` behaviour of this converter.
+#[cfg(feature = "pre-spec-subs")]
+fn transform_plain<'a>(
+    text: &'a str,
+    processor: &Processor<'_>,
+    string_boundaries_are_space: bool,
+) -> Cow<'a, str> {
+    apply_replacements(
+        text,
+        processor.current_subs.get(),
+        &Replacements::unicode(),
+        string_boundaries_are_space,
+    )
+}
+
+#[cfg(not(feature = "pre-spec-subs"))]
+fn transform_plain<'a>(
+    text: &'a str,
+    _processor: &Processor<'_>,
+    string_boundaries_are_space: bool,
+) -> Cow<'a, str> {
+    Cow::Owned(Replacements::unicode().transform(text, string_boundaries_are_space))
+}
 
 /// Try to convert a character to its Unicode superscript equivalent.
 /// Only digits and a few reliable symbols are mapped; letters are not included
@@ -151,7 +184,7 @@ fn render_inline_node_to_writer<W: Write>(
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
-            let text = Replacements::unicode().transform(p.content, false);
+            let text = transform_plain(p.content, processor, false);
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
@@ -245,7 +278,7 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
         let processor = self.processor.clone();
         match node {
             InlineNode::PlainText(p) => {
-                let text = Replacements::unicode().transform(p.content, !in_inline_span);
+                let text = transform_plain(p.content, &processor, !in_inline_span);
                 let w = self.writer_mut();
                 write!(w, "{text}")?;
             }
@@ -636,6 +669,10 @@ mod tests {
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: std::rc::Rc::new(std::cell::Cell::new(
+                acdc_converters_core::substitutions::SubsFlags::all(),
+            )),
         }
     }
 

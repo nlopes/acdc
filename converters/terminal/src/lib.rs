@@ -5,6 +5,8 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     Converter, Diagnostics, Options, decode_numeric_char_refs,
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
@@ -56,6 +58,19 @@ pub struct Processor<'a> {
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
     pub(crate) list_indent: Rc<Cell<usize>>,
+    /// Substitutions active for the block currently being rendered, resolved
+    /// from `[subs="…"]` (or the block-kind baseline when absent). Lives on
+    /// `Processor` so freestanding inline helpers can consult it without
+    /// threading a slice through every recursive call. Shared across clones
+    /// so sub-visitors (e.g. the temp visitors used for styled paragraphs)
+    /// inherit the outer block's effective subs. `Cell<SubsFlags>` is a
+    /// single-byte load/store with no borrow tracking — chosen over
+    /// `RefCell<Vec<…>>` because the hot path runs once per inline leaf.
+    ///
+    /// Only present when the `pre-spec-subs` feature is enabled; otherwise
+    /// the converter applies typography unconditionally (asciidoctor default).
+    #[cfg(feature = "pre-spec-subs")]
+    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 impl<'a> Converter<'a> for Processor<'a> {
@@ -98,6 +113,8 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: Rc::new(Cell::new(0)),
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }
     }
 
@@ -146,6 +163,8 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             list_indent: Rc::new(Cell::new(0)),
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
         let mut visitor = TerminalVisitor::new(writer, processor, diagnostics.reborrow());
         visitor.visit_document(doc)

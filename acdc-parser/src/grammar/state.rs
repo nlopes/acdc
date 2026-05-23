@@ -8,7 +8,7 @@ use crate::{
     CalloutRef, DocumentAttributes, Footnote, Location, Options, Positioning, SourceLocation,
     Title, TocEntry, Warning, WarningKind,
     grammar::LineMap,
-    model::{LeveloffsetRange, SourceRange},
+    model::{LeveloffsetRange, SourceRange, substitution::SubsFlags},
 };
 
 #[derive(Debug)]
@@ -97,11 +97,11 @@ pub(crate) struct AtLookahead {
 pub(crate) struct InlineContext {
     /// Byte offset for location calculation in inline rules.
     pub(crate) offset: usize,
-    /// Whether macro substitutions are enabled for the current block.
-    pub(crate) macros_enabled: bool,
-    /// Whether attribute substitutions are enabled for the current block.
-    pub(crate) attributes_enabled: bool,
+    /// Per-block substitution toggles propagated from `[subs="…"]`.
+    pub(crate) subs_flags: SubsFlags,
     /// Whether bare autolinks (URLs/emails without macro syntax) are matched.
+    /// Independent of `subs_flags`: this is suppressed inside link/url/xref
+    /// macro contents to avoid nested-autolink mis-parses.
     pub(crate) allow_autolinks: bool,
 }
 
@@ -109,8 +109,7 @@ impl Default for InlineContext {
     fn default() -> Self {
         Self {
             offset: 0,
-            macros_enabled: true,
-            attributes_enabled: true,
+            subs_flags: SubsFlags::default(),
             allow_autolinks: true,
         }
     }

@@ -36,7 +36,17 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html"]
+default = ["html", "pre-spec-subs"]
+
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+# Forwarded to every converter dependency that honours subs=.
+pre-spec-subs = [
+    "acdc-parser/pre-spec-subs",
+    "acdc-converters-core/pre-spec-subs",
+    "acdc-converters-html?/pre-spec-subs",
+    "acdc-converters-manpage?/pre-spec-subs",
+    "acdc-converters-terminal?/pre-spec-subs",
+]
 
 # Output converters
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling

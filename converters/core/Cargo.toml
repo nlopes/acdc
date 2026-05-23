@@ -6,8 +6,14 @@ description = "Core traits and utilities for acdc document converters"
 license = "MIT OR Apache-2.0"
 publish = false
 
+[features]
+default = ["pre-spec-subs"]
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+pre-spec-subs = ["acdc-parser/pre-spec-subs", "dep:bitflags"]
+
 [dependencies]
 acdc-parser = { path = "../../acdc-parser" }
+bitflags = { version = "2.11", optional = true }
 thiserror.workspace = true
 tracing.workspace = true
 

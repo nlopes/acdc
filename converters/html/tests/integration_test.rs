@@ -21,6 +21,16 @@ fn run_fixture_test(
         .file_stem()
         .and_then(|s| s.to_str())
         .ok_or("Invalid fixture file name")?;
+
+    // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
+    // only takes effect under the `pre-spec-subs` feature. When the feature
+    // is off, skip — the expected output captures the feature-on behaviour
+    // and cannot match.
+    #[cfg(not(feature = "pre-spec-subs"))]
+    if file_name.contains("subs") {
+        return Ok(());
+    }
+
     let expected_path = expected_dir.join(file_name).with_extension("html");
 
     let parser_options =

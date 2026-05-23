@@ -16,6 +16,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
+  `(C)`, `->`, `...`) literal instead of converting to roff special glyphs.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable manpage convention issues, including NAME/SYNOPSIS section order.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or

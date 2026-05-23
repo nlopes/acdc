@@ -6,6 +6,7 @@ use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
 use super::attribution::{Attribution, CiteTitle};
 use super::location::Location;
+#[cfg(feature = "pre-spec-subs")]
 use super::substitution::SubstitutionSpec;
 
 pub type Role<'a> = &'a str;
@@ -32,12 +33,16 @@ pub struct BlockMetadata<'a> {
     pub id: Option<Anchor<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub anchors: Vec<Anchor<'a>>,
-    /// Substitutions to apply to block content.
+    /// Substitutions to apply to block content. Only present when the
+    /// `pre-spec-subs` feature is enabled; the draft `AsciiDoc` spec is
+    /// dropping the substitution model in favour of an inline parsing
+    /// grammar, so this field is feature-gated to reflect that.
     ///
     /// - `None`: Use block-type defaults (VERBATIM for listing/literal, NORMAL for paragraphs)
     /// - `Some(Explicit([]))`: No substitutions (equivalent to `subs=none`)
     /// - `Some(Explicit(list))`: Use the explicit list of substitutions
     /// - `Some(Modifiers(ops))`: Apply modifier operations to block-type defaults
+    #[cfg(feature = "pre-spec-subs")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub substitutions: Option<SubstitutionSpec>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -101,6 +106,10 @@ impl<'a> BlockMetadata<'a> {
 
     #[must_use]
     pub fn is_default(&self) -> bool {
+        #[cfg(feature = "pre-spec-subs")]
+        let subs_default = self.substitutions.is_none();
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let subs_default = true;
         self.roles.is_empty()
             && self.options.is_empty()
             && self.style.is_none()
@@ -108,7 +117,7 @@ impl<'a> BlockMetadata<'a> {
             && self.anchors.is_empty()
             && self.attributes.is_empty()
             && self.positional_attributes.is_empty()
-            && self.substitutions.is_none()
+            && subs_default
             && self.attribution.is_none()
             && self.citetitle.is_none()
     }
@@ -127,6 +136,7 @@ impl<'a> BlockMetadata<'a> {
             self.id.clone_from(&other.id);
         }
         self.anchors.extend(other.anchors.clone());
+        #[cfg(feature = "pre-spec-subs")]
         if self.substitutions.is_none() {
             self.substitutions.clone_from(&other.substitutions);
         }

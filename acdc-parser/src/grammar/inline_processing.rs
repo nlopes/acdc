@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::{
     Error, InlineNode, InlinePreprocessorParserState, Location, Plain, ProcessedContent,
-    inline_preprocessing,
+    inline_preprocessing, model::substitution::SubsFlags,
 };
 
 use super::{ParserState, helpers::BlockParsingMetadata, inlines::inline_parser};
@@ -183,8 +183,7 @@ pub(crate) fn parse_inlines<'a>(
     let text: &'a str = processed_text_as_outer(processed, state);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
     inline_peg_state.inline_ctx.offset = 0;
-    inline_peg_state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
-    inline_peg_state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
+    inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
     inline_peg_state.inline_ctx.allow_autolinks = true;
 
     let inlines = if inline_peg_state.quotes_only {
@@ -218,8 +217,7 @@ pub(crate) fn parse_inlines_no_autolinks<'a>(
     let text: &'a str = processed_text_as_outer(processed, state);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
     inline_peg_state.inline_ctx.offset = 0;
-    inline_peg_state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
-    inline_peg_state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
+    inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
     inline_peg_state.inline_ctx.allow_autolinks = false;
 
     let inlines = match inline_parser::inlines_no_autolinks(text, &mut inline_peg_state) {
@@ -257,8 +255,8 @@ pub(crate) fn process_inlines<'a>(
         end,
         offset,
         content,
-        block_metadata.macros_enabled,
-        block_metadata.attributes_enabled,
+        block_metadata.subs_flags.contains(SubsFlags::MACROS),
+        block_metadata.subs_flags.contains(SubsFlags::ATTRIBUTES),
     )?;
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
@@ -291,8 +289,8 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         end,
         offset,
         content,
-        block_metadata.macros_enabled,
-        block_metadata.attributes_enabled,
+        block_metadata.subs_flags.contains(SubsFlags::MACROS),
+        block_metadata.subs_flags.contains(SubsFlags::ATTRIBUTES),
     )?;
     if processed.text.is_empty() {
         return Ok(Vec::new());

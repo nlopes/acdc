@@ -19,6 +19,11 @@ doc = false
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = ["pre-spec-subs"]
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+pre-spec-subs = ["acdc-parser/pre-spec-subs"]
+
 [dependencies]
 acdc-parser.workspace = true
 dashmap = "6"

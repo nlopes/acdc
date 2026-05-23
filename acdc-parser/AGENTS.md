@@ -9,6 +9,20 @@
 - **Preprocessor** (`src/preprocessor/`) handles includes before parsing
 - Some features are inherently difficult with PEG (list continuations, table spanning)
 
+## `pre-spec-subs` — parser contract
+
+The default-on `pre-spec-subs` feature governs whether `[subs="..."]` block attributes are parsed and surfaced.
+
+**Public surface (feature-gated):**
+- `SubstitutionSpec`, `SubstitutionOp`, and `BlockMetadata.substitutions` exist **only** under `pre-spec-subs`.
+- `Substitution`, `substitute()`, `NORMAL`, `VERBATIM`, `HEADER` are public unconditionally — attribute reference expansion (`{attr}` → value) needs them either way.
+
+**Diagnostics — two paths, both via `Warning` / `Diagnostics`:**
+- Feature **on**: "may change when spec finalises" (the draft AsciiDoc spec drops `subs=` entirely, so the experimental warning hedges).
+- Feature **off**: "not honoured in this build" so users notice their attribute is being dropped silently.
+
+Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in `converters/AGENTS.md`.
+
 ## Debugging
 
 - **Grammar failures** → use `trace-parse` skill, then check `src/grammar/`

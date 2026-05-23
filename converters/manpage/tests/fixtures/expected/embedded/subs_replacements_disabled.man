@@ -1,0 +1,2 @@
+.sp
+This has \-\- dashes, (C), (R), (TM), and \-> arrows.

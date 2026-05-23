@@ -1,3 +1,9 @@
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "terminal"
+))]
 pub mod convert;
 
 #[cfg(feature = "inspect")]

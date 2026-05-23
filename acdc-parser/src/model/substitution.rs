@@ -30,7 +30,13 @@
 //! - **Macros** - Handled at the grammar level: when macros are disabled via `subs`,
 //!   macro grammar rules are gated by a predicate and macro-like text becomes plain text.
 //!
-//! - **`PostReplacements`** - Not yet implemented.
+//! - **`PostReplacements`** - Handled at the grammar level (under the
+//!   `pre-spec-subs` feature): trailing-`+` hard line breaks are produced as
+//!   [`crate::InlineNode::LineBreak`] only when post-replacements are enabled
+//!   on the block. When `[subs="-post_replacements"]` is set, the `+` falls
+//!   through to plain text. No-op as a substitution step here, consistent
+//!   with the draft spec direction of moving from substitutions to an inline
+//!   parsing grammar.
 //!
 //! ## Why this split?
 //!
@@ -48,9 +54,56 @@
 
 use std::borrow::Cow;
 
+use bitflags::bitflags;
 use serde::Serialize;
 
 use crate::{AttributeValue, DocumentAttributes};
+
+bitflags! {
+    /// Per-block substitution toggles propagated from `[subs="…"]` into the
+    /// inline parser. Grammar predicates use these to decide whether to
+    /// recognise constructs (macros, attribute references, hard line breaks)
+    /// or leave them as plain text.
+    ///
+    /// Stored as a single byte; defaults to all-on so blocks without an
+    /// explicit `subs=` attribute behave like asciidoctor defaults.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) struct SubsFlags: u8 {
+        /// Macros are recognised in inline grammar rules.
+        const MACROS = 1 << 0;
+        /// `{attr}` references expand during inline preprocessing.
+        const ATTRIBUTES = 1 << 1;
+        /// Trailing-`+` hard line breaks produce a `LineBreak` node.
+        const POST_REPLACEMENTS = 1 << 2;
+        /// Inline formatting markers (`*`, `_`, `` ` ``, `#`, `^`, `~`, `"\``,
+        /// `'\``) are parsed into formatted inline nodes.
+        const QUOTES = 1 << 3;
+        /// Callout markers (`<1>`, `<.>`) in verbatim content produce
+        /// `CalloutRef` nodes.
+        const CALLOUTS = 1 << 4;
+    }
+}
+
+impl Default for SubsFlags {
+    fn default() -> Self {
+        Self::all()
+    }
+}
+
+#[cfg(feature = "pre-spec-subs")]
+impl SubsFlags {
+    /// One-to-one mapping between flag bits and their corresponding
+    /// [`Substitution`] variants. Used by the grammar to project a
+    /// [`SubstitutionSpec`] into a flag set without enumerating each variant
+    /// at the call site.
+    pub(crate) const FLAG_SUBSTITUTIONS: &'static [(SubsFlags, Substitution)] = &[
+        (SubsFlags::MACROS, Substitution::Macros),
+        (SubsFlags::ATTRIBUTES, Substitution::Attributes),
+        (SubsFlags::POST_REPLACEMENTS, Substitution::PostReplacements),
+        (SubsFlags::QUOTES, Substitution::Quotes),
+        (SubsFlags::CALLOUTS, Substitution::Callouts),
+    ];
+}
 
 /// A `Substitution` represents a substitution in a passthrough macro.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize)]
@@ -128,6 +181,11 @@ pub const VERBATIM: &[Substitution] = &[Substitution::SpecialChars, Substitution
 /// A substitution operation to apply to a default substitution list.
 ///
 /// Used when the `subs` attribute contains modifier syntax (`+quotes`, `-callouts`, `quotes+`).
+///
+/// Only available when the `pre-spec-subs` feature is enabled — the draft
+/// `AsciiDoc` spec is dropping the substitution model in favour of an inline
+/// parsing grammar, so this type goes away with the feature.
+#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionOp {
     /// `+name` - append substitution to end of default list
@@ -138,6 +196,7 @@ pub enum SubstitutionOp {
     Remove(Substitution),
 }
 
+#[cfg(feature = "pre-spec-subs")]
 impl std::fmt::Display for SubstitutionOp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -165,6 +224,9 @@ impl std::fmt::Display for SubstitutionOp {
 /// Serializes to a flat array of strings matching document syntax:
 /// - Explicit: `["special_chars", "quotes"]`
 /// - Modifiers: `["+quotes", "-callouts", "macros+"]`
+///
+/// Only available when the `pre-spec-subs` feature is enabled.
+#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub enum SubstitutionSpec {
     /// Explicit list of substitutions to apply (replaces all defaults)
@@ -173,6 +235,7 @@ pub enum SubstitutionSpec {
     Modifiers(Vec<SubstitutionOp>),
 }
 
+#[cfg(feature = "pre-spec-subs")]
 impl Serialize for SubstitutionSpec {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -186,6 +249,7 @@ impl Serialize for SubstitutionSpec {
     }
 }
 
+#[cfg(feature = "pre-spec-subs")]
 impl SubstitutionSpec {
     /// Apply modifier operations to a default substitution list.
     ///
@@ -203,29 +267,23 @@ impl SubstitutionSpec {
         result
     }
 
-    /// Check if macros are disabled by this spec.
-    /// - Explicit list without Macros → disabled
-    /// - Modifiers with Remove(Macros) → disabled
+    /// Check whether `sub` is disabled by this spec.
+    ///
+    /// A substitution is considered disabled when:
+    /// - the spec is an [`Self::Explicit`] list that does not contain `sub`, or
+    /// - the spec is [`Self::Modifiers`] containing a matching
+    ///   [`SubstitutionOp::Remove`].
+    ///
+    /// Examples: `[subs="specialchars"]` disables every substitution other
+    /// than `specialchars`; `[subs="-macros"]` disables only `macros`;
+    /// `[subs="none"]` disables every substitution.
     #[must_use]
-    pub fn macros_disabled(&self) -> bool {
+    pub(crate) fn is_disabled(&self, sub: &Substitution) -> bool {
         match self {
-            Self::Explicit(subs) => !subs.contains(&Substitution::Macros),
+            Self::Explicit(subs) => !subs.contains(sub),
             Self::Modifiers(ops) => ops
                 .iter()
-                .any(|op| matches!(op, SubstitutionOp::Remove(Substitution::Macros))),
-        }
-    }
-
-    /// Check if attribute substitution is disabled by this spec.
-    /// - Explicit list without Attributes → disabled
-    /// - Modifiers with Remove(Attributes) → disabled
-    #[must_use]
-    pub fn attributes_disabled(&self) -> bool {
-        match self {
-            Self::Explicit(subs) => !subs.contains(&Substitution::Attributes),
-            Self::Modifiers(ops) => ops
-                .iter()
-                .any(|op| matches!(op, SubstitutionOp::Remove(Substitution::Attributes))),
+                .any(|op| matches!(op, SubstitutionOp::Remove(s) if s == sub)),
         }
     }
 
@@ -243,6 +301,7 @@ impl SubstitutionSpec {
 }
 
 /// Modifier for a substitution in the `subs` attribute (internal parsing helper).
+#[cfg(feature = "pre-spec-subs")]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SubsModifier {
     /// `+name` - append to end of default list
@@ -254,6 +313,7 @@ enum SubsModifier {
 }
 
 /// Parse a single subs part into name and optional modifier.
+#[cfg(feature = "pre-spec-subs")]
 fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
     if let Some(name) = part.strip_prefix('+') {
         (name, Some(SubsModifier::Append))
@@ -283,6 +343,7 @@ fn parse_subs_part(part: &str) -> (&str, Option<SubsModifier>) {
 /// - `specialchars,+quotes` → Modifiers: mixed modifier mode
 ///
 /// Order matters: substitutions/modifiers are applied in sequence.
+#[cfg(feature = "pre-spec-subs")]
 #[must_use]
 pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
     let value = value.trim();
@@ -349,6 +410,7 @@ pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
 /// Expand a substitution to its constituent list.
 ///
 /// Groups (`Normal`, `Verbatim`) expand to their members; individual subs return themselves.
+#[cfg(feature = "pre-spec-subs")]
 fn expand_substitution(sub: &Substitution) -> &[Substitution] {
     match sub {
         Substitution::Normal => NORMAL,
@@ -364,6 +426,7 @@ fn expand_substitution(sub: &Substitution) -> &[Substitution] {
 }
 
 /// Append a substitution (or group) to the end of the list.
+#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     for s in expand_substitution(sub) {
         if !result.contains(s) {
@@ -373,6 +436,7 @@ pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitu
 }
 
 /// Prepend a substitution (or group) to the beginning of the list.
+#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     // Insert in reverse order at position 0 to maintain group order
     for s in expand_substitution(sub).iter().rev() {
@@ -383,6 +447,7 @@ pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substit
 }
 
 /// Remove a substitution (or group) from the list.
+#[cfg(feature = "pre-spec-subs")]
 pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     for s in expand_substitution(sub) {
         result.retain(|x| x != s);
@@ -396,7 +461,9 @@ pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitu
 /// - `Attributes` - Expands `{name}` references using document attributes
 /// - `Normal` / `Verbatim` - Recursively applies the corresponding substitution group
 /// - All others (`SpecialChars`, `Quotes`, `Replacements`, `Macros`,
-///   `PostReplacements`, `Callouts`) - No-op; handled by converters
+///   `PostReplacements`, `Callouts`) - No-op; handled by the converter
+///   (`SpecialChars`, `Quotes`, `Replacements`) or by the grammar
+///   (`Macros`, `PostReplacements`, `Callouts`).
 ///
 /// # Example
 ///
@@ -476,7 +543,10 @@ where
                     result = Cow::Owned(expanded);
                 }
             }
-            // These substitutions are handled elsewhere (converter) or not yet implemented
+            // These substitutions are handled elsewhere — the converter
+            // (`SpecialChars`, `Quotes`, `Replacements`) or the grammar
+            // (`Macros`, `PostReplacements`, `Callouts`). They are no-ops
+            // here in `substitute()`.
             Substitution::SpecialChars
             | Substitution::Quotes
             | Substitution::Replacements
@@ -503,7 +573,10 @@ where
     result
 }
 
-#[cfg(test)]
+// Tests cover the `subs=` machinery (parse_subs_attribute, SubstitutionSpec,
+// SubstitutionOp), all of which are feature-gated. `substitute()` is
+// exercised indirectly through the parser's fixture suite.
+#[cfg(all(test, feature = "pre-spec-subs"))]
 mod tests {
     use super::*;
 
@@ -951,75 +1024,81 @@ mod tests {
         }
     }
 
-    #[test]
-    fn test_macros_disabled_explicit_without_macros() {
-        let spec = parse_subs_attribute("specialchars");
-        assert!(spec.macros_disabled());
-    }
-
-    #[test]
-    fn test_macros_disabled_explicit_with_macros() {
-        let spec = parse_subs_attribute("macros");
-        assert!(!spec.macros_disabled());
-    }
-
-    #[test]
-    fn test_macros_disabled_explicit_normal_includes_macros() {
-        let spec = parse_subs_attribute("normal");
-        assert!(!spec.macros_disabled());
-    }
-
-    #[test]
-    fn test_macros_disabled_modifier_remove() {
-        let spec = parse_subs_attribute("-macros");
-        assert!(spec.macros_disabled());
-    }
-
-    #[test]
-    fn test_macros_disabled_modifier_add() {
-        let spec = parse_subs_attribute("+macros");
-        assert!(!spec.macros_disabled());
-    }
-
-    #[test]
-    fn test_macros_disabled_explicit_none() {
-        let spec = parse_subs_attribute("none");
-        assert!(spec.macros_disabled());
-    }
-
-    #[test]
-    fn test_attributes_disabled_explicit_without_attributes() {
-        let spec = parse_subs_attribute("specialchars");
-        assert!(spec.attributes_disabled());
-    }
-
-    #[test]
-    fn test_attributes_disabled_explicit_with_attributes() {
-        let spec = parse_subs_attribute("attributes");
-        assert!(!spec.attributes_disabled());
-    }
-
-    #[test]
-    fn test_attributes_disabled_explicit_normal_includes_attributes() {
-        let spec = parse_subs_attribute("normal");
-        assert!(!spec.attributes_disabled());
-    }
-
-    #[test]
-    fn test_attributes_disabled_modifier_remove() {
-        let spec = parse_subs_attribute("-attributes");
-        assert!(spec.attributes_disabled());
-    }
-
-    #[test]
-    fn test_attributes_disabled_modifier_add() {
-        let spec = parse_subs_attribute("+attributes");
-        assert!(!spec.attributes_disabled());
-    }
-
-    #[test]
-    fn test_attributes_disabled_explicit_none() {
-        let spec = parse_subs_attribute("none");
-        assert!(spec.attributes_disabled());
+    // One row per `subs=` attribute × substitution to inspect. Covers the four
+    // forms accepted by `parse_subs_attribute` (explicit list, single short
+    // alias, modifier list, the special `none` keyword) against each known
+    // substitution. `expected = true` means the substitution is disabled by
+    // that spec.
+    #[rstest::rstest]
+    // Explicit list — `specialchars` disables everything else.
+    #[case::explicit_specialchars_disables_macros("specialchars", Substitution::Macros, true)]
+    #[case::explicit_specialchars_disables_attributes(
+        "specialchars",
+        Substitution::Attributes,
+        true
+    )]
+    #[case::explicit_specialchars_disables_post_replacements(
+        "specialchars",
+        Substitution::PostReplacements,
+        true
+    )]
+    #[case::explicit_specialchars_disables_quotes("specialchars", Substitution::Quotes, true)]
+    #[case::explicit_specialchars_disables_callouts("specialchars", Substitution::Callouts, true)]
+    // Explicit single-name list — that one substitution is enabled.
+    #[case::explicit_macros("macros", Substitution::Macros, false)]
+    #[case::explicit_attributes("attributes", Substitution::Attributes, false)]
+    #[case::explicit_post_replacements("post_replacements", Substitution::PostReplacements, false)]
+    #[case::explicit_quotes("quotes", Substitution::Quotes, false)]
+    #[case::explicit_callouts("callouts", Substitution::Callouts, false)]
+    // Short aliases resolve to the same enabled state.
+    #[case::short_alias_p_enables_post_replacements("p", Substitution::PostReplacements, false)]
+    #[case::short_alias_q_enables_quotes("q", Substitution::Quotes, false)]
+    // Baseline groups (`normal` / `verbatim`) include their members.
+    #[case::baseline_normal_includes_macros("normal", Substitution::Macros, false)]
+    #[case::baseline_normal_includes_attributes("normal", Substitution::Attributes, false)]
+    #[case::baseline_normal_includes_post_replacements(
+        "normal",
+        Substitution::PostReplacements,
+        false
+    )]
+    #[case::baseline_normal_includes_quotes("normal", Substitution::Quotes, false)]
+    #[case::baseline_verbatim_includes_callouts("verbatim", Substitution::Callouts, false)]
+    // Modifier remove `-X` disables only X.
+    #[case::modifier_remove_macros("-macros", Substitution::Macros, true)]
+    #[case::modifier_remove_attributes("-attributes", Substitution::Attributes, true)]
+    #[case::modifier_remove_post_replacements(
+        "-post_replacements",
+        Substitution::PostReplacements,
+        true
+    )]
+    #[case::modifier_remove_quotes("-quotes", Substitution::Quotes, true)]
+    #[case::modifier_remove_callouts("-callouts", Substitution::Callouts, true)]
+    // Modifier add `+X` leaves X enabled (no `Remove` op present).
+    #[case::modifier_add_macros("+macros", Substitution::Macros, false)]
+    #[case::modifier_add_attributes("+attributes", Substitution::Attributes, false)]
+    #[case::modifier_add_post_replacements(
+        "+post_replacements",
+        Substitution::PostReplacements,
+        false
+    )]
+    #[case::modifier_add_quotes("+quotes", Substitution::Quotes, false)]
+    #[case::modifier_add_callouts("+callouts", Substitution::Callouts, false)]
+    // `none` is the explicit empty list and disables everything.
+    #[case::none_disables_macros("none", Substitution::Macros, true)]
+    #[case::none_disables_attributes("none", Substitution::Attributes, true)]
+    #[case::none_disables_post_replacements("none", Substitution::PostReplacements, true)]
+    #[case::none_disables_quotes("none", Substitution::Quotes, true)]
+    #[case::none_disables_callouts("none", Substitution::Callouts, true)]
+    fn is_disabled_matches_spec(
+        #[case] subs_attr: &str,
+        #[case] sub: Substitution,
+        #[case] expected: bool,
+    ) {
+        let spec = parse_subs_attribute(subs_attr);
+        assert_eq!(
+            spec.is_disabled(&sub),
+            expected,
+            "spec={subs_attr:?} sub={sub:?}"
+        );
     }
 }

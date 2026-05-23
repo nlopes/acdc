@@ -6,31 +6,20 @@ use acdc_converters_core::{
     Diagnostics,
     visitor::{Visitor, WritableVisitor},
 };
+
+#[cfg(not(feature = "pre-spec-subs"))]
+use acdc_converters_core::substitutions::baseline_subs;
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::effective_subs;
+
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
     InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
-    SubstitutionSpec, TableOfContents, ThematicBreak, UnorderedList, VERBATIM, Video,
+    TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
-
-/// Resolve a `SubstitutionSpec` against the baseline for the block kind
-/// (verbatim = `VERBATIM`, otherwise `NORMAL`).
-#[must_use]
-pub(crate) fn effective_subs(
-    spec: Option<&SubstitutionSpec>,
-    is_verbatim: bool,
-) -> Vec<Substitution> {
-    let baseline = if is_verbatim { VERBATIM } else { NORMAL };
-    let result = match spec {
-        Some(s) => s.resolve(baseline),
-        None => baseline.to_vec(),
-    };
-    #[cfg(feature = "pre-spec-subs")]
-    tracing::debug!(?spec, is_verbatim, ?result, "effective_subs");
-    result
-}
 
 fn link_css<W: Write>(
     writer: &mut W,
@@ -787,10 +776,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
             .is_some_and(|s| matches!(s, "literal" | "listing" | "source"));
 
         // Compute effective substitutions for this paragraph
-        let original_subs = std::mem::replace(
-            &mut self.current_subs,
-            effective_subs(para.metadata.substitutions.as_ref(), is_verbatim),
-        );
+        #[cfg(feature = "pre-spec-subs")]
+        let new_subs = effective_subs(para.metadata.substitutions.as_ref(), is_verbatim);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let new_subs = baseline_subs(is_verbatim);
+        let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
 
         // Set hardbreaks if the paragraph option or document attribute is present
         let original_hardbreaks = self.render_options.hardbreaks;
@@ -819,10 +809,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         );
 
         // Compute effective substitutions for this block
-        let original_subs = std::mem::replace(
-            &mut self.current_subs,
-            effective_subs(block.metadata.substitutions.as_ref(), is_verbatim),
-        );
+        #[cfg(feature = "pre-spec-subs")]
+        let new_subs = effective_subs(block.metadata.substitutions.as_ref(), is_verbatim);
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let new_subs = baseline_subs(is_verbatim);
+        let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
 
         // Toggle verbatim mode for verbatim blocks
         let original_verbatim = self.render_options.inlines_verbatim;

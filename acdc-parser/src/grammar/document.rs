@@ -24,9 +24,12 @@ use crate::{
     model::{
         LeveloffsetRange, ListLevel, Locateable, SectionLevel, UNNUMBERED_SECTION_STYLES,
         strip_quotes,
-        substitution::{HEADER, parse_subs_attribute},
+        substitution::{HEADER, SubsFlags},
     },
 };
+
+#[cfg(feature = "pre-spec-subs")]
+use crate::model::substitution::parse_subs_attribute;
 
 use super::helpers::{
     AttributeProcessingMode, BlockMetadataLine, BlockParsingMetadata, HeaderMetadataLine,
@@ -1527,6 +1530,7 @@ peg::parser! {
                             metadata.attributes.insert(k.clone(), v.clone());
                         }
                         metadata.positional_attributes.extend(attr_metadata.positional_attributes);
+                        #[cfg(feature = "pre-spec-subs")]
                         if attr_metadata.substitutions.is_some() {
                             metadata.substitutions = attr_metadata.substitutions;
                         }
@@ -1558,20 +1562,21 @@ peg::parser! {
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
-            let (macros_enabled, attributes_enabled) = if cfg!(feature = "pre-spec-subs") {
-                (
-                    metadata.substitutions.as_ref().is_none_or(|spec| !spec.macros_disabled()),
-                    metadata.substitutions.as_ref().is_none_or(|spec| !spec.attributes_disabled()),
-                )
-            } else {
-                (true, true)
-            };
+            #[cfg(feature = "pre-spec-subs")]
+            let subs_flags = metadata.substitutions.as_ref().map_or(SubsFlags::all(), |spec| {
+                let mut flags = SubsFlags::all();
+                for (flag, sub) in SubsFlags::FLAG_SUBSTITUTIONS {
+                    flags.set(*flag, !spec.is_disabled(sub));
+                }
+                flags
+            });
+            #[cfg(not(feature = "pre-spec-subs"))]
+            let subs_flags = SubsFlags::all();
             Ok(BlockParsingMetadata {
                 metadata,
                 title,
                 parent_section_level,
-                macros_enabled,
-                attributes_enabled,
+                subs_flags,
             })
         }
 
@@ -1920,7 +1925,12 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
-            let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
+            let (inlines, callouts) = resolve_verbatim_callouts(
+                state.arena,
+                content,
+                content_location,
+                block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
+            );
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
@@ -1960,7 +1970,12 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
-            let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
+            let (inlines, callouts) = resolve_verbatim_callouts(
+                state.arena,
+                content,
+                content_location,
+                block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
+            );
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
@@ -1996,7 +2011,12 @@ peg::parser! {
             );
             let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
 
-            let (inlines, callouts) = resolve_verbatim_callouts(state.arena, content, content_location);
+            let (inlines, callouts) = resolve_verbatim_callouts(
+                state.arena,
+                content,
+                content_location,
+                block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
+            );
             state.last_block_was_verbatim = true;
             state.last_verbatim_callouts = callouts;
 
@@ -3596,8 +3616,7 @@ peg::parser! {
             tracing::debug!(%term, %delimiter, "parsing description list item with auto-attachment");
 
             state.inline_ctx.offset = span_start + offset;
-            state.inline_ctx.macros_enabled = block_metadata.macros_enabled;
-            state.inline_ctx.attributes_enabled = block_metadata.attributes_enabled;
+            state.inline_ctx.subs_flags = block_metadata.subs_flags;
             let term = inline_parser::inlines(term.trim(), state)
                 .unwrap_or_else(|e| {
                     adjust_and_log_parse_error(&e, term.trim(), span_start+offset, state, "Error parsing term as inline content");
@@ -4162,20 +4181,38 @@ peg::parser! {
                     AttributeProcessingMode::BLOCK,
                 );
 
-                // Handle subs= attribute (block-specific, feature-gated)
-                if cfg!(feature = "pre-spec-subs") {
-                    for (k, v, pos) in attributes.iter().flatten() {
-                        if *k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
-                            let location = pos.map_or_else(
-                                || state.create_location(span_start, span_end),
-                                |(s, e)| state.create_location(s, e),
-                            );
-                            state.add_generic_warning_at(
-                                "The subs= attribute is experimental and may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string(),
-                                location,
-                            );
-                            metadata.substitutions = Some(parse_subs_attribute(v));
-                        }
+                // Handle subs= attribute (block-specific, feature-gated). Both
+                // branches emit a warning so the user always knows we noticed
+                // the attribute — the message differs by build configuration.
+                #[cfg(feature = "pre-spec-subs")]
+                for (k, v, pos) in attributes.iter().flatten() {
+                    if *k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
+                        let location = pos.map_or_else(
+                            || state.create_location(span_start, span_end),
+                            |(s, e)| state.create_location(s, e),
+                        );
+                        state.add_generic_warning_at(
+                            "The subs= attribute may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string(),
+                            location,
+                        );
+                        metadata.substitutions = Some(parse_subs_attribute(v));
+                    }
+                }
+                // When `pre-spec-subs` is disabled, surface a warning so users
+                // notice that their `[subs="…"]` is silently dropped — the draft
+                // AsciiDoc spec is moving away from substitutions, and this build
+                // takes the spec direction by default.
+                #[cfg(not(feature = "pre-spec-subs"))]
+                for (k, _v, pos) in attributes.iter().flatten() {
+                    if *k == RESERVED_NAMED_ATTRIBUTE_SUBS {
+                        let location = pos.map_or_else(
+                            || state.create_location(span_start, span_end),
+                            |(s, e)| state.create_location(s, e),
+                        );
+                        state.add_generic_warning_at(
+                            "The subs= attribute is not honoured in this build (the `pre-spec-subs` feature is disabled). The draft AsciiDoc spec drops the substitution model in favour of an inline parsing grammar; this attribute will be silently ignored.".to_string(),
+                            location,
+                        );
                     }
                 }
 
@@ -4674,7 +4711,22 @@ fn resolve_verbatim_callouts<'a>(
     arena: &'a bumpalo::Bump,
     text: &str,
     base_location: Location,
+    callouts_enabled: bool,
 ) -> (Vec<InlineNode<'a>>, Vec<CalloutRef>) {
+    if !callouts_enabled {
+        // Callouts disabled via `[subs="-callouts"]` (under `pre-spec-subs`):
+        // emit the entire content as a single `VerbatimText` so the
+        // `<1>` / `<.>` markers render literally.
+        let mut buf = bumpalo::collections::String::new_in(arena);
+        buf.push_str(text);
+        return (
+            vec![InlineNode::VerbatimText(Verbatim {
+                content: buf.into_bump_str(),
+                location: base_location,
+            })],
+            Vec::new(),
+        );
+    }
     let mut inlines = Vec::new();
     let mut callouts = Vec::new();
     let mut auto_number = 1usize;

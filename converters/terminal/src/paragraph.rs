@@ -4,6 +4,8 @@
 
 use std::io::{BufWriter, Write};
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{InlineNode, Paragraph, inlines_to_string};
 use crossterm::{
@@ -16,7 +18,32 @@ use crate::{Error, TerminalVisitor};
 impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Visit a paragraph, handling styled paragraphs (quote, verse, literal).
     pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
-        // Check for styled paragraphs
+        #[cfg(feature = "pre-spec-subs")]
+        {
+            // Resolve `[subs="…"]` once per paragraph so inline rendering knows
+            // whether to apply typography. Verse/literal/listing/source styles
+            // are verbatim contexts; everything else uses the NORMAL baseline.
+            // Snapshot/restore via the processor's shared cell so nested renders
+            // (and sub-visitors that clone the processor) don't leak state.
+            let is_verbatim = matches!(
+                para.metadata.style,
+                Some("verse" | "literal" | "listing" | "source")
+            );
+            let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+                para.metadata.substitutions.as_ref(),
+                is_verbatim,
+            ));
+
+            let result = self.render_paragraph_inner(para);
+
+            self.processor.current_subs.set(previous_subs);
+            result
+        }
+        #[cfg(not(feature = "pre-spec-subs"))]
+        self.render_paragraph_inner(para)
+    }
+
+    fn render_paragraph_inner(&mut self, para: &Paragraph) -> Result<(), Error> {
         if let Some(style) = para.metadata.style {
             match style {
                 "quote" => return self.render_quote_paragraph(para),

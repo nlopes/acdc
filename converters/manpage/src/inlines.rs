@@ -2,8 +2,11 @@
 //!
 //! Handles bold, italic, monospace, links, and other inline formatting.
 
+use std::borrow::Cow;
 use std::io::Write;
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     decode_numeric_char_refs,
     substitutions::Replacements,
@@ -16,6 +19,35 @@ use crate::{
     escape::{EscapeMode, manify},
 };
 
+/// Apply Unicode typography replacements to a `PlainText` leaf.
+///
+/// When `pre-spec-subs` is enabled, defers to
+/// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
+/// so that `[subs="-replacements"]` can suppress the transform. Otherwise,
+/// always applies — matching the asciidoctor default.
+#[cfg(feature = "pre-spec-subs")]
+fn transform_plain<'a>(
+    text: &'a str,
+    visitor: &ManpageVisitor<'_, '_, impl Write>,
+    string_boundaries_are_space: bool,
+) -> Cow<'a, str> {
+    apply_replacements(
+        text,
+        visitor.processor.current_subs.get(),
+        &Replacements::unicode(),
+        string_boundaries_are_space,
+    )
+}
+
+#[cfg(not(feature = "pre-spec-subs"))]
+fn transform_plain<'a>(
+    text: &'a str,
+    _visitor: &ManpageVisitor<'_, '_, impl Write>,
+    string_boundaries_are_space: bool,
+) -> Cow<'a, str> {
+    Cow::Owned(Replacements::unicode().transform(text, string_boundaries_are_space))
+}
+
 impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit an inline node.
     pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), Error> {
@@ -27,7 +59,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 } else {
                     text.content
                 };
-                let content = Replacements::unicode().transform(content, !self.in_inline_span);
+                let content = transform_plain(content, self, !self.in_inline_span);
                 let escaped = manify(&content, EscapeMode::Normalize);
                 let w = self.writer_mut();
                 write!(w, "{escaped}")?;

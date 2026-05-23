@@ -31,7 +31,11 @@ use std::{
     io::Write,
     path::{Path, PathBuf},
 };
+#[cfg(feature = "pre-spec-subs")]
+use std::{cell::Cell, rc::Rc};
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{Converter, Diagnostics, Options, visitor::Visitor};
 
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
@@ -57,6 +61,16 @@ pub use manpage_visitor::ManpageVisitor;
 pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
+    /// Substitutions active for the block currently being rendered, resolved
+    /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
+    /// across clones so sub-visitors inherit the outer block's effective
+    /// subs. `Cell<SubsFlags>` is a single-byte load/store with no borrow
+    /// tracking.
+    ///
+    /// Only present when the `pre-spec-subs` feature is enabled; otherwise
+    /// the converter applies typography unconditionally (asciidoctor default).
+    #[cfg(feature = "pre-spec-subs")]
+    pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
 impl Processor<'_> {
@@ -87,6 +101,8 @@ impl Processor<'_> {
         let processor: Processor<'doc> = Processor {
             options: self.options.clone(),
             document_attributes: attrs,
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
         let mut visitor = ManpageVisitor::new(writer, processor, diagnostics.reborrow());
         visitor.visit_document(doc)
@@ -127,6 +143,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         Self {
             options,
             document_attributes,
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }
     }
 

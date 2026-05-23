@@ -1,0 +1,5 @@
+[subs="verbatim"]
+----
+line one <1>
+line two <2>
+----
