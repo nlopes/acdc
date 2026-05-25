@@ -170,6 +170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `--no-default-features` builds no longer re-enable parser or converter
+  default features through internal workspace dependencies.
 - **`link:` macro now emits `class="bare"` for empty display text** — `link:URL[]` now
   renders as `<a href="URL" class="bare">URL</a>`, matching asciidoctor and the `Url`
   branch. Previously the class was dropped, so default stylesheets could not distinguish

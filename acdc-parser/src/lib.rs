@@ -507,6 +507,15 @@ mod tests {
     #[rstest::rstest]
     #[tracing_test::traced_test]
     fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: PathBuf) -> Result<(), Error> {
+        #[cfg(not(feature = "pre-spec-subs"))]
+        if path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .is_some_and(|stem| stem.starts_with("subs_"))
+        {
+            return Ok(());
+        }
+
         let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
 
         match parse_file(&path, &options) {

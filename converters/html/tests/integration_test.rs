@@ -322,6 +322,7 @@ fn main() {
     }
 
     #[test]
+    #[cfg(feature = "pre-spec-subs")]
     fn attribute_substitution_applied_with_highlighting() -> Result<(), Error> {
         let input = r#":source-highlighter: syntect
 :version: 1.0

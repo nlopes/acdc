@@ -1455,6 +1455,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "setext")]
     fn test_setext_header_highlight() {
         // Setext header: title line + underline line
         let input = "Setext Header\n-------------";

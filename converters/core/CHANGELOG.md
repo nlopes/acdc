@@ -43,6 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `--no-default-features` builds no longer re-enable parser default features
+  through the shared parser dependency.
 - Video URL generation now reports missing video sources with a dedicated error.
 - **Em-dash patterns now match asciidoctor** — spaced (`word -- word`) emits
   thin-space + em-dash + thin-space; word-bounded (`word--word`) emits em-dash +

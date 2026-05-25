@@ -17,7 +17,7 @@ terminal-preview = ["dep:acdc-converters-terminal", "acdc-converters-terminal/re
 
 [dependencies]
 acdc-converters-core.workspace = true
-acdc-converters-terminal = { path = "../terminal", optional = true }
+acdc-converters-terminal = { workspace = true, optional = true }
 acdc-parser.workspace = true
 chrono.workspace = true
 syntect = { version = "5.3", optional = true, default-features = false, features = ["default-fancy"] }

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `--no-default-features` builds no longer re-enable parser default features
+  through internal workspace dependencies.
 - Peak memory during multi-file conversion no longer grows linearly with
   the input set. The CLI used to leak each parsed document via `Box::leak`
   to satisfy `'static`, holding every bumpalo arena until the process

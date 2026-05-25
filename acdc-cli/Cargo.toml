@@ -17,11 +17,11 @@ doc = false
 
 [dependencies]
 acdc-converters-core.workspace = true
-acdc-converters-html = { path = "../converters/html", optional = true }
+acdc-converters-html = { workspace = true, optional = true }
 acdc-parser.workspace = true
-acdc-converters-terminal = { path = "../converters/terminal", optional = true }
-acdc-converters-manpage = { path = "../converters/manpage", optional = true }
-acdc-converters-markdown = { path = "../converters/markdown", optional = true }
+acdc-converters-terminal = { workspace = true, optional = true }
+acdc-converters-manpage = { workspace = true, optional = true }
+acdc-converters-markdown = { workspace = true, optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
 crossterm.workspace = true

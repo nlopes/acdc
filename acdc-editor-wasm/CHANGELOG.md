@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Parser compatibility knobs (`pre-spec-subs`, `setext`) are now forwarded as
+  explicit editor features, so `--no-default-features` disables them
+  consistently.
 - Memory no longer grows across edits — long editing sessions stay flat.
 
 ## [0.5.0] - 2026-03-28

@@ -28,11 +28,13 @@ resolver = "2"
 edition = "2024"
 
 [workspace.dependencies]
-acdc-converters-core = { path = "converters/core" }
+acdc-converters-core = { path = "converters/core", default-features = false }
 acdc-converters-dev = { path = "converters/dev" }
-acdc-converters-html = { path = "converters/html" }
+acdc-converters-html = { path = "converters/html", default-features = false }
+acdc-converters-manpage = { path = "converters/manpage", default-features = false }
 acdc-converters-markdown = { path = "converters/markdown" }
-acdc-parser = { path = "acdc-parser" }
+acdc-converters-terminal = { path = "converters/terminal", default-features = false }
+acdc-parser = { path = "acdc-parser", default-features = false }
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"

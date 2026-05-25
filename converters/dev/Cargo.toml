@@ -7,8 +7,8 @@ license = "MIT OR Apache-2.0"
 publish = false
 
 [dependencies]
-acdc-parser = { path = "../../acdc-parser" }
-acdc-converters-core = { path = "../core" }
+acdc-parser.workspace = true
+acdc-converters-core.workspace = true
 crossterm.workspace = true
 
 [lints]
