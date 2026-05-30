@@ -421,6 +421,8 @@ mod index;
 mod inlines;
 mod list;
 mod paragraph;
+#[cfg(feature = "render-state")]
+pub mod replay;
 mod section;
 mod syntax;
 mod table;

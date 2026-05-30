@@ -10,6 +10,14 @@ use libghostty_vt::{
 #[derive(thiserror::Error, Debug)]
 #[non_exhaustive]
 pub enum Error {
+    /// The requested terminal dimensions are invalid.
+    #[error("terminal dimensions must be greater than zero: {cols} columns by {rows} rows")]
+    InvalidTerminalSize {
+        /// Requested column count.
+        cols: usize,
+        /// Requested row count.
+        rows: usize,
+    },
     /// The requested terminal dimensions cannot be represented by Ghostty.
     #[error("terminal dimensions exceed u16 limits: {cols} columns by {rows} rows")]
     TerminalSizeTooLarge {
@@ -39,7 +47,13 @@ impl TerminalSize {
         Self { cols, rows }
     }
 
-    fn as_u16(self) -> Result<(u16, u16), Error> {
+    pub(crate) fn as_u16(self) -> Result<(u16, u16), Error> {
+        if self.cols == 0 || self.rows == 0 {
+            return Err(Error::InvalidTerminalSize {
+                cols: self.cols,
+                rows: self.rows,
+            });
+        }
         let cols = u16::try_from(self.cols).map_err(|_| Error::TerminalSizeTooLarge {
             cols: self.cols,
             rows: self.rows,
@@ -207,49 +221,75 @@ impl CellGrid {
     }
 }
 
+pub(crate) fn new_terminal(size: TerminalSize) -> Result<Terminal<'static, 'static>, Error> {
+    let (cols, rows) = size.as_u16()?;
+    Ok(Terminal::new(TerminalOptions {
+        cols,
+        rows,
+        max_scrollback: 0,
+    })?)
+}
+
+pub(crate) struct GridCapture<'alloc> {
+    render_state: RenderState<'alloc>,
+    row_iterator: RowIterator<'alloc>,
+    cell_iterator: CellIterator<'alloc>,
+}
+
+impl GridCapture<'static> {
+    pub(crate) fn new() -> Result<Self, Error> {
+        Ok(Self {
+            render_state: RenderState::new()?,
+            row_iterator: RowIterator::new()?,
+            cell_iterator: CellIterator::new()?,
+        })
+    }
+}
+
+impl<'alloc> GridCapture<'alloc> {
+    pub(crate) fn capture(
+        &mut self,
+        terminal: &Terminal<'alloc, '_>,
+        size: TerminalSize,
+    ) -> Result<CellGrid, Error> {
+        let snapshot = self.render_state.update(terminal)?;
+        let mut row_iteration = self.row_iterator.update(&snapshot)?;
+        let mut rendered_cells = Vec::with_capacity(size.cols * size.rows);
+
+        while let Some(row) = row_iteration.next() {
+            let mut cell_iteration = self.cell_iterator.update(row)?;
+            let row_start = rendered_cells.len();
+            while let Some(cell) = cell_iteration.next() {
+                let style = cell.style()?;
+                rendered_cells.push(Cell {
+                    text: cell.graphemes()?.iter().collect(),
+                    fg: cell.fg_color()?.map(Rgb::from),
+                    bg: cell.bg_color()?.map(Rgb::from),
+                    decorations: CellDecorations {
+                        bold: style.bold,
+                        italic: style.italic,
+                        underline: style.underline != Underline::None,
+                        dim: style.faint,
+                        inverse: style.inverse,
+                        strikethrough: style.strikethrough,
+                    },
+                });
+            }
+            debug_assert_eq!(rendered_cells.len() - row_start, size.cols);
+        }
+        debug_assert_eq!(rendered_cells.len(), size.cols * size.rows);
+
+        Ok(CellGrid::new(rendered_cells, size))
+    }
+}
+
 /// Capture ANSI terminal bytes into a stable acdc-owned cell grid.
 ///
 /// # Errors
 ///
 /// Returns an error if Ghostty cannot create or query the render state.
 pub fn capture_ansi(ansi: &[u8], size: TerminalSize) -> Result<CellGrid, Error> {
-    let (cols, rows) = size.as_u16()?;
-    let mut terminal = Terminal::new(TerminalOptions {
-        cols,
-        rows,
-        max_scrollback: 0,
-    })?;
+    let mut terminal = new_terminal(size)?;
     terminal.vt_write(ansi);
-
-    let mut render_state = RenderState::new()?;
-    let snapshot = render_state.update(&terminal)?;
-    let mut row_iterator = RowIterator::new()?;
-    let mut cell_iterator = CellIterator::new()?;
-    let mut row_iteration = row_iterator.update(&snapshot)?;
-    let mut rendered_cells = Vec::with_capacity(size.cols * size.rows);
-
-    while let Some(row) = row_iteration.next() {
-        let mut cell_iteration = cell_iterator.update(row)?;
-        let row_start = rendered_cells.len();
-        while let Some(cell) = cell_iteration.next() {
-            let style = cell.style()?;
-            rendered_cells.push(Cell {
-                text: cell.graphemes()?.iter().collect(),
-                fg: cell.fg_color()?.map(Rgb::from),
-                bg: cell.bg_color()?.map(Rgb::from),
-                decorations: CellDecorations {
-                    bold: style.bold,
-                    italic: style.italic,
-                    underline: style.underline != Underline::None,
-                    dim: style.faint,
-                    inverse: style.inverse,
-                    strikethrough: style.strikethrough,
-                },
-            });
-        }
-        debug_assert_eq!(rendered_cells.len() - row_start, size.cols);
-    }
-    debug_assert_eq!(rendered_cells.len(), size.cols * size.rows);
-
-    Ok(CellGrid::new(rendered_cells, size))
+    GridCapture::new()?.capture(&terminal, size)
 }
