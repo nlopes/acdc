@@ -8,5 +8,6 @@ This project uses per-crate changelogs. See the relevant crate for its changelog
 - [acdc-converters-core](converters/core/CHANGELOG.md)
 - [acdc-converters-html](converters/html/CHANGELOG.md)
 - [acdc-converters-manpage](converters/manpage/CHANGELOG.md)
+- [acdc-converters-markdown](converters/markdown/CHANGELOG.md)
 - [acdc-converters-terminal](converters/terminal/CHANGELOG.md)
 - [acdc-editor-wasm](acdc-editor-wasm/CHANGELOG.md)

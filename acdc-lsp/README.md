@@ -2,7 +2,7 @@
 
 A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered by `acdc-parser`.
 
-> **Note**: This tool was heavily built using [Claude Code](https://claude.ai/claude-code) and has not yet been fully reviewed. Use with appropriate caution and please report any issues you encounter.
+> **Note**: This tool was heavily built using [Claude Code](https://claude.com/claude-code). It's been reviewed, but I didn't approach the code with maintainability in mind, so beware. Please report any issues you encounter.
 
 ## Features
 

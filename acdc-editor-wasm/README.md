@@ -214,16 +214,17 @@ Output goes to `pkg/` directory.
 
 ## Running the Example
 
-A ready-to-use example is located in the `www/` directory.
+A ready-to-use example is located in the `www/` directory. It imports the
+compiled WASM from `pkg/`, so build that first, then serve.
 
 To run it locally:
 
-1. Build the WASM package:
+1. Build the WASM package (output goes to `pkg/`):
    ```bash
    wasm-pack build --target web --release
    ```
 
-2. Serve the directory (you need a web server to handle WASM MIME types correctly):
+2. Serve from the repo root so both `www/` and `pkg/` are reachable (you need a web server to handle WASM MIME types correctly):
    ```bash
    # Using miniserve
    miniserve . --index www/index.html

@@ -154,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   render with syntax highlighting using syntect. Outputs inline CSS styles. Falls back
   to plain text when the language isn't recognized. Requires `highlighting` feature flag.
 - **Section numbering** - Documents with `:sectnums:` attribute now render numbered
-  section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:secnumlevels:`
+  section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:sectnumlevels:`
   to control depth of numbering.
 - **ToC numbering** - Table of contents entries are now numbered when `:sectnums:` is
   set, matching asciidoctor behavior.

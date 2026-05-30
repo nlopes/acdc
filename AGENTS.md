@@ -13,13 +13,17 @@
 
 ## Workspace features
 
-All declared in `acdc-parser` and forwarded by every crate that consumes them. A workspace `--no-default-features` build turns each off consistently.
+`pre-spec-subs`, `setext`, and `network` are declared in `acdc-parser` and forwarded by every crate that consumes them, so a workspace `--no-default-features` build turns them off consistently. The rest are converter-local.
 
-| Feature | Default | Owner doc |
-|---------|---------|-----------|
-| `pre-spec-subs` | on | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (plumbing & fixtures) |
-| `setext` | on | parser |
-| `images`, `highlighting`, `render-state`, `terminal-preview` | on | converter-specific; independent of `pre-spec-subs` |
+| Feature | Default | Crate | Notes |
+|---------|---------|-------|-------|
+| `pre-spec-subs` | on | parser (+ all converters) | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (plumbing & fixtures) |
+| `setext` | on | parser | Setext (two-line underlined) headers |
+| `network` | off | parser | Remote `include::https://...[]` (pulls in `ureq`) |
+| `highlighting` | off | html, terminal | syntect source highlighting |
+| `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
+| `render-state` | off | terminal | libghostty-vt grid rendering |
+| `images` | off | terminal | Inline terminal image rendering (viuer) |
 
 New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.
 

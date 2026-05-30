@@ -93,8 +93,10 @@ cargo build --all-features
 * `highlighting` - Enable syntax highlighting for source blocks in HTML output (uses syntect)
 * `html-terminal` - Enable acdc-only terminal-styled HTML rendering. This
   includes `[terminal]` blocks and `:terminal-preview:` source-block previews.
-  Asciidoctor does not provide a `:terminal-preview:` attribute, `[terminal]`
-  block style, or equivalent built-in terminal preview support.
+  It enables the html converter's `terminal` feature; see the converters/html
+  README for what it renders. Asciidoctor does not provide a
+  `:terminal-preview:` attribute, `[terminal]` block style, or equivalent
+  built-in terminal preview support.
 
 === Development Tools
 
@@ -146,9 +148,14 @@ Build with everything:
 cargo build --all-features
 ....
 
-=== Built-in Dependencies
+=== Built-in dependencies
 
-Parser dependencies (ureq for remote includes, evalexpr for expressions, encoding_rs for encoding detection) are built-in and always available. They're core to AsciiDoc processing and don't require feature flags.
+The parser bundles `evalexpr` (conditional expressions) and `encoding_rs`
+(encoding detection) — always available, no feature flag needed.
+
+Remote includes (`include::https://...[]`) require the parser's `network`
+feature, which pulls in `ureq`. It's off by default; build with
+`--features acdc-parser/network` to enable it.
 
 == Examples
 
@@ -247,6 +254,35 @@ Convert to embeddable HTML (no DOCTYPE, html, head, body):
 acdc convert --embedded document.adoc
 # or short form
 acdc convert -e document.adoc
+....
+
+Write to a specific file (or stdout with `-`):
+
+[source,console]
+....
+acdc convert -o out.html document.adoc
+acdc convert -o - document.adoc
+....
+
+Open the result in the default app after converting:
+
+[source,console]
+....
+acdc convert --open document.adoc
+....
+
+Fail instead of falling back on non-conforming input (e.g. bad manpage titles):
+
+[source,console]
+....
+acdc convert --backend manpage --strict mycommand.adoc
+....
+
+Enable legacy Setext (two-line underlined) headers:
+
+[source,console]
+....
+acdc convert --setext document.adoc
 ....
 
 Inspect document AST:

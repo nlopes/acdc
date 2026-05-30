@@ -57,11 +57,11 @@ Supports all major AsciiDoc constructs:
 
 ### Section Numbering
 
-Documents with `:sectnums:` render numbered section headings (e.g., "1. Introduction", "1.1. Overview"). Control numbering depth with `:secnumlevels:` (default 3, max 5).
+Documents with `:sectnums:` render numbered section headings (e.g., "1. Introduction", "1.1. Overview"). Control numbering depth with `:sectnumlevels:` (default 3, max 5).
 
 [source,console]
 ....
-acdc convert -a sectnums -a secnumlevels=2 document.adoc
+acdc convert -a sectnums -a sectnumlevels=2 document.adoc
 ....
 
 Table of contents entries are also numbered when `:sectnums:` is set.
@@ -198,7 +198,8 @@ acdc convert -a dark-mode document.adoc
 Two separate switches are involved:
 
 * The `terminal` Cargo feature is a build-time feature flag. It compiles the
-  HTML terminal renderer.
+  HTML terminal renderer. From the CLI this is the `html-terminal` feature,
+  which just enables this crate's `terminal` feature.
 * The `:terminal-preview:` document attribute is only a source-block opt-in.
   It makes terminal-like source blocks render through that terminal renderer.
 

@@ -45,7 +45,7 @@ Supported constructs:
 
 == Limitations
 
-Some `AsciiDoc` features have no faithful Markdown equivalent. When the converter hits one of these, it emits a `tracing::warn!` message and falls back:
+Some `AsciiDoc` features have no faithful Markdown equivalent. When the converter hits one of these, it records a structured warning (surfaced as a diagnostic) and falls back — usually leaving an inline `<!-- Warning: ... -->` marker in the output:
 
 - **Include directives** - not expanded at render time (the preprocessor handles them before conversion).
 - **Substitution control** (`subs=...`) - no way to express this in Markdown.
