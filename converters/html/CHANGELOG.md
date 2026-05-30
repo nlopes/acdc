@@ -18,18 +18,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
   specialchars are disabled; literal `--`, `(C)`, `->` preserved when
   replacements are disabled). The underlying gating was already in place.
-- Feature-gated `terminal-preview` support lets both standard and semantic HTML
-  conversions include selectable terminal-styled previews via `libghostty-vt`
-  when the document opts in with `:terminal-preview:`. Previews follow
+- Feature-gated `terminal` support lets both standard and semantic HTML
+  conversions include selectable terminal-styled previews via `libghostty-vt`.
+  The `:terminal-preview:` document attribute opts terminal-like source blocks
+  into preview rendering. Previews follow
   `:dark-mode:`, preserve terminal-converter ANSI colors for source/listing
   blocks, and auto-size to the rendered terminal text unless rows are explicitly
-  configured with `:terminal-preview-rows:` or `:terminal-rows:`. Preview width
-  can be configured with `:terminal-preview-cols:` or `:terminal-cols:`. The
-  terminal preview base styles live in the built-in HTML stylesheets, so they
-  follow the same embedded, linked, and copied stylesheet modes as the rest of
-  the converter output. This is an acdc-only HTML extension; Asciidoctor does
-  not provide a `:terminal-preview:` attribute or equivalent built-in terminal
-  preview feature.
+  configured with `:terminal-rows:`. Preview width can be configured with
+  `:terminal-cols:`. The terminal preview base styles live in the built-in HTML
+  stylesheets, so they follow the same embedded, linked, and copied stylesheet
+  modes as the rest of the converter output. This is an acdc-only HTML
+  extension; Asciidoctor does not provide a `:terminal-preview:` attribute or
+  equivalent built-in terminal preview feature.
+- Feature-gated `[terminal]` listing and literal blocks provide the explicit
+  terminal-session path. They render as selectable terminal-styled HTML through
+  the same `libghostty-vt` CellGrid renderer and do not require the
+  `:terminal-preview:` source-block opt-in. Block attributes `cols=` and
+  `rows=` configure the terminal dimensions for each session, and terminal
+  colors follow the document `:dark-mode:` setting. This is an acdc-only block
+  style: Asciidoctor treats `[terminal]` as a plain listing or literal block
+  and emits the raw text (including any ANSI escape sequences) unrendered.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.

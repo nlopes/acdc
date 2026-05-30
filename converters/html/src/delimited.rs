@@ -555,7 +555,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return self.render_listing_block_semantic(inlines, title, metadata);
         }
 
-        #[cfg(feature = "terminal-preview")]
+        #[cfg(feature = "terminal")]
+        if crate::terminal_preview::is_terminal_session(metadata) {
+            return self.render_terminal_session_block(inlines, title, metadata);
+        }
+
+        #[cfg(feature = "terminal")]
         if crate::terminal_preview::is_terminal_listing(&processor.document_attributes, metadata) {
             return self.render_terminal_listing_block(inlines, title, metadata);
         }
@@ -600,7 +605,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         title: &[InlineNode],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
-        #[cfg(feature = "terminal-preview")]
+        #[cfg(feature = "terminal")]
+        if crate::terminal_preview::is_terminal_session(metadata) {
+            return self.render_terminal_session_block_semantic(inlines, title, metadata);
+        }
+
+        #[cfg(feature = "terminal")]
         if crate::terminal_preview::is_terminal_listing(
             &self.processor.document_attributes,
             metadata,
@@ -628,7 +638,70 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    #[cfg(feature = "terminal-preview")]
+    #[cfg(feature = "terminal")]
+    fn render_terminal_session_block(
+        &mut self,
+        inlines: &[InlineNode],
+        title: &[InlineNode],
+        metadata: &BlockMetadata,
+    ) -> Result<(), Error> {
+        let attrs = self.processor.document_attributes.clone();
+        let options = self.processor.options.clone();
+        let mut w = self.writer_mut();
+        write_block_div_open(&mut w, metadata, "terminalblock terminal-preview-block")?;
+        let _ = w;
+
+        if !title.is_empty() {
+            self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+        }
+
+        w = self.writer_mut();
+        writeln!(w, "<div class=\"content\">")?;
+        crate::terminal_preview::render_session(w, inlines, metadata, options, &attrs)?;
+        w = self.writer_mut();
+        writeln!(w, "</div>")?;
+        writeln!(w, "</div>")?;
+        Ok(())
+    }
+
+    #[cfg(feature = "terminal")]
+    fn render_terminal_session_block_semantic(
+        &mut self,
+        inlines: &[InlineNode],
+        title: &[InlineNode],
+        metadata: &BlockMetadata,
+    ) -> Result<(), Error> {
+        let attrs = self.processor.document_attributes.clone();
+        let options = self.processor.options.clone();
+        let mut w = self.writer_mut();
+        if title.is_empty() {
+            write_semantic_tag_open(
+                &mut w,
+                "div",
+                metadata,
+                "terminal-block terminal-preview-block",
+            )?;
+            crate::terminal_preview::render_session(w, inlines, metadata, options, &attrs)?;
+            w = self.writer_mut();
+            writeln!(w, "</div>")?;
+        } else {
+            write_semantic_tag_open(
+                &mut w,
+                "figure",
+                metadata,
+                "terminal-block terminal-preview-block",
+            )?;
+            let _ = w;
+            self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+            w = self.writer_mut();
+            crate::terminal_preview::render_session(w, inlines, metadata, options, &attrs)?;
+            w = self.writer_mut();
+            writeln!(w, "</figure>")?;
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "terminal")]
     fn render_terminal_listing_block(
         &mut self,
         inlines: &[InlineNode],
@@ -654,7 +727,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    #[cfg(feature = "terminal-preview")]
+    #[cfg(feature = "terminal")]
     fn render_terminal_listing_block_semantic(
         &mut self,
         inlines: &[InlineNode],
@@ -768,6 +841,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 self.render_listing_block(inlines, title, metadata)?;
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
+                #[cfg(feature = "terminal")]
+                if crate::terminal_preview::is_terminal_session(metadata) {
+                    if self.processor.variant() == HtmlVariant::Semantic {
+                        self.render_terminal_session_block_semantic(inlines, title, metadata)?;
+                    } else {
+                        self.render_terminal_session_block(inlines, title, metadata)?;
+                    }
+                    return Ok(());
+                }
+
                 // Check for custom style other than "source" - I've done this because
                 // `asciidoctor` seems to always use "literalblock" for source blocks or
                 // so I think!

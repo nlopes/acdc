@@ -22,7 +22,7 @@ enum Theme {
 }
 
 impl Theme {
-    fn from_attributes(attrs: &DocumentAttributes<'_>) -> Self {
+    fn from_document_attributes(attrs: &DocumentAttributes<'_>) -> Self {
         if attrs
             .get("dark-mode")
             .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
@@ -78,14 +78,26 @@ struct PreviewOptions {
 }
 
 impl PreviewOptions {
-    fn from_attributes(attrs: &DocumentAttributes<'_>) -> Self {
+    fn resolve(attrs: &DocumentAttributes<'_>, metadata: Option<&BlockMetadata<'_>>) -> Self {
+        let document_cols = attr_usize(attrs.get("terminal-cols"));
+        let document_rows = attr_usize(attrs.get("terminal-rows"));
+        let document_theme = Theme::from_document_attributes(attrs);
+
         Self {
-            cols: attr_usize(attrs, "terminal-preview-cols")
-                .or_else(|| attr_usize(attrs, "terminal-cols"))
+            cols: metadata
+                .and_then(|metadata| {
+                    attr_usize(metadata.attributes.get("cols"))
+                        .or_else(|| attr_usize(metadata.attributes.get("terminal-cols")))
+                })
+                .or(document_cols)
                 .unwrap_or(DEFAULT_COLS),
-            rows: attr_usize(attrs, "terminal-preview-rows")
-                .or_else(|| attr_usize(attrs, "terminal-rows")),
-            theme: Theme::from_attributes(attrs),
+            rows: metadata
+                .and_then(|metadata| {
+                    attr_usize(metadata.attributes.get("rows"))
+                        .or_else(|| attr_usize(metadata.attributes.get("terminal-rows")))
+                })
+                .or(document_rows),
+            theme: document_theme,
         }
     }
 
@@ -128,14 +140,40 @@ pub(crate) fn is_terminal_listing(
     is_enabled(attrs) && detect_language(metadata).is_some_and(is_terminal_language)
 }
 
+pub(crate) fn is_terminal_session(metadata: &BlockMetadata<'_>) -> bool {
+    metadata.style == Some("terminal")
+}
+
 pub(crate) fn render_listing<W: Write>(
-    mut writer: W,
+    writer: W,
     inlines: &[InlineNode<'_>],
     metadata: &BlockMetadata<'_>,
     options: Options,
     attrs: &DocumentAttributes<'_>,
 ) -> Result<(), Error> {
-    let preview_options = PreviewOptions::from_attributes(attrs);
+    let preview_options = PreviewOptions::resolve(attrs, None);
+    render_with_options(writer, inlines, metadata, options, attrs, preview_options)
+}
+
+pub(crate) fn render_session<W: Write>(
+    writer: W,
+    inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    options: Options,
+    attrs: &DocumentAttributes<'_>,
+) -> Result<(), Error> {
+    let preview_options = PreviewOptions::resolve(attrs, Some(metadata));
+    render_with_options(writer, inlines, metadata, options, attrs, preview_options)
+}
+
+fn render_with_options<W: Write>(
+    mut writer: W,
+    inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    options: Options,
+    attrs: &DocumentAttributes<'_>,
+    preview_options: PreviewOptions,
+) -> Result<(), Error> {
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
         attrs.clone(),
@@ -251,9 +289,8 @@ fn flush_span<W: Write>(
     Ok(())
 }
 
-fn attr_usize(attrs: &DocumentAttributes<'_>, name: &str) -> Option<usize> {
-    attrs
-        .get(name)
+fn attr_usize(value: Option<&AttributeValue<'_>>) -> Option<usize> {
+    value
         .map(ToString::to_string)
         .and_then(|value| value.parse::<usize>().ok())
         .filter(|value| *value > 0)
@@ -487,6 +524,76 @@ mod tests {
             html.contains("<span style=\"color:"),
             "expected terminal preview to include colored spans, got: {html}"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn terminal_session_block_does_not_require_preview_attribute() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal]\n----\n$ cargo build\n\x1b[31merror\x1b[0m\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("<div class=\"terminalblock terminal-preview-block\">"));
+        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("$ cargo build"));
+        assert!(html.contains(">error</span>"));
+        assert!(html.contains("<span style=\"color:"));
+        Ok(())
+    }
+
+    #[test]
+    fn terminal_session_block_uses_block_dimensions() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal,cols=12,rows=4]\n----\n$ echo dimensions\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("data-cols=\"12\""));
+        assert!(html.contains("data-rows=\"4\""));
+        assert!(html.contains("background-color:#f6f8fa;color:#1f2328"));
+        Ok(())
+    }
+
+    #[test]
+    fn terminal_session_options_layer_block_dimensions_over_document_dimensions() -> TestResult {
+        let html = render(
+            "= Example\n:terminal-cols: 30\n:terminal-rows: 7\n:dark-mode:\n\n[terminal,cols=12]\n----\n$ echo layered\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("<div class=\"terminal-preview terminal-preview--dark\""));
+        assert!(html.contains("data-cols=\"12\""));
+        assert!(html.contains("data-rows=\"7\""));
+        assert!(html.contains("background-color:#0d1117;color:#e6edf3"));
+        Ok(())
+    }
+
+    #[test]
+    fn semantic_terminal_session_block_uses_semantic_wrapper() -> TestResult {
+        let html = render(
+            "= Example\n\n.Terminal\n[terminal]\n----\n$ echo semantic\n----\n",
+            crate::HtmlVariant::Semantic,
+        )?;
+
+        assert!(html.contains("<figure class=\"terminal-block terminal-preview-block\""));
+        assert!(html.contains("<figcaption>Terminal</figcaption>"));
+        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("$ echo semantic"));
+        Ok(())
+    }
+
+    #[test]
+    fn literal_terminal_session_block_renders_as_terminal_preview() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal,cols=20]\n....\n$ echo literal\n....\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("<div class=\"terminalblock terminal-preview-block\">"));
+        assert!(html.contains("data-cols=\"20\""));
+        assert!(html.contains("$ echo literal"));
         Ok(())
     }
 

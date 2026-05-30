@@ -16,11 +16,11 @@ pub enum Error {
     #[error(transparent)]
     VideoUrl(#[from] acdc_converters_core::video::UrlError),
 
-    #[cfg(feature = "terminal-preview")]
+    #[cfg(feature = "terminal")]
     #[error(transparent)]
     Terminal(#[from] acdc_converters_terminal::Error),
 
-    #[cfg(feature = "terminal-preview")]
+    #[cfg(feature = "terminal")]
     #[error(transparent)]
     TerminalRenderState(#[from] acdc_converters_terminal::cell_grid::Error),
 

@@ -25,10 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- The `terminal-preview` feature forwards optional terminal preview support to
-  the HTML converter. This is an acdc-only extension for selectable terminal
-  previews in HTML output; Asciidoctor does not provide a `:terminal-preview:`
-  attribute or equivalent built-in feature.
+- The `html-terminal` feature forwards terminal-styled HTML rendering to the
+  HTML converter. The `:terminal-preview:` document attribute opts terminal-like
+  source blocks into selectable preview rendering; Asciidoctor does not provide
+  this attribute or an equivalent built-in feature.
+- Explicit `[terminal]` blocks now render in HTML output when the
+  `html-terminal` feature is enabled. `[terminal]` is the terminal-session
+  path: it renders transcripts through `libghostty-vt` as selectable styled
+  HTML and does not require the `:terminal-preview:` source-block opt-in. It
+  supports per-block `cols=` and `rows=` attributes and follows the document
+  `:dark-mode:` setting. `[terminal]` is an acdc-only block style: Asciidoctor
+  renders it as a plain listing or literal block with the raw text (ANSI
+  escapes included) left as-is.
 - Converter warnings are now rendered on stderr with the same miette warning
   styling used for parser warnings.
 - `convert --open` now opens converter-reported output files, including

@@ -31,7 +31,7 @@ mod paragraph;
 mod section;
 mod syntax;
 mod table;
-#[cfg(feature = "terminal-preview")]
+#[cfg(feature = "terminal")]
 mod terminal_preview;
 mod toc;
 mod video;

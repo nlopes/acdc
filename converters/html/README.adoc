@@ -195,16 +195,34 @@ acdc convert -a dark-mode document.adoc
 
 #### Terminal previews
 
-When the HTML converter is built with the `terminal-preview` Cargo feature,
-acdc can render terminal-like source blocks as selectable terminal previews.
+Two separate switches are involved:
+
+* The `terminal` Cargo feature is a build-time feature flag. It compiles the
+  HTML terminal renderer.
+* The `:terminal-preview:` document attribute is only a source-block opt-in.
+  It makes terminal-like source blocks render through that terminal renderer.
+
+When the Cargo feature is enabled, acdc supports two terminal-looking HTML
+render paths:
+
+* Source blocks such as `[source,console]` render as terminal previews only
+  when the document sets `:terminal-preview:`.
+* `[terminal]` is an explicit block style for terminal session content. It
+  renders as terminal output whenever the `terminal` Cargo feature is enabled; the
+  `:terminal-preview:` document attribute is not required.
+
 This is an acdc-only extension; Asciidoctor does not provide a
-`:terminal-preview:` attribute or equivalent built-in terminal preview feature.
+`:terminal-preview:` attribute, a `[terminal]` block style, or equivalent
+built-in terminal preview feature.
+
+Use `:terminal-preview:` when existing source blocks should look like terminal
+examples:
 
 [source,asciidoc]
 ....
 = Demo
 :terminal-preview:
-:terminal-preview-cols: 88
+:terminal-cols: 88
 
 [source,console]
 ----
@@ -217,27 +235,49 @@ Terminal previews are supported for terminal-like source languages such as
 `console`, `terminal`, `shell`, `sh`, `bash`, `zsh`, `fish`, `powershell`,
 `ps1`, and `cmd`.
 
+Use `[terminal]` when the block content is a terminal session transcript or
+captured terminal output:
+
+[source,asciidoc]
+....
+[terminal,cols=80,rows=24]
+----
+$ cargo build --release
+   Compiling acdc v0.2.0
+    Finished release [optimized] in 2.34s
+$ echo done
+done
+----
+....
+
+The terminal session content is interpreted as terminal output, including ANSI
+escape sequences, and rendered as selectable styled HTML.
+
+`[terminal]` is an acdc-only block style. Asciidoctor renders it as a plain
+listing or literal block with the raw text (ANSI escapes included) left as-is,
+so documents that rely on it will not render the same under asciidoctor.
+
 [cols="1,2", options="header"]
 |===
 | Attribute | Effect
 
 | `:terminal-preview:`
-| Enables terminal previews for terminal-like source blocks.
-
-| `:terminal-preview-cols: N`
-| Sets the terminal grid width used to render previews. Defaults to `80`.
-
-| `:terminal-preview-rows: N`
-| Sets a fixed terminal grid height. When unset, acdc derives the height from the rendered terminal text plus a small padding row.
+| Enables terminal preview rendering for terminal-like source blocks only.
 
 | `:terminal-cols: N`
-| Alias for `:terminal-preview-cols:` when rendering HTML terminal previews.
+| Sets the terminal grid width used to render source-block previews and `[terminal]` blocks. Defaults to `80`.
 
 | `:terminal-rows: N`
-| Alias for `:terminal-preview-rows:` when rendering HTML terminal previews.
+| Sets a fixed terminal grid height for source-block previews and `[terminal]` blocks. When unset, acdc derives the height from the rendered terminal text plus a small padding row.
 
 | `:dark-mode:`
-| Uses the dark terminal preview shell colors, matching the HTML converter's dark stylesheet mode.
+| Uses dark terminal shell colors for both source-block previews and `[terminal]` blocks, matching the HTML converter's dark stylesheet mode.
+
+| `[terminal,cols=N]`
+| Overrides the terminal grid width for one explicit terminal session block.
+
+| `[terminal,rows=N]`
+| Overrides the terminal grid height for one explicit terminal session block. When unset, acdc derives the height from the content.
 |===
 
 #### Syntax highlighting CSS

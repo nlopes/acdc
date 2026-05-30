@@ -3,11 +3,11 @@
 :toc:
 :sectnums:
 :terminal-preview:
-:terminal-preview-cols: 88
+:terminal-cols: 88
 
 This document is normal HTML content with terminal-style source blocks rendered
 as selectable terminal previews when the HTML converter is built with the
-`terminal-preview` feature.
+`terminal` feature.
 
 The content below is intentionally written like a terminal workflow so the
 preview has terminal-shaped material to render.
@@ -82,6 +82,6 @@ fn main() {
 == Admonition
 
 NOTE: The `:terminal-preview:` attribute is the document-level opt-in. Use
-`:terminal-preview-cols:` / `:terminal-preview-rows:` to control the terminal
-grid size, or omit rows to let acdc size the preview from the rendered text.
+`:terminal-cols:` / `:terminal-rows:` to control the terminal grid size, or omit
+rows to let acdc size the preview from the rendered text.
 Without `:terminal-preview:`, standard and semantic HTML output stay unchanged.
