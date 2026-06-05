@@ -222,11 +222,12 @@ fn render_replay<W: Write>(
     let Some(size) = replay_size(attrs, metadata, diagnostics) else {
         return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
     };
-    let playback_duration = positive_duration_attr(
+    let playback_duration = positive_attr(
         REPLAY_DURATION_MS_ATTR,
         metadata.attributes.get(REPLAY_DURATION_MS_ATTR),
         diagnostics,
-    );
+    )
+    .map(|ms| std::time::Duration::from_millis(ms as u64));
 
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
@@ -265,7 +266,7 @@ fn render_replay<W: Write>(
         let trailing_newline = usize::from(ansi.last() == Some(&b'\n'));
         let tall = TerminalSize::new(
             size.cols,
-            scrollback_size(size, &ansi).rows + trailing_newline,
+            scrollback_rows(&ansi, size.rows) + trailing_newline,
         );
         let replay_options = ReplayOptions::new(tall).with_default_frame_duration(frame_duration);
         replay::capture_windowed(events, replay_options, size.rows)?.into_frames()
@@ -332,43 +333,22 @@ fn positive_attr(
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<usize> {
     let value = value?;
-    let raw = value.to_string();
-    match raw.parse::<usize>() {
-        Ok(parsed) if parsed > 0 => Some(parsed),
-        Ok(_) | Err(_) => {
-            diagnostics.warn(format!(
-                "terminal replay attribute `{name}` must be a positive integer, got `{raw}`"
-            ));
-            None
-        }
+    let parsed = attr_usize(Some(value));
+    if parsed.is_none() {
+        diagnostics.warn(format!(
+            "terminal replay attribute `{name}` must be a positive integer, got `{value}`"
+        ));
     }
+    parsed
 }
 
-fn positive_duration_attr(
-    name: &'static str,
-    value: Option<&AttributeValue<'_>>,
-    diagnostics: &mut Diagnostics<'_>,
-) -> Option<std::time::Duration> {
-    let value = value?;
-    let raw = value.to_string();
-    match raw.parse::<u64>() {
-        Ok(parsed) if parsed > 0 => Some(std::time::Duration::from_millis(parsed)),
-        Ok(_) | Err(_) => {
-            diagnostics.warn(format!(
-                "terminal replay attribute `{name}` must be a positive integer number of milliseconds, got `{raw}`"
-            ));
-            None
-        }
-    }
-}
-
-fn scrollback_size(size: TerminalSize, ansi: &[u8]) -> TerminalSize {
+fn scrollback_rows(ansi: &[u8], min_rows: usize) -> usize {
     let trailing_line = usize::from(!ansi.is_empty() && !ansi.ends_with(b"\n"));
     let lines = ansi
         .split_inclusive(|byte| *byte == b'\n')
         .count()
         .saturating_add(trailing_line);
-    TerminalSize::new(size.cols, lines.max(size.rows))
+    lines.max(min_rows)
 }
 
 /// Byte offsets where each replay chunk ends. Chunks are split on line feeds
@@ -584,12 +564,10 @@ fn render_replay_filmstrip<W: Write>(
         writer,
         "<div class=\"terminal-replay__viewport\" style=\"overflow:auto;max-width:100%;padding:18px;font-size:14px\">"
     )?;
-    let height = row_em(rows);
     writeln!(
         writer,
-        "<div class=\"terminal-replay__clip\" style=\"position:relative;overflow:hidden;width:max-content;height:{}.{:02}em\">",
-        height / 100,
-        height % 100
+        "<div class=\"terminal-replay__clip\" style=\"position:relative;overflow:hidden;width:max-content;height:{}\">",
+        row_em(rows)
     )?;
     writeln!(
         writer,
@@ -624,29 +602,30 @@ fn render_replay_scroll_keyframes<W: Write>(
     for (index, frame) in frames.iter().enumerate() {
         let percent = replay_frame_percent(frame.at.saturating_sub(first_at), total_duration);
         let offset = row_em(index.saturating_mul(rows));
-        write!(
-            writer,
-            "{percent:.4}%{{transform:translateY(-{}.{:02}em)}}",
-            offset / 100,
-            offset % 100
-        )?;
+        write!(writer, "{percent:.4}%{{transform:translateY(-{offset})}}")?;
     }
     // Hold the final frame to the end of the timeline.
     let last_offset = row_em(frames.len().saturating_sub(1).saturating_mul(rows));
-    writeln!(
-        writer,
-        "100%{{transform:translateY(-{}.{:02}em)}}}}",
-        last_offset / 100,
-        last_offset % 100
-    )?;
+    writeln!(writer, "100%{{transform:translateY(-{last_offset})}}}}")?;
     writeln!(writer, "</style>")?;
     Ok(())
 }
 
-/// Height of `rows` terminal rows in hundredths of an `em`, matching the
-/// screen's `font: 14px/1.45` line box (1.45em per row).
-fn row_em(rows: usize) -> usize {
-    rows.saturating_mul(145)
+/// A length in hundredths of an `em`, formatted as a CSS `em` value
+/// (e.g. `145` -> `1.45em`).
+#[derive(Clone, Copy)]
+struct Em(usize);
+
+impl std::fmt::Display for Em {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}.{:02}em", self.0 / 100, self.0 % 100)
+    }
+}
+
+/// Height of `rows` terminal rows, matching the screen's `font: 14px/1.45`
+/// line box (1.45em per row).
+fn row_em(rows: usize) -> Em {
+    Em(rows.saturating_mul(145))
 }
 
 fn replay_frame_percent(elapsed: std::time::Duration, total_duration: std::time::Duration) -> f64 {
