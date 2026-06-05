@@ -32,11 +32,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_admonition_semantic(self, admon, caption, processor.is_font_icons_mode());
         }
 
-        let mut writer = self.writer_mut();
-        writeln!(writer, "<div class=\"admonitionblock {}\">", admon.variant)?;
-        writeln!(writer, "<table>")?;
-        writeln!(writer, "<tr>")?;
-        writeln!(writer, "<td class=\"icon\">")?;
+        writeln!(
+            self.writer,
+            "<div class=\"admonitionblock {}\">",
+            admon.variant
+        )?;
+        writeln!(self.writer, "<table>")?;
+        writeln!(self.writer, "<tr>")?;
+        writeln!(self.writer, "<td class=\"icon\">")?;
 
         // Output icon based on `:icons:` document attribute
         // - Font mode (`icons=font`): Use Font Awesome <i> element
@@ -50,36 +53,30 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 AdmonitionVariant::Caution => "fa-fire",
             };
             writeln!(
-                writer,
+                self.writer,
                 "<i class=\"fa-solid {fa_icon}\" title=\"{caption}\"></i>",
             )?;
         } else {
-            writeln!(writer, "<div class=\"title\">{caption}</div>")?;
+            writeln!(self.writer, "<div class=\"title\">{caption}</div>")?;
         }
-        writeln!(writer, "</td>")?;
-        writeln!(writer, "<td class=\"content\">")?;
+        writeln!(self.writer, "</td>")?;
+        writeln!(self.writer, "<td class=\"content\">")?;
         if !admon.title.is_empty() {
-            write!(writer, "<div class=\"title\">")?;
-            let _ = writer;
+            write!(self.writer, "<div class=\"title\">")?;
             self.visit_inline_nodes(&admon.title)?;
-            writer = self.writer_mut();
-            writeln!(writer, "</div>")?;
+            writeln!(self.writer, "</div>")?;
         }
-        let _ = writer;
 
         // Handle paragraph rendering based on block count
         // Single paragraph: wrap in <div class="paragraph"><p>...</p></div>
         // Multiple blocks: render each with normal wrapper
         match admon.blocks.as_slice() {
             [acdc_parser::Block::Paragraph(para)] => {
-                let writer = self.writer_mut();
-                writeln!(writer, "<div class=\"paragraph\">")?;
-                write!(writer, "<p>")?;
-                let _ = writer;
+                writeln!(self.writer, "<div class=\"paragraph\">")?;
+                write!(self.writer, "<p>")?;
                 self.visit_inline_nodes(&para.content)?;
-                let writer = self.writer_mut();
-                writeln!(writer, "</p>")?;
-                writeln!(writer, "</div>")?;
+                writeln!(self.writer, "</p>")?;
+                writeln!(self.writer, "</div>")?;
             }
             [block] => {
                 // Single non-paragraph block: use normal rendering
@@ -93,11 +90,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
         }
 
-        let writer = self.writer_mut();
-        writeln!(writer, "</td>")?;
-        writeln!(writer, "</tr>")?;
-        writeln!(writer, "</table>")?;
-        writeln!(writer, "</div>")?;
+        writeln!(self.writer, "</td>")?;
+        writeln!(self.writer, "</tr>")?;
+        writeln!(self.writer, "</table>")?;
+        writeln!(self.writer, "</div>")?;
         Ok(())
     }
 }

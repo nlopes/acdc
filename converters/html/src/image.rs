@@ -16,8 +16,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return self.render_image_semantic(img);
         }
 
-        let mut w = self.writer_mut();
-
         // Build class list: imageblock + alignment + float + roles
         let mut classes = vec!["imageblock".to_string()];
 
@@ -36,8 +34,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             classes.push(role.to_string());
         }
 
-        write!(w, "<div class=\"{}\">", classes.join(" "))?;
-        write!(w, "<div class=\"content\">")?;
+        write!(self.writer, "<div class=\"{}\">", classes.join(" "))?;
+        write!(self.writer, "<div class=\"content\">")?;
         // Get alt text from attribute or generate from filename
         let alt_text = img.metadata.attributes.get_string("alt").map_or_else(
             || alt_text_from_filename(&img.source),
@@ -48,43 +46,44 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let link = img.metadata.attributes.get("link");
         if let Some(link) = link {
             write!(
-                w,
+                self.writer,
                 "<a class=\"image\" href=\"{}\">",
                 escape_href(&link.to_string())
             )?;
         }
 
-        write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;
-        write_dimension_attributes(w, &img.metadata)?;
-        write!(w, ">")?;
+        write!(
+            self.writer,
+            "<img src=\"{}\" alt=\"{alt_text}\"",
+            img.source
+        )?;
+        write_dimension_attributes(&mut self.writer, &img.metadata)?;
+        write!(self.writer, ">")?;
 
         if link.is_some() {
-            write!(w, "</a>")?;
+            write!(self.writer, "</a>")?;
         }
-        write!(w, "</div>")?; // close content
+        write!(self.writer, "</div>")?; // close content
 
         // Render title with figure caption if title exists
         // Caption can be disabled with :figure-caption!:
         if !img.title.is_empty() {
             let prefix =
                 processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
-            let _ = w;
             self.render_title_with_wrapper(
                 &img.title,
                 &format!("<div class=\"title\">{prefix}"),
                 "</div>",
             )?;
-            w = self.writer_mut();
         }
 
-        write!(w, "</div>")?; // close imageblock
+        write!(self.writer, "</div>")?; // close imageblock
         Ok(())
     }
 
     fn render_image_semantic(&mut self, img: &Image) -> Result<(), Error> {
         let processor = self.processor.clone();
         let has_title = !img.title.is_empty();
-        let mut w = self.writer_mut();
 
         // Build class and style for wrapper
         let mut classes = vec!["image-block".to_string()];
@@ -102,16 +101,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         // Wrapper: figure for titled, div for untitled
         let tag = if has_title { "figure" } else { "div" };
-        write!(w, "<{tag} class=\"{}\"", classes.join(" "))?;
+        write!(self.writer, "<{tag} class=\"{}\"", classes.join(" "))?;
         if let Some(id) = &img.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", id.id)?;
         } else if let Some(anchor) = img.metadata.anchors.first() {
-            write!(w, " id=\"{}\"", anchor.id)?;
+            write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
         if !styles.is_empty() {
-            write!(w, " style=\"{}\"", styles.join("; "))?;
+            write!(self.writer, " style=\"{}\"", styles.join("; "))?;
         }
-        writeln!(w, ">")?;
+        writeln!(self.writer, ">")?;
 
         let alt_text = img.metadata.attributes.get_string("alt").map_or_else(
             || alt_text_from_filename(&img.source),
@@ -148,7 +147,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     ToString::to_string,
                 );
             write!(
-                w,
+                self.writer,
                 "<a class=\"image bare\" href=\"{}\" title=\"{label}\" aria-label=\"{label}\">",
                 img.source
             )?;
@@ -156,39 +155,45 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             && !is_link_self
             && let Some(ref link_str) = link_str
         {
-            write!(w, "<a class=\"image\" href=\"{}\">", escape_href(link_str))?;
+            write!(
+                self.writer,
+                "<a class=\"image\" href=\"{}\">",
+                escape_href(link_str)
+            )?;
         }
 
-        write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", img.source)?;
-        write_dimension_attributes(w, &img.metadata)?;
+        write!(
+            self.writer,
+            "<img src=\"{}\" alt=\"{alt_text}\"",
+            img.source
+        )?;
+        write_dimension_attributes(&mut self.writer, &img.metadata)?;
 
         // Add loading attribute if present
         if let Some(loading) = img.metadata.attributes.get_string("loading") {
-            write!(w, " loading=\"{loading}\"")?;
+            write!(self.writer, " loading=\"{loading}\"")?;
         }
 
-        write!(w, ">")?;
+        write!(self.writer, ">")?;
 
         // Close link tag if we opened one
         let has_link = (use_self_link && !suppress_default_self)
             || (!is_link_none && !is_link_self && link_str.is_some());
         if has_link {
-            write!(w, "</a>")?;
+            write!(self.writer, "</a>")?;
         }
 
         if has_title {
             let prefix =
                 processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
-            let _ = w;
             self.render_title_with_wrapper(
                 &img.title,
                 &format!("<figcaption>{prefix}"),
                 "</figcaption>\n",
             )?;
-            w = self.writer_mut();
         }
 
-        writeln!(w, "</{tag}>")?;
+        writeln!(self.writer, "</{tag}>")?;
         Ok(())
     }
 }

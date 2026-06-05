@@ -70,30 +70,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         };
         let heading_level = effective_level + 1; // Level 1 = h2
 
-        let mut w = self.writer_mut();
-
         if section.level == 0 && !is_appendix {
             // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
-            write!(w, "<h{heading_level} id=\"{id}\" class=\"sect0\">")?;
+            write!(
+                self.writer,
+                "<h{heading_level} id=\"{id}\" class=\"sect0\">"
+            )?;
 
             // Prepend part number if :partnums: is enabled
             if !skip_numbering
                 && let Some(part_label) = processor.part_number_tracker().enter_part()
             {
-                write!(w, "{part_label}")?;
+                write!(self.writer, "{part_label}")?;
             }
         } else {
             if processor.variant() == HtmlVariant::Semantic {
-                writeln!(w, "<section class=\"doc-section level-{effective_level}\">")?;
+                writeln!(
+                    self.writer,
+                    "<section class=\"doc-section level-{effective_level}\">"
+                )?;
             } else {
-                writeln!(w, "<div class=\"sect{effective_level}\">")?;
+                writeln!(self.writer, "<div class=\"sect{effective_level}\">")?;
             }
-            write!(w, "<h{heading_level} id=\"{id}\">")?;
+            write!(self.writer, "<h{heading_level} id=\"{id}\">")?;
 
             // Prepend appendix label for appendix sections (any level)
             if is_appendix {
                 if let Some(appendix_label) = processor.appendix_tracker().enter_appendix() {
-                    write!(w, "{appendix_label}")?;
+                    write!(self.writer, "{appendix_label}")?;
                 }
             } else if !skip_numbering
                 && let Some(number) = processor
@@ -101,18 +105,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     .enter_section(effective_level)
             {
                 // Prepend section number if sectnums is enabled and this isn't a special section
-                write!(w, "{number}")?;
+                write!(self.writer, "{number}")?;
             }
         }
 
-        let _ = w;
         self.visit_inline_nodes(&section.title)?;
-        w = self.writer_mut();
-        writeln!(w, "</h{heading_level}>")?;
+        writeln!(self.writer, "</h{heading_level}>")?;
 
         // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
         if processor.variant() == HtmlVariant::Standard && effective_level == 1 {
-            writeln!(w, "<div class=\"sectionbody\">")?;
+            writeln!(self.writer, "<div class=\"sectionbody\">")?;
         }
         Ok(())
     }
@@ -139,16 +141,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
-        let w = self.writer_mut();
-
         if processor.variant() == HtmlVariant::Semantic {
-            writeln!(w, "</section>")?;
+            writeln!(self.writer, "</section>")?;
         } else {
             // sect1 (or appendix demoted to sect1) has a sectionbody wrapper to close
             if effective_level == 1 {
-                writeln!(w, "</div>")?; // Close sectionbody
+                writeln!(self.writer, "</div>")?; // Close sectionbody
             }
-            writeln!(w, "</div>")?; // Close sectN
+            writeln!(self.writer, "</div>")?; // Close sectN
         }
         Ok(())
     }
