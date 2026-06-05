@@ -1,6 +1,6 @@
 use std::{fmt::Write as _, io::Write};
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::visitor::Visitor;
 use acdc_parser::{AttributeValue, Audio};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
@@ -11,22 +11,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_audio_semantic(audio, self);
         }
 
-        let mut w = self.writer_mut();
-        write!(w, "<div")?;
+        write!(self.writer, "<div")?;
         if let Some(id) = &audio.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", id.id)?;
         }
-        writeln!(w, " class=\"audioblock\">")?;
+        writeln!(self.writer, " class=\"audioblock\">")?;
 
         if !audio.title.is_empty() {
-            write!(w, "<div class=\"title\">")?;
-            let _ = w;
+            write!(self.writer, "<div class=\"title\">")?;
             self.visit_inline_nodes(&audio.title)?;
-            w = self.writer_mut();
-            writeln!(w, "</div>")?;
+            writeln!(self.writer, "</div>")?;
         }
 
-        writeln!(w, "<div class=\"content\">")?;
+        writeln!(self.writer, "<div class=\"content\">")?;
 
         // Build the src attribute with optional start and end time
         let mut src = audio.source.to_string();
@@ -43,28 +40,28 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             _ => {}
         }
 
-        write!(w, "<audio src=\"{src}\"")?;
+        write!(self.writer, "<audio src=\"{src}\"")?;
 
         // Add autoplay option if present
         if audio.metadata.options.contains(&"autoplay") {
-            write!(w, " autoplay")?;
+            write!(self.writer, " autoplay")?;
         }
 
         // Add loop option if present
         if audio.metadata.options.contains(&"loop") {
-            write!(w, " loop")?;
+            write!(self.writer, " loop")?;
         }
 
         // Add nocontrols option check - if present, don't add controls
         if !audio.metadata.options.contains(&"nocontrols") {
-            write!(w, " controls")?;
+            write!(self.writer, " controls")?;
         }
 
-        writeln!(w, ">")?;
-        writeln!(w, "Your browser does not support the audio tag.")?;
-        writeln!(w, "</audio>")?;
-        writeln!(w, "</div>")?;
-        writeln!(w, "</div>")?;
+        writeln!(self.writer, ">")?;
+        writeln!(self.writer, "Your browser does not support the audio tag.")?;
+        writeln!(self.writer, "</audio>")?;
+        writeln!(self.writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
 
         Ok(())
     }
@@ -111,26 +108,22 @@ fn visit_audio_semantic<W: Write>(
     visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !audio.title.is_empty();
-    let mut w = visitor.writer_mut();
 
     let tag = if has_title { "figure" } else { "div" };
-    write!(w, "<{tag} class=\"audio-block\"")?;
+    write!(visitor.writer, "<{tag} class=\"audio-block\"")?;
     if let Some(id) = &audio.metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
+        write!(visitor.writer, " id=\"{}\"", id.id)?;
     }
-    writeln!(w, ">")?;
+    writeln!(visitor.writer, ">")?;
 
-    render_audio_element(audio, w)?;
+    render_audio_element(audio, &mut visitor.writer)?;
 
     if has_title {
-        w = visitor.writer_mut();
-        write!(w, "<figcaption>")?;
-        let _ = w;
+        write!(visitor.writer, "<figcaption>")?;
         visitor.visit_inline_nodes(&audio.title)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</figcaption>")?;
+        writeln!(visitor.writer, "</figcaption>")?;
     }
 
-    writeln!(w, "</{tag}>")?;
+    writeln!(visitor.writer, "</{tag}>")?;
     Ok(())
 }

@@ -42,57 +42,52 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
         let has_title = !list.title.is_empty();
 
-        let writer = self.writer_mut();
         // Semantic mode: use <section> for titled, <div> otherwise
         let wrapper_tag = if semantic && has_title {
             "section"
         } else {
             "div"
         };
-        write!(writer, "<{wrapper_tag}")?;
+        write!(self.writer, "<{wrapper_tag}")?;
         if let Some(id) = &list.metadata.id {
-            write!(writer, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", id.id)?;
         } else if let Some(anchor) = list.metadata.anchors.first() {
-            write!(writer, " id=\"{}\"", anchor.id)?;
+            write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
         if semantic {
             // Semantic mode: no "checklist" on wrapper div
             if is_bibliography {
                 let class = build_class("ulist bibliography", &list.metadata.roles);
-                writeln!(writer, " class=\"{class}\">")?;
+                writeln!(self.writer, " class=\"{class}\">")?;
             } else {
                 let class = build_class("ulist", &list.metadata.roles);
-                writeln!(writer, " class=\"{class}\">")?;
+                writeln!(self.writer, " class=\"{class}\">")?;
             }
         } else if is_checklist {
-            writeln!(writer, " class=\"ulist checklist\">")?;
+            writeln!(self.writer, " class=\"ulist checklist\">")?;
         } else if is_bibliography {
-            writeln!(writer, " class=\"ulist bibliography\">")?;
+            writeln!(self.writer, " class=\"ulist bibliography\">")?;
         } else {
-            writeln!(writer, " class=\"ulist\">")?;
+            writeln!(self.writer, " class=\"ulist\">")?;
         }
-        let _ = writer;
         if semantic && has_title {
             self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
         } else {
             self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
         }
 
-        let mut writer = self.writer_mut();
         if is_checklist && semantic {
-            writeln!(writer, "<ul class=\"task-list\">")?;
+            writeln!(self.writer, "<ul class=\"task-list\">")?;
         } else if is_checklist {
-            writeln!(writer, "<ul class=\"checklist\">")?;
+            writeln!(self.writer, "<ul class=\"checklist\">")?;
         } else if is_bibliography {
-            writeln!(writer, "<ul class=\"bibliography\">")?;
+            writeln!(self.writer, "<ul class=\"bibliography\">")?;
         } else {
-            writeln!(writer, "<ul>")?;
+            writeln!(self.writer, "<ul>")?;
         }
-        let _ = writer;
         render_nested_list_items(&list.items, self, 1, false, 1, !semantic, semantic)?;
-        writer = self.writer_mut();
-        writeln!(writer, "</ul>")?;
-        writeln!(writer, "</{wrapper_tag}>")?;
+        writeln!(self.writer, "</ul>")?;
+        writeln!(self.writer, "</{wrapper_tag}>")?;
         Ok(())
     }
 
@@ -109,39 +104,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
         let has_title = !list.title.is_empty();
 
-        let writer = self.writer_mut();
         // Semantic mode: use <section> for titled, <div> otherwise
         let wrapper_tag = if semantic && has_title {
             "section"
         } else {
             "div"
         };
-        write!(writer, "<{wrapper_tag}")?;
+        write!(self.writer, "<{wrapper_tag}")?;
         if let Some(id) = &list.metadata.id {
-            write!(writer, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", id.id)?;
         } else if let Some(anchor) = list.metadata.anchors.first() {
-            write!(writer, " id=\"{}\"", anchor.id)?;
+            write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
         let class = build_class(&format!("olist {style}"), &list.metadata.roles);
-        writeln!(writer, " class=\"{class}\">")?;
-        let _ = writer;
+        writeln!(self.writer, " class=\"{class}\">")?;
         if semantic && has_title {
             self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
         } else {
             self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
         }
 
-        let mut writer = self.writer_mut();
         if let Some(t) = type_attr {
-            writeln!(writer, "<ol class=\"{style}\" type=\"{t}\">")?;
+            writeln!(self.writer, "<ol class=\"{style}\" type=\"{t}\">")?;
         } else {
-            writeln!(writer, "<ol class=\"{style}\">")?;
+            writeln!(self.writer, "<ol class=\"{style}\">")?;
         }
-        let _ = writer;
         render_nested_list_items(&list.items, self, 1, true, 1, !semantic, semantic)?;
-        writer = self.writer_mut();
-        writeln!(writer, "</ol>")?;
-        writeln!(writer, "</{wrapper_tag}>")?;
+        writeln!(self.writer, "</ol>")?;
+        writeln!(self.writer, "</{wrapper_tag}>")?;
         Ok(())
     }
 
@@ -150,64 +140,47 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_callout_list_semantic(list, self);
         }
 
-        let writer = self.writer_mut();
-        writeln!(writer, "<div class=\"colist arabic\">")?;
-        let _ = writer;
+        writeln!(self.writer, "<div class=\"colist arabic\">")?;
         self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
 
         if self.processor.is_font_icons_mode() {
-            let writer = self.writer_mut();
-            writeln!(writer, "<table>")?;
-            let _ = writer;
+            writeln!(self.writer, "<table>")?;
 
             for item in &list.items {
                 let num = item.callout.number;
-                let writer = self.writer_mut();
-                writeln!(writer, "<tr>")?;
+                writeln!(self.writer, "<tr>")?;
                 writeln!(
-                    writer,
+                    self.writer,
                     "<td><i class=\"conum\" data-value=\"{num}\"></i><b>{num}</b></td>"
                 )?;
-                write!(writer, "<td>")?;
-                let _ = writer;
+                write!(self.writer, "<td>")?;
                 self.visit_inline_nodes(&item.principal)?;
                 for block in &item.blocks {
                     self.visit_block(block)?;
                 }
-                let writer = self.writer_mut();
-                writeln!(writer, "</td>")?;
-                writeln!(writer, "</tr>")?;
+                writeln!(self.writer, "</td>")?;
+                writeln!(self.writer, "</tr>")?;
             }
 
-            let writer = self.writer_mut();
-            writeln!(writer, "</table>")?;
+            writeln!(self.writer, "</table>")?;
         } else {
-            let writer = self.writer_mut();
-            writeln!(writer, "<ol>")?;
-            let _ = writer;
+            writeln!(self.writer, "<ol>")?;
 
             for item in &list.items {
-                let writer = self.writer_mut();
-                write!(writer, "<li>")?;
-                write!(writer, "<p>")?;
-                let _ = writer;
+                write!(self.writer, "<li>")?;
+                write!(self.writer, "<p>")?;
                 self.visit_inline_nodes(&item.principal)?;
-                let writer = self.writer_mut();
-                write!(writer, "</p>")?;
-                let _ = writer;
+                write!(self.writer, "</p>")?;
                 for block in &item.blocks {
                     self.visit_block(block)?;
                 }
-                let writer = self.writer_mut();
-                writeln!(writer, "</li>")?;
+                writeln!(self.writer, "</li>")?;
             }
 
-            let writer = self.writer_mut();
-            writeln!(writer, "</ol>")?;
+            writeln!(self.writer, "</ol>")?;
         }
 
-        let writer = self.writer_mut();
-        writeln!(writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
         Ok(())
     }
 }
@@ -414,13 +387,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         // Start the description list outer div
-        let writer = self.writer_mut();
-        write!(writer, "<div")?;
+        write!(self.writer, "<div")?;
         // Use metadata.id if present, otherwise use first anchor
         if let Some(id) = &list.metadata.id {
-            write!(writer, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", id.id)?;
         } else if let Some(anchor) = list.metadata.anchors.first() {
-            write!(writer, " id=\"{}\"", anchor.id)?;
+            write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
 
         // Description list
@@ -431,9 +403,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             visit_standard_description_list(list, self)?;
         }
 
-        let writer = self.writer_mut();
         // Close the description list
-        writeln!(writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
         Ok(())
     }
 }
@@ -581,16 +552,13 @@ fn render_bare_ulist_semantic<W: Write>(
     let is_checklist = has_checklist_items(&list.items);
     let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
 
-    let mut writer = visitor.writer_mut();
     if is_checklist {
-        writeln!(writer, "<ul class=\"task-list\">")?;
+        writeln!(visitor.writer, "<ul class=\"task-list\">")?;
     } else {
-        writeln!(writer, "<ul>")?;
+        writeln!(visitor.writer, "<ul>")?;
     }
-    let _ = writer;
     render_nested_list_items(&list.items, visitor, 1, false, 1, false, semantic)?;
-    writer = visitor.writer_mut();
-    writeln!(writer, "</ul>")?;
+    writeln!(visitor.writer, "</ul>")?;
     Ok(())
 }
 
@@ -604,16 +572,13 @@ fn render_bare_olist_semantic<W: Write>(
     let (style, type_attr) = ordered_list_style(depth);
     let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
 
-    let mut writer = visitor.writer_mut();
     if let Some(t) = type_attr {
-        writeln!(writer, "<ol class=\"{style}\" type=\"{t}\">")?;
+        writeln!(visitor.writer, "<ol class=\"{style}\" type=\"{t}\">")?;
     } else {
-        writeln!(writer, "<ol class=\"{style}\">")?;
+        writeln!(visitor.writer, "<ol class=\"{style}\">")?;
     }
-    let _ = writer;
     render_nested_list_items(&list.items, visitor, 1, true, 1, false, semantic)?;
-    writer = visitor.writer_mut();
-    writeln!(writer, "</ol>")?;
+    writeln!(visitor.writer, "</ol>")?;
     Ok(())
 }
 
@@ -622,44 +587,32 @@ fn render_bare_dlist_semantic<W: Write>(
     list: &DescriptionList,
     visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
-    let mut writer = visitor.writer_mut();
-    writeln!(writer, "<dl>")?;
-    let _ = writer;
+    writeln!(visitor.writer, "<dl>")?;
 
     for item in &list.items {
-        writer = visitor.writer_mut();
-        writeln!(writer, "<dt>")?;
-        let _ = writer;
+        writeln!(visitor.writer, "<dt>")?;
         visitor.visit_inline_nodes(&item.term)?;
-        writer = visitor.writer_mut();
-        writeln!(writer, "</dt>")?;
+        writeln!(visitor.writer, "</dt>")?;
 
         if !item.principal_text.is_empty() || !item.description.is_empty() {
-            writeln!(writer, "<dd>")?;
+            writeln!(visitor.writer, "<dd>")?;
             if !item.principal_text.is_empty() {
                 if item.description.is_empty() {
-                    let _ = writer;
                     visitor.visit_inline_nodes(&item.principal_text)?;
-                    writer = visitor.writer_mut();
                 } else {
-                    write!(writer, "<p>")?;
-                    let _ = writer;
+                    write!(visitor.writer, "<p>")?;
                     visitor.visit_inline_nodes(&item.principal_text)?;
-                    writer = visitor.writer_mut();
-                    writeln!(writer, "</p>")?;
+                    writeln!(visitor.writer, "</p>")?;
                 }
             }
-            let _ = writer;
             for block in &item.description {
                 render_block_in_semantic_list_context(block, visitor)?;
             }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</dd>")?;
+            writeln!(visitor.writer, "</dd>")?;
         }
     }
 
-    writer = visitor.writer_mut();
-    writeln!(writer, "</dl>")?;
+    writeln!(visitor.writer, "</dl>")?;
     Ok(())
 }
 
@@ -688,72 +641,58 @@ fn visit_description_list_semantic<W: Write>(
     let class = build_class(&base_class, &list.metadata.roles);
 
     let wrapper_tag = if has_title { "section" } else { "div" };
-    let writer = visitor.writer_mut();
-    write!(writer, "<{wrapper_tag}")?;
+    write!(visitor.writer, "<{wrapper_tag}")?;
     if let Some(id) = &list.metadata.id {
-        write!(writer, " id=\"{}\"", id.id)?;
+        write!(visitor.writer, " id=\"{}\"", id.id)?;
     } else if let Some(anchor) = list.metadata.anchors.first() {
-        write!(writer, " id=\"{}\"", anchor.id)?;
+        write!(visitor.writer, " id=\"{}\"", anchor.id)?;
     }
-    write!(writer, " class=\"{class}\"")?;
+    write!(visitor.writer, " class=\"{class}\"")?;
     if is_qanda {
-        write!(writer, " role=\"doc-qna\"")?;
+        write!(visitor.writer, " role=\"doc-qna\"")?;
     }
-    writeln!(writer, ">")?;
-    let _ = writer;
+    writeln!(visitor.writer, ">")?;
 
     if has_title {
         visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
     }
 
-    let writer = visitor.writer_mut();
     // Inner <dl> with optional class
     if is_qanda {
-        writeln!(writer, "<dl class=\"qanda\">")?;
+        writeln!(visitor.writer, "<dl class=\"qanda\">")?;
     } else if is_horizontal {
-        writeln!(writer, "<dl class=\"horizontal\">")?;
+        writeln!(visitor.writer, "<dl class=\"horizontal\">")?;
     } else {
-        writeln!(writer, "<dl>")?;
+        writeln!(visitor.writer, "<dl>")?;
     }
-    let _ = writer;
 
     for item in &list.items {
-        let mut writer = visitor.writer_mut();
-        writeln!(writer, "<dt>")?;
-        let _ = writer;
+        writeln!(visitor.writer, "<dt>")?;
         visitor.visit_inline_nodes(&item.term)?;
-        writer = visitor.writer_mut();
-        writeln!(writer, "</dt>")?;
+        writeln!(visitor.writer, "</dt>")?;
 
         // Only render <dd> if there's content
         if !item.principal_text.is_empty() || !item.description.is_empty() {
-            writeln!(writer, "<dd>")?;
+            writeln!(visitor.writer, "<dd>")?;
             if !item.principal_text.is_empty() {
                 // Wrap in <p> only when there are also blocks
                 if item.description.is_empty() {
-                    let _ = writer;
                     visitor.visit_inline_nodes(&item.principal_text)?;
-                    writer = visitor.writer_mut();
                 } else {
-                    write!(writer, "<p>")?;
-                    let _ = writer;
+                    write!(visitor.writer, "<p>")?;
                     visitor.visit_inline_nodes(&item.principal_text)?;
-                    writer = visitor.writer_mut();
-                    writeln!(writer, "</p>")?;
+                    writeln!(visitor.writer, "</p>")?;
                 }
             }
-            let _ = writer;
             for block in &item.description {
                 render_block_in_semantic_list_context(block, visitor)?;
             }
-            writer = visitor.writer_mut();
-            writeln!(writer, "</dd>")?;
+            writeln!(visitor.writer, "</dd>")?;
         }
     }
 
-    let writer = visitor.writer_mut();
-    writeln!(writer, "</dl>")?;
-    writeln!(writer, "</{wrapper_tag}>")?;
+    writeln!(visitor.writer, "</dl>")?;
+    writeln!(visitor.writer, "</{wrapper_tag}>")?;
     Ok(())
 }
 

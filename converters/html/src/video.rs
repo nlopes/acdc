@@ -1,9 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_core::{
-    video::TryUrl,
-    visitor::{Visitor, WritableVisitor},
-};
+use acdc_converters_core::{video::TryUrl, visitor::Visitor};
 use acdc_parser::{AttributeValue, Video};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
@@ -14,27 +11,24 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_video_semantic(video, self);
         }
 
-        let mut w = self.writer_mut();
-        write!(w, "<div")?;
+        write!(self.writer, "<div")?;
         if let Some(id) = &video.metadata.id {
-            write!(w, " id=\"{}\"", id.id)?;
+            write!(self.writer, " id=\"{}\"", id.id)?;
         }
-        writeln!(w, " class=\"videoblock\">")?;
+        writeln!(self.writer, " class=\"videoblock\">")?;
 
         if !video.title.is_empty() {
-            write!(w, "<div class=\"title\">")?;
-            let _ = w;
+            write!(self.writer, "<div class=\"title\">")?;
             self.visit_inline_nodes(&video.title)?;
-            w = self.writer_mut();
-            writeln!(w, "</div>")?;
+            writeln!(self.writer, "</div>")?;
         }
 
-        writeln!(w, "<div class=\"content\">")?;
+        writeln!(self.writer, "<div class=\"content\">")?;
 
         // Video blocks can have multiple sources
         if video.sources.is_empty() {
-            writeln!(w, "</div>")?;
-            writeln!(w, "</div>")?;
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</div>")?;
             return Ok(());
         }
 
@@ -50,13 +44,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         );
 
         if is_youtube || is_vimeo {
-            render_iframe_video(video, w)?;
+            render_iframe_video(video, &mut self.writer)?;
         } else {
-            render_local_video(video, w)?;
+            render_local_video(video, &mut self.writer)?;
         }
 
-        writeln!(w, "</div>")?;
-        writeln!(w, "</div>")?;
+        writeln!(self.writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
 
         Ok(())
     }
@@ -139,17 +133,16 @@ fn visit_video_semantic<W: Write>(
     visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !video.title.is_empty();
-    let mut w = visitor.writer_mut();
 
     let tag = if has_title { "figure" } else { "div" };
-    write!(w, "<{tag} class=\"video-block\"")?;
+    write!(visitor.writer, "<{tag} class=\"video-block\"")?;
     if let Some(id) = &video.metadata.id {
-        write!(w, " id=\"{}\"", id.id)?;
+        write!(visitor.writer, " id=\"{}\"", id.id)?;
     }
-    writeln!(w, ">")?;
+    writeln!(visitor.writer, ">")?;
 
     if video.sources.is_empty() {
-        writeln!(w, "</{tag}>")?;
+        writeln!(visitor.writer, "</{tag}>")?;
         return Ok(());
     }
 
@@ -163,20 +156,17 @@ fn visit_video_semantic<W: Write>(
     );
 
     if is_youtube || is_vimeo {
-        render_iframe_video(video, w)?;
+        render_iframe_video(video, &mut visitor.writer)?;
     } else {
-        render_local_video(video, w)?;
+        render_local_video(video, &mut visitor.writer)?;
     }
 
     if has_title {
-        w = visitor.writer_mut();
-        write!(w, "<figcaption>")?;
-        let _ = w;
+        write!(visitor.writer, "<figcaption>")?;
         visitor.visit_inline_nodes(&video.title)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</figcaption>")?;
+        writeln!(visitor.writer, "</figcaption>")?;
     }
 
-    writeln!(w, "</{tag}>")?;
+    writeln!(visitor.writer, "</{tag}>")?;
     Ok(())
 }

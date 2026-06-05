@@ -831,7 +831,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
     visitor: &mut HtmlVisitor<'_, '_, W>,
     subs: &[Substitution],
 ) -> Result<(), Error> {
-    use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+    use acdc_converters_core::visitor::Visitor;
     #[cfg(feature = "highlighting")]
     let highlighting_enabled = visitor
         .processor
@@ -839,16 +839,13 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         .get("source-highlighter")
         .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
 
-    let mut w = visitor.writer_mut();
-
     #[cfg(feature = "highlighting")]
     if let Some(lang) = language {
         if highlighting_enabled {
             write!(
-                w,
+                visitor.writer,
                 "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
-            let _ = w;
             let processor = visitor.processor.clone();
             let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
             let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
@@ -863,24 +860,19 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
                 mode,
                 Some(&mut visitor.diagnostics),
             )?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
+            writeln!(visitor.writer, "</code></pre>")?;
         } else {
             write!(
-                w,
+                visitor.writer,
                 "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
-            let _ = w;
             visitor.visit_inline_nodes(inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
+            writeln!(visitor.writer, "</code></pre>")?;
         }
     } else {
-        write!(w, "<pre>")?;
-        let _ = w;
+        write!(visitor.writer, "<pre>")?;
         visitor.visit_inline_nodes(inlines)?;
-        w = visitor.writer_mut();
-        writeln!(w, "</pre>")?;
+        writeln!(visitor.writer, "</pre>")?;
     }
 
     #[cfg(not(feature = "highlighting"))]
@@ -888,19 +880,15 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         let _ = subs;
         if let Some(lang) = language {
             write!(
-                w,
+                visitor.writer,
                 "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
-            let _ = w;
             visitor.visit_inline_nodes(inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</code></pre>")?;
+            writeln!(visitor.writer, "</code></pre>")?;
         } else {
-            write!(w, "<pre>")?;
-            let _ = w;
+            write!(visitor.writer, "<pre>")?;
             visitor.visit_inline_nodes(inlines)?;
-            w = visitor.writer_mut();
-            writeln!(w, "</pre>")?;
+            writeln!(visitor.writer, "</pre>")?;
         }
     }
 

@@ -20,20 +20,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         if let Some(style) = para.metadata.style
             && style == "literal"
         {
-            let mut w = self.writer_mut();
             let class = build_class("literalblock", &para.metadata.roles);
-            writeln!(w, "<div class=\"{class}\">")?;
-            let _ = w;
+            writeln!(self.writer, "<div class=\"{class}\">")?;
             self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
-            w = self.writer_mut();
-            writeln!(w, "<div class=\"content\">")?;
-            write!(w, "<pre>")?;
-            let _ = w;
+            writeln!(self.writer, "<div class=\"content\">")?;
+            write!(self.writer, "<pre>")?;
             self.visit_inline_nodes(&para.content)?;
-            w = self.writer_mut();
-            writeln!(w, "</pre>")?;
-            writeln!(w, "</div>")?;
-            writeln!(w, "</div>")?;
+            writeln!(self.writer, "</pre>")?;
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</div>")?;
             return Ok(());
         }
 
@@ -41,18 +36,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         if para.metadata.style == Some("example") && para.metadata.options.contains(&"collapsible")
         {
             let is_open = para.metadata.options.contains(&"open");
-            let w = self.writer_mut();
-            write!(w, "<details")?;
-            write_id(w, &para.metadata)?;
+            write!(self.writer, "<details")?;
+            write_id(&mut self.writer, &para.metadata)?;
             if is_open {
-                writeln!(w, " open>")?;
+                writeln!(self.writer, " open>")?;
             } else {
-                writeln!(w, ">")?;
+                writeln!(self.writer, ">")?;
             }
-            let _ = w;
             if para.title.is_empty() {
-                let w = self.writer_mut();
-                writeln!(w, "<summary class=\"title\">Details</summary>")?;
+                writeln!(self.writer, "<summary class=\"title\">Details</summary>")?;
             } else {
                 self.render_title_with_wrapper(
                     &para.title,
@@ -60,54 +52,38 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     "</summary>\n",
                 )?;
             }
-            let mut w = self.writer_mut();
-            writeln!(w, "<div class=\"content\">")?;
-            let _ = w;
+            writeln!(self.writer, "<div class=\"content\">")?;
             self.visit_inline_nodes(&para.content)?;
-            w = self.writer_mut();
-            writeln!(w)?;
-            writeln!(w, "</div>")?;
-            writeln!(w, "</details>")?;
+            writeln!(self.writer)?;
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</details>")?;
             return Ok(());
         }
 
         if let Some(style) = para.metadata.style {
             // Check if this paragraph should be rendered as a quote block
             if style == "quote" {
-                let mut w = self.writer_mut();
                 let class = build_class("quoteblock", &para.metadata.roles);
-                writeln!(w, "<div class=\"{class}\">")?;
-                let _ = w;
+                writeln!(self.writer, "<div class=\"{class}\">")?;
                 self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
-                w = self.writer_mut();
-                writeln!(w, "<blockquote>")?;
-                let _ = w;
+                writeln!(self.writer, "<blockquote>")?;
                 self.visit_inline_nodes(&para.content)?;
-                w = self.writer_mut();
-                writeln!(w)?;
-                writeln!(w, "</blockquote>")?;
-                let _ = w;
+                writeln!(self.writer)?;
+                writeln!(self.writer, "</blockquote>")?;
                 write_attribution(self, &para.metadata)?;
-                let w = self.writer_mut();
-                writeln!(w, "</div>")?;
+                writeln!(self.writer, "</div>")?;
                 return Ok(());
             }
 
             // Check if this paragraph should be rendered as a verse block
             if style == "verse" {
-                let mut w = self.writer_mut();
                 let class = build_class("verseblock", &para.metadata.roles);
-                writeln!(w, "<div class=\"{class}\">")?;
-                let _ = w;
+                writeln!(self.writer, "<div class=\"{class}\">")?;
                 self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
-                w = self.writer_mut();
-                write!(w, "<pre class=\"content\">")?;
-                let _ = w;
+                write!(self.writer, "<pre class=\"content\">")?;
                 self.visit_inline_nodes(&para.content)?;
-                let _ = self.writer_mut();
                 write_attribution(self, &para.metadata)?;
-                let w = self.writer_mut();
-                writeln!(w, "</div>")?;
+                writeln!(self.writer, "</div>")?;
                 return Ok(());
             }
 
@@ -125,59 +101,43 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
             if has_title {
                 // Titled paragraphs get a section wrapper
-                let mut w = self.writer_mut();
                 let class = build_class("paragraph", &para.metadata.roles);
-                write!(w, "<section")?;
-                write_id(w, &para.metadata)?;
-                writeln!(w, " class=\"{class}\">")?;
-                let _ = w;
+                write!(self.writer, "<section")?;
+                write_id(&mut self.writer, &para.metadata)?;
+                writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_title_with_wrapper(
                     &para.title,
                     "<h6 class=\"block-title\">",
                     "</h6>\n",
                 )?;
-                w = self.writer_mut();
-                write!(w, "<p>")?;
-                let _ = w;
+                write!(self.writer, "<p>")?;
                 self.visit_inline_nodes(&para.content)?;
-                w = self.writer_mut();
-                writeln!(w, "</p>")?;
-                writeln!(w, "</section>")?;
+                writeln!(self.writer, "</p>")?;
+                writeln!(self.writer, "</section>")?;
             } else if has_id || has_roles {
                 // Id/roles without title: put attributes directly on <p>
-                let mut w = self.writer_mut();
-                write!(w, "<p")?;
+                write!(self.writer, "<p")?;
                 if has_roles {
-                    write!(w, " class=\"{}\"", para.metadata.roles.join(" "))?;
+                    write!(self.writer, " class=\"{}\"", para.metadata.roles.join(" "))?;
                 }
-                write_id(w, &para.metadata)?;
-                write!(w, ">")?;
-                let _ = w;
+                write_id(&mut self.writer, &para.metadata)?;
+                write!(self.writer, ">")?;
                 self.visit_inline_nodes(&para.content)?;
-                w = self.writer_mut();
-                writeln!(w, "</p>")?;
+                writeln!(self.writer, "</p>")?;
             } else {
                 // Bare paragraph — no wrapper
-                let mut w = self.writer_mut();
-                write!(w, "<p>")?;
-                let _ = w;
+                write!(self.writer, "<p>")?;
                 self.visit_inline_nodes(&para.content)?;
-                w = self.writer_mut();
-                writeln!(w, "</p>")?;
+                writeln!(self.writer, "</p>")?;
             }
         } else {
-            let mut w = self.writer_mut();
             let class = build_class("paragraph", &para.metadata.roles);
-            writeln!(w, "<div class=\"{class}\">")?;
-            let _ = w;
+            writeln!(self.writer, "<div class=\"{class}\">")?;
             self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
-            w = self.writer_mut();
-            write!(w, "<p>")?;
-            let _ = w;
+            write!(self.writer, "<p>")?;
             self.visit_inline_nodes(&para.content)?;
-            w = self.writer_mut();
-            writeln!(w, "</p>")?;
-            writeln!(w, "</div>")?;
+            writeln!(self.writer, "</p>")?;
+            writeln!(self.writer, "</div>")?;
         }
         Ok(())
     }
@@ -191,34 +151,27 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let subs = baseline_subs(true);
 
         if self.processor.variant() == HtmlVariant::Semantic {
-            let w = self.writer_mut();
             if para.title.is_empty() {
-                write!(w, "<div")?;
-                write_id(w, &para.metadata)?;
+                write!(self.writer, "<div")?;
+                write_id(&mut self.writer, &para.metadata)?;
                 let class = build_class("listing-block", &para.metadata.roles);
-                writeln!(w, " class=\"{class}\">")?;
-                let _ = w;
+                writeln!(self.writer, " class=\"{class}\">")?;
                 crate::render_pre_code(&para.content, language, self, &subs)?;
-                let w = self.writer_mut();
-                writeln!(w, "</div>")?;
+                writeln!(self.writer, "</div>")?;
             } else {
-                write!(w, "<figure")?;
-                write_id(w, &para.metadata)?;
+                write!(self.writer, "<figure")?;
+                write_id(&mut self.writer, &para.metadata)?;
                 let class = build_class("listing-block", &para.metadata.roles);
-                writeln!(w, " class=\"{class}\">")?;
-                let _ = w;
+                writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_title_with_wrapper(&para.title, "<figcaption>", "</figcaption>\n")?;
                 crate::render_pre_code(&para.content, language, self, &subs)?;
-                let w = self.writer_mut();
-                writeln!(w, "</figure>")?;
+                writeln!(self.writer, "</figure>")?;
             }
         } else {
-            let w = self.writer_mut();
-            write!(w, "<div")?;
-            write_id(w, &para.metadata)?;
+            write!(self.writer, "<div")?;
+            write_id(&mut self.writer, &para.metadata)?;
             let class = build_class("listingblock", &para.metadata.roles);
-            writeln!(w, " class=\"{class}\">")?;
-            let _ = w;
+            writeln!(self.writer, " class=\"{class}\">")?;
 
             // Title with optional listing-caption numbering
             if !para.title.is_empty() {
@@ -241,13 +194,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 }
             }
 
-            let mut w = self.writer_mut();
-            writeln!(w, "<div class=\"content\">")?;
-            let _ = w;
+            writeln!(self.writer, "<div class=\"content\">")?;
             crate::render_pre_code(&para.content, language, self, &subs)?;
-            w = self.writer_mut();
-            writeln!(w, "</div>")?;
-            writeln!(w, "</div>")?;
+            writeln!(self.writer, "</div>")?;
+            writeln!(self.writer, "</div>")?;
         }
 
         Ok(())
