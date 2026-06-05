@@ -260,14 +260,12 @@ fn render_replay<W: Write>(
     // which stays fast because such recordings are short.
     let frames = if is_append_only(&ansi) {
         // The capture terminal must be tall enough to hold the whole recording
-        // without scrolling. `scrollback_size` already covers content that ends
-        // mid-line; a trailing newline leaves the cursor one row lower, so
-        // reserve one more row in that case.
-        let trailing_newline = usize::from(ansi.last() == Some(&b'\n'));
-        let tall = TerminalSize::new(
-            size.cols,
-            scrollback_rows(&ansi, size.rows) + trailing_newline,
-        );
+        // without scrolling. `estimate_rows` accounts for lines that wrap at
+        // `cols` into several grid rows (a raw newline count would undercount
+        // them and let the "tall" terminal scroll, corrupting windowed frames);
+        // counting bytes over-estimates display width, so it never
+        // under-allocates.
+        let tall = TerminalSize::new(size.cols, estimate_rows(&ansi, size.cols).max(size.rows));
         let replay_options = ReplayOptions::new(tall).with_default_frame_duration(frame_duration);
         replay::capture_windowed(events, replay_options, size.rows)?.into_frames()
     } else {
@@ -340,15 +338,6 @@ fn positive_attr(
         ));
     }
     parsed
-}
-
-fn scrollback_rows(ansi: &[u8], min_rows: usize) -> usize {
-    let trailing_line = usize::from(!ansi.is_empty() && !ansi.ends_with(b"\n"));
-    let lines = ansi
-        .split_inclusive(|byte| *byte == b'\n')
-        .count()
-        .saturating_add(trailing_line);
-    lines.max(min_rows)
 }
 
 /// Byte offsets where each replay chunk ends. Chunks are split on line feeds
@@ -544,6 +533,7 @@ fn render_replay_filmstrip<W: Write>(
         .max(1);
     let cols = first.grid.cols();
     let rows = first.grid.rows();
+    let animation_name = replay_animation_name(frames, rows, total_duration);
 
     write!(
         writer,
@@ -556,7 +546,14 @@ fn render_replay_filmstrip<W: Write>(
         frames.len(),
         total_ms
     )?;
-    render_replay_scroll_keyframes(writer, frames, rows, first_at, total_duration)?;
+    render_replay_scroll_keyframes(
+        writer,
+        &animation_name,
+        frames,
+        rows,
+        first_at,
+        total_duration,
+    )?;
     // The viewport keeps the terminal padding and any horizontal scrolling; the
     // clip is exactly `rows` tall (font-size pins `em` to the screen's line box)
     // and hides everything but the current frame as the filmstrip scrolls.
@@ -571,7 +568,7 @@ fn render_replay_filmstrip<W: Write>(
     )?;
     writeln!(
         writer,
-        "<pre class=\"terminal-preview__screen terminal-replay__scroll\" aria-label=\"Terminal replay\" style=\"margin:0;padding:0;animation:terminal-replay-scroll {total_ms}ms step-end both\">"
+        "<pre class=\"terminal-preview__screen terminal-replay__scroll\" aria-label=\"Terminal replay\" style=\"margin:0;padding:0;animation:{animation_name} {total_ms}ms step-end both\">"
     )?;
     let mut first_row = true;
     for frame in frames {
@@ -590,15 +587,38 @@ fn render_replay_filmstrip<W: Write>(
     Ok(())
 }
 
+/// A deterministic, per-block CSS animation name. Every replay block emits its
+/// own `@keyframes`, so a single shared global name would let a later block's
+/// keyframes override an earlier block's, animating the earlier block with the
+/// wrong offsets. The name hashes the inputs that define the keyframes (frame
+/// timings and row geometry); blocks that animate identically share a name,
+/// which is harmless.
+fn replay_animation_name(
+    frames: &[replay::Frame],
+    rows: usize,
+    total_duration: std::time::Duration,
+) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    rows.hash(&mut hasher);
+    total_duration.hash(&mut hasher);
+    frames.len().hash(&mut hasher);
+    for frame in frames {
+        frame.at.hash(&mut hasher);
+    }
+    format!("terminal-replay-scroll-{:016x}", hasher.finish())
+}
+
 fn render_replay_scroll_keyframes<W: Write>(
     writer: &mut W,
+    name: &str,
     frames: &[replay::Frame],
     rows: usize,
     first_at: std::time::Duration,
     total_duration: std::time::Duration,
 ) -> Result<(), Error> {
     writeln!(writer, "<style>")?;
-    write!(writer, "@keyframes terminal-replay-scroll{{")?;
+    write!(writer, "@keyframes {name}{{")?;
     for (index, frame) in frames.iter().enumerate() {
         let percent = replay_frame_percent(frame.at.saturating_sub(first_at), total_duration);
         let offset = row_em(index.saturating_mul(rows));
@@ -1068,6 +1088,42 @@ mod tests {
         assert!(!html.contains("@keyframes terminal-replay-frame-"));
         assert!(html.contains("first"));
         assert!(html.contains("second</span>"));
+        Ok(())
+    }
+
+    #[test]
+    fn terminal_replay_blocks_use_distinct_animation_names() -> TestResult {
+        // Two replay blocks in one document must not share a global
+        // `@keyframes` name, or the later block's keyframes would override the
+        // earlier block's and animate it with the wrong offsets.
+        let html = render(
+            "= Example\n\n[terminal%replay,cols=20,rows=4]\n----\nfirst\nsecond\n----\n\n[terminal%replay,cols=20,rows=4]\n----\nalpha\nbeta\ngamma\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        let names: Vec<&str> = html
+            .split("@keyframes ")
+            .skip(1)
+            .filter_map(|rest| rest.split('{').next())
+            .filter(|name| name.starts_with("terminal-replay-scroll-"))
+            .collect();
+
+        assert_eq!(
+            names.len(),
+            2,
+            "each replay block defines its own keyframes"
+        );
+        assert_ne!(
+            names.first(),
+            names.get(1),
+            "animation names must be unique per block"
+        );
+        for name in &names {
+            assert!(
+                html.contains(&format!("animation:{name} ")),
+                "each block animates with its own keyframes name"
+            );
+        }
         Ok(())
     }
 
