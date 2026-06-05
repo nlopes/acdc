@@ -6,6 +6,7 @@
 - **Always `--all-features`**: all test/build/clippy commands
 - **Clippy pedantic**: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
 - **Format before committing**: `cargo fmt --all`
+- **Compact imports**: merge imports from the same crate/module into one `use` with braces, e.g. `use std::{borrow::Cow, io::Write};` — not separate `use std::borrow::Cow;` / `use std::io::Write;` lines
 - **Update changelogs**: each crate has its own `CHANGELOG.md`; update `[Unreleased]` for affected crates
 - **Surface converter warnings structurally**: user-relevant converter warnings should use `Warning` / `Diagnostics`, not `tracing::warn!`
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)

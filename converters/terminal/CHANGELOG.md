@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Internal terminal replay frame capture can now build ordered, deduplicated
-  `CellGrid` frames from ANSI chunks for animated replay renderers.
+- Terminal replay frame capture (`replay::capture` / `capture_windowed`) builds
+  ordered, deduplicated `CellGrid` frames from recorded ANSI for animated replay
+  renderers; `capture_windowed` is a fast path for append-only recordings.
 - `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
   `(C)`, `->`, `...`) literal instead of converting to Unicode.
 - User-facing converter warnings are now collected in `ConversionResult` for

@@ -1,0 +1,27 @@
+= Terminal Replay Sample
+:author: ACDC
+:toc:
+
+This document demonstrates an HTML terminal replay block. The block contains
+recorded terminal bytes; acdc replays those bytes into HTML frames and does not
+execute commands, shells, scripts, or recording files.
+
+== Recorded ANSI Output
+
+Each line below becomes a replay frame. Captured ANSI output can be pasted into
+the same kind of block; acdc treats it as recorded bytes, not as commands to
+run.
+
+[terminal%replay,cols=64,rows=10]
+----
+$ acdc convert guide.adoc --backend html -o guide.html
+Parsing guide.adoc
+Rendering terminal replay frames
+Generated html file: ./guide.html
+Done
+----
+
+== Notes
+
+Replay blocks require fixed terminal dimensions. Use `cols` and `rows` on the
+block, or set `:terminal-cols:` and `:terminal-rows:` document attributes.

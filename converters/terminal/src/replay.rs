@@ -50,7 +50,7 @@
 
 use std::{borrow::Cow, time::Duration};
 
-use crate::cell_grid::{self, CellGrid, GridCapture, TerminalSize, new_terminal};
+use crate::cell_grid::{self, Cell, CellGrid, GridCapture, TerminalSize, new_terminal};
 
 const DEFAULT_FRAME_DURATION: Duration = Duration::from_millis(100);
 const DEFAULT_CELL_WIDTH_PX: u32 = 1;
@@ -335,6 +335,112 @@ where
     Ok(Timeline { frames })
 }
 
+/// Capture replay frames from append-only recorded output without paying
+/// libghostty's expensive viewport scroll.
+///
+/// Scrolling a short viewport shifts every visible row, so feeding thousands of
+/// lines through a small terminal is pathologically slow. This avoids it:
+/// `options.size` must be tall enough to hold the whole recording without
+/// scrolling (one grid row per output line, plus a little headroom), so writes
+/// never scroll. Each frame is then a `viewport_rows`-tall window of the final
+/// screen that follows the cursor, reproducing what a scrolling viewport of
+/// that height would have shown.
+///
+/// This is only faithful for output that never rewrites rows the cursor has
+/// already passed (no upward cursor motion, absolute positioning, scroll
+/// regions, alternate screen, or erase-in-display). Use [`capture`] for
+/// recordings that redraw earlier rows.
+///
+/// Returns the windowed [`Timeline`], matching what [`capture`] would produce
+/// for append-only output.
+///
+/// # Errors
+///
+/// Returns an error when terminal dimensions are invalid, render-state capture
+/// fails, or explicit event timestamps move backwards.
+pub fn capture_windowed<'a, I>(
+    events: I,
+    options: Options,
+    viewport_rows: usize,
+) -> Result<Timeline, Error>
+where
+    I: IntoIterator<Item = Event<'a>>,
+{
+    let size = options.size;
+    let viewport_rows = viewport_rows.max(1);
+
+    let mut terminal = new_terminal(size)?;
+    let mut capture = GridCapture::new()?;
+
+    // Record where the cursor lands after each write instead of snapshotting the
+    // (potentially huge) screen every time. For append-only output the rows
+    // below the cursor are still blank, so a single final capture reproduces
+    // every intermediate frame once it is windowed to the recorded cursor row.
+    let mut current_time = Duration::ZERO;
+    let mut markers = Vec::new();
+    for event in events {
+        current_time = next_timestamp(&event, current_time, options.default_frame_duration)?;
+        let Event::Write { bytes, .. } = event else {
+            // Resizes and timing boundaries do not occur in append-only ANSI
+            // capture; ignore them rather than complicate the fast path.
+            continue;
+        };
+        terminal.vt_write(bytes.as_ref());
+        let cursor_x = terminal.cursor_x().map_err(cell_grid::Error::from)?;
+        let cursor_y = usize::from(terminal.cursor_y().map_err(cell_grid::Error::from)?);
+        // The viewport's bottom row tracks the cursor, exactly as a scrolling
+        // terminal would. After a line break the cursor sits on a fresh blank
+        // row, so the last row that actually holds content is the one above it;
+        // mid-line, the cursor row itself holds content.
+        let content_bottom = cursor_y.saturating_sub(usize::from(cursor_x == 0 && cursor_y > 0));
+        markers.push((current_time, cursor_y, content_bottom));
+    }
+
+    let screen = capture.capture(&terminal, size)?;
+
+    // Seed deduplication with a blank viewport so a leading all-blank frame is
+    // dropped, matching `capture`.
+    let mut last_window = CellGrid::new(
+        vec![Cell::default(); size.cols.saturating_mul(viewport_rows)],
+        TerminalSize::new(size.cols, viewport_rows),
+    );
+    let mut frames = Vec::new();
+    for (at, viewport_bottom, content_bottom) in markers {
+        let window = window_frame(&screen, viewport_bottom, content_bottom, viewport_rows);
+        if window != last_window {
+            frames.push(Frame {
+                at,
+                grid: window.clone(),
+            });
+            last_window = window;
+        }
+    }
+
+    Ok(Timeline { frames })
+}
+
+/// Extract a `viewport_rows`-tall window of `screen` whose bottom row aligns
+/// with `viewport_bottom` (the cursor row, so the window scrolls with output).
+/// Rows above `content_bottom` are real screen rows; rows below it have not yet
+/// been written at this point in the replay, so they are blanked.
+fn window_frame(
+    screen: &CellGrid,
+    viewport_bottom: usize,
+    content_bottom: usize,
+    viewport_rows: usize,
+) -> CellGrid {
+    let first_visible = (viewport_bottom + 1).saturating_sub(viewport_rows);
+    let mut cells = Vec::with_capacity(screen.cols().saturating_mul(viewport_rows));
+    for offset in 0..viewport_rows {
+        let row = first_visible + offset;
+        match screen.row(row) {
+            Some(row_cells) if row <= content_bottom => cells.extend_from_slice(row_cells),
+            _ => cells.extend(std::iter::repeat_with(Cell::default).take(screen.cols())),
+        }
+    }
+    CellGrid::new(cells, TerminalSize::new(screen.cols(), viewport_rows))
+}
+
 fn next_timestamp(
     event: &Event<'_>,
     current_time: Duration,
@@ -403,6 +509,66 @@ mod tests {
 
     fn options() -> Options {
         Options::new(TerminalSize::new(8, 3)).with_default_frame_duration(Duration::from_millis(50))
+    }
+
+    #[test]
+    fn windowed_capture_matches_scrolling_for_append_only() -> TestResult {
+        // Drive both paths with identical per-line write events and assert the
+        // tall-terminal windowing reproduces the scrolling viewport exactly.
+        let events: Vec<Event<'static>> = (0..50)
+            .map(|i| {
+                let line = format!("\x1b[3{}mline {i}\x1b[0m\r\n", 1 + i % 7);
+                Event::write_at(
+                    Cow::Owned(line.into_bytes()),
+                    Duration::from_millis(10 * (i + 1)),
+                )
+            })
+            .collect();
+
+        let frame_duration = Duration::from_millis(10);
+        let scrolling = capture(
+            events.clone(),
+            Options::new(TerminalSize::new(20, 6)).with_default_frame_duration(frame_duration),
+        )?;
+        let windowed = capture_windowed(
+            events,
+            Options::new(TerminalSize::new(20, 60)).with_default_frame_duration(frame_duration),
+            6,
+        )?;
+
+        assert_eq!(scrolling.frames(), windowed.frames());
+        let Some(last) = windowed.frames().last() else {
+            return Err(std::io::Error::other("expected replay frames").into());
+        };
+        // The final newline leaves the cursor on a blank bottom row, so the
+        // last content line sits one row above it.
+        assert_eq!(last.grid.row_text(4), "line 49");
+        assert_eq!(last.grid.row_text(5), "");
+        Ok(())
+    }
+
+    #[test]
+    fn windowed_capture_handles_unterminated_final_line() -> TestResult {
+        let events = vec![
+            Event::write_at(b"first\r\n".as_slice(), Duration::from_millis(10)),
+            Event::write_at(b"second".as_slice(), Duration::from_millis(20)),
+        ];
+
+        let windowed = capture_windowed(
+            events,
+            Options::new(TerminalSize::new(20, 8))
+                .with_default_frame_duration(Duration::from_millis(10)),
+            4,
+        )?;
+        let [first, second] = windowed.frames() else {
+            return Err(std::io::Error::other("expected two replay frames").into());
+        };
+
+        assert_eq!(first.grid.row_text(0), "first");
+        assert_eq!(first.grid.row_text(1), "");
+        assert_eq!(second.grid.row_text(0), "first");
+        assert_eq!(second.grid.row_text(1), "second");
+        Ok(())
     }
 
     #[test]

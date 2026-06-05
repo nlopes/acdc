@@ -647,20 +647,29 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
-        let mut w = self.writer_mut();
-        write_block_div_open(&mut w, metadata, "terminalblock terminal-preview-block")?;
-        let _ = w;
+        write_block_div_open(
+            &mut self.writer,
+            metadata,
+            "terminalblock terminal-preview-block",
+        )?;
 
         if !title.is_empty() {
             self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
         }
 
-        w = self.writer_mut();
-        writeln!(w, "<div class=\"content\">")?;
-        crate::terminal_preview::render_session(w, inlines, metadata, options, &attrs)?;
-        w = self.writer_mut();
-        writeln!(w, "</div>")?;
-        writeln!(w, "</div>")?;
+        writeln!(self.writer, "<div class=\"content\">")?;
+        // Direct field access so the writer and diagnostics borrows stay
+        // disjoint; `writer_mut()` would borrow all of `self`.
+        crate::terminal_preview::render_session(
+            &mut self.writer,
+            inlines,
+            metadata,
+            options,
+            &attrs,
+            &mut self.diagnostics,
+        )?;
+        writeln!(self.writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
         Ok(())
     }
 
@@ -673,30 +682,41 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
-        let mut w = self.writer_mut();
+        // Direct field access so the writer and diagnostics borrows stay
+        // disjoint; `writer_mut()` would borrow all of `self`.
         if title.is_empty() {
             write_semantic_tag_open(
-                &mut w,
+                &mut self.writer,
                 "div",
                 metadata,
                 "terminal-block terminal-preview-block",
             )?;
-            crate::terminal_preview::render_session(w, inlines, metadata, options, &attrs)?;
-            w = self.writer_mut();
-            writeln!(w, "</div>")?;
+            crate::terminal_preview::render_session(
+                &mut self.writer,
+                inlines,
+                metadata,
+                options,
+                &attrs,
+                &mut self.diagnostics,
+            )?;
+            writeln!(self.writer, "</div>")?;
         } else {
             write_semantic_tag_open(
-                &mut w,
+                &mut self.writer,
                 "figure",
                 metadata,
                 "terminal-block terminal-preview-block",
             )?;
-            let _ = w;
             self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
-            w = self.writer_mut();
-            crate::terminal_preview::render_session(w, inlines, metadata, options, &attrs)?;
-            w = self.writer_mut();
-            writeln!(w, "</figure>")?;
+            crate::terminal_preview::render_session(
+                &mut self.writer,
+                inlines,
+                metadata,
+                options,
+                &attrs,
+                &mut self.diagnostics,
+            )?;
+            writeln!(self.writer, "</figure>")?;
         }
         Ok(())
     }

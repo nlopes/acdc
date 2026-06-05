@@ -213,8 +213,14 @@ render paths:
   `:terminal-preview:` document attribute is not required.
 
 This is an acdc-only extension; Asciidoctor does not provide a
-`:terminal-preview:` attribute, a `[terminal]` block style, or equivalent
-built-in terminal preview feature.
+`:terminal-preview:` attribute, the `[terminal]` or `[terminal%replay]` block
+styles, or any equivalent built-in terminal preview or replay feature.
+
+NOTE: Terminal rendering is built directly into the HTML converter — the
+`terminal` Cargo feature of `acdc-converters-html`, backed by the
+`acdc-converters-terminal` crate — rather than being loaded as a plug-in. If
+acdc grows a first-class extension mechanism, this functionality may migrate to
+an extension instead of being compiled into the converter.
 
 Use `:terminal-preview:` when existing source blocks should look like terminal
 examples:
@@ -254,9 +260,31 @@ done
 The terminal session content is interpreted as terminal output, including ANSI
 escape sequences, and rendered as selectable styled HTML.
 
-`[terminal]` is an acdc-only block style. Asciidoctor renders it as a plain
-listing or literal block with the raw text (ANSI escapes included) left as-is,
-so documents that rely on it will not render the same under asciidoctor.
+Use `[terminal%replay]` when the block contains pre-recorded ANSI output that
+should be animated in HTML:
+
+[source,asciidoc]
+....
+[terminal%replay,cols=80,rows=24]
+----
+\x1b[32mDownloading\x1b[0m
+\x1b[32mComplete\x1b[0m
+----
+....
+
+Terminal replay is replay-only. acdc treats the block as recorded terminal
+data and does not execute commands, shells, scripts, VHS tapes, or other
+recording formats. Replay blocks require explicit terminal dimensions via
+`cols`/`rows` block attributes or `:terminal-cols:`/`:terminal-rows:`
+document attributes; invalid or missing dimensions fall back to a static
+terminal preview with a structured warning. Dense recordings are sampled so the
+generated HTML stays small even for long output, and playback ends on the final
+frame.
+
+`[terminal]` and `[terminal%replay]` are acdc-only block styles. Asciidoctor
+renders them as a plain listing or literal block with the raw text (ANSI escapes
+included) left as-is, so documents that rely on them will not render the same
+under asciidoctor.
 
 [cols="1,2", options="header"]
 |===
@@ -279,6 +307,12 @@ so documents that rely on it will not render the same under asciidoctor.
 
 | `[terminal,rows=N]`
 | Overrides the terminal grid height for one explicit terminal session block. When unset, acdc derives the height from the content.
+
+| `[terminal%replay,cols=N,rows=N]`
+| Renders pre-recorded ANSI terminal output as an animated replay. Replay blocks require fixed dimensions and never execute commands or recording files.
+
+| `[terminal%replay,replay-duration-ms=N]`
+| Overrides the generated replay's total playback duration in milliseconds.
 |===
 
 #### Syntax highlighting CSS
