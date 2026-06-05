@@ -17,7 +17,18 @@
 //! - [`Frame`]: one visible screen at one absolute replay timestamp.
 //! - [`Timeline`]: ordered frames ready for a renderer/player.
 //!
-//! Call order:
+//! Two capture strategies are available:
+//!
+//! - [`capture`] (and the [`capture_ansi`] convenience wrapper) snapshots the
+//!   visible grid after every event. It handles arbitrary output, including
+//!   resizes and redraws of earlier rows.
+//! - [`capture_windowed`] is a fast path for append-only output: it writes into
+//!   an over-tall terminal that never scrolls, snapshots once at the end, and
+//!   derives each frame as a [`window_frame`] of that final screen. It avoids
+//!   libghostty's expensive viewport scroll but is only faithful when the
+//!   recording never rewrites rows the cursor has already passed.
+//!
+//! The call order below describes the general [`capture`] path:
 //!
 //! ```text
 //! capture_ansi(chunks, options)
@@ -421,8 +432,8 @@ where
 
 /// Extract a `viewport_rows`-tall window of `screen` whose bottom row aligns
 /// with `viewport_bottom` (the cursor row, so the window scrolls with output).
-/// Rows above `content_bottom` are real screen rows; rows below it have not yet
-/// been written at this point in the replay, so they are blanked.
+/// Rows at or above `content_bottom` are real screen rows; rows below it have
+/// not yet been written at this point in the replay, so they are blanked.
 fn window_frame(
     screen: &CellGrid,
     viewport_bottom: usize,
@@ -485,9 +496,11 @@ fn record_frame<'alloc>(
     let changed = grid != *last_grid;
 
     // TimingBoundary is the explicit exception to normal deduplication: it lets
-    // a replay preserve a pause even when the screen contents do not change.
-    // It only applies after at least one visible frame exists; a leading timing
-    // boundary should not emit the initial blank baseline grid.
+    // a replay preserve a pause even when the screen contents do not change. It
+    // only applies once at least one visible frame exists (a leading timing
+    // boundary must not emit the initial blank baseline grid) and only when the
+    // timestamp advances past that frame (so it never adds a duplicate frame at
+    // an identical time).
     let preserves_timing = timing_boundary && frames.last().is_some_and(|frame| frame.at != at);
 
     if changed || preserves_timing {
