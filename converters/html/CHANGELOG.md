@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   colors follow the document `:dark-mode:` setting. This is an acdc-only block
   style: Asciidoctor treats `[terminal]` as a plain listing or literal block
   and emits the raw text (including any ANSI escape sequences) unrendered.
+- Feature-gated `[terminal%replay]` blocks render pre-recorded ANSI output as
+  an animated HTML replay. Replay blocks require explicit `cols`/`rows`
+  dimensions, support a `replay-duration-ms` playback override, never execute
+  commands, and fall back to a static terminal preview (with a warning) when
+  dimensions are missing or invalid. Playback scales to long recordings with
+  compact output and ends on the final frame. Like `[terminal]`, this is an
+  acdc-only block style that Asciidoctor renders as raw text.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.
