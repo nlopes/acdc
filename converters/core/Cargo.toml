@@ -13,7 +13,7 @@ pre-spec-subs = ["acdc-parser/pre-spec-subs", "dep:bitflags"]
 
 [dependencies]
 acdc-parser.workspace = true
-bitflags = { version = "2.11", optional = true }
+bitflags = { version = "2.12", optional = true }
 thiserror.workspace = true
 tracing.workspace = true
 
