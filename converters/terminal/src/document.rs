@@ -21,9 +21,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             temp_visitor.visit_inline_node(node)?;
         }
         if let Some(subtitle) = &header.subtitle {
-            let w = temp_visitor.writer_mut();
-            write!(w, ": ")?;
-            let _ = w;
+            write!(temp_visitor.writer, ": ")?;
             for node in subtitle {
                 temp_visitor.visit_inline_node(node)?;
             }

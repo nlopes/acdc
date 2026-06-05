@@ -28,14 +28,16 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         }
 
         for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
-            let mut w = self.writer_mut();
-            write!(w, "{:indent$}", "", indent = current_level as usize - 1)?;
-            let _ = w;
+            write!(
+                self.writer,
+                "{:indent$}",
+                "",
+                indent = current_level as usize - 1
+            )?;
             for inline in &entry.title {
                 self.visit_inline_node(inline)?;
             }
-            w = self.writer_mut();
-            writeln!(w)?;
+            writeln!(self.writer)?;
 
             // Find children: entries that come after this one and have level = current_level + 1
             // but before the next entry at current_level or lower

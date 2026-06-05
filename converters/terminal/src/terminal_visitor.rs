@@ -20,7 +20,7 @@ use crate::Processor;
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
 pub struct TerminalVisitor<'a, 'd, W: Write> {
-    writer: W,
+    pub(crate) writer: W,
     pub(crate) processor: Processor<'a>,
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,

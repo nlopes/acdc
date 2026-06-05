@@ -102,26 +102,22 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         item_number: usize,
         unicode: bool,
     ) -> Result<(), Error> {
-        let w = self.writer_mut();
-        write_indent(w, indent)?;
+        write_indent(&mut self.writer, indent)?;
 
         if is_ordered {
-            write!(w, "{item_number}.")?;
+            write!(self.writer, "{item_number}.")?;
         } else {
-            write!(w, "*")?;
+            write!(self.writer, "*")?;
         }
 
-        render_checked_status(item.checked.as_ref(), w, unicode)?;
-        write!(w, " ")?;
-        let _ = w;
+        render_checked_status(item.checked.as_ref(), &mut self.writer, unicode)?;
+        write!(self.writer, " ")?;
 
         for node in &item.principal {
             self.visit_inline_node(node)?;
         }
 
-        let w = self.writer_mut();
-        writeln!(w)?;
-        let _ = w;
+        writeln!(self.writer)?;
 
         // Render attached blocks with increased indentation.
         // Set list_indent so nested lists rendered via the visitor pick up the right depth.
@@ -188,30 +184,24 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_callout_list(&mut self, list: &CalloutList) -> Result<(), Error> {
         self.render_styled_title(&list.title)?;
         if !list.title.is_empty() {
-            let w = self.writer_mut();
-            writeln!(w)?;
+            writeln!(self.writer)?;
         }
 
         for (idx, item) in list.items.iter().enumerate() {
             let item_number = idx + 1;
-            let mut w = self.writer_mut();
-            write!(w, "<{item_number}>")?;
-            write!(w, " ")?;
-            let _ = w;
+            write!(self.writer, "<{item_number}>")?;
+            write!(self.writer, " ")?;
 
             // Render principal text inline
             for node in &item.principal {
                 self.visit_inline_node(node)?;
             }
 
-            w = self.writer_mut();
-            writeln!(w)?;
+            writeln!(self.writer)?;
 
             // Render attached blocks with indentation
             for block in &item.blocks {
-                let w = self.writer_mut();
-                write!(w, "  ")?;
-                let _ = w;
+                write!(self.writer, "  ")?;
                 self.visit_block(block)?;
             }
         }
@@ -226,9 +216,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// - **qanda**: Terms prefixed with "Q: ", definitions with "A: "
     pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
         self.render_styled_title(&list.title)?;
-        let w = self.writer_mut();
-        writeln!(w)?;
-        let _ = w;
+        writeln!(self.writer)?;
 
         let style = list.metadata.style;
 
@@ -266,23 +254,19 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?;
 
-        let mut w = self.writer_mut();
-        w.queue(PrintStyledContent(
+        self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
         ))?;
-        writeln!(w)?;
+        writeln!(self.writer)?;
 
         // Render principal text with indentation if present
         if !item.principal_text.is_empty() {
-            write!(w, "  ")?;
-            let _ = w;
+            write!(self.writer, "  ")?;
             for node in &item.principal_text {
                 self.visit_inline_node(node)?;
             }
-            w = self.writer_mut();
-            writeln!(w)?;
+            writeln!(self.writer)?;
         }
-        let _ = w;
 
         // Render description blocks (without indentation as block.render handles formatting)
         for block in &item.description {
@@ -312,28 +296,22 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?;
 
-        let mut w = self.writer_mut();
-        w.queue(PrintStyledContent(
+        self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
         ))?;
 
         // Same line: term :: definition
         if !item.principal_text.is_empty() {
-            write!(w, " :: ")?;
-            let _ = w;
+            write!(self.writer, " :: ")?;
             for node in &item.principal_text {
                 self.visit_inline_node(node)?;
             }
-            w = self.writer_mut();
         }
-        writeln!(w)?;
-        let _ = w;
+        writeln!(self.writer)?;
 
         // Render description blocks indented
         for block in &item.description {
-            let w = self.writer_mut();
-            write!(w, "  ")?;
-            let _ = w;
+            write!(self.writer, "  ")?;
             self.visit_block(block)?;
         }
 
@@ -360,30 +338,24 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?;
 
-        let mut w = self.writer_mut();
-        w.queue(PrintStyledContent("Q: ".bold()))?;
-        w.queue(PrintStyledContent(
+        self.writer.queue(PrintStyledContent("Q: ".bold()))?;
+        self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
         ))?;
-        writeln!(w)?;
+        writeln!(self.writer)?;
 
         // Render "A: " prefix + principal text
         if !item.principal_text.is_empty() {
-            w.queue(PrintStyledContent("A: ".dim()))?;
-            let _ = w;
+            self.writer.queue(PrintStyledContent("A: ".dim()))?;
             for node in &item.principal_text {
                 self.visit_inline_node(node)?;
             }
-            w = self.writer_mut();
-            writeln!(w)?;
+            writeln!(self.writer)?;
         }
-        let _ = w;
 
         // Render description blocks indented
         for block in &item.description {
-            let w = self.writer_mut();
-            write!(w, "   ")?;
-            let _ = w;
+            write!(self.writer, "   ")?;
             self.visit_block(block)?;
         }
 
