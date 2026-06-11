@@ -83,6 +83,20 @@ fn format_span_attrs(cell: &TableColumn) -> String {
     attrs
 }
 
+/// Whether inline content is effectively empty (no nodes, or only whitespace
+/// plain text). asciidoctor renders such a body cell as an empty `<td>` with no
+/// `<p class="tableblock">` wrapper — e.g. a blank cell or one containing only
+/// `{empty}`.
+fn inline_nodes_blank(content: &[InlineNode]) -> bool {
+    content.iter().all(|node| {
+        if let InlineNode::PlainText(plain) = node {
+            plain.content.trim().is_empty()
+        } else {
+            false
+        }
+    })
+}
+
 /// Render cell content with support for nested blocks and cell styles.
 ///
 /// # Arguments
@@ -113,6 +127,11 @@ where
                 let writer = visitor.writer_mut();
                 write!(writer, "</pre></div>")?;
             } else if wrap_paragraph {
+                // A blank body cell (empty or only `{empty}`) renders as an
+                // empty <td> with no <p class="tableblock"> wrapper.
+                if inline_nodes_blank(&para.content) {
+                    continue;
+                }
                 let writer = visitor.writer_mut();
                 write!(writer, "<p class=\"tableblock\">")?;
                 let _ = writer;
@@ -318,20 +337,22 @@ fn get_stripes_class(metadata: &BlockMetadata) -> Option<&'static str> {
         })
 }
 
-/// Get width style from metadata (returns empty string if not specified).
-fn get_width_style(metadata: &BlockMetadata) -> String {
-    metadata
-        .attributes
-        .get_string("width")
-        .map_or_else(String::new, |w| format!(" style=\"width: {w};\""))
-}
-
-/// Get sizing class based on %autowidth option.
-fn get_sizing_class(metadata: &BlockMetadata) -> &'static str {
-    if metadata.options.contains(&"autowidth") {
-        "fit-content"
+/// Compute the table sizing class and inline width style, matching asciidoctor:
+/// - explicit `width=100%` (or `100`) → `stretch` class, no inline style;
+/// - any other explicit `width` → inline `style="width: N;"`, no sizing class;
+/// - `%autowidth` with no `width` → `fit-content` class;
+/// - otherwise (default full width) → `stretch` class.
+fn table_sizing(metadata: &BlockMetadata) -> (Option<&'static str>, String) {
+    if let Some(width) = metadata.attributes.get_string("width") {
+        if width.trim_end_matches('%') == "100" {
+            (Some("stretch"), String::new())
+        } else {
+            (None, format!(" style=\"width: {width};\""))
+        }
+    } else if metadata.options.contains(&"autowidth") {
+        (Some("fit-content"), String::new())
     } else {
-        "stretch"
+        (Some("stretch"), String::new())
     }
 }
 
@@ -389,17 +410,18 @@ where
     let semantic = processor.variant() == HtmlVariant::Semantic;
     let writer = visitor.writer_mut();
 
-    // Build table classes
+    // Build table classes. Order matches asciidoctor:
+    // frame, grid, stripes, sizing (stretch/fit-content), float, roles.
     let frame = get_frame_class(metadata);
     let grid = get_grid_class(metadata);
-    let sizing = get_sizing_class(metadata);
+    let (sizing, width_style) = table_sizing(metadata);
 
     // Semantic mode: wrap in <div class="table-block">, no "tableblock" prefix on table
     let mut class_parts = if semantic {
         writeln!(writer, "<div class=\"table-block\">")?;
-        format!("{frame} {grid} {sizing}")
+        format!("{frame} {grid}")
     } else {
-        format!("tableblock {frame} {grid} {sizing}")
+        format!("tableblock {frame} {grid}")
     };
 
     // Add stripes class if specified
@@ -408,14 +430,23 @@ where
         class_parts.push_str(stripes);
     }
 
+    // Add sizing class (absent when an explicit non-100% width is used)
+    if let Some(sizing) = sizing {
+        class_parts.push(' ');
+        class_parts.push_str(sizing);
+    }
+
+    // Add float class (e.g. `center`) if specified
+    if let Some(float) = metadata.attributes.get_string("float") {
+        class_parts.push(' ');
+        class_parts.push_str(&float);
+    }
+
     // Add custom roles/classes from metadata
     for role in &metadata.roles {
         class_parts.push(' ');
         class_parts.push_str(role);
     }
-
-    // Get width style
-    let width_style = get_width_style(metadata);
 
     writeln!(writer, "<table class=\"{class_parts}\"{width_style}>")?;
 

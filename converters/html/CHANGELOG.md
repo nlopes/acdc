@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Table sizing and alignment classes follow `asciidoctor`: a `width=100%` table (or the
+  default full-width table) uses the `stretch` class with no inline style, any other
+  explicit `width` emits an inline `style="width: N;"` with no `stretch` class,
+  `%autowidth` uses `fit-content`, and a `float` attribute (e.g. `center`) is emitted as a
+  class. A blank body cell, empty or containing only `{empty}`, renders as an empty `<td>`
+  rather than wrapping an empty `<p class="tableblock">`.
 - Fixture coverage for `[subs="-specialchars"]` and `[subs="-replacements"]`,
   pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
   specialchars are disabled; literal `--`, `(C)`, `->` preserved when
