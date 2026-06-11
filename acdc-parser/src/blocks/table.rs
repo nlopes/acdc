@@ -84,15 +84,18 @@ fn split_multi_char(line: &str, separator: &str) -> Vec<CellPart> {
     parts
 }
 
-/// Parse a CSV table body using the `csv` crate for full RFC 4180 compliance.
+/// Parse a CSV-style table body using the `csv` crate for full RFC 4180
+/// compliance. Used for both CSV (`,`) and TSV (`\t`) — `delimiter` selects
+/// which.
 ///
 /// This handles multi-line quoted values, escaped quotes, and all CSV edge cases.
 /// Returns rows with cells containing their content and accurate byte positions.
-fn parse_csv_table(text: &str, base_offset: usize) -> Vec<Vec<CellPart>> {
+fn parse_csv_table(text: &str, base_offset: usize, delimiter: u8) -> Vec<Vec<CellPart>> {
     let text_bytes = text.as_bytes();
     let mut reader = csv::ReaderBuilder::new()
         .has_headers(false)
         .flexible(true) // allow variable column counts
+        .delimiter(delimiter)
         .from_reader(text_bytes);
 
     let mut rows = Vec::new();
@@ -113,7 +116,7 @@ fn parse_csv_table(text: &str, base_offset: usize) -> Vec<Vec<CellPart>> {
         for field in &record {
             // Find actual field position by scanning the original text
             let (field_content_start, next_pos) =
-                find_csv_field_position(text_bytes, scan_pos, field);
+                find_csv_field_position(text_bytes, scan_pos, field, delimiter);
 
             cells.push(CellPart {
                 content: field.to_string(),
@@ -134,7 +137,12 @@ fn parse_csv_table(text: &str, base_offset: usize) -> Vec<Vec<CellPart>> {
 /// Returns `(content_start, next_scan_position)` where:
 /// - `content_start` is where the field's actual content begins (after opening quote if quoted)
 /// - `next_scan_position` is where to start scanning for the next field
-fn find_csv_field_position(text: &[u8], start: usize, expected_content: &str) -> (usize, usize) {
+fn find_csv_field_position(
+    text: &[u8],
+    start: usize,
+    expected_content: &str,
+    delimiter: u8,
+) -> (usize, usize) {
     let Some(&first_byte) = text.get(start) else {
         return (start, start);
     };
@@ -144,16 +152,16 @@ fn find_csv_field_position(text: &[u8], start: usize, expected_content: &str) ->
         let content_start = start + 1;
         // Find the closing quote (handle escaped quotes "")
         let end_pos = find_closing_quote(text, start + 1);
-        // Next field starts after closing quote and comma (or newline)
-        let next_pos = skip_to_next_field(text, end_pos);
+        // Next field starts after closing quote and delimiter (or newline)
+        let next_pos = skip_to_next_field(text, end_pos, delimiter);
         (content_start, next_pos)
     } else {
         // Unquoted field: content starts at current position
         let content_start = start;
-        // Find end of field (comma or newline)
-        let end_pos = find_unquoted_field_end(text, start, expected_content.len());
+        // Find end of field (delimiter or newline)
+        let end_pos = find_unquoted_field_end(text, start, expected_content.len(), delimiter);
         // Next field starts after the separator
-        let next_pos = skip_to_next_field(text, end_pos);
+        let next_pos = skip_to_next_field(text, end_pos, delimiter);
         (content_start, next_pos)
     }
 }
@@ -180,12 +188,12 @@ fn find_closing_quote(text: &[u8], start: usize) -> usize {
 }
 
 /// Find the end of an unquoted CSV field.
-fn find_unquoted_field_end(text: &[u8], start: usize, content_len: usize) -> usize {
-    // The field ends at comma, CR, LF, or content_len bytes (whichever comes first)
+fn find_unquoted_field_end(text: &[u8], start: usize, content_len: usize, delimiter: u8) -> usize {
+    // The field ends at the delimiter, CR, LF, or content_len bytes (whichever comes first)
     let mut pos = start;
     let mut remaining = content_len;
     while let Some(&byte) = text.get(pos) {
-        if byte == b',' || byte == b'\n' || byte == b'\r' {
+        if byte == delimiter || byte == b'\n' || byte == b'\r' {
             return pos;
         }
         if remaining == 0 {
@@ -198,15 +206,15 @@ fn find_unquoted_field_end(text: &[u8], start: usize, content_len: usize) -> usi
 }
 
 /// Skip past the current field separator to find the start of the next field.
-fn skip_to_next_field(text: &[u8], pos: usize) -> usize {
+fn skip_to_next_field(text: &[u8], pos: usize, delimiter: u8) -> usize {
     let mut pos = pos;
     // Skip closing quote if present
     if text.get(pos) == Some(&b'"') {
         pos += 1;
     }
-    // Skip comma or newline characters
+    // Skip the delimiter or newline characters
     while let Some(&byte) = text.get(pos) {
-        if byte == b',' {
+        if byte == delimiter {
             return pos + 1;
         }
         if byte == b'\r' || byte == b'\n' {
@@ -221,9 +229,16 @@ fn skip_to_next_field(text: &[u8], pos: usize) -> usize {
     pos
 }
 
-/// Determine if this is a CSV format table.
-fn is_csv_format(separator: &str) -> bool {
-    separator == ","
+/// The delimiter byte for CSV-style (RFC 4180 quoted) formats, or `None` for
+/// separators handled line-per-row. asciidoctor parses both CSV (`,`) and TSV
+/// (`\t`) with the same quoting rules; DSV (`:`) and custom separators are not
+/// quote-aware.
+fn csv_style_delimiter(separator: &str) -> Option<u8> {
+    match separator {
+        "," => Some(b','),
+        "\t" => Some(b'\t'),
+        _ => None,
+    }
 }
 
 /// Represents a parsed cell specifier with span, alignment, and style information.
@@ -769,9 +784,10 @@ impl Table<'_> {
         ncols: Option<usize>,
         dropped: &mut Option<(usize, usize)>,
     ) -> Vec<Vec<ParsedCell>> {
-        // CSV format needs special handling for multi-line quoted values
-        if is_csv_format(separator) {
-            return Self::parse_csv_rows_with_positions(text, has_header, base_offset);
+        // CSV-style formats (CSV, TSV) need special handling for multi-line
+        // quoted values.
+        if let Some(delimiter) = csv_style_delimiter(separator) {
+            return Self::parse_csv_rows_with_positions(text, has_header, base_offset, delimiter);
         }
 
         let lines: Vec<&str> = text.lines().collect();
@@ -856,7 +872,8 @@ impl Table<'_> {
         rows
     }
 
-    /// Parse CSV table rows using the `csv` crate for RFC 4180 compliance.
+    /// Parse CSV-style (CSV/TSV) table rows using the `csv` crate for RFC 4180
+    /// compliance. `delimiter` is the field separator byte.
     ///
     /// This handles multi-line quoted values correctly by processing the entire
     /// table body at once rather than line-by-line.
@@ -864,6 +881,7 @@ impl Table<'_> {
         text: &str,
         has_header: &mut bool,
         base_offset: usize,
+        delimiter: u8,
     ) -> Vec<Vec<ParsedCell>> {
         // Check for header indicator: first row followed by blank line
         // For CSV, we need to detect this before parsing since the csv crate
@@ -879,7 +897,7 @@ impl Table<'_> {
             }
         }
 
-        let csv_rows = parse_csv_table(text, base_offset);
+        let csv_rows = parse_csv_table(text, base_offset, delimiter);
         let mut rows = Vec::new();
 
         for csv_row in csv_rows {
@@ -1091,5 +1109,21 @@ mod tests {
             vec![vec!["spans", "b", "c"], vec!["e", "f"], vec!["g", "h", "i"]]
         );
         assert_eq!(rows[0][0].rowspan, 2);
+    }
+
+    /// TSV fields use the same RFC 4180 quoting as CSV: a `"…"`-quoted value can
+    /// span lines and the quotes are stripped (matching asciidoctor), rather
+    /// than being split at the newline.
+    #[test]
+    fn tsv_quoted_field_spans_lines() {
+        let input = "a\t\"line1\nline2\"\nb\tc\n";
+        let mut has_header = false;
+        let rows =
+            Table::parse_rows_with_positions(input, "\t", &mut has_header, 0, None, &mut None);
+        let contents: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(|c| c.content.as_str()).collect())
+            .collect();
+        assert_eq!(contents, vec![vec!["a", "line1\nline2"], vec!["b", "c"]]);
     }
 }
