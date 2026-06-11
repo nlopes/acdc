@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Updated the parser grammar implementation to reduce location-tracking
-  overhead while preserving the same parse output and diagnostics.
+- Updated the parser grammar implementation to reduce location-tracking overhead while
+  preserving the same parse output and diagnostics.
 
 ### Fixed
 
@@ -30,10 +30,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   format), a cell's content can span multiple lines, and a row can be written across
   several lines (each cell starting on its own line), both matching `asciidoctor`. When
   the last row has fewer cells than the table has columns, the leftover cells are dropped
-  with a warning (`dropping cells from incomplete row detected end of table`).
+  with a warning (`dropping cells from incomplete row detected end of table`). A cell
+  specifier (`2+`, `.3+`, `^`, `a`, ...) is recognized when it sits immediately before the
+  delimiter and is separated from the cell content by whitespace (e.g. `| name 2+| spans`
+  gives the next cell a colspan of 2), so colspan/rowspan cells count toward the row width
+  and are no longer mistaken for incomplete rows; a specifier flush against the opening
+  delimiter (`|2+|`) stays literal, matching `asciidoctor`.
 - [TSV](https://docs.asciidoctor.org/asciidoc/latest/tables/data-format/#csv-and-tsv)
-  tables (`format=tsv`) now honor quoted field values that span multiple lines,
-  matching `asciidoctor` (the same quoting rules already applied to CSV).
+  tables (`format=tsv`) now honor quoted field values that span multiple lines, matching
+  `asciidoctor` (the same quoting rules already applied to CSV).
 
 ## [0.9.0] - 2026-04-26
 

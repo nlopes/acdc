@@ -564,42 +564,44 @@ struct RawCell {
     end: usize,
 }
 
-/// Whether cell specifiers (`a|`, `2+|`, `.3+|`, `^|`, …) are recognized for a
-/// separator. Only PSV (`|`) and the nested separator (`!`) carry specifiers;
-/// DSV (`:`) cells are always plain content.
+/// Whether cell specifiers (`a|`, `2+|`, `.3+|`, `^|`, ...) are recognized for a
+/// separator. Only PSV (`|`) and the nested separator (`!`) carry specifiers; DSV (`:`)
+/// cells are always plain content.
 fn separator_uses_specifiers(separator: &str) -> bool {
     matches!(separator, "|" | "!")
 }
 
 /// Split a part's content into `(content_before_spec, trailing_specifier)`.
 ///
-/// A cell specifier is only recognized when it is *line-leading*: the entire
-/// trimmed text on the part's last physical line (i.e. after the last `\n`),
-/// immediately before the delimiter that ends the part. This matches
-/// asciidoctor, where `2+|` at the start of a line is a colspan but `|2+|`
-/// mid-line keeps `2+` as literal cell content.
+/// A cell specifier (`2+`, `.3+`, `^`, `a`, ...) is recognized as the trailing token
+/// immediately before the delimiter that ends the part, provided it is separated from the
+/// cell content by whitespace (or a newline, or the start of the table body). This
+/// matches asciidoctor: `cell 2+|next` makes `next` span two columns, while `|2+|`, where
+/// `2+` sits flush against the opening delimiter, keeps `2+` as literal cell content. A
+/// space *between* the specifier and the delimiter (`2+ |`) likewise makes it literal.
 ///
-/// `allow_at_start` lets the leading part (before the table's first delimiter)
-/// be treated as line-leading even without a preceding newline, so `2+|cell`
-/// and `a|cell` at the very start of the body are recognized.
+/// `allow_at_start` lets a specifier flush against the very start of the table
+/// body (the leading part, before the first delimiter) be recognized, so
+/// `2+|cell` and `a|cell` at the start of the body work.
 fn extract_trailing_spec(content: &str, allow_at_start: bool) -> (&str, Option<CellSpecifier>) {
-    let line_start = match content.rfind('\n') {
-        Some(n) => n + 1,
-        None => {
-            if allow_at_start {
-                0
-            } else {
-                return (content, None);
-            }
-        }
-    };
-    let tail = content[line_start..].trim();
-    if tail.is_empty() {
+    // The specifier sits immediately before the delimiter: trailing whitespace
+    // means the `|` is a plain cell break, not a spec terminator.
+    if content.is_empty() || content.ends_with([' ', '\t']) {
         return (content, None);
     }
-    let (spec, spec_len) = CellSpecifier::parse(tail);
-    if spec_len > 0 && spec_len == tail.len() {
-        (&content[..line_start], Some(spec))
+    // The candidate is the trailing run of non-whitespace characters.
+    let token_start = content.rfind([' ', '\t', '\n']).map_or(0, |i| i + 1);
+    let candidate = &content[token_start..];
+    let (spec, spec_len) = CellSpecifier::parse(candidate);
+    if spec_len == 0 || spec_len != candidate.len() {
+        return (content, None);
+    }
+    // Only recognized when separated from the cell content: preceded by
+    // whitespace/newline (`token_start > 0`) or sitting at the very start of the
+    // table body (`allow_at_start`). A spec flush against the opening delimiter
+    // (`|2+|`) is literal content.
+    if token_start > 0 || allow_at_start {
+        (&content[..token_start], Some(spec))
     } else {
         (content, None)
     }
