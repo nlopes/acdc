@@ -386,6 +386,76 @@
                       {
                         "name": "text",
                         "type": "string",
+                        "value": "/r/incomplete",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 2
+                          },
+                          {
+                            "line": 9,
+                            "col": 14
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 2
+                      },
+                      {
+                        "line": 9,
+                        "col": 14
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "missing",
+                        "location": [
+                          {
+                            "line": 9,
+                            "col": 16
+                          },
+                          {
+                            "line": 9,
+                            "col": 22
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 16
+                      },
+                      {
+                        "line": 9,
+                        "col": 22
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
                         "value": "/r/tf2",
                         "location": [
                           {
@@ -407,76 +477,6 @@
                       {
                         "line": 10,
                         "col": 7
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "content": [
-                  {
-                    "name": "paragraph",
-                    "type": "block",
-                    "inlines": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "0",
-                        "location": [
-                          {
-                            "line": 10,
-                            "col": 9
-                          },
-                          {
-                            "line": 10,
-                            "col": 9
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 10,
-                        "col": 9
-                      },
-                      {
-                        "line": 10,
-                        "col": 9
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "content": [
-                  {
-                    "name": "paragraph",
-                    "type": "block",
-                    "inlines": [
-                      {
-                        "name": "text",
-                        "type": "string",
-                        "value": "45 (315)",
-                        "location": [
-                          {
-                            "line": 10,
-                            "col": 11
-                          },
-                          {
-                            "line": 10,
-                            "col": 18
-                          }
-                        ]
-                      }
-                    ],
-                    "location": [
-                      {
-                        "line": 10,
-                        "col": 11
-                      },
-                      {
-                        "line": 10,
-                        "col": 18
                       }
                     ]
                   }

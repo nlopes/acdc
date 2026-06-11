@@ -432,17 +432,29 @@ fn parse_table_block_impl<'input>(
 
     // Set this to true if the user mandates it!
     let mut has_header = block_metadata.metadata.options.contains(&"header");
+
+    // If we find a partial row that cannot be completed, we're going to drop it.
+    // Therefore, we capture the span of the dropped "cells" so that we can provide a nice
+    // warning to the user.
+    let mut dropped_span = None;
     let raw_rows = Table::parse_rows_with_positions(
         content,
         &separator,
         &mut has_header,
         content_start + offset,
         ncols,
+        &mut dropped_span,
     );
 
-    // If the user forces a noheader, we should not have a header, so after we've
-    // tried to figure out if there are any headers, we should set it to false one
-    // last time.
+    if let Some((start, end)) = dropped_span {
+        state.add_generic_warning_at(
+            "dropping cells from incomplete row detected end of table".to_string(),
+            state.create_location(start, end),
+        );
+    }
+
+    // If the user forces a `noheader`, we should not have a header, so after we've tried
+    // to figure out if there are any headers, we should set it to false one last time.
     if block_metadata.metadata.options.contains(&"noheader") {
         has_header = false;
     }
@@ -6149,6 +6161,33 @@ References.
         match &loc.positioning {
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
             crate::Positioning::Position(p) => assert_eq!(p.line, 3),
+        }
+        Ok(())
+    }
+
+    /// A trailing partial row that cannot fill a complete row is dropped, and
+    /// the parser warns at the location of the dropped cell — matching
+    /// asciidoctor's "dropping cells from incomplete row" message.
+    #[test]
+    fn test_incomplete_final_row_emits_dropping_warning() -> Result<(), Error> {
+        // The lone `|g` on line 5 cannot complete a 3-column row.
+        let input = "[cols=\"3*\"]\n|===\n|a |b |c\n|d |e |f\n|g\n|===\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        let warning = warnings
+            .iter()
+            .find(|w| {
+                matches!(&w.kind, crate::WarningKind::Other(m)
+                    if m.contains("dropping cells from incomplete row detected end of table"))
+            })
+            .expect("expected dropping-cells warning");
+        let loc = warning
+            .source_location()
+            .expect("warning should carry a location");
+        match &loc.positioning {
+            crate::Positioning::Location(l) => assert_eq!(l.start.line, 5),
+            crate::Positioning::Position(p) => assert_eq!(p.line, 5),
         }
         Ok(())
     }
