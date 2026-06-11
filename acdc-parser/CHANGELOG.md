@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   several lines (each cell starting on its own line), both matching `asciidoctor`. When
   the last row has fewer cells than the table has columns, the leftover cells are dropped
   with a warning (`dropping cells from incomplete row detected end of table`).
+- [TSV](https://docs.asciidoctor.org/asciidoc/latest/tables/data-format/#csv-and-tsv)
+  tables (`format=tsv`) now honor quoted field values that span multiple lines,
+  matching `asciidoctor` (the same quoting rules already applied to CSV).
 
 ## [0.9.0] - 2026-04-26
 
