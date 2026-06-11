@@ -52,6 +52,38 @@ fn split_escaped(line: &str, separator: char) -> Vec<CellPart> {
     parts
 }
 
+/// Split a single line into cell parts for line-per-row formats (DSV, TSV, or a
+/// custom multi-character separator). Single-character separators honor `\`
+/// escapes; multi-character separators are matched literally.
+fn split_row_line(line: &str, separator: &str) -> Vec<CellPart> {
+    match separator.chars().next() {
+        Some(sep_char) if separator.len() == 1 => split_escaped(line, sep_char),
+        Some(_) => split_multi_char(line, separator),
+        None => vec![CellPart {
+            content: line.to_string(),
+            start: 0,
+        }],
+    }
+}
+
+/// Split by a multi-character separator (no escape handling).
+fn split_multi_char(line: &str, separator: &str) -> Vec<CellPart> {
+    let mut parts = Vec::new();
+    let mut last_end = 0;
+    for (idx, _) in line.match_indices(separator) {
+        parts.push(CellPart {
+            content: line.get(last_end..idx).unwrap_or("").to_string(),
+            start: last_end,
+        });
+        last_end = idx + separator.len();
+    }
+    parts.push(CellPart {
+        content: line.get(last_end..).unwrap_or("").to_string(),
+        start: last_end,
+    });
+    parts
+}
+
 /// Parse a CSV table body using the `csv` crate for full RFC 4180 compliance.
 ///
 /// This handles multi-line quoted values, escaped quotes, and all CSV edge cases.
@@ -194,53 +226,6 @@ fn is_csv_format(separator: &str) -> bool {
     separator == ","
 }
 
-/// Split a line into cell parts using the appropriate method for the separator.
-///
-/// Note: CSV format is handled separately via `parse_csv_table()` for multi-line support.
-fn split_line(line: &str, separator: &str) -> Vec<CellPart> {
-    if let Some(sep_char) = separator.chars().next() {
-        if separator.len() == 1 {
-            split_escaped(line, sep_char)
-        } else {
-            // Multi-char separator - no escape handling
-            split_multi_char(line, separator)
-        }
-    } else {
-        // Empty separator - return whole line as one part
-        vec![CellPart {
-            content: line.to_string(),
-            start: 0,
-        }]
-    }
-}
-
-/// Split by multi-character separator (no escape handling).
-fn split_multi_char(line: &str, separator: &str) -> Vec<CellPart> {
-    let mut parts = Vec::new();
-    let mut last_end = 0;
-    for (idx, _) in line.match_indices(separator) {
-        parts.push(CellPart {
-            content: line.get(last_end..idx).unwrap_or("").to_string(),
-            start: last_end,
-        });
-        last_end = idx + separator.len();
-    }
-    parts.push(CellPart {
-        content: line.get(last_end..).unwrap_or("").to_string(),
-        start: last_end,
-    });
-    parts
-}
-
-/// Context for parsing cell specifiers, controlling which specifier types are valid.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ParseContext {
-    /// First part before separator in PSV tables - style-only specifiers allowed (e.g., `s|`)
-    FirstPart,
-    /// Inline cell content - style-only specifiers NOT allowed (prevents "another" → 'a' style)
-    InlineContent,
-}
-
 /// Represents a parsed cell specifier with span, alignment, and style information.
 ///
 /// In `AsciiDoc`, cell specifiers appear before the cell separator with format:
@@ -296,13 +281,11 @@ fn parse_style_byte(byte: u8) -> Option<ColumnStyle> {
 impl CellSpecifier {
     /// Parse a cell specifier from the beginning of cell content.
     ///
-    /// Returns the specifier and the offset where actual content begins.
+    /// Returns the specifier and the offset where actual content begins. A
+    /// specifier is only ever recognized as the line-leading token before a
+    /// cell delimiter, so style-only specifiers (e.g. `s|` for strong) are
+    /// always accepted here.
     /// Full pattern: `[halign][valign][colspan][.rowspan][+|*][style]`
-    ///
-    /// The `mode` parameter controls whether style-only specifiers
-    /// (e.g., `s|` for strong without any alignment or span) are accepted:
-    /// - `ParseContext::FirstPart`: Accept style-only specifiers (first part before separator)
-    /// - `ParseContext::InlineContent`: Reject style-only (prevents "another" → 'a' style)
     ///
     /// Examples:
     /// - `"2+rest"` → colspan=2
@@ -312,24 +295,24 @@ impl CellSpecifier {
     /// - `"3*rest"` → `duplication_count`=3
     /// - `"plain"` → defaults (no specifier found)
     #[must_use]
-    pub fn parse(content: &str, mode: ParseContext) -> (Self, usize) {
+    pub fn parse(content: &str) -> (Self, usize) {
         let bytes = content.as_bytes();
         let mut pos = 0;
 
-        // Phase 1: Parse optional alignment markers
+        // Parse optional alignment markers
         let (halign, valign, align_end) = Self::parse_alignments(bytes, pos);
         pos = align_end;
 
-        // Phase 2: Parse optional colspan (digits)
+        // Parse optional `colspan` (digits)
         let (colspan, colspan_end) = Self::parse_number(content, bytes, pos);
         pos = colspan_end;
 
-        // Phase 3: Parse optional rowspan (dot followed by digits)
+        // Parse optional `rowspan` (dot followed by digits)
         let (rowspan, rowspan_end) = Self::parse_rowspan(content, bytes, pos);
         pos = rowspan_end;
 
-        // Phase 4: Check for operator and build result
-        Self::build_result(bytes, pos, colspan, rowspan, halign, valign, mode)
+        // Check for operator and build result
+        Self::build(bytes, pos, colspan, rowspan, halign, valign)
     }
 
     /// Parse alignment markers at the current position.
@@ -401,7 +384,7 @@ impl CellSpecifier {
         (value, pos)
     }
 
-    /// Parse rowspan (dot followed by digits) at the current position.
+    /// Parse `rowspan` (dot followed by digits) at the current position.
     /// Returns `(parsed_value, new_position)`.
     fn parse_rowspan(content: &str, bytes: &[u8], mut pos: usize) -> (Option<usize>, usize) {
         if bytes.get(pos) != Some(&b'.') {
@@ -427,14 +410,13 @@ impl CellSpecifier {
     }
 
     /// Build the final result based on parsed components.
-    fn build_result(
+    fn build(
         bytes: &[u8],
         mut pos: usize,
         colspan: Option<usize>,
         rowspan: Option<usize>,
         halign: Option<HorizontalAlignment>,
         valign: Option<VerticalAlignment>,
-        context: ParseContext,
     ) -> (Self, usize) {
         let has_span_or_dup = colspan.is_some() || rowspan.is_some();
         let is_duplication = bytes.get(pos) == Some(&b'*');
@@ -471,8 +453,8 @@ impl CellSpecifier {
                 }
             };
             (spec, pos)
-        } else if (halign.is_some() || valign.is_some()) && context == ParseContext::FirstPart {
-            // Alignment without span operator - still valid (only in FirstPart context)
+        } else if halign.is_some() || valign.is_some() {
+            // Alignment without span operator - still valid.
             let style = bytes.get(pos).and_then(|&b| parse_style_byte(b));
             if style.is_some() {
                 pos += 1;
@@ -489,27 +471,21 @@ impl CellSpecifier {
                 },
                 pos,
             )
-        } else if context == ParseContext::FirstPart {
-            // Check for style-only specifier (e.g., `s|` for strong)
-            // Only accepted in FirstPart context (first-part in PSV tables)
-            let style = bytes.get(pos).and_then(|&b| parse_style_byte(b));
-            if let Some(style) = style {
-                pos += 1;
-                (
-                    Self {
-                        colspan: 1,
-                        rowspan: 1,
-                        halign: None,
-                        valign: None,
-                        style: Some(style),
-                        is_duplication: false,
-                        duplication_count: 1,
-                    },
-                    pos,
-                )
-            } else {
-                (Self::default(), 0)
-            }
+        } else if let Some(style) = bytes.get(pos).and_then(|&b| parse_style_byte(b)) {
+            // Style-only specifier (e.g., `s|` for strong).
+            pos += 1;
+            (
+                Self {
+                    colspan: 1,
+                    rowspan: 1,
+                    halign: None,
+                    valign: None,
+                    style: Some(style),
+                    is_duplication: false,
+                    duplication_count: 1,
+                },
+                pos,
+            )
         } else {
             // No valid specifier found
             (Self::default(), 0)
@@ -561,71 +537,226 @@ fn detect_header_after_first_row(lines: &[&str], start_idx: usize, separator: &s
     false
 }
 
-/// Check if a line starting with a cell specifier followed by separator indicates a new row.
-/// This detects patterns like `a|`, `s|`, `2+|`, `^|`, `^.>2+s|` at the start of a line.
-fn is_new_row_start(line: &str, separator: &str) -> bool {
-    // Only applies to PSV tables (| separator)
-    if separator != "|" {
-        return false;
-    }
-
-    let Some(sep_pos) = line.find(separator) else {
-        return false;
-    };
-
-    let before_sep = line[..sep_pos].trim();
-    if before_sep.is_empty() {
-        return false;
-    }
-
-    // Check if the content before separator is a valid cell specifier
-    let (_, spec_len) = CellSpecifier::parse(before_sep, ParseContext::FirstPart);
-    spec_len > 0 && spec_len == before_sep.len()
+/// A raw cell split from the flat table-body stream, before grouping into rows.
+///
+/// Cell specifiers attach to the cell that *follows* their delimiter, so a
+/// specifier discovered while emitting one cell is carried forward to the next.
+struct RawCell {
+    spec: CellSpecifier,
+    content: String,
+    start: usize,
+    content_start: usize,
+    end: usize,
 }
 
-/// Handle continuation lines that appear after blank lines.
-/// These should be appended to the previous row's last cell.
+/// Whether cell specifiers (`a|`, `2+|`, `.3+|`, `^|`, …) are recognized for a
+/// separator. Only PSV (`|`) and the nested separator (`!`) carry specifiers;
+/// DSV (`:`) cells are always plain content.
+fn separator_uses_specifiers(separator: &str) -> bool {
+    matches!(separator, "|" | "!")
+}
+
+/// Split a part's content into `(content_before_spec, trailing_specifier)`.
 ///
-/// The caller enters this only after skipping at least one blank line, so
-/// the first appended line starts a *new paragraph* of the last cell, not a
-/// continuation of the cell's existing final line. We therefore preserve
-/// the blank-line boundary with `\n\n`; subsequent lines within the same
-/// paragraph join with a single `\n`. Preserving the boundary matters most
-/// for `a`-cells, where the content is re-parsed as `AsciiDoc` blocks and
-/// the paragraph break may carry a nested table's own structure.
-fn handle_cross_row_continuation(
-    lines: &[&str],
-    i: &mut usize,
-    current_offset: &mut usize,
-    rows: &mut [Vec<ParsedCell>],
-    separator: &str,
-) {
-    let mut starting_new_paragraph = true;
-    while let Some(&next_line) = lines.get(*i) {
-        let trimmed = next_line.trim_end();
-        // If line has separator or is empty, break - normal row processing
-        if trimmed.is_empty() || trimmed.contains(separator) {
-            break;
-        }
-        // Continuation line - append to previous row's last cell
-        if let Some(last_row) = rows.last_mut() {
-            if let Some(last_cell) = last_row.last_mut() {
-                if last_cell.content.is_empty() {
-                    // See `parse_row_with_positions`: first content byte
-                    // anchors `content_start` for cell-internal diagnostics.
-                    last_cell.content_start = *current_offset;
-                } else if starting_new_paragraph {
-                    last_cell.content.push_str("\n\n");
-                } else {
-                    last_cell.content.push('\n');
-                }
-                last_cell.content.push_str(trimmed);
-                last_cell.end = *current_offset + trimmed.len().saturating_sub(1);
+/// A cell specifier is only recognized when it is *line-leading*: the entire
+/// trimmed text on the part's last physical line (i.e. after the last `\n`),
+/// immediately before the delimiter that ends the part. This matches
+/// asciidoctor, where `2+|` at the start of a line is a colspan but `|2+|`
+/// mid-line keeps `2+` as literal cell content.
+///
+/// `allow_at_start` lets the leading part (before the table's first delimiter)
+/// be treated as line-leading even without a preceding newline, so `2+|cell`
+/// and `a|cell` at the very start of the body are recognized.
+fn extract_trailing_spec(content: &str, allow_at_start: bool) -> (&str, Option<CellSpecifier>) {
+    let line_start = match content.rfind('\n') {
+        Some(n) => n + 1,
+        None => {
+            if allow_at_start {
+                0
+            } else {
+                return (content, None);
             }
         }
-        starting_new_paragraph = false;
-        *current_offset += next_line.len() + 1;
-        *i += 1;
+    };
+    let tail = content[line_start..].trim();
+    if tail.is_empty() {
+        return (content, None);
+    }
+    let (spec, spec_len) = CellSpecifier::parse(tail);
+    if spec_len > 0 && spec_len == tail.len() {
+        (&content[..line_start], Some(spec))
+    } else {
+        (content, None)
+    }
+}
+
+/// Scan the table body into a flat stream of cells.
+///
+/// The whole body is split on the separator (respecting `\|` escapes), so
+/// newlines and blank lines are insignificant for cell boundaries — a cell's
+/// content runs until the next unescaped delimiter, spanning as many physical
+/// lines as needed. This mirrors asciidoctor's PSV/DSV model and is what makes
+/// multi-line cells and rows split across lines parse correctly.
+fn scan_cells(text: &str, separator: &str, base_offset: usize) -> Vec<RawCell> {
+    let Some(sep_char) = separator.chars().next() else {
+        return Vec::new();
+    };
+    let uses_spec = separator_uses_specifiers(separator);
+    let parts = split_escaped(text, sep_char);
+    let last_idx = parts.len().saturating_sub(1);
+
+    let mut cells = Vec::new();
+    let mut carried_spec: Option<CellSpecifier> = None;
+
+    for (i, part) in parts.iter().enumerate() {
+        // A trailing specifier only exists if another delimiter follows this part.
+        let (kept, trailing_spec) = if uses_spec && i < last_idx {
+            extract_trailing_spec(&part.content, i == 0)
+        } else {
+            (part.content.as_str(), None)
+        };
+
+        // For PSV/`!`, the leading part (before the first delimiter) is not a
+        // cell — only its trailing line-leading specifier matters.
+        if uses_spec && i == 0 {
+            carried_spec = trailing_spec;
+            continue;
+        }
+
+        let leading_ws = kept.len() - kept.trim_start().len();
+        let content = kept.trim().to_string();
+        let cell_start = base_offset + part.start;
+        let content_start = cell_start + leading_ws;
+        let end = if content.is_empty() {
+            content_start
+        } else {
+            content_start + content.len().saturating_sub(1)
+        };
+
+        cells.push(RawCell {
+            spec: carried_spec.take().unwrap_or_default(),
+            content,
+            start: cell_start,
+            content_start,
+            end,
+        });
+        carried_spec = trailing_spec;
+    }
+
+    cells
+}
+
+/// Number of cells on the first non-empty physical line of the body.
+///
+/// asciidoctor derives the column count from the first line when no `cols`
+/// attribute is present (e.g. one `|`-led cell per line with no `cols` yields a
+/// single-column table).
+fn first_line_column_count(text: &str, separator: &str) -> usize {
+    let Some(sep_char) = separator.chars().next() else {
+        return 0;
+    };
+    let first_line = text
+        .lines()
+        .find(|line| !line.trim().is_empty())
+        .unwrap_or("");
+    let parts = split_escaped(first_line, sep_char);
+    if separator_uses_specifiers(separator) {
+        // The leading part before the first delimiter is not a cell.
+        parts.len().saturating_sub(1)
+    } else {
+        parts.len()
+    }
+}
+
+/// Group a flat cell stream into rows of `ncols` columns.
+///
+/// Placement is colspan-, duplication-, and rowspan-aware: a cell spanning
+/// columns occupies them, a `k*` cell occupies `k` columns (and is expanded
+/// downstream), and a `.n+` rowspan reserves its column position in the next
+/// `n - 1` rows so those rows need fewer new cells. A trailing partial row that
+/// cannot be completed is dropped, matching asciidoctor; its inclusive
+/// `(start, end)` document offsets are written to `dropped` so the caller can
+/// warn about it.
+fn group_cells_into_rows(
+    cells: Vec<RawCell>,
+    ncols: usize,
+    dropped: &mut Option<(usize, usize)>,
+) -> Vec<Vec<ParsedCell>> {
+    let ncols = ncols.max(1);
+    let mut rows = Vec::new();
+    // Columns occupied by rowspans carried down from earlier rows.
+    let mut active: Vec<(usize, usize, usize)> = Vec::new(); // (col, remaining_rows, width)
+    let mut iter = cells.into_iter();
+    let mut next = iter.next();
+
+    while next.is_some() {
+        let mut row = Vec::new();
+        let mut new_spans: Vec<(usize, usize, usize)> = Vec::new();
+        let mut col = 0;
+        let mut filled = false;
+
+        while col < ncols {
+            // Skip columns occupied by an active rowspan from a previous row.
+            if let Some(&(_, _, width)) = active
+                .iter()
+                .find(|(pos, _, w)| col >= *pos && col < pos + w)
+            {
+                col += width;
+                continue;
+            }
+            let Some(cell) = next.take() else {
+                break;
+            };
+            next = iter.next();
+
+            let occupied = if cell.spec.is_duplication {
+                cell.spec.duplication_count.max(1) * cell.spec.colspan.max(1)
+            } else {
+                cell.spec.colspan.max(1)
+            };
+            if cell.spec.rowspan > 1 {
+                new_spans.push((col, cell.spec.rowspan - 1, occupied));
+            }
+            row.push(parsed_cell(cell));
+            col += occupied;
+            filled = col >= ncols;
+        }
+
+        if !filled && next.is_none() {
+            // Incomplete final row — asciidoctor drops it and warns. Capture
+            // the span of the dropped cells for the warning location.
+            if let (Some(first), Some(last)) = (row.first(), row.last()) {
+                *dropped = Some((first.start, last.end));
+            }
+            break;
+        }
+        rows.push(row);
+        // Age existing rowspans, then add the ones introduced by this row.
+        active.retain_mut(|(_, remaining, _)| {
+            *remaining -= 1;
+            *remaining > 0
+        });
+        active.extend(new_spans);
+    }
+
+    rows
+}
+
+/// Convert a raw cell into a `ParsedCell`, carrying span/alignment/style.
+fn parsed_cell(cell: RawCell) -> ParsedCell {
+    let spec = cell.spec;
+    ParsedCell {
+        content: cell.content,
+        start: cell.start,
+        content_start: cell.content_start,
+        end: cell.end,
+        colspan: spec.colspan,
+        rowspan: spec.rowspan,
+        halign: spec.halign,
+        valign: spec.valign,
+        style: spec.style,
+        is_duplication: spec.is_duplication,
+        duplication_count: spec.duplication_count,
     }
 }
 
@@ -636,137 +767,92 @@ impl Table<'_> {
         has_header: &mut bool,
         base_offset: usize,
         ncols: Option<usize>,
+        dropped: &mut Option<(usize, usize)>,
     ) -> Vec<Vec<ParsedCell>> {
         // CSV format needs special handling for multi-line quoted values
         if is_csv_format(separator) {
             return Self::parse_csv_rows_with_positions(text, has_header, base_offset);
         }
 
-        let mut rows: Vec<Vec<ParsedCell>> = Vec::new();
-        let mut current_offset = base_offset;
         let lines: Vec<&str> = text.lines().collect();
-        let mut i = 0;
 
-        tracing::debug!(
-            ?has_header,
-            ?ncols,
-            total_lines = lines.len(),
-            "Starting table parsing"
-        );
-
-        while let Some(&line_ref) = lines.get(i) {
-            let line = line_ref.trim_end();
-            tracing::trace!(i, ?line, is_empty = line.is_empty(), "Processing line");
-
-            // If we are in the first row and it is empty, we should not have a header
-            if i == 0 && line.is_empty() {
-                *has_header = false;
-                current_offset += line.len() + 1;
-                i += 1;
-                continue;
-            }
-
-            // Collect lines for this row (until we hit an empty line or end)
-            let mut row_lines = Vec::new();
-            let row_start_offset = current_offset;
-
-            // Check if this is a single-line-per-row table (line has multiple separators)
-            // vs multi-line-per-row table (one cell per line, rows separated by empty lines)
-            // A line is single-line row if it has multiple separators (handles both `| a | b`
-            // and `2+| a | b` formats)
-            let first_line = line_ref.trim_end();
-            let is_single_line_row = first_line.matches(separator).count() > 1;
-
-            if is_single_line_row {
-                // Single-line row format: each line is a complete row
-                row_lines.push(first_line);
-                current_offset += line_ref.len() + 1;
-                i += 1;
-            } else {
-                // Multi-line row format: collect lines until empty line or new row start
-                while let Some(&current_line) = lines.get(i) {
-                    let trimmed = current_line.trim_end();
-                    if trimmed.is_empty() {
-                        break;
-                    }
-                    // If we already have content and this line starts a new row, break
-                    if !row_lines.is_empty() && is_new_row_start(trimmed, separator) {
-                        break;
-                    }
-                    row_lines.push(trimmed);
-                    current_offset += current_line.len() + 1; // +1 for newline
-                    i += 1;
-                }
-            }
-
-            if !row_lines.is_empty() {
-                let columns =
-                    Self::parse_row_with_positions(&row_lines, separator, row_start_offset);
-
-                // For multi-line tables with explicit ncols, check if we need to merge
-                // this cell group with existing incomplete row (for nested table support)
-                if !is_single_line_row
-                    && let Some(expected_cols) = ncols
-                    && let Some(last_row) = rows.last_mut()
-                {
-                    let last_row_cols: usize = last_row.iter().map(|c| c.colspan).sum();
-                    if last_row_cols < expected_cols {
-                        // Last row is incomplete, merge these cells into it
-                        last_row.extend(columns);
-                        tracing::trace!(
-                            last_row_cols,
-                            expected_cols,
-                            "Merged cells into incomplete row"
-                        );
-                    } else {
-                        rows.push(columns);
-                    }
-                } else {
-                    rows.push(columns);
-                }
-            }
-
-            // After processing the first row, check if blank line indicates header.
-            // Only check when ncols is not specified (no merge needed) or when
-            // the row is complete (has enough columns).
-            let first_row_col_count: usize = rows
-                .first()
-                .map_or(0, |r| r.iter().map(|c| c.colspan).sum());
-            let first_row_complete = ncols.is_none_or(|n| first_row_col_count >= n);
-            if rows.len() == 1
-                && first_row_complete
-                && let Some(&next_line) = lines.get(i)
-                && next_line.trim_end().is_empty()
-                && detect_header_after_first_row(&lines, i, separator)
-            {
-                tracing::debug!("Detected table header via blank line after first row");
-                *has_header = true;
-            }
-
-            // Skip empty lines and track if we skipped any
-            let mut skipped_blank_line = false;
-            while let Some(&empty_line) = lines.get(i) {
-                if !empty_line.trim_end().is_empty() {
-                    break;
-                }
-                skipped_blank_line = true;
-                current_offset += empty_line.len() + 1;
-                i += 1;
-            }
-
-            // Handle continuation lines only if we skipped a blank line.
-            // Without a blank line, there's no cross-row continuation scenario.
-            if skipped_blank_line {
-                handle_cross_row_continuation(
-                    &lines,
-                    &mut i,
-                    &mut current_offset,
-                    &mut rows,
-                    separator,
-                );
-            }
+        // Implicit header: the first physical line is immediately followed by a
+        // blank line (with a real row after it). A leading blank line means
+        // there is no header. We only ever *set* the header here — an explicit
+        // `options="header"` from the caller is left untouched.
+        if lines.first().is_some_and(|l| l.trim().is_empty()) {
+            *has_header = false;
+        } else if lines.get(1).is_some_and(|l| l.trim().is_empty())
+            && detect_header_after_first_row(&lines, 1, separator)
+        {
+            tracing::debug!("Detected table header via blank line after first row");
+            *has_header = true;
         }
 
+        // PSV (`|`) and the nested separator (`!`) follow a flat cell-stream
+        // model: newlines are insignificant and cells flow into rows by column
+        // count. DSV (`:`), TSV (`\t`), and any custom separator are line-per-row.
+        if !separator_uses_specifiers(separator) {
+            return Self::parse_delimited_rows(&lines, separator, base_offset);
+        }
+
+        // Column count: the `cols` attribute when given, otherwise the number of
+        // cells on the first physical line (asciidoctor's implicit rule).
+        let ncols = ncols
+            .filter(|&n| n > 0)
+            .unwrap_or_else(|| first_line_column_count(text, separator));
+
+        tracing::debug!(?has_header, ncols, "Starting table parsing");
+
+        let cells = scan_cells(text, separator, base_offset);
+        group_cells_into_rows(cells, ncols, dropped)
+    }
+
+    /// Parse a line-per-row table body (DSV, TSV, or a custom separator).
+    ///
+    /// Each non-empty line is one row; the separator splits cells within the
+    /// line. These formats do not use cell specifiers.
+    fn parse_delimited_rows(
+        lines: &[&str],
+        separator: &str,
+        base_offset: usize,
+    ) -> Vec<Vec<ParsedCell>> {
+        let mut rows = Vec::new();
+        let mut offset = base_offset;
+        for line in lines {
+            if !line.trim().is_empty() {
+                let cells: Vec<ParsedCell> = split_row_line(line, separator)
+                    .into_iter()
+                    .map(|part| {
+                        let leading_ws = part.content.len() - part.content.trim_start().len();
+                        let content = part.content.trim().to_string();
+                        let start = offset + part.start + leading_ws;
+                        let end = if content.is_empty() {
+                            start
+                        } else {
+                            start + content.len().saturating_sub(1)
+                        };
+                        ParsedCell {
+                            content,
+                            start,
+                            content_start: start,
+                            end,
+                            colspan: 1,
+                            rowspan: 1,
+                            halign: None,
+                            valign: None,
+                            style: None,
+                            is_duplication: false,
+                            duplication_count: 1,
+                        }
+                    })
+                    .collect();
+                if !cells.is_empty() {
+                    rows.push(cells);
+                }
+            }
+            offset += line.len() + 1; // +1 for newline
+        }
         rows
     }
 
@@ -827,129 +913,6 @@ impl Table<'_> {
         }
 
         rows
-    }
-
-    fn parse_row_with_positions(
-        row_lines: &[&str],
-        separator: &str,
-        row_start_offset: usize,
-    ) -> Vec<ParsedCell> {
-        let mut columns: Vec<ParsedCell> = Vec::new();
-        let mut current_offset = row_start_offset;
-
-        for line in row_lines {
-            // Check if line contains the separator at all
-            if !line.contains(separator) {
-                // Continuation line: append to last cell's content
-                if let Some(last_cell) = columns.last_mut() {
-                    if last_cell.content.is_empty() {
-                        // First content for this cell arrives from a
-                        // continuation line — anchor `content_start` here so
-                        // diagnostics from recursive parses (e.g. a-cells)
-                        // resolve to the offending token, not the cell's
-                        // style prefix line.
-                        last_cell.content_start = current_offset;
-                    } else {
-                        last_cell.content.push('\n');
-                    }
-                    last_cell.content.push_str(line);
-                    // Update end position to include this line
-                    last_cell.end = current_offset + line.len().saturating_sub(1);
-                }
-                current_offset += line.len() + 1; // +1 for newline
-                continue;
-            }
-
-            // Split the line by separator, handling escapes appropriately
-            let parts = split_line(line, separator);
-
-            // Handle span specifier at the start of line (before first separator)
-            // e.g., "2+| content" -> part 0 is "2+", applies to part 1
-            let mut pending_spec: Option<CellSpecifier> = None;
-
-            // Determine if first part should be treated as content or specifier/skip
-            // For PSV (|): first part is before the leading separator, skip it or treat as specifier
-            // For CSV (,) and DSV (:): first part is actual cell content
-
-            for (i, part) in parts.iter().enumerate() {
-                if i == 0 && matches!(separator, "|" | "!") {
-                    // First part is before first separator (PSV format only)
-                    let trimmed = part.content.trim();
-                    if !trimmed.is_empty() {
-                        // Check if this looks like a specifier (e.g., "2+", "3*", "^.>", "s")
-                        // Style-only specifiers (e.g., "s" for strong) are valid here
-                        let (spec, spec_len) =
-                            CellSpecifier::parse(trimmed, ParseContext::FirstPart);
-                        if spec_len > 0 && spec_len == trimmed.len() {
-                            // Entire first part is a specifier, apply to next cell
-                            pending_spec = Some(spec);
-                        }
-                        // If not a complete specifier, it's just content before first separator
-                        // which we skip for PSV
-                    }
-                    continue;
-                }
-
-                let cell_content_trimmed = part.content.trim();
-
-                // Use pending specifier if we have one, otherwise parse from content.
-                // Style-only specifiers are NOT valid from inline content parsing -
-                // this prevents treating content like "another" as having an 'a' (AsciiDoc) style.
-                let (spec, spec_offset) = if let Some(pending) = pending_spec.take() {
-                    (pending, 0)
-                } else {
-                    CellSpecifier::parse(cell_content_trimmed, ParseContext::InlineContent)
-                };
-
-                // The actual cell content starts after the specifier
-                let cell_content = if spec_offset > 0 {
-                    cell_content_trimmed
-                        .get(spec_offset..)
-                        .unwrap_or("")
-                        .trim_start()
-                } else {
-                    cell_content_trimmed
-                };
-
-                // Calculate where cell_content starts within part.content
-                // Pattern: leading_ws + spec_offset + post_spec_ws
-                let leading_ws = part.content.len() - part.content.trim_start().len();
-                let post_spec_ws = if spec_offset > 0 {
-                    let after_spec = cell_content_trimmed.get(spec_offset..).unwrap_or("");
-                    after_spec.len() - after_spec.trim_start().len()
-                } else {
-                    0
-                };
-                let content_start_offset = leading_ws + spec_offset + post_spec_ws;
-
-                // Calculate positions using actual content boundaries
-                let cell_start = current_offset + part.start + content_start_offset;
-                let cell_end = if cell_content.is_empty() {
-                    cell_start
-                } else {
-                    // End is start + content length - 1 (inclusive end position)
-                    cell_start + cell_content.len().saturating_sub(1)
-                };
-
-                columns.push(ParsedCell {
-                    content: cell_content.to_string(),
-                    start: cell_start,
-                    content_start: cell_start,
-                    end: cell_end,
-                    colspan: spec.colspan,
-                    rowspan: spec.rowspan,
-                    halign: spec.halign,
-                    valign: spec.valign,
-                    style: spec.style,
-                    is_duplication: spec.is_duplication,
-                    duplication_count: spec.duplication_count,
-                });
-            }
-
-            current_offset += line.len() + 1; // +1 for newline
-        }
-
-        columns
     }
 }
 
@@ -1044,7 +1007,8 @@ mod tests {
     fn trailing_text_becomes_continuation_paragraph_of_last_cell() {
         let input = "| A | B\n\nTrailing\n";
         let mut has_header = false;
-        let rows = Table::parse_rows_with_positions(input, "|", &mut has_header, 0, None);
+        let rows =
+            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, None, &mut None);
         let [row] = rows.as_slice() else {
             panic!("expected 1 row, got {}", rows.len());
         };
@@ -1066,7 +1030,8 @@ mod tests {
     fn a_cell_preserves_blank_line_inside_nested_table_content() {
         let input = "a|\n!===\n! Inner A ! Inner B\n\nTrailing in inner cell\n!===\n";
         let mut has_header = false;
-        let rows = Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(1));
+        let rows =
+            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(1), &mut None);
         let [row] = rows.as_slice() else {
             panic!("expected 1 row, got {}", rows.len());
         };
@@ -1077,5 +1042,54 @@ mod tests {
             cell.content,
             "!===\n! Inner A ! Inner B\n\nTrailing in inner cell\n!===",
         );
+    }
+
+    /// A cell whose content continues on the next line (no separator on that
+    /// line) belongs to the same cell — newlines do not delimit cells.
+    #[test]
+    fn multiline_cell_content_stays_in_one_cell() {
+        let input = "| a | b\nstill b\n| c | d\n";
+        let mut has_header = false;
+        let rows =
+            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(2), &mut None);
+        let contents: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(|c| c.content.as_str()).collect())
+            .collect();
+        assert_eq!(contents, vec![vec!["a", "b\nstill b"], vec!["c", "d"]]);
+    }
+
+    /// A logical row split so later cells start with a delimiter on their own
+    /// line still groups into one row by column count.
+    #[test]
+    fn row_split_across_lines_groups_by_column_count() {
+        let input = "| a\n| b\n| c\n| d\n";
+        let mut has_header = false;
+        let rows =
+            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(2), &mut None);
+        let contents: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(|c| c.content.as_str()).collect())
+            .collect();
+        assert_eq!(contents, vec![vec!["a", "b"], vec!["c", "d"]]);
+    }
+
+    /// Rowspans reserve their column in following rows, so those rows need
+    /// fewer new cells — the flat stream must group accordingly.
+    #[test]
+    fn rowspan_aware_grouping() {
+        let input = ".2+| spans | b | c\n| e | f\n| g | h | i\n";
+        let mut has_header = false;
+        let rows =
+            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(3), &mut None);
+        let contents: Vec<Vec<&str>> = rows
+            .iter()
+            .map(|r| r.iter().map(|c| c.content.as_str()).collect())
+            .collect();
+        assert_eq!(
+            contents,
+            vec![vec!["spans", "b", "c"], vec!["e", "f"], vec!["g", "h", "i"]]
+        );
+        assert_eq!(rows[0][0].rowspan, 2);
     }
 }

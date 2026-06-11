@@ -23,6 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated the parser grammar implementation to reduce location-tracking
   overhead while preserving the same parse output and diagnostics.
 
+### Fixed
+
+- In pipe (`|`) tables (the default
+  [PSV](https://docs.asciidoctor.org/asciidoc/latest/tables/data-format/#default-table-syntax)
+  format), a cell's content can span multiple lines, and a row can be written across
+  several lines (each cell starting on its own line), both matching `asciidoctor`. When
+  the last row has fewer cells than the table has columns, the leftover cells are dropped
+  with a warning (`dropping cells from incomplete row detected end of table`).
+
 ## [0.9.0] - 2026-04-26
 
 ### Packaging
