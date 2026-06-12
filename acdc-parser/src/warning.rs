@@ -49,6 +49,9 @@ impl Warning {
             WarningKind::UnterminatedTable { .. } => Some(
                 "The opening delimiter was found but no matching closing delimiter was seen before end of document. Add the closing delimiter on its own line, or remove the opening delimiter if not intended.",
             ),
+            WarningKind::NonStandardAuthorLine { .. } => Some(
+                "Author lines use `firstname [middlename] [lastname] [<email>]`, with multiple authors separated by `;`. Keeping the whole line as a single author name.",
+            ),
             WarningKind::Other(_) => None,
         }
     }
@@ -103,6 +106,18 @@ pub enum WarningKind {
     UnterminatedTable {
         /// The opening delimiter that was left unmatched.
         delimiter: String,
+    },
+
+    /// A document header author line did not match the structured
+    /// `firstname [middlename] [lastname] [<email>]` form, so the whole line
+    /// was kept as a single author's name. asciidoctor accepts this silently;
+    /// acdc surfaces it so a malformed author line is easy to spot.
+    #[error(
+        "author line `{line}` is not in `firstname [middlename] [lastname] [<email>]` form; using the whole line as a single author name"
+    )]
+    NonStandardAuthorLine {
+        /// The author line as parsed (after attribute substitution).
+        line: String,
     },
 
     /// Ad-hoc message not yet categorised into a typed variant.

@@ -1,0 +1,92 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "The Title",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 11
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "Roberto",
+        "lastname": "Avanzi",
+        "initials": "RA"
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 9
+      }
+    ]
+  },
+  "attributes": {
+    "author": "Roberto Avanzi",
+    "authorcount": "1",
+    "authorinitials": "RA",
+    "authors": "Roberto Avanzi",
+    "firstname": "Roberto",
+    "foo": "bar",
+    "lastname": "Avanzi"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Body paragraph.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 15
+    }
+  ]
+}

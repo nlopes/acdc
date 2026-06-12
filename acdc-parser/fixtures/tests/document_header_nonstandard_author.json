@@ -1,0 +1,92 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "The Title",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 11
+          }
+        ]
+      }
+    ],
+    "authors": [
+      {
+        "firstname": "Author: Roberto Avanzi (Lead), Ruud Derwig",
+        "lastname": "",
+        "initials": "A"
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 9
+      }
+    ]
+  },
+  "attributes": {
+    "author": "Author: Roberto Avanzi (Lead), Ruud Derwig",
+    "authorcount": "1",
+    "authorinitials": "A",
+    "authors": "Author: Roberto Avanzi (Lead), Ruud Derwig",
+    "firstname": "Author: Roberto Avanzi (Lead), Ruud Derwig",
+    "foo": "bar",
+    "lastname": ""
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Body paragraph.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 15
+    }
+  ]
+}

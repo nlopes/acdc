@@ -25,6 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document header author lines that aren't a plain `firstname [middlename] [lastname]
+  [<email>]` (e.g. with an `Author:` prefix, a `(role)`, or comma-separated names) are now
+  read as a single author instead of spilling the author line and the header's attribute
+  entries into the document body. Comment lines between the title and the author line are
+  skipped, and multiple authors are separated by `;`, matching `asciidoctor`. Such a
+  non-standard author line also raises a `WarningKind::NonStandardAuthorLine` warning.
 - In pipe (`|`) tables (the default
   [PSV](https://docs.asciidoctor.org/asciidoc/latest/tables/data-format/#default-table-syntax)
   format), a cell's content can span multiple lines, and a row can be written across

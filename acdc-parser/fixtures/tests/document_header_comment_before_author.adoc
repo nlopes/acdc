@@ -1,0 +1,7 @@
+= The Title
+// SPDX-License-Identifier: CC-BY-4.0
+// a second comment line
+Roberto Avanzi
+:foo: bar
+
+Body paragraph.

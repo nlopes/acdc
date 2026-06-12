@@ -856,7 +856,11 @@ peg::parser! {
             / { BlockMetadata::default() }
 
         pub(crate) rule title_authors() -> (Title<'input>, Option<Subtitle<'input>>, Vec<Author<'input>>)
-        = title_and_subtitle:document_title() eol() authors:authors_and_revision() &(eol()+ / ![_])
+        // Comment lines between the title and the author line are skipped (matching
+        // `asciidoctor`). The first non-comment line is the author line only when it is
+        // not an attribute entry (`:name:`). An attribute entry means there is no author
+        // and it belongs to the header body.
+        = title_and_subtitle:document_title() eol() (comment() eol())* !document_attribute_match() !comment() authors:authors_and_revision() &(eol()+ / ![_])
         {
             let (title, subtitle) = title_and_subtitle;
             tracing::debug!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
@@ -994,7 +998,7 @@ peg::parser! {
 
         rule authors_and_revision() -> Vec<Author<'input>>
             // Capture the author line, substitute any attribute references, then parse
-            = author_line:$([^'\n']+) (eol() revision_pre_substitution())? {?
+            = start:position!() author_line:$([^'\n']+) end:position!() (eol() revision_pre_substitution())? {?
                 let substituted_cow = substitute(author_line.trim(), HEADER, &state.document_attributes);
                 // Intern any owned substitution result so the downstream
                 // `authors()` parse can yield `Author<'input>` that outlives
@@ -1008,12 +1012,21 @@ peg::parser! {
                 // Parse the substituted content as authors
                 let mut temp_state = ParserState::for_inline_parsing(substituted, state);
 
-                match document_parser::authors(substituted, &mut temp_state) {
-                    Ok(authors) => {
-                        tracing::debug!(?authors, "Parsed authors from line");
-                        Ok(authors)
-                    }
-                    Err(_) => Err("line did not parse as authors")
+                // `asciidoctor` always consumes the line after the title as the author
+                // line; when it doesn't parse as structured "firstname [middle] [last]
+                // [<email>]" authors (e.g. it contains parentheses, commas, or an
+                // "Author:" prefix), the whole line becomes a single author's full name.
+                if let Ok(authors) = document_parser::authors(substituted, &mut temp_state) {
+                    tracing::debug!(?authors, "Parsed authors from line");
+                    Ok(authors)
+                } else {
+                    tracing::debug!(?substituted, "Author line did not parse structurally; using whole line as a single author");
+                    let location = state.create_error_source_location(state.create_location(start, end));
+                    state.add_warning(crate::Warning::new(
+                        crate::WarningKind::NonStandardAuthorLine { line: substituted.to_string() },
+                        Some(location),
+                    ));
+                    Ok(vec![Author::new(state.arena, substituted, None, None)])
                 }
             }
 
@@ -6162,6 +6175,53 @@ References.
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
             crate::Positioning::Position(p) => assert_eq!(p.line, 3),
         }
+        Ok(())
+    }
+
+    /// An author line that doesn't parse as structured authors is kept as a
+    /// single author, and the parser warns (acdc-only heads-up; asciidoctor is
+    /// silent). The warning points at the author line.
+    #[test]
+    fn test_non_standard_author_line_emits_warning() -> Result<(), Error> {
+        let input = "= Doc Title\nAuthor: Roberto Avanzi (Lead), Ruud Derwig\n:foo: bar\n\nBody.\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        let warning = warnings
+            .iter()
+            .find(|w| {
+                matches!(
+                    &w.kind,
+                    crate::WarningKind::NonStandardAuthorLine { line }
+                        if line == "Author: Roberto Avanzi (Lead), Ruud Derwig"
+                )
+            })
+            .expect("expected non-standard author line warning");
+        // The warning points at the author line (line 2 of the input).
+        let loc = warning
+            .source_location()
+            .expect("warning should carry a location");
+        match &loc.positioning {
+            crate::Positioning::Location(l) => assert_eq!(l.start.line, 2),
+            crate::Positioning::Position(p) => assert_eq!(p.line, 2),
+        }
+        Ok(())
+    }
+
+    /// A plain `Firstname Lastname` author line parses structurally and must
+    /// NOT raise the non-standard-author warning.
+    #[test]
+    fn test_standard_author_line_no_warning() -> Result<(), Error> {
+        let input = "= Doc Title\nRoberto Avanzi\n:foo: bar\n\nBody.\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, crate::WarningKind::NonStandardAuthorLine { .. })),
+            "structured author line should not warn"
+        );
         Ok(())
     }
 
