@@ -448,7 +448,9 @@ where
         class_parts.push_str(role);
     }
 
-    writeln!(writer, "<table class=\"{class_parts}\"{width_style}>")?;
+    write!(writer, "<table")?;
+    crate::write_id(writer, metadata)?;
+    writeln!(writer, " class=\"{class_parts}\"{width_style}>")?;
 
     // Render caption with table number if title exists
     let _ = writer;
