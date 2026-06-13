@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tables now render their `id`, and a `<<id>>` to a titled block (table, listing, example,
+  etc) resolves to the block's title (untitled -> literal `[id]`), matching `asciidoctor`.
 - Table sizing and alignment classes follow `asciidoctor`: a `width=100%` table (or the
   default full-width table) uses the `stretch` class with no inline style, any other
   explicit `width` emits an inline `style="width: N;"` with no `stretch` class,

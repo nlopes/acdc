@@ -1014,20 +1014,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let processor = self.processor.clone();
 
         if xref.text.is_empty() {
-            // Priority: xreflabel (from [[id,Custom Text]]) > section title > fallback
-            let display_text = processor
-                .toc_entries()
-                .iter()
-                .find(|entry| entry.id == xref.target)
-                .map_or_else(
-                    || format!("[{}]", xref.target),
-                    |entry| {
-                        entry.xreflabel.as_ref().map_or_else(
-                            || inlines_to_string(&entry.title),
-                            std::string::ToString::to_string,
-                        )
-                    },
-                );
+            // Resolve via the id -> reference map (sections + titled blocks):
+            // xreflabel (from [[id,Custom Text]]) > target title > fallback `[id]`.
+            let display_text = processor.xref_text(xref.target);
 
             let w = self.writer_mut();
             if options.inlines_basic || options.toc_mode {

@@ -1,0 +1,20 @@
+[[data-table]]
+.Important Data
+[cols="1,1"]
+|===
+| a | b
+|===
+
+[[code-sample]]
+.Sample Code
+----
+print("hi")
+----
+
+[[untitled-tbl]]
+[cols="1,1"]
+|===
+| x | y
+|===
+
+See <<data-table>>, <<code-sample>>, and <<untitled-tbl>>.

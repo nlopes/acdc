@@ -1,5 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
+    collections::HashMap,
     io::Write,
     path::{Path, PathBuf},
     rc::Rc,
@@ -9,8 +10,8 @@ use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource, visit
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
-    AttributeValue, Document, DocumentAttributes, IndexTermKind, InlineNode, Substitution,
-    TocEntry, strip_quotes,
+    AttributeValue, Document, DocumentAttributes, IndexTermKind, InlineNode, Reference,
+    Substitution, TocEntry, strip_quotes,
 };
 
 mod admonition;
@@ -102,6 +103,10 @@ pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
     toc_entries: Vec<TocEntry<'a>>,
+    /// Cross-reference targets keyed by id (sections + titled blocks), cloned
+    /// from `Document::references`, for O(1) `<<id>>` resolution. `toc_entries`
+    /// is kept separately for rendering the (ordered) table of contents.
+    references: HashMap<&'a str, Reference<'a>>,
     /// Shared counter for auto-numbering example blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     example_counter: Rc<Cell<usize>>,
@@ -140,10 +145,27 @@ impl<'a> Processor<'a> {
         &self.document_attributes
     }
 
-    /// Get a reference to the TOC entries
+    /// Resolve a cross-reference target id to its display text, matching
+    /// asciidoctor: an explicit xreflabel wins, else the target's title, else
+    /// the literal `[id]` for unknown/untitled targets.
     #[must_use]
-    pub fn toc_entries(&self) -> &[TocEntry<'a>] {
-        &self.toc_entries
+    pub(crate) fn xref_text(&self, target: &str) -> String {
+        // Resolution order: explicit xreflabel > target title > literal `[id]`.
+        // A target present in the catalog but with no reflabel/title (e.g. an
+        // untitled block with an `[[id]]`) falls back to `[id]`, same as an id
+        // that is absent (an unresolved reference).
+        match self.references.get(target) {
+            Some(reference) => {
+                if let Some(label) = reference.xreflabel {
+                    label.to_string()
+                } else if let Some(title) = &reference.title {
+                    acdc_parser::inlines_to_string(title)
+                } else {
+                    format!("[{target}]")
+                }
+            }
+            None => format!("[{target}]"),
+        }
     }
 
     /// Get a reference to the collected index entries
@@ -268,6 +290,7 @@ impl<'a> Processor<'a> {
         // independent of `self`'s stored-attribute lifetime.
         let processor: Processor<'doc> = Processor {
             toc_entries: doc.toc_entries.clone(),
+            references: doc.references.clone(),
             document_attributes: doc.attributes.clone(),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             section_number_tracker,
@@ -537,6 +560,7 @@ impl<'a> Processor<'a> {
             options,
             document_attributes,
             toc_entries: vec![],
+            references: HashMap::new(),
             example_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
             figure_counter: Rc::new(Cell::new(0)),
