@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A section title that skips a level (e.g. `====` under `==`) is rendered at its
+  literal level with a `WarningKind::SectionLevelOutOfSequence` instead of being a
+  fatal error.
+- The `discrete`/`float` block style marks a discrete heading and renders as its
+  class; the legacy `float` spelling raises `WarningKind::LegacyFloatDiscreteHeading`.
+- `[#id,…]` sets the id and treats the rest as block attributes (only
+  `[[id,reftext]]` sets a reference text).
 - `Document.references`: an `id → Reference` catalog covering every cross-reference
   target, including sections, blocks, and inline `[[id]]` anchors, with each target's
   reference text and source `location`, so `<<id>>` can be resolved and navigated to.

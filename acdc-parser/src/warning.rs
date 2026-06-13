@@ -44,7 +44,7 @@ impl Warning {
     pub fn advice(&self) -> Option<&'static str> {
         match &self.kind {
             WarningKind::SectionLevelOutOfSequence { .. } => Some(
-                "The first section after the document title must be level 1 (==). Renumber the section headings so levels increment by one.",
+                "Section levels must increment by at most one. Renumber the heading so it is one level deeper than its parent (the document title counts as level 0).",
             ),
             WarningKind::UnterminatedTable { .. } => Some(
                 "The opening delimiter was found but no matching closing delimiter was seen before end of document. Add the closing delimiter on its own line, or remove the opening delimiter if not intended.",
@@ -54,6 +54,9 @@ impl Warning {
             ),
             WarningKind::UnresolvedReference { .. } => Some(
                 "Define an anchor with this id (e.g. `[[id]]` or `[#id]` on a block or section), or fix the reference to point at an existing id.",
+            ),
+            WarningKind::LegacyFloatDiscreteHeading => Some(
+                "Replace the `float` attribute with `discrete` (e.g. `[discrete]`). `float` here does not control layout; it is an older name for a discrete (free-floating) heading.",
             ),
             WarningKind::Other(_) => None,
         }
@@ -88,15 +91,18 @@ impl fmt::Display for Warning {
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 #[non_exhaustive]
 pub enum WarningKind {
-    /// The document has a title (level 0) but the first section after it
-    /// is not level 1. Matches asciidoctor's "section title out of
-    /// sequence" check.
-    #[error("expected level 1 (==) as first section, got level {got} ({markers})")]
+    /// A section title skips a level relative to its parent — either the first
+    /// section after the document title is deeper than level 1, or a nested
+    /// section jumps more than one level below its parent. Matches asciidoctor's
+    /// "section title out of sequence" check; the section is still rendered at
+    /// its literal level.
+    #[error("section title out of sequence: expected level {expected}, got level {got}")]
     SectionLevelOutOfSequence {
-        /// The observed section level (e.g. 2 for `===`).
+        /// The level the section was expected to be (one deeper than its
+        /// parent; `1` for the first section under a document title).
+        expected: u8,
+        /// The observed section level (e.g. `2` for `===`).
         got: u8,
-        /// The `=` markers that produced the observed level.
-        markers: String,
     },
 
     /// A table's opening delimiter was matched but no corresponding
@@ -132,6 +138,13 @@ pub enum WarningKind {
         target: String,
     },
 
+    /// A discrete heading was marked with the legacy `float` attribute rather
+    /// than `discrete`. `float` is only supported because an older version of
+    /// `AsciiDoc` called discrete headings "floating titles"; the current spec
+    /// prefers `discrete`.
+    #[error("`float` is a legacy alias for a discrete heading; prefer `discrete`")]
+    LegacyFloatDiscreteHeading,
+
     /// Ad-hoc message not yet categorised into a typed variant.
     #[error("{0}")]
     Other(Cow<'static, str>),
@@ -156,14 +169,14 @@ mod tests {
         };
         let w = Warning::new(
             WarningKind::SectionLevelOutOfSequence {
+                expected: 2,
                 got: 3,
-                markers: "====".into(),
             },
             Some(loc),
         );
         assert_eq!(
             format!("{w}"),
-            "line: 5, column: 1: expected level 1 (==) as first section, got level 3 (====)",
+            "line: 5, column: 1: section title out of sequence: expected level 2, got level 3",
         );
     }
 
@@ -175,14 +188,14 @@ mod tests {
         };
         let w = Warning::new(
             WarningKind::SectionLevelOutOfSequence {
+                expected: 2,
                 got: 3,
-                markers: "====".into(),
             },
             Some(loc),
         );
         assert_eq!(
             format!("{w}"),
-            "guide.adoc: line: 5, column: 1: expected level 1 (==) as first section, got level 3 (====)",
+            "guide.adoc: line: 5, column: 1: section title out of sequence: expected level 2, got level 3",
         );
     }
 

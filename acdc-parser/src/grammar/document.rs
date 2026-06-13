@@ -900,13 +900,11 @@ peg::parser! {
                 })
                 && first_section.level > 1
             {
-                let level = first_section.level;
-                let markers = "=".repeat(usize::from(level) + 1);
                 let location = state.create_error_source_location(first_section.location.clone());
                 state.add_warning(crate::Warning::new(
                     crate::WarningKind::SectionLevelOutOfSequence {
-                        got: level,
-                        markers,
+                        expected: 1,
+                        got: first_section.level,
                     },
                     Some(location),
                 ));
@@ -1381,7 +1379,11 @@ peg::parser! {
         block:(
             comment_line_block(offset) /
             document_attribute_block(offset) /
-            &"[discrete" dh:discrete_header(offset) { dh } /
+            // A discrete heading is introduced by an attribute line (`[discrete]`,
+            // `[#id,discrete]`, `[float]`, …) or an anchor preceding one, so only
+            // attempt it when the block starts with `[`. The rule itself backtracks
+            // to `section`/`block_generic` when the metadata isn't a discrete marker.
+            &"[" dh:discrete_header(offset) { dh } /
             section:section(offset, parent_section_level) { section } /
             // Try setext-style sections (only enabled with setext feature + runtime flag)
             section_setext:section_setext(offset, parent_section_level) { section_setext } /
@@ -1480,10 +1482,17 @@ peg::parser! {
 
         rule discrete_header(offset: usize) -> Result<Block<'input>, Error>
         = block_metadata:(bm:block_metadata(offset, None) {?
-            bm.map_err(|e| {
+            let bm = bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in discrete_header");
                 "block metadata parse error"
-            })
+            })?;
+            // Backtrack to the regular `section` rule unless the attribute line
+            // actually marks this as a discrete heading; a discrete heading is
+            // exempt from section-level sequencing, so it must not reach `section`.
+            if !bm.discrete {
+                return Err("not a discrete heading");
+            }
+            Ok(bm)
         })
         section_level:section_level(offset, None) whitespace()
         title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_])
@@ -1495,6 +1504,19 @@ peg::parser! {
             // `span_end` lands at title_end here because the trailing `&(...)` is a
             // zero-width lookahead.
             let location = state.create_block_location(span_start, span_end, offset);
+
+            // `float` is a legacy alias for the `discrete` block style (older
+            // AsciiDoc called these "floating titles"). Surface its use so authors
+            // can migrate to `discrete`. Only the style form reaches this rule.
+            if block_metadata.metadata.style == Some("float") {
+                let warning_location = state.create_error_source_location(
+                    state.create_block_location(span_start, span_end, offset),
+                );
+                state.add_warning(crate::Warning::new(
+                    crate::WarningKind::LegacyFloatDiscreteHeading,
+                    Some(warning_location),
+                ));
+            }
 
             Ok(Block::DiscreteHeader(DiscreteHeader {
                 metadata: block_metadata.metadata,
@@ -1567,14 +1589,30 @@ peg::parser! {
             let (title, section_id) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
 
-            // Validate section level against parent section level if any is provided
-            if let Some(parent_level) = parent_section_level && (
-                section_level.1 < parent_level  || section_level.1+1 > parent_level+1 || section_level.1 > 5) {
+            // Validate section level against parent section level if any is provided.
+            if let Some(parent_level) = parent_section_level {
+                if section_level.1 < parent_level || section_level.1 > 5 {
                     return Err(Error::NestedSectionLevelMismatch(
                         Box::new(state.create_error_source_location(state.create_block_location(section_level_start, section_level_end, offset))),
                         section_level.1+1,
                         parent_level + 1,
                     ));
+                }
+                // A section that skips a level (deeper than one below its parent)
+                // is "out of sequence". asciidoctor warns but still renders it at
+                // its literal level rather than aborting, so we do the same.
+                if section_level.1 > parent_level {
+                    let location = state.create_error_source_location(
+                        state.create_block_location(section_level_start, section_level_end, offset),
+                    );
+                    state.add_warning(crate::Warning::new(
+                        crate::WarningKind::SectionLevelOutOfSequence {
+                            expected: parent_level,
+                            got: section_level.1,
+                        },
+                        Some(location),
+                    ));
+                }
             }
 
             let level = section_level.1;
@@ -1811,6 +1849,7 @@ peg::parser! {
                 title,
                 parent_section_level,
                 subs_flags,
+                discrete,
             })
         }
 
@@ -4311,13 +4350,16 @@ peg::parser! {
                 (id, None)
             } /
             // Single-bracket [#id] shorthand - exclude '.', '%' as they start role/option
-            // shorthands
+            // shorthands.
+            //
+            // Only the bare `[#id]` form is an anchor here; `[#id,...]` is NOT — the
+            // comma introduces further block attributes (e.g. `[#id,discrete]`), so it
+            // must fall through to the attribute-line parser where `#id` becomes the id
+            // and the rest are positional/named attributes. Unlike `[[id,reftext]]`, a
+            // single-bracket comma does not set a reftext (matching asciidoctor).
             //
             // Whitespace is excluded per AsciiDoc documentation at
             // https://docs.asciidoctor.org/asciidoc/latest/attributes/id/#valid-id-characters
-            open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) comma() reftext:$([^']']+) close_square_bracket() {
-                (id, Some(reftext))
-            } /
             open_square_bracket() "#" warn_anchor_id_with_whitespace()? id:$([^'\'' | ',' | ']' | '.' | '%' | ' ' | '\t' | '\n' | '\r']+) close_square_bracket() {
                 (id, None)
             }
@@ -4425,8 +4467,12 @@ peg::parser! {
                 // Process block style (shorthands like .role, #id, %option)
                 if let Some((maybe_style_name, id, roles, options)) = maybe_style {
                     if let Some(style_name) = maybe_style_name {
-                        if style_name == "discrete" {
+                        // `discrete`/`float` as the block style marks a discrete
+                        // heading; the style is kept so it renders as the heading's
+                        // class (matching asciidoctor's `class="discrete"`/`"float"`).
+                        if style_name == "discrete" || style_name == "float" {
                             discrete = true;
+                            metadata.style = Some(state.intern_cow(style_name));
                         } else if metadata.style.is_none() {
                             metadata.style = Some(state.intern_cow(style_name));
                         } else {
@@ -4517,6 +4563,11 @@ peg::parser! {
                         }
                     }
                 }
+
+                // Only the block *style* (`[discrete]`/`[float]`) makes a heading
+                // discrete. A bare `discrete`/`float` positional attribute (e.g.
+                // `[#id,discrete]`) is ignored by asciidoctor — the block stays an
+                // ordinary section — so it does not set the discrete flag here.
 
                 (discrete, metadata, title_position)
             }
@@ -5499,7 +5550,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         let (discrete, metadata, _title_position) = document_parser::attributes(input, &mut state)?;
         assert!(discrete); // Should be discrete
         assert_eq!(metadata.id, None);
-        assert_eq!(metadata.style, None);
+        // The `discrete` style is retained so a discrete heading renders it as a class.
+        assert_eq!(metadata.style, Some("discrete"));
         assert!(metadata.roles.is_empty());
         assert!(metadata.options.is_empty());
         Ok(())
@@ -6600,6 +6652,47 @@ References.
         match &loc.positioning {
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 2),
             crate::Positioning::Position(p) => assert_eq!(p.line, 2),
+        }
+        Ok(())
+    }
+
+    /// A discrete heading marked with the legacy `float` block style warns so
+    /// authors can migrate to `discrete`.
+    #[test]
+    fn test_legacy_float_discrete_heading_warns() -> Result<(), Error> {
+        let input = "== Parent\n\n[float]\n==== Floating\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            warnings
+                .iter()
+                .any(|w| matches!(&w.kind, crate::WarningKind::LegacyFloatDiscreteHeading)),
+            "`[float]` discrete heading should warn"
+        );
+        Ok(())
+    }
+
+    /// `float` only marks a discrete heading as a block *style*. The preferred
+    /// `[discrete]`, a table's `float=` layout attribute, and a bare `float`
+    /// positional (which leaves the block an ordinary section) must NOT raise the
+    /// legacy-`float` warning.
+    #[test]
+    fn test_no_legacy_float_warning() -> Result<(), Error> {
+        for input in [
+            "== Parent\n\n[discrete]\n==== Disc\n",
+            "[float=\"center\",cols=\"1,1\"]\n|===\n| a | b\n|===\n",
+            "= Doc\n\n[#f,float]\n=== Ordinary Section\n",
+        ] {
+            let mut state = ParserState::new_for_test(input);
+            let _ = document_parser::document(input, &mut state)??;
+            let warnings = state.warnings.borrow();
+            assert!(
+                !warnings
+                    .iter()
+                    .any(|w| matches!(&w.kind, crate::WarningKind::LegacyFloatDiscreteHeading)),
+                "input {input:?} should not raise the legacy-float warning"
+            );
         }
         Ok(())
     }

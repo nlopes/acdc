@@ -884,6 +884,9 @@
         }
       ],
       "level": 1,
+      "metadata": {
+        "style": "discrete"
+      },
       "location": [
         {
           "line": 54,

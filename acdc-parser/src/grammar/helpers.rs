@@ -36,6 +36,10 @@ pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) title: Title<'input>,
     pub(crate) parent_section_level: Option<SectionLevel>,
     pub(crate) subs_flags: SubsFlags,
+    /// Set when the attribute line marks the block as a discrete heading,
+    /// either via the `discrete`/`float` block style (`[discrete]`) or as a
+    /// bare positional attribute (`[#id,discrete]`).
+    pub(crate) discrete: bool,
 }
 
 /// Attribute shorthand syntax: .role, #id, %option
