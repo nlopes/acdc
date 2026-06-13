@@ -6,12 +6,12 @@ use std::{borrow::Cow, collections::HashMap, rc::Rc};
 
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Block,
-    BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode, ListItem,
-    ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Reference,
-    Section, Source, SourceLocation, StemContent, StemNotation, Subtitle, Table, TableOfContents,
-    TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, Video,
+    BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, CommentKind,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
+    Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
+    ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw,
+    Reference, Section, Source, SourceLocation, StemContent, StemNotation, Subtitle, Table,
+    TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, Video,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -1387,9 +1387,7 @@ peg::parser! {
             section_setext:section_setext(offset, parent_section_level) { section_setext } /
             block_generic(offset, parent_section_level)
         )
-        {
-            block
-        }
+        { block }
 
         /// Single-line comment that becomes a block in the AST.
         /// Line comments begin with `//` (but not `///` or `////` which are block comment delimiters).
@@ -1399,6 +1397,7 @@ peg::parser! {
             // `end` is captured before consuming the trailing newline so the
             // comment's location doesn't include it.
             Ok(Block::Comment(Comment {
+                kind: CommentKind::Line,
                 content,
                 location: state.create_location(span_start + offset, end + offset),
             }))
@@ -2280,6 +2279,29 @@ peg::parser! {
                 open_start + offset + open_delim.len().saturating_sub(1),
             );
             let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
+
+            // A `[comment]` style turns the open block into a comment that
+            // produces no output. Keep it as a `DelimitedComment` holding the
+            // raw inner text, rather than parsing the body into blocks. The `--`
+            // delimiter already distinguishes it from a `////` comment block, so
+            // the now-redundant `comment` style is dropped.
+            if block_metadata.metadata.style == Some("comment") {
+                let content_location = state.create_block_location(content_start, content_end, offset);
+                metadata.style = None;
+                return Ok(Block::DelimitedBlock(DelimitedBlock {
+                    metadata,
+                    delimiter: open_delim,
+                    inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
+                        content,
+                        location: content_location,
+                        escaped: false,
+                    })]),
+                    title: block_metadata.title.clone(),
+                    location,
+                    open_delimiter_location: Some(open_delimiter_location),
+                    close_delimiter_location: Some(close_delimiter_location),
+                }));
+            }
 
             let blocks = if content.trim().is_empty() {
                 Vec::new()
@@ -4180,6 +4202,16 @@ peg::parser! {
         {
             // Reset the verbatim flag since paragraph is not a verbatim block
             state.last_block_was_verbatim = false;
+
+            // A `[comment]`-styled paragraph is a comment that produces no
+            // output; keep its raw text on the `Comment` for tooling.
+            if block_metadata.metadata.style == Some("comment") {
+                return Ok(Block::Comment(Comment {
+                    kind: CommentKind::Paragraph,
+                    content,
+                    location: state.create_block_location(start, span_end, offset),
+                }));
+            }
 
             // Check if this is a literal paragraph BEFORE preprocessing
             //
@@ -6385,6 +6417,65 @@ References.
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
             crate::Positioning::Position(p) => assert_eq!(p.line, 3),
         }
+        Ok(())
+    }
+
+    /// A `[comment]`-styled block produces no output. The `--` open block
+    /// becomes a `DelimitedComment` (kept distinct from a `////` block by its
+    /// `--` delimiter); the paragraph becomes a `Comment` of kind `Paragraph`.
+    /// The following blank-separated paragraph is kept.
+    #[test]
+    fn test_comment_style_block_dropped() -> Result<(), Error> {
+        let input = "[comment]\n--\nhidden\n\n== Hidden heading\n--\n\n[comment]\nhidden para.\n\nVisible.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        assert_eq!(doc.blocks.len(), 3);
+
+        // The open block: a `--`-delimited DelimitedComment (no leftover
+        // `comment` style) retaining its raw inner text.
+        assert!(
+            matches!(
+                &doc.blocks[0],
+                Block::DelimitedBlock(delimited)
+                if matches!(&delimited.inner, DelimitedBlockType::DelimitedComment(nodes)
+                    if crate::inlines_to_string(nodes).contains("Hidden heading"))
+                        && delimited.delimiter == "--"
+                        && delimited.metadata.style.is_none()
+            ),
+            "the [comment] open block should be a `--` DelimitedComment"
+        );
+
+        // The paragraph: a `Comment` of kind `Paragraph`.
+        assert!(
+            matches!(&doc.blocks[1], Block::Comment(comment) if comment.kind == CommentKind::Paragraph),
+            "the [comment] paragraph should be a Comment of kind Paragraph"
+        );
+
+        // The trailing blank-separated paragraph is normal content.
+        assert!(
+            matches!(&doc.blocks[2], Block::Paragraph(para) if &crate::inlines_to_string(&para.content) == "Visible."),
+            "the trailing paragraph should survive"
+        );
+        Ok(())
+    }
+
+    /// `[comment]` only suppresses open blocks and paragraphs. On any other
+    /// block (e.g. a listing) `asciidoctor` ignores the style and renders the
+    /// block, so it must stay a normal `DelimitedListing`, not become a comment.
+    #[test]
+    fn test_comment_style_on_listing_renders() -> Result<(), Error> {
+        let input = "[comment]\n----\nvisible\n----\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        assert_eq!(doc.blocks.len(), 1);
+        assert!(
+            matches!(
+                &doc.blocks[0],
+                Block::DelimitedBlock(delimited)
+                    if matches!(delimited.inner, DelimitedBlockType::DelimitedListing(_))
+            ),
+            "a [comment]-styled listing must still render as a listing"
+        );
         Ok(())
     }
 

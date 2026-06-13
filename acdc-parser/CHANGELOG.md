@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   markers as literal text.
 
   All three require the default-on `pre-spec-subs` feature.
+- Comments record their syntactic form and keep their text for tooling: the new
+  `CommentKind` on `Comment` separates `//` lines from `[comment]` paragraphs,
+  and a `[comment]` `--` block is a `DelimitedComment` (distinguished from a
+  `////` block by its `--` delimiter).
 
 ### Changed
 
@@ -31,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A block with the `[comment]` style (an open `--` block or a paragraph) is now dropped
+  and produces no output, matching `asciidoctor`; previously its content was rendered.
 - Document header author lines that aren't a plain `firstname [middlename] [lastname]
   [<email>]` (e.g. with an `Author:` prefix, a `(role)`, or comma-separated names) are now
   read as a single author instead of spilling the author line and the header's attribute

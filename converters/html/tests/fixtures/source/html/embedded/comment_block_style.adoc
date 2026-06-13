@@ -1,0 +1,11 @@
+[comment]
+--
+Hidden block content.
+
+== A hidden heading
+--
+
+[comment]
+A hidden paragraph.
+
+Visible paragraph.

@@ -218,13 +218,30 @@ impl<'a> Author<'a> {
     }
 }
 
-/// A single-line comment in a document.
+/// The syntactic form a [`Comment`] originated from.
 ///
-/// Line comments begin with `//` and continue to end of line.
-/// They act as block boundaries but produce no output.
+/// A `[comment]`-styled `--` block is represented as a
+/// [`DelimitedBlockType::DelimitedComment`] (distinguished from a `////` block
+/// by its retained `comment` style), so it is not covered here.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum CommentKind {
+    /// A `//` single-line comment.
+    #[default]
+    Line,
+    /// A `[comment]`-styled paragraph.
+    Paragraph,
+}
+
+/// A comment in a document that produces no output.
+///
+/// Either a `//` single-line comment or a `[comment]`-styled paragraph; the
+/// [`kind`](Comment::kind) distinguishes them.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Comment<'a> {
+    pub kind: CommentKind,
     pub content: &'a str,
     pub location: Location,
 }
@@ -439,6 +456,10 @@ impl Serialize for Comment<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", "comment")?;
         state.serialize_entry("type", "block")?;
+        // Omit the default `Line` kind so plain `//` comments serialize unchanged.
+        if self.kind != CommentKind::Line {
+            state.serialize_entry("variant", &self.kind)?;
+        }
         if !self.content.is_empty() {
             state.serialize_entry("content", &self.content)?;
         }

@@ -1,0 +1,14 @@
+[comment]
+--
+A comment block.
+
+== A hidden heading
+
+Notice it's a delimited block.
+--
+
+[comment]
+A paragraph comment.
+Like all paragraphs, the lines must be contiguous.
+
+Not a comment.
