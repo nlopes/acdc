@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   class; the legacy `float` spelling raises `WarningKind::LegacyFloatDiscreteHeading`.
 - `[#id,…]` sets the id and treats the rest as block attributes (only
   `[[id,reftext]]` sets a reference text).
+- Constrained formatting (`*`, `_`, `` ` ``, `#`) is now recognized after a
+  non-ASCII punctuation boundary such as a curly quote or guillemet (e.g.
+  `“*bold*”`); Unicode letters/digits still aren't boundaries.
 - `Document.references`: an `id → Reference` catalog covering every cross-reference
   target, including sections, blocks, and inline `[[id]]` anchors, with each target's
   reference text and source `location`, so `<<id>>` can be resolved and navigated to.

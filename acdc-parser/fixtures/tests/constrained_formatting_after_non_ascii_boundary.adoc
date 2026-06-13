@@ -1,0 +1,3 @@
+The “*A*” and “_B_” and “`C`” and “#D#” options.
+
+But é*plain* and word*plain* stay literal.

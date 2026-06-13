@@ -119,12 +119,40 @@ fn check_constrained_opening_boundary(
     outer_delimiter: Option<u8>,
 ) -> bool {
     if pos == 0 {
-        outer_delimiter.is_none_or(|d| !is_word_char(d))
-    } else {
-        input
-            .get(pos - 1)
-            .is_none_or(|&b| match_constrained_boundary(b))
+        return outer_delimiter.is_none_or(|d| !is_word_char(d));
     }
+    match input.get(pos - 1) {
+        None => true,
+        Some(&b) if b.is_ascii() => match_constrained_boundary(b),
+        // The preceding byte belongs to a multibyte (non-ASCII) character. It is
+        // a valid boundary unless that character is a Unicode word character
+        // (letter or number) — matching asciidoctor, where Unicode punctuation
+        // such as `“` or `«` opens a constrained span but letters like `é`/`日`
+        // do not.
+        Some(_) => char_ending_at(input, pos).is_none_or(|c| !c.is_alphanumeric()),
+    }
+}
+
+/// Decode the UTF-8 character whose final byte is at `end - 1` (i.e. the
+/// character immediately preceding byte offset `end`). Returns `None` at the
+/// start of input or if the bytes are not valid UTF-8.
+fn char_ending_at(input: &[u8], end: usize) -> Option<char> {
+    if end == 0 || end > input.len() {
+        return None;
+    }
+    // Walk back over UTF-8 continuation bytes (0b10xx_xxxx) to the lead byte.
+    let mut start = end - 1;
+    while start > 0
+        && input
+            .get(start)
+            .is_some_and(|&b| b & 0b1100_0000 == 0b1000_0000)
+    {
+        start -= 1;
+    }
+    std::str::from_utf8(input.get(start..end)?)
+        .ok()?
+        .chars()
+        .next()
 }
 
 /**
@@ -1231,14 +1259,36 @@ peg::parser! {
         rule bold_text_unconstrained_match()
         = inline_attributes()? "**" (!(eol() / ![_] / "**") [_])+ "**"
 
+        /// A valid right boundary after a constrained closing marker: an ASCII
+        /// whitespace/punctuation boundary, a non-word non-ASCII character (e.g.
+        /// a curly quote `”` or guillemet `»`), or end of input. Matches
+        /// asciidoctor's `(?!\w)` closing rule, where Unicode punctuation is a
+        /// boundary but Unicode letters/digits are not. Consumes the boundary
+        /// character (or nothing at end of input), so it works in both `&` and
+        /// `!` lookaheads where the old inline character class was used.
+        rule constrained_boundary_follow()
+        = [' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~']
+        / non_word_non_ascii_char()
+        / ![_]
+
+        /// A single non-ASCII character that is not a Unicode word character
+        /// (letter or number).
+        rule non_word_non_ascii_char()
+        = c:$([_]) {?
+            match c.chars().next() {
+                Some(ch) if !ch.is_ascii() && !ch.is_alphanumeric() => Ok(()),
+                _ => Err("not a non-word non-ASCII character"),
+            }
+        }
+
         rule bold_text_constrained() -> InlineNode<'input>
         = attrs:inline_attributes()?
         start:position!()
         content_start:position()
         "*"
-        content:$([^(' ' | '\t' | '\n')] [^'*']* ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'*']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'*']* ("*" !constrained_boundary_follow() [^'*']*)*)
         "*"
-        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        end:position!() &constrained_boundary_follow()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1294,10 +1344,10 @@ peg::parser! {
         "*"
         [^(' ' | '\t' | '\n')]
         [^'*']*
-        ("*" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'*']*)*
+        ("*" !constrained_boundary_follow() [^'*']*)*
         "*"
         closing_pos:position!()
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        constrained_boundary_follow()
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
@@ -1310,9 +1360,9 @@ peg::parser! {
         start:position!()
         content_start:position()
         "_"
-        content:$([^(' ' | '\t' | '\n')] [^'_']* ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'_']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'_']* ("_" !constrained_boundary_follow() [^'_']*)*)
         "_"
-        end:position!() &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        end:position!() &constrained_boundary_follow()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1366,10 +1416,10 @@ peg::parser! {
         "_"
         [^(' ' | '\t' | '\n')]
         [^'_']*
-        ("_" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'_']*)*
+        ("_" !constrained_boundary_follow() [^'_']*)*
         "_"
         closing_pos:position!()
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        constrained_boundary_follow()
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
@@ -1450,10 +1500,10 @@ peg::parser! {
         start:position!()
         content_start:position()
         "`"
-        content:$([^(' ' | '\t' | '\n')] [^'`']* ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'`']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'`']* ("`" !constrained_boundary_follow() [^'`']*)*)
         "`"
         end:position!()
-        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        &constrained_boundary_follow()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1507,10 +1557,10 @@ peg::parser! {
         "`"
         [^(' ' | '\t' | '\n')]
         [^'`']*
-        ("`" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'`']*)*
+        ("`" !constrained_boundary_follow() [^'`']*)*
         "`"
         closing_pos:position!()
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        constrained_boundary_follow()
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
@@ -1557,10 +1607,10 @@ peg::parser! {
         start:position!()
         content_start:position()
         "#"
-        content:$([^(' ' | '\t' | '\n')] [^'#']* ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'#']*)*)
+        content:$([^(' ' | '\t' | '\n')] [^'#']* ("#" !constrained_boundary_follow() [^'#']*)*)
         "#"
         end:position!()
-        &([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        &constrained_boundary_follow()
         {?
             let role = attrs.as_ref().and_then(|(roles, _id)| {
                 if roles.is_empty() {
@@ -1615,10 +1665,10 @@ peg::parser! {
         "#"
         [^(' ' | '\t' | '\n')]
         [^'#']*
-        ("#" !([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_]) [^'#']*)*
+        ("#" !constrained_boundary_follow() [^'#']*)*
         "#"
         closing_pos:position!()
-        ([' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~'] / ![_])
+        constrained_boundary_follow()
         {?
             let valid_opening = check_constrained_opening_boundary(boundary_pos, state.input.as_bytes(), state.outer_constrained_delimiter);
             let valid_closing = check_constrained_closing_at_end(closing_pos, state.input.len(), state.outer_constrained_delimiter);
