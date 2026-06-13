@@ -6,7 +6,7 @@ use bumpalo::Bump;
 
 use crate::{
     CalloutRef, DocumentAttributes, Footnote, Location, Options, Positioning, SourceLocation,
-    Title, TocEntry, Warning, WarningKind,
+    TocEntry, Warning, WarningKind,
     grammar::LineMap,
     model::{LeveloffsetRange, SourceRange, substitution::SubsFlags},
 };
@@ -41,34 +41,37 @@ pub(crate) struct ParserState<'a> {
     /// `process_inlines` calls, and the prior pattern produced O(N×M) work
     /// where N is footnote count and M is the number of nested parses.
     pub(crate) footnote_tracker: Rc<RefCell<FootnoteTracker<'a>>>,
-    pub(crate) toc_tracker: TocTracker<'a>,
+    /// TOC entries collected during parsing, in document order. A section pushes its
+    /// [`TocEntry`] here as soon as its title is parsed; `numbered` is `false` for
+    /// special styles (`[bibliography]`, `[glossary]`, ...) that are not auto-numbered
+    /// under `sectnums`.
+    pub(crate) toc_entries: Vec<TocEntry<'a>>,
     pub(crate) last_block_was_verbatim: bool,
-    /// Callout references found in the last verbatim block (for validation with callout lists)
+    /// Callout references found in the last verbatim block (for validation with callout
+    /// lists)
     pub(crate) last_verbatim_callouts: Vec<CalloutRef>,
     /// The current file being parsed (None for inline/string parsing)
     pub(crate) current_file: Option<PathBuf>,
-    /// Byte ranges where specific leveloffset values apply.
-    /// Set by the preprocessor when processing includes with `leveloffset=` attributes.
-    /// Used by the parser to adjust section levels.
+    /// Byte ranges where specific leveloffset values apply. Set by the preprocessor when
+    /// processing includes with `leveloffset=` attributes. Used by the parser to adjust
+    /// section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
-    /// Byte ranges mapping preprocessed output back to source files.
-    /// Set by the preprocessor when processing `include::` directives.
-    /// Used to produce accurate file/line info in warnings.
+    /// Byte ranges mapping preprocessed output back to source files. Set by the
+    /// preprocessor when processing `include::` directives. Used to produce accurate
+    /// file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
-    /// Warnings collected during PEG parsing. Shared across the top-level
-    /// state and any `for_inline_parsing` sub-states via `Rc`, so warnings
-    /// raised during nested inline parses (author lines, revision lines,
-    /// substituted inline content) reach the top-level `ParseResult`
-    /// alongside everything else. The outer `parse_input` / `parse_inline`
-    /// keeps a clone of this `Rc` and recovers the final `Vec<Warning>`
-    /// after the self-cell builder closure drops the `ParserState`.
-    /// Deduplicated on insertion because PEG backtracking can re-fire the
-    /// same warning multiple times.
+    /// Warnings collected during PEG parsing. Shared across the top-level state and any
+    /// `for_inline_parsing` sub-states via `Rc`, so warnings raised during nested inline
+    /// parses (author lines, revision lines, substituted inline content) reach the
+    /// top-level `ParseResult` alongside everything else. The outer `parse_input` /
+    /// `parse_inline` keeps a clone of this `Rc` and recovers the final `Vec<Warning>`
+    /// after the self-cell builder closure drops the `ParserState`. Deduplicated on
+    /// insertion because PEG backtracking can re-fire the same warning multiple times.
     pub(crate) warnings: Rc<RefCell<Vec<Warning>>>,
-    /// When true, inline parsing uses a reduced rule set that only matches
-    /// formatting markup (bold, italic, monospace, highlight, superscript,
-    /// subscript, curved quotes) and plain text. Used by `parse_text_for_quotes`
-    /// to apply "quotes" substitution without matching macros, xrefs, etc.
+    /// When true, inline parsing uses a reduced rule set that only matches formatting
+    /// markup (bold, italic, monospace, highlight, superscript, subscript, curved quotes)
+    /// and plain text. Used by `parse_text_for_quotes` to apply "quotes" substitution
+    /// without matching macros, xrefs, etc.
     pub(crate) quotes_only: bool,
     /// When parsing content extracted from a constrained formatting rule, holds
     /// the delimiter byte of the outer formatting (e.g., `b'_'` for italic).
@@ -159,38 +162,6 @@ impl<'a> FootnoteTracker<'a> {
     }
 }
 
-#[derive(Debug, Clone, Default)]
-pub(crate) struct TocTracker<'a> {
-    /// All TOC entries collected during parsing, in document order
-    pub(crate) entries: Vec<TocEntry<'a>>,
-}
-
-impl<'a> TocTracker<'a> {
-    /// Register a section for inclusion in the TOC.
-    ///
-    /// The `numbered` parameter indicates whether this section should receive
-    /// automatic section numbering when `sectnums` is enabled. This should be
-    /// `false` for special section styles like `[bibliography]`, `[glossary]`, etc.
-    pub(crate) fn register_section(
-        &mut self,
-        title: Title<'a>,
-        level: u8,
-        id: &'a str,
-        xreflabel: Option<&'a str>,
-        numbered: bool,
-        style: Option<&'a str>,
-    ) {
-        self.entries.push(TocEntry {
-            id,
-            title,
-            level,
-            xreflabel,
-            numbered,
-            style,
-        });
-    }
-}
-
 impl<'a> ParserState<'a> {
     /// Allocate `s` into the arena, returning a `&'a str` that lives for the
     /// parse. Used by grammar rules that build a transient owned `String`
@@ -265,7 +236,7 @@ impl<'a> ParserState<'a> {
             input,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
-            toc_tracker: TocTracker::default(),
+            toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -295,7 +266,7 @@ impl<'a> ParserState<'a> {
             input,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
-            toc_tracker: TocTracker::default(),
+            toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -319,7 +290,7 @@ impl<'a> ParserState<'a> {
             input,
             arena: parent.arena,
             footnote_tracker: Rc::clone(&parent.footnote_tracker),
-            toc_tracker: TocTracker::default(),
+            toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,

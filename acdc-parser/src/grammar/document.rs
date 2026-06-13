@@ -1,14 +1,17 @@
 // The `peg` macro adds 5 hidden parameters to every rule function, so even
 // rules with just 3 explicit params exceed clippy's 7-argument threshold.
 #![allow(clippy::too_many_arguments)]
+
+use std::{borrow::Cow, collections::HashMap, rc::Rc};
+
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Block,
     BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineNode, ListItem,
-    ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Section,
-    Source, SourceLocation, StemContent, StemNotation, Subtitle, Table, TableOfContents, TableRow,
-    ThematicBreak, Title, UnorderedList, Verbatim, Video,
+    DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode, ListItem,
+    ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw, Reference,
+    Section, Source, SourceLocation, StemContent, StemNotation, Subtitle, Table, TableOfContents,
+    TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, Video,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -38,8 +41,6 @@ use super::helpers::{
     process_attribute_list, strip_url_backslash_escapes, title_looks_like_description_list,
 };
 use super::setext;
-use std::borrow::Cow;
-use std::rc::Rc;
 
 /// Helper to check delimiter matching and return error if mismatched
 fn check_delimiters(
@@ -53,6 +54,160 @@ fn check_delimiters(
     } else {
         Err(Error::mismatched_delimiters(detail, block_type))
     }
+}
+
+/// Insert an anchor into the cross-reference catalog with optional reference text.
+fn insert_reference<'a>(
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    anchor: &Anchor<'a>,
+    title: Option<Title<'a>>,
+) {
+    refs.insert(
+        anchor.id,
+        Reference {
+            xreflabel: anchor.xreflabel,
+            title,
+            location: anchor.location.clone(),
+        },
+    );
+}
+
+/// Walk the final document tree to (1) populate the cross-reference catalog `refs` with
+/// every anchor (block ids and inline `[[id]]` anchors) and (2) collect every `<<id>>` /
+/// `xref:id[]` into `xrefs` (target, location) for unresolved-reference checking. A block
+/// with an id but no title is still registered (reference text `None`), so an `<<id>>` to
+/// it resolves to the literal `[id]` rather than being treated as unresolved. Section ids
+/// come from `toc_entries` (seeded separately); this only recurses into their content.
+fn collect_references<'a>(
+    blocks: &[Block<'a>],
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    xrefs: &mut Vec<(&'a str, Location)>,
+) {
+    for block in blocks {
+        if !matches!(block, Block::Section(_))
+            && let Some(anchor) = block.anchor()
+        {
+            insert_reference(refs, anchor, block.title().cloned());
+        }
+
+        match block {
+            Block::Section(s) => collect_references(&s.content, refs, xrefs),
+            Block::Paragraph(p) => collect_inline_references(&p.content, refs, xrefs),
+            Block::Admonition(a) => collect_references(&a.blocks, refs, xrefs),
+            Block::UnorderedList(l) => {
+                for item in &l.items {
+                    collect_inline_references(&item.principal, refs, xrefs);
+                    collect_references(&item.blocks, refs, xrefs);
+                }
+            }
+            Block::OrderedList(l) => {
+                for item in &l.items {
+                    collect_inline_references(&item.principal, refs, xrefs);
+                    collect_references(&item.blocks, refs, xrefs);
+                }
+            }
+            Block::CalloutList(l) => {
+                for item in &l.items {
+                    collect_inline_references(&item.principal, refs, xrefs);
+                    collect_references(&item.blocks, refs, xrefs);
+                }
+            }
+            Block::DescriptionList(l) => {
+                for item in &l.items {
+                    for anchor in &item.anchors {
+                        insert_reference(refs, anchor, None);
+                    }
+                    collect_inline_references(&item.term, refs, xrefs);
+                    collect_inline_references(&item.principal_text, refs, xrefs);
+                    collect_references(&item.description, refs, xrefs);
+                }
+            }
+            Block::DelimitedBlock(d) => collect_delimited_references(&d.inner, refs, xrefs),
+            Block::DiscreteHeader(_)
+            | Block::ThematicBreak(_)
+            | Block::PageBreak(_)
+            | Block::Image(_)
+            | Block::Audio(_)
+            | Block::Video(_)
+            | Block::TableOfContents(_)
+            | Block::DocumentAttribute(_)
+            | Block::Comment(_) => {}
+        }
+    }
+}
+
+/// Walk the content of a delimited block for anchors and cross-references.
+fn collect_delimited_references<'a>(
+    inner: &DelimitedBlockType<'a>,
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    xrefs: &mut Vec<(&'a str, Location)>,
+) {
+    match inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks) => collect_references(blocks, refs, xrefs),
+        DelimitedBlockType::DelimitedListing(inlines)
+        | DelimitedBlockType::DelimitedLiteral(inlines)
+        | DelimitedBlockType::DelimitedPass(inlines)
+        | DelimitedBlockType::DelimitedVerse(inlines)
+        | DelimitedBlockType::DelimitedComment(inlines) => {
+            collect_inline_references(inlines, refs, xrefs);
+        }
+        DelimitedBlockType::DelimitedTable(table) => {
+            for row in table
+                .header
+                .iter()
+                .chain(table.footer.iter())
+                .chain(table.rows.iter())
+            {
+                for column in &row.columns {
+                    collect_references(&column.content, refs, xrefs);
+                }
+            }
+        }
+        DelimitedBlockType::DelimitedStem(_) => {}
+    }
+}
+
+/// Walk inline content for inline `[[id]]` anchors and `<<id>>` cross-references,
+/// recursing into formatted spans.
+fn collect_inline_references<'a>(
+    inlines: &[InlineNode<'a>],
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    xrefs: &mut Vec<(&'a str, Location)>,
+) {
+    for inline in inlines {
+        match inline {
+            InlineNode::InlineAnchor(anchor) => insert_reference(refs, anchor, None),
+            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
+                xrefs.push((xref.target, xref.location.clone()));
+            }
+            InlineNode::BoldText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::ItalicText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::MonospaceText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::HighlightText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::SubscriptText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::SuperscriptText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::PlainText(_)
+            | InlineNode::RawText(_)
+            | InlineNode::VerbatimText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::Macro(_)
+            | InlineNode::CalloutRef(_) => {}
+        }
+    }
+}
+
+/// Whether a cross-reference target is an internal id (a bare anchor name) as opposed to
+/// an inter-document / external reference. Targets containing a fragment (`#`), path
+/// separator (`/`), file extension (`.`), or scheme (`:`) address another resource and
+/// are not validated against this document's catalog.
+fn is_internal_reference(target: &str) -> bool {
+    !target.is_empty() && !target.contains(['#', '.', '/', ':'])
 }
 
 fn get_literal_paragraph<'input>(
@@ -106,14 +261,13 @@ fn get_literal_paragraph<'input>(
     })
 }
 
-/// Assembles principal text from first line and continuation lines.
-/// Used by list item parsing rules to combine multi-line content.
-/// Produce the principal text for a list item, interned into the arena.
+/// Assembles principal text from first line and continuation lines. Used by list item
+/// parsing rules to combine multi-line content. Produce the principal text for a list
+/// item, interned into the arena.
 ///
-/// When there are no continuation lines (the common case), this just returns
-/// the borrowed `first_line` unchanged — zero allocation. Otherwise it writes
-/// `first_line` followed by each continuation line (separated by `\n`) into a
-/// fresh arena string.
+/// When there are no continuation lines (the common case), this just returns the borrowed
+/// `first_line` unchanged — zero allocation. Otherwise it writes `first_line` followed by
+/// each continuation line (separated by `\n`) into a fresh arena string.
 fn assemble_principal_text<'a>(
     state: &ParserState<'a>,
     first_line: &'a str,
@@ -758,6 +912,43 @@ peg::parser! {
                 ));
             }
 
+            // Build the id -> reference catalog for O(1) `<<id>>` resolution:
+            // sections (already collected as toc_entries) plus a single walk over
+            // the final tree for every other anchor (block ids and inline
+            // `[[id]]` anchors). The same walk collects every cross-reference so
+            // unresolved ones can be reported.
+            let mut references: HashMap<&str, Reference<'_>> = state
+                .toc_entries
+                .iter()
+                .map(|entry| {
+                    (
+                        entry.id,
+                        Reference {
+                            xreflabel: entry.xreflabel,
+                            title: Some(entry.title.clone()),
+                            location: entry.location.clone(),
+                        },
+                    )
+                })
+                .collect();
+            let mut xrefs: Vec<(&str, Location)> = Vec::new();
+            collect_references(&blocks, &mut references, &mut xrefs);
+
+            // An internal `<<id>>` whose target is absent from the catalog is an
+            // unresolved (broken) reference. Inter-document/external targets
+            // (those addressing another resource) are not validated here.
+            for (target, location) in xrefs {
+                if is_internal_reference(target) && !references.contains_key(target) {
+                    let source_location = state.create_error_source_location(location);
+                    state.add_warning(crate::Warning::new(
+                        crate::WarningKind::UnresolvedReference {
+                            target: target.to_string(),
+                        },
+                        Some(source_location),
+                    ));
+                }
+            }
+
             Ok(Document {
                 header,
                 location: Location {
@@ -769,7 +960,8 @@ peg::parser! {
                 attributes: DocumentAttributes::clone(&state.document_attributes),
                 blocks,
                 footnotes: state.footnote_tracker.borrow().footnotes.clone(),
-                toc_entries: state.toc_tracker.entries.clone(),
+                toc_entries: state.toc_entries.clone(),
+                references,
             })
         }
 
@@ -1358,7 +1550,16 @@ peg::parser! {
                 .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s));
 
             // Register section for TOC immediately after title is parsed, before content
-            state.toc_tracker.register_section(title.clone(), section_level.1, section_id, xreflabel, numbered, block_metadata.metadata.style);
+            let location = state.create_block_location(section_level_start, title_end, offset);
+            state.toc_entries.push(TocEntry {
+                id: section_id,
+                title: title.clone(),
+                level: section_level.1,
+                xreflabel,
+                numbered,
+                style: block_metadata.metadata.style,
+                location,
+            });
 
             Ok::<(Title<'input>, &'input str), Error>((title, section_id))
         })
@@ -1486,7 +1687,16 @@ peg::parser! {
                         .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s));
 
                     // Register section for TOC
-                    state.toc_tracker.register_section(processed_title.clone(), setext_level, section_id, xreflabel, numbered, block_metadata.metadata.style);
+                    let location = state.create_block_location(title_start, title_end, offset);
+                    state.toc_entries.push(TocEntry {
+                        id: section_id,
+                        title: processed_title.clone(),
+                        level: setext_level,
+                        xreflabel,
+                        numbered,
+                        style: block_metadata.metadata.style,
+                        location,
+                    });
 
                     Ok::<(Title<'input>, &'input str), Error>((processed_title, section_id))
                 }
@@ -6175,6 +6385,101 @@ References.
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
             crate::Positioning::Position(p) => assert_eq!(p.line, 3),
         }
+        Ok(())
+    }
+
+    /// An `<<id>>` whose target is defined nowhere is an unresolved reference
+    /// and warns, pointing at the cross-reference.
+    #[test]
+    fn test_unresolved_reference_warns() -> Result<(), Error> {
+        let input = "A paragraph.\n\nSee <<missing>>.\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::UnresolvedReference { target } if target == "missing"
+            )),
+            "expected an unresolved-reference warning for `missing`"
+        );
+        Ok(())
+    }
+
+    /// An `<<id>>` pointing at an inline `[[id]]` anchor resolves (the catalog
+    /// includes inline anchors), so it does not warn.
+    #[test]
+    fn test_inline_anchor_reference_resolves() -> Result<(), Error> {
+        let input = "Some text [[here]] in a paragraph.\n\nSee <<here>>.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        assert!(doc.references.contains_key("here"));
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, crate::WarningKind::UnresolvedReference { .. })),
+            "a reference to an existing inline anchor must not warn"
+        );
+        Ok(())
+    }
+
+    /// An inline `[[id]]` anchor inside a callout-list item's text is catalogued
+    /// (callout lists are walked like other list containers), so a reference to
+    /// it resolves.
+    #[test]
+    fn test_callout_item_inline_anchor_resolves() -> Result<(), Error> {
+        let input = "----\ncode <1>\n----\n<1> Note with an [[cnote]] anchor.\n\nSee <<cnote>>.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        assert!(doc.references.contains_key("cnote"));
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, crate::WarningKind::UnresolvedReference { .. })),
+            "a reference to an anchor inside a callout item must not warn"
+        );
+        Ok(())
+    }
+
+    /// A titled block with an id is collected into `references` so a `<<id>>`
+    /// reference can resolve to its title.
+    #[test]
+    fn test_titled_block_collected_in_references() -> Result<(), Error> {
+        let input = "[[data-table]]\n.Important Data\n[cols=\"1,1\"]\n|===\n| a | b\n|===\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let entry = doc
+            .references
+            .get("data-table")
+            .expect("titled block should be a reference target");
+        let title = entry
+            .title
+            .as_ref()
+            .expect("titled block has reference text");
+        assert_eq!(crate::inlines_to_string(title), "Important Data");
+        // The location points at the anchor on line 1 (for LSP navigation).
+        assert_eq!(entry.location.start.line, 1);
+        Ok(())
+    }
+
+    /// A block with an id but no title is still a reference target — present in
+    /// the catalog with no reference text (`title: None`). This distinguishes a
+    /// resolvable-but-untitled id (renders `[id]`) from an absent/unresolved id.
+    #[test]
+    fn test_untitled_block_in_references_without_reftext() -> Result<(), Error> {
+        let input = "[[untitled]]\n[cols=\"1,1\"]\n|===\n| a | b\n|===\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let entry = doc
+            .references
+            .get("untitled")
+            .expect("untitled block with an id is still a reference target");
+        assert!(
+            entry.title.is_none(),
+            "untitled block has no reference text"
+        );
         Ok(())
     }
 

@@ -1,5 +1,5 @@
 //! The data models for the `AsciiDoc` document.
-use std::{fmt::Display, str::FromStr, string::ToString};
+use std::{collections::HashMap, fmt::Display, str::FromStr, string::ToString};
 
 use bumpalo::Bump;
 use serde::{
@@ -22,7 +22,7 @@ mod tables;
 mod title;
 
 pub use admonition::{Admonition, AdmonitionVariant};
-pub use anchor::{Anchor, TocEntry, UNNUMBERED_SECTION_STYLES};
+pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS,
     MAX_TOC_LEVELS, strip_quotes,
@@ -53,6 +53,12 @@ pub struct Document<'a> {
     pub blocks: Vec<Block<'a>>,
     pub footnotes: Vec<Footnote<'a>>,
     pub toc_entries: Vec<TocEntry<'a>>,
+    /// Cross-reference targets keyed by id, for O(1) `<<id>>` resolution.
+    /// Covers both sections and titled blocks (tables, listings, …); collected
+    /// during parsing. `toc_entries` remains the ordered list used to render the
+    /// table of contents. Like `toc_entries` and `footnotes`, this is not
+    /// serialized.
+    pub references: HashMap<&'a str, Reference<'a>>,
     pub location: Location,
 }
 
@@ -252,6 +258,56 @@ pub enum Block<'a> {
     Audio(Audio<'a>),
     Video(Video<'a>),
     Comment(Comment<'a>),
+}
+
+impl<'a> Block<'a> {
+    /// The anchor defining this block's id (its cross-reference target), if any:
+    /// the explicit `[#id]` or the first `[[id]]` anchor.
+    pub(crate) fn anchor(&self) -> Option<&Anchor<'a>> {
+        match self {
+            Block::Section(b) => b.metadata.id_anchor(),
+            Block::DelimitedBlock(b) => b.metadata.id_anchor(),
+            Block::Admonition(b) => b.metadata.id_anchor(),
+            Block::DiscreteHeader(b) => b.metadata.id_anchor(),
+            Block::PageBreak(b) => b.metadata.id_anchor(),
+            Block::Paragraph(b) => b.metadata.id_anchor(),
+            Block::Image(b) => b.metadata.id_anchor(),
+            Block::Audio(b) => b.metadata.id_anchor(),
+            Block::Video(b) => b.metadata.id_anchor(),
+            Block::UnorderedList(b) => b.metadata.id_anchor(),
+            Block::OrderedList(b) => b.metadata.id_anchor(),
+            Block::CalloutList(b) => b.metadata.id_anchor(),
+            Block::DescriptionList(b) => b.metadata.id_anchor(),
+            Block::TableOfContents(b) => b.metadata.id_anchor(),
+            Block::ThematicBreak(b) => b.anchors.first(),
+            Block::DocumentAttribute(_) | Block::Comment(_) => None,
+        }
+    }
+
+    /// This block's title, if it has a non-empty one (used as the cross-reference
+    /// text when an `<<id>>` to this block has no explicit label).
+    pub(crate) fn title(&self) -> Option<&Title<'a>> {
+        let title = match self {
+            Block::Section(b) => &b.title,
+            Block::DelimitedBlock(b) => &b.title,
+            Block::Admonition(b) => &b.title,
+            Block::DiscreteHeader(b) => &b.title,
+            Block::PageBreak(b) => &b.title,
+            Block::Paragraph(b) => &b.title,
+            Block::Image(b) => &b.title,
+            Block::Audio(b) => &b.title,
+            Block::Video(b) => &b.title,
+            Block::UnorderedList(b) => &b.title,
+            Block::OrderedList(b) => &b.title,
+            Block::CalloutList(b) => &b.title,
+            Block::DescriptionList(b) => &b.title,
+            Block::ThematicBreak(b) => &b.title,
+            Block::TableOfContents(_) | Block::DocumentAttribute(_) | Block::Comment(_) => {
+                return None;
+            }
+        };
+        (!title.is_empty()).then_some(title)
+    }
 }
 
 impl Locateable for Block<'_> {

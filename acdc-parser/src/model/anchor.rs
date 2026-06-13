@@ -75,6 +75,8 @@ pub struct TocEntry<'a> {
     pub numbered: bool,
     /// Optional style from block metadata (e.g., "appendix", "bibliography").
     pub style: Option<&'a str>,
+    /// Location of the section heading (the cross-reference target).
+    pub location: Location,
 }
 
 impl Serialize for TocEntry<'_> {
@@ -94,4 +96,25 @@ impl Serialize for TocEntry<'_> {
         }
         state.end()
     }
+}
+
+/// The resolved text of a cross-reference target (a section or a titled block).
+///
+/// Collected during parsing into the `id → Reference` map on
+/// [`Document::references`](crate::Document), so a `<<id>>` reference resolves
+/// to its target's text in O(1). The id is the map key.
+#[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
+pub struct Reference<'a> {
+    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax). When
+    /// set, it is the reference text; otherwise `title` is used.
+    pub xreflabel: Option<&'a str>,
+    /// The target's title (section or block title), when it has one. `None` for
+    /// a referenceable element with no title (e.g. an untitled block with an
+    /// `[[id]]`): such a reference exists but has no reference text, so an
+    /// `<<id>>` to it renders the literal `[id]` — distinct from an id that is
+    /// absent from the catalog entirely (an unresolved/broken reference).
+    pub title: Option<Title<'a>>,
+    /// Location of the target element (for navigation, e.g. LSP go-to-definition).
+    pub location: Location,
 }

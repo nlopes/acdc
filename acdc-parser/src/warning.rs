@@ -52,6 +52,9 @@ impl Warning {
             WarningKind::NonStandardAuthorLine { .. } => Some(
                 "Author lines use `firstname [middlename] [lastname] [<email>]`, with multiple authors separated by `;`. Keeping the whole line as a single author name.",
             ),
+            WarningKind::UnresolvedReference { .. } => Some(
+                "Define an anchor with this id (e.g. `[[id]]` or `[#id]` on a block or section), or fix the reference to point at an existing id.",
+            ),
             WarningKind::Other(_) => None,
         }
     }
@@ -118,6 +121,15 @@ pub enum WarningKind {
     NonStandardAuthorLine {
         /// The author line as parsed (after attribute substitution).
         line: String,
+    },
+
+    /// A cross-reference (`<<id>>` / `xref:id[]`) points at an id that is not
+    /// defined anywhere in the document. Matches asciidoctor's "invalid
+    /// reference" warning.
+    #[error("invalid reference: {target}")]
+    UnresolvedReference {
+        /// The unresolved target id.
+        target: String,
     },
 
     /// Ad-hoc message not yet categorised into a typed variant.

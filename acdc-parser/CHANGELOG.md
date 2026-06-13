@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Document.references`: an `id → Reference` catalog covering every cross-reference
+  target, including sections, blocks, and inline `[[id]]` anchors, with each target's
+  reference text and source `location`, so `<<id>>` can be resolved and navigated to.
+- An `<<id>>`/`xref:id[]` whose target is defined nowhere now reports a
+  `WarningKind::UnresolvedReference`, matching `asciidoctor` (external/inter-document
+  references aren't flagged as the parser only deals with one file at a time).
 - `[subs="-post_replacements"]` now suppresses trailing-`+` hard line breaks.
 - `[subs="-quotes"]` now leaves `*bold*`, `_italic_`, `` `mono` ``,
   `#highlight#`, `^super^`, `~sub~`, and curved quotes/apostrophes as literal

@@ -60,6 +60,12 @@ impl<'a> BlockMetadata<'a> {
         Self::default()
     }
 
+    /// The anchor that defines this block's id: the explicit `id` (`[#id]`),
+    /// otherwise the first `[[id]]` anchor. `None` when the block has no id.
+    pub(crate) fn id_anchor(&self) -> Option<&Anchor<'a>> {
+        self.id.as_ref().or_else(|| self.anchors.first())
+    }
+
     /// Set the attributes.
     #[must_use]
     pub fn with_attributes(mut self, attributes: ElementAttributes<'a>) -> Self {
