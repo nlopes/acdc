@@ -410,12 +410,13 @@ mod tests {
     #[test]
     fn test_nested_section_level_mismatch_becomes_warning() -> Result<(), Box<dyn std::error::Error>>
     {
-        // Parser returns NestedSectionLevelMismatch for nested skips (== -> ====)
-        let result = parse_doc("= Title\n\n== Section\n\n==== Skipped\n");
-        let error = result
-            .err()
-            .ok_or("parser should error on nested section level skip")?;
-        let diag = error_to_diagnostic(&error);
+        // A nested skip (== -> ====) no longer aborts parsing; the parser renders
+        // the section at its literal level, and the LSP surfaces the skip as a
+        // warning from the parsed AST.
+        let parsed = parse_doc("= Title\n\n== Section\n\n==== Skipped\n")?;
+        let diags = compute_section_level_diagnostics(parsed.document());
+        assert_eq!(diags.len(), 1, "expected 1 warning, got: {diags:?}");
+        let diag = diags.first().ok_or("expected a diagnostic")?;
         assert_eq!(diag.severity, Some(DiagnosticSeverity::WARNING));
         assert!(
             diag.message.contains("Section level skipped"),
