@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A discrete heading renders its `discrete`/`float` block style (plus any roles)
+  as the heading's class.
 - Tables now render their `id`, and a `<<id>>` to a titled block (table, listing, example,
   etc) resolves to the block's title (untitled -> literal `[id]`), matching `asciidoctor`.
 - Table sizing and alignment classes follow `asciidoctor`: a `width=100%` table (or the

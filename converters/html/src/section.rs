@@ -161,8 +161,22 @@ pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = Error>>(
     let level = header.level + 1; // Level 1 = h2
     let id = Section::generate_id_string(&header.metadata, &header.title);
 
+    // asciidoctor emits a `class` only when the discreteness came from the
+    // `discrete`/`float` block style (`[discrete]` → `class="discrete"`, plus any
+    // roles). The bare positional form (`[#id,discrete]`) renders no class at all.
+    let class = match header.metadata.style {
+        Some(style @ ("discrete" | "float")) => {
+            Some(crate::build_class(style, &header.metadata.roles))
+        }
+        _ => None,
+    };
+
     let mut w = visitor.writer_mut();
-    write!(w, "<h{level} id=\"{id}\" class=\"discrete\">")?;
+    if let Some(class) = class {
+        write!(w, "<h{level} id=\"{id}\" class=\"{class}\">")?;
+    } else {
+        write!(w, "<h{level} id=\"{id}\">")?;
+    }
     let _ = w;
     visitor.visit_inline_nodes(&header.title)?;
     w = visitor.writer_mut();
