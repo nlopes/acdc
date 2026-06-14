@@ -1,0 +1,3 @@
+term:: desc
++
+// comment with no trailing newline

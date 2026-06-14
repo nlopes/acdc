@@ -45,6 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `//` line comment or `////` block comment inside a list or description-list
+  continuation (after a `+` marker) is now treated as a comment instead of being
+  rendered (line comments were emitted as literal text; a block comment preceded
+  by a blank line was dropped but leaked a stray `+` paragraph), matching
+  `asciidoctor`. A trailing `+` followed by a comment terminates the continuation
+  cleanly.
 - A block with the `[comment]` style (an open `--` block or a paragraph) is now dropped
   and produces no output, matching `asciidoctor`; previously its content was rendered.
 - Document header author lines that aren't a plain `firstname [middlename] [lastname]

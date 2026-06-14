@@ -1,0 +1,13 @@
+_Included in_::
++
+--
+open content
+--
++
+
+////
+hidden block comment
+spanning lines
+////
+
+next para

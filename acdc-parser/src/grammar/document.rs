@@ -1405,6 +1405,20 @@ peg::parser! {
             }))
         }
 
+        /// Like `comment_line_block` but leaves the trailing newline unconsumed
+        /// (lookahead instead of consume). Used in list continuations so that a
+        /// `+` continuation following the comment can still match, since
+        /// continuation markers expect a leading newline before the `+`.
+        rule comment_line_block_keep_eol(offset: usize) -> Result<Block<'input>, Error>
+        = "//" !("/") content:$([^'\n']*) end:position!() &(eol() / ![_])
+        {
+            Ok(Block::Comment(Comment {
+                kind: CommentKind::Line,
+                content,
+                location: state.create_location(span_start + offset, end + offset),
+            }))
+        }
+
         // Check if the upcoming content is a section at same or higher level (which
         // should not be parsed as content)
         //
@@ -1952,7 +1966,18 @@ peg::parser! {
             })
         })
         block:(
-            delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
+            // A `//` line comment or `////` block comment in a continuation
+            // produces a comment node (which renders to nothing), matching
+            // asciidoctor. Absorb optional leading blank lines: a trailing `+`
+            // leaves a blank-line newline before the comment, while an immediate
+            // comment sits directly at the delimiter. Without this, the `+` would
+            // backtrack and leak a stray `+` paragraph. Must precede `paragraph`,
+            // which would otherwise gobble the `//` line.
+            comment:(eol()* comment_start:position!() c:(
+                comment_line_block_keep_eol(offset)
+                / comment_block(comment_start, offset, &block_metadata)
+            ) { c }) { comment }
+            / delimited_block:delimited_block(start, offset, &block_metadata) { delimited_block }
             / image:image(start, offset, &block_metadata) { image }
             / audio:audio(start, offset, &block_metadata) { audio }
             / video:video(start, offset, &block_metadata) { video }
