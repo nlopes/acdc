@@ -9,31 +9,28 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Visit a section using the visitor pattern
     ///
     /// Renders the section header, walks nested blocks, then renders footer.
-    /// For sections with `[index]` style, renders a populated index catalog
-    /// only if it's the last section in the document.
+    /// A section with the `[index]` style gets acdc's generated index catalog
+    /// (an extension over asciidoctor's html5 backend, which leaves `[index]`
+    /// empty — see `crate::index`) only when it's the document's last section;
+    /// any other `[index]` section renders like a normal section, so its
+    /// heading is still emitted (matching asciidoctor) rather than dropped.
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
         let processor = self.processor.clone();
 
-        // Check if this is an index section
         let is_index_section = section
             .metadata
             .style
             .as_ref()
             .is_some_and(|s| *s == "index");
-
-        // Index sections are only rendered if they're the last section
-        if is_index_section && !processor.has_valid_index_section() {
-            // Skip rendering entirely - not even the title
-            return Ok(());
-        }
+        let render_catalog = is_index_section && processor.generate_index();
 
         self.render_section_header(section)?;
 
-        if is_index_section {
+        if render_catalog {
             // Render the collected index catalog
             crate::index::render(section, self)?;
         } else {
-            // Normal section: render nested blocks
+            // Normal section (and non-last index sections): render nested blocks
             for nested_block in &section.content {
                 self.visit_block(nested_block)?;
             }

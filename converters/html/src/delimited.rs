@@ -1077,7 +1077,7 @@ mod tests {
             listing_counter: Rc::new(Cell::new(0)),
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
+            generate_index: false,
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,

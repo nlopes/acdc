@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Set the `:acdc-index:` attribute to generate an index in the document's
+  `[index]` section: an alphabetical listing where each term links to the
+  sections it appears in. Without it, `[index]` sections stay empty, matching
+  `asciidoctor`.
 - A section renders its roles as part of its wrapper class (e.g. `[.role]` on a
   section gives `<div class="sect2 role">`, and a level-0 part gives
   `<h1 class="sect0 role">`), matching `asciidoctor`.

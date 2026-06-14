@@ -1,0 +1,25 @@
+= Index Terms Conformance
+:toc:
+
+Preamble has a ((visible preamble)) and (((concealed preamble))) term.
+
+== Forms
+
+Concealed primary: (((alpha))) end.
+
+Concealed primary plus secondary: (((beta, gamma))) end.
+
+Concealed primary plus secondary plus tertiary: (((delta, epsilon, zeta))) end.
+
+Concealed macro: indexterm:[eta, theta] end.
+
+Visible flow: ((iota)) end.
+
+Visible macro: indexterm2:[kappa] end.
+
+== Section with a ((visible title term)) and (((concealed, in title)))
+
+Body paragraph.
+
+[index]
+== Index

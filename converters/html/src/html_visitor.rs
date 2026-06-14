@@ -156,6 +156,9 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     /// Current section style (e.g., "bibliography", "glossary").
     /// Set when entering a section, used by child blocks for style inheritance.
     pub(crate) section_style: Option<String>,
+    /// Plain-text title of the section currently being rendered, used as the
+    /// label for index back-links. `None` outside any section (e.g. preamble).
+    pub(crate) current_section_title: Option<String>,
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
 }
@@ -185,6 +188,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             diagnostics,
             current_subs: NORMAL.to_vec(),
             section_style: None,
+            current_section_title: None,
             docinfo,
         }
     }
@@ -763,7 +767,13 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
             .style
             .as_ref()
             .map(std::string::ToString::to_string);
+        // Set before rendering the header so index terms in the section's own
+        // title attribute to this section; restore the parent (or None) on exit
+        // so nested sections pop back correctly.
+        let previous_section_title = self.current_section_title.take();
+        self.current_section_title = Some(acdc_parser::inlines_to_string(&section.title));
         let result = self.render_section(section);
+        self.current_section_title = previous_section_title;
         self.section_style = previous_style;
         result
     }
