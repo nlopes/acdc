@@ -45,6 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An auto-generated section id from a title that starts with non-alphanumeric
+  characters (e.g. `=== -- Specialized Environments`) no longer gains a doubled
+  leading underscore (`__specialized_environments`); leading separators are now
+  squeezed away so the id is `_specialized_environments`, matching `asciidoctor`,
+  keeping xref and TOC anchors to those sections working. A title with no id-able
+  characters at all (e.g. `== ---`) now yields an empty id rather than a bare
+  `_`, also matching `asciidoctor`.
 - A `//` line comment that sits directly against preceding block content (no blank
   line in between) is now dropped instead of being rendered as literal text, matching
   `asciidoctor`. This covers comments after a paragraph, list item, or description-list

@@ -58,6 +58,9 @@ pub enum SafeId<'a> {
 impl Display for SafeId<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            // An empty generated slug (a title with no id-able characters)
+            // yields an empty id rather than a bare `_`, matching asciidoctor.
+            SafeId::Generated("") => Ok(()),
             SafeId::Generated(id) => write!(f, "_{id}"),
             SafeId::Explicit(id) => write!(f, "{id}"),
         }
@@ -67,10 +70,12 @@ impl Display for SafeId<'_> {
 impl<'a> SafeId<'a> {
     /// Return the display-equivalent `&'a str` for this safe id without going
     /// through `format!`/`to_string()`. `Generated` variants are prepended
-    /// with `_` into the arena; `Explicit` is returned unchanged.
+    /// with `_` into the arena; an empty generated slug stays empty; `Explicit`
+    /// is returned unchanged.
     #[must_use]
     pub(crate) fn as_arena_str(&self, arena: &'a Bump) -> &'a str {
         match self {
+            SafeId::Generated("") => "",
             SafeId::Generated(id) => {
                 let mut s = bumpalo::collections::String::new_in(arena);
                 s.push('_');
@@ -85,13 +90,16 @@ impl<'a> SafeId<'a> {
 impl<'a> Section<'a> {
     /// Build a section id from title text: lowercase, non-alphanumerics
     /// (except whitespace, `-`, `.`, `_`) dropped, survivors joined with `_`,
-    /// consecutive `_` collapsed, trailing `_` trimmed. Single pass.
+    /// consecutive `_` collapsed, leading and trailing `_` trimmed. Single
+    /// pass. The `_` prefix on a generated id is added by `SafeId`, so leading
+    /// separators here must be squeezed away to avoid a doubled `__`.
     fn id_from_title(title: &[InlineNode<'a>]) -> String {
         let mut title_text = String::new();
         // `write_inlines` on a `String` is infallible.
         let _ = converter::write_inlines(&mut title_text, title);
         let mut out = String::with_capacity(title_text.len());
-        let mut last_was_underscore = false;
+        // Start as if a `_` was just emitted so leading separators are dropped.
+        let mut last_was_underscore = true;
         for c in title_text.to_lowercase().chars() {
             let mapped = if c.is_alphanumeric() {
                 Some(c)
@@ -150,9 +158,14 @@ impl<'a> Section<'a> {
     /// matching `safe_id.to_string()`.
     #[must_use]
     pub fn generate_id_string(metadata: &BlockMetadata<'a>, title: &[InlineNode<'a>]) -> String {
-        match Self::explicit_id(metadata) {
-            Some(id) => id.to_string(),
-            None => format!("_{}", Self::id_from_title(title)),
+        if let Some(id) = Self::explicit_id(metadata) {
+            return id.to_string();
+        }
+        let slug = Self::id_from_title(title);
+        if slug.is_empty() {
+            slug
+        } else {
+            format!("_{slug}")
         }
     }
 }
@@ -204,6 +217,47 @@ mod tests {
             Section::id_from_title(inlines),
             "this_is_a_title".to_string()
         );
+    }
+
+    #[test]
+    fn test_id_from_title_strips_leading_separators() {
+        // Leading non-alphanumerics must be squeezed away so the `_` prefix
+        // added by `SafeId::Generated` does not produce a doubled `__`.
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+            content: "--  Specialized Environments",
+            location: Location::default(),
+            escaped: false,
+        })];
+        assert_eq!(
+            Section::id_from_title(inlines),
+            "specialized_environments".to_string()
+        );
+        assert_eq!(
+            Section::generate_id_string(&BlockMetadata::default(), inlines),
+            "_specialized_environments".to_string()
+        );
+    }
+
+    #[test]
+    fn test_id_from_title_all_separators_is_empty() {
+        // A title with no id-able characters yields an empty id (not a bare
+        // `_`), matching asciidoctor.
+        let arena = Bump::new();
+        let inlines: &[InlineNode] = &[InlineNode::PlainText(Plain {
+            content: "---",
+            location: Location::default(),
+            escaped: false,
+        })];
+        assert_eq!(Section::id_from_title(inlines), String::new());
+        let metadata = BlockMetadata::default();
+        assert_eq!(
+            Section::generate_id_string(&metadata, inlines),
+            String::new()
+        );
+        let safe_id = Section::generate_id(&arena, &metadata, inlines);
+        assert_eq!(safe_id, SafeId::Generated(""));
+        assert_eq!(safe_id.to_string(), String::new());
+        assert_eq!(safe_id.as_arena_str(&arena), "");
     }
 
     #[test]
