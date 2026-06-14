@@ -890,45 +890,54 @@ peg::parser! {
                 )
             };
 
-            // Warn if the first section skips level 1 (e.g. a document that jumps
-            // straight to `=== Heading`). Matches asciidoctor's "section title out
-            // of sequence" check, which fires when the deeper-than-1 section is
-            // preceded by a document title or by preamble body content (a
-            // paragraph, list, ...). It does NOT fire when the section is the
-            // document's very first block, nor when only comments precede it.
+            // Warn when a top-level section skips level 1 (e.g. a document that
+            // jumps straight to `=== Heading`). Matches asciidoctor's "section
+            // title out of sequence" check.
+            //
+            // The document root sits at level 0 — so every top-level section is
+            // expected at level 1 — once it is "anchored" by a document title or
+            // by preamble body content (a paragraph, list, ...) before the first
+            // section. When anchored, asciidoctor flags *each* top-level section
+            // deeper than level 1 (not just the first). A document that opens
+            // directly with a section (no title, no preamble) is not anchored:
+            // that first section sets the base level and neither it nor its
+            // same-or-shallower siblings are out of sequence. Comments are
+            // transparent and never anchor. Sections nested under another section
+            // are validated separately, in the `section` rule itself.
             //
             // `toc_entries` is populated while parsing and is empty exactly when
             // the document has no sections — checking it first lets section-less
-            // documents skip the body entirely, and the `find_map` below stops at
-            // the first section, so neither path walks past it.
+            // documents skip the body scan entirely. Otherwise we walk only the
+            // top-level blocks (preamble + sibling sections, never nested content)
+            // and stop at the first section in the un-anchored case.
             if !state.toc_entries.is_empty() {
-                let has_doctitle = header.as_ref().is_some_and(|h| !h.title.is_empty());
-                let mut has_preamble_content = false;
-                let first_section = blocks.iter().find_map(|b| {
-                    if let Block::Section(s) = b {
-                        Some(s)
-                    } else {
-                        // Any block other than a comment before the first section is
-                        // preamble content, which anchors the document at level 0 (so
-                        // level 1 is expected). Comments are transparent.
-                        if !matches!(b, Block::Comment(_)) {
-                            has_preamble_content = true;
+                let mut anchored = header.as_ref().is_some_and(|h| !h.title.is_empty());
+                let mut seen_section = false;
+                for block in &blocks {
+                    if let Block::Section(section) = block {
+                        if !anchored {
+                            // Un-anchored leading section: it establishes the base
+                            // level, so neither it nor its siblings can be out of
+                            // sequence. Nothing left to check.
+                            break;
                         }
-                        None
+                        if section.level > 1 {
+                            let location = state
+                                .create_error_source_location(section.location.clone());
+                            state.add_warning(crate::Warning::new(
+                                crate::WarningKind::SectionLevelOutOfSequence {
+                                    expected: 1,
+                                    got: section.level,
+                                },
+                                Some(location),
+                            ));
+                        }
+                        seen_section = true;
+                    } else if !seen_section && !matches!(block, Block::Comment(_)) {
+                        // Preamble content before the first section anchors the
+                        // document at level 0.
+                        anchored = true;
                     }
-                });
-                if let Some(first_section) = first_section
-                    && first_section.level > 1
-                    && (has_doctitle || has_preamble_content)
-                {
-                    let location = state.create_error_source_location(first_section.location.clone());
-                    state.add_warning(crate::Warning::new(
-                        crate::WarningKind::SectionLevelOutOfSequence {
-                            expected: 1,
-                            got: first_section.level,
-                        },
-                        Some(location),
-                    ));
                 }
             }
 
@@ -6546,6 +6555,52 @@ References.
     #[test]
     fn test_titleless_bare_deep_section_no_warning() -> Result<(), Error> {
         let input = "===== Deep\n\ntext\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::SectionLevelOutOfSequence { .. },
+            )),
+            "expected no out-of-sequence warning, got: {warnings:?}"
+        );
+        Ok(())
+    }
+
+    /// Once anchored (here by a doctitle), asciidoctor flags *every* top-level
+    /// section that skips level 1, not just the first. Two sibling `=====`
+    /// sections must each produce a warning.
+    #[test]
+    fn test_multiple_top_level_sections_each_warn() -> Result<(), Error> {
+        let input = "= Doc Title\n\n===== One\n\ntext\n\n===== Two\n\ntext\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        let count = warnings
+            .iter()
+            .filter(|w| {
+                matches!(
+                    &w.kind,
+                    crate::WarningKind::SectionLevelOutOfSequence {
+                        expected: 1,
+                        got: 4
+                    },
+                )
+            })
+            .count();
+        assert_eq!(
+            count, 2,
+            "expected one warning per sibling, got: {warnings:?}"
+        );
+        Ok(())
+    }
+
+    /// An un-anchored document that opens with a deep section establishes that
+    /// section's level as the base, so same-level siblings are not flagged.
+    #[test]
+    fn test_bare_deep_section_siblings_no_warning() -> Result<(), Error> {
+        let input = "===== One\n\ntext\n\n===== Two\n\ntext\n";
         let mut state = ParserState::new_for_test(input);
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
