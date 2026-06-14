@@ -96,6 +96,10 @@ pub struct IndexTermEntry {
     pub kind: IndexTermKind<'static>,
     /// Anchor ID for linking back to the term's location
     pub anchor_id: String,
+    /// Plain-text title of the section the term occurs in, used as the
+    /// back-link label. `None` for terms outside any section (e.g. the
+    /// preamble), which fall back to the document title.
+    pub section_title: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -125,9 +129,12 @@ pub struct Processor<'a> {
     /// Collected index term entries for rendering in the index catalog.
     /// Uses `Rc<RefCell<>>` so all clones can add entries during traversal.
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Whether the document's last section has the `[index]` style.
-    /// Index sections are only rendered if they are the last section.
-    has_valid_index_section: bool,
+    /// Whether to generate acdc's index catalog: true only when the
+    /// `:acdc-index:` document attribute is set AND the document's last section
+    /// has the `[index]` style. When false the feature is fully off — no
+    /// `_indexterm_` anchors and `[index]` sections render empty, matching
+    /// asciidoctor (index generation is an acdc extension; see `crate::index`).
+    generate_index: bool,
     /// Section number tracker for `:sectnums:` support.
     section_number_tracker: SectionNumberTracker,
     /// Part number tracker for `:partnums:` support in book doctype.
@@ -187,10 +194,11 @@ impl<'a> Processor<'a> {
         &self.index_entries
     }
 
-    /// Check if the document has a valid index section (last section with `[index]` style).
+    /// Whether acdc's index catalog should be generated (the `:acdc-index:`
+    /// attribute is set and the last section has the `[index]` style).
     #[must_use]
-    pub fn has_valid_index_section(&self) -> bool {
-        self.has_valid_index_section
+    pub fn generate_index(&self) -> bool {
+        self.generate_index
     }
 
     /// Get the HTML output variant.
@@ -267,9 +275,14 @@ impl<'a> Processor<'a> {
         }
     }
 
-    /// Generate a unique anchor ID for an index term and collect the entry.
+    /// Generate a unique anchor ID for an index term and collect the entry,
+    /// recording the section it occurs in for the back-link label.
     #[must_use]
-    pub fn add_index_entry(&self, kind: IndexTermKind<'static>) -> String {
+    pub fn add_index_entry(
+        &self,
+        kind: IndexTermKind<'static>,
+        section_title: Option<String>,
+    ) -> String {
         let count = self.index_term_counter.get();
         self.index_term_counter.set(count + 1);
         let anchor_id = format!("_indexterm_{count}");
@@ -277,6 +290,7 @@ impl<'a> Processor<'a> {
         self.index_entries.borrow_mut().push(IndexTermEntry {
             kind,
             anchor_id: anchor_id.clone(),
+            section_title,
         });
 
         anchor_id
@@ -305,7 +319,8 @@ impl<'a> Processor<'a> {
             toc_entries: doc.toc_entries.clone(),
             references: doc.references.clone(),
             document_attributes: doc.attributes.clone(),
-            has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
+            generate_index: index_generation_enabled(&doc.attributes)
+                && last_section_has_style(&doc.blocks, "index"),
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
@@ -399,6 +414,17 @@ pub(crate) const WEBFONTS_DEFAULT: &str = "";
 /// Stylesheet I/O failures all advise the same fix; centralize the wording.
 pub(crate) const STYLESHEET_ADVICE: &str =
     "Check stylesheet paths and filesystem permissions, then rerun the conversion.";
+
+/// Whether acdc's index generation is opted into via the `:acdc-index:`
+/// document attribute. Index generation is an acdc extension over asciidoctor's
+/// html5 backend (see `crate::index`), so it is off unless the author asks for
+/// it. Treated as a boolean attribute: present and not soft-unset (`:!acdc-index:`)
+/// turns it on.
+pub(crate) fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
+    attributes
+        .get("acdc-index")
+        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
+}
 
 pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
     match (variant, dark_mode) {
@@ -580,7 +606,7 @@ impl<'a> Processor<'a> {
             listing_counter: Rc::new(Cell::new(0)),
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: false,
+            generate_index: false,
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,

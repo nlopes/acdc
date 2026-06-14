@@ -1156,23 +1156,22 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        if options.toc_mode {
-            // In TOC mode, skip anchor but still output visible term text
-            if it.is_visible() {
-                let text = substitution_text(it.term(), subs, options);
-                write!(self.writer_mut(), "{text}")?;
-            }
-            return Ok(());
+        // An index term's anchor only exists to be the link target of acdc's
+        // generated `[index]` section (an extension; asciidoctor's html5 backend
+        // emits no anchor and leaves `[index]` empty). So emit one — and feed
+        // the index catalog, recording the enclosing section for the back-link
+        // label — only when index generation is enabled (`:acdc-index:` + a
+        // last `[index]` section).
+        if !options.toc_mode && self.processor.generate_index() {
+            let anchor_id = self.processor.clone().add_index_entry(
+                index_term_kind_to_static(&it.kind),
+                self.current_section_title.clone(),
+            );
+            write!(self.writer_mut(), "<a id=\"{anchor_id}\"></a>")?;
         }
 
-        let anchor_id = self
-            .processor
-            .clone()
-            .add_index_entry(index_term_kind_to_static(&it.kind));
-        write!(self.writer_mut(), "<a id=\"{anchor_id}\"></a>")?;
-
         // Flow terms (visible): also output the term text.
-        // Concealed terms: anchor only, no visible text.
+        // Concealed terms: no visible text.
         if it.is_visible() {
             let text = substitution_text(it.term(), subs, options);
             write!(self.writer_mut(), "{text}")?;

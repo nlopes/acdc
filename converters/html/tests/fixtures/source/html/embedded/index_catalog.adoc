@@ -1,4 +1,5 @@
 = Index Catalog Test
+:acdc-index:
 
 == Introduction
 
@@ -10,7 +11,15 @@ We also mention a indexterm2:[dog] in the text.
 
 Concealed terms: (((Animals, Mammals, Cats)))visible text.
 
+A primary-only concealed term: (((Zoology))) here.
+
+A primary plus secondary concealed term: (((Birds, Parrots))) here.
+
 Another reference to ((cat)) for multiple occurrences.
+
+== Feline Behaviour
+
+The ((cat)) appears again in another section.
 
 [index]
 == Index

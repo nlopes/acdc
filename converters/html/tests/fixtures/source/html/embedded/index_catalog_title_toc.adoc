@@ -1,0 +1,10 @@
+= Doc Title
+:toc:
+:acdc-index:
+
+== Animals like the ((cat))
+
+The ((cat)) appears in the body too.
+
+[index]
+== Index

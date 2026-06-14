@@ -1,0 +1,11 @@
+= Index Terms Without An Index Section
+
+== Terms
+
+Concealed three: (((foo,bar,baz))) end.
+
+Concealed macro: indexterm:[alpha,beta] end.
+
+Visible flow: ((Viz Term)) end.
+
+Visible macro: indexterm2:[Other Term] end.
