@@ -890,24 +890,46 @@ peg::parser! {
                 )
             };
 
-            // Warn if the first section skips level 1 (e.g. document jumps
-            // straight from `= Doc Title` to `=== Heading`). Matches asciidoctor's
-            // "section title out of sequence" check; only fires when a doc title
-            // is present — titleless documents accept any first-section level.
-            if header.as_ref().is_some_and(|h| !h.title.is_empty())
-                && let Some(first_section) = blocks.iter().find_map(|b| {
-                    if let Block::Section(s) = b { Some(s) } else { None }
-                })
-                && first_section.level > 1
-            {
-                let location = state.create_error_source_location(first_section.location.clone());
-                state.add_warning(crate::Warning::new(
-                    crate::WarningKind::SectionLevelOutOfSequence {
-                        expected: 1,
-                        got: first_section.level,
-                    },
-                    Some(location),
-                ));
+            // Warn if the first section skips level 1 (e.g. a document that jumps
+            // straight to `=== Heading`). Matches asciidoctor's "section title out
+            // of sequence" check, which fires when the deeper-than-1 section is
+            // preceded by a document title or by preamble body content (a
+            // paragraph, list, ...). It does NOT fire when the section is the
+            // document's very first block, nor when only comments precede it.
+            //
+            // `toc_entries` is populated while parsing and is empty exactly when
+            // the document has no sections — checking it first lets section-less
+            // documents skip the body entirely, and the `find_map` below stops at
+            // the first section, so neither path walks past it.
+            if !state.toc_entries.is_empty() {
+                let has_doctitle = header.as_ref().is_some_and(|h| !h.title.is_empty());
+                let mut has_preamble_content = false;
+                let first_section = blocks.iter().find_map(|b| {
+                    if let Block::Section(s) = b {
+                        Some(s)
+                    } else {
+                        // Any block other than a comment before the first section is
+                        // preamble content, which anchors the document at level 0 (so
+                        // level 1 is expected). Comments are transparent.
+                        if !matches!(b, Block::Comment(_)) {
+                            has_preamble_content = true;
+                        }
+                        None
+                    }
+                });
+                if let Some(first_section) = first_section
+                    && first_section.level > 1
+                    && (has_doctitle || has_preamble_content)
+                {
+                    let location = state.create_error_source_location(first_section.location.clone());
+                    state.add_warning(crate::Warning::new(
+                        crate::WarningKind::SectionLevelOutOfSequence {
+                            expected: 1,
+                            got: first_section.level,
+                        },
+                        Some(location),
+                    ));
+                }
             }
 
             // Build the id -> reference catalog for O(1) `<<id>>` resolution:
@@ -6494,6 +6516,46 @@ References.
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
             crate::Positioning::Position(p) => assert_eq!(p.line, 3),
         }
+        Ok(())
+    }
+
+    /// A titleless document whose first section skips level 1 still warns when
+    /// preamble body content (here a description list) precedes it — the
+    /// preamble anchors the document at level 0. Matches asciidoctor.
+    #[test]
+    fn test_titleless_preamble_then_deep_section_emits_warning() -> Result<(), Error> {
+        let input = "term:: desc\n\n===== Deep\n\ntext\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::SectionLevelOutOfSequence {
+                    expected: 1,
+                    got: 4
+                },
+            )),
+            "expected out-of-sequence warning, got: {warnings:?}"
+        );
+        Ok(())
+    }
+
+    /// A titleless document whose very first block is a deeper-than-1 section
+    /// (no doctitle, no preamble) does not warn — matches asciidoctor.
+    #[test]
+    fn test_titleless_bare_deep_section_no_warning() -> Result<(), Error> {
+        let input = "===== Deep\n\ntext\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::SectionLevelOutOfSequence { .. },
+            )),
+            "expected no out-of-sequence warning, got: {warnings:?}"
+        );
         Ok(())
     }
 
