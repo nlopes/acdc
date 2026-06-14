@@ -72,9 +72,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         if section.level == 0 && !is_appendix {
             // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
+            let class = crate::build_class("sect0", &section.metadata.roles);
             write!(
                 self.writer,
-                "<h{heading_level} id=\"{id}\" class=\"sect0\">"
+                "<h{heading_level} id=\"{id}\" class=\"{class}\">"
             )?;
 
             // Prepend part number if :partnums: is enabled
@@ -85,12 +86,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
         } else {
             if processor.variant() == HtmlVariant::Semantic {
-                writeln!(
-                    self.writer,
-                    "<section class=\"doc-section level-{effective_level}\">"
-                )?;
+                let class = crate::build_class(
+                    &format!("doc-section level-{effective_level}"),
+                    &section.metadata.roles,
+                );
+                writeln!(self.writer, "<section class=\"{class}\">")?;
             } else {
-                writeln!(self.writer, "<div class=\"sect{effective_level}\">")?;
+                let class =
+                    crate::build_class(&format!("sect{effective_level}"), &section.metadata.roles);
+                writeln!(self.writer, "<div class=\"{class}\">")?;
             }
             write!(self.writer, "<h{heading_level} id=\"{id}\">")?;
 

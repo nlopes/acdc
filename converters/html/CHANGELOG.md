@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A section renders its roles as part of its wrapper class (e.g. `[.role]` on a
+  section gives `<div class="sect2 role">`, and a level-0 part gives
+  `<h1 class="sect0 role">`), matching `asciidoctor`.
 - A discrete heading renders its `discrete`/`float` block style (plus any roles)
   as the heading's class.
 - Tables now render their `id`, and a `<<id>>` to a titled block (table, listing, example,
