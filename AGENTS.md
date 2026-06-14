@@ -7,7 +7,7 @@
 - **Clippy pedantic**: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
 - **Format before committing**: `cargo fmt --all`
 - **Compact imports**: merge imports from the same crate/module into one `use` with braces, e.g. `use std::{borrow::Cow, io::Write};` — not separate `use std::borrow::Cow;` / `use std::io::Write;` lines
-- **Update changelogs**: each crate has its own `CHANGELOG.md`; update `[Unreleased]` for affected crates
+- **Update changelogs**: each crate has its own `CHANGELOG.md`; update `[Unreleased]` for affected crates. Entries describe what a user sees or is affected by — the new behavior, the attribute/option to reach it, and any divergence from `asciidoctor`. Never regurgitate internal mechanics (function/field names, struct changes, control flow); those belong in code/commits, not the changelog.
 - **Surface converter warnings structurally**: user-relevant converter warnings should use `Warning` / `Diagnostics`, not `tracing::warn!`
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)
 - **asciidoctor is reference**: when output differs, use `compare-asciidoc-output` agent
