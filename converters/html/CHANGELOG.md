@@ -19,8 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `<h1 class="sect0 role">`), matching `asciidoctor`.
 - A discrete heading renders its `discrete`/`float` block style (plus any roles)
   as the heading's class.
-- Tables now render their `id`, and a `<<id>>` to a titled block (table, listing, example,
-  etc) resolves to the block's title (untitled -> literal `[id]`), matching `asciidoctor`.
+- Tables now render their `id`, and a `<<id>>` to a section or titled block (table, listing,
+  example, etc) resolves to the target's title (untitled -> literal `[id]`), matching
+  `asciidoctor`. The auto-generated link text preserves the title's inline formatting
+  (e.g. `` `code` ``, bold, italic) rather than flattening it to plain text; an explicit
+  `<<id,text>>` label or a reference text from `[[id,Custom Text]]` still wins.
 - Table sizing and alignment classes follow `asciidoctor`: a `width=100%` table (or the
   default full-width table) uses the `stretch` class with no inline style, any other
   explicit `width` emits an inline `style="width: N;"` with no `stretch` class,

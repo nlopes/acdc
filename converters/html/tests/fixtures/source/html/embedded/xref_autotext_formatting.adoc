@@ -1,0 +1,15 @@
+[[sec]]
+== `scrstatus` for Dirtiness Tracking
+
+A section title with inline formatting.
+
+.A *bold* listing title
+[[lst]]
+----
+code
+----
+
+[[plain-sec]]
+== A Plain Title
+
+See <<sec>>, <<lst>>, and <<plain-sec>>.

@@ -168,6 +168,19 @@ impl<'a> Processor<'a> {
         }
     }
 
+    /// Resolve a cross-reference target id to its title's inline nodes, so the
+    /// renderer can preserve the title's formatting in the link text. Returns
+    /// `None` when the target is unknown, untitled, or carries an explicit
+    /// `xreflabel` (which wins over the title and is plain text — see
+    /// [`Self::xref_text`]).
+    #[must_use]
+    pub(crate) fn xref_title_inlines(&self, target: &str) -> Option<&[InlineNode<'a>]> {
+        self.references
+            .get(target)
+            .filter(|reference| reference.xreflabel.is_none())
+            .and_then(|reference| reference.title.as_deref())
+    }
+
     /// Get a reference to the collected index entries
     #[must_use]
     pub fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
