@@ -10,10 +10,12 @@ use crate::{
 };
 
 mod attribute;
+mod comment;
 mod conditional;
 mod include;
 mod tag;
 
+use comment::CommentScanner;
 use include::{Include, IncludeResult};
 
 /// Result from preprocessing that includes both the processed text and metadata needed
@@ -226,26 +228,37 @@ impl Preprocessor {
         Cow::Owned(result)
     }
 
-    /// Fast-path detection: returns `true` if the normalized text contains no
-    /// preprocessor triggers (include, ifdef/ifndef/ifeval, escaped directives,
-    /// multi-line attribute continuations). When true, the slow rebuild loop is
-    /// unnecessary and the caller can return the normalized text directly,
-    /// preserving any borrow from the original input.
+    /// Decides whether the normalized `text` can be used as-is, letting the
+    /// caller skip the full line-by-line rebuild in [`Self::process_inner`].
     ///
-    /// This is a read-only scan: it must not mutate options. Single-line
-    /// attributes (`:attr: value`) are intentionally left to downstream parsing
-    /// — the slow path's attribute mutation is only needed to evaluate
-    /// conditional directives, which by definition trigger the slow path.
+    /// Returns `true` when running `process_inner` would produce byte-identical
+    /// output, so the caller returns the normalized text directly (zero-copy,
+    /// preserving any borrow from the original input). Returns `false` as soon
+    /// as it spots something `process_inner` would rewrite: an
+    /// `include`/`ifdef`/`ifndef`/`ifeval` directive (or its escaped form), a
+    /// multi-line attribute continuation, or a line comment that would be
+    /// dropped.
     ///
-    /// Note: we deliberately do NOT track verbatim block state here. The slow
-    /// path processes `include::` (and other) directives regardless of whether
-    /// they appear inside `----` listing blocks — that matches asciidoctor's
-    /// behavior and is exercised by fixtures like `include_with_indent.adoc`.
-    /// Skipping lines inside verbatim blocks would silently pass such inputs
-    /// through unmodified.
-    fn try_pass_through(text: &str) -> bool {
+    /// Read-only: it must not mutate options. Single-line attributes
+    /// (`:attr: value`) are left to downstream parsing — `process_inner` only
+    /// mutates attributes to evaluate conditional directives, which already
+    /// force the rebuild.
+    ///
+    /// Directive detection is unconditional: an `include::` inside a `----`
+    /// block is still processed by `process_inner` (matching asciidoctor,
+    /// exercised by `include_with_indent.adoc`), so those lines must not be
+    /// skipped. The verbatim tracking in the scanner below is only for the
+    /// comment decision — comments inside verbatim blocks are kept.
+    fn try_pass_through(text: &str, setext: bool) -> bool {
+        // Dropping an adjacent line comment is the one rewrite that can't be
+        // spotted with a simple per-line check: whether a `//` line is dropped
+        // depends on the previous line and on being outside a verbatim block.
+        // Run the same `CommentScanner` that `process_inner` uses, and return
+        // false only on an actual drop — so documents whose comments are all
+        // kept (standalone, inside verbatim, tag directives) still pass through.
+        let mut scanner = CommentScanner::new(setext);
         for line in text.lines() {
-            // Escaped directives are unescaped by the slow path.
+            // `process_inner` unescapes escaped directives.
             if line.starts_with("\\include")
                 || line.starts_with("\\ifdef")
                 || line.starts_with("\\ifndef")
@@ -253,7 +266,7 @@ impl Preprocessor {
             {
                 return false;
             }
-            // Multi-line attribute continuation would be collapsed by the slow path.
+            // `process_inner` collapses multi-line attribute continuations.
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
                 return false;
             }
@@ -268,6 +281,16 @@ impl Preprocessor {
             {
                 return false;
             }
+            if scanner.at_verbatim_delimiter(line) {
+                scanner.record(line);
+                continue;
+            }
+            if scanner.drops(line) {
+                // `process_inner` would drop this adjacent comment, so the text
+                // is not byte-identical — force the rebuild.
+                return false;
+            }
+            scanner.record(line);
         }
         true
     }
@@ -476,7 +499,7 @@ impl Preprocessor {
     /// - `++++` (passthrough blocks) - 4+ plus signs
     /// - ` ``` ` (markdown code fences) - 3+ backticks
     #[tracing::instrument]
-    fn is_verbatim_delimiter(line: &str) -> Option<&str> {
+    pub(super) fn is_verbatim_delimiter(line: &str) -> Option<&str> {
         let trimmed = line.trim();
 
         // Check for markdown code fences (3+ backticks)
@@ -637,11 +660,12 @@ impl Preprocessor {
         options: &Options,
     ) -> Result<PreprocessorResult<'a>, Error> {
         let normalized = Preprocessor::normalize(input);
+        let setext = comment::setext_enabled(options);
 
         // Fast path: no triggers means the slow rebuild would produce byte-identical
         // output. Return the normalized text directly, preserving any borrow from
         // the caller's input so that downstream parsing can be zero-copy.
-        if Self::try_pass_through(&normalized) {
+        if Self::try_pass_through(&normalized, setext) {
             return Ok(PreprocessorResult {
                 text: normalized,
                 leveloffset_ranges: Vec::new(),
@@ -673,8 +697,10 @@ impl Preprocessor {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
         };
-        let mut in_verbatim_block = false;
-        let mut current_delimiter: Option<&str> = None;
+        // Tracks verbatim-block and previous-line context so adjacent line
+        // comments can be dropped (matching asciidoctor's reader). See
+        // `comment::CommentScanner`.
+        let mut scanner = CommentScanner::new(setext);
 
         while let Some(line) = lines.next() {
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
@@ -688,22 +714,21 @@ impl Preprocessor {
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
                 attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
                 out.push_line(attribute_content);
+                scanner.record(line);
                 continue;
             } else if line.starts_with(':') {
                 attribute::parse_line(&mut options.document_attributes, line.trim());
             }
-            if let Some(delimiter_type) = Self::is_verbatim_delimiter(line) {
-                if in_verbatim_block && Some(delimiter_type) == current_delimiter {
-                    tracing::trace!(?delimiter_type, "Closing verbatim block");
-                    in_verbatim_block = false;
-                    current_delimiter = None;
-                } else if !in_verbatim_block {
-                    tracing::trace!(?delimiter_type, "Opening verbatim block");
-                    in_verbatim_block = true;
-                    current_delimiter = Some(delimiter_type);
-                }
+            if scanner.at_verbatim_delimiter(line) {
                 out.push_line(line.to_string());
             } else if line.starts_with("//") {
+                if scanner.drops(line) {
+                    // Drop the adjacent comment; don't `record` it, so a run of
+                    // comments after content is dropped together.
+                    current_offset += line.len() + 1;
+                    line_number += 1;
+                    continue;
+                }
                 out.push_line(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 let mut ctx = DirectiveContext {
@@ -715,6 +740,7 @@ impl Preprocessor {
             } else {
                 out.push_line(line.to_string());
             }
+            scanner.record(line);
             current_offset += line.len() + 1;
             line_number += 1;
         }
@@ -742,6 +768,106 @@ endif::[]
 ";
         let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text, ":attribute: value\n\ncontent\n");
+        Ok(())
+    }
+
+    #[test]
+    fn test_line_comment_adjacent_to_content_is_dropped() -> Result<(), Error> {
+        let options = Options::default();
+        let input = "para line one
+// adjacent comment
+para line two";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "para line one\npara line two");
+        Ok(())
+    }
+
+    #[test]
+    fn test_trailing_line_comments_after_content_are_dropped() -> Result<(), Error> {
+        let options = Options::default();
+        let input = "Usage-controlled: *NO*. +
+// Trappable: *NO*. +
+// Interruptible: *NO*. +";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "Usage-controlled: *NO*. +");
+        Ok(())
+    }
+
+    #[test]
+    fn test_standalone_line_comment_is_preserved() -> Result<(), Error> {
+        let options = Options::default();
+        let input = "para
+
+// standalone comment
+
+more";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "para\n\n// standalone comment\n\nmore");
+        Ok(())
+    }
+
+    #[test]
+    fn test_line_comment_in_list_continuation_is_preserved() -> Result<(), Error> {
+        let options = Options::default();
+        let input = "* item
++
+// a comment
++
+more";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "* item\n+\n// a comment\n+\nmore");
+        Ok(())
+    }
+
+    #[test]
+    fn test_line_comment_after_title_is_preserved() -> Result<(), Error> {
+        let options = Options::default();
+        let input = "= The Title
+// a comment
+Roberto Avanzi";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "= The Title\n// a comment\nRoberto Avanzi");
+        Ok(())
+    }
+
+    #[test]
+    fn test_line_comment_in_verbatim_block_is_preserved() -> Result<(), Error> {
+        let options = Options::default();
+        let input = "----
+code line
+// not a comment here
+----";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "----\ncode line\n// not a comment here\n----");
+        Ok(())
+    }
+
+    #[test]
+    fn test_line_comment_after_equals_run_dropped_without_setext() -> Result<(), Error> {
+        // Without Setext, `=====` is ordinary content, so an adjacent comment
+        // after it is dropped like any other mid-paragraph comment.
+        let options = Options::default();
+        let input = "Title
+=====
+// a comment
+body";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "Title\n=====\nbody");
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    fn test_line_comment_after_setext_underline_is_preserved() -> Result<(), Error> {
+        // With Setext enabled, `=====` is a heading underline (a block
+        // boundary), so a comment after it is preserved rather than absorbed.
+        let options = Options::builder().with_setext().build();
+        let input = "Title
+=====
+// a comment
+body";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "Title\n=====\n// a comment\nbody");
         Ok(())
     }
 

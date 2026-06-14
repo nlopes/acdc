@@ -45,6 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A `//` line comment that sits directly against preceding block content (no blank
+  line in between) is now dropped instead of being rendered as literal text, matching
+  `asciidoctor`. This covers comments after a paragraph, list item, or description-list
+  entry. Standalone comments (preceded by a blank line, a title, a `+` continuation
+  marker, or another comment), comments inside verbatim blocks, and `tag::`/`end::`
+  include directives are left untouched.
 - A `//` line comment or `////` block comment inside a list or description-list
   continuation (after a `+` marker) is now treated as a comment instead of being
   rendered (line comments were emitted as literal text; a block comment preceded

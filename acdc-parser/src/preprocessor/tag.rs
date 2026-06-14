@@ -156,7 +156,7 @@ fn find_tag_regions(lines: &[String]) -> Vec<Region> {
 }
 
 /// Checks if a line contains a tag directive (start or end).
-fn is_tag_directive_line(line: &str) -> bool {
+pub(crate) fn is_tag_directive_line(line: &str) -> bool {
     extract_tag_directive(line).is_some()
 }
 
