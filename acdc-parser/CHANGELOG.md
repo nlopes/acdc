@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A document whose only content is a title (`= Title` with no body, no author
+  line, and no following blank line) is now recognized as the document title
+  rather than rendered as a level-0 section, matching `asciidoctor`. Applies to
+  both ATX (`= Title`) and Setext (`Title` / `====`) titles.
 - A trailing ` +` hard line break on the last line of a block (at end-of-input or
   immediately before a blank line) now renders as a line break instead of a literal
   `+`, matching `asciidoctor`. A nested span ending in ` +` (e.g. `` `code +` ``, a

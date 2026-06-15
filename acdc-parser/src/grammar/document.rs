@@ -1087,7 +1087,7 @@ peg::parser! {
             tracing::debug!(?title, ?subtitle, ?authors, "Found title and authors in the document header.");
             (title, subtitle, authors)
         }
-        / title_and_subtitle:document_title() &eol() {
+        / title_and_subtitle:document_title() &(eol() / ![_]) {
             let (title, subtitle) = title_and_subtitle;
             tracing::debug!(?title, ?subtitle, "Found title in the document header without authors.");
             (title, subtitle, vec![])
@@ -5623,6 +5623,44 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert_eq!(result.authors[1].last_name, "Lopes");
         assert_eq!(result.authors[1].initials, "NML");
         assert_eq!(result.authors[1].email, Some("nlopesml@gmail.com"));
+        Ok(())
+    }
+
+    /// A document whose only content is a title (no body, no following blank
+    /// line) is recognised as the doctitle, not a level-0 section. The
+    /// preprocessor strips the trailing newline, so the title sits at EOF — the
+    /// `title_authors` rule must accept end-of-input, not only a following `\n`.
+    /// Matches asciidoctor, which treats a lone `= Title` as the doctitle.
+    #[test]
+    fn test_title_only_document_is_doctitle() -> Result<(), Error> {
+        // No trailing newline: mirrors the post-preprocessor buffer for a
+        // single-line `= Doc Title\n` source.
+        let input = "= Doc Title";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let header = doc.header.expect("title-only doc should have a header");
+        assert_eq!(header.title.len(), 1);
+        assert_eq!(
+            header.title[0],
+            InlineNode::PlainText(Plain {
+                content: "Doc Title",
+                location: Location {
+                    absolute_start: 2,
+                    absolute_end: 10,
+                    start: crate::Position { line: 1, column: 3 },
+                    end: crate::Position {
+                        line: 1,
+                        column: 11,
+                    },
+                },
+                escaped: false,
+            })
+        );
+        assert!(
+            doc.blocks.is_empty(),
+            "title-only doc should have no body blocks, got: {:?}",
+            doc.blocks
+        );
         Ok(())
     }
 
