@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A standalone document with a revision number now renders a
+  `{version-label} {revnumber}` line (e.g. `Version 2.0`) in the footer above the
+  "Last updated" line, matching `asciidoctor`.
 - Set the `:acdc-index:` attribute to generate an index in the document's
   `[index]` section: an alphabetical listing where each term links to the
   sections it appears in. Without it, `[index]` sections stay empty, matching
@@ -205,6 +208,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The header revision span (`<span id="revnumber">`) derives its version word
+  from the `version-label` attribute (lowercased, e.g. a custom
+  `:version-label: Rev:` gives `rev 2.0`) instead of a fixed `version`, only
+  appends the trailing comma when a revision date follows, and no longer strips a
+  leading `v` from an explicit `:revnumber:` value (so `:revnumber: v3.0` renders
+  `v3.0`, while a `vX.Y` revision line still renders without the `v`) — all
+  matching `asciidoctor`.
+- The author email in the document header is emitted as a single-line
+  `<span id="email" class="email"><a …>…</a></span>` rather than wrapping the
+  link across newlines; the newlines rendered as a leading space that shifted the
+  email right of the `–` separator. Now matches `asciidoctor`.
 - A description-list term (`<dt class="hdlist1">`) is emitted on the same line as
   its opening tag (`<dt class="hdlist1">Term</dt>`) rather than after a newline,
   matching `asciidoctor`.

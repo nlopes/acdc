@@ -1,0 +1,5 @@
+= Document Title
+Jane Doe <jane@example.com>
+v2.0, 2026-01-15: Fall incarnation
+
+Body paragraph.

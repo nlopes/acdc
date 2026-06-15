@@ -385,6 +385,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if self.processor.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "<footer id=\"footer\">")?;
             writeln!(self.writer, "<div id=\"footer-text\">")?;
+            self.render_footer_version()?;
             if let Some(last_updated) = self.render_options.last_updated {
                 writeln!(
                     self.writer,
@@ -397,6 +398,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         } else {
             writeln!(self.writer, "<div id=\"footer\">")?;
             writeln!(self.writer, "<div id=\"footer-text\">")?;
+            self.render_footer_version()?;
             if let Some(last_updated) = self.render_options.last_updated {
                 writeln!(
                     self.writer,
@@ -406,6 +408,24 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             }
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
+        }
+        Ok(())
+    }
+
+    /// Emit the footer's `{version-label} {revnumber}<br>` line when the
+    /// document carries a revision number, matching asciidoctor. The `v` of a
+    /// `vX.Y` revision line is already dropped by the parser; an explicit
+    /// `:revnumber:` keeps whatever it was given.
+    fn render_footer_version(&mut self) -> Result<(), Error> {
+        if let Some(AttributeValue::String(revnumber)) =
+            self.processor.document_attributes.get("revnumber")
+        {
+            let label = self
+                .processor
+                .document_attributes
+                .get_string("version-label");
+            let label = label.as_deref().unwrap_or("Version");
+            writeln!(self.writer, "{label} {revnumber}<br>")?;
         }
         Ok(())
     }
@@ -658,29 +678,42 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
                     write!(self.writer, "{}", author.last_name)?;
                     writeln!(self.writer, "</span><br>")?;
                     if let Some(email) = &author.email {
+                        // Emit on a single line, like asciidoctor: a newline
+                        // inside the span renders as a leading space that shifts
+                        // the email right of the `–` separator.
+                        let suffix = if i > 0 {
+                            format!("{}", i + 1)
+                        } else {
+                            String::new()
+                        };
                         writeln!(
                             self.writer,
-                            "<span id=\"email{}\" class=\"email\">",
-                            if i > 0 {
-                                format!("{}", i + 1)
-                            } else {
-                                String::new()
-                            }
+                            "<span id=\"email{suffix}\" class=\"email\"><a href=\"mailto:{email}\">{email}</a></span><br>"
                         )?;
-                        writeln!(self.writer, "<a href=\"mailto:{email}\">{email}</a>")?;
-                        writeln!(self.writer, "</span>")?;
-                        writeln!(self.writer, "<br>")?;
                     }
                 }
-                // Render revision info spans
+                // Render revision info spans. The version word is the
+                // `version-label` attribute lowercased; the `v` of a `vX.Y`
+                // revision line is already dropped by the parser, while an
+                // explicit `:revnumber:` keeps whatever it was given. The
+                // trailing comma is emitted only when a revdate follows.
+                let has_revdate = matches!(
+                    self.processor.document_attributes.get("revdate"),
+                    Some(AttributeValue::String(_))
+                );
                 if let Some(AttributeValue::String(revnumber)) =
                     self.processor.document_attributes.get("revnumber")
                 {
-                    // Strip leading "v" if present (asciidoctor behavior)
-                    let version = revnumber.strip_prefix('v').unwrap_or(revnumber);
+                    let label = self
+                        .processor
+                        .document_attributes
+                        .get_string("version-label");
+                    let label = label.as_deref().unwrap_or("Version");
                     writeln!(
                         self.writer,
-                        "<span id=\"revnumber\">version {version},</span>"
+                        "<span id=\"revnumber\">{} {revnumber}{}</span>",
+                        label.to_lowercase(),
+                        if has_revdate { "," } else { "" }
                     )?;
                 }
                 if let Some(AttributeValue::String(revdate)) =
