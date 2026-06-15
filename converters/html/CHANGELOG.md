@@ -205,6 +205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A description-list term (`<dt class="hdlist1">`) is emitted on the same line as
+  its opening tag (`<dt class="hdlist1">Term</dt>`) rather than after a newline,
+  matching `asciidoctor`.
 - `--no-default-features` builds no longer re-enable parser or converter
   default features through internal workspace dependencies.
 - **`link:` macro now emits `class="bare"` for empty display text** — `link:URL[]` now

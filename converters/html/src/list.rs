@@ -486,9 +486,9 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
         let mut writer = visitor.writer_mut();
         // Only add hdlist1 class when NOT ordered/unordered
         if is_marker_style {
-            writeln!(writer, "<dt>")?;
+            write!(writer, "<dt>")?;
         } else {
-            writeln!(writer, "<dt class=\"hdlist1\">")?;
+            write!(writer, "<dt class=\"hdlist1\">")?;
         }
         let _ = writer;
         visitor.visit_inline_nodes(&item.term)?;
