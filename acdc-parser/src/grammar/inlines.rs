@@ -861,8 +861,17 @@ peg::parser! {
         / bare_url()
         / email_at_sign_ahead() email_address()
 
+        /// End of a hard line break: either a newline, or — only in a top-level
+        /// block-content parse — end of input. The block-level gate keeps a
+        /// nested span ending in ` +` (e.g. `` `code +` ``, a footnote/link)
+        /// literal, since `process_inlines` re-parses that inner content and
+        /// would otherwise see its trailing ` +` as ending the input.
+        rule inline_line_break_end()
+        = eol()
+        / ![_] {? if state.inline_ctx.block_level { Ok(()) } else { Err("hard line break at EOI requires block level") } }
+
         rule inline_line_break() -> InlineNode<'input>
-        = " +" end:position!() eol()
+        = " +" end:position!() inline_line_break_end()
         {?
             // Hard line break requires `text +` where text is actual content (non-whitespace)
             // When `+` appears indented at the start of a line (after newline + whitespace),
@@ -891,7 +900,7 @@ peg::parser! {
 
         /// Match inline line break without consuming - for use in negative lookaheads.
         rule inline_line_break_match()
-        = " +" eol()
+        = " +" inline_line_break_end()
         {?
             let absolute_pos = span_start + state.inline_ctx.offset;
             let valid = absolute_pos > 0 && {

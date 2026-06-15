@@ -45,6 +45,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A trailing ` +` hard line break on the last line of a block (at end-of-input or
+  immediately before a blank line) now renders as a line break instead of a literal
+  `+`, matching `asciidoctor`. A nested span ending in ` +` (e.g. `` `code +` ``, a
+  footnote, or a link label) still stays literal.
 - An auto-generated section id from a title that starts with non-alphanumeric
   characters (e.g. `=== -- Specialized Environments`) no longer gains a doubled
   leading underscore (`__specialized_environments`); leading separators are now

@@ -1,0 +1,11 @@
+A trailing break +
+
+next paragraph
+
+A mid break +
+continues on this line
+
+Literal monospace plus `code +` stays literal
+
+Outer break after monospace `code +` +
+and continues

@@ -78,6 +78,11 @@ pub(crate) struct ParserState<'a> {
     /// Used to correctly fail boundary checks when the outer delimiter is a
     /// word character (only `_` among the formatting delimiters).
     pub(crate) outer_constrained_delimiter: Option<u8>,
+    /// True when this state was created by `for_inline_parsing`, i.e. it parses
+    /// a nested span re-parsed from inside an inline rule rather than top-level
+    /// block content. Used to decide `InlineContext::block_level` for the inline
+    /// sub-parse it spawns.
+    pub(crate) is_inline_subparse: bool,
     /// Context set before entering the PEG inline parser. These fields are
     /// constant within a single `inlines()` call, allowing rules to be
     /// argument-free and thus cacheable by the PEG packrat memoizer.
@@ -106,6 +111,12 @@ pub(crate) struct InlineContext {
     /// Independent of `subs_flags`: this is suppressed inside link/url/xref
     /// macro contents to avoid nested-autolink mis-parses.
     pub(crate) allow_autolinks: bool,
+    /// Whether this is the outermost (block-content) inline parse, as opposed
+    /// to a nested span re-parse made from inside an inline rule (monospace,
+    /// bold, link, footnote, …). Only the block-content parse may treat a
+    /// trailing ` +` at end-of-input as a hard line break; a nested span ending
+    /// in ` +` stays literal, matching asciidoctor.
+    pub(crate) block_level: bool,
 }
 
 impl Default for InlineContext {
@@ -114,6 +125,7 @@ impl Default for InlineContext {
             offset: 0,
             subs_flags: SubsFlags::default(),
             allow_autolinks: true,
+            block_level: false,
         }
     }
 }
@@ -245,6 +257,7 @@ impl<'a> ParserState<'a> {
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: false,
             outer_constrained_delimiter: None,
+            is_inline_subparse: false,
             inline_ctx: InlineContext::default(),
             next_at_sign_cache: Cell::new(None),
         }
@@ -275,6 +288,7 @@ impl<'a> ParserState<'a> {
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: true,
             outer_constrained_delimiter: None,
+            is_inline_subparse: false,
             inline_ctx: InlineContext::default(),
             next_at_sign_cache: Cell::new(None),
         }
@@ -302,6 +316,7 @@ impl<'a> ParserState<'a> {
             warnings: Rc::clone(&parent.warnings),
             quotes_only: parent.quotes_only,
             outer_constrained_delimiter: parent.outer_constrained_delimiter,
+            is_inline_subparse: true,
             inline_ctx: parent.inline_ctx,
             next_at_sign_cache: Cell::new(None),
         }

@@ -185,6 +185,9 @@ pub(crate) fn parse_inlines<'a>(
     inline_peg_state.inline_ctx.offset = 0;
     inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
     inline_peg_state.inline_ctx.allow_autolinks = true;
+    // Block-level only when the caller is a top-level block parse, not a nested
+    // span re-parse from inside an inline rule (those run on an inline sub-state).
+    inline_peg_state.inline_ctx.block_level = !state.is_inline_subparse;
 
     let inlines = if inline_peg_state.quotes_only {
         inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
@@ -219,6 +222,9 @@ pub(crate) fn parse_inlines_no_autolinks<'a>(
     inline_peg_state.inline_ctx.offset = 0;
     inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
     inline_peg_state.inline_ctx.allow_autolinks = false;
+    // `*_no_autolinks` is only reached from inside link/url/xref macro rules, so
+    // this is always a nested span re-parse, never block-level.
+    inline_peg_state.inline_ctx.block_level = !state.is_inline_subparse;
 
     let inlines = match inline_parser::inlines_no_autolinks(text, &mut inline_peg_state) {
         Ok(inlines) => inlines,
