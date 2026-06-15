@@ -95,7 +95,9 @@ fn set_aggregate_author_attrs<'a>(header: &Header<'a>, attrs: &mut DocumentAttri
         "authors".into(),
         AttributeValue::String(all_names.join(", ").into()),
     );
-    attrs.insert(
+    // `authorcount` has a default of "0" (so `{authorcount}` resolves to 0 for
+    // author-less documents); `set` overrides that default with the real count.
+    attrs.set(
         "authorcount".into(),
         AttributeValue::String(header.authors.len().to_string().into()),
     );

@@ -72,6 +72,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   entries into the document body. Comment lines between the title and the author line are
   skipped, and multiple authors are separated by `;`, matching `asciidoctor`. Such a
   non-standard author line also raises a `WarningKind::NonStandardAuthorLine` warning.
+- A `//` line comment between the author line and the revision line is now
+  skipped, so the revision (and any following attribute entries) is still read,
+  matching `asciidoctor`.
+- `{revnumber}` no longer keeps the leading `v` from a `vX.Y` revision line
+  (`v2.0` now resolves to `2.0`), matching `asciidoctor`.
+- `{authorcount}` resolves to `0` for a document with no author (rather than
+  staying an unresolved reference), matching `asciidoctor`.
 - In pipe (`|`) tables (the default
   [PSV](https://docs.asciidoctor.org/asciidoc/latest/tables/data-format/#default-table-syntax)
   format), a cell's content can span multiple lines, and a row can be written across

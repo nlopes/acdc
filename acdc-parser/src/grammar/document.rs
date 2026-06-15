@@ -1219,7 +1219,7 @@ peg::parser! {
 
         rule authors_and_revision() -> Vec<Author<'input>>
             // Capture the author line, substitute any attribute references, then parse
-            = start:position!() author_line:$([^'\n']+) end:position!() (eol() revision_pre_substitution())? {?
+            = start:position!() author_line:$([^'\n']+) end:position!() (eol() (comment() eol())* revision_pre_substitution())? {?
                 let substituted_cow = substitute(author_line.trim(), HEADER, &state.document_attributes);
                 // Intern any owned substitution result so the downstream
                 // `authors()` parse can yield `Author<'input>` that outlives
@@ -1292,7 +1292,7 @@ peg::parser! {
             }
 
         pub(crate) rule revision() -> ()
-            = number:$("v"? digits() ++ ".") date:revision_date()? remark:revision_remark()? {
+            = "v"? number:$(digits() ++ ".") date:revision_date()? remark:revision_remark()? {
                 let revision_info = RevisionInfo {
                     number: Cow::Owned(number.to_string()),
                     date: date.map(|d| Cow::Owned(d.to_string())),
@@ -5273,7 +5273,7 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(header.authors[1].email, Some("nlopesml@gmail.com"));
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".into()))
+            Some(&AttributeValue::String("2.9".into()))
         );
         assert_eq!(
             state.document_attributes.get("revdate"),
@@ -5411,7 +5411,7 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".into()))
+            Some(&AttributeValue::String("2.9".into()))
         );
         assert_eq!(
             state.document_attributes.get("revdate"),
@@ -5432,7 +5432,7 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".into()))
+            Some(&AttributeValue::String("2.9".into()))
         );
         assert_eq!(
             state.document_attributes.get("revdate"),
@@ -5450,7 +5450,7 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".into()))
+            Some(&AttributeValue::String("2.9".into()))
         );
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(
@@ -5468,10 +5468,53 @@ v2.9, 01-09-2024: Fall incarnation
         document_parser::revision(input, &mut state)?;
         assert_eq!(
             state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("v2.9".into()))
+            Some(&AttributeValue::String("2.9".into()))
         );
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(state.document_attributes.get("revremark"), None);
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_comment_between_author_and_revision() -> Result<(), Error> {
+        // asciidoctor skips a line comment between the author line and the
+        // revision line and still reads the revision (and following attributes).
+        let input = "= T
+Roberto Avanzi
+// a comment
+v2.0, 2026-01-15: rel
+:foo: bar";
+        let mut state = ParserState::new_for_test(input);
+        let result = document_parser::document(input, &mut state)??;
+        let header = result.header.expect("document has a header");
+        assert_eq!(header.authors.len(), 1);
+        assert_eq!(header.authors[0].first_name, "Roberto");
+        assert_eq!(
+            state.document_attributes.get("revnumber"),
+            Some(&AttributeValue::String("2.0".into()))
+        );
+        assert_eq!(
+            state.document_attributes.get("revdate"),
+            Some(&AttributeValue::String("2026-01-15".into()))
+        );
+        assert_eq!(
+            state.document_attributes.get("foo"),
+            Some(&AttributeValue::String("bar".into()))
+        );
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_authorcount_defaults_to_zero_without_author() -> Result<(), Error> {
+        let input = "= T\n\nbody";
+        let mut state = ParserState::new_for_test(input);
+        document_parser::document(input, &mut state)??;
+        assert_eq!(
+            state.document_attributes.get("authorcount"),
+            Some(&AttributeValue::String("0".into()))
+        );
         Ok(())
     }
 

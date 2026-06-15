@@ -100,6 +100,8 @@ pub(crate) const DEFAULT_ATTRIBUTE_ENTRIES: &[(AttributeName<'static>, Attribute
         str_attr("idprefix", "_"),
         str_attr("idseparator", "_"),
         (Cow::Borrowed("sectids"), AttributeValue::Bool(true)),
+        // Author metadata (overridden when an author line / :author: is present)
+        str_attr("authorcount", "0"),
         // Attribute processing compliance
         str_attr("attribute-missing", "skip"),
         str_attr("attribute-undefined", "drop-line"),
