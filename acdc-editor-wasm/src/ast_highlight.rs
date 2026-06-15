@@ -1081,9 +1081,9 @@ mod tests {
 
     #[test]
     fn test_title_highlight() {
-        // A bare `= Title` without attributes is parsed as a level-0 section
+        // A bare `= Title` is recognised as the document title (doctitle)
         let result = highlight("= Document title");
-        assert!(result.contains("adoc-heading"), "result: {result}");
+        assert!(result.contains("adoc-title"), "result: {result}");
     }
 
     #[test]
