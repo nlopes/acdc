@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A list continuation marker (`+`) on its own line with nothing to attach (the next
+  line is blank or the document ends) is now dropped instead of being rendered as a
+  literal `+` paragraph, matching `asciidoctor`. This commonly appears as a trailing
+  `+` after a block attached to a list item; the list now continues uninterrupted to
+  the following items rather than being split in two.
 - A delimited block (example `====`, listing `----`, literal `....`, sidebar
   `****`, quote `____`, open `--`, comment `////`, passthrough `++++`, and the
   Markdown ```` ``` ```` fence) whose opening delimiter runs to end of input with no

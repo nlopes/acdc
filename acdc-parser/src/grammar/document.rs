@@ -3193,6 +3193,7 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
+        list_dangling_continuation()?
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -3294,6 +3295,7 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
+        list_dangling_continuation()?
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -3476,6 +3478,7 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
+        list_dangling_continuation()?
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -3575,6 +3578,7 @@ peg::parser! {
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
         ) { cont })*
+        list_dangling_continuation()?
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
@@ -4113,6 +4117,23 @@ peg::parser! {
         {
             tracing::debug!("List ancestor continuation block (1+ empty lines)");
             block
+        }
+
+        // Consume a "dangling" list continuation marker: a `+` on its own line with no
+        // attachable block after it (the following line is blank, or the input ends).
+        // asciidoctor silently drops such a marker; without this the leftover `+` is
+        // parsed as a standalone paragraph and prematurely terminates the list. Only
+        // tried after the immediate/ancestor continuation rules, so a `+` with real
+        // content still attaches.
+        //
+        // We consume up to and including the marker's own line terminator, then assert a
+        // blank line or end of input follows (`&(eol() / ![_])`) — that lookahead is what
+        // makes it "dangling": a `+` with real content on the next line is left alone. Any
+        // following blank line is left unconsumed so the list resumes with the next item.
+        rule list_dangling_continuation()
+        = eol()+ "+" whitespace()* eol()? &(eol() / ![_])
+        {
+            tracing::debug!("Dropped dangling list continuation marker");
         }
 
         // Parse a quoted paragraph: "content" followed by `-- attribution[, citation]`
