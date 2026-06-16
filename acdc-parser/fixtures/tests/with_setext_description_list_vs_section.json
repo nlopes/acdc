@@ -130,9 +130,9 @@
       ]
     },
     {
-      "name": "paragraph",
+      "name": "section",
       "type": "block",
-      "inlines": [
+      "title": [
         {
           "name": "text",
           "type": "string",
@@ -149,101 +149,28 @@
           ]
         }
       ],
-      "location": [
+      "level": 1,
+      "blocks": [
         {
-          "line": 8,
-          "col": 1
-        },
-        {
-          "line": 8,
-          "col": 10
-        }
-      ]
-    },
-    {
-      "name": "break",
-      "type": "block",
-      "variant": "thematic",
-      "location": [
-        {
-          "line": 9,
-          "col": 1
-        },
-        {
-          "line": 9,
-          "col": 3
-        }
-      ]
-    },
-    {
-      "name": "break",
-      "type": "block",
-      "variant": "thematic",
-      "location": [
-        {
-          "line": 9,
-          "col": 4
-        },
-        {
-          "line": 9,
-          "col": 6
-        }
-      ]
-    },
-    {
-      "name": "break",
-      "type": "block",
-      "variant": "thematic",
-      "location": [
-        {
-          "line": 9,
-          "col": 7
-        },
-        {
-          "line": 9,
-          "col": 9
-        }
-      ]
-    },
-    {
-      "name": "paragraph",
-      "type": "block",
-      "inlines": [
-        {
-          "name": "text",
-          "type": "string",
-          "value": "-",
-          "location": [
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
             {
-              "line": 9,
-              "col": 10
-            },
-            {
-              "line": 9,
-              "col": 10
+              "name": "text",
+              "type": "string",
+              "value": "Paragraph under the setext section.",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 35
+                }
+              ]
             }
-          ]
-        }
-      ],
-      "location": [
-        {
-          "line": 9,
-          "col": 10
-        },
-        {
-          "line": 9,
-          "col": 10
-        }
-      ]
-    },
-    {
-      "name": "paragraph",
-      "type": "block",
-      "inlines": [
-        {
-          "name": "text",
-          "type": "string",
-          "value": "Paragraph under the setext section.",
+          ],
           "location": [
             {
               "line": 11,
@@ -258,7 +185,7 @@
       ],
       "location": [
         {
-          "line": 11,
+          "line": 8,
           "col": 1
         },
         {

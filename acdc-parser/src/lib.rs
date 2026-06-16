@@ -507,16 +507,35 @@ mod tests {
     #[rstest::rstest]
     #[tracing_test::traced_test]
     fn test_with_fixtures(#[files("fixtures/tests/**/*.adoc")] path: PathBuf) -> Result<(), Error> {
-        #[cfg(not(feature = "pre-spec-subs"))]
-        if path
+        let stem = path
             .file_stem()
             .and_then(|stem| stem.to_str())
-            .is_some_and(|stem| stem.starts_with("subs_"))
-        {
+            .unwrap_or("");
+
+        #[cfg(not(feature = "pre-spec-subs"))]
+        if stem.starts_with("subs_") {
             return Ok(());
         }
 
-        let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        // Fixtures whose name contains `with_setext` exercise Setext (two-line
+        // underlined) headings, which are opt-in: their expected JSON captures the
+        // `--enable-setext-compatibility` behaviour. Skip when the feature is off
+        // (the AST would diverge); enable the option when it is on. The `with_`
+        // prefix keeps the marker unambiguous (vs a future `without_setext`).
+        let setext_fixture = stem.contains("with_setext");
+        #[cfg(not(feature = "setext"))]
+        if setext_fixture {
+            return Ok(());
+        }
+
+        let builder = Options::builder().with_safe_mode(SafeMode::Unsafe);
+        #[cfg(feature = "setext")]
+        let builder = if setext_fixture {
+            builder.with_setext()
+        } else {
+            builder
+        };
+        let options = builder.build();
 
         match parse_file(&path, &options) {
             Ok(result) => {

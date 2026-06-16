@@ -1,0 +1,10 @@
+Before.
+
+****
+Outer sidebar, unterminated.
+
+====
+Inner example, terminated.
+====
+
+After inner, still in sidebar.

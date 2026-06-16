@@ -56,6 +56,488 @@ fn check_delimiters(
     }
 }
 
+/// Resolve a delimited block's closing delimiter into its `close_delimiter_location`.
+///
+/// When the block was closed (`p.close` is `Some((close_start, close_delim))`),
+/// validate the delimiter pairing and return the close location. When it ran to
+/// end of input unclosed (`p.close` is `None`), emit an
+/// [`UnterminatedDelimitedBlock`](crate::WarningKind::UnterminatedDelimitedBlock)
+/// warning anchored at the opening delimiter and return `None`, so the block is
+/// still produced — matching asciidoctor's recovery (it warns and closes the
+/// block at EOF).
+fn resolve_delimited_close<'input>(
+    state: &mut ParserState<'input>,
+    p: &DelimitedParams<'input>,
+) -> Result<Option<Location>, Error> {
+    if let Some((close_start, close_delim)) = p.close {
+        check_delimiters(
+            p.open_delim,
+            close_delim,
+            p.kind.name(),
+            state.create_error_source_location(
+                state.create_block_location(p.start, p.end, p.offset),
+            ),
+        )?;
+        Ok(Some(state.create_block_location(
+            close_start,
+            p.end,
+            p.offset,
+        )))
+    } else {
+        let open_delimiter_location = state.create_location(
+            p.open_start + p.offset,
+            p.open_start + p.offset + p.open_delim.len().saturating_sub(1),
+        );
+        state.add_warning(crate::Warning::new(
+            crate::WarningKind::UnterminatedDelimitedBlock {
+                kind: p.kind.name(),
+                delimiter: p.open_delim.to_string(),
+            },
+            Some(state.create_error_source_location(open_delimiter_location)),
+        ));
+        Ok(None)
+    }
+}
+
+/// Which delimited block an opening delimiter introduces. Drives
+/// [`build_delimited_block`]'s dispatch and the `kind` carried by an
+/// `UnterminatedDelimitedBlock` warning. The Markdown ```` ``` ```` fence maps to
+/// [`DelimitedKind::Listing`] (it differs only by carrying a language).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum DelimitedKind {
+    Example,
+    Comment,
+    Listing,
+    Literal,
+    Open,
+    Sidebar,
+    Pass,
+    Quote,
+}
+
+impl DelimitedKind {
+    /// Block name used in the `unterminated <name> block` warning and the
+    /// mismatched-delimiter error.
+    fn name(self) -> &'static str {
+        match self {
+            DelimitedKind::Example => "example",
+            DelimitedKind::Comment => "comment",
+            DelimitedKind::Listing => "listing",
+            DelimitedKind::Literal => "literal",
+            DelimitedKind::Open => "open",
+            DelimitedKind::Sidebar => "sidebar",
+            DelimitedKind::Pass => "pass",
+            DelimitedKind::Quote => "quote",
+        }
+    }
+}
+
+/// Parse a delimited block's inner text as nested blocks. Empty content yields
+/// no blocks; a parse error is logged (with positions remapped to the original
+/// source) and recovered as an empty block list, matching the per-rule behaviour
+/// the delimited-block rules previously inlined.
+fn parse_block_content<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    content: &'input str,
+    content_start: usize,
+    offset: usize,
+    error_context: &str,
+) -> Result<Vec<Block<'input>>, Error> {
+    if content.trim().is_empty() {
+        Ok(Vec::new())
+    } else {
+        document_parser::blocks(
+            content,
+            state,
+            content_start + offset,
+            block_metadata.parent_section_level,
+        )
+        .unwrap_or_else(|e| {
+            adjust_and_log_parse_error(&e, content, content_start + offset, state, error_context);
+            Ok(Vec::new())
+        })
+    }
+}
+
+/// Whether a quote block's attribution/citetitle text looks like it contains
+/// inline markup worth re-parsing through the inline pipeline (#373).
+fn quote_needs_inline_processing(content: &str) -> bool {
+    content.contains("://")
+        || content.contains('[')
+        || content.contains('{')
+        || content.contains('*')
+        || content.contains('_')
+        || content.contains('`')
+        || content.contains("<<")
+        || content.contains("link:")
+        || content.contains("mailto:")
+}
+
+/// A matched delimited-block open/content/optional-close, ready for construction.
+/// Bundling these (rather than passing ~11 arguments) mirrors `TableParseParams`.
+/// `close` is `None` when the block ran to end of input unclosed.
+struct DelimitedParams<'input> {
+    kind: DelimitedKind,
+    /// The opening delimiter as it appeared in source (e.g. `"===="`).
+    open_delim: &'input str,
+    /// Language captured after a Markdown ```` ``` ```` fence, if any.
+    lang: Option<&'input str>,
+    content: &'input str,
+    open_start: usize,
+    start: usize,
+    content_start: usize,
+    content_end: usize,
+    /// End offset of the whole block (`span_end`).
+    end: usize,
+    offset: usize,
+    close: Option<(usize, &'input str)>,
+}
+
+/// Build a delimited block from a matched [`DelimitedParams`]. This is the single
+/// construction site for every non-table delimited block: the grammar's generic
+/// `delimited_block` rule matches the open/content/close skeleton once and
+/// delegates here, mirroring how table rules delegate to `parse_table_block_impl`.
+/// An absent `close` means the block ran to end of input; `resolve_delimited_close`
+/// emits the unterminated warning and the block is still produced (closed at EOF),
+/// matching asciidoctor. Per-kind construction lives in the `*_inner` helpers.
+fn build_delimited_block<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> Result<Block<'input>, Error> {
+    let close_delimiter_location = resolve_delimited_close(state, p)?;
+    let location = state.create_block_location(p.start, p.end, p.offset);
+    let open_delimiter_location = state.create_location(
+        p.open_start + p.offset,
+        p.open_start + p.offset + p.open_delim.len().saturating_sub(1),
+    );
+    let mut metadata = block_metadata.metadata.clone();
+
+    let inner = match p.kind {
+        // An example block can become an admonition (a different `Block` variant),
+        // so it constructs and returns the whole block itself.
+        DelimitedKind::Example => {
+            return build_example_block(
+                state,
+                block_metadata,
+                metadata,
+                p,
+                location,
+                open_delimiter_location,
+                close_delimiter_location,
+            );
+        }
+        DelimitedKind::Comment => comment_inner(state, &mut metadata, p),
+        DelimitedKind::Listing | DelimitedKind::Literal => {
+            verbatim_inner(state, block_metadata, &mut metadata, p)
+        }
+        DelimitedKind::Open => open_inner(state, block_metadata, &mut metadata, p)?,
+        DelimitedKind::Sidebar => sidebar_inner(state, block_metadata, &mut metadata, p)?,
+        DelimitedKind::Pass => pass_inner(state, &mut metadata, p),
+        DelimitedKind::Quote => quote_inner(state, block_metadata, &mut metadata, p)?,
+    };
+
+    Ok(assemble_delimited(
+        metadata,
+        p.open_delim,
+        inner,
+        block_metadata.title.clone(),
+        location,
+        open_delimiter_location,
+        close_delimiter_location,
+    ))
+}
+
+/// Assemble the common `Block::DelimitedBlock` shell shared by every kind.
+fn assemble_delimited<'input>(
+    metadata: BlockMetadata<'input>,
+    open_delim: &'input str,
+    inner: DelimitedBlockType<'input>,
+    title: Title<'input>,
+    location: Location,
+    open_delimiter_location: Location,
+    close_delimiter_location: Option<Location>,
+) -> Block<'input> {
+    Block::DelimitedBlock(DelimitedBlock {
+        metadata,
+        delimiter: open_delim,
+        inner,
+        title,
+        location,
+        open_delimiter_location: Some(open_delimiter_location),
+        close_delimiter_location,
+    })
+}
+
+/// `====` example block, or an admonition when carrying an admonition style.
+fn build_example_block<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    mut metadata: BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+    location: Location,
+    open_delimiter_location: Location,
+    close_delimiter_location: Option<Location>,
+) -> Result<Block<'input>, Error> {
+    metadata.move_positional_attributes_to_attributes();
+    let blocks = parse_block_content(
+        state,
+        block_metadata,
+        p.content,
+        p.content_start,
+        p.offset,
+        "Error parsing example content as blocks in example block",
+    )?;
+    // An admonition style (NOTE/TIP/…) turns the example block into an admonition.
+    if let Some(style) = block_metadata.metadata.style
+        && let Ok(variant) = style.parse::<AdmonitionVariant>()
+    {
+        metadata.style = None;
+        return Ok(Block::Admonition(
+            Admonition::new(variant, blocks, location)
+                .with_metadata(metadata)
+                .with_title(block_metadata.title.clone()),
+        ));
+    }
+    Ok(assemble_delimited(
+        metadata,
+        p.open_delim,
+        DelimitedBlockType::DelimitedExample(blocks),
+        block_metadata.title.clone(),
+        location,
+        open_delimiter_location,
+        close_delimiter_location,
+    ))
+}
+
+/// `////` comment block: the raw inner text, rendered nowhere.
+fn comment_inner<'input>(
+    state: &ParserState<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> DelimitedBlockType<'input> {
+    metadata.move_positional_attributes_to_attributes();
+    let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
+    DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
+        content: p.content,
+        location: content_location,
+        escaped: false,
+    })])
+}
+
+/// Verbatim block (`----` listing or `....` literal, including the Markdown fence):
+/// resolves callouts and records the verbatim state for a following callout list.
+fn verbatim_inner<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> DelimitedBlockType<'input> {
+    // A Markdown fence language becomes a positional `source` style so language
+    // detection works like `[source,lang]` (never set for `....`/`----`).
+    if let Some(language) = p.lang {
+        metadata.positional_attributes.insert(0, language);
+        metadata.style = Some("source");
+    }
+    metadata.move_positional_attributes_to_attributes();
+    let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
+    let (inlines, callouts) = resolve_verbatim_callouts(
+        state.arena,
+        p.content,
+        content_location,
+        block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
+    );
+    state.last_block_was_verbatim = true;
+    state.last_verbatim_callouts = callouts;
+    if p.kind == DelimitedKind::Literal {
+        DelimitedBlockType::DelimitedLiteral(inlines)
+    } else {
+        DelimitedBlockType::DelimitedListing(inlines)
+    }
+}
+
+/// `--` open block, or a non-rendering comment when carrying a `[comment]` style.
+fn open_inner<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> Result<DelimitedBlockType<'input>, Error> {
+    metadata.move_positional_attributes_to_attributes();
+    if block_metadata.metadata.style == Some("comment") {
+        metadata.style = None;
+        let content_location =
+            state.create_block_location(p.content_start, p.content_end, p.offset);
+        return Ok(DelimitedBlockType::DelimitedComment(vec![
+            InlineNode::PlainText(Plain {
+                content: p.content,
+                location: content_location,
+                escaped: false,
+            }),
+        ]));
+    }
+    let blocks = parse_block_content(
+        state,
+        block_metadata,
+        p.content,
+        p.content_start,
+        p.offset,
+        "Error parsing content as blocks in open block",
+    )?;
+    Ok(DelimitedBlockType::DelimitedOpen(blocks))
+}
+
+/// `****` sidebar block.
+fn sidebar_inner<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> Result<DelimitedBlockType<'input>, Error> {
+    metadata.move_positional_attributes_to_attributes();
+    let blocks = parse_block_content(
+        state,
+        block_metadata,
+        p.content,
+        p.content_start,
+        p.offset,
+        "Error parsing sidebar content as blocks",
+    )?;
+    Ok(DelimitedBlockType::DelimitedSidebar(blocks))
+}
+
+/// `++++` passthrough block, or a stem block when carrying a `[stem]` style.
+fn pass_inner<'input>(
+    state: &ParserState<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> DelimitedBlockType<'input> {
+    metadata.move_positional_attributes_to_attributes();
+    if metadata.style == Some("stem") {
+        let notation = match state.document_attributes.get("stem") {
+            Some(AttributeValue::String(s)) => {
+                s.parse::<StemNotation>().unwrap_or(StemNotation::Latexmath)
+            }
+            _ => StemNotation::Latexmath,
+        };
+        metadata.style = None;
+        DelimitedBlockType::DelimitedStem(StemContent {
+            content: p.content,
+            notation,
+        })
+    } else {
+        let content_location =
+            state.create_block_location(p.content_start, p.content_end, p.offset);
+        DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
+            content: p.content,
+            location: content_location,
+            subs: vec![],
+        })])
+    }
+}
+
+/// `____` quote block (or `[verse]`): re-parses attribution/citetitle markup, then
+/// parses the body as nested blocks (verse keeps the raw text).
+fn quote_inner<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    p: &DelimitedParams<'input>,
+) -> Result<DelimitedBlockType<'input>, Error> {
+    metadata.move_positional_attributes_to_attributes();
+    reprocess_quote_attribution(state, block_metadata, metadata, p.offset);
+
+    if metadata.style == Some("verse") {
+        let content_location =
+            state.create_block_location(p.content_start, p.content_end, p.offset);
+        Ok(DelimitedBlockType::DelimitedVerse(vec![
+            InlineNode::PlainText(Plain {
+                content: p.content,
+                location: content_location,
+                escaped: false,
+            }),
+        ]))
+    } else if metadata.style.is_some() {
+        // A styled (non-verse) quote always parses its body, even when empty.
+        let blocks = document_parser::blocks(
+            p.content,
+            state,
+            p.content_start + p.offset,
+            block_metadata.parent_section_level,
+        )
+        .unwrap_or_else(|e| {
+            adjust_and_log_parse_error(
+                &e,
+                p.content,
+                p.content_start + p.offset,
+                state,
+                "Error parsing example content as blocks in quote block",
+            );
+            Ok(Vec::new())
+        })?;
+        Ok(DelimitedBlockType::DelimitedQuote(blocks))
+    } else {
+        let blocks = parse_block_content(
+            state,
+            block_metadata,
+            p.content,
+            p.content_start,
+            p.offset,
+            "Error parsing content as blocks in quote block",
+        )?;
+        Ok(DelimitedBlockType::DelimitedQuote(blocks))
+    }
+}
+
+/// Re-parse a quote block's attribution and citetitle through the inline pipeline
+/// so URLs, macros, and formatting resolve (#373). Each is collected before
+/// reassigning to release the borrow on `metadata`.
+fn reprocess_quote_attribution<'input>(
+    state: &mut ParserState<'input>,
+    block_metadata: &BlockParsingMetadata<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    offset: usize,
+) {
+    let attribution = if let Some(ref attr) = metadata.attribution
+        && let Some(InlineNode::PlainText(plain)) = attr.first()
+        && quote_needs_inline_processing(plain.content)
+    {
+        Some((
+            plain.content,
+            plain.location.absolute_start.saturating_sub(offset),
+            plain.location.absolute_end.saturating_sub(offset),
+        ))
+    } else {
+        None
+    };
+    if let Some((content, start, end)) = attribution
+        && let Ok(inlines) = process_inlines(state, block_metadata, start, end, offset, content)
+        && !inlines.is_empty()
+    {
+        metadata.attribution = Some(Attribution::new(inlines));
+    }
+
+    let citetitle = if let Some(ref cite) = metadata.citetitle
+        && let Some(InlineNode::PlainText(plain)) = cite.first()
+        && quote_needs_inline_processing(plain.content)
+    {
+        Some((
+            plain.content,
+            plain.location.absolute_start.saturating_sub(offset),
+            plain.location.absolute_end.saturating_sub(offset),
+        ))
+    } else {
+        None
+    };
+    if let Some((content, start, end)) = citetitle
+        && let Ok(inlines) = process_inlines(state, block_metadata, start, end, offset, content)
+        && !inlines.is_empty()
+    {
+        metadata.citetitle = Some(CiteTitle::new(inlines));
+    }
+}
+
 /// Insert an anchor into the cross-reference catalog with optional reference text.
 fn insert_reference<'a>(
     refs: &mut HashMap<&'a str, Reference<'a>>,
@@ -2054,15 +2536,70 @@ peg::parser! {
             offset: usize,
             block_metadata: &BlockParsingMetadata<'input>,
         ) -> Result<Block<'input>, Error>
-        = comment_block(start, offset, block_metadata)
-        / example_block(start, offset, block_metadata)
-        / listing_block(start, offset, block_metadata)
-        / literal_block(start, offset, block_metadata)
-        / open_block(start, offset, block_metadata)
-        / sidebar_block(start, offset, block_metadata)
+        = generic_delimited_block(start, offset, block_metadata)
         / table_block(start, offset, block_metadata)
-        / pass_block(start, offset, block_metadata)
-        / quote_block(start, offset, block_metadata)
+
+        // Every non-table delimited block shares one open/content/optional-close
+        // skeleton. `block_open` recognises which kind a delimiter introduces and
+        // `build_delimited_block` constructs the right block — the same split tables
+        // use (`*_table_block` rules + `parse_table_block_impl`). The optional close
+        // and the `(eol() / ![_])` after the open delimiter let an opener that runs
+        // to end of input still produce a block, closed at EOF (asciidoctor's
+        // recovery; `build_delimited_block` emits the unterminated warning).
+        rule generic_delimited_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = open_start:position!() open:block_open() (eol() / ![_])
+              content_start:position!() content:until_block_close(open.1) content_end:position!()
+              close:(eol() close_start:position!() close_delim:block_close_delim(open.1) { (close_start, close_delim) })?
+        {
+            build_delimited_block(state, block_metadata, &DelimitedParams {
+                kind: open.0, open_delim: open.1, lang: open.2, content,
+                open_start, start, content_start, content_end, end: span_end, offset, close,
+            })
+        }
+
+        // Recognise a non-table delimited-block opening delimiter, returning its
+        // kind, the literal delimiter, and (for a Markdown ``` fence) an optional
+        // language. Listing (`-`×4+) is tried before open (`--`) so `----` is a
+        // listing, not a too-short open block.
+        rule block_open() -> (DelimitedKind, &'input str, Option<&'input str>)
+            = d:comment_delimiter()  { (DelimitedKind::Comment, d, None) }
+            / d:example_delimiter()  { (DelimitedKind::Example, d, None) }
+            / d:listing_delimiter()  { (DelimitedKind::Listing, d, None) }
+            / d:literal_delimiter()  { (DelimitedKind::Literal, d, None) }
+            / d:open_delimiter()     { (DelimitedKind::Open, d, None) }
+            / d:sidebar_delimiter()  { (DelimitedKind::Sidebar, d, None) }
+            / d:pass_delimiter()     { (DelimitedKind::Pass, d, None) }
+            / d:quote_delimiter()    { (DelimitedKind::Quote, d, None) }
+            / d:markdown_code_delimiter() lang:markdown_language()? { (DelimitedKind::Listing, d, lang) }
+
+        // Content up to (but not including) a closing delimiter line exactly equal
+        // to `expected`, or end of input. Generic over delimiter type; the exact
+        // comparison in `block_close_delim` keeps a different-length or
+        // different-character run from closing the block.
+        rule until_block_close(expected: &str) -> &'input str
+            = content:$((!(eol() block_close_delim(expected)) [_])*) { content }
+
+        // A maximal run of a single block-delimiter character equal to `expected`.
+        // Per-character alternatives (not a mixed character class) so a run stops
+        // at the first foreign character, exactly like the old per-type rules.
+        rule block_close_delim(expected: &str) -> &'input str
+            = delim:$("="+ / "/"+ / "-"+ / "."+ / "*"+ / "_"+ / "+"+ / "~"+ / "`"+)
+              {? if delim == expected { Ok(delim) } else { Err("delimiter mismatch") } }
+
+        // A `////` comment block specifically. The generic `delimited_block` covers
+        // this in normal flow, but a list/description-list continuation needs to
+        // match *only* a comment block (to absorb it after a `+`), so this gated
+        // entry point reuses the shared skeleton and builder.
+        rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
+            = open_start:position!() open_delim:comment_delimiter() (eol() / ![_])
+              content_start:position!() content:until_block_close(open_delim) content_end:position!()
+              close:(eol() close_start:position!() close_delim:block_close_delim(open_delim) { (close_start, close_delim) })?
+        {
+            build_delimited_block(state, block_metadata, &DelimitedParams {
+                kind: DelimitedKind::Comment, open_delim, lang: None, content,
+                open_start, start, content_start, content_end, end: span_end, offset, close,
+            })
+        }
 
         // Delimiter recognition rules
         rule comment_delimiter() -> &'input str = delim:$("/"*<4,>) { delim }
@@ -2085,47 +2622,6 @@ peg::parser! {
         rule markdown_code_delimiter() -> &'input str = delim:$("`"*<3,>) { delim }
         rule quote_delimiter() -> &'input str = delim:$("_"*<4,>) { delim }
 
-        // Exact delimiter matching rules - these use conditional actions to ensure
-        // the matched delimiter is identical to the expected one. This prevents
-        // content lines that happen to contain delimiter-like characters (but of
-        // different length) from being incorrectly treated as closing delimiters.
-        rule exact_comment_delimiter(expected: &str) -> &'input str
-            = delim:comment_delimiter() {? if delim == expected { Ok(delim) } else { Err("comment delimiter mismatch") } }
-        rule exact_example_delimiter(expected: &str) -> &'input str
-            = delim:example_delimiter() {? if delim == expected { Ok(delim) } else { Err("example delimiter mismatch") } }
-        rule exact_listing_delimiter(expected: &str) -> &'input str
-            = delim:listing_delimiter() {? if delim == expected { Ok(delim) } else { Err("listing delimiter mismatch") } }
-        rule exact_literal_delimiter(expected: &str) -> &'input str
-            = delim:literal_delimiter() {? if delim == expected { Ok(delim) } else { Err("literal delimiter mismatch") } }
-        rule exact_open_delimiter(expected: &str) -> &'input str
-            = delim:open_delimiter() {? if delim == expected { Ok(delim) } else { Err("open delimiter mismatch") } }
-        rule exact_sidebar_delimiter(expected: &str) -> &'input str
-            = delim:sidebar_delimiter() {? if delim == expected { Ok(delim) } else { Err("sidebar delimiter mismatch") } }
-        rule exact_pass_delimiter(expected: &str) -> &'input str
-            = delim:pass_delimiter() {? if delim == expected { Ok(delim) } else { Err("pass delimiter mismatch") } }
-        rule exact_markdown_code_delimiter(expected: &str) -> &'input str
-            = delim:markdown_code_delimiter() {? if delim == expected { Ok(delim) } else { Err("markdown code delimiter mismatch") } }
-        rule exact_quote_delimiter(expected: &str) -> &'input str
-            = delim:quote_delimiter() {? if delim == expected { Ok(delim) } else { Err("quote delimiter mismatch") } }
-
-        rule until_comment_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_comment_delimiter(expected)) [_])*) { content }
-
-        rule until_example_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_example_delimiter(expected)) [_])*) { content }
-
-        rule until_listing_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_listing_delimiter(expected)) [_])*) { content }
-
-        rule until_literal_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_literal_delimiter(expected)) [_])*) { content }
-
-        rule until_open_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_open_delimiter(expected)) [_])*) { content }
-
-        rule until_sidebar_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_sidebar_delimiter(expected)) [_])*) { content }
-
         rule until_table_delimiter() -> &'input str
         = content:$((!(eol() table_delimiter()) [_])*) { content }
 
@@ -2144,316 +2640,8 @@ peg::parser! {
         rule until_colon_table_delimiter() -> &'input str
         = content:$((!(eol() colon_table_delimiter()) [_])*) { content }
 
-        rule until_pass_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_pass_delimiter(expected)) [_])*) { content }
-
-        rule until_quote_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_quote_delimiter(expected)) [_])*) { content }
-
-        rule until_markdown_code_delimiter(expected: &str) -> &'input str
-        = content:$((!(eol() exact_markdown_code_delimiter(expected)) [_])*) { content }
-
         rule markdown_language() -> &'input str
         = lang:$((['a'..='z'] / ['A'..='Z'] / ['0'..='9'] / "_" / "+" / "-")+) { lang }
-
-        rule example_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = open_start:position!() open_delim:example_delimiter() eol()
-        content_start:position!() content:until_example_delimiter(open_delim) content_end:position!()
-        eol() close_start:position!() close_delim:example_delimiter()
-        {
-            tracing::debug!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing example block");
-
-            check_delimiters(open_delim, close_delim, "example", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            let blocks = if content.trim().is_empty() {
-                Vec::new()
-            } else {
-                document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing example content as blocks in example block");
-                    Ok(Vec::new())
-                })?
-            };
-
-            // We want to detect if this is an admonition block. We do that by checking if
-            // we have a style that matches an admonition variant.
-            if let Some(style) = block_metadata.metadata.style &&
-            let Ok(admonition_variant) = AdmonitionVariant::from_str(style) {
-                tracing::debug!(?admonition_variant, "Detected admonition block with variant");
-                metadata.style = None; // Clear style to avoid confusion (reuse existing clone)
-                return Ok(Block::Admonition(Admonition::new(admonition_variant, blocks, location).with_metadata(metadata).with_title(block_metadata.title.clone())));
-            }
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata, // Use the existing clone instead of cloning again
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedExample(blocks),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:comment_delimiter() eol()
-            content_start:position!() content:until_comment_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:comment_delimiter()
-        {
-            check_delimiters(open_delim, close_delim, "comment", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-
-            let location = state.create_block_location(start, span_end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata,
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
-                    content,
-                    location: content_location,
-                    escaped: false,
-                })]),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        rule listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = traditional_listing_block(start, offset, block_metadata)
-            / markdown_listing_block(start, offset, block_metadata)
-
-        rule traditional_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:listing_delimiter() eol()
-            content_start:position!() content:until_listing_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:listing_delimiter()
-        {
-            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            let (inlines, callouts) = resolve_verbatim_callouts(
-                state.arena,
-                content,
-                content_location,
-                block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
-            );
-            state.last_block_was_verbatim = true;
-            state.last_verbatim_callouts = callouts;
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedListing(inlines),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        rule markdown_listing_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:markdown_code_delimiter() lang:markdown_language()? eol()
-            content_start:position!() content:until_markdown_code_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:markdown_code_delimiter()
-        {
-            check_delimiters(open_delim, close_delim, "listing", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-
-            // If we captured a language, add it as a positional attribute and set style
-            // to "source". This matches the behavior of [source,lang] blocks so that
-            // detect_language() works.
-            if let Some(language) = lang {
-                metadata.positional_attributes.insert(0, language);
-                metadata.style = Some("source");
-            }
-
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            let (inlines, callouts) = resolve_verbatim_callouts(
-                state.arena,
-                content,
-                content_location,
-                block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
-            );
-            state.last_block_was_verbatim = true;
-            state.last_verbatim_callouts = callouts;
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedListing(inlines),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        pub(crate) rule literal_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        =
-        open_start:position!()
-        open_delim:literal_delimiter()
-        eol()
-        content_start:position!() content:until_literal_delimiter(open_delim) content_end:position!()
-        eol()
-        close_start:position!()
-        close_delim:literal_delimiter()
-        {
-            check_delimiters(open_delim, close_delim, "literal", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            let (inlines, callouts) = resolve_verbatim_callouts(
-                state.arena,
-                content,
-                content_location,
-                block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
-            );
-            state.last_block_was_verbatim = true;
-            state.last_verbatim_callouts = callouts;
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata,
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedLiteral(inlines),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        rule open_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:open_delimiter() eol()
-            content_start:position!() content:until_open_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:open_delimiter()
-        {
-            check_delimiters(open_delim, close_delim, "open", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            // A `[comment]` style turns the open block into a comment that
-            // produces no output. Keep it as a `DelimitedComment` holding the
-            // raw inner text, rather than parsing the body into blocks. The `--`
-            // delimiter already distinguishes it from a `////` comment block, so
-            // the now-redundant `comment` style is dropped.
-            if block_metadata.metadata.style == Some("comment") {
-                let content_location = state.create_block_location(content_start, content_end, offset);
-                metadata.style = None;
-                return Ok(Block::DelimitedBlock(DelimitedBlock {
-                    metadata,
-                    delimiter: open_delim,
-                    inner: DelimitedBlockType::DelimitedComment(vec![InlineNode::PlainText(Plain {
-                        content,
-                        location: content_location,
-                        escaped: false,
-                    })]),
-                    title: block_metadata.title.clone(),
-                    location,
-                    open_delimiter_location: Some(open_delimiter_location),
-                    close_delimiter_location: Some(close_delimiter_location),
-                }));
-            }
-
-            let blocks = if content.trim().is_empty() {
-                Vec::new()
-            } else {
-                document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing content as blocks in open block");
-                    Ok(Vec::new())
-                })?
-            };
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedOpen(blocks),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        rule sidebar_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:sidebar_delimiter() eol()
-            content_start:position!() content:until_sidebar_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:sidebar_delimiter()
-        {
-            tracing::debug!(?start, ?offset, ?content_start, ?block_metadata, ?content, "Parsing sidebar block");
-
-            check_delimiters(open_delim, close_delim, "sidebar", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            let blocks = if content.trim().is_empty() {
-                Vec::new()
-            } else {
-                document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                    adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing sidebar content as blocks");
-                    Ok(Vec::new())
-                })?
-            };
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim,
-                inner: DelimitedBlockType::DelimitedSidebar(blocks),
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
 
         // Table block dispatcher - tries each delimiter-specific variant in order.
         // This enables nested tables: |=== outer can contain !=== inner because
@@ -2609,169 +2797,6 @@ peg::parser! {
                 state,
                 block_metadata,
             )
-        }
-
-        rule pass_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:pass_delimiter() eol()
-            content_start:position!() content:until_pass_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:pass_delimiter()
-        {
-            check_delimiters(open_delim, close_delim, "pass", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            // Check if this is a stem block
-            let inner = if let Some(style) = metadata.style {
-                if style == "stem" {
-                    // Get notation from :stem: document attribute
-                    let notation = match state.document_attributes.get("stem") {
-                        Some(AttributeValue::String(s)) => {
-                            StemNotation::from_str(s).unwrap_or(StemNotation::Latexmath)
-                        }
-                        Some(AttributeValue::Bool(true) | AttributeValue::None) => {
-                            StemNotation::Latexmath
-                        }
-                        _ => StemNotation::Latexmath,
-                    };
-                    metadata.style = None; // Clear style to avoid confusion
-                    DelimitedBlockType::DelimitedStem(StemContent {
-                        content,
-                        notation,
-                    })
-                } else {
-                    DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-                        content,
-                        location: content_location,
-                        subs: vec![],
-                    })])
-                }
-            } else {
-                DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
-                    content,
-                    location: content_location,
-                    subs: vec![],
-                })])
-            };
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim,
-                inner,
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
-        }
-
-        rule quote_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-            = open_start:position!() open_delim:quote_delimiter() eol()
-            content_start:position!() content:until_quote_delimiter(open_delim) content_end:position!()
-            eol() close_start:position!() close_delim:quote_delimiter()
-        {
-            // Parse attribution/citetitle through the inline pipeline so that URLs,
-            // macros, and other inline markup are properly resolved (#373).
-            // Only re-parse if the content contains characters that suggest
-            // inline markup is present (URLs, macros, formatting, etc.).
-            fn needs_inline_processing(content: &str) -> bool {
-                content.contains("://") || content.contains('[') || content.contains('{')
-                    || content.contains('*') || content.contains('_') || content.contains('`')
-                    || content.contains("<<") || content.contains("link:") || content.contains("mailto:")
-            }
-
-            check_delimiters(open_delim, close_delim, "quote", state.create_error_source_location(state.create_block_location(start, span_end, offset)))?;
-            let mut metadata = block_metadata.metadata.clone();
-            metadata.move_positional_attributes_to_attributes();
-            let location = state.create_block_location(start, span_end, offset);
-            let content_location = state.create_block_location(content_start, content_end, offset);
-            let open_delimiter_location = state.create_location(
-                open_start + offset,
-                open_start + offset + open_delim.len().saturating_sub(1),
-            );
-            let close_delimiter_location = state.create_block_location(close_start, span_end, offset);
-
-            // Collect params first (releases the borrow on metadata.attribution
-            // before we reassign below).
-            let attribution_params = if let Some(ref attr) = metadata.attribution
-            && let Some(InlineNode::PlainText(plain)) = attr.first()
-            && needs_inline_processing(plain.content)
-            {
-                let attr_pos = PositionWithOffset {
-                    offset: plain.location.absolute_start.saturating_sub(offset),
-                    position: plain.location.start.clone(),
-                };
-                let attr_end = plain.location.absolute_end.saturating_sub(offset);
-                let content: &'input str = plain.content;
-                Some((content, attr_pos, attr_end))
-            } else { None };
-            if let Some((content, attr_pos, attr_end)) = attribution_params
-                && let Ok(inlines) = process_inlines(state, block_metadata, attr_pos.offset, attr_end, offset, content)
-                && !inlines.is_empty()
-            {
-                metadata.attribution = Some(Attribution::new(inlines));
-            }
-
-            let citetitle_params = if let Some(ref cite) = metadata.citetitle
-            && let Some(InlineNode::PlainText(plain)) = cite.first()
-            && needs_inline_processing(plain.content)
-            {
-                let cite_pos = PositionWithOffset {
-                    offset: plain.location.absolute_start.saturating_sub(offset),
-                    position: plain.location.start.clone(),
-                };
-                let cite_end = plain.location.absolute_end.saturating_sub(offset);
-                let content: &'input str = plain.content;
-                Some((content, cite_pos, cite_end))
-            } else { None };
-            if let Some((content, cite_pos, cite_end)) = citetitle_params
-                && let Ok(inlines) = process_inlines(state, block_metadata, cite_pos.offset, cite_end, offset, content)
-                && !inlines.is_empty()
-            {
-                metadata.citetitle = Some(CiteTitle::new(inlines));
-            }
-
-            let inner = if let Some(style) = metadata.style {
-                if style == "verse" {
-                    DelimitedBlockType::DelimitedVerse(vec![InlineNode::PlainText(Plain {
-                        content,
-                        location: content_location.clone(),
-                        escaped: false,
-                    })])
-                } else {
-                    let blocks = document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                        adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing example content as blocks in quote block");
-                        Ok(Vec::new())
-                    })?;
-                    DelimitedBlockType::DelimitedQuote(blocks)
-                }
-            } else {
-                let blocks = if content.trim().is_empty() {
-                    Vec::new()
-                } else {
-                    document_parser::blocks(content, state, content_start+offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
-                        adjust_and_log_parse_error(&e, content, content_start+offset, state, "Error parsing content as blocks in quote block");
-                        Ok(Vec::new())
-                    })?
-                };
-                DelimitedBlockType::DelimitedQuote(blocks)
-            };
-
-            Ok(Block::DelimitedBlock(DelimitedBlock {
-                metadata: metadata.clone(),
-                delimiter: open_delim,
-                inner,
-                title: block_metadata.title.clone(),
-                location,
-                open_delimiter_location: Some(open_delimiter_location),
-                close_delimiter_location: Some(close_delimiter_location),
-            }))
         }
 
         rule toc(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
@@ -7154,6 +7179,92 @@ References.
         assert!(
             has_warning,
             "expected unterminated table warning through parse(), got: {:?}",
+            res.warnings(),
+        );
+    }
+
+    /// Every delimited block whose opening delimiter runs to end of input
+    /// without a close is still produced (closed at EOF) and emits an
+    /// `UnterminatedDelimitedBlock` warning carrying the block kind and the
+    /// literal opening delimiter — matching asciidoctor's recovery.
+    #[test]
+    fn test_unterminated_delimited_blocks_emit_warning() -> Result<(), Error> {
+        // (delimiter line + content, expected kind, expected opening delimiter).
+        // A leading `para\n\n` keeps the delimiter in the document body — a
+        // `////` at the very start would otherwise be eaten by the header's
+        // leading-comment scan.
+        let cases = [
+            ("====\ntext", "example", "===="),
+            ("----\ntext", "listing", "----"),
+            ("....\ntext", "literal", "...."),
+            ("****\ntext", "sidebar", "****"),
+            ("____\ntext", "quote", "____"),
+            ("--\ntext", "open", "--"),
+            ("////\ntext", "comment", "////"),
+            ("++++\ntext", "pass", "++++"),
+            ("```\ntext", "listing", "```"),
+        ];
+        for (block, want_kind, want_delim) in cases {
+            let input = &format!("para\n\n{block}");
+            let mut state = ParserState::new_for_test(input);
+            let doc = document_parser::document(input, &mut state)??;
+            let warnings = state.warnings.borrow();
+            assert!(
+                warnings.iter().any(|w| matches!(
+                    &w.kind,
+                    crate::WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
+                        if *kind == want_kind && delimiter == want_delim,
+                )),
+                "expected unterminated {want_kind} warning for input {input:?}, got: {warnings:?}",
+            );
+            // The block is still produced and recorded as unterminated (no
+            // closing delimiter location).
+            assert!(
+                doc.blocks.iter().any(|b| matches!(
+                    b,
+                    Block::DelimitedBlock(d) if d.close_delimiter_location.is_none(),
+                )),
+                "expected an unterminated delimited block for input {input:?}, got: {:?}",
+                doc.blocks,
+            );
+        }
+        Ok(())
+    }
+
+    /// A properly closed delimited block must not emit the unterminated warning.
+    #[test]
+    fn test_terminated_delimited_block_no_warning() -> Result<(), Error> {
+        let input = "====\ntext\n====";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::UnterminatedDelimitedBlock { .. },
+            )),
+            "a closed example block should not warn, got: {warnings:?}",
+        );
+        Ok(())
+    }
+
+    /// Exercised through the public `parse` entry point (which runs the
+    /// preprocessor, stripping the trailing newline) so a lone `====\n`
+    /// source still reaches the grammar as an unterminated block.
+    #[test]
+    fn test_unterminated_example_through_parse_entry() {
+        let opts = crate::Options::default();
+        let res = crate::parse("====\ntext\n", &opts).expect("parse should succeed");
+        let has_warning = res.warnings().iter().any(|w| {
+            matches!(
+                &w.kind,
+                crate::WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
+                    if *kind == "example" && delimiter == "====",
+            )
+        });
+        assert!(
+            has_warning,
+            "expected unterminated example warning through parse(), got: {:?}",
             res.warnings(),
         );
     }

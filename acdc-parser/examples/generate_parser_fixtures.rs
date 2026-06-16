@@ -25,7 +25,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let path = entry.path();
         let json_path = path.with_extension("json");
 
-        let options = acdc_parser::Options::default();
+        // Fixtures whose name contains `with_setext` capture the opt-in Setext
+        // heading behaviour, so they must be generated with
+        // `--enable-setext-compatibility` (matching the fixture test runner). This
+        // requires the `setext` feature; skip them otherwise so we never overwrite
+        // their JSON with the feature-off (non-Setext) parse. The `with_` prefix
+        // keeps the marker unambiguous (vs a future `without_setext`).
+        let setext_fixture = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .is_some_and(|s| s.contains("with_setext"));
+
+        #[cfg(not(feature = "setext"))]
+        if setext_fixture {
+            println!(
+                "{} Skipped {} (needs the `setext` feature)",
+                PrintStyledContent("⏭️".yellow()),
+                path.display()
+            );
+            continue;
+        }
+
+        let builder = acdc_parser::Options::builder();
+        #[cfg(feature = "setext")]
+        let builder = if setext_fixture {
+            builder.with_setext()
+        } else {
+            builder
+        };
+        let options = builder.build();
         match acdc_parser::parse_file(&path, &options) {
             Ok(parsed) => {
                 let json = serde_json::to_string_pretty(parsed.document())?;
