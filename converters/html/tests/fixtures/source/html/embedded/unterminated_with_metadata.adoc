@@ -1,0 +1,8 @@
+Intro paragraph.
+
+.An example title
+[#myid.myrole]
+====
+This example has a title, id and role but no closing delimiter.
+
+A second paragraph inside.

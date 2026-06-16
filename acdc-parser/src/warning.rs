@@ -46,7 +46,8 @@ impl Warning {
             WarningKind::SectionLevelOutOfSequence { .. } => Some(
                 "Section levels must increment by at most one. Renumber the heading so it is one level deeper than its parent (the document title counts as level 0).",
             ),
-            WarningKind::UnterminatedTable { .. } => Some(
+            WarningKind::UnterminatedTable { .. }
+            | WarningKind::UnterminatedDelimitedBlock { .. } => Some(
                 "The opening delimiter was found but no matching closing delimiter was seen before end of document. Add the closing delimiter on its own line, or remove the opening delimiter if not intended.",
             ),
             WarningKind::NonStandardAuthorLine { .. } => Some(
@@ -113,6 +114,25 @@ pub enum WarningKind {
     /// source (e.g. `"|==="`, `"!====="`).
     #[error("unterminated table block (opened by `{delimiter}`)")]
     UnterminatedTable {
+        /// The opening delimiter that was left unmatched.
+        delimiter: String,
+    },
+
+    /// A delimited block's opening delimiter was matched but no corresponding
+    /// closing delimiter was found before end of input. Matches asciidoctor's
+    /// "unterminated <kind> block" warning; the block is still rendered,
+    /// closed at end of input. Tables use the separate [`UnterminatedTable`]
+    /// variant.
+    ///
+    /// `delimiter` is the literal opening token as it appeared in the source
+    /// (e.g. `"===="`, `"----"`).
+    ///
+    /// [`UnterminatedTable`]: WarningKind::UnterminatedTable
+    #[error("unterminated {kind} block (opened by `{delimiter}`)")]
+    UnterminatedDelimitedBlock {
+        /// The block kind: `"example"`, `"listing"`, `"literal"`,
+        /// `"sidebar"`, `"quote"`, `"open"`, `"comment"`, or `"pass"`.
+        kind: &'static str,
         /// The opening delimiter that was left unmatched.
         delimiter: String,
     },

@@ -45,6 +45,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A delimited block (example `====`, listing `----`, literal `....`, sidebar
+  `****`, quote `____`, open `--`, comment `////`, passthrough `++++`, and the
+  Markdown ```` ``` ```` fence) whose opening delimiter runs to end of input with no
+  closing delimiter is now closed at end of input and still rendered, with a
+  `WarningKind::UnterminatedDelimitedBlock` warning — matching `asciidoctor`.
+  Previously this either aborted the parse with a hard error (e.g. an
+  unterminated `====`) or leaked the opening delimiter into a literal paragraph.
 - A document whose only content is a title (`= Title` with no body, no author
   line, and no following blank line) is now recognized as the document title
   rather than rendered as a level-0 section, matching `asciidoctor`. Applies to
