@@ -169,6 +169,33 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
     Ok(())
 }
 
+#[test]
+fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
+    // An explicit `[<style>]` on an ordered list sets the CSS class (and `<ol type>`
+    // where applicable), overriding the depth-derived default. Matches asciidoctor.
+    let cases = [
+        ("arabic", "<ol class=\"arabic\">"),
+        ("decimal", "<ol class=\"decimal\">"),
+        ("loweralpha", "<ol class=\"loweralpha\" type=\"a\">"),
+        ("upperalpha", "<ol class=\"upperalpha\" type=\"A\">"),
+        ("lowerroman", "<ol class=\"lowerroman\" type=\"i\">"),
+        ("upperroman", "<ol class=\"upperroman\" type=\"I\">"),
+        ("lowergreek", "<ol class=\"lowergreek\">"),
+    ];
+    for (style, expected_ol) in cases {
+        let html = convert_string(&format!("[{style}]\n. one\n. two\n"), &[])?;
+        assert!(
+            html.contains(expected_ol),
+            "style `{style}` should render `{expected_ol}`:\n{html}"
+        );
+        assert!(
+            html.contains(&format!("<div class=\"olist {style}\">")),
+            "style `{style}` should render `<div class=\"olist {style}\">`:\n{html}"
+        );
+    }
+    Ok(())
+}
+
 #[cfg(feature = "highlighting")]
 mod syntax_highlighting {
     use super::*;

@@ -30,6 +30,33 @@ fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
     }
 }
 
+/// Map an explicit numbering-style attribute (e.g. `[upperalpha]`) to its CSS class
+/// and `<ol type>` value, returning `None` for any other style so the caller falls
+/// back to the depth-derived default. The `(class, type)` pairs match asciidoctor.
+fn explicit_ordered_list_style(style: &str) -> Option<(&'static str, Option<&'static str>)> {
+    match style {
+        "arabic" => Some(("arabic", None)),
+        "decimal" => Some(("decimal", None)),
+        "loweralpha" => Some(("loweralpha", Some("a"))),
+        "upperalpha" => Some(("upperalpha", Some("A"))),
+        "lowerroman" => Some(("lowerroman", Some("i"))),
+        "upperroman" => Some(("upperroman", Some("I"))),
+        "lowergreek" => Some(("lowergreek", None)),
+        _ => None,
+    }
+}
+
+/// Resolve an ordered list's numbering style: an explicit `[style]` attribute wins,
+/// otherwise it cycles by nesting `depth`.
+fn resolve_ordered_list_style(
+    style: Option<&str>,
+    depth: u8,
+) -> (&'static str, Option<&'static str>) {
+    style
+        .and_then(explicit_ordered_list_style)
+        .unwrap_or_else(|| ordered_list_style(depth))
+}
+
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_unordered_list(
         &mut self,
@@ -99,7 +126,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             ));
         }
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
-        let (style, type_attr) = ordered_list_style(depth);
+        let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
 
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
         let has_title = !list.title.is_empty();
@@ -569,7 +596,7 @@ fn render_bare_olist_semantic<W: Write>(
 ) -> Result<(), Error> {
     let raw_depth = list.marker.matches('.').count().max(1);
     let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
-    let (style, type_attr) = ordered_list_style(depth);
+    let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
     let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
 
     if let Some(t) = type_attr {

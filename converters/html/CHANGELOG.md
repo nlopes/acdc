@@ -208,6 +208,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An ordered list with an explicit numbering style (`[arabic]`, `[decimal]`,
+  `[loweralpha]`, `[upperalpha]`, `[lowerroman]`, `[upperroman]`, `[lowergreek]`)
+  now renders that style's `olist`/`<ol>` class and `<ol type>` instead of the
+  numbering derived from nesting depth, matching `asciidoctor`.
 - The header revision span (`<span id="revnumber">`) derives its version word
   from the `version-label` attribute (lowercased, e.g. a custom
   `:version-label: Rev:` gives `rev 2.0`) instead of a fixed `version`, only
