@@ -41,6 +41,7 @@ use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 pub mod code;
 mod doctype;
 pub mod icon;
+pub mod list;
 pub mod section;
 pub mod substitutions;
 pub mod table;

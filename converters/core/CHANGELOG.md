@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `list::OrderedListNumbering` — resolves an ordered list's explicit `[style]`
+  attribute (`arabic`, `decimal`, `loweralpha`, `upperalpha`, `lowerroman`,
+  `upperroman`, `lowergreek`) and formats a 1-based item position into its marker
+  text, shared by the terminal and manpage backends.
 - `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
   per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
   Previously lived in the HTML converter; promoted so terminal, manpage, and

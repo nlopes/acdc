@@ -5,6 +5,7 @@ use std::io::Write;
 use acdc_converters_core::{
     Diagnostics,
     code::detect_language,
+    list::OrderedListNumbering,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
@@ -196,6 +197,23 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
+        // Markdown (CommonMark/GFM) can only express numeric ordered markers.
+        // An explicit numbering style that isn't already numeric (arabic/decimal)
+        // is rendered numerically, with a warning.
+        if let Some(numbering) = list
+            .metadata
+            .style
+            .and_then(OrderedListNumbering::from_explicit_style)
+            && !matches!(
+                numbering,
+                OrderedListNumbering::Arabic | OrderedListNumbering::Decimal
+            )
+        {
+            self.write_warning(
+                "non-numeric ordered list numbering styles",
+                "rendering numerically",
+            )?;
+        }
         self.visit_list_items(&list.items, "1.")
     }
 

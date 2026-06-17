@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Description list fallback rendering** — description lists now render as unordered
   lists with bold terms and indented descriptions, instead of only emitting a warning
   comment.
+- **Ordered list numbering-style warning** — ordered lists with an explicit
+  non-numeric numbering style (`upperalpha`, `loweralpha`, `lowerroman`,
+  `upperroman`, `lowergreek`, ...) now emit a warning that Markdown cannot
+  represent the style and render with numeric markers. Numeric styles
+  (`arabic`, `decimal`) and unstyled lists render numerically without a warning.
 
 ### Fixed
 

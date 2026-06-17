@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    list::OrderedListNumbering,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     Block, CalloutList, DescriptionList, ListItem, ListItemCheckedStatus, OrderedList,
     UnorderedList,
@@ -13,48 +16,49 @@ fn has_checklist_items(items: &[ListItem]) -> bool {
     items.iter().any(|item| item.checked.is_some())
 }
 
-/// Get the ordered list style for a given nesting depth
+/// The numbering style for a list at the given nesting `depth`.
 /// Cycles through: arabic -> loweralpha -> lowerroman -> upperalpha -> upperroman -> arabic...
 ///
 /// Note: This differs from asciidoctor, which stops cycling after depth 5 and uses
 /// `arabic` for all depths > 5. We intentionally continue cycling to provide better
 /// visual distinction in deeply nested lists (6+ levels). This is a design decision
 /// that improves usability for deep hierarchies while maintaining consistency.
-fn ordered_list_style(depth: u8) -> (&'static str, Option<&'static str>) {
+fn numbering_for_depth(depth: u8) -> OrderedListNumbering {
     match depth % 5 {
-        2 => ("loweralpha", Some("a")), // a, b, c
-        3 => ("lowerroman", Some("i")), // i, ii, iii
-        4 => ("upperalpha", Some("A")), // A, B, C
-        0 => ("upperroman", Some("I")), // I, II, III (depth 5, 10, 15...)
-        _ => ("arabic", None),          // 1, 2, 3 (default type for depth 1, 6, 11...)
+        2 => OrderedListNumbering::LowerAlpha, // a, b, c
+        3 => OrderedListNumbering::LowerRoman, // i, ii, iii
+        4 => OrderedListNumbering::UpperAlpha, // A, B, C
+        0 => OrderedListNumbering::UpperRoman, // I, II, III (depth 5, 10, 15...)
+        _ => OrderedListNumbering::Arabic,     // 1, 2, 3 (depth 1, 6, 11...)
     }
 }
 
-/// Map an explicit numbering-style attribute (e.g. `[upperalpha]`) to its CSS class
-/// and `<ol type>` value, returning `None` for any other style so the caller falls
-/// back to the depth-derived default. The `(class, type)` pairs match asciidoctor.
-fn explicit_ordered_list_style(style: &str) -> Option<(&'static str, Option<&'static str>)> {
-    match style {
-        "arabic" => Some(("arabic", None)),
-        "decimal" => Some(("decimal", None)),
-        "loweralpha" => Some(("loweralpha", Some("a"))),
-        "upperalpha" => Some(("upperalpha", Some("A"))),
-        "lowerroman" => Some(("lowerroman", Some("i"))),
-        "upperroman" => Some(("upperroman", Some("I"))),
-        "lowergreek" => Some(("lowergreek", None)),
-        _ => None,
+/// Map a numbering style to its CSS class and `<ol type>` value. The `(class, type)`
+/// pairs match asciidoctor.
+fn numbering_class_and_type(
+    numbering: OrderedListNumbering,
+) -> (&'static str, Option<&'static str>) {
+    match numbering {
+        OrderedListNumbering::Arabic => ("arabic", None),
+        OrderedListNumbering::Decimal => ("decimal", None),
+        OrderedListNumbering::LowerAlpha => ("loweralpha", Some("a")),
+        OrderedListNumbering::UpperAlpha => ("upperalpha", Some("A")),
+        OrderedListNumbering::LowerRoman => ("lowerroman", Some("i")),
+        OrderedListNumbering::UpperRoman => ("upperroman", Some("I")),
+        OrderedListNumbering::LowerGreek => ("lowergreek", None),
     }
 }
 
-/// Resolve an ordered list's numbering style: an explicit `[style]` attribute wins,
-/// otherwise it cycles by nesting `depth`.
+/// Resolve an ordered list's `(class, type)`: an explicit `[style]` attribute wins,
+/// otherwise the style cycles by nesting `depth`.
 fn resolve_ordered_list_style(
     style: Option<&str>,
     depth: u8,
 ) -> (&'static str, Option<&'static str>) {
-    style
-        .and_then(explicit_ordered_list_style)
-        .unwrap_or_else(|| ordered_list_style(depth))
+    let numbering = style
+        .and_then(OrderedListNumbering::from_explicit_style)
+        .unwrap_or_else(|| numbering_for_depth(depth));
+    numbering_class_and_type(numbering)
 }
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
@@ -246,7 +250,7 @@ fn render_checked_status_list<W: Write + ?Sized>(
 ) -> Result<(), Error> {
     // Open nested list
     if is_ordered {
-        let (style, type_attr) = ordered_list_style(depth);
+        let (style, type_attr) = numbering_class_and_type(numbering_for_depth(depth));
         if !semantic {
             write!(writer, "<div class=\"olist {style}")?;
             if checked.is_some() {

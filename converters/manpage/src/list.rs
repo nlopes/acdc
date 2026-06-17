@@ -5,7 +5,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    list::OrderedListNumbering,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     CalloutList, DescriptionList, InlineNode, ListItemCheckedStatus, OrderedList, UnorderedList,
 };
@@ -77,11 +80,16 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
     /// Visit an ordered (numbered) list.
     pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
+        let numbering = list
+            .metadata
+            .style
+            .and_then(OrderedListNumbering::from_explicit_style)
+            .unwrap_or_default();
         self.with_list_scope(&list.title, |visitor| {
             for (i, item) in list.items.iter().enumerate() {
                 let w = visitor.writer_mut();
                 // Numbered item with 4-character indent
-                writeln!(w, ".IP {}. 4", i + 1)?;
+                writeln!(w, ".IP {}. 4", numbering.format(i + 1))?;
 
                 // Visit principal text
                 if !item.principal.is_empty() {

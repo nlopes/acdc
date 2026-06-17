@@ -129,6 +129,40 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     Ok(())
 }
 
+#[test]
+fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
+    // An explicit `[<style>]` on an ordered list drives the literal marker text.
+    let cases = [
+        ("upperalpha", ["A. one", "B. two", "C. three"]),
+        ("loweralpha", ["a. one", "b. two", "c. three"]),
+        ("lowerroman", ["i. one", "ii. two", "iii. three"]),
+        ("upperroman", ["I. one", "II. two", "III. three"]),
+        ("lowergreek", ["α. one", "β. two", "γ. three"]),
+    ];
+    for (style, expected_markers) in cases {
+        let input = format!("[{style}]\n. one\n. two\n. three\n");
+        let parser_options =
+            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parsed = acdc_parser::parse(&input, &parser_options)?;
+        let doc = parsed.document();
+        let mut output = Vec::new();
+        let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone())
+            .with_terminal_width(80);
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("terminal");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        let actual = String::from_utf8(output)?;
+        for marker in expected_markers {
+            assert!(
+                actual.contains(marker),
+                "style `{style}` should render marker `{marker}`:\n{actual}"
+            );
+        }
+    }
+    Ok(())
+}
+
 #[cfg(feature = "images")]
 #[test]
 fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error> {

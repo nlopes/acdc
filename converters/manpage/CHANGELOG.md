@@ -16,6 +16,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- An ordered list with an explicit numbering style (`[loweralpha]`, `[upperalpha]`,
+  `[lowerroman]`, `[upperroman]`, `[lowergreek]`, `[arabic]`, `[decimal]`) renders
+  its `.IP` tags in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`.
 - `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
   `(C)`, `->`, `...`) literal instead of converting to roff special glyphs.
 - User-facing converter warnings are now collected in `ConversionResult` for

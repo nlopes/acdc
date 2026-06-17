@@ -5,7 +5,10 @@ use crossterm::{
     style::{PrintStyledContent, Stylize},
 };
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    list::OrderedListNumbering,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{
     CalloutList, DescriptionList, DescriptionListItem, InlineNode, ListItem, ListItemCheckedStatus,
     OrderedList, UnorderedList,
@@ -80,11 +83,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         items: &[ListItem],
         indent: usize,
-        is_ordered: bool,
+        numbering: Option<OrderedListNumbering>,
         unicode: bool,
     ) -> Result<(), Error> {
         for (idx, item) in items.iter().enumerate() {
-            self.render_list_item(item, indent, is_ordered, idx + 1, unicode)?;
+            self.render_list_item(item, indent, numbering, idx + 1, unicode)?;
         }
         Ok(())
     }
@@ -98,14 +101,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         item: &ListItem,
         indent: usize,
-        is_ordered: bool,
+        numbering: Option<OrderedListNumbering>,
         item_number: usize,
         unicode: bool,
     ) -> Result<(), Error> {
         write_indent(&mut self.writer, indent)?;
 
-        if is_ordered {
-            write!(self.writer, "{item_number}.")?;
+        if let Some(numbering) = numbering {
+            write!(self.writer, "{}.", numbering.format(item_number))?;
         } else {
             write!(self.writer, "*")?;
         }
@@ -141,7 +144,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
         let unicode = self.processor.appearance.capabilities.unicode;
-        self.render_list_items(&list.items, indent, false, unicode)?;
+        self.render_list_items(&list.items, indent, None, unicode)?;
         Ok(())
     }
 
@@ -166,7 +169,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
         let unicode = self.processor.appearance.capabilities.unicode;
-        self.render_list_items(&list.items, indent, true, unicode)?;
+        let numbering = list
+            .metadata
+            .style
+            .and_then(OrderedListNumbering::from_explicit_style)
+            .unwrap_or_default();
+        self.render_list_items(&list.items, indent, Some(numbering), unicode)?;
         Ok(())
     }
 

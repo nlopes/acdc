@@ -102,3 +102,35 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
     }));
     Ok(())
 }
+
+#[test]
+fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
+    // An explicit `[<style>]` on an ordered list drives the `.IP` tag text.
+    let cases = [
+        ("upperalpha", [".IP A. 4", ".IP B. 4", ".IP C. 4"]),
+        ("lowerroman", [".IP i. 4", ".IP ii. 4", ".IP iii. 4"]),
+        ("lowergreek", [".IP α. 4", ".IP β. 4", ".IP γ. 4"]),
+    ];
+    for (style, expected_tags) in cases {
+        let input = format!("[{style}]\n. one\n. two\n. three\n");
+        let parser_options =
+            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parsed = acdc_parser::parse(&input, &parser_options)?;
+        let doc = parsed.document();
+        let mut output = Vec::new();
+        let converter_options = ConverterOptions::builder().embedded(true).build();
+        let processor = Processor::new(converter_options, doc.attributes.clone());
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("manpage");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+        let actual = String::from_utf8(output)?;
+        for tag in expected_tags {
+            assert!(
+                actual.contains(tag),
+                "style `{style}` should render `{tag}`:\n{actual}"
+            );
+        }
+    }
+    Ok(())
+}

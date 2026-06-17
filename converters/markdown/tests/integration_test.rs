@@ -115,6 +115,71 @@ fn test_commonmark_variant(
     Ok(())
 }
 
+/// Converts an `AsciiDoc` string to GFM Markdown, returning the output and any warnings.
+fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let doc = parsed.document();
+
+    let mut output = Vec::new();
+    let converter_options = ConverterOptions::builder()
+        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+        .build();
+    let processor = Processor::new(converter_options, doc.attributes.clone())
+        .with_variant(MarkdownVariant::GitHubFlavored);
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("markdown");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+
+    Ok((String::from_utf8(output)?, warnings))
+}
+
+fn has_numbering_style_warning(warnings: &[acdc_converters_core::Warning]) -> bool {
+    warnings.iter().any(|warning| {
+        warning
+            .message
+            .contains("non-numeric ordered list numbering styles not natively supported")
+    })
+}
+
+#[test]
+fn ordered_list_with_non_numeric_style_warns_and_renders_numerically() -> Result<(), Error> {
+    let (output, warnings) = convert_str("[upperalpha]\n. First\n. Second\n")?;
+
+    assert!(
+        has_numbering_style_warning(&warnings),
+        "expected a numbering-style warning, got: {warnings:?}"
+    );
+    assert!(output.contains("1. First"), "output was: {output}");
+    assert!(output.contains("2. Second"), "output was: {output}");
+    Ok(())
+}
+
+#[test]
+fn ordered_list_without_style_does_not_warn() -> Result<(), Error> {
+    let (output, warnings) = convert_str(". First\n. Second\n")?;
+
+    assert!(
+        !has_numbering_style_warning(&warnings),
+        "did not expect a numbering-style warning, got: {warnings:?}"
+    );
+    assert!(output.contains("1. First"), "output was: {output}");
+    Ok(())
+}
+
+#[test]
+fn ordered_list_with_arabic_style_does_not_warn() -> Result<(), Error> {
+    let (_output, warnings) = convert_str("[arabic]\n. First\n. Second\n")?;
+
+    assert!(
+        !has_numbering_style_warning(&warnings),
+        "did not expect a numbering-style warning, got: {warnings:?}"
+    );
+    Ok(())
+}
+
 #[test]
 fn unsupported_block_warning_is_returned_in_conversion_result() -> Result<(), Error> {
     let parser_options =
