@@ -1,0 +1,25 @@
+= Level-0 Appendix Numbering
+:doctype: book
+:sectnums:
+:toc:
+
+= Part One
+
+== Chapter
+
+Chapter body.
+
+[appendix]
+= App Part
+
+A level-0 `[appendix]` in a multi-part book is part-adjacent: in the TOC it sits
+at the part tier (alongside parts), and its subsections — which must be level 2
+(`===`) sections — are lettered like any appendix.
+
+=== First Subsection
+
+First subsection body.
+
+=== Second Subsection
+
+Second subsection body.
