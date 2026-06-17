@@ -1081,6 +1081,7 @@ mod tests {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
+            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
             variant: crate::HtmlVariant::Standard,
         }
     }

@@ -38,7 +38,8 @@ mod toc;
 mod video;
 
 pub(crate) use acdc_converters_core::section::{
-    AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style,
+    AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
+    last_section_has_style,
 };
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
@@ -141,6 +142,8 @@ pub struct Processor<'a> {
     part_number_tracker: PartNumberTracker,
     /// Appendix tracker for `[appendix]` style on level-0 sections.
     appendix_tracker: AppendixTracker,
+    /// Tracks special sections so their subsections skip `:sectnums:` numbering.
+    special_section_tracker: SpecialSectionTracker,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -244,6 +247,12 @@ impl<'a> Processor<'a> {
         &self.appendix_tracker
     }
 
+    /// Get a reference to the special-section tracker
+    #[must_use]
+    pub(crate) fn special_section_tracker(&self) -> &SpecialSectionTracker {
+        &self.special_section_tracker
+    }
+
     /// Generate a caption prefix based on document attributes.
     ///
     /// Returns the caption prefix string. If captions are disabled via `:X-caption!:`,
@@ -324,6 +333,7 @@ impl<'a> Processor<'a> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
+            special_section_tracker: SpecialSectionTracker::new(),
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
             table_counter: self.table_counter.clone(),
@@ -610,6 +620,7 @@ impl<'a> Processor<'a> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
+            special_section_tracker: SpecialSectionTracker::new(),
             variant,
         }
     }

@@ -36,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Word wrapping for content inside box-drawn blocks (sidebars, examples, admonitions, quote blocks)
 - Unicode-aware character width measurement for correct CJK and emoji wrapping
 - `Processor::with_terminal_width()` for deterministic width control in tests and fixture generation.
-- Section numbering support (`sectnums`, `partnums`, appendix tracking).
+- Section numbering support (`sectnums`, `partnums`, appendix tracking); special-style
+  sections (`[preface]`, `[glossary]`, etc.) and their subsections are left unnumbered.
 - Index term collection and alphabetized index catalog rendering (`[index]` sections).
 - Table column alignment and column style support (strong, emphasis, header).
 - Alternating row shading in tables for readability.

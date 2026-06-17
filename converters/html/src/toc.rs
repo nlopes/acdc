@@ -1,9 +1,11 @@
 use std::io::Write;
 
 use acdc_converters_core::{toc::Config as TocConfig, visitor::WritableVisitor};
-use acdc_parser::{AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, TableOfContents, TocEntry};
+use acdc_parser::{
+    AttributeValue, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, SectionKind, TableOfContents, TocEntry,
+};
 
-use acdc_converters_core::section::{DEFAULT_SECTION_LEVEL, to_upper_roman};
+use acdc_converters_core::section::{DEFAULT_SECTION_LEVEL, SpecialSectionTracker, to_upper_roman};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
@@ -24,7 +26,7 @@ struct TocRenderConfig<'a> {
 /// Returns the effective TOC level for an entry.
 /// Appendix level-0 entries are demoted to level 1.
 fn effective_toc_level(entry: &TocEntry) -> u8 {
-    if entry.level == 0 && entry.style.as_ref().is_some_and(|s| *s == "appendix") {
+    if entry.level == 0 && entry.kind == SectionKind::Appendix {
         1
     } else {
         entry.level
@@ -46,12 +48,17 @@ fn compute_toc_section_numbers(
     let mut appendix_counter: usize = 0;
     let mut numbers = Vec::with_capacity(entries.len());
 
+    // Decides which entries are excluded from numbering as special sections (or
+    // subsections of one). Fed every entry in order, mirroring the body walk.
+    let special = SpecialSectionTracker::new();
+
     for entry in entries {
         let level = entry.level;
-        let is_appendix = entry.style.as_ref().is_some_and(|s| *s == "appendix");
+        let numbered = special.enter(entry.level, entry.kind);
+        let is_appendix = entry.kind == SectionKind::Appendix;
 
         // Appendix sections: use letter numbering (A, B, C) instead of regular numbering.
-        // Check before the `!numbered` skip since appendix is in UNNUMBERED_SECTION_STYLES.
+        // Checked before the special-section skip so appendix gets its own label.
         if is_appendix {
             counters.fill(0);
             if let Some(caption) = config.appendix_caption {
@@ -85,10 +92,10 @@ fn compute_toc_section_numbers(
             continue;
         }
 
-        // Skip numbering for special sections (bibliography, glossary, etc.)
-        // Don't increment counters — subsequent sections continue the sequence.
+        // Skip numbering for special sections (and their subsections). Don't
+        // increment counters — subsequent sections continue the sequence.
         // Checked after appendix/part handling so those get their own labels.
-        if !entry.numbered {
+        if !numbered {
             numbers.push(None);
             continue;
         }

@@ -9,7 +9,7 @@ use std::{
     rc::Rc,
 };
 
-use acdc_parser::{AttributeValue, Block, DocumentAttributes, MAX_SECTION_LEVELS};
+use acdc_parser::{AttributeValue, Block, DocumentAttributes, MAX_SECTION_LEVELS, SectionKind};
 
 /// Whether the last section in `blocks` is tagged with the `[index]` style.
 ///
@@ -29,6 +29,54 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
 
 /// Default maximum section level for numbering.
 pub const DEFAULT_SECTION_LEVEL: u8 = 3;
+
+/// Decides which sections take part in `:sectnums:` numbering, accounting for
+/// `AsciiDoc` special sections.
+///
+/// A special section (`[preface]`, `[glossary]`, …) is not numbered, and neither
+/// are the subsections nested under it. `[appendix]` is special too, but it
+/// begins its own (letter-based) numbered sequence, so it does *not* suppress
+/// numbering for its descendants.
+///
+/// Feed every section to [`enter`](Self::enter) once, in document (pre-order)
+/// order — the same order both the body walk and the flat TOC list visit
+/// sections — so every converter applies the rule identically. State is shared
+/// across clones (like the other trackers here) so a cloned `Processor` keeps a
+/// single walk.
+#[derive(Clone, Debug, Default)]
+pub struct SpecialSectionTracker {
+    /// Levels at which a still-open suppressing ancestor section started.
+    suppress_levels: Rc<RefCell<Vec<u8>>>,
+}
+
+impl SpecialSectionTracker {
+    /// Create a new tracker.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record entering a section (in document order) and return whether it
+    /// participates in `:sectnums:` numbering.
+    ///
+    /// Returns `false` for a special section and for any section nested under a
+    /// non-appendix special section.
+    #[must_use]
+    pub fn enter(&self, level: u8, kind: SectionKind) -> bool {
+        let mut stack = self.suppress_levels.borrow_mut();
+        // Leaving any sibling-or-shallower subtree closes its suppression.
+        while stack.last().is_some_and(|&started_at| level <= started_at) {
+            stack.pop();
+        }
+        let inside_special = !stack.is_empty();
+        // Special sections suppress their descendants — except appendix, whose
+        // subsections continue its letter numbering.
+        if kind.is_special() && kind != SectionKind::Appendix {
+            stack.push(level);
+        }
+        !(inside_special || kind.is_special())
+    }
+}
 
 /// Tracks section numbers for `:sectnums:` attribute support.
 /// Maintains hierarchical counters (e.g., "1.", "1.1.", "1.1.1.").
@@ -263,6 +311,49 @@ impl AppendixTracker {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn special_tracker_numbers_normal_sections() {
+        let tracker = SpecialSectionTracker::new();
+        assert!(tracker.enter(1, SectionKind::Normal));
+        assert!(tracker.enter(2, SectionKind::Normal));
+        assert!(tracker.enter(1, SectionKind::Normal));
+    }
+
+    #[test]
+    fn special_tracker_suppresses_preface_subtree() {
+        let tracker = SpecialSectionTracker::new();
+        // [preface] == Introduction
+        assert!(!tracker.enter(1, SectionKind::Preface));
+        // === Features (nested) — unnumbered by inheritance
+        assert!(!tracker.enter(2, SectionKind::Normal));
+        // ==== Deeper (still nested) — unnumbered
+        assert!(!tracker.enter(3, SectionKind::Normal));
+        // == Real Chapter (sibling of the preface) — numbering resumes
+        assert!(tracker.enter(1, SectionKind::Normal));
+        assert!(tracker.enter(2, SectionKind::Normal));
+    }
+
+    #[test]
+    fn special_tracker_appendix_does_not_suppress_descendants() {
+        let tracker = SpecialSectionTracker::new();
+        // [appendix] == App — special, so not part of the normal numbered run
+        assert!(!tracker.enter(1, SectionKind::Appendix));
+        // === App Sub — appendix begins its own sequence, so the subsection is
+        // not suppressed the way a preface subsection would be.
+        assert!(tracker.enter(2, SectionKind::Normal));
+    }
+
+    #[test]
+    fn special_tracker_handles_special_within_special() {
+        let tracker = SpecialSectionTracker::new();
+        assert!(!tracker.enter(1, SectionKind::Preface));
+        // A nested special section is itself unnumbered, and so is its subtree.
+        assert!(!tracker.enter(2, SectionKind::Abstract));
+        assert!(!tracker.enter(3, SectionKind::Normal));
+        // Back out to a normal top-level section.
+        assert!(tracker.enter(1, SectionKind::Normal));
+    }
 
     fn attrs_with_sectnums() -> DocumentAttributes<'static> {
         let mut attrs = DocumentAttributes::default();

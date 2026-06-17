@@ -185,9 +185,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to plain text when the language isn't recognized. Requires `highlighting` feature flag.
 - **Section numbering** - Documents with `:sectnums:` attribute now render numbered
   section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:sectnumlevels:`
-  to control depth of numbering.
+  to control depth of numbering. Special-style sections (`[preface]`, `[glossary]`, etc.)
+  and every subsection nested under them are left unnumbered, matching asciidoctor.
 - **ToC numbering** - Table of contents entries are now numbered when `:sectnums:` is
-  set, matching asciidoctor behavior.
+  set, matching asciidoctor behavior (special-style sections and their subsections stay
+  unnumbered).
 - Table colspan and rowspan rendering (`colspan="n"` and `rowspan="n"` attributes on `<th>`/`<td>`)
 - Table visual attribute support:
   - `frame` attribute - controls outer border (`all`, `ends`/`topbot`, `sides`, `none`)

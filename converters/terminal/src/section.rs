@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::{DiscreteHeader, InlineNode, Section, UNNUMBERED_SECTION_STYLES};
+use acdc_parser::{DiscreteHeader, InlineNode, Section, SectionKind};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -15,19 +15,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let w = self.writer_mut();
         writeln!(w)?;
 
-        // Skip numbering for special section styles (bibliography, glossary, etc.)
-        let skip_numbering = section
-            .metadata
-            .style
-            .as_ref()
-            .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(s));
+        // Special sections (and every subsection nested under one) are excluded
+        // from `:sectnums:` numbering. Fed every section in document order.
+        let skip_numbering = !processor
+            .special_section_tracker
+            .enter(section.level, section.kind);
 
         // Check for appendix
-        let is_appendix = section
-            .metadata
-            .style
-            .as_ref()
-            .is_some_and(|s| *s == "appendix");
+        let is_appendix = section.kind == SectionKind::Appendix;
 
         // For appendix at level 0, treat as level 1
         let effective_level = if is_appendix && section.level == 0 {

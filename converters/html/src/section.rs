@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{DiscreteHeader, Section, UNNUMBERED_SECTION_STYLES};
+use acdc_parser::{DiscreteHeader, Section, SectionKind};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
@@ -17,11 +17,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
         let processor = self.processor.clone();
 
-        let is_index_section = section
-            .metadata
-            .style
-            .as_ref()
-            .is_some_and(|s| *s == "index");
+        let is_index_section = section.kind == SectionKind::Index;
         let render_catalog = is_index_section && processor.generate_index();
 
         self.render_section_header(section)?;
@@ -47,19 +43,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let processor = self.processor.clone();
         let id = Section::generate_id_string(&section.metadata, &section.title);
 
-        // Special section styles (bibliography, glossary, etc.) should not be numbered
-        let skip_numbering = section
-            .metadata
-            .style
-            .as_ref()
-            .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(s));
+        // Special sections (and every subsection nested under one) are excluded
+        // from `:sectnums:` numbering. The tracker is fed every section in
+        // document order, so it must be consulted once here for each section.
+        let skip_numbering = !processor
+            .special_section_tracker()
+            .enter(section.level, section.kind);
 
         // Appendix sections at level 0 are demoted to level 1
-        let is_appendix = section
-            .metadata
-            .style
-            .as_ref()
-            .is_some_and(|s| *s == "appendix");
+        let is_appendix = section.kind == SectionKind::Appendix;
         let effective_level = if is_appendix && section.level == 0 {
             1
         } else {
@@ -126,11 +118,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn render_section_footer(&mut self, section: &Section) -> Result<(), Error> {
         let processor = self.processor.clone();
         // Appendix sections at level 0 are demoted to level 1
-        let is_appendix = section
-            .metadata
-            .style
-            .as_ref()
-            .is_some_and(|s| *s == "appendix");
+        let is_appendix = section.kind == SectionKind::Appendix;
         let effective_level = if is_appendix && section.level == 0 {
             1
         } else {

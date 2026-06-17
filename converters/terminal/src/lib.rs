@@ -9,7 +9,10 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     Converter, Diagnostics, Options, decode_numeric_char_refs,
-    section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, last_section_has_style},
+    section::{
+        AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
+        last_section_has_style,
+    },
     visitor::Visitor,
 };
 #[cfg(feature = "render-state")]
@@ -46,6 +49,8 @@ pub struct Processor<'a> {
     pub(crate) part_number_tracker: PartNumberTracker,
     /// Appendix tracker for `[appendix]` style on level-0 sections.
     pub(crate) appendix_tracker: AppendixTracker,
+    /// Tracks special sections so their subsections skip `:sectnums:` numbering.
+    pub(crate) special_section_tracker: SpecialSectionTracker,
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
     pub(crate) terminal_width: usize,
     /// Collected index term kinds for rendering in the index catalog.
@@ -109,6 +114,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
+            special_section_tracker: SpecialSectionTracker::new(),
             terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
@@ -159,6 +165,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
+            special_section_tracker: SpecialSectionTracker::new(),
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),

@@ -10,6 +10,78 @@ use super::title::Title;
 /// A `SectionLevel` represents a section depth in a document.
 pub type SectionLevel = u8;
 
+/// The structural category of a section.
+///
+/// `AsciiDoc` designates certain section styles as *special sections* — built-in
+/// styles for specialized front matter and back matter (preface, glossary, …).
+/// `SectionKind` captures that category, derived from the section's style;
+/// `Normal` is any ordinary (non-special) section.
+///
+/// This is a purely structural classification: it carries no rendering decision
+/// of its own. Converters consult it — for example, to exclude special sections
+/// from `:sectnums:` numbering.
+///
+/// `#[non_exhaustive]` so further kinds (e.g. `partintro`, `acknowledgments`)
+/// can be added without breaking downstream matches.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum SectionKind {
+    /// An ordinary section (the default).
+    #[default]
+    Normal,
+    Preface,
+    Abstract,
+    Dedication,
+    Colophon,
+    Appendix,
+    Glossary,
+    Bibliography,
+    Index,
+}
+
+impl SectionKind {
+    /// Classify a section from its block style (e.g. `[preface]`). Unknown or
+    /// absent styles are `Normal`.
+    #[must_use]
+    pub fn from_style(style: Option<&str>) -> Self {
+        match style {
+            Some("preface") => SectionKind::Preface,
+            Some("abstract") => SectionKind::Abstract,
+            Some("dedication") => SectionKind::Dedication,
+            Some("colophon") => SectionKind::Colophon,
+            Some("appendix") => SectionKind::Appendix,
+            Some("glossary") => SectionKind::Glossary,
+            Some("bibliography") => SectionKind::Bibliography,
+            Some("index") => SectionKind::Index,
+            _ => SectionKind::Normal,
+        }
+    }
+
+    /// The block style string this kind corresponds to (e.g. `"preface"`), or
+    /// `None` for `Normal`. Inverse of [`from_style`](Self::from_style).
+    #[must_use]
+    pub fn as_style(self) -> Option<&'static str> {
+        match self {
+            SectionKind::Normal => None,
+            SectionKind::Preface => Some("preface"),
+            SectionKind::Abstract => Some("abstract"),
+            SectionKind::Dedication => Some("dedication"),
+            SectionKind::Colophon => Some("colophon"),
+            SectionKind::Appendix => Some("appendix"),
+            SectionKind::Glossary => Some("glossary"),
+            SectionKind::Bibliography => Some("bibliography"),
+            SectionKind::Index => Some("index"),
+        }
+    }
+
+    /// Whether this is a special (front/back-matter) section. True for every
+    /// kind except `Normal`. Structural only — implies nothing about rendering.
+    #[must_use]
+    pub fn is_special(self) -> bool {
+        !matches!(self, SectionKind::Normal)
+    }
+}
+
 /// A `Section` represents a section in a document.
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -18,6 +90,8 @@ pub struct Section<'a> {
     pub title: Title<'a>,
     pub level: SectionLevel,
     pub content: Vec<Block<'a>>,
+    /// The section's structural category (special-section style, or `Normal`).
+    pub kind: SectionKind,
     pub location: Location,
 }
 
@@ -35,6 +109,7 @@ impl<'a> Section<'a> {
             title,
             level,
             content,
+            kind: SectionKind::Normal,
             location,
         }
     }

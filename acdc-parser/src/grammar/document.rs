@@ -25,8 +25,7 @@ use crate::{
         table::parse_table_cell,
     },
     model::{
-        LeveloffsetRange, ListLevel, Locateable, SectionLevel, UNNUMBERED_SECTION_STYLES,
-        strip_quotes,
+        LeveloffsetRange, ListLevel, Locateable, SectionKind, SectionLevel, strip_quotes,
         substitution::{HEADER, SubsFlags},
     },
 };
@@ -2093,9 +2092,8 @@ peg::parser! {
             // This matches asciidoctor behavior: [[id,xreflabel]] provides custom cross-reference text
             let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel);
 
-            // Special section styles (bibliography, glossary, etc.) should not be numbered
-            let numbered = !block_metadata.metadata.style
-                .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s));
+            // Classify the section by its style (preface, appendix, …).
+            let kind = SectionKind::from_style(block_metadata.metadata.style);
 
             // Register section for TOC immediately after title is parsed, before content
             let location = state.create_block_location(section_level_start, title_end, offset);
@@ -2104,8 +2102,7 @@ peg::parser! {
                 title: title.clone(),
                 level: section_level.1,
                 xreflabel,
-                numbered,
-                style: block_metadata.metadata.style,
+                kind,
                 location,
             });
 
@@ -2161,11 +2158,17 @@ peg::parser! {
                 }
             }
 
+            // Classify the section by its style (preface, appendix, …). The
+            // numbering implication of being special — including suppression of
+            // subsection numbering — is decided later, by the converters.
+            let kind = SectionKind::from_style(block_metadata.metadata.style);
+
             Ok(Block::Section(Section {
                 metadata: block_metadata.metadata,
                 title,
                 level,
                 content: content.unwrap_or(Ok(Vec::new()))?,
+                kind,
                 location
             }))
         }
@@ -2246,9 +2249,8 @@ peg::parser! {
                     // Extract xreflabel from the last anchor
                     let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel);
 
-                    // Special section styles (bibliography, glossary, etc.) should not be numbered
-                    let numbered = !block_metadata.metadata.style
-                        .is_some_and(|s| UNNUMBERED_SECTION_STYLES.contains(&s));
+                    // Classify the section by its style (preface, appendix, …).
+                    let kind = SectionKind::from_style(block_metadata.metadata.style);
 
                     // Register section for TOC
                     let location = state.create_block_location(title_start, title_end, offset);
@@ -2257,8 +2259,7 @@ peg::parser! {
                         title: processed_title.clone(),
                         level: setext_level,
                         xreflabel,
-                        numbered,
-                        style: block_metadata.metadata.style,
+                        kind,
                         location,
                     });
 
@@ -2285,11 +2286,15 @@ peg::parser! {
                 }
             }
 
+            // Classify the section by its style (see the ATX section rule).
+            let kind = SectionKind::from_style(block_metadata.metadata.style);
+
             Ok(Block::Section(Section {
                 metadata: block_metadata.metadata,
                 title,
                 level: setext_level,
                 content: content.unwrap_or(Ok(Vec::new()))?,
+                kind,
                 location,
             }))
         }
@@ -5958,6 +5963,53 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
         assert_eq!(result.toc_entries[0].id, "_section_a");
         assert_eq!(result.toc_entries[1].id, "_section_a_1");
         assert_eq!(result.toc_entries[2].id, "_section_b");
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_section_kind_classifies_special_sections() -> Result<(), Error> {
+        // The parser records each section's own kind from its style; it does not
+        // infer anything for a plain subsection (the numbering implication of
+        // being nested under a special section is decided by converters).
+        let input = "= Title\n\n[preface]\n== Introduction\n\nintro\n\n=== Features\n\nfeatures\n\n== Real Chapter\n\ntext";
+        let mut state = ParserState::new_for_test(input);
+        let result = document_parser::document(input, &mut state)??;
+
+        let mut sections = Vec::new();
+        fn collect<'a, 'b>(blocks: &'b [Block<'a>], out: &mut Vec<&'b Section<'a>>) {
+            for block in blocks {
+                if let Block::Section(s) = block {
+                    out.push(s);
+                    collect(&s.content, out);
+                }
+            }
+        }
+        collect(&result.blocks, &mut sections);
+        assert_eq!(sections.len(), 3);
+        assert_eq!(sections[0].kind, SectionKind::Preface); // Introduction
+        assert_eq!(sections[1].kind, SectionKind::Normal); // Features (plain subsection)
+        assert_eq!(sections[2].kind, SectionKind::Normal); // Real Chapter
+
+        // The flat TOC list carries the same per-section kinds.
+        assert_eq!(result.toc_entries.len(), 3);
+        assert_eq!(result.toc_entries[0].kind, SectionKind::Preface);
+        assert_eq!(result.toc_entries[1].kind, SectionKind::Normal);
+        assert_eq!(result.toc_entries[2].kind, SectionKind::Normal);
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_section_kind_appendix() -> Result<(), Error> {
+        // `[appendix]` is classified as Appendix; its plain subsection is Normal.
+        let input = "= Title\n:doctype: book\n\n[appendix]\n== App\n\napp\n\n=== App Sub\n\nsub";
+        let mut state = ParserState::new_for_test(input);
+        let result = document_parser::document(input, &mut state)??;
+
+        assert_eq!(result.toc_entries.len(), 2);
+        assert_eq!(result.toc_entries[0].kind, SectionKind::Appendix);
+        assert_eq!(result.toc_entries[1].kind, SectionKind::Normal);
         Ok(())
     }
 

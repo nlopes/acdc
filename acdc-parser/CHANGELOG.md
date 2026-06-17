@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `SectionKind` enum and a `kind` field on `Section` (and `TocEntry`) classifying
+  a section as an `AsciiDoc` *special section* (`Preface`, `Glossary`, `Appendix`,
+  …) or `Normal`, derived from its style. This is a structural classification only
+  — converters use it, e.g. to exclude special sections and their subsections from
+  `:sectnums:` numbering, matching asciidoctor. `#[non_exhaustive]`, so more kinds
+  can be added later.
 - A section title that skips a level (e.g. `====` under `==`) is rendered at its
   literal level with a `WarningKind::SectionLevelOutOfSequence` instead of being a
   fatal error.
@@ -40,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** `TocEntry`'s `numbered` and `style` fields are replaced by a
+  single `kind: SectionKind`. Appendix detection becomes `entry.kind ==
+  SectionKind::Appendix`; the special-section classification it previously needed
+  `style` for is now carried by `kind`. Serialized output is unchanged — the
+  `style` key is still emitted for special sections (derived via
+  `SectionKind::as_style`).
 - Updated the parser grammar implementation to reduce location-tracking overhead while
   preserving the same parse output and diagnostics.
 

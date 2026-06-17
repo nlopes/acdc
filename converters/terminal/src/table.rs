@@ -669,6 +669,7 @@ mod tests {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
+            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
             terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
             index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
             has_valid_index_section: false,

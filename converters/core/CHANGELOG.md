@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute (`arabic`, `decimal`, `loweralpha`, `upperalpha`, `lowerroman`,
   `upperroman`, `lowergreek`) and formats a 1-based item position into its marker
   text, shared by the terminal and manpage backends.
+- `section::SpecialSectionTracker` — shared, reusable tracker that decides which
+  sections take part in `:sectnums:` numbering. Fed each section (by `SectionKind`)
+  in document order, it returns `false` for special sections and their
+  subsections, with `[appendix]` excepted (it begins its own numbered sequence).
+  Used by the HTML body, HTML TOC, and terminal renderers so the rule lives in one
+  place.
 - `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
   per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
   Previously lived in the HTML converter; promoted so terminal, manpage, and

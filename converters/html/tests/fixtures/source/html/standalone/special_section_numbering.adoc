@@ -1,0 +1,29 @@
+= Special Section Numbering
+:sectnums:
+:toc:
+
+[preface]
+== Preface
+
+Preface body.
+
+=== Background
+
+A subsection of the preface. With `:sectnums:`, neither the preface nor its
+subsections are numbered (issue #408).
+
+== First Chapter
+
+Chapter body.
+
+=== Details
+
+Numbered subsection.
+
+==== Fine Print
+
+Deeper numbered subsection.
+
+== Second Chapter
+
+The numbered sequence continues past the preface.
