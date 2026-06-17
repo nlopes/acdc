@@ -828,6 +828,31 @@ fn apply_leveloffset(
     }
 }
 
+/// Expected `parent_section_level` (one-based, i.e. own level + 1) for a
+/// section's nested content.
+///
+/// A level-0 `[appendix]` in a book is rendered at level 1, so its first
+/// subsection must be a level-2 (`===`) section: the expected child level is 2,
+/// not 1. A level-2 child is therefore in sequence (no "out of sequence"
+/// warning), while a level-1 (`==`) heading closes the appendix instead of
+/// nesting under it. Every other section expects children one level deeper than
+/// itself.
+///
+/// The asciidoctor "Appendix section syntax" docs
+/// (<https://docs.asciidoctor.org/asciidoc/latest/sections/appendix/>) state:
+/// "For books, the appendix must be defined as a level 1 section (`==`) if you
+/// want the appendix to be a adjacent to the chapters. In a multi-part book, if
+/// you want the appendix to be adjacent to other parts, the appendix must be
+/// defined as a level 0 section (`=`)." and "In either case, the first
+/// subsection of the appendix must be a level 2 section (`===`)."
+fn expected_child_level(level: SectionLevel, kind: SectionKind, is_book: bool) -> SectionLevel {
+    if level == 0 && kind == SectionKind::Appendix && is_book {
+        2
+    } else {
+        level + 1
+    }
+}
+
 /// How the closing delimiter of a table block was resolved.
 ///
 /// A `Terminated` variant carries the matched close delimiter and its start
@@ -2108,7 +2133,11 @@ peg::parser! {
 
             Ok::<(Title<'input>, &'input str), Error>((title, section_id))
         })
-        content:section_content(offset, Some(section_level.1+1))?
+        content:section_content(offset, Some(expected_child_level(
+            section_level.1,
+            SectionKind::from_style(block_metadata.metadata.style),
+            is_book_doctype(&state.document_attributes),
+        )))?
         {
             let (title, section_id) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
@@ -2268,7 +2297,11 @@ peg::parser! {
                 Err(e) => Err(e),
             }
         })
-        content:section_content(offset, Some(setext_level + 1))?
+        content:section_content(offset, Some(expected_child_level(
+            setext_level,
+            SectionKind::from_style(block_metadata.metadata.style),
+            is_book_doctype(&state.document_attributes),
+        )))?
         {
             let (title, _section_id) = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
@@ -6704,6 +6737,47 @@ References.
             crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
             crate::Positioning::Position(p) => assert_eq!(p.line, 3),
         }
+        Ok(())
+    }
+
+    /// A level-0 `[appendix]` is rendered at level 1, so its first subsection
+    /// must be a level-2 (`===`) section — that is in sequence and must NOT warn,
+    /// matching asciidoctor.
+    #[test]
+    fn test_level0_appendix_level2_subsection_no_warning() -> Result<(), Error> {
+        let input = "= Book\n:doctype: book\n\n= Part One\n\n== Chapter\n\nbody\n\n[appendix]\n= App Part\n\nintro\n\n=== First Subsection\n\nbody\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::SectionLevelOutOfSequence { .. },
+            )),
+            "level-2 subsection of a level-0 appendix is in sequence, got: {warnings:?}"
+        );
+        Ok(())
+    }
+
+    /// A level-0 `[appendix]`'s children are expected at level 2, so a level-3
+    /// (`====`) child that skips level 2 still warns — with `expected: 2`,
+    /// matching asciidoctor.
+    #[test]
+    fn test_level0_appendix_level3_child_still_warns() -> Result<(), Error> {
+        let input = "= Book\n:doctype: book\n\n= Part One\n\n== Chapter\n\nbody\n\n[appendix]\n= App Part\n\nintro\n\n==== Too Deep\n\nbody\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            warnings.iter().any(|w| matches!(
+                &w.kind,
+                crate::WarningKind::SectionLevelOutOfSequence {
+                    expected: 2,
+                    got: 3
+                },
+            )),
+            "level-3 child skipping level 2 should warn, got: {warnings:?}"
+        );
         Ok(())
     }
 

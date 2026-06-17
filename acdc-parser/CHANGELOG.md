@@ -17,7 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can be added later.
 - A section title that skips a level (e.g. `====` under `==`) is rendered at its
   literal level with a `WarningKind::SectionLevelOutOfSequence` instead of being a
-  fatal error.
+  fatal error. A level-0 `[appendix]` is treated as level 1 for this check, so its
+  first subsection being a level-2 (`===`) section is in sequence (not flagged),
+  matching asciidoctor.
 - The `discrete`/`float` block style marks a discrete heading and renders as its
   class; the legacy `float` spelling raises `WarningKind::LegacyFloatDiscreteHeading`.
 - `[#id,…]` sets the id and treats the rest as block attributes (only
