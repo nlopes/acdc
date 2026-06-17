@@ -1780,6 +1780,78 @@ Content.
     }
 
     #[test]
+    fn test_appendix_subsection_numbering() -> TestResult {
+        // With :sectnums:, appendix subsections number with the appendix letter
+        // as the top component (A.1, A.1.1, A.2, then B.1), in both the body and
+        // the TOC. Matches asciidoctor.
+        let content = r"= Book Title
+:doctype: book
+:sectnums:
+:toc:
+:toclevels: 4
+
+== Regular Chapter
+
+=== Reg Sub
+
+[appendix]
+== First App
+
+=== App Sub One
+
+==== App Sub Sub
+
+=== App Sub Two
+
+[appendix]
+== Second App
+
+=== Second Sub
+";
+        let parser_options = acdc_parser::Options::default();
+        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let doc = parsed.document();
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+
+        // Body headings.
+        for expected in [
+            ">1. Regular Chapter</h2>",
+            ">1.1. Reg Sub</h3>",
+            ">Appendix A: First App</h2>",
+            ">A.1. App Sub One</h3>",
+            ">A.1.1. App Sub Sub</h4>",
+            ">A.2. App Sub Two</h3>",
+            ">Appendix B: Second App</h2>",
+            ">B.1. Second Sub</h3>",
+        ] {
+            assert!(html.contains(expected), "body should contain {expected:?}");
+        }
+
+        // TOC entries.
+        for expected in [
+            "\">A.1. App Sub One</a>",
+            "\">A.1.1. App Sub Sub</a>",
+            "\">A.2. App Sub Two</a>",
+            "\">B.1. Second Sub</a>",
+        ] {
+            assert!(html.contains(expected), "TOC should contain {expected:?}");
+        }
+
+        // The broken literal `0.` component must not appear anywhere.
+        assert!(
+            !html.contains(">0."),
+            "appendix subsections must not use a literal 0 component"
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_appendix_custom_caption() -> TestResult {
         let content = r"= Book Title
 :doctype: book
@@ -1829,10 +1901,13 @@ Content.
         );
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
-        // Should still be demoted to sect1/h2, just no prefix
+        // Demoted to sect1/h2; with the caption disabled the heading still shows
+        // the bare letter numeral ("A. "), matching asciidoctor.
         assert!(
-            html.contains("<div class=\"sect1\">\n<h2 id=\"_first_appendix\">First Appendix</h2>"),
-            "appendix with disabled caption should have no prefix but still be demoted"
+            html.contains(
+                "<div class=\"sect1\">\n<h2 id=\"_first_appendix\">A. First Appendix</h2>"
+            ),
+            "appendix with disabled caption should show the bare letter numeral and stay demoted"
         );
 
         Ok(())

@@ -129,10 +129,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`copycss` source path override** — when `:copycss:` has a non-empty string value, it is
   used as the source file path to read the stylesheet from, decoupling the source location
   from the output filename specified by `:stylesheet:`.
-- **Appendix support (`[appendix]` style on level-0 sections)** — in book doctype, level-0
-  sections with `[appendix]` style are demoted to level 1 and prefixed with "Appendix A: ",
-  "Appendix B: ", etc. in both section headings and TOC entries. The caption is configurable
-  via `:appendix-caption:` and can be disabled with `:!appendix-caption:`. ([#343])
+- **Appendix support (`[appendix]` style)** — appendices are prefixed with "Appendix A: ",
+  "Appendix B: ", etc. in both section headings and TOC entries (level-0 appendices in book
+  doctype are demoted to level 1). With `:!appendix-caption:` the prefix is the bare letter
+  numeral instead ("A. "); the letter is shown regardless of `:sectnums:`. When `:sectnums:`
+  is set, appendix subsections are numbered with the appendix letter as the top component
+  (`A.1`, `A.1.1`, `A.2`, then `B.1` for the next appendix), in both headings and TOC,
+  matching `asciidoctor`. The caption word is configurable via `:appendix-caption:`. ([#343])
 - **Part numbering (`:partnums:` / `:part-signifier:`)** — book doctype documents with
   `:partnums:` now render part headings and TOC entries with uppercase Roman numeral
   prefixes (e.g., "Part I. ", "Part II. "). The signifier text is configurable via

@@ -42,7 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   by converters that need format-specific em-dash output (e.g. HTML entities).
 - **Section numbering utilities** — new `section` module with `SectionNumberTracker`,
   `PartNumberTracker`, `AppendixTracker`, and `to_upper_roman` moved from `acdc-converters-html`
-  so they can be shared across converters.
+  so they can be shared across converters. Inside an appendix, `SectionNumberTracker`
+  numbers subsections with the appendix letter as the top component (`A.1`, `A.1.1`),
+  and `AppendixTracker::enter_appendix` returns the heading prefix (`Appendix A: `, or the
+  bare `A. ` when the caption is disabled) — both driven by the same letter.
 - `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
   `Doctype`, and `IconMode` for semver-safe future additions
 - Comprehensive module-level documentation

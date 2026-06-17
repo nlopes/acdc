@@ -33,10 +33,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         // Build title prefix (section number, part number, or appendix label)
         let prefix = if is_appendix {
-            processor
-                .appendix_tracker
-                .enter_appendix()
-                .unwrap_or_default()
+            processor.appendix_tracker.enter_appendix()
         } else if section.level == 0 && !skip_numbering {
             processor
                 .part_number_tracker

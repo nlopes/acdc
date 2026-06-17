@@ -39,13 +39,21 @@ fn compute_toc_section_numbers(
     entries: &[TocEntry],
     config: &SectionNumberConfig,
 ) -> Vec<Option<String>> {
-    if !config.sectnums_enabled && !config.partnums_enabled && config.appendix_caption.is_none() {
+    // Appendices always carry a letter prefix (`Appendix A: ` or bare `A. `),
+    // independent of :sectnums:/:partnums:, so their presence alone is enough to
+    // require per-entry numbering work.
+    let has_appendix = entries.iter().any(|e| e.kind == SectionKind::Appendix);
+    if !config.sectnums_enabled && !config.partnums_enabled && !has_appendix {
         return vec![None; entries.len()];
     }
 
     let mut counters = [0u8; MAX_TOC_LEVELS as usize + 1];
     let mut part_counter: usize = 0;
     let mut appendix_counter: usize = 0;
+    // When inside an appendix subtree, its letter numeral (`A`, `B`, …). Used as
+    // the top component of subsection numbers (`A.1`); cleared by the next
+    // non-appendix level-1 entry.
+    let mut appendix_letter: Option<char> = None;
     let mut numbers = Vec::with_capacity(entries.len());
 
     // Decides which entries are excluded from numbering as special sections (or
@@ -59,18 +67,24 @@ fn compute_toc_section_numbers(
 
         // Appendix sections: use letter numbering (A, B, C) instead of regular numbering.
         // Checked before the special-section skip so appendix gets its own label.
+        // The letter prefix shows regardless of :sectnums:; the subtree letter is
+        // recorded so subsections number as `A.1`.
         if is_appendix {
             counters.fill(0);
-            if let Some(caption) = config.appendix_caption {
-                let letter =
-                    char::from(b'A' + u8::try_from(appendix_counter).unwrap_or(25).min(25));
-                appendix_counter += 1;
-                numbers.push(Some(format!("{caption} {letter}: ")));
-            } else {
-                appendix_counter += 1;
-                numbers.push(None);
-            }
+            let letter = char::from(b'A' + u8::try_from(appendix_counter).unwrap_or(25).min(25));
+            appendix_counter += 1;
+            appendix_letter = Some(letter);
+            let prefix = match config.appendix_caption {
+                Some(caption) => format!("{caption} {letter}: "),
+                None => format!("{letter}. "),
+            };
+            numbers.push(Some(prefix));
             continue;
+        }
+
+        // A normal top-level section ends any appendix region.
+        if level == 1 {
+            appendix_letter = None;
         }
 
         // Level 0 (parts): number with Roman numerals if :partnums: is set
@@ -127,15 +141,27 @@ fn compute_toc_section_numbers(
 
         // Only show number if within sectnumlevels
         if level <= config.sectnumlevels {
-            if let Some(slice) = counters.get(..=level_idx) {
-                let number: String = slice
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(".");
-                numbers.push(Some(format!("{number}. ")));
+            // Inside an appendix subtree the top component is the appendix
+            // letter (`A.1`), deeper levels stay numeric.
+            let number = if let Some(letter) = appendix_letter {
+                counters.get(1..=level_idx).map(|slice| {
+                    std::iter::once(letter.to_string())
+                        .chain(slice.iter().map(ToString::to_string))
+                        .collect::<Vec<_>>()
+                        .join(".")
+                })
             } else {
-                numbers.push(None);
+                counters.get(..=level_idx).map(|slice| {
+                    slice
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join(".")
+                })
+            };
+            match number {
+                Some(number) => numbers.push(Some(format!("{number}. "))),
+                None => numbers.push(None),
             }
         } else {
             numbers.push(None);

@@ -87,11 +87,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             write!(self.writer, "<h{heading_level} id=\"{id}\">")?;
 
-            // Prepend appendix label for appendix sections (any level)
+            // Prepend appendix label for appendix sections (any level).
+            // The letter prefix ("Appendix A: " or bare "A. ") shows regardless
+            // of :sectnums:; subsection numbering (A.1) is gated by it.
             if is_appendix {
-                if let Some(appendix_label) = processor.appendix_tracker().enter_appendix() {
-                    write!(self.writer, "{appendix_label}")?;
-                }
+                let appendix_label = processor.appendix_tracker().enter_appendix();
+                write!(self.writer, "{appendix_label}")?;
             } else if !skip_numbering
                 && let Some(number) = processor
                     .section_number_tracker()
