@@ -249,6 +249,10 @@ pub struct Comment<'a> {
 /// A `Block` represents a block in a document.
 ///
 /// A block is a structural element in a document that can contain other blocks.
+// The variant sizes differ widely by design — `DelimitedBlock`/`Image` are large
+// value types while `PageBreak`/`Comment` are tiny. Boxing the large variants is a
+// separate refactor; the disparity is structural, not a per-node-allocation concern.
+#[allow(clippy::large_enum_variant)]
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(untagged)]
@@ -347,6 +351,32 @@ impl Locateable for Block<'_> {
             Block::Audio(a) => &a.location,
             Block::Video(v) => &v.location,
             Block::Comment(c) => &c.location,
+        }
+    }
+}
+
+impl Block<'_> {
+    /// Mutable access to this block's own location (the post-parse source remap
+    /// pass rewrites it). Counterpart to [`Locateable::location`].
+    pub(crate) fn location_mut(&mut self) -> &mut Location {
+        match self {
+            Block::Section(s) => &mut s.location,
+            Block::Paragraph(p) => &mut p.location,
+            Block::UnorderedList(l) => &mut l.location,
+            Block::OrderedList(l) => &mut l.location,
+            Block::DescriptionList(l) => &mut l.location,
+            Block::CalloutList(l) => &mut l.location,
+            Block::DelimitedBlock(d) => &mut d.location,
+            Block::Admonition(a) => &mut a.location,
+            Block::TableOfContents(t) => &mut t.location,
+            Block::DiscreteHeader(h) => &mut h.location,
+            Block::DocumentAttribute(a) => &mut a.location,
+            Block::ThematicBreak(tb) => &mut tb.location,
+            Block::PageBreak(pb) => &mut pb.location,
+            Block::Image(i) => &mut i.location,
+            Block::Audio(a) => &mut a.location,
+            Block::Video(v) => &mut v.location,
+            Block::Comment(c) => &mut c.location,
         }
     }
 }

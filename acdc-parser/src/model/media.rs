@@ -7,7 +7,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::{Error, Positioning, SourceLocation};
+use crate::{Error, SourceLocation};
 
 use super::location::{Location, Position};
 use super::metadata::BlockMetadata;
@@ -148,7 +148,7 @@ impl<'a> Source<'a> {
                 Error::Parse(
                     Box::new(SourceLocation {
                         file: None,
-                        positioning: Positioning::Position(Position::default()),
+                        location: crate::Location::point(Position::default()),
                     }),
                     format!("invalid URL: {e}"),
                 )

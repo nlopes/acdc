@@ -61,37 +61,26 @@ pub(crate) struct PlainWarning {
 }
 
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
-    match &loc.positioning {
-        acdc_parser::Positioning::Location(location) => {
-            // `absolute_start`/`absolute_end` index the *preprocessed* buffer, which
-            // diverges from `source` (the original file rendered here) once includes,
-            // conditionals, or dropped comments shift content — using them directly
-            // can run the span past the file end (miette `OutOfBounds`). Derive the
-            // start from the source-relative line/column instead, and clamp the
-            // length so it can never exceed the remaining bytes in `source`.
-            let start_offset =
-                calculate_offset_from_position(source, location.start.line, location.start.column);
-            let preprocessed_len = location
-                .absolute_end
-                .saturating_sub(location.absolute_start);
-            let length = preprocessed_len.min(source.len().saturating_sub(start_offset));
-            SourceSpan::new(start_offset.into(), length)
-        }
-        acdc_parser::Positioning::Position(position) => {
-            // Calculate byte offset from line/column
-            let offset = calculate_offset_from_position(source, position.line, position.column);
-            SourceSpan::new(offset.into(), 1)
-        }
-    }
+    // `absolute_start`/`absolute_end` index the *preprocessed* buffer, which diverges
+    // from `source` (the original file rendered here) once includes, conditionals, or
+    // dropped comments shift content — using them directly can run the span past the
+    // file end (miette `OutOfBounds`). Derive the start from the source-relative
+    // line/column instead, and clamp the length so it can never exceed the remaining
+    // bytes in `source`. A zero-width (point) location renders as a 1-byte span.
+    let location = &loc.location;
+    let start_offset =
+        calculate_offset_from_position(source, location.start.line, location.start.column);
+    let preprocessed_len = location
+        .absolute_end
+        .saturating_sub(location.absolute_start);
+    let length = preprocessed_len
+        .min(source.len().saturating_sub(start_offset))
+        .max(1);
+    SourceSpan::new(start_offset.into(), length)
 }
 
-fn positioning_line_column(positioning: &acdc_parser::Positioning) -> (usize, usize) {
-    match positioning {
-        acdc_parser::Positioning::Location(location) => {
-            (location.start.line, location.start.column)
-        }
-        acdc_parser::Positioning::Position(position) => (position.line, position.column),
-    }
+fn source_location_line_column(loc: &SourceLocation) -> (usize, usize) {
+    (loc.location.start.line, loc.location.start.column)
 }
 
 /// Calculate byte offset from line and column numbers (both 1-indexed).
@@ -142,7 +131,7 @@ fn build_warning_report(
         let path = loc.file.as_deref().or(fallback_file)?;
         let source_str = std::fs::read_to_string(path).ok()?;
         let span = source_span_from_source_location(loc, &source_str);
-        let (line, column) = positioning_line_column(&loc.positioning);
+        let (line, column) = source_location_line_column(loc);
         Some(RichWarning {
             message: message.clone(),
             advice: advice.clone(),
@@ -199,7 +188,7 @@ pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {
         let advice = parser_error.advice();
         let span = source_span_from_source_location(source_location, &source_str);
         let named_source = NamedSource::new(path.display().to_string(), source_str);
-        let (line, column) = positioning_line_column(&source_location.positioning);
+        let (line, column) = source_location_line_column(source_location);
         let position_advice = format!("error occurred here (line {line}, column {column})");
         let rich_error = RichError {
             message: parser_error.to_string(),

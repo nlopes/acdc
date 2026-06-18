@@ -9,12 +9,12 @@ use std::hash::BuildHasher;
 
 use std::path::Path;
 
-use acdc_parser::{Block, Document, Error, Location, Positioning, Warning};
+use acdc_parser::{Block, Document, Error, Location, Warning};
 use tower_lsp_server::ls_types::{Diagnostic, DiagnosticSeverity, DiagnosticTag, Range};
 
 use crate::state::{ConditionalBlock, ConditionalDirectiveKind, ConditionalOperation};
 
-use crate::convert::{location_to_range, parser_position_to_lsp};
+use crate::convert::location_to_range;
 use crate::state::XrefTarget;
 use crate::state::document::OwnedSource;
 
@@ -23,7 +23,7 @@ use crate::state::document::OwnedSource;
 pub(crate) fn error_to_diagnostic(error: &Error) -> Diagnostic {
     let range = error
         .source_location()
-        .map(|source_loc| positioning_to_range(&source_loc.positioning))
+        .map(|source_loc| location_to_range(&source_loc.location))
         .unwrap_or_default();
 
     // Section level mismatches are warnings with a user-friendly message
@@ -60,7 +60,7 @@ pub(crate) fn error_to_diagnostic(error: &Error) -> Diagnostic {
 pub(crate) fn warning_to_diagnostic(warning: &Warning) -> Diagnostic {
     let range = warning
         .source_location()
-        .map(|loc| positioning_to_range(&loc.positioning))
+        .map(|loc| location_to_range(&loc.location))
         .unwrap_or_default();
 
     Diagnostic {
@@ -69,22 +69,6 @@ pub(crate) fn warning_to_diagnostic(warning: &Warning) -> Diagnostic {
         source: Some("acdc".to_string()),
         message: warning.kind.to_string(),
         ..Default::default()
-    }
-}
-
-/// Convert acdc-parser Positioning to LSP Range
-///
-/// Note: acdc-parser uses 1-indexed lines/columns, LSP uses 0-indexed
-fn positioning_to_range(pos: &Positioning) -> Range {
-    match pos {
-        Positioning::Location(loc) => location_to_range(loc),
-        Positioning::Position(p) => {
-            let lsp_pos = parser_position_to_lsp(p);
-            Range {
-                start: lsp_pos,
-                end: lsp_pos,
-            }
-        }
     }
 }
 
@@ -440,7 +424,7 @@ mod tests {
     fn test_positioning_converts_to_zero_indexed() {
         // Use Location::default() since Location is non_exhaustive
         let loc = Location::default();
-        let range = positioning_to_range(&Positioning::Location(loc));
+        let range = location_to_range(&loc);
 
         // Default Location has line=0, column=0
         // 0.saturating_sub(1) = 0

@@ -9,7 +9,7 @@ use peg::parser;
 
 use crate::{
     AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
-    Positioning, SourceLocation, Substitution, Warning, WarningKind, grammar::LineMap,
+    SourceLocation, Substitution, Warning, WarningKind, grammar::LineMap,
     model::substitution::parse_substitution,
 };
 
@@ -146,12 +146,12 @@ impl<'a> InlinePreprocessorParserState<'a> {
             .offset_to_position(end_offset, self.full_input);
         SourceLocation {
             file: None,
-            positioning: Positioning::Location(Location {
+            location: Location {
                 absolute_start: start_offset,
                 absolute_end: end_offset,
                 start,
                 end,
-            }),
+            },
         }
     }
 

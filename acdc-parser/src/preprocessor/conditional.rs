@@ -2,7 +2,7 @@ use std::path::Path;
 
 use crate::{
     DocumentAttributes,
-    error::{Error, Positioning, SourceLocation},
+    error::{Error, SourceLocation},
     model::{HEADER, Position, substitute},
 };
 
@@ -241,10 +241,7 @@ impl Ifeval {
                 return Err(Error::InvalidIfEvalDirectiveMismatchedTypes(Box::new(
                     SourceLocation {
                         file: file_parent.map(Path::to_path_buf),
-                        positioning: Positioning::Position(Position {
-                            line: line_number,
-                            column: 1,
-                        }),
+                        location: crate::Location::point(Position::new(line_number, 1)),
                     },
                 )));
             }
@@ -307,10 +304,7 @@ pub(crate) fn parse_line(
         tracing::error!(?error, "failed to parse conditional directive");
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
-            positioning: Positioning::Position(Position {
-                line: line_number,
-                column: 1,
-            }),
+            location: crate::Location::point(Position::new(line_number, 1)),
         }))
     })
 }
@@ -326,10 +320,7 @@ pub(crate) fn parse_endif(
         tracing::error!(?error, "failed to parse endif directive");
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
-            positioning: Positioning::Position(Position {
-                line: line_number,
-                column: 1,
-            }),
+            location: crate::Location::point(Position::new(line_number, 1)),
         }))
     })
 }

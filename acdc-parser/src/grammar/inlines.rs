@@ -2204,7 +2204,7 @@ peg::parser! {
                 "could not preprocess url path"
             })?;
             for warning in inline_state.drain_warnings() {
-                state.add_warning(warning);
+                state.add_inline_preprocessor_warning(warning);
             }
             // Strip backslash escapes before URL parsing to prevent the url crate
             // from normalizing backslashes to forward slashes
@@ -2242,7 +2242,7 @@ peg::parser! {
                     "could not preprocess bare url path"
                 })?;
             for warning in inline_state.drain_warnings() {
-                state.add_warning(warning);
+                state.add_inline_preprocessor_warning(warning);
             }
             Ok(Cow::Owned(strip_url_backslash_escapes(&processed.text).into_owned()))
         }
@@ -2293,7 +2293,7 @@ peg::parser! {
                 "could not preprocess path"
             })?;
             for warning in inline_state.drain_warnings() {
-                state.add_warning(warning);
+                state.add_inline_preprocessor_warning(warning);
             }
             Ok(processed.text)
         }

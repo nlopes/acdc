@@ -1,6 +1,6 @@
 use std::cell::Cell;
 
-use crate::Position;
+use crate::{Position, model::SourceRange};
 
 /// Pre-calculated line position map for efficient offset-to-position conversion.
 ///
@@ -150,10 +150,35 @@ impl LineMap {
                 .map_or(0, |s| s.chars().count())
         };
 
-        Position {
-            line,
-            column: chars_in_line + 1,
-        }
+        Position::new(line, chars_in_line + 1)
+    }
+
+    /// Source line (1-indexed) for a preprocessed `offset` in a span that begins at
+    /// origin line `start_line` and preprocessed line `preproc_start_line`: `start_line`
+    /// plus the number of lines between the span start and `offset`.
+    ///
+    /// The remap and the diagnostics both call this (the latter via
+    /// [`source_line`](Self::source_line)), so they count lines the same way and can't
+    /// disagree for the same byte. Callers with the start line already cached (the remap,
+    /// once per range) save a lookup by calling this instead of `source_line`.
+    pub(crate) fn source_line_from(
+        &self,
+        start_line: usize,
+        preproc_start_line: usize,
+        input: &str,
+        offset: usize,
+    ) -> usize {
+        let offset_line = self.offset_to_position(offset, input).line;
+        start_line + offset_line.saturating_sub(preproc_start_line)
+    }
+
+    /// Original-source line for a preprocessed `offset` inside `range`, deriving the
+    /// range's preprocessed start line on the fly. Convenience over
+    /// [`source_line_from`](Self::source_line_from) for callers without a cached start
+    /// line (the rare diagnostic paths).
+    pub(crate) fn source_line(&self, range: &SourceRange, input: &str, offset: usize) -> usize {
+        let preproc_start_line = self.offset_to_position(range.start_offset, input).line;
+        self.source_line_from(range.start_line, preproc_start_line, input, offset)
     }
 }
 

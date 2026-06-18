@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Every AST node's `Location` now maps back to the **original source**: its
+  `start`/`end` line numbers and `absolute_start`/`absolute_end` byte offsets are
+  original-source coordinates, and each boundary (`Position`) carries a new `file`
+  field naming the `include::` chain the content came through. This holds across
+  `include::` directives and preprocessor edits (dropped adjacent comments, stripped
+  `ifdef`/`ifndef`/`ifeval` blocks, collapsed multi-line attribute continuations) —
+  content after such an edit no longer reports a shifted line. `file` is set only for
+  content from an `include::`d file; content from the primary input carries `None`,
+  matching the ASG convention of omitting the primary file. Because the file lives on
+  each boundary, a span that starts in an included file and ends after it reports each
+  endpoint's own chain. Partial includes (`include::file.adoc[lines=…]` or `[tag=…]`)
+  map to the selected lines' true positions in the included file — a `lines=3..4`
+  include reports line 3, not line 1 — and a non-contiguous selection locates each
+  run independently. Columns are origin-relative too: an `include::file.adoc[indent=N]`
+  re-indent reports each node's column in the included file (the inserted indent is
+  stripped back off). For such re-indented content the line and column are exact while
+  the `absolute_start`/`absolute_end` byte offsets stay in preprocessed coordinates
+  (these offsets are not part of the ASG output, which carries line/column only). The
+  same original-source mapping also applies to the `Document.references`,
+  `Document.toc_entries`, and `Document.footnotes` locations (not serialized to the
+  ASG, but consumed e.g. by LSP go-to-definition), so a cross-reference, TOC entry, or
+  footnote pointing at a target in an `include::`d file resolves to that file at its
+  true line.
+- `Position` now serializes in the ASG `locationBoundary` format: `{ line, col }`
+  plus an optional `file` — the `include::` chain as an array of the include targets
+  *as written*, outermost first and the file directly containing the content last
+  (e.g. `["outer.adoc", "inner.adoc"]`) — emitted only for `include::`d content, so
+  the JSON shape is unchanged for single-file documents.
+- `Location::byte_len()` returns the location's inclusive byte length, or `None` when its
+  start and end fall in different files (where the byte offsets are in different coordinate
+  spaces and can't be subtracted). Prefer it over `absolute_end - absolute_start`.
 - `SectionKind` enum and a `kind` field on `Section` (and `TocEntry`) classifying
   a section as an `AsciiDoc` *special section* (`Preface`, `Glossary`, `Appendix`,
   …) or `Normal`, derived from its style. This is a structural classification only
@@ -56,6 +87,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SectionKind::as_style`).
 - Updated the parser grammar implementation to reduce location-tracking overhead while
   preserving the same parse output and diagnostics.
+- **Breaking:** the `Positioning` enum is removed and `SourceLocation` now holds a
+  single `location: Location` (a point diagnostic is a zero-width span with
+  `start == end`). Read `source_location.location.start` for the line/column instead
+  of matching `Positioning`. Construct diagnostics with `SourceLocation::at_position`
+  / `SourceLocation::at_location`, or `Location::point` for a bare position. Rendered
+  error/warning text is unchanged.
+
+### Removed
+
+- **Breaking:** the unused `Location::shift`, `Location::shift_inline`, and
+  `Location::shift_line_column` methods.
 
 ### Fixed
 

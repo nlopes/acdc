@@ -22,7 +22,7 @@ crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 unicode-width.workspace = true
-libghostty-vt = { version = "0.1.1", optional = true }
+libghostty-vt = { version = "0.2.0", optional = true }
 # syntax highlighting (optional - saves ~7s compile time when disabled)
 syntect = { version = "5.3", optional = true }
 # images on the terminal (optional - saves ~16s compile time when disabled)
@@ -32,7 +32,7 @@ viuer = { version = "0.11", features = ["print-file"], optional = true }
 acdc-converters-dev.workspace = true
 bumpalo = "3.20"
 pretty_assertions.workspace = true
-libghostty-vt = "0.1.1"
+libghostty-vt = "0.2.0"
 
 [lints]
 workspace = true
