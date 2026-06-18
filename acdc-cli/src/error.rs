@@ -63,8 +63,18 @@ pub(crate) struct PlainWarning {
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
     match &loc.positioning {
         acdc_parser::Positioning::Location(location) => {
-            let start_offset = location.absolute_start;
-            let length = location.absolute_end - location.absolute_start;
+            // `absolute_start`/`absolute_end` index the *preprocessed* buffer, which
+            // diverges from `source` (the original file rendered here) once includes,
+            // conditionals, or dropped comments shift content — using them directly
+            // can run the span past the file end (miette `OutOfBounds`). Derive the
+            // start from the source-relative line/column instead, and clamp the
+            // length so it can never exceed the remaining bytes in `source`.
+            let start_offset =
+                calculate_offset_from_position(source, location.start.line, location.start.column);
+            let preprocessed_len = location
+                .absolute_end
+                .saturating_sub(location.absolute_start);
+            let length = preprocessed_len.min(source.len().saturating_sub(start_offset));
             SourceSpan::new(start_offset.into(), length)
         }
         acdc_parser::Positioning::Position(position) => {

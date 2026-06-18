@@ -65,12 +65,82 @@ struct PreprocessorState {
     byte_offset: usize,
     leveloffset_ranges: Vec<LeveloffsetRange>,
     source_ranges: Vec<SourceRange>,
+    /// The file the in-progress output is being read from, used as the `file`
+    /// of the main-file [`SourceRange`]s recorded below. `None` for stdin/string
+    /// input, in which case no main-file ranges are recorded (the parser falls
+    /// back to the raw preprocessed location).
+    source_file: Option<std::path::PathBuf>,
+    /// The open main-file source range: byte offset in the output where the
+    /// current contiguous run began, and the original source line that maps to.
+    run: Option<MainFileRun>,
+    /// The source line the next contiguous main-file output line is expected to
+    /// have. A mismatch means the source skipped lines (a dropped comment, a
+    /// stripped conditional, …) and the current run must be closed.
+    run_expected_src_line: usize,
+}
+
+/// Bookkeeping for a contiguous run of main-file output whose source lines are
+/// consecutive, so a single [`SourceRange`] maps it back to the original file.
+#[derive(Debug, Clone, Copy)]
+struct MainFileRun {
+    out_start: usize,
+    src_start_line: usize,
 }
 
 impl PreprocessorState {
     fn push_line(&mut self, line: String) {
         self.byte_offset += line.len() + 1;
         self.lines.push(line);
+    }
+
+    /// Account a simple one-source-line → one-output-line emission, extending the
+    /// current run or starting a fresh one when the source line is not
+    /// consecutive with the previous emitted line. Call **before** `push_line`.
+    fn note_source_line(&mut self, src_line: usize) {
+        if self.run.is_some() && src_line != self.run_expected_src_line {
+            self.flush_run();
+        }
+        if self.run.is_none() {
+            self.run = Some(MainFileRun {
+                out_start: self.byte_offset,
+                src_start_line: src_line,
+            });
+        }
+        self.run_expected_src_line = src_line + 1;
+    }
+
+    /// Close the open run, recording its `[out_start, byte_offset)` span as a
+    /// main-file [`SourceRange`]. No-op when there is no file or no emitted bytes.
+    fn flush_run(&mut self) {
+        if let Some(run) = self.run.take()
+            && self.byte_offset > run.out_start
+            && let Some(file) = &self.source_file
+        {
+            self.source_ranges.push(SourceRange {
+                start_offset: run.out_start,
+                end_offset: self.byte_offset,
+                file: file.clone(),
+                start_line: run.src_start_line,
+            });
+        }
+    }
+
+    /// Emit a multi-source-line chunk (a collapsed attribute continuation or a
+    /// retained conditional body) as its own standalone [`SourceRange`] anchored
+    /// at `src_start_line`, so it never shares a run with surrounding lines whose
+    /// output-newline count would otherwise be miscounted.
+    fn push_chunk(&mut self, content: String, src_start_line: usize) {
+        self.flush_run();
+        let start = self.byte_offset;
+        self.push_line(content);
+        if let Some(file) = &self.source_file {
+            self.source_ranges.push(SourceRange {
+                start_offset: start,
+                end_offset: self.byte_offset,
+                file: file.clone(),
+                start_line: src_start_line,
+            });
+        }
     }
 }
 
@@ -394,9 +464,13 @@ impl Preprocessor {
         lines: &mut std::iter::Peekable<I>,
         ctx: &mut DirectiveContext<'_>,
         attributes: &crate::DocumentAttributes,
-    ) -> Result<Option<String>, Error> {
+    ) -> Result<Option<(String, usize)>, Error> {
         let mut content = String::new();
         let condition_line_number = *ctx.line_number;
+        // Tracks whether any body line was consumed, so the returned content maps
+        // to the first body line (multi-line form) rather than the directive line
+        // (single-line form).
+        let mut body_consumed = false;
         let condition = conditional::parse_line(
             line,
             condition_line_number,
@@ -440,6 +514,7 @@ impl Preprocessor {
             let _ = writeln!(content, "{next_line}");
             lines.next();
             *ctx.line_number += 1;
+            body_consumed = true;
         }
 
         if condition.is_true(
@@ -449,7 +524,12 @@ impl Preprocessor {
             ctx.current_offset,
             ctx.file_parent,
         )? {
-            Ok(Some(content))
+            let content_start_line = if body_consumed {
+                condition_line_number + 1
+            } else {
+                condition_line_number
+            };
+            Ok(Some((content, content_start_line)))
         } else {
             Ok(None)
         }
@@ -626,17 +706,21 @@ impl Preprocessor {
             || line.starts_with("\\ifndef")
             || line.starts_with("\\ifeval")
         {
+            out.note_source_line(*ctx.line_number);
             out.push_line(line[1..].to_string());
         } else if line.starts_with("ifdef")
             || line.starts_with("ifndef")
             || line.starts_with("ifeval")
         {
-            if let Some(content) =
+            if let Some((content, content_start_line)) =
                 self.process_conditional(line, lines, ctx, &options.document_attributes)?
             {
-                out.push_line(content);
+                out.push_chunk(content, content_start_line);
             }
         } else if line.starts_with("include") {
+            // Included content carries its own source ranges; close the main-file
+            // run first so it does not overlap them.
+            out.flush_run();
             if let Some(include_result) = self.process_include(
                 line,
                 *ctx.line_number,
@@ -647,6 +731,7 @@ impl Preprocessor {
                 Self::handle_include_result(include_result, out);
             }
         } else {
+            out.note_source_line(*ctx.line_number);
             out.push_line(line.to_string());
         }
         Ok(())
@@ -696,6 +781,9 @@ impl Preprocessor {
             byte_offset: 0,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
+            source_file: file_parent.map(Path::to_path_buf),
+            run: None,
+            run_expected_src_line: 1,
         };
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
@@ -711,24 +799,37 @@ impl Preprocessor {
                 } else if line.ends_with(" \\") {
                     attribute_content.push_str(line.trim_end_matches('\\'));
                 }
+                // The attribute spans `[continuation_start_line, line_number]`;
+                // emit it as its own range anchored at its first line.
+                let continuation_start_line = line_number;
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
                 attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
-                out.push_line(attribute_content);
+                out.push_chunk(attribute_content, continuation_start_line);
                 scanner.record(line);
+                // `process_continuation` advanced `line_number` over the absorbed
+                // continuation lines but not the attribute line itself; the `continue`
+                // below skips the loop-tail increment, so account for it here to keep
+                // `line_number` aligned with the source for everything that follows.
+                line_number += 1;
+                current_offset += line.len() + 1;
                 continue;
             } else if line.starts_with(':') {
                 attribute::parse_line(&mut options.document_attributes, line.trim());
             }
             if scanner.at_verbatim_delimiter(line) {
+                out.note_source_line(line_number);
                 out.push_line(line.to_string());
             } else if line.starts_with("//") {
                 if scanner.drops(line) {
                     // Drop the adjacent comment; don't `record` it, so a run of
-                    // comments after content is dropped together.
+                    // comments after content is dropped together. The dropped line
+                    // breaks source-line continuity, closing the current run when
+                    // the next content line is emitted.
                     current_offset += line.len() + 1;
                     line_number += 1;
                     continue;
                 }
+                out.note_source_line(line_number);
                 out.push_line(line.to_string());
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 let mut ctx = DirectiveContext {
@@ -738,12 +839,15 @@ impl Preprocessor {
                 };
                 self.process_directive_line(line, &mut lines, &mut ctx, &options, &mut out)?;
             } else {
+                out.note_source_line(line_number);
                 out.push_line(line.to_string());
             }
             scanner.record(line);
             current_offset += line.len() + 1;
             line_number += 1;
         }
+
+        out.flush_run();
 
         Ok(PreprocessorResult {
             text: Cow::Owned(out.lines.join("\n")),
@@ -803,6 +907,131 @@ para line two";
 more";
         let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text, "para\n\n// standalone comment\n\nmore");
+        Ok(())
+    }
+
+    /// Preprocesses `input` as though read from `file`, then reports the source
+    /// line `create_error_source_location` resolves for the first byte of
+    /// `needle` in the preprocessed output — i.e. the line a warning anchored
+    /// there would show the user. Returns `None` if preprocessing fails or the
+    /// needle isn't present, which callers assert against explicitly.
+    fn reported_source_line(input: &str, file: &str, needle: &str) -> Option<usize> {
+        let result = Preprocessor::process_with_file(
+            input,
+            Path::new(file),
+            &Options::default(),
+            Rc::default(),
+        )
+        .ok()?;
+        let text: &'static str = Box::leak(result.text.into_owned().into_boxed_str());
+        resolve_warning_location(text, result.source_ranges, file, needle).map(|(_, line)| line)
+    }
+
+    /// Resolves the `(file, line)` `create_error_source_location` would report for
+    /// the first byte of `needle` in the preprocessed `text`, given the
+    /// preprocessor's `source_ranges` and the document's own `current_file`.
+    fn resolve_warning_location(
+        text: &'static str,
+        source_ranges: Vec<SourceRange>,
+        current_file: &str,
+        needle: &str,
+    ) -> Option<(Option<std::path::PathBuf>, usize)> {
+        use crate::grammar::ParserState;
+
+        let offset = text.find(needle)?;
+        let mut state = ParserState::new_for_test(text);
+        state.current_file = Some(std::path::PathBuf::from(current_file));
+        state.source_ranges = source_ranges;
+
+        let loc = state.create_location(offset, offset + needle.len());
+        let resolved = state.create_error_source_location(loc);
+        let line = match resolved.positioning {
+            Positioning::Location(l) => l.start.line,
+            Positioning::Position(p) => p.line,
+        };
+        Some((resolved.file, line))
+    }
+
+    #[test]
+    fn dropped_comment_remaps_following_lines_to_source() {
+        // The TODO item-L repro: a dropped adjacent comment must not shift the
+        // reported line of everything after it.
+        let input = "line one\n// c\nline two\n\nsecond para\n";
+        assert_eq!(reported_source_line(input, "doc.adoc", "line one"), Some(1));
+        assert_eq!(reported_source_line(input, "doc.adoc", "line two"), Some(3));
+        assert_eq!(
+            reported_source_line(input, "doc.adoc", "second para"),
+            Some(5)
+        );
+    }
+
+    #[test]
+    fn stripped_conditional_remaps_following_lines_to_source() {
+        // `cond` is unset, so the body is removed; `two` is source line 5.
+        let input = "one\nifdef::cond[]\nhidden\nendif::[]\ntwo\n";
+        assert_eq!(reported_source_line(input, "doc.adoc", "one"), Some(1));
+        assert_eq!(reported_source_line(input, "doc.adoc", "two"), Some(5));
+    }
+
+    #[test]
+    fn collapsed_attribute_continuation_remaps_following_lines_to_source() {
+        // `:attr:` collapses two source lines into one; `baz` is source line 4.
+        let input = ":attr: foo \\\nbar\n\nbaz\n";
+        assert_eq!(reported_source_line(input, "doc.adoc", "baz"), Some(4));
+    }
+
+    #[test]
+    fn no_source_ranges_recorded_without_a_file() -> Result<(), Error> {
+        // stdin/string input has no file, so no main-file ranges are emitted and
+        // the parser falls back to the raw preprocessed location.
+        let input = "one\n// c\ntwo\n";
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+        assert!(result.source_ranges.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn include_reports_line_within_the_included_file() -> Result<(), Error> {
+        // The main file drops an adjacent comment (line 4) before pulling in a
+        // chapter via `include::`. A warning anchored in the chapter must name the
+        // *chapter* file at its own line, and main-file content after the dropped
+        // comment must still report its true source line.
+        let path = Path::new("fixtures/preprocessor/include_line_mapping_main.adoc");
+        let result = Preprocessor::process_file(path, &Options::default(), Rc::default())?;
+        let text: &'static str = Box::leak(result.text.into_owned().into_boxed_str());
+
+        // `target reference here` is line 5 of the included chapter.
+        let chapter = resolve_warning_location(
+            text,
+            result.source_ranges.clone(),
+            "fixtures/preprocessor/include_line_mapping_main.adoc",
+            "target reference here",
+        );
+        assert_eq!(
+            chapter
+                .as_ref()
+                .and_then(|(file, _)| file.as_ref())
+                .and_then(|p| p.file_name())
+                .and_then(std::ffi::OsStr::to_str),
+            Some("include_line_mapping_chapter.adoc"),
+        );
+        assert_eq!(chapter.map(|(_, line)| line), Some(5));
+
+        // Main-file content after the dropped comment is line 5 of the main file.
+        let main = resolve_warning_location(
+            text,
+            result.source_ranges,
+            "fixtures/preprocessor/include_line_mapping_main.adoc",
+            "after the comment",
+        );
+        assert_eq!(
+            main.as_ref()
+                .and_then(|(file, _)| file.as_ref())
+                .and_then(|p| p.file_name())
+                .and_then(std::ffi::OsStr::to_str),
+            Some("include_line_mapping_main.adoc"),
+        );
+        assert_eq!(main.map(|(_, line)| line), Some(5));
         Ok(())
     }
 

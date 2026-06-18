@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A warning that points into an `include::`d file (or any content shifted by the
+  preprocessor) now renders its source snippet against the correct file instead of
+  aborting with `Failed to read contents … OutOfBounds`.
 - `--no-default-features` builds no longer re-enable parser default features
   through internal workspace dependencies.
 - Peak memory during multi-file conversion no longer grows linearly with

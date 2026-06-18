@@ -1,0 +1,7 @@
+= Main Document
+
+intro paragraph
+// a dropped adjacent comment
+after the comment
+
+include::include_line_mapping_chapter.adoc[]

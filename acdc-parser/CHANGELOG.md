@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Warnings now report the correct original file and line for content that follows a
+  preprocessor edit. A dropped adjacent line comment, a stripped
+  `ifdef`/`ifndef`/`ifeval` block, or a collapsed multi-line attribute continuation
+  no longer shifts the reported line of everything after it, and a warning inside an
+  `include::`d file is anchored to that file at its true line.
 - A list continuation marker (`+`) on its own line with nothing to attach (the next
   line is blank or the document ends) is now dropped instead of being rendered as a
   literal `+` paragraph, matching `asciidoctor`. This commonly appears as a trailing
