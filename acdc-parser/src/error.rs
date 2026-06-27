@@ -180,39 +180,47 @@ impl Error {
     }
 }
 
-/// Positioning information - either a full Location with start/end or a single Position
-#[derive(Debug, PartialEq)]
-pub enum Positioning {
-    Location(Location),
-    Position(Position),
-}
-
-impl fmt::Display for Positioning {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Positioning::Location(location) => write!(
-                f,
-                "start(line: {}, column: {}), end(line: {}, column: {})",
-                location.start.line, location.start.column, location.end.line, location.end.column
-            ),
-            Positioning::Position(position) => {
-                write!(f, "line: {}, column: {}", position.line, position.column)
-            }
-        }
-    }
-}
-
-/// Source location information combining file path and positioning
+/// Source location information combining a file path with a [`Location`] span.
+///
+/// A point diagnostic (one that only knows a line/column) is a zero-width span with
+/// `location.start == location.end` (see [`Location::point`]).
 #[derive(Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SourceLocation {
     pub file: Option<PathBuf>,
-    pub positioning: Positioning,
+    pub location: Location,
+}
+
+impl SourceLocation {
+    /// A diagnostic at a single `position` (line/column) in `file`.
+    #[must_use]
+    pub fn at_position(file: Option<PathBuf>, position: Position) -> Self {
+        Self {
+            file,
+            location: Location::point(position),
+        }
+    }
+
+    /// A diagnostic spanning `location` in `file`.
+    #[must_use]
+    pub fn at_location(file: Option<PathBuf>, location: Location) -> Self {
+        Self { file, location }
+    }
 }
 
 impl fmt::Display for SourceLocation {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.positioning)
+        let Location { start, end, .. } = &self.location;
+        // A zero-width span renders as a single point; a real span shows both ends.
+        if start == end {
+            write!(f, "line: {}, column: {}", start.line, start.column)
+        } else {
+            write!(
+                f,
+                "start(line: {}, column: {}), end(line: {}, column: {})",
+                start.line, start.column, end.line, end.column
+            )
+        }
     }
 }
 
@@ -224,12 +232,12 @@ mod tests {
     fn test_error_detail_display() {
         let detail = SourceLocation {
             file: None,
-            positioning: Positioning::Location(Location {
+            location: Location {
                 absolute_start: 2,
                 absolute_end: 20,
-                start: Position { line: 1, column: 2 },
-                end: Position { line: 3, column: 4 },
-            }),
+                start: Position::new(1, 2),
+                end: Position::new(3, 4),
+            },
         };
         assert_eq!(
             format!("{detail}"),
@@ -242,12 +250,12 @@ mod tests {
         let error = Error::NestedSectionLevelMismatch(
             Box::new(SourceLocation {
                 file: None,
-                positioning: Positioning::Location(Location {
+                location: Location {
                     absolute_start: 2,
                     absolute_end: 20,
-                    start: Position { line: 1, column: 2 },
-                    end: Position { line: 3, column: 4 },
-                }),
+                    start: Position::new(1, 2),
+                    end: Position::new(3, 4),
+                },
             }),
             1,
             2,
@@ -263,15 +271,12 @@ mod tests {
         let error = Error::InvalidAdmonitionVariant(
             Box::new(SourceLocation {
                 file: None,
-                positioning: Positioning::Location(Location {
+                location: Location {
                     absolute_start: 10,
                     absolute_end: 25,
-                    start: Position { line: 2, column: 1 },
-                    end: Position {
-                        line: 2,
-                        column: 15,
-                    },
-                }),
+                    start: Position::new(2, 1),
+                    end: Position::new(2, 15),
+                },
             }),
             "INVALID".to_string(),
         );
@@ -286,12 +291,12 @@ mod tests {
         let error = Error::MismatchedDelimiters(
             Box::new(SourceLocation {
                 file: None,
-                positioning: Positioning::Location(Location {
+                location: Location {
                     absolute_start: 0,
                     absolute_end: 50,
-                    start: Position { line: 1, column: 1 },
-                    end: Position { line: 5, column: 5 },
-                }),
+                    start: Position::new(1, 1),
+                    end: Position::new(5, 5),
+                },
             }),
             "example".to_string(),
         );
@@ -306,7 +311,7 @@ mod tests {
         let error = Error::Parse(
             Box::new(SourceLocation {
                 file: None,
-                positioning: Positioning::Position(Position { line: 1, column: 6 }),
+                location: crate::Location::point(Position::new(1, 6)),
             }),
             "unexpected token".to_string(),
         );

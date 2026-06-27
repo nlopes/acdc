@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 
 use acdc_converters_core::{Diagnostics, Options, WarningSource};
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, DocumentAttributes, Positioning};
+use acdc_parser::{AttributeValue, DocumentAttributes};
 
 /// Result of a single parse operation: highlighted source + rendered preview.
 pub struct ParseResult {
@@ -122,8 +122,8 @@ fn location_line_col(loc: Option<&acdc_parser::SourceLocation>) -> (Option<usize
     let Some(loc) = loc else {
         return (None, None);
     };
-    match &loc.positioning {
-        Positioning::Location(l) => (Some(l.start.line), Some(l.start.column)),
-        Positioning::Position(p) => (Some(p.line), Some(p.column)),
-    }
+    (
+        Some(loc.location.start.line),
+        Some(loc.location.start.column),
+    )
 }

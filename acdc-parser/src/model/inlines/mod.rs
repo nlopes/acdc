@@ -11,7 +11,7 @@ pub use converter::inlines_to_string;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, Image, Location, model::Locateable};
+use crate::{Anchor, ElementAttributes, Image, Location, Source, model::Locateable};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -73,6 +73,31 @@ impl Locateable for InlineNode<'_> {
     }
 }
 
+impl InlineNode<'_> {
+    /// Mutable access to this inline node's own location (used by the post-parse
+    /// source remap pass). Counterpart to [`InlineNode::location`].
+    pub(crate) fn location_mut(&mut self) -> &mut Location {
+        match self {
+            InlineNode::PlainText(t) => &mut t.location,
+            InlineNode::RawText(t) => &mut t.location,
+            InlineNode::VerbatimText(t) => &mut t.location,
+            InlineNode::BoldText(t) => &mut t.location,
+            InlineNode::ItalicText(t) => &mut t.location,
+            InlineNode::MonospaceText(t) => &mut t.location,
+            InlineNode::HighlightText(t) => &mut t.location,
+            InlineNode::SubscriptText(t) => &mut t.location,
+            InlineNode::SuperscriptText(t) => &mut t.location,
+            InlineNode::CurvedQuotationText(t) => &mut t.location,
+            InlineNode::CurvedApostropheText(t) => &mut t.location,
+            InlineNode::StandaloneCurvedApostrophe(t) => &mut t.location,
+            InlineNode::LineBreak(l) => &mut l.location,
+            InlineNode::InlineAnchor(a) => &mut a.location,
+            InlineNode::Macro(m) => m.location_mut(),
+            InlineNode::CalloutRef(c) => &mut c.location,
+        }
+    }
+}
+
 impl Locateable for InlineMacro<'_> {
     fn location(&self) -> &Location {
         match self {
@@ -90,6 +115,29 @@ impl Locateable for InlineMacro<'_> {
             Self::Pass(p) => &p.location,
             Self::Stem(s) => &s.location,
             Self::IndexTerm(i) => &i.location,
+        }
+    }
+}
+
+impl InlineMacro<'_> {
+    /// Mutable access to this macro's own location. Counterpart to
+    /// [`Locateable::location`] for [`InlineMacro`].
+    pub(crate) fn location_mut(&mut self) -> &mut Location {
+        match self {
+            Self::Footnote(f) => &mut f.location,
+            Self::Icon(i) => &mut i.location,
+            Self::Image(img) => &mut img.location,
+            Self::Keyboard(k) => &mut k.location,
+            Self::Button(b) => &mut b.location,
+            Self::Menu(m) => &mut m.location,
+            Self::Url(u) => &mut u.location,
+            Self::Mailto(m) => &mut m.location,
+            Self::Link(l) => &mut l.location,
+            Self::Autolink(a) => &mut a.location,
+            Self::CrossReference(x) => &mut x.location,
+            Self::Pass(p) => &mut p.location,
+            Self::Stem(s) => &mut s.location,
+            Self::IndexTerm(i) => &mut i.location,
         }
     }
 }
@@ -292,9 +340,20 @@ where
         InlineMacro::Keyboard(k) => serialize_keyboard::<S>(k, map),
         InlineMacro::Button(b) => serialize_button::<S>(b, map),
         InlineMacro::Menu(m) => serialize_menu::<S>(m, map),
-        InlineMacro::Url(u) => serialize_url::<S>(u, map),
-        InlineMacro::Mailto(m) => serialize_mailto::<S>(m, map),
-        InlineMacro::Link(l) => serialize_link::<S>(l, map),
+        InlineMacro::Url(u) => {
+            serialize_ref::<S>(map, "link", &u.target, &u.text, &u.attributes, &u.location)
+        }
+        InlineMacro::Mailto(m) => serialize_ref::<S>(
+            map,
+            "mailto",
+            &m.target,
+            &m.text,
+            &m.attributes,
+            &m.location,
+        ),
+        InlineMacro::Link(l) => {
+            serialize_ref::<S>(map, "link", &l.target, &l.text, &l.attributes, &l.location)
+        }
         InlineMacro::Autolink(a) => serialize_autolink::<S>(a, map),
         InlineMacro::CrossReference(x) => serialize_xref::<S>(x, map),
         InlineMacro::Stem(s) => serialize_stem::<S>(s, map),
@@ -373,49 +432,28 @@ where
     map.serialize_entry("location", &m.location)
 }
 
-fn serialize_url<S>(u: &Url<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
+/// Serialize a `link`/`mailto`-style inline reference (`Url`, `Mailto`, `Link` —
+/// all structurally identical) into the shared ASG `ref` shape.
+fn serialize_ref<S>(
+    map: &mut S::SerializeMap,
+    variant: &str,
+    target: &Source<'_>,
+    text: &[InlineNode<'_>],
+    attributes: &ElementAttributes<'_>,
+    location: &Location,
+) -> Result<(), S::Error>
 where
     S: Serializer,
 {
     map.serialize_entry("name", "ref")?;
     map.serialize_entry("type", "inline")?;
-    map.serialize_entry("variant", "link")?;
-    map.serialize_entry("target", &u.target)?;
-    if !u.text.is_empty() {
-        map.serialize_entry("inlines", &u.text)?;
+    map.serialize_entry("variant", variant)?;
+    map.serialize_entry("target", target)?;
+    if !text.is_empty() {
+        map.serialize_entry("inlines", text)?;
     }
-    map.serialize_entry("location", &u.location)?;
-    map.serialize_entry("attributes", &u.attributes)
-}
-
-fn serialize_mailto<S>(m: &Mailto<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
-where
-    S: Serializer,
-{
-    map.serialize_entry("name", "ref")?;
-    map.serialize_entry("type", "inline")?;
-    map.serialize_entry("variant", "mailto")?;
-    map.serialize_entry("target", &m.target)?;
-    if !m.text.is_empty() {
-        map.serialize_entry("inlines", &m.text)?;
-    }
-    map.serialize_entry("location", &m.location)?;
-    map.serialize_entry("attributes", &m.attributes)
-}
-
-fn serialize_link<S>(l: &Link<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>
-where
-    S: Serializer,
-{
-    map.serialize_entry("name", "ref")?;
-    map.serialize_entry("type", "inline")?;
-    map.serialize_entry("variant", "link")?;
-    map.serialize_entry("target", &l.target)?;
-    if !l.text.is_empty() {
-        map.serialize_entry("inlines", &l.text)?;
-    }
-    map.serialize_entry("location", &l.location)?;
-    map.serialize_entry("attributes", &l.attributes)
+    map.serialize_entry("location", location)?;
+    map.serialize_entry("attributes", attributes)
 }
 
 fn serialize_autolink<S>(a: &Autolink<'_>, map: &mut S::SerializeMap) -> Result<(), S::Error>

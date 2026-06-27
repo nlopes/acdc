@@ -1,0 +1,5 @@
+= Footnote Include
+
+Primary intro.
+
+include::include_footnote_part.adoc[]

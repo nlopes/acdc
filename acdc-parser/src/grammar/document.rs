@@ -1385,10 +1385,7 @@ peg::parser! {
             // Only for zero-byte input, not whitespace-only
             let (start_position, end_position) = if state.input.is_empty() || (absolute_start == 0 && absolute_end == 0) {
                 // Whitespace-only documents should use column 1
-                (
-                    crate::Position { line: 1, column: 0 },
-                    crate::Position { line: 1, column: 0 }
-                )
+                (crate::Position::new(1, 0), crate::Position::new(1, 0))
             } else {
                 (
                     start.position,
@@ -1486,6 +1483,13 @@ peg::parser! {
 
             Ok(Document {
                 header,
+                // Built in preprocessed coordinates with no `file` on either boundary;
+                // the post-parse remap then applies the per-boundary `file` model like
+                // any node — a boundary in primary content stays `file: None`, one whose
+                // content came from an `include::` gets that include chain. So a document
+                // whose last block is a nested include legitimately ends in that file
+                // (its start, in the primary, stays `None`). Matches the ASG's
+                // per-`locationBoundary` `file` semantics.
                 location: Location {
                     absolute_start,
                     absolute_end,
@@ -1537,7 +1541,7 @@ peg::parser! {
                         Some(&header),
                         Rc::make_mut(&mut state.document_attributes),
                         state.options.strict,
-                        state.current_file.as_deref(),
+                        state.current_file.as_deref().map(std::path::PathBuf::as_path),
                     )?;
                 }
 
@@ -4966,7 +4970,7 @@ peg::parser! {
             let warnings = inline_state.drain_warnings();
             drop(inline_state);
             for warning in warnings {
-                state.add_warning(warning);
+                state.add_inline_preprocessor_warning(warning);
             }
             Ok(result)
         }
@@ -5005,7 +5009,7 @@ peg::parser! {
             let warnings = inline_state.drain_warnings();
             drop(inline_state);
             for warning in warnings {
-                state.add_warning(warning);
+                state.add_inline_preprocessor_warning(warning);
             }
             Ok(result)
         }
@@ -5059,7 +5063,7 @@ peg::parser! {
             let warnings = inline_state.drain_warnings();
             drop(inline_state);
             for warning in warnings {
-                state.add_warning(warning);
+                state.add_inline_preprocessor_warning(warning);
             }
             Ok(result)
         }
@@ -5335,11 +5339,8 @@ v2.9, 01-09-2024: Fall incarnation
                 location: Location {
                     absolute_start: 34,
                     absolute_end: 47,
-                    start: crate::Position { line: 2, column: 3 },
-                    end: crate::Position {
-                        line: 2,
-                        column: 16,
-                    },
+                    start: crate::Position::new(2, 3),
+                    end: crate::Position::new(2, 16),
                 },
                 escaped: false,
             })
@@ -5616,11 +5617,8 @@ v2.0, 2026-01-15: rel
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position { line: 1, column: 3 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 16,
-                    },
+                    start: crate::Position::new(1, 3),
+                    end: crate::Position::new(1, 16),
                 },
                 escaped: false,
             })
@@ -5642,11 +5640,8 @@ v2.0, 2026-01-15: rel
                     location: Location {
                         absolute_start: 2,
                         absolute_end: 15,
-                        start: crate::Position { line: 1, column: 3 },
-                        end: crate::Position {
-                            line: 1,
-                            column: 16,
-                        },
+                        start: crate::Position::new(1, 3),
+                        end: crate::Position::new(1, 16),
                     },
                     escaped: false,
                 })]),
@@ -5655,14 +5650,8 @@ v2.0, 2026-01-15: rel
                     location: Location {
                         absolute_start: 18,
                         absolute_end: 31,
-                        start: crate::Position {
-                            line: 1,
-                            column: 19,
-                        },
-                        end: crate::Position {
-                            line: 1,
-                            column: 32,
-                        },
+                        start: crate::Position::new(1, 19),
+                        end: crate::Position::new(1, 32),
                     },
                     escaped: false,
                 })]))
@@ -5687,11 +5676,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position { line: 1, column: 3 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 16,
-                    },
+                    start: crate::Position::new(1, 3),
+                    end: crate::Position::new(1, 16),
                 },
                 escaped: false,
             })
@@ -5731,11 +5717,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 10,
-                    start: crate::Position { line: 1, column: 3 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 11,
-                    },
+                    start: crate::Position::new(1, 3),
+                    end: crate::Position::new(1, 11),
                 },
                 escaped: false,
             })
@@ -5793,11 +5776,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 4,
                     absolute_end: 9,
-                    start: crate::Position { line: 1, column: 5 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 10,
-                    }
+                    start: crate::Position::new(1, 5),
+                    end: crate::Position::new(1, 10),
                 }
             })
         );
@@ -5823,11 +5803,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position { line: 1, column: 9 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 13,
-                    }
+                    start: crate::Position::new(1, 9),
+                    end: crate::Position::new(1, 13),
                 }
             })
         );
@@ -5853,11 +5830,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position { line: 1, column: 9 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 13,
-                    }
+                    start: crate::Position::new(1, 9),
+                    end: crate::Position::new(1, 13),
                 }
             })
         );
@@ -5884,11 +5858,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 12,
-                    start: crate::Position { line: 1, column: 3 },
-                    end: crate::Position {
-                        line: 1,
-                        column: 13,
-                    }
+                    start: crate::Position::new(1, 3),
+                    end: crate::Position::new(1, 13),
                 }
             })
         );
@@ -5913,8 +5884,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 7,
-                    start: crate::Position { line: 1, column: 3 },
-                    end: crate::Position { line: 1, column: 8 }
+                    start: crate::Position::new(1, 3),
+                    end: crate::Position::new(1, 8),
                 }
             })
         );
@@ -6646,12 +6617,15 @@ References.
         // "sponsor.adoc" (included), and the trailing content is at byte 45.
         let input = "a]b\n".repeat(20); // 80 bytes total (4 bytes per line)
         let mut state = ParserState::new_for_test(&input);
-        state.current_file = Some(PathBuf::from("/docs/main.adoc"));
+        state.current_file = Some(PathBuf::from("/docs/main.adoc").into());
         state.source_ranges = vec![SourceRange {
             start_offset: 28, // byte 28 starts the included region
             end_offset: 60,
-            file: PathBuf::from("/docs/sponsor.adoc"),
+            file: Some(PathBuf::from("/docs/sponsor.adoc")),
+            file_chain: vec!["sponsor.adoc".to_string()],
             start_line: 1,
+            source_start_offset: 0,
+            column_shift: 0,
         }];
 
         // Trigger warning at byte offset 40 (inside the included range)
@@ -6669,10 +6643,7 @@ References.
             "should reference the included file, got: {:?}",
             loc.file,
         );
-        let position_line = match &loc.positioning {
-            crate::Positioning::Location(l) => l.start.line,
-            crate::Positioning::Position(p) => p.line,
-        };
+        let position_line = loc.location.start.line;
         assert_eq!(
             position_line, 4,
             "should reference line 4 in included file, got line {position_line}",
@@ -6688,12 +6659,15 @@ References.
 
         let input = "image::x.png[alt]extra\nsecond line\n";
         let mut state = ParserState::new_for_test(input);
-        state.current_file = Some(PathBuf::from("/docs/main.adoc"));
+        state.current_file = Some(PathBuf::from("/docs/main.adoc").into());
         state.source_ranges = vec![SourceRange {
             start_offset: 100, // well beyond input - shouldn't match
             end_offset: 200,
-            file: PathBuf::from("/docs/other.adoc"),
+            file: Some(PathBuf::from("/docs/other.adoc")),
+            file_chain: vec!["other.adoc".to_string()],
             start_line: 1,
+            source_start_offset: 0,
+            column_shift: 0,
         }];
 
         state.warn_trailing_macro_content("image", "extra", 17, 0);
@@ -6733,10 +6707,7 @@ References.
         let loc = warning
             .source_location()
             .expect("warning should carry a location");
-        match &loc.positioning {
-            crate::Positioning::Location(l) => assert_eq!(l.start.line, 3),
-            crate::Positioning::Position(p) => assert_eq!(p.line, 3),
-        }
+        assert_eq!(loc.location.start.line, 3);
         Ok(())
     }
 
@@ -7044,10 +7015,7 @@ References.
         let loc = warning
             .source_location()
             .expect("warning should carry a location");
-        match &loc.positioning {
-            crate::Positioning::Location(l) => assert_eq!(l.start.line, 2),
-            crate::Positioning::Position(p) => assert_eq!(p.line, 2),
-        }
+        assert_eq!(loc.location.start.line, 2);
         Ok(())
     }
 
@@ -7129,10 +7097,7 @@ References.
         let loc = warning
             .source_location()
             .expect("warning should carry a location");
-        match &loc.positioning {
-            crate::Positioning::Location(l) => assert_eq!(l.start.line, 5),
-            crate::Positioning::Position(p) => assert_eq!(p.line, 5),
-        }
+        assert_eq!(loc.location.start.line, 5);
         Ok(())
     }
 
@@ -7194,10 +7159,7 @@ References.
             .source_location()
             .expect("warning should carry a location");
         // Warning should point to the opening `|===` on line 1.
-        match &loc.positioning {
-            crate::Positioning::Location(l) => assert_eq!(l.start.line, 1),
-            crate::Positioning::Position(p) => assert_eq!(p.line, 1),
-        }
+        assert_eq!(loc.location.start.line, 1);
 
         // The document should still contain a table block.
         let has_table = doc.blocks.iter().any(|b| {
@@ -7262,10 +7224,7 @@ References.
         let loc = warning
             .source_location()
             .expect("warning should carry a location");
-        let line = match &loc.positioning {
-            crate::Positioning::Location(l) => l.start.line,
-            crate::Positioning::Position(p) => p.line,
-        };
+        let line = loc.location.start.line;
         assert_eq!(
             line, 4,
             "warning should point at line 4 (the `!===`), not the `a|` line; got {line}",

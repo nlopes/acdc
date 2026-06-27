@@ -1,0 +1,5 @@
+= Counter Include
+
+Primary line one.
+
+include::include_counter_part.adoc[]

@@ -90,22 +90,17 @@ pub(crate) struct AttributeProcessingMode {
     /// If true, first positional attribute becomes `style` (used by macro attributes)
     /// If false, positional attributes are added to `positional_attributes` list
     pub(crate) first_positional_is_style: bool,
-    /// If true, process `subs=` attribute (block attributes only)
-    #[allow(dead_code)]
-    pub(crate) process_subs: bool,
 }
 
 impl AttributeProcessingMode {
     /// Configuration for block-level attributes
     pub(crate) const BLOCK: Self = Self {
         first_positional_is_style: false,
-        process_subs: true,
     };
 
     /// Configuration for macro attributes (image, audio, video, icon)
     pub(crate) const MACRO: Self = Self {
         first_positional_is_style: true,
-        process_subs: false,
     };
 }
 

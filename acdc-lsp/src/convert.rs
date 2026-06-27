@@ -64,17 +64,6 @@ pub(crate) fn location_to_range(loc: &Location) -> Range {
     }
 }
 
-/// Convert a parser Position to an LSP Position
-///
-/// Note: acdc-parser uses 1-indexed, LSP uses 0-indexed
-#[must_use]
-pub(crate) fn parser_position_to_lsp(pos: &acdc_parser::Position) -> Position {
-    Position {
-        line: to_lsp_u32(pos.line.saturating_sub(1)),
-        character: to_lsp_u32(pos.column.saturating_sub(1)),
-    }
-}
-
 /// Resolve a relative path against a document URI's directory.
 ///
 /// Uses RFC 3986 reference resolution via `fluent_uri`, which correctly

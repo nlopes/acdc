@@ -1,8 +1,4 @@
-#[allow(unused_imports)]
-use crate::{
-    Bold, CurvedApostrophe, CurvedQuotation, Form, Highlight, InlineNode, Italic, Location,
-    Monospace, Plain, ProcessedContent, StandaloneCurvedApostrophe, Subscript, Superscript,
-};
+use crate::{Form, InlineNode, Location, Plain, ProcessedContent};
 
 use super::{
     ParserState,
@@ -42,90 +38,11 @@ pub(crate) fn clamp_location_bounds(location: &mut Location, input: &str) {
     }
 }
 
-/// Recursively clamp all locations in an `InlineNode` to valid bounds
+/// Recursively clamp all locations in an `InlineNode` to valid bounds.
 pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
-    match node {
-        InlineNode::PlainText(plain) => clamp_location_bounds(&mut plain.location, input),
-        InlineNode::RawText(raw) => clamp_location_bounds(&mut raw.location, input),
-        InlineNode::VerbatimText(verbatim) => clamp_location_bounds(&mut verbatim.location, input),
-        InlineNode::BoldText(bold) => {
-            clamp_location_bounds(&mut bold.location, input);
-            for child in &mut bold.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::ItalicText(italic) => {
-            clamp_location_bounds(&mut italic.location, input);
-            for child in &mut italic.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::MonospaceText(mono) => {
-            clamp_location_bounds(&mut mono.location, input);
-            for child in &mut mono.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::HighlightText(highlight) => {
-            clamp_location_bounds(&mut highlight.location, input);
-            for child in &mut highlight.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::SubscriptText(sub) => {
-            clamp_location_bounds(&mut sub.location, input);
-            for child in &mut sub.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::SuperscriptText(sup) => {
-            clamp_location_bounds(&mut sup.location, input);
-            for child in &mut sup.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::CurvedQuotationText(cq) => {
-            clamp_location_bounds(&mut cq.location, input);
-            for child in &mut cq.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::CurvedApostropheText(ca) => {
-            clamp_location_bounds(&mut ca.location, input);
-            for child in &mut ca.content {
-                clamp_inline_node_locations(child, input);
-            }
-        }
-        InlineNode::StandaloneCurvedApostrophe(sca) => {
-            clamp_location_bounds(&mut sca.location, input);
-        }
-        InlineNode::LineBreak(lb) => clamp_location_bounds(&mut lb.location, input),
-        InlineNode::InlineAnchor(anchor) => clamp_location_bounds(&mut anchor.location, input),
-        InlineNode::CalloutRef(callout) => clamp_location_bounds(&mut callout.location, input),
-        InlineNode::Macro(m) => match m {
-            crate::InlineMacro::Footnote(f) => {
-                clamp_location_bounds(&mut f.location, input);
-                for child in &mut f.content {
-                    clamp_inline_node_locations(child, input);
-                }
-            }
-            crate::InlineMacro::Icon(i) => clamp_location_bounds(&mut i.location, input),
-            crate::InlineMacro::Image(img) => clamp_location_bounds(&mut img.location, input),
-            crate::InlineMacro::Keyboard(k) => clamp_location_bounds(&mut k.location, input),
-            crate::InlineMacro::Button(b) => clamp_location_bounds(&mut b.location, input),
-            crate::InlineMacro::Menu(menu) => clamp_location_bounds(&mut menu.location, input),
-            crate::InlineMacro::Url(u) => clamp_location_bounds(&mut u.location, input),
-            crate::InlineMacro::Link(l) => clamp_location_bounds(&mut l.location, input),
-            crate::InlineMacro::Mailto(m) => clamp_location_bounds(&mut m.location, input),
-            crate::InlineMacro::Autolink(a) => clamp_location_bounds(&mut a.location, input),
-            crate::InlineMacro::CrossReference(x) => {
-                clamp_location_bounds(&mut x.location, input);
-            }
-            crate::InlineMacro::Pass(p) => clamp_location_bounds(&mut p.location, input),
-            crate::InlineMacro::Stem(s) => clamp_location_bounds(&mut s.location, input),
-            crate::InlineMacro::IndexTerm(it) => clamp_location_bounds(&mut it.location, input),
-        },
-    }
+    super::location_walk::walk_inline_locations_mut(node, &mut |loc| {
+        clamp_location_bounds(loc, input);
+    });
 }
 
 /// Context for location mapping operations
@@ -195,15 +112,8 @@ pub(crate) fn create_location_mapper<'a>(
             if loc.absolute_start == 0 && base_location.absolute_start < base_location.absolute_end
             {
                 // Special case: single character inside constrained formatting like "*s*"
-                // Check if this is constrained formatting (which has single-character delimiters)
-                let is_constrained_single_char = if let Some(form) = form {
-                    matches!(form, Form::Constrained)
-                } else {
-                    // No enclosing formatting context: constrained heuristic never applies
-                    false
-                };
-
-                if is_constrained_single_char {
+                // (constrained formatting has single-character delimiters).
+                if matches!(form, Some(Form::Constrained)) {
                     // Constrained formatting: skip single-char delimiter to point at content
                     processed_abs_start =
                         base_location.absolute_start + CONSTRAINED_CONTENT_START_OFFSET;
@@ -251,18 +161,10 @@ pub(crate) fn create_location_mapper<'a>(
         let is_single_char_fix = mapped_abs_end == mapped_abs_start + 1
             && loc.absolute_start == 0
             && base_location.absolute_start < base_location.absolute_end;
-        if is_single_char_fix {
-            // Check if this is constrained formatting (which has single-character delimiters)
-            let is_constrained_single_char = if let Some(form) = form {
-                matches!(form, Form::Constrained)
-            } else {
-                // No enclosing formatting context: constrained heuristic never applies
-                false
-            };
-
-            if is_constrained_single_char {
-                end_pos.column = start_pos.column;
-            }
+        // For single-character content inside constrained formatting, point both
+        // start and end column at the same character.
+        if is_single_char_fix && matches!(form, Some(Form::Constrained)) {
+            end_pos.column = start_pos.column;
         }
 
         Ok(Location {
@@ -571,6 +473,11 @@ fn map_inline_macro<'a>(
         InlineMacro::Footnote(footnote) => {
             footnote.location = map_loc(&footnote.location)?;
             footnote.content = map_inline_locations(state, processed, &footnote.content, location)?;
+            // The footnote tracker captured this footnote during parsing in
+            // preprocessed-local coordinates; propagate the now document-absolute
+            // location/content to its `Document.footnotes` entry so the post-parse
+            // remap can map it to origin like the in-tree copy.
+            state.footnote_tracker.borrow_mut().finalize(footnote);
         }
         InlineMacro::Url(url) => {
             url.location = map_loc(&url.location)?;

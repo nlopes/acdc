@@ -1,0 +1,6 @@
+Part intro paragraph.
+
+[quote,Brian Quote,The Source Book]
+____
+A quoted sentence.
+____

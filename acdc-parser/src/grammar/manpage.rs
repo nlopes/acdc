@@ -6,7 +6,7 @@
 
 use crate::{
     AttributeValue, DocumentAttributes, Header, InlineNode,
-    error::{Error, Positioning, SourceLocation},
+    error::{Error, SourceLocation},
 };
 
 /// Parsed manpage title components.
@@ -194,7 +194,7 @@ pub(super) fn derive_manpage_header_attrs<'a>(
             return Err(Error::NonConformingManpageTitle(
                 Box::new(SourceLocation {
                     file: source_file.map(std::path::Path::to_path_buf),
-                    positioning: Positioning::Location(header.location.clone()),
+                    location: header.location.clone(),
                 }),
                 format!("title '{title_text}' does not match 'name(volume)' format"),
             ));

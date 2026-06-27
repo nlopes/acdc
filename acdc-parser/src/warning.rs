@@ -75,9 +75,9 @@ impl fmt::Display for Warning {
             .and_then(|p| p.file_name())
             .and_then(|s| s.to_str())
         {
-            write!(f, "{name}: {}: {}", loc.positioning, self.kind)
+            write!(f, "{name}: {}: {}", loc, self.kind)
         } else {
-            write!(f, "{}: {}", loc.positioning, self.kind)
+            write!(f, "{}: {}", loc, self.kind)
         }
     }
 }
@@ -173,7 +173,7 @@ pub enum WarningKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Position, Positioning};
+    use crate::Position;
 
     #[test]
     fn display_without_location() {
@@ -185,7 +185,7 @@ mod tests {
     fn display_with_location_no_file() {
         let loc = SourceLocation {
             file: None,
-            positioning: Positioning::Position(Position { line: 5, column: 1 }),
+            location: crate::Location::point(Position::new(5, 1)),
         };
         let w = Warning::new(
             WarningKind::SectionLevelOutOfSequence {
@@ -204,7 +204,7 @@ mod tests {
     fn display_with_location_and_file() {
         let loc = SourceLocation {
             file: Some(std::path::PathBuf::from("/docs/guide.adoc")),
-            positioning: Positioning::Position(Position { line: 5, column: 1 }),
+            location: crate::Location::point(Position::new(5, 1)),
         };
         let w = Warning::new(
             WarningKind::SectionLevelOutOfSequence {

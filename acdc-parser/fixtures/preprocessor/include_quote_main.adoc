@@ -1,0 +1,5 @@
+= Quote Include
+
+First primary paragraph.
+
+include::include_quote_part.adoc[]
