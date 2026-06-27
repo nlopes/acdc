@@ -58,6 +58,13 @@ terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI co
 highlighting = ["acdc-converters-html?/highlighting"]
 # Enable terminal-styled rendering in the HTML converter.
 html-terminal = ["html", "acdc-converters-html/terminal"]
+# Render `[terminal]` session blocks through libghostty-vt for the terminal
+# backend. Requires a Zig toolchain to build the bundled libghostty-vt, which is
+# statically linked into the binary.
+terminal-render-state = [
+    "terminal",
+    "acdc-converters-terminal/render-state",
+]
 
 # Development tools
 inspect = []  # AST inspection tool for debugging parser output
