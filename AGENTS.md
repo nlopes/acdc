@@ -36,6 +36,19 @@ When tests fail, identify the category and follow the appropriate path:
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
 
+## Benchmarks
+
+`acdc-parser` has two Criterion benches. `parser_bench` (string-parse hot paths) runs
+under a bare `cargo bench`. `f1_include_bench` (include / partial-include parsing) is
+**disabled by default** (`bench`/`test` = false) so CI and `cargo bench`/`cargo test`
+skip it — it writes temp fixtures and takes minutes. Run it on demand when touching the
+include/preprocessor/remap paths: `cargo bench --bench f1_include_bench`.
+
+Beware machine drift: a single before/after run on this hardware shows a uniform few-percent
+shift (confirmed via a before-vs-before run) that swamps small real deltas. For trustworthy
+numbers use a **paired/alternating** run (alternate the old and new binaries back-to-back
+several times and compare adjacent pairs), with an untouched benchmark as a codegen-bias control.
+
 ## Versioning
 
 All crates have **independent versions** — bump only crates that changed.
