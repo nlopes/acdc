@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The `terminal-render-state` build feature renders `[terminal]` session blocks
+  through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
+  toolchain to build the bundled library, which is statically linked so the
+  binary stays self-contained.
 - The `html-terminal` feature forwards terminal-styled HTML rendering to the
   HTML converter. The `:terminal-preview:` document attribute opts terminal-like
   source blocks into selectable preview rendering; Asciidoctor does not provide
