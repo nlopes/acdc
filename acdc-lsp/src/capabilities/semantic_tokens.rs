@@ -333,22 +333,23 @@ fn add_token_for_location(
     token_modifiers: u32,
     tokens: &mut Vec<RawToken>,
 ) {
-    // Calculate length from location.
-    // Parser locations have inclusive end positions, so add 1 for the length.
-    let length = if loc.start.line == loc.end.line {
-        to_lsp_u32(
+    // Calculate length from location. Parser locations have inclusive end positions.
+    let length = match loc.byte_len() {
+        // Cross-file span (start and end came through different `include::` chains): the
+        // columns and byte offsets live in different files' coordinate spaces, so neither
+        // delta is meaningful. `byte_len()` returns `None`; a semantic token is single-line
+        // anyway, so emit a minimal 1-char token rather than a bogus length.
+        None => 1,
+        // Same line (and same file): use the column span.
+        Some(_) if loc.start.line == loc.end.line => to_lsp_u32(
             loc.end
                 .column
                 .saturating_sub(loc.start.column)
                 .saturating_add(1),
-        )
-    } else {
-        // For multi-line, just use first line length (simplified)
-        to_lsp_u32(
-            loc.absolute_end
-                .saturating_sub(loc.absolute_start)
-                .saturating_add(1),
-        )
+        ),
+        // Multi-line within one file: use the byte length (simplified — first-line only
+        // would need the line width, which we don't have here).
+        Some(bytes) => to_lsp_u32(bytes),
     };
 
     if length > 0 {
@@ -418,7 +419,34 @@ fn delta_encode(tokens: Vec<RawToken>) -> Vec<SemanticToken> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::Options;
+    use acdc_parser::{Options, Position};
+
+    #[test]
+    fn cross_file_token_length_is_safe() {
+        use std::sync::Arc;
+
+        // A token whose start and end came through different `include::` chains: the byte
+        // offsets live in different files' coordinate spaces, so `absolute_end -
+        // absolute_start` is meaningless. The guard must emit a minimal token, not a length
+        // derived from that cross-file delta (here 400 - 10 + 1 = 391 without the guard).
+        let mut start = Position::new(2, 1);
+        start.file = Some(Arc::new(vec!["a.adoc".to_string()]));
+        let mut end = Position::new(8, 5);
+        end.file = Some(Arc::new(vec!["b.adoc".to_string()]));
+        let mut loc = Location::point(start);
+        loc.end = end;
+        loc.absolute_start = 10;
+        loc.absolute_end = 400;
+
+        let mut tokens = Vec::new();
+        add_token_for_location(&loc, 0, 0, &mut tokens);
+
+        assert_eq!(
+            tokens.first().map(|t| t.length),
+            Some(1),
+            "cross-file token must use the safe fallback length, not the byte delta",
+        );
+    }
 
     #[test]
     fn test_section_tokens() -> Result<(), acdc_parser::Error> {
