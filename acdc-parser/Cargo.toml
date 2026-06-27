@@ -60,5 +60,14 @@ tracing-test.workspace = true
 name = "parser_bench"
 harness = false
 
+# Include / partial-include perf bench. Disabled by default (`bench`/`test` = false)
+# so `cargo bench`, `cargo test`, and CI never run it — it generates temp fixtures
+# and takes minutes. Run on demand: `cargo bench --bench f1_include_bench`.
+[[bench]]
+name = "f1_include_bench"
+harness = false
+bench = false
+test = false
+
 [lints]
 workspace = true
