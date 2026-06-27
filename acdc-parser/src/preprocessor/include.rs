@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::{
     Options, Preprocessor, SafeMode,
-    error::{Error, Positioning, SourceLocation},
+    error::{Error, SourceLocation},
     model::{HEADER, LeveloffsetRange, Position, SourceRange, substitute},
 };
 
@@ -182,10 +182,7 @@ impl LinesRange {
         Error::InvalidLineRange(
             Box::new(SourceLocation {
                 file: current_file.map(Path::to_path_buf),
-                positioning: Positioning::Position(Position {
-                    line: line_number,
-                    column: 1,
-                }),
+                location: crate::Location::point(Position::new(line_number, 1)),
             }),
             line_range.to_string(),
         )
@@ -242,12 +239,30 @@ impl LinesRange {
     }
 }
 
+/// Origin of a single emitted include line: its 1-indexed line number within the
+/// included file and the byte offset of the line's first byte in that file (both
+/// relative to the file's normalized content). Lets the caller record one
+/// [`SourceRange`] per run of consecutive source lines, so partial (`lines=` /
+/// `tags=`) includes map back to their true origin lines rather than to line 1.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct IncludedLineOrigin {
+    pub(crate) line: usize,
+    pub(crate) offset: usize,
+}
+
 /// Result of processing an include directive.
 ///
 /// Contains the included lines and any leveloffset that should apply to them.
 #[derive(Debug)]
 pub(crate) struct IncludeResult {
     pub(crate) lines: Vec<String>,
+    /// Origin (1-indexed line + byte offset within the included file) of each line
+    /// in `lines`, parallel to it. A whole-file include is lines `1..N`; partial
+    /// includes carry the selected lines' true origins.
+    pub(crate) source_lines: Vec<IncludedLineOrigin>,
+    /// Per-line column shift applied by `indent=N` (`N − common_indent`), uniform
+    /// across the include; `0` when no `indent` was given (content copied verbatim).
+    pub(crate) column_shift: isize,
     /// The effective leveloffset value to apply to this included content.
     /// This is the sum of the current document's leveloffset and the include's leveloffset.
     pub(crate) effective_leveloffset: Option<isize>,
@@ -256,6 +271,11 @@ pub(crate) struct IncludeResult {
     pub(crate) nested_leveloffset_ranges: Vec<LeveloffsetRange>,
     /// The resolved file path of the included content.
     pub(crate) file: Option<PathBuf>,
+    /// The include target exactly as written in the directive (after attribute
+    /// substitution), e.g. `markup.adoc` or `chapters/intro.adoc`. Used as the
+    /// outermost element of the ASG `file` include chain. Empty when no target
+    /// resolved (missing/optional include).
+    pub(crate) target: String,
     /// Source ranges from nested includes within this included file.
     /// These need to be merged into the parent's ranges with adjusted byte offsets.
     pub(crate) nested_source_ranges: Vec<SourceRange>,
@@ -270,10 +290,10 @@ impl<'a> Include<'a> {
                         Error::InvalidLevelOffset(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                positioning: Positioning::Position(Position {
-                                    line: self.line_number,
-                                    column: 1,
-                                }),
+                                location: crate::Location::point(Position::new(
+                                    self.line_number,
+                                    1,
+                                )),
                             }),
                             value.clone(),
                         )
@@ -296,10 +316,10 @@ impl<'a> Include<'a> {
                         Error::InvalidIndent(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                positioning: Positioning::Position(Position {
-                                    line: self.line_number,
-                                    column: 1,
-                                }),
+                                location: crate::Location::point(Position::new(
+                                    self.line_number,
+                                    1,
+                                )),
                             }),
                             value.clone(),
                         )
@@ -316,10 +336,7 @@ impl<'a> Include<'a> {
                     return Err(Error::InvalidIncludeDirective(
                         Box::new(SourceLocation {
                             file: self.current_file.clone(),
-                            positioning: Positioning::Position(Position {
-                                line: self.line_number,
-                                column: 1,
-                            }),
+                            location: crate::Location::point(Position::new(self.line_number, 1)),
                         }),
                         unknown.to_string(),
                     ));
@@ -355,16 +372,23 @@ impl<'a> Include<'a> {
             Error::Parse(
                 Box::new(crate::SourceLocation {
                     file: current_file.map(Path::to_path_buf),
-                    positioning: crate::Positioning::Position(Position {
-                        // Adjust line number to be relative to the document
-                        // PEG parser location.line is always 1 for a single line parse
-                        line: line_number,
-                        column: location.column,
-                    }),
+                    // Adjust line number to be relative to the document
+                    // PEG parser location.line is always 1 for a single line parse
+                    location: crate::Location::point(Position::new(line_number, location.column)),
                 }),
                 e.expected.to_string(),
             )
         })?
+    }
+
+    /// The include target exactly as written in the directive (after attribute
+    /// substitution), e.g. `markup.adoc` or `chapters/intro.adoc` — not resolved
+    /// against the including file's directory. Feeds the ASG `file` include chain.
+    fn target_as_written(&self) -> String {
+        match &self.target {
+            Target::Path(path) => path.to_string_lossy().into_owned(),
+            Target::Url(url) => url.to_string(),
+        }
     }
 
     /// Resolve the target path, handling URL downloads if needed.
@@ -428,9 +452,13 @@ impl<'a> Include<'a> {
         }
     }
 
-    /// Apply tag and line range filters to content lines.
-    fn apply_content_filters(&self, content_lines: &[String]) -> Vec<String> {
+    /// Apply tag and line range filters to content lines, returning the surviving
+    /// lines together with each one's 0-indexed position in `content_lines`. The
+    /// caller maps those indices to origin line/offset so partial includes locate
+    /// their content correctly. Both vectors are parallel and equal length.
+    fn apply_content_filters(&self, content_lines: &[String]) -> (Vec<String>, Vec<usize>) {
         let mut lines = Vec::new();
+        let mut indices = Vec::new();
 
         if !self.tags.is_empty() {
             let filters: Vec<TagFilter> = self
@@ -444,6 +472,7 @@ impl<'a> Include<'a> {
                 for idx in selected_indices {
                     if let Some(line) = content_lines.get(idx) {
                         lines.push(line.clone());
+                        indices.push(idx);
                     }
                 }
             } else {
@@ -453,19 +482,26 @@ impl<'a> Include<'a> {
                         && let Some(line) = content_lines.get(idx)
                     {
                         lines.push(line.clone());
+                        indices.push(idx);
                     }
                 }
             }
         } else if self.line_range.is_empty() {
             lines.extend(content_lines.iter().cloned());
+            indices.extend(0..content_lines.len());
         } else {
-            self.extend_lines_with_ranges(content_lines, &mut lines);
+            self.extend_lines_with_ranges(content_lines, &mut lines, &mut indices);
         }
 
-        lines
+        (lines, indices)
     }
 
-    fn apply_indent(lines: &[String], indent: usize) -> Vec<String> {
+    /// Re-indent `lines`: strip the block's common leading whitespace, then prepend
+    /// `indent` spaces. Returns the rewritten lines and the uniform per-line column
+    /// shift (`indent − common_indent`), which the remap subtracts to recover origin
+    /// columns. The shift is in characters; it equals the byte shift for the usual
+    /// ASCII (space/tab) leading whitespace.
+    fn apply_indent(lines: &[String], indent: usize) -> (Vec<String>, isize) {
         let min_indent = lines
             .iter()
             .filter(|line| !line.trim().is_empty())
@@ -474,7 +510,7 @@ impl<'a> Include<'a> {
             .unwrap_or(0);
 
         let prefix = " ".repeat(indent);
-        lines
+        let indented = lines
             .iter()
             .map(|line| {
                 if line.trim().is_empty() {
@@ -488,7 +524,10 @@ impl<'a> Include<'a> {
                     format!("{prefix}{stripped}")
                 }
             })
-            .collect()
+            .collect();
+        let column_shift =
+            isize::try_from(indent).unwrap_or(0) - isize::try_from(min_indent).unwrap_or(0);
+        (indented, column_shift)
     }
 
     /// Read and process content from a file, returning the text and any nested ranges.
@@ -556,9 +595,12 @@ impl<'a> Include<'a> {
         let Some(path) = self.resolve_target_path()? else {
             return Ok(IncludeResult {
                 lines: Vec::new(),
+                source_lines: Vec::new(),
+                column_shift: 0,
                 effective_leveloffset: None,
                 nested_leveloffset_ranges: Vec::new(),
                 file: None,
+                target: String::new(),
                 nested_source_ranges: Vec::new(),
             });
         };
@@ -573,9 +615,12 @@ impl<'a> Include<'a> {
             }
             return Ok(IncludeResult {
                 lines: Vec::new(),
+                source_lines: Vec::new(),
+                column_shift: 0,
                 effective_leveloffset: None,
                 nested_leveloffset_ranges: Vec::new(),
                 file: None,
+                target: String::new(),
                 nested_source_ranges: Vec::new(),
             });
         }
@@ -585,18 +630,32 @@ impl<'a> Include<'a> {
         let effective_leveloffset = self.calculate_effective_leveloffset();
 
         let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
-        let lines = self.apply_content_filters(&content_lines);
-        let lines = if let Some(indent) = self.indent {
+        let (lines, selected_indices) = self.apply_content_filters(&content_lines);
+        let (lines, column_shift) = if let Some(indent) = self.indent {
             Self::apply_indent(&lines, indent)
         } else {
-            lines
+            (lines, 0)
         };
+
+        // Map each surviving line back to its origin line/offset in the included
+        // file, so the caller can split partial includes into correctly-located runs.
+        let line_starts = Self::line_start_offsets(&content_lines);
+        let source_lines = selected_indices
+            .iter()
+            .map(|&idx| IncludedLineOrigin {
+                line: idx + 1,
+                offset: line_starts.get(idx).copied().unwrap_or(0),
+            })
+            .collect();
 
         Ok(IncludeResult {
             lines,
+            source_lines,
+            column_shift,
             effective_leveloffset,
             nested_leveloffset_ranges,
             file: Some(path),
+            target: self.target_as_written(),
             nested_source_ranges,
         })
     }
@@ -631,10 +690,7 @@ impl<'a> Include<'a> {
     fn warn_located(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
         let source_location = crate::SourceLocation {
             file: self.current_file.clone(),
-            positioning: crate::Positioning::Position(crate::Position {
-                line: self.line_number,
-                column: 1,
-            }),
+            location: crate::Location::point(crate::Position::new(self.line_number, 1)),
         };
         let warning = crate::Warning::new(
             crate::WarningKind::Other(message.into()),
@@ -711,6 +767,7 @@ impl<'a> Include<'a> {
         &self,
         content_lines: &[String],
         lines: &mut Vec<String>,
+        indices: &mut Vec<usize>,
     ) {
         let content_lines_count = content_lines.len();
         for line in &self.line_range {
@@ -721,6 +778,7 @@ impl<'a> Include<'a> {
                         && let Some(line) = content_lines.get(idx)
                     {
                         lines.push(line.clone());
+                        indices.push(idx);
                     }
                 }
                 LinesRange::Range(start, end) => {
@@ -734,13 +792,30 @@ impl<'a> Include<'a> {
                     if start_idx < content_lines_count
                         && end_idx < content_lines_count
                         && start_idx <= end_idx
-                        && let Some(new_lines) = content_lines.get(start_idx..=end_idx)
                     {
-                        lines.extend_from_slice(new_lines);
+                        for idx in start_idx..=end_idx {
+                            if let Some(line) = content_lines.get(idx) {
+                                lines.push(line.clone());
+                                indices.push(idx);
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    /// Byte offset of each line's first byte within the file's normalized content
+    /// (lines joined with a single `\n`), so a surviving line can carry its true
+    /// origin-file byte offset.
+    fn line_start_offsets(content_lines: &[String]) -> Vec<usize> {
+        let mut starts = Vec::with_capacity(content_lines.len());
+        let mut offset = 0;
+        for line in content_lines {
+            starts.push(offset);
+            offset += line.len() + 1;
+        }
+        starts
     }
 }
 
@@ -864,11 +939,12 @@ mod tests {
             "  puts \"Hello\"".to_string(),
             "end".to_string(),
         ];
-        let result = Include::apply_indent(&lines, 4);
+        let (result, column_shift) = Include::apply_indent(&lines, 4);
         assert_eq!(
             result,
             vec!["    def hello", "      puts \"Hello\"", "    end",]
         );
+        assert_eq!(column_shift, 4); // 4 added − 0 common
     }
 
     #[test]
@@ -879,8 +955,9 @@ mod tests {
             "    puts \"Hello\"".to_string(),
             "  end".to_string(),
         ];
-        let result = Include::apply_indent(&lines, 0);
+        let (result, column_shift) = Include::apply_indent(&lines, 0);
         assert_eq!(result, vec!["def hello", "  puts \"Hello\"", "end",]);
+        assert_eq!(column_shift, -2); // 0 added − 2 common stripped
     }
 
     #[test]
@@ -893,11 +970,12 @@ mod tests {
             "   ".to_string(),
             "end".to_string(),
         ];
-        let result = Include::apply_indent(&lines, 2);
+        let (result, column_shift) = Include::apply_indent(&lines, 2);
         assert_eq!(
             result,
             vec!["  def hello", "", "    puts \"Hello\"", "", "  end",]
         );
+        assert_eq!(column_shift, 2); // 2 added − 0 common
     }
 
     #[test]
@@ -908,7 +986,8 @@ mod tests {
             "\t\tputs \"Hello\"".to_string(),
             "\tend".to_string(),
         ];
-        let result = Include::apply_indent(&lines, 2);
+        let (result, column_shift) = Include::apply_indent(&lines, 2);
         assert_eq!(result, vec!["  def hello", "  \tputs \"Hello\"", "  end",]);
+        assert_eq!(column_shift, 1); // 2 added − 1 common (tab counts as one char)
     }
 }

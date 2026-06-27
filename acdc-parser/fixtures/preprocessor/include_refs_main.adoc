@@ -1,0 +1,6 @@
+= Refs Include
+:toc:
+
+Primary intro.
+
+include::include_refs_part.adoc[]

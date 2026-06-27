@@ -61,7 +61,7 @@ mod warning;
 pub(crate) use grammar::{InlinePreprocessorParserState, ProcessedContent, inline_preprocessing};
 use preprocessor::Preprocessor;
 
-pub use error::{Error, Positioning, SourceLocation};
+pub use error::{Error, SourceLocation};
 pub use grammar::parse_text_for_quotes;
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Attribution, Audio,
@@ -354,30 +354,21 @@ fn peg_error_to_source_location(
     state: &grammar::ParserState,
 ) -> SourceLocation {
     let offset = error.location.offset;
-    if let Some(range) = state
-        .source_ranges
-        .iter()
-        .rev()
-        .find(|r| r.contains(offset))
-    {
-        let line_in_file = state
-            .input
-            .get(range.start_offset..offset)
-            .map_or(0, |s| s.matches('\n').count());
+    if let Some(range) = model::SourceRange::find_containing(&state.source_ranges, offset) {
         SourceLocation {
-            file: Some(range.file.clone()),
-            positioning: Positioning::Position(Position {
-                line: range.start_line + line_in_file,
-                column: error.location.column,
-            }),
+            file: range.file.clone(),
+            location: crate::Location::point(Position::new(
+                state.line_map.source_line(range, state.input, offset),
+                error.location.column,
+            )),
         }
     } else {
         SourceLocation {
-            file: state.current_file.clone(),
-            positioning: Positioning::Position(Position {
-                line: error.location.line,
-                column: error.location.column,
-            }),
+            file: state.current_file.as_deref().cloned(),
+            location: crate::Location::point(Position::new(
+                error.location.line,
+                error.location.column,
+            )),
         }
     }
 }
@@ -412,12 +403,23 @@ fn parse_input(
         let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
-        state.current_file = file_path;
+        state.current_file = file_path.map(std::sync::Arc::new);
         state.leveloffset_ranges = leveloffset_ranges;
         state.source_ranges = source_ranges;
         state.warnings = warnings_for_state;
         let result = match grammar::document_parser::document(&owner.source, &mut state) {
-            Ok(Ok(doc)) => Ok(doc),
+            Ok(Ok(mut doc)) => {
+                // Rewrite every node's location from preprocessed coordinates to the
+                // original source (file + line + byte offset). No-op when the
+                // preprocessor recorded no ranges (no includes/edits).
+                grammar::remap_document_to_source(
+                    &mut doc,
+                    &state.source_ranges,
+                    &owner.source,
+                    &state.line_map,
+                );
+                Ok(doc)
+            }
             Ok(Err(e)) => Err(e),
             Err(error) => {
                 tracing::error!(?error, "error parsing document content");
@@ -468,7 +470,15 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         state.options = Rc::new(options_owned);
         state.warnings = warnings_for_state;
         let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
-            Ok(inlines) => Ok(inlines),
+            Ok(mut inlines) => {
+                grammar::remap_inlines_to_source(
+                    &mut inlines,
+                    &state.source_ranges,
+                    &owner.source,
+                    &state.line_map,
+                );
+                Ok(inlines)
+            }
             Err(error) => {
                 tracing::error!(?error, "error parsing inline content");
                 Err(Error::Parse(
@@ -502,6 +512,260 @@ mod tests {
             |e| tracing::warn!(?path, ?test_file_path, error = %e, "test file not found"),
         )?;
         Ok(file_contents)
+    }
+
+    #[test]
+    fn indent_include_remaps_columns_to_origin() {
+        // A `----` listing including a one-line file with `indent=6`. The remap must
+        // report the included token at its ORIGIN columns (1..10) — stripping back the
+        // six inserted spaces — not the preprocessed columns (7..16). For re-indented
+        // content `absolute_*` stays in preprocessed coordinates (not serialized to the
+        // ASG), so we only assert it stays a valid `start <= end` span.
+        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file("fixtures/preprocessor/include_indent_main.adoc", &opts)
+            .expect("parse indented include");
+        let doc = result.document();
+        let inlines = doc
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::DelimitedBlock(d) = b
+                    && let DelimitedBlockType::DelimitedListing(inlines) = &d.inner
+                {
+                    Some(inlines)
+                } else {
+                    None
+                }
+            })
+            .expect("listing block from the indented include");
+        let loc = inlines.first().expect("listing content inline").location();
+
+        assert_eq!(loc.start.line, 1, "origin line");
+        assert_eq!(
+            loc.start.column, 1,
+            "origin column (the 6-space indent stripped off)"
+        );
+        assert_eq!(loc.end.line, 1);
+        assert_eq!(
+            loc.end.column, 10,
+            "`TARGETLINE` is 10 columns wide in the origin"
+        );
+        assert_eq!(
+            loc.start
+                .file
+                .as_deref()
+                .and_then(|chain| chain.last())
+                .map(String::as_str),
+            Some("include_indent_target.rb"),
+        );
+        assert!(loc.absolute_start <= loc.absolute_end);
+    }
+
+    #[test]
+    fn quote_attribution_and_citetitle_remap_to_included_file() {
+        fn file_name(loc: &Location) -> Option<&str> {
+            loc.start
+                .file
+                .as_deref()
+                .and_then(|chain| chain.last())
+                .map(String::as_str)
+        }
+
+        // A quote block lives on line 3 of an included file, spliced in at primary
+        // line 5 (so its preprocessed line is 7). The attribution and citetitle inline
+        // nodes must remap to the included file at its true line 3 — not stay at the
+        // preprocessed line with `file: None` like the rest of the block.
+        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file("fixtures/preprocessor/include_quote_main.adoc", &opts)
+            .expect("parse included quote block");
+        let doc = result.document();
+        let metadata = doc
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::DelimitedBlock(d) = b
+                    && d.metadata.attribution.is_some()
+                {
+                    Some(&d.metadata)
+                } else {
+                    None
+                }
+            })
+            .expect("quote block with an attribution");
+
+        let part = Some("include_quote_part.adoc");
+
+        let attribution = metadata
+            .attribution
+            .as_ref()
+            .and_then(|a| a.first())
+            .expect("attribution inline")
+            .location();
+        assert_eq!(attribution.start.line, 3, "attribution origin line");
+        assert_eq!(file_name(attribution), part, "attribution origin file");
+
+        let citetitle = metadata
+            .citetitle
+            .as_ref()
+            .and_then(|c| c.first())
+            .expect("citetitle inline")
+            .location();
+        assert_eq!(citetitle.start.line, 3, "citetitle origin line");
+        assert_eq!(file_name(citetitle), part, "citetitle origin file");
+    }
+
+    #[test]
+    fn inline_preprocessor_warning_reports_included_file_line() {
+        // A `{counter:foo}` (an inline-preprocessor warning) sits on line 3 of an
+        // included file, spliced in at primary line 5 (preprocessed line 7). The
+        // warning must name the included file at its true line 3 — not `file: None`
+        // and the post-splice line, matching the error path and the AST nodes.
+        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file("fixtures/preprocessor/include_counter_main.adoc", &opts)
+            .expect("parse included counter");
+        let warning = result
+            .warnings()
+            .iter()
+            .find(|w| w.kind.to_string().contains("Counters"))
+            .expect("counter warning");
+        let loc = warning
+            .source_location()
+            .expect("counter warning carries a location");
+        assert_eq!(
+            loc.file
+                .as_deref()
+                .and_then(|p| p.file_name())
+                .and_then(std::ffi::OsStr::to_str),
+            Some("include_counter_part.adoc"),
+            "warning should name the included file",
+        );
+        assert_eq!(
+            loc.location.start.line, 3,
+            "warning origin line in the included file"
+        );
+    }
+
+    #[test]
+    fn toc_entries_and_references_remap_to_included_file() {
+        // A section on line 1 of an included file (spliced in at primary line 6) must
+        // surface in `toc_entries` and `references` at the included file's true line 1
+        // — not the post-splice line with `file: None`. `references` is the LSP
+        // go-to-definition target.
+        fn file_name(loc: &Location) -> Option<&str> {
+            loc.start
+                .file
+                .as_deref()
+                .and_then(|chain| chain.last())
+                .map(String::as_str)
+        }
+
+        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file("fixtures/preprocessor/include_refs_main.adoc", &opts)
+            .expect("parse included section");
+        let doc = result.document();
+        let part = Some("include_refs_part.adoc");
+
+        let entry = doc
+            .toc_entries
+            .iter()
+            .find(|e| e.id == "_included_section")
+            .expect("toc entry for the included section");
+        assert_eq!(entry.location.start.line, 1, "toc entry origin line");
+        assert_eq!(file_name(&entry.location), part, "toc entry origin file");
+
+        let reference = doc
+            .references
+            .get("_included_section")
+            .expect("reference for the included section");
+        assert_eq!(reference.location.start.line, 1, "reference origin line");
+        assert_eq!(
+            file_name(&reference.location),
+            part,
+            "reference origin file"
+        );
+    }
+
+    #[test]
+    fn footnote_location_is_document_absolute_without_include() {
+        // `Document.footnotes` locations were captured during inline parsing in
+        // paragraph-local coordinates; they must report the footnote's real document
+        // line (5 here), not the line a byte-offset-into-the-paragraph would fall on.
+        let input = "= Title\n\nPara one.\n\nPara two with a note.footnote:[The note.]\n";
+        let result = parse(input, &Options::default()).expect("parse footnote doc");
+        let doc = result.document();
+        let footnote = doc.footnotes.first().expect("one footnote");
+        assert_eq!(
+            footnote.location.start.line, 5,
+            "footnote's real document line"
+        );
+        assert!(
+            footnote.location.start.file.is_none(),
+            "primary-input footnote carries no file",
+        );
+    }
+
+    #[test]
+    fn footnote_location_remaps_to_included_file() {
+        // A footnote on line 3 of an included file (spliced at primary line 5) must
+        // report that file at its true line 3.
+        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file("fixtures/preprocessor/include_footnote_main.adoc", &opts)
+            .expect("parse included footnote");
+        let doc = result.document();
+        let footnote = doc.footnotes.first().expect("one footnote");
+        assert_eq!(footnote.location.start.line, 3, "footnote origin line");
+        assert_eq!(
+            footnote
+                .location
+                .start
+                .file
+                .as_deref()
+                .and_then(|chain| chain.last())
+                .map(String::as_str),
+            Some("include_footnote_part.adoc"),
+        );
+    }
+
+    #[test]
+    fn named_footnote_keeps_defining_occurrence() {
+        // A named footnote referenced twice shares one `Document.footnotes` entry; the
+        // defining (first) occurrence's content and location win — a later bare
+        // reference does not overwrite them.
+        let input =
+            "= Title\n\nFirst ref.footnote:fn[The definition.]\n\nSecond ref.footnote:fn[]\n";
+        let result = parse(input, &Options::default()).expect("parse named footnote doc");
+        let doc = result.document();
+        assert_eq!(doc.footnotes.len(), 1, "one distinct footnote");
+        let footnote = doc.footnotes.first().expect("the distinct footnote");
+        assert_eq!(footnote.location.start.line, 3, "defining occurrence line");
+        assert!(
+            !footnote.content.is_empty(),
+            "keeps the defining occurrence's content, not the empty reference",
+        );
+    }
+
+    #[test]
+    fn document_root_follows_per_boundary_file_model() {
+        // `include_chain`: main.adoc ends with `include::outer.adoc[]`, and outer.adoc
+        // ends with `include::inner.adoc[]`. The document's last content thus comes from
+        // inner.adoc, so per the ASG's per-`locationBoundary` `file` model the document's
+        // END carries the include chain while its START (primary main.adoc) carries none.
+        // The document root is NOT special-cased to the primary file.
+        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result =
+            parse_file("fixtures/include_chain/main.adoc", &opts).expect("parse include chain");
+        let location = &result.document().location;
+
+        assert!(
+            location.start.file.is_none(),
+            "document start is primary input (no file)",
+        );
+        let expected = vec!["outer.adoc".to_string(), "inner.adoc".to_string()];
+        assert_eq!(
+            location.end.file.as_deref(),
+            Some(&expected),
+            "document end carries the include chain it ends in",
+        );
     }
 
     #[rstest::rstest]
@@ -552,6 +816,111 @@ mod tests {
             }
         }
         Ok(())
+    }
+
+    #[test]
+    fn node_locations_are_source_relative_after_dropped_comment() {
+        use crate::Block;
+        // The adjacent comment on line 4 is dropped by the preprocessor; the section
+        // and its body must still report their ORIGINAL source lines (7 and 9), not
+        // the shifted preprocessed lines.
+        let input =
+            "= Doc\n\nfirst para\n// dropped comment\nsecond para\n\n== Section\n\nbody text\n";
+        let result = parse(input, &Options::builder().build()).expect("parse");
+        let section = result
+            .document()
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("section present");
+        assert_eq!(
+            section.location.start.line, 7,
+            "section title at source line 7"
+        );
+        let body = section
+            .content
+            .iter()
+            .find_map(|b| {
+                if let Block::Paragraph(p) = b {
+                    Some(p)
+                } else {
+                    None
+                }
+            })
+            .expect("section body paragraph");
+        assert_eq!(
+            body.location.start.line, 9,
+            "body paragraph at source line 9"
+        );
+    }
+
+    #[test]
+    fn node_locations_carry_origin_file_across_include() {
+        use crate::{Block, SafeMode};
+        let path = PathBuf::from("fixtures/tests/leveloffset_include.adoc");
+        let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file(&path, &options).expect("parse");
+        // The first section comes from the included file, at its own line 1.
+        let section = result
+            .document()
+            .blocks
+            .iter()
+            .find_map(|b| {
+                if let Block::Section(s) = b {
+                    Some(s)
+                } else {
+                    None
+                }
+            })
+            .expect("included section present");
+        // The include chain is the single (as-written) target of the include.
+        let chain = section.location.start.file.as_deref().map(Vec::as_slice);
+        assert_eq!(
+            chain,
+            Some(["leveloffset_included.adoc".to_string()].as_slice())
+        );
+        assert_eq!(
+            section.location.start.line, 1,
+            "included section at its own line 1"
+        );
+    }
+
+    #[test]
+    fn node_locations_carry_full_include_chain() {
+        use crate::{Block, SafeMode};
+        // main.adoc includes outer.adoc which includes inner.adoc. Each paragraph's
+        // `file` is the chain of include targets (as written) reaching it; primary
+        // content has none.
+        let path = PathBuf::from("fixtures/include_chain/main.adoc");
+        let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let result = parse_file(&path, &options).expect("parse");
+
+        let chain_of = |needle: &str| -> Option<Vec<String>> {
+            result.document().blocks.iter().find_map(|b| {
+                let Block::Paragraph(p) = b else { return None };
+                let text = inlines_to_string(&p.content);
+                text.contains(needle)
+                    .then(|| p.location.start.file.as_deref().cloned())
+                    .flatten()
+            })
+        };
+        // Primary content: no chain (paragraph has `file: None`, so `find_map` above
+        // returns `None` for the chain).
+        assert_eq!(chain_of("Main paragraph"), None);
+        assert_eq!(
+            chain_of("Outer paragraph"),
+            Some(vec!["outer.adoc".to_string()])
+        );
+        assert_eq!(
+            chain_of("Inner paragraph"),
+            Some(vec!["outer.adoc".to_string(), "inner.adoc".to_string()])
+        );
     }
 
     #[cfg(test)]

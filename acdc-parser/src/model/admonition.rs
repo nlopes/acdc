@@ -8,7 +8,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use crate::{Error, Positioning, SourceLocation};
+use crate::{Error, SourceLocation};
 
 use super::Block;
 use super::location::{Location, Position};
@@ -62,7 +62,7 @@ impl FromStr for AdmonitionVariant {
             _ => Err(Error::Parse(
                 Box::new(SourceLocation {
                     file: None,
-                    positioning: Positioning::Position(Position::default()),
+                    location: crate::Location::point(Position::default()),
                 }),
                 format!("unknown admonition variant: {variant}"),
             )),

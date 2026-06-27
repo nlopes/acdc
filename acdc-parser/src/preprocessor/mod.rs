@@ -1,11 +1,18 @@
-//! The preprocessor module is responsible for processing the input document and expanding include directives.
-use std::{borrow::Cow, cell::RefCell, fmt::Write as _, path::Path, rc::Rc};
+//! The preprocessor module is responsible for processing the input document and expanding
+//! include directives.
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    fmt::Write as _,
+    path::{Path, PathBuf},
+    rc::Rc,
+};
 
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    Options, Warning, WarningKind,
-    error::{Error, Positioning, SourceLocation},
+    Location, Options, Warning, WarningKind,
+    error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
 
@@ -16,7 +23,7 @@ mod include;
 mod tag;
 
 use comment::CommentScanner;
-use include::{Include, IncludeResult};
+use include::{Include, IncludeResult, IncludedLineOrigin};
 
 /// Result from preprocessing that includes both the processed text and metadata needed
 /// for accurate parsing (like leveloffset ranges).
@@ -67,11 +74,15 @@ struct PreprocessorState {
     source_ranges: Vec<SourceRange>,
     /// The file the in-progress output is being read from, used as the `file`
     /// of the main-file [`SourceRange`]s recorded below. `None` for stdin/string
-    /// input, in which case no main-file ranges are recorded (the parser falls
-    /// back to the raw preprocessed location).
+    /// input — ranges are still recorded (so line/offset remapping works) with a
+    /// `None` file.
     source_file: Option<std::path::PathBuf>,
+    /// Byte offset of each 1-indexed source line in the (normalized) primary input,
+    /// so a run/chunk anchored at a source line can record its origin-file byte
+    /// offset. `src_line_starts[n - 1]` is the start of source line `n`.
+    src_line_starts: Vec<usize>,
     /// The open main-file source range: byte offset in the output where the
-    /// current contiguous run began, and the original source line that maps to.
+    /// current contiguous run began, and the original source line/offset it maps to.
     run: Option<MainFileRun>,
     /// The source line the next contiguous main-file output line is expected to
     /// have. A mismatch means the source skipped lines (a dropped comment, a
@@ -85,12 +96,42 @@ struct PreprocessorState {
 struct MainFileRun {
     out_start: usize,
     src_start_line: usize,
+    src_start_offset: usize,
+}
+
+/// How a recorded preprocessed span maps back to its origin file: the origin
+/// line/offset of the span's first byte plus the per-line column shift from an
+/// `indent=` re-indent (`0` = byte-for-byte 1:1 copy).
+#[derive(Debug, Clone, Copy)]
+struct OriginMapping {
+    start_line: usize,
+    source_start_offset: usize,
+    column_shift: isize,
+}
+
+impl OriginMapping {
+    /// A 1:1 (un-transformed) mapping — content copied verbatim, no re-indent.
+    fn one_to_one(start_line: usize, source_start_offset: usize) -> Self {
+        Self {
+            start_line,
+            source_start_offset,
+            column_shift: 0,
+        }
+    }
 }
 
 impl PreprocessorState {
     fn push_line(&mut self, line: String) {
         self.byte_offset += line.len() + 1;
         self.lines.push(line);
+    }
+
+    /// Byte offset of 1-indexed source `line` in the primary input.
+    fn src_offset_of_line(&self, line: usize) -> usize {
+        self.src_line_starts
+            .get(line.saturating_sub(1))
+            .copied()
+            .unwrap_or(0)
     }
 
     /// Account a simple one-source-line → one-output-line emission, extending the
@@ -104,24 +145,50 @@ impl PreprocessorState {
             self.run = Some(MainFileRun {
                 out_start: self.byte_offset,
                 src_start_line: src_line,
+                src_start_offset: self.src_offset_of_line(src_line),
             });
         }
         self.run_expected_src_line = src_line + 1;
     }
 
+    /// Record a [`SourceRange`] mapping the preprocessed span `[start_offset,
+    /// end_offset)` back to `file` (resolved, for diagnostics) and `file_chain` (the
+    /// include targets as written, for the ASG) at `start_line` / `source_start_offset`.
+    fn push_source_range(
+        &mut self,
+        start_offset: usize,
+        end_offset: usize,
+        file: Option<PathBuf>,
+        file_chain: Vec<String>,
+        origin: OriginMapping,
+    ) {
+        self.source_ranges.push(SourceRange {
+            start_offset,
+            end_offset,
+            file,
+            file_chain,
+            start_line: origin.start_line,
+            source_start_offset: origin.source_start_offset,
+            column_shift: origin.column_shift,
+        });
+    }
+
     /// Close the open run, recording its `[out_start, byte_offset)` span as a
-    /// main-file [`SourceRange`]. No-op when there is no file or no emitted bytes.
+    /// main-file [`SourceRange`]. No-op when no bytes were emitted.
     fn flush_run(&mut self) {
         if let Some(run) = self.run.take()
             && self.byte_offset > run.out_start
-            && let Some(file) = &self.source_file
         {
-            self.source_ranges.push(SourceRange {
-                start_offset: run.out_start,
-                end_offset: self.byte_offset,
-                file: file.clone(),
-                start_line: run.src_start_line,
-            });
+            self.push_source_range(
+                run.out_start,
+                self.byte_offset,
+                self.source_file.clone(),
+                // Own content: the include chain is empty here; an enclosing
+                // `include::` prepends its target when this file's ranges are merged.
+                Vec::new(),
+                // Own (un-spliced) main-file content is a byte-for-byte 1:1 copy.
+                OriginMapping::one_to_one(run.src_start_line, run.src_start_offset),
+            );
         }
     }
 
@@ -132,15 +199,16 @@ impl PreprocessorState {
     fn push_chunk(&mut self, content: String, src_start_line: usize) {
         self.flush_run();
         let start = self.byte_offset;
+        let source_start_offset = self.src_offset_of_line(src_start_line);
         self.push_line(content);
-        if let Some(file) = &self.source_file {
-            self.source_ranges.push(SourceRange {
-                start_offset: start,
-                end_offset: self.byte_offset,
-                file: file.clone(),
-                start_line: src_start_line,
-            });
-        }
+        // A collapsed continuation / retained conditional body is not re-indented.
+        self.push_source_range(
+            start,
+            self.byte_offset,
+            self.source_file.clone(),
+            Vec::new(),
+            OriginMapping::one_to_one(src_start_line, source_start_offset),
+        );
     }
 }
 
@@ -258,10 +326,8 @@ impl Preprocessor {
     fn create_source_location(line_number: usize, file_parent: Option<&Path>) -> SourceLocation {
         SourceLocation {
             file: file_parent.map(Path::to_path_buf),
-            positioning: Positioning::Position(Position {
-                line: line_number,
-                column: 0, // Preprocessor doesn't track column - use 0 as placeholder
-            }),
+            // Preprocessor doesn't track column — use 0 as placeholder.
+            location: Location::point(Position::new(line_number, 0)),
         }
     }
 
@@ -663,14 +729,52 @@ impl Preprocessor {
             state.leveloffset_ranges.push(adjusted_range);
         }
 
-        // Record a SourceRange for the included content
+        // Record the included content's source ranges. `target` is the include target
+        // as written in the directive — the outermost element of every range's ASG
+        // chain. A whole-file include's lines are consecutive (`1..N`), collapsing into
+        // one range anchored at line 1 / byte 0. A partial (`lines=`/`tags=`) include
+        // splits into one range per maximal run of consecutive origin lines, each
+        // anchored at the run's true origin line and byte offset.
         if let Some(file) = include_result.file {
-            state.source_ranges.push(SourceRange {
-                start_offset,
-                end_offset: start_offset + content_len,
-                file: file.clone(),
-                start_line: 1,
-            });
+            let target = include_result.target;
+
+            // Group emitted lines into maximal runs of consecutive origin lines,
+            // tracking each run's `[out_start, out_end)` span in the preprocessed
+            // buffer alongside its origin anchor.
+            let mut runs: Vec<(usize, usize, IncludedLineOrigin)> = Vec::new();
+            let mut cursor = start_offset;
+            let mut expected_line = 0;
+            for (line, origin) in include_result
+                .lines
+                .iter()
+                .zip(&include_result.source_lines)
+            {
+                let out_end = cursor + line.len() + 1;
+                if origin.line == expected_line
+                    && let Some(run) = runs.last_mut()
+                {
+                    run.1 = out_end;
+                } else {
+                    runs.push((cursor, out_end, *origin));
+                }
+                cursor = out_end;
+                expected_line = origin.line + 1;
+            }
+            for (out_start, out_end, origin) in runs {
+                state.push_source_range(
+                    out_start,
+                    out_end,
+                    Some(file.clone()),
+                    vec![target.clone()],
+                    OriginMapping {
+                        start_line: origin.line,
+                        source_start_offset: origin.offset,
+                        // `indent=N` re-indents every line of this include uniformly;
+                        // the remap subtracts this to recover origin columns.
+                        column_shift: include_result.column_shift,
+                    },
+                );
+            }
             tracing::trace!(
                 ?file,
                 start_offset,
@@ -678,14 +782,29 @@ impl Preprocessor {
                 "Recording source range for include"
             );
 
-            // Merge nested source ranges, adjusting byte offsets
+            // Merge nested source ranges, shifting preprocessed byte offsets to the
+            // current output position; the origin file and source offset/line are
+            // already relative to the nested file, so they carry over unchanged. The
+            // include chain gains this include's `target` at its front (this file is
+            // the parent of everything the nested file reached).
             for nested_range in include_result.nested_source_ranges {
-                state.source_ranges.push(SourceRange {
-                    start_offset: nested_range.start_offset + start_offset,
-                    end_offset: nested_range.end_offset + start_offset,
-                    file: nested_range.file,
-                    start_line: nested_range.start_line,
-                });
+                let mut file_chain = Vec::with_capacity(nested_range.file_chain.len() + 1);
+                file_chain.push(target.clone());
+                file_chain.extend(nested_range.file_chain);
+                state.push_source_range(
+                    nested_range.start_offset + start_offset,
+                    nested_range.end_offset + start_offset,
+                    nested_range.file,
+                    file_chain,
+                    OriginMapping {
+                        start_line: nested_range.start_line,
+                        source_start_offset: nested_range.source_start_offset,
+                        // A nested range keeps the shift it was recorded with (an inner
+                        // `indent=` it carries); this level's own `indent=` is not
+                        // composed onto it.
+                        column_shift: nested_range.column_shift,
+                    },
+                );
             }
         }
 
@@ -773,6 +892,15 @@ impl Preprocessor {
 
         let mut options = options.clone();
         let output = Vec::with_capacity(normalized_ref.lines().count());
+        // Byte offset of each source line in the normalized primary input, so a
+        // run/chunk anchored at a source line can record its origin-file byte offset.
+        let mut src_line_starts = vec![0usize];
+        src_line_starts.extend(
+            normalized_ref
+                .bytes()
+                .enumerate()
+                .filter_map(|(idx, b)| (b == b'\n').then_some(idx + 1)),
+        );
         let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut current_offset = 0;
@@ -782,6 +910,7 @@ impl Preprocessor {
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
             source_file: file_parent.map(Path::to_path_buf),
+            src_line_starts,
             run: None,
             run_expected_src_line: 1,
         };
@@ -860,6 +989,7 @@ impl Preprocessor {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::grammar::LineMap;
 
     #[test]
     fn test_process() -> Result<(), Error> {
@@ -940,16 +1070,12 @@ more";
 
         let offset = text.find(needle)?;
         let mut state = ParserState::new_for_test(text);
-        state.current_file = Some(std::path::PathBuf::from(current_file));
+        state.current_file = Some(std::path::PathBuf::from(current_file).into());
         state.source_ranges = source_ranges;
 
         let loc = state.create_location(offset, offset + needle.len());
         let resolved = state.create_error_source_location(loc);
-        let line = match resolved.positioning {
-            Positioning::Location(l) => l.start.line,
-            Positioning::Position(p) => p.line,
-        };
-        Some((resolved.file, line))
+        Some((resolved.file, resolved.location.start.line))
     }
 
     #[test]
@@ -981,12 +1107,18 @@ more";
     }
 
     #[test]
-    fn no_source_ranges_recorded_without_a_file() -> Result<(), Error> {
-        // stdin/string input has no file, so no main-file ranges are emitted and
-        // the parser falls back to the raw preprocessed location.
+    fn no_path_input_records_ranges_with_none_file() -> Result<(), Error> {
+        // stdin/string input has no path, but ranges are still recorded (with a
+        // `None` file) so same-file line/offset remapping works for it too.
         let input = "one\n// c\ntwo\n";
         let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
-        assert!(result.source_ranges.is_empty());
+        assert!(!result.source_ranges.is_empty());
+        assert!(result.source_ranges.iter().all(|r| r.file.is_none()));
+
+        // `two` is source line 3 despite the dropped comment on line 2.
+        let text: &'static str = Box::leak(result.text.clone().into_owned().into_boxed_str());
+        let mapped = resolve_warning_location(text, result.source_ranges, "", "two");
+        assert_eq!(mapped.map(|(_, line)| line), Some(3));
         Ok(())
     }
 
@@ -1033,6 +1165,83 @@ more";
         );
         assert_eq!(main.map(|(_, line)| line), Some(5));
         Ok(())
+    }
+
+    /// Process `path`, then for the first byte of `needle` in the preprocessed
+    /// output return the origin `(file name, source line, source byte offset)`
+    /// the recorded ranges resolve — i.e. what an AST node anchored there reports
+    /// after the remap. `None` if preprocessing fails or the needle is absent.
+    fn resolve_partial_origin(path: &str, needle: &str) -> Option<(Option<String>, usize, usize)> {
+        let result =
+            Preprocessor::process_file(Path::new(path), &Options::default(), Rc::default()).ok()?;
+        let text = result.text.into_owned();
+        let offset = text.find(needle)?;
+        let range = SourceRange::find_containing(&result.source_ranges, offset)?;
+        let file = range
+            .file
+            .as_ref()
+            .and_then(|p| p.file_name())
+            .and_then(std::ffi::OsStr::to_str)
+            .map(str::to_string);
+        let line_map = LineMap::new(&text);
+        Some((
+            file,
+            line_map.source_line(range, &text, offset),
+            range.source_offset(offset),
+        ))
+    }
+
+    #[test]
+    fn partial_lines_include_maps_to_included_file_true_lines() {
+        // `include::include_partial_part.adoc[lines=3..4]` pulls in lines 3-4 of the
+        // part. Both must report the part file at their true origin line and byte
+        // offset — not line 1 / offset 0.
+        let main = "fixtures/preprocessor/include_partial_lines.adoc";
+
+        // Part line 3 ("Line three.") starts at byte 20 of the part file.
+        assert_eq!(
+            resolve_partial_origin(main, "Line three."),
+            Some((Some("include_partial_part.adoc".to_string()), 3, 20)),
+        );
+        // Part line 4 ("Line four.") starts at byte 32.
+        assert_eq!(
+            resolve_partial_origin(main, "Line four."),
+            Some((Some("include_partial_part.adoc".to_string()), 4, 32)),
+        );
+    }
+
+    #[test]
+    fn partial_multi_range_include_splits_into_located_runs() {
+        // `lines=1..1;4..5` is a non-contiguous selection: line 1, then lines 4-5.
+        // Each surviving line keeps its true origin line/offset across the gap.
+        let main = "fixtures/preprocessor/include_partial_multi.adoc";
+
+        assert_eq!(
+            resolve_partial_origin(main, "Line one."),
+            Some((Some("include_partial_part.adoc".to_string()), 1, 0)),
+        );
+        assert_eq!(
+            resolve_partial_origin(main, "Line four."),
+            Some((Some("include_partial_part.adoc".to_string()), 4, 32)),
+        );
+        assert_eq!(
+            resolve_partial_origin(main, "Line five."),
+            Some((Some("include_partial_part.adoc".to_string()), 5, 43)),
+        );
+    }
+
+    #[test]
+    fn tag_include_maps_to_tag_region_source_lines() {
+        // `include::tagged_content.adoc[tag=intro]` selects the intro region, whose
+        // first line is line 4 of `tagged_content.adoc` (after the untagged opener,
+        // a blank line, and the `// tag::intro[]` directive).
+        let main = "fixtures/preprocessor/include_with_tag.adoc";
+        let resolved = resolve_partial_origin(main, "This is the introduction.");
+        assert_eq!(
+            resolved.as_ref().and_then(|(file, _, _)| file.as_deref()),
+            Some("tagged_content.adoc"),
+        );
+        assert_eq!(resolved.map(|(_, line, _)| line), Some(4));
     }
 
     #[test]

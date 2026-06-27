@@ -1,8 +1,11 @@
 use std::borrow::Cow;
 
 use crate::{
-    Error, InlineNode, InlinePreprocessorParserState, Location, Plain, ProcessedContent,
-    inline_preprocessing, model::substitution::SubsFlags,
+    Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
+    SourceLocation,
+    grammar::{inline_preprocessor::SourceMap, utf8_utils},
+    inline_preprocessing,
+    model::{SourceRange, substitution::SubsFlags},
 };
 
 use super::{ParserState, helpers::BlockParsingMetadata, inlines::inline_parser};
@@ -31,37 +34,31 @@ pub(crate) fn adjust_peg_error_position(
     let absolute_offset = doc_start_offset + byte_offset;
 
     // Resolve file and line from source ranges (for included content)
-    let (file, position) = if let Some(range) = state
-        .source_ranges
-        .iter()
-        .rev()
-        .find(|r| r.contains(absolute_offset))
-    {
-        let line_in_file = state
-            .input
-            .get(range.start_offset..absolute_offset)
-            .map_or(0, |s| s.matches('\n').count());
-        let doc_position = state
-            .line_map
-            .offset_to_position(absolute_offset, state.input);
-        (
-            Some(range.file.clone()),
-            crate::Position {
-                line: range.start_line + line_in_file,
-                column: doc_position.column,
-            },
-        )
-    } else {
-        let doc_position = state
-            .line_map
-            .offset_to_position(absolute_offset, state.input);
-        (state.current_file.clone(), doc_position)
-    };
+    let (file, position) =
+        if let Some(range) = SourceRange::find_containing(&state.source_ranges, absolute_offset) {
+            let doc_position = state
+                .line_map
+                .offset_to_position(absolute_offset, state.input);
+            (
+                range.file.clone(),
+                Position::new(
+                    state
+                        .line_map
+                        .source_line(range, state.input, absolute_offset),
+                    doc_position.column,
+                ),
+            )
+        } else {
+            let doc_position = state
+                .line_map
+                .offset_to_position(absolute_offset, state.input);
+            (state.current_file.as_deref().cloned(), doc_position)
+        };
 
     Error::PegParse(
-        Box::new(crate::SourceLocation {
+        Box::new(SourceLocation {
             file,
-            positioning: crate::Positioning::Position(position),
+            location: crate::Location::point(position),
         }),
         err.to_string()
             .split_once(": ")
@@ -106,7 +103,7 @@ pub(crate) fn preprocess_inline_content<'a>(
     let content_end_offset = if adjusted_end == 0 {
         0
     } else {
-        crate::grammar::utf8_utils::safe_decrement_offset(state.input, adjusted_end)
+        utf8_utils::safe_decrement_offset(state.input, adjusted_end)
     };
     let location = state.create_location(content_start + offset, content_end_offset);
 
@@ -125,7 +122,7 @@ pub(crate) fn preprocess_inline_content<'a>(
             ProcessedContent {
                 text: Cow::Borrowed(content),
                 passthroughs: Vec::new(),
-                source_map: crate::grammar::inline_preprocessor::SourceMap::default(),
+                source_map: SourceMap::default(),
             },
         ));
     }
@@ -153,9 +150,10 @@ pub(crate) fn preprocess_inline_content<'a>(
     // parser state for post-parse emission. Dedup is handled by both layers:
     // InlinePreprocessorParserState deduplicates within a single preprocessing run,
     // and ParserState deduplicates across the entire parse. The inline preprocessor
-    // already attaches source locations, so we forward the structured warning as-is.
+    // attaches preprocessed-buffer locations (`file: None`); resolve each to its
+    // originating file + source line as it enters the main state.
     for warning in inline_state.drain_warnings() {
-        state.add_warning(warning);
+        state.add_inline_preprocessor_warning(warning);
     }
     Ok((location, processed))
 }

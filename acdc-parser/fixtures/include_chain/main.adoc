@@ -1,0 +1,3 @@
+Main paragraph.
+
+include::outer.adoc[]

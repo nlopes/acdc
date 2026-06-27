@@ -1,0 +1,3 @@
+= Partial Include Test
+
+include::include_partial_part.adoc[lines=3..4]

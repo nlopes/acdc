@@ -50,14 +50,11 @@ pub(crate) fn process_passthrough_with_quotes<'a>(
             Location {
                 absolute_start: content_abs_start,
                 absolute_end: content_abs_start + content.len(),
-                start: crate::Position {
-                    line: passthrough.location.start.line,
-                    column: content_col_start,
-                },
-                end: crate::Position {
-                    line: passthrough.location.start.line,
-                    column: content_col_start + content.len(),
-                },
+                start: crate::Position::new(passthrough.location.start.line, content_col_start),
+                end: crate::Position::new(
+                    passthrough.location.start.line,
+                    content_col_start + content.len(),
+                ),
             }
         } else {
             passthrough.location.clone()
@@ -167,14 +164,8 @@ fn plain_text_at<'a>(text: &'a str, base_location: &Location, offset: usize) -> 
         location: Location {
             absolute_start: abs_start,
             absolute_end: abs_start + text.len(),
-            start: crate::Position {
-                line: base_location.start.line,
-                column: col_start,
-            },
-            end: crate::Position {
-                line: base_location.start.line,
-                column: col_start + text.len(),
-            },
+            start: crate::Position::new(base_location.start.line, col_start),
+            end: crate::Position::new(base_location.start.line, col_start + text.len()),
         },
         escaped: false,
     })

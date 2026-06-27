@@ -44,6 +44,12 @@ impl<'a> Attribution<'a> {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+
+    /// Mutable access to the underlying inline nodes (used by the post-parse
+    /// source remap pass to rewrite their locations).
+    pub(crate) fn inlines_mut(&mut self) -> &mut [InlineNode<'a>] {
+        &mut self.0
+    }
 }
 
 impl<'a> From<Vec<InlineNode<'a>>> for Attribution<'a> {
@@ -113,6 +119,12 @@ impl<'a> CiteTitle<'a> {
     #[must_use]
     pub fn len(&self) -> usize {
         self.0.len()
+    }
+
+    /// Mutable access to the underlying inline nodes (used by the post-parse
+    /// source remap pass to rewrite their locations).
+    pub(crate) fn inlines_mut(&mut self) -> &mut [InlineNode<'a>] {
+        &mut self.0
     }
 }
 

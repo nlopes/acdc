@@ -7,7 +7,7 @@
 
 use std::{error::Error, path::Path};
 
-use acdc_parser::{Options, Positioning, Warning, WarningKind, parse_file};
+use acdc_parser::{Options, Warning, WarningKind, parse_file};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -44,10 +44,7 @@ fn warning_line(warning: &Warning) -> Result<usize, Box<dyn Error>> {
     let loc = warning
         .source_location()
         .ok_or("warning should carry a source location")?;
-    Ok(match &loc.positioning {
-        Positioning::Location(l) => l.start.line,
-        Positioning::Position(p) => p.line,
-    })
+    Ok(loc.location.start.line)
 }
 
 fn unterminated_delimiter(warning: &Warning) -> Result<&str, Box<dyn Error>> {
