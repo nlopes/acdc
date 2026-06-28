@@ -150,7 +150,10 @@ impl LineMap {
                 .map_or(0, |s| s.chars().count())
         };
 
-        Position::new(line, chars_in_line + 1)
+        Position::new(
+            u32::try_from(line).unwrap_or(u32::MAX),
+            u32::try_from(chars_in_line + 1).unwrap_or(u32::MAX),
+        )
     }
 
     /// Source line (1-indexed) for a preprocessed `offset` in a span that begins at
@@ -163,11 +166,11 @@ impl LineMap {
     /// once per range) save a lookup by calling this instead of `source_line`.
     pub(crate) fn source_line_from(
         &self,
-        start_line: usize,
-        preproc_start_line: usize,
+        start_line: u32,
+        preproc_start_line: u32,
         input: &str,
         offset: usize,
-    ) -> usize {
+    ) -> u32 {
         let offset_line = self.offset_to_position(offset, input).line;
         start_line + offset_line.saturating_sub(preproc_start_line)
     }
@@ -176,9 +179,14 @@ impl LineMap {
     /// range's preprocessed start line on the fly. Convenience over
     /// [`source_line_from`](Self::source_line_from) for callers without a cached start
     /// line (the rare diagnostic paths).
-    pub(crate) fn source_line(&self, range: &SourceRange, input: &str, offset: usize) -> usize {
+    pub(crate) fn source_line(&self, range: &SourceRange, input: &str, offset: usize) -> u32 {
         let preproc_start_line = self.offset_to_position(range.start_offset, input).line;
-        self.source_line_from(range.start_line, preproc_start_line, input, offset)
+        self.source_line_from(
+            u32::try_from(range.start_line).unwrap_or(u32::MAX),
+            preproc_start_line,
+            input,
+            offset,
+        )
     }
 }
 

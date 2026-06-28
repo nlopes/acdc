@@ -109,8 +109,8 @@ fn collect_protected_ranges_from_blocks(blocks: &[Block], ranges: &mut Vec<Prote
                 if is_verbatim_block_type(&db.inner) {
                     // Location is 1-indexed, convert to 0-indexed
                     ranges.push(ProtectedRange {
-                        start_line: db.location.start.line.saturating_sub(1),
-                        end_line: db.location.end.line.saturating_sub(1),
+                        start_line: db.location.start.line.saturating_sub(1) as usize,
+                        end_line: db.location.end.line.saturating_sub(1) as usize,
                     });
                 } else {
                     // Non-verbatim delimited blocks can contain nested verbatim blocks
@@ -365,8 +365,8 @@ fn ensure_block_separation(
         };
 
         // Convert 1-indexed AST locations to 0-indexed
-        let prev_end_line = block_location(prev_block).end.line.saturating_sub(1);
-        let curr_start_line = block_location(curr_block).start.line.saturating_sub(1);
+        let prev_end_line = block_location(prev_block).end.line.saturating_sub(1) as usize;
+        let curr_start_line = block_location(curr_block).start.line.saturating_sub(1) as usize;
 
         // Only process blocks within our range
         if prev_end_line < range.start || curr_start_line >= range.end {

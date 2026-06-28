@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Mutex, MutexGuard};
 
-use acdc_parser::{Document, DocumentAttributes, Location};
+use acdc_parser::{Document, DocumentAttributes, Location, Position};
 use tower_lsp_server::ls_types::Diagnostic;
 
 /// Owned counterpart to `acdc_parser::Source<'_>`, detached from the parser arena
@@ -238,10 +238,8 @@ pub(crate) fn extract_attribute_defs(text: &str) -> Vec<(String, Location)> {
             let line_end = line.len();
 
             let mut location = Location::default();
-            location.start.line = line_idx + 1;
-            location.start.column = col_offset + 1;
-            location.end.line = line_idx + 1;
-            location.end.column = line_end;
+            location.start = Position::from_line_col(line_idx + 1, col_offset + 1);
+            location.end = Position::from_line_col(line_idx + 1, line_end);
             location.absolute_start = this_line_start + col_offset;
             location.absolute_end = this_line_start + line_end;
 
@@ -321,10 +319,8 @@ fn extract_refs_from_line(
             let col_end = segment_offset_in_line + close + 1;
 
             let mut location = Location::default();
-            location.start.line = line_idx + 1;
-            location.start.column = col_in_line + 1;
-            location.end.line = line_idx + 1;
-            location.end.column = col_end;
+            location.start = Position::from_line_col(line_idx + 1, col_in_line + 1);
+            location.end = Position::from_line_col(line_idx + 1, col_end);
             location.absolute_start = line_start + col_in_line;
             location.absolute_end = line_start + col_end;
 
@@ -492,10 +488,8 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
                 let target_end = target_start + target.len();
 
                 let mut location = Location::default();
-                location.start.line = line_idx + 1;
-                location.start.column = target_start + 1;
-                location.end.line = line_idx + 1;
-                location.end.column = target_end;
+                location.start = Position::from_line_col(line_idx + 1, target_start + 1);
+                location.end = Position::from_line_col(line_idx + 1, target_end);
                 location.absolute_start = this_line_start + target_start;
                 location.absolute_end = this_line_start + target_end;
 
