@@ -500,12 +500,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal_preview::is_terminal_session(metadata) {
+        if crate::terminal::is_terminal_session(metadata) {
             return self.render_terminal_session_block(inlines, title, metadata);
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal_preview::is_terminal_listing(&processor.document_attributes, metadata) {
+        if crate::terminal::is_terminal_listing(&processor.document_attributes, metadata) {
             return self.render_terminal_listing_block(inlines, title, metadata);
         }
 
@@ -543,15 +543,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
         #[cfg(feature = "terminal")]
-        if crate::terminal_preview::is_terminal_session(metadata) {
+        if crate::terminal::is_terminal_session(metadata) {
             return self.render_terminal_session_block_semantic(inlines, title, metadata);
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal_preview::is_terminal_listing(
-            &self.processor.document_attributes,
-            metadata,
-        ) {
+        if crate::terminal::is_terminal_listing(&self.processor.document_attributes, metadata) {
             return self.render_terminal_listing_block_semantic(inlines, title, metadata);
         }
 
@@ -592,7 +589,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         writeln!(self.writer, "<div class=\"content\">")?;
         // Direct field access so the writer and diagnostics borrows stay
         // disjoint; `writer_mut()` would borrow all of `self`.
-        crate::terminal_preview::render_session(
+        crate::terminal::render_session(
             &mut self.writer,
             inlines,
             metadata,
@@ -623,7 +620,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 metadata,
                 "terminal-block terminal-preview-block",
             )?;
-            crate::terminal_preview::render_session(
+            crate::terminal::render_session(
                 &mut self.writer,
                 inlines,
                 metadata,
@@ -640,7 +637,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 "terminal-block terminal-preview-block",
             )?;
             self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
-            crate::terminal_preview::render_session(
+            crate::terminal::render_session(
                 &mut self.writer,
                 inlines,
                 metadata,
@@ -673,13 +670,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         writeln!(self.writer, "<div class=\"content\">")?;
-        crate::terminal_preview::render_listing(
-            &mut self.writer,
-            inlines,
-            metadata,
-            options,
-            &attrs,
-        )?;
+        crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
         Ok(())
@@ -701,13 +692,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 metadata,
                 "listing-block terminal-preview-block",
             )?;
-            crate::terminal_preview::render_listing(
-                &mut self.writer,
-                inlines,
-                metadata,
-                options,
-                &attrs,
-            )?;
+            crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
             writeln!(self.writer, "</div>")?;
         } else {
             write_semantic_tag_open(
@@ -717,13 +702,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 "listing-block terminal-preview-block",
             )?;
             self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
-            crate::terminal_preview::render_listing(
-                &mut self.writer,
-                inlines,
-                metadata,
-                options,
-                &attrs,
-            )?;
+            crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
             writeln!(self.writer, "</figure>")?;
         }
         Ok(())
@@ -807,7 +786,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 #[cfg(feature = "terminal")]
-                if crate::terminal_preview::is_terminal_session(metadata) {
+                if crate::terminal::is_terminal_session(metadata) {
                     if self.processor.variant() == HtmlVariant::Semantic {
                         self.render_terminal_session_block_semantic(inlines, title, metadata)?;
                     } else {
