@@ -131,16 +131,6 @@ struct SpanStyle {
     decorations: CellDecorations,
 }
 
-impl From<&Cell> for SpanStyle {
-    fn from(cell: &Cell) -> Self {
-        Self {
-            fg: cell.fg,
-            bg: cell.bg,
-            decorations: cell.decorations,
-        }
-    }
-}
-
 pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
     attrs
         .get("terminal-preview")
@@ -275,7 +265,7 @@ fn render_replay<W: Write>(
 }
 
 fn render_replay_ansi<W: Write>(
-    writer: W,
+    mut writer: W,
     inlines: &[InlineNode<'_>],
     metadata: &BlockMetadata<'_>,
     options: Options,
@@ -333,16 +323,18 @@ fn render_replay_ansi<W: Write>(
         replay::capture(events, replay_options)?.into_frames()
     };
 
-    finish_replay(
-        writer,
+    if frames.is_empty() {
+        // No visible frames captured: warn and fall back to a static preview of
+        // the final screen.
+        diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
+        let grid = capture_ansi(&ansi, size)?;
+        return render_grid(&mut writer, &grid, preview_options.theme);
+    }
+    render_replay_filmstrip(
+        &mut writer,
         &frames,
         preview_options.theme,
         playback_duration,
-        diagnostics,
-        |writer| {
-            let grid = capture_ansi(&ansi, size)?;
-            render_grid(writer, &grid, preview_options.theme)
-        },
     )
 }
 
@@ -391,7 +383,7 @@ fn render_replay_asciicast<W: Write>(
     // bars, status lines, full-screen TUIs), so faithful playback needs each
     // visible state, not a scrolled window of one transcript. Capture errors are
     // caught here because the events come from user-supplied cast data, not acdc.
-    let frames = match recording.capture(size, usize::MAX, REPLAY_FRAME_DURATION) {
+    let frames = match recording.capture(size) {
         Ok(timeline) => timeline.into_frames(),
         Err(err) => {
             diagnostics.warn(format!(
@@ -427,24 +419,6 @@ fn replay_playback_override(
         diagnostics,
     )
     .map(|ms| std::time::Duration::from_millis(ms as u64))
-}
-
-/// Render captured replay `frames` as a filmstrip, or, when capture produced no
-/// visible frames, warn and let `on_empty` render a static fallback preview.
-/// Shared by both replay formats; only the fallback differs between them.
-fn finish_replay<W: Write>(
-    mut writer: W,
-    frames: &[replay::Frame],
-    theme: Theme,
-    playback_duration: Option<std::time::Duration>,
-    diagnostics: &mut Diagnostics<'_>,
-    on_empty: impl FnOnce(&mut W) -> Result<(), Error>,
-) -> Result<(), Error> {
-    if frames.is_empty() {
-        diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
-        return on_empty(&mut writer);
-    }
-    render_replay_filmstrip(&mut writer, frames, theme, playback_duration)
 }
 
 /// Resolve the replay terminal size, letting block `cols`/`rows` (or the
@@ -944,7 +918,9 @@ fn build_row_pool(
     rows: usize,
     palette: &[Option<Rgb>; 16],
 ) -> Result<(Vec<String>, Vec<Vec<usize>>), Error> {
-    let mut pool: Vec<String> = Vec::new();
+    // Each rendered row lives once, as a key in `index` mapping its HTML to its
+    // assigned pool slot. The pool itself is rebuilt from the map afterwards,
+    // placing each row at its slot, so a unique row's HTML is never cloned.
     let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
     let mut frame_rows: Vec<Vec<usize>> = Vec::with_capacity(frames.len());
     for frame in frames {
@@ -954,9 +930,16 @@ fn build_row_pool(
                 Some(cells) => row_to_html(cells, palette)?,
                 None => String::new(),
             };
-            indices.push(intern_row(&mut pool, &mut index, html));
+            let next = index.len();
+            indices.push(*index.entry(html).or_insert(next));
         }
         frame_rows.push(indices);
+    }
+    let mut pool = vec![String::new(); index.len()];
+    for (html, slot) in index {
+        if let Some(entry) = pool.get_mut(slot) {
+            *entry = html;
+        }
     }
     Ok((pool, frame_rows))
 }
@@ -993,13 +976,13 @@ fn last_content_row(grid: &CellGrid) -> usize {
         .map_or(0, |row| row + 1)
 }
 
-/// Render one terminal row to its HTML string for the player pool, with the same
-/// inline-styled markup as the static preview's [`render_row`] but with cell
-/// colours resolved against the recording's own palette (see
+/// Render one terminal row to its HTML string for the player pool, using the
+/// same inline-styled markup as the static preview's [`render_row`] but with
+/// cell colours resolved against the recording's own palette (see
 /// [`resolve_cell_color`]).
 fn row_to_html(row: &[Cell], palette: &[Option<Rgb>; 16]) -> Result<String, Error> {
     let mut buffer: Vec<u8> = Vec::new();
-    render_player_row(&mut buffer, row, palette)?;
+    render_row_with(&mut buffer, row, palette)?;
     Ok(String::from_utf8(buffer).unwrap_or_default())
 }
 
@@ -1019,60 +1002,6 @@ fn resolve_cell_color(
     }
 }
 
-/// Render a terminal row as inline-styled spans (same markup as the static
-/// preview's [`render_row`]) but with recorded-palette colour resolution for the
-/// player pool.
-fn render_player_row<W: Write>(
-    writer: &mut W,
-    row: &[Cell],
-    palette: &[Option<Rgb>; 16],
-) -> Result<(), Error> {
-    let mut current_style = SpanStyle::default();
-    let mut buffer = String::new();
-    let mut has_open_span = false;
-
-    for cell in row {
-        let style = SpanStyle {
-            fg: resolve_cell_color(cell.fg_index, cell.fg, palette),
-            bg: resolve_cell_color(cell.bg_index, cell.bg, palette),
-            decorations: cell.decorations,
-        };
-        if style != current_style {
-            flush_span(writer, &buffer, current_style, has_open_span)?;
-            buffer.clear();
-            current_style = style;
-            has_open_span = !is_default_style(style);
-        }
-        let text = if cell.text.is_empty() {
-            " "
-        } else {
-            cell.text.as_str()
-        };
-        buffer.push_str(text);
-    }
-
-    flush_span(writer, buffer.trim_end(), current_style, has_open_span)?;
-    Ok(())
-}
-
-/// Return the pool index for `html`, inserting it if new, so identical rows are
-/// stored once.
-fn intern_row(
-    pool: &mut Vec<String>,
-    index: &mut std::collections::HashMap<String, usize>,
-    html: String,
-) -> usize {
-    if let Some(&existing) = index.get(&html) {
-        return existing;
-    }
-    let position = pool.len();
-    index.insert(html.clone(), position);
-    pool.push(html);
-    position
-}
-
-/// Write the player payload as JSON: the unique-row pool, per-frame row indices,
-/// and frame times.
 /// The replay player's payload, ready to serialise as JSON.
 struct ReplayData<'a> {
     cols: usize,
@@ -1084,6 +1013,8 @@ struct ReplayData<'a> {
     frame_rows: &'a [Vec<usize>],
 }
 
+/// Write the player payload as JSON: the unique-row pool, per-frame row indices,
+/// and frame times.
 fn write_replay_json<W: Write>(writer: &mut W, data: &ReplayData<'_>) -> Result<(), Error> {
     let ReplayData {
         cols,
@@ -1232,18 +1163,35 @@ fn replay_frame_budget(playback_ms: u128) -> usize {
     budget.clamp(2, MAX_REPLAY_RENDER_FRAMES)
 }
 
-fn render_row<W: Write>(writer: &mut W, row: &[Cell]) -> Result<(), Error> {
+/// The empty palette used by the static preview: libghostty has already resolved
+/// every palette index to RGB, so there is nothing to re-resolve against.
+const NO_PALETTE: [Option<Rgb>; 16] = [None; 16];
+
+/// Render a terminal row as inline-styled spans, resolving each cell's colours
+/// against `palette` (see [`resolve_cell_color`]). The static preview passes an
+/// empty [`NO_PALETTE`] (the cells already carry resolved RGB); the replay player
+/// passes the recording's own palette so it shows the colours it was recorded
+/// with.
+fn render_row_with<W: Write>(
+    writer: &mut W,
+    row: &[Cell],
+    palette: &[Option<Rgb>; 16],
+) -> Result<(), Error> {
     let mut current_style = SpanStyle::default();
     let mut buffer = String::new();
     let mut has_open_span = false;
 
     for cell in row {
-        let style = SpanStyle::from(cell);
+        let style = SpanStyle {
+            fg: resolve_cell_color(cell.fg_index, cell.fg, palette),
+            bg: resolve_cell_color(cell.bg_index, cell.bg, palette),
+            decorations: cell.decorations,
+        };
         if style != current_style {
             flush_span(writer, &buffer, current_style, has_open_span)?;
             buffer.clear();
             current_style = style;
-            has_open_span = !is_default_style(style);
+            has_open_span = style != SpanStyle::default();
         }
         let text = if cell.text.is_empty() {
             " "
@@ -1255,6 +1203,10 @@ fn render_row<W: Write>(writer: &mut W, row: &[Cell]) -> Result<(), Error> {
 
     flush_span(writer, buffer.trim_end(), current_style, has_open_span)?;
     Ok(())
+}
+
+fn render_row<W: Write>(writer: &mut W, row: &[Cell]) -> Result<(), Error> {
+    render_row_with(writer, row, &NO_PALETTE)
 }
 
 fn flush_span<W: Write>(
@@ -1350,17 +1302,6 @@ where
         }
         Some(_) | None => {}
     }
-}
-
-fn is_default_style(style: SpanStyle) -> bool {
-    style.fg.is_none()
-        && style.bg.is_none()
-        && !style.decorations.bold
-        && !style.decorations.italic
-        && !style.decorations.underline
-        && !style.decorations.dim
-        && !style.decorations.inverse
-        && !style.decorations.strikethrough
 }
 
 fn style_attr(style: SpanStyle) -> String {
