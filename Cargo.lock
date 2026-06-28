@@ -98,11 +98,14 @@ dependencies = [
  "acdc-converters-core",
  "acdc-converters-dev",
  "acdc-parser",
+ "asciicast-rs",
  "bumpalo",
  "comfy-table",
  "crossterm",
  "libghostty-vt",
  "pretty_assertions",
+ "serde",
+ "serde_json",
  "syntect",
  "thiserror",
  "tracing",
@@ -348,6 +351,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "516b6b4f0e40d50dcda9365d53964ec74560ad4284da2e7fc97122cd83174516"
 dependencies = [
  "stable_deref_trait",
+]
+
+[[package]]
+name = "asciicast-rs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d16c9eed1f826287ee9824510e46061f6ac831e27c15d1917469283e3446e6c"
+dependencies = [
+ "rgb",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

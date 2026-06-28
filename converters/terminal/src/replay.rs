@@ -177,7 +177,7 @@ impl<'a> Event<'a> {
         Self::TimingBoundary { at: Some(at) }
     }
 
-    const fn timestamp(&self) -> Option<Duration> {
+    pub(crate) const fn timestamp(&self) -> Option<Duration> {
         match self {
             Self::Write { at, .. } | Self::Resize { at, .. } | Self::TimingBoundary { at } => *at,
         }
@@ -514,11 +514,63 @@ fn record_frame<'alloc>(
     Ok(())
 }
 
+/// Pick at most `budget` evenly spaced indices from `0..item_count`, always
+/// including the last index so a sampled sequence still ends on its final state.
+///
+/// Replay samplers use this to bound how many frames a long recording produces:
+/// they keep the items at these indices and fold the dropped items into them.
+/// The returned indices are sorted ascending with no duplicates.
+#[must_use]
+pub fn sampled_indexes(item_count: usize, budget: usize) -> Vec<usize> {
+    if item_count == 0 {
+        return Vec::new();
+    }
+    let budget = budget.min(item_count);
+    if item_count <= budget {
+        return (0..item_count).collect();
+    }
+    if budget <= 1 {
+        return vec![item_count - 1];
+    }
+
+    let last_index = item_count - 1;
+    let last_slot = budget - 1;
+    let mut indexes = Vec::with_capacity(budget);
+    let mut previous_index = None;
+
+    for slot in 0..budget {
+        let index = if slot == last_slot {
+            last_index
+        } else {
+            slot.saturating_mul(last_index) / last_slot
+        };
+        if previous_index != Some(index) {
+            indexes.push(index);
+            previous_index = Some(index);
+        }
+    }
+
+    indexes
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     type TestResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[test]
+    fn sampled_indexes_bounds_count_and_keeps_endpoints() {
+        assert!(sampled_indexes(0, 5).is_empty());
+        assert_eq!(sampled_indexes(3, 5), vec![0, 1, 2]);
+        assert_eq!(sampled_indexes(10, 1), vec![9]);
+
+        let indexes = sampled_indexes(10, 4);
+        assert_eq!(indexes.first(), Some(&0));
+        assert_eq!(indexes.last(), Some(&9));
+        assert!(indexes.len() <= 4);
+        assert!(indexes.is_sorted_by(|a, b| a < b), "strictly increasing");
+    }
 
     fn options() -> Options {
         Options::new(TerminalSize::new(8, 3)).with_default_frame_duration(Duration::from_millis(50))
