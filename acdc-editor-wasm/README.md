@@ -214,8 +214,9 @@ Output goes to `pkg/` directory.
 
 ## Running the Example
 
-A ready-to-use example is located in the `www/` directory. It imports the
-compiled WASM from `pkg/`, so build that first, then serve.
+A ready-to-use example is located in the `www/` directory. Its `index.html`
+imports the compiled WASM from the same directory, so build the package and copy
+the generated files into `www/` before serving.
 
 To run it locally:
 
@@ -224,11 +225,17 @@ To run it locally:
    wasm-pack build --target web --release
    ```
 
-2. Serve from the repo root so both `www/` and `pkg/` are reachable (you need a web server to handle WASM MIME types correctly):
+2. Copy the generated files from `pkg/` into `www/` (`index.html` imports
+   `./acdc_editor_wasm.js`, which loads `acdc_editor_wasm_bg.wasm`):
    ```bash
-   # Using miniserve
-   miniserve . --index www/index.html
-   
+   cp pkg/acdc_editor_wasm.js pkg/acdc_editor_wasm_bg.wasm www/
+   ```
+
+3. Serve the `www/` directory (you need a web server to handle WASM MIME types
+   correctly):
+   ```bash
+   miniserve --pretty-urls --index index.html www
+
    # Open browser at http://localhost:8080
    ```
 
