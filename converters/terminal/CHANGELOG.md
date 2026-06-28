@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Terminal replay frame capture (`replay::capture` / `capture_windowed`) builds
   ordered, deduplicated `CellGrid` frames from recorded ANSI for animated replay
   renderers; `capture_windowed` is a fast path for append-only recordings.
+  Captured cells carry their palette index alongside the resolved colour, so a
+  player can re-resolve against a recording's own palette.
+- `asciicast` module parses asciicast v2 and v3 (`.cast`) recordings (via the
+  `asciicast-rs` crate) into a `Recording` of replay frames. Recorded commands
+  and input are never executed. Long idle gaps are compressed to the header's
+  `idle_time_limit` (or a caller override, or a default) so playback dwells on
+  real output, and the recording's theme colours, palette, and command/title are
+  exposed for a player to render chrome and faithful colours.
 - `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
   `(C)`, `->`, `...`) literal instead of converting to Unicode.
 - User-facing converter warnings are now collected in `ConversionResult` for

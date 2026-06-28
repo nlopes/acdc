@@ -3,7 +3,7 @@
 use libghostty_vt::{
     RenderState, Terminal, TerminalOptions,
     render::{CellIterator, RowIterator},
-    style::{RgbColor, Underline},
+    style::{RgbColor, StyleColor, Underline},
 };
 
 /// Error type returned while capturing ANSI bytes into a [`CellGrid`].
@@ -131,10 +131,17 @@ impl CellDecorations {
 pub struct Cell {
     /// Grapheme cluster rendered in this cell.
     pub text: String,
-    /// Explicit foreground color, if any.
+    /// Explicit foreground color (resolved to RGB), if any.
     pub fg: Option<Rgb>,
-    /// Explicit background color, if any.
+    /// Explicit background color (resolved to RGB), if any.
     pub bg: Option<Rgb>,
+    /// Foreground palette index (0–15), when the colour came from the terminal
+    /// palette rather than a direct RGB value. Lets a renderer emit a themeable
+    /// palette class instead of a fixed colour; `fg` holds the resolved RGB
+    /// regardless.
+    pub fg_index: Option<u8>,
+    /// Background palette index (0–15); see [`Cell::fg_index`].
+    pub bg_index: Option<u8>,
     /// Text decorations for this cell.
     pub decorations: CellDecorations,
 }
@@ -221,6 +228,17 @@ impl CellGrid {
     }
 }
 
+/// The 0-15 palette index of a cell colour, when it is one of the 16 base
+/// palette colours. Direct RGB, the 256-colour cube (16-255), and the default
+/// colour all return `None`; those are not themeable through the 16-colour
+/// palette, so a renderer falls back to the resolved RGB for them.
+fn palette_index(color: StyleColor) -> Option<u8> {
+    match color {
+        StyleColor::Palette(index) if index.0 < 16 => Some(index.0),
+        StyleColor::Palette(_) | StyleColor::Rgb(_) | StyleColor::None => None,
+    }
+}
+
 pub(crate) fn new_terminal(size: TerminalSize) -> Result<Terminal<'static, 'static>, Error> {
     let (cols, rows) = size.as_u16()?;
     Ok(Terminal::new(TerminalOptions {
@@ -265,6 +283,8 @@ impl<'alloc> GridCapture<'alloc> {
                     text: cell.graphemes()?.iter().collect(),
                     fg: cell.fg_color()?.map(Rgb::from),
                     bg: cell.bg_color()?.map(Rgb::from),
+                    fg_index: palette_index(style.fg_color),
+                    bg_index: palette_index(style.bg_color),
                     decorations: CellDecorations {
                         bold: style.bold,
                         italic: style.italic,
