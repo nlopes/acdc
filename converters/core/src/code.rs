@@ -31,7 +31,8 @@ pub fn default_line_comment(language: Option<&str>) -> Option<&'static str> {
         // Hash comments
         Some(
             "python" | "py" | "ruby" | "rb" | "perl" | "bash" | "shell" | "sh" | "zsh" | "fish"
-            | "yaml" | "yml" | "toml" | "dockerfile" | "makefile" | "cmake",
+            | "console" | "terminal" | "powershell" | "ps1" | "yaml" | "yml" | "toml"
+            | "dockerfile" | "makefile" | "cmake",
         ) => Some("#"),
         // Double-dash comments (SQL, Lua)
         Some("sql" | "lua") => Some("--"),

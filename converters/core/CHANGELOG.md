@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`#` callout guards in shell-session and PowerShell blocks** — `[source,console]`,
+  `[source,terminal]`, and `[source,powershell]`/`[source,ps1]` source blocks use `#`
+  as their line-comment prefix, so a guarding `# <1>` is stripped from the rendered
+  line just like it is for `bash`/`sh`/`zsh`/`fish`.
 - `list::OrderedListNumbering` — resolves an ordered list's explicit `[style]`
   attribute (`arabic`, `decimal`, `loweralpha`, `upperalpha`, `lowerroman`,
   `upperroman`, `lowergreek`) and formats a 1-based item position into its marker
