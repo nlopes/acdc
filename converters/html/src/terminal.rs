@@ -1,9 +1,12 @@
-//! Selectable HTML rendering for terminal cell-grid previews.
+//! HTML rendering for terminal-styled blocks: selectable cell-grid previews of
+//! terminal/source listings and terminal sessions, plus animated replay of
+//! recorded terminal output (raw ANSI and asciicast) as a CSS filmstrip.
 
 use std::{borrow::Cow, io::Write};
 
 use acdc_converters_core::{Diagnostics, Options, code::detect_language};
 use acdc_converters_terminal::{
+    asciicast,
     cell_grid::{Cell, CellDecorations, CellGrid, Rgb, TerminalSize, capture_ansi},
     replay::{self, Options as ReplayOptions},
 };
@@ -15,10 +18,16 @@ const DEFAULT_COLS: usize = 80;
 const AUTO_ROW_PADDING: usize = 1;
 const MAX_AUTO_ROWS: usize = 200;
 const REPLAY_OPTION: &str = "replay";
+const REPLAY_FORMAT_ATTR: &str = "format";
 const REPLAY_FRAME_DURATION_MS: u64 = 500;
+const REPLAY_FRAME_DURATION: std::time::Duration =
+    std::time::Duration::from_millis(REPLAY_FRAME_DURATION_MS);
 const REPLAY_DURATION_MS_ATTR: &str = "replay-duration-ms";
+const REPLAY_IDLE_LIMIT_MS_ATTR: &str = "replay-idle-limit-ms";
 const REPLAY_RENDER_FPS: u128 = 30;
 const MAX_REPLAY_RENDER_FRAMES: usize = 120;
+const REPLAY_NO_FRAMES_MESSAGE: &str =
+    "terminal replay produced no visible frames; rendering a static terminal preview instead";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Theme {
@@ -122,16 +131,6 @@ struct SpanStyle {
     decorations: CellDecorations,
 }
 
-impl From<&Cell> for SpanStyle {
-    fn from(cell: &Cell) -> Self {
-        Self {
-            fg: cell.fg,
-            bg: cell.bg,
-            decorations: cell.decorations,
-        }
-    }
-}
-
 pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
     attrs
         .get("terminal-preview")
@@ -210,7 +209,62 @@ fn render_with_options<W: Write>(
     Ok(())
 }
 
+/// The recording format a `[terminal%replay]` block carries. Selected by the
+/// `format` block attribute; absent defaults to the original raw-ANSI format.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ReplayFormat {
+    Ansi,
+    Asciicast,
+}
+
+fn replay_format(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>) -> ReplayFormat {
+    let Some(value) = metadata.attributes.get(REPLAY_FORMAT_ATTR) else {
+        return ReplayFormat::Ansi;
+    };
+    match value.to_string().trim().to_ascii_lowercase().as_str() {
+        "" | "ansi" => ReplayFormat::Ansi,
+        "asciicast" | "cast" => ReplayFormat::Asciicast,
+        other => {
+            diagnostics.warn(format!(
+                "unknown terminal replay `format` value `{other}`; expected `ansi` or `asciicast`. Replaying as raw ANSI."
+            ));
+            ReplayFormat::Ansi
+        }
+    }
+}
+
 fn render_replay<W: Write>(
+    writer: W,
+    inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    options: Options,
+    attrs: &DocumentAttributes<'_>,
+    preview_options: PreviewOptions,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<(), Error> {
+    match replay_format(metadata, diagnostics) {
+        ReplayFormat::Ansi => render_replay_ansi(
+            writer,
+            inlines,
+            metadata,
+            options,
+            attrs,
+            preview_options,
+            diagnostics,
+        ),
+        ReplayFormat::Asciicast => render_replay_asciicast(
+            writer,
+            inlines,
+            metadata,
+            options,
+            attrs,
+            preview_options,
+            diagnostics,
+        ),
+    }
+}
+
+fn render_replay_ansi<W: Write>(
     mut writer: W,
     inlines: &[InlineNode<'_>],
     metadata: &BlockMetadata<'_>,
@@ -222,12 +276,7 @@ fn render_replay<W: Write>(
     let Some(size) = replay_size(attrs, metadata, diagnostics) else {
         return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
     };
-    let playback_duration = positive_attr(
-        REPLAY_DURATION_MS_ATTR,
-        metadata.attributes.get(REPLAY_DURATION_MS_ATTR),
-        diagnostics,
-    )
-    .map(|ms| std::time::Duration::from_millis(ms as u64));
+    let playback_duration = replay_playback_override(metadata, diagnostics);
 
     let ansi = normalize_terminal_newlines(&acdc_converters_terminal::render_listing_to_ansi(
         options,
@@ -238,8 +287,7 @@ fn render_replay<W: Write>(
         preview_options.theme == Theme::Dark,
     )?);
     let boundaries = chunk_boundaries(&ansi);
-    let frame_duration = std::time::Duration::from_millis(REPLAY_FRAME_DURATION_MS);
-    let estimated_playback_ms = frame_duration
+    let estimated_playback_ms = REPLAY_FRAME_DURATION
         .as_millis()
         .saturating_mul(boundaries.len() as u128)
         .max(1);
@@ -250,7 +298,7 @@ fn render_replay<W: Write>(
         &ansi,
         &boundaries,
         replay_frame_budget(playback_ms),
-        frame_duration,
+        REPLAY_FRAME_DURATION,
     );
 
     // Append-only recordings (logs, build/test output) can be captured into a
@@ -266,28 +314,154 @@ fn render_replay<W: Write>(
         // counting bytes over-estimates display width, so it never
         // under-allocates.
         let tall = TerminalSize::new(size.cols, estimate_rows(&ansi, size.cols).max(size.rows));
-        let replay_options = ReplayOptions::new(tall).with_default_frame_duration(frame_duration);
+        let replay_options =
+            ReplayOptions::new(tall).with_default_frame_duration(REPLAY_FRAME_DURATION);
         replay::capture_windowed(events, replay_options, size.rows)?.into_frames()
     } else {
-        let replay_options = ReplayOptions::new(size).with_default_frame_duration(frame_duration);
+        let replay_options =
+            ReplayOptions::new(size).with_default_frame_duration(REPLAY_FRAME_DURATION);
         replay::capture(events, replay_options)?.into_frames()
     };
 
     if frames.is_empty() {
-        diagnostics.warn(
-            "terminal replay produced no visible frames; rendering a static terminal preview instead",
-        );
+        // No visible frames captured: warn and fall back to a static preview of
+        // the final screen.
+        diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
         let grid = capture_ansi(&ansi, size)?;
         return render_grid(&mut writer, &grid, preview_options.theme);
     }
-
     render_replay_filmstrip(
         &mut writer,
         &frames,
         preview_options.theme,
         playback_duration,
-    )?;
-    Ok(())
+    )
+}
+
+fn render_replay_asciicast<W: Write>(
+    mut writer: W,
+    inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    options: Options,
+    attrs: &DocumentAttributes<'_>,
+    preview_options: PreviewOptions,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<(), Error> {
+    // `replay-idle-limit-ms` caps dead air (e.g. a build before a test run) so
+    // playback dwells on real output; absent, the header or a default applies.
+    let idle_limit = positive_attr(
+        REPLAY_IDLE_LIMIT_MS_ATTR,
+        metadata.attributes.get(REPLAY_IDLE_LIMIT_MS_ATTR),
+        diagnostics,
+    )
+    .map(|ms| std::time::Duration::from_millis(ms as u64));
+
+    let recording = match asciicast::parse_inlines_with(inlines, idle_limit) {
+        Ok(recording) => recording,
+        Err(err) => {
+            diagnostics.warn_with_advice(
+                format!(
+                    "could not parse asciicast replay: {err}; rendering a static terminal preview instead"
+                ),
+                "Provide a valid asciicast v2 or v3 recording, or drop `format=asciicast` to replay raw ANSI.",
+            );
+            return render_with_options(writer, inlines, metadata, options, attrs, preview_options);
+        }
+    };
+
+    // Block `cols`/`rows` override the recording; the asciicast header supplies
+    // the size otherwise, so dimensions are never required on the block.
+    let size = replay_size_with_default(attrs, metadata, recording.size(), diagnostics);
+    let playback_duration = replay_playback_override(metadata, diagnostics);
+    // Header metadata paints the replay chrome; read it before `capture` consumes
+    // the recording.
+    let recorded_theme = recording.theme();
+    let title = recording.title().map(str::to_owned);
+
+    // Capture every distinct screen the session produced (deduplicated, but never
+    // sampled): a terminal session may rewrite the screen in place (progress
+    // bars, status lines, full-screen TUIs), so faithful playback needs each
+    // visible state, not a scrolled window of one transcript. Capture errors are
+    // caught here because the events come from user-supplied cast data, not acdc.
+    let frames = match recording.capture(size) {
+        Ok(timeline) => timeline.into_frames(),
+        Err(err) => {
+            diagnostics.warn(format!(
+                "asciicast replay capture failed: {err}; rendering a static terminal preview instead"
+            ));
+            return render_blank_preview(&mut writer, size, preview_options.theme);
+        }
+    };
+
+    if frames.is_empty() {
+        diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
+        return render_blank_preview(&mut writer, size, preview_options.theme);
+    }
+
+    render_replay_player(
+        writer,
+        &frames,
+        preview_options.theme,
+        recorded_theme,
+        title.as_deref(),
+        playback_duration,
+    )
+}
+
+/// The `replay-duration-ms` playback override, if set to a positive integer.
+fn replay_playback_override(
+    metadata: &BlockMetadata<'_>,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Option<std::time::Duration> {
+    positive_attr(
+        REPLAY_DURATION_MS_ATTR,
+        metadata.attributes.get(REPLAY_DURATION_MS_ATTR),
+        diagnostics,
+    )
+    .map(|ms| std::time::Duration::from_millis(ms as u64))
+}
+
+/// Resolve the replay terminal size, letting block `cols`/`rows` (or the
+/// `terminal-cols`/`terminal-rows` block/document attributes) override
+/// `default`. Unlike [`replay_size`], a missing size is not a warning here
+/// because the asciicast header supplies the default.
+fn replay_size_with_default(
+    attrs: &DocumentAttributes<'_>,
+    metadata: &BlockMetadata<'_>,
+    default: TerminalSize,
+    diagnostics: &mut Diagnostics<'_>,
+) -> TerminalSize {
+    let cols = replay_dimension(attrs, metadata, "cols", "terminal-cols", diagnostics)
+        .unwrap_or(default.cols);
+    let rows = replay_dimension(attrs, metadata, "rows", "terminal-rows", diagnostics)
+        .unwrap_or(default.rows);
+    TerminalSize::new(cols, rows)
+}
+
+/// Resolve one replay dimension by checking, in order: the block's `primary`
+/// attribute (`cols`/`rows`), the block's `document` attribute
+/// (`terminal-cols`/`terminal-rows`), then the document attribute of the same
+/// name. Returns `None` when none is set; a present but non-positive value is
+/// warned about by [`positive_attr`].
+fn replay_dimension(
+    attrs: &DocumentAttributes<'_>,
+    metadata: &BlockMetadata<'_>,
+    primary: &'static str,
+    document: &'static str,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Option<usize> {
+    positive_attr(primary, metadata.attributes.get(primary), diagnostics)
+        .or_else(|| positive_attr(document, metadata.attributes.get(document), diagnostics))
+        .or_else(|| positive_attr(document, attrs.get(document), diagnostics))
+}
+
+fn render_blank_preview<W: Write>(
+    writer: &mut W,
+    size: TerminalSize,
+    theme: Theme,
+) -> Result<(), Error> {
+    let grid = capture_ansi(&[], size)?;
+    render_grid(writer, &grid, theme)
 }
 
 fn replay_size(
@@ -295,24 +469,8 @@ fn replay_size(
     metadata: &BlockMetadata<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<TerminalSize> {
-    let cols = positive_attr("cols", metadata.attributes.get("cols"), diagnostics)
-        .or_else(|| {
-            positive_attr(
-                "terminal-cols",
-                metadata.attributes.get("terminal-cols"),
-                diagnostics,
-            )
-        })
-        .or_else(|| positive_attr("terminal-cols", attrs.get("terminal-cols"), diagnostics));
-    let rows = positive_attr("rows", metadata.attributes.get("rows"), diagnostics)
-        .or_else(|| {
-            positive_attr(
-                "terminal-rows",
-                metadata.attributes.get("terminal-rows"),
-                diagnostics,
-            )
-        })
-        .or_else(|| positive_attr("terminal-rows", attrs.get("terminal-rows"), diagnostics));
+    let cols = replay_dimension(attrs, metadata, "cols", "terminal-cols", diagnostics);
+    let rows = replay_dimension(attrs, metadata, "rows", "terminal-rows", diagnostics);
 
     if let (Some(cols), Some(rows)) = (cols, rows) {
         Some(TerminalSize::new(cols, rows))
@@ -379,7 +537,7 @@ fn sampled_events<'a>(
     frame_budget: usize,
     frame_duration: std::time::Duration,
 ) -> Vec<replay::Event<'a>> {
-    let sampled = sampled_indexes(boundaries.len(), frame_budget);
+    let sampled = replay::sampled_indexes(boundaries.len(), frame_budget);
     let mut events = Vec::with_capacity(sampled.len());
     let mut start = 0;
 
@@ -537,7 +695,7 @@ fn render_replay_filmstrip<W: Write>(
 
     write!(
         writer,
-        "<div class=\"terminal-preview terminal-replay terminal-preview--{}\" style=\"background-color:{};color:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\">",
+        "<div class=\"terminal-preview terminal-replay terminal-preview--{}\" style=\"--acdc-term-bg:{};--acdc-term-fg:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\">",
         theme.as_str(),
         rgb_css(bg),
         rgb_css(fg),
@@ -585,6 +743,345 @@ fn render_replay_filmstrip<W: Write>(
     writeln!(writer, "</div>")?;
     writeln!(writer, "</div>")?;
     Ok(())
+}
+
+/// A tiny, self-contained vanilla-JS player shared by every replay block on the
+/// page. It reads each block's JSON payload, swaps the visible rows on a clock
+/// (only touching rows that actually change), and honours `prefers-reduced-motion`
+/// by leaving the server-rendered final frame in place. Defining
+/// `__acdcReplayInit` is idempotent, so emitting this once per block is safe;
+/// every call initialises any not-yet-initialised player on the page.
+const REPLAY_PLAYER_SCRIPT: &str = "<script>(function(){function init(el){el.setAttribute('data-acdc-ready','1');var dataEl=el.querySelector('script.terminal-replay__data');if(!dataEl)return;var d;try{d=JSON.parse(dataEl.textContent);}catch(e){return;}var screen=el.querySelector('.terminal-replay__screen');if(!screen)return;if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;while(screen.children.length<d.rows){var r=document.createElement('div');r.className='terminal-replay__row';screen.appendChild(r);}var slots=screen.querySelectorAll('.terminal-replay__row');function show(s,on){slots[s].style.display=on?'':'none';}function fill(){for(var s=d.finalRows;s<slots.length;s++)show(s,true);}function trim(){for(var s=d.finalRows;s<slots.length;s++)show(s,false);}function apply(f){var idx=d.frames[f];for(var s=0;s<idx.length;s++){var h=d.pool[idx[s]];if(slots[s].__h!==h){slots[s].innerHTML=h;slots[s].__h=h;}}}fill();apply(0);var n=d.frames.length,i=0,start=null;function step(ts){if(start===null)start=ts;var t=ts-start;while(i<n-1&&d.times[i+1]<=t)i++;apply(i);if(i<n-1){requestAnimationFrame(step);}else{apply(n-1);trim();}}requestAnimationFrame(step);}window.__acdcReplayInit=function(){var els=document.querySelectorAll('.terminal-replay--player:not([data-acdc-ready])');for(var i=0;i<els.length;i++)init(els[i]);};window.__acdcReplayInit();})();</script>";
+
+/// CSP `script-src` source for [`REPLAY_PLAYER_SCRIPT`]'s inline code, so a
+/// consumer can allowlist the player under a strict policy without
+/// `'unsafe-inline'` (e.g. `script-src 'self' 'sha256-...'`). The hash covers the
+/// code *between* the `<script>` tags. If you change `REPLAY_PLAYER_SCRIPT`,
+/// recompute it from a generated file with:
+/// `perl -0ne 'print $1 if m{<script>(\(function.*?\)\(\);)</script>}s' out.html | openssl dgst -sha256 -binary | openssl base64`
+pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
+    "sha256-/mhN+UdwCNRQ7MxmgzvMM5DZpJy6Rs63LrQRESyqfNw=";
+
+/// Render a recording as an interactive replay player.
+///
+/// Every distinct visible screen is captured, but identical rows are pooled and
+/// emitted once; each frame is just a list of indices into that pool plus a
+/// timestamp. A small inline script swaps the visible rows on a clock. This
+/// reproduces in-place rewrites (progress bars, status lines, full-screen TUIs)
+/// faithfully and smoothly while keeping the payload compact: a long session
+/// costs one copy of each unique line, not one screen per frame.
+///
+/// The player wears the recording's own colours (when its header carried a
+/// theme) and a terminal-window title bar. The final frame is rendered into the
+/// DOM server-side, so readers with scripting disabled (or who prefer reduced
+/// motion) see the finished screen.
+///
+/// # CSS contract
+///
+/// The window chrome is class-based in the built-in stylesheet, so a consumer
+/// (e.g. an embedding editor) can restyle it. The stable seams are the classes
+/// `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__titlebar`,
+/// `.terminal-replay__dots`, `.terminal-replay__title`,
+/// `.terminal-replay__viewport`, `.terminal-replay__screen`,
+/// `.terminal-replay__row`, plus custom properties `--acdc-term-bg`/
+/// `--acdc-term-fg` (the recorded theme, emitted inline on the container) and the
+/// stylesheet-defaulted `--acdc-term-font-family`/`--acdc-term-font-size`/
+/// `--acdc-term-line-height`/`--acdc-term-radius`/`--acdc-term-padding`.
+///
+/// Per-cell colours are emitted as inline `style` colours (resolved against the
+/// recording's own palette via [`resolve_cell_color`]), matching the static
+/// terminal preview. Under a strict CSP these inline styles need
+/// `style-src 'unsafe-inline'`; the inline player `<script>` can be allowlisted
+/// by hash ([`REPLAY_PLAYER_SCRIPT_CSP_HASH`]) for a script-src without
+/// `'unsafe-inline'`. With the script blocked, the server-rendered final frame
+/// still shows.
+fn render_replay_player<W: Write>(
+    mut writer: W,
+    frames: &[replay::Frame],
+    theme: Theme,
+    recorded: Option<asciicast::ReplayTheme>,
+    title: Option<&str>,
+    playback_duration: Option<std::time::Duration>,
+) -> Result<(), Error> {
+    let rows = frames
+        .iter()
+        .map(|frame| frame.grid.rows())
+        .max()
+        .unwrap_or(1);
+    let cols = frames
+        .iter()
+        .map(|frame| frame.grid.cols())
+        .max()
+        .unwrap_or(0);
+
+    // Pool unique rendered rows; each frame becomes a list of indices into the
+    // pool. Identical lines across frames (most of them) are stored once. Cell
+    // colours are resolved against the recording's own palette (when it carried
+    // one) so the replay shows the colours it was recorded with.
+    let palette = recorded.map_or([None; 16], |theme| theme.palette);
+    let (pool, frame_rows) = build_row_pool(frames, rows, &palette)?;
+
+    // Frame times scale to `replay-duration-ms` when set, else play at the
+    // recording's own (idle-compressed) pace.
+    let record_ms = frames.last().map_or(0, |frame| frame.at.as_millis());
+    let total_ms = playback_duration
+        .map_or(record_ms, |d| d.as_millis())
+        .max(1);
+    let times: Vec<u128> = frames
+        .iter()
+        .map(|frame| {
+            frame
+                .at
+                .as_millis()
+                .saturating_mul(total_ms)
+                .checked_div(record_ms)
+                .unwrap_or(0)
+        })
+        .collect();
+
+    // Recorded theme colours win over the generic light/dark default.
+    let (bg, fg) = recorded.map_or_else(|| theme.colors(), |t| (t.bg, t.fg));
+
+    // Rows the final frame actually fills (trailing blank rows are the emptied
+    // live region, not real output). The replay rests on this height so it ends
+    // on its last line instead of a block of empty terminal rows.
+    let final_rows = frames
+        .last()
+        .map_or(0, |frame| last_content_row(&frame.grid))
+        .max(1);
+
+    // The container's only inline style is the per-recording theme bg/fg (as
+    // custom properties the chrome stylesheet consumes); cell colours are inline
+    // per span, and the rest of the chrome is class-based. See the CSS contract
+    // documented on `render_replay_player`.
+    writeln!(
+        writer,
+        "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--{}\" style=\"--acdc-term-bg:{};--acdc-term-fg:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\">",
+        theme.as_str(),
+        rgb_css(bg),
+        rgb_css(fg),
+        cols,
+        rows,
+        frames.len(),
+        total_ms
+    )?;
+
+    render_replay_titlebar(&mut writer, title)?;
+
+    // The screen holds one block per terminal row. The final frame is rendered
+    // server-side (trimmed of trailing blank rows) so it shows without scripting;
+    // the player builds the rest of the rows, resets to the first frame, and
+    // animates from there.
+    writeln!(
+        writer,
+        "<div class=\"terminal-replay__viewport\"><div class=\"terminal-replay__screen\" aria-label=\"Terminal replay\">"
+    )?;
+    let final_frame = frame_rows.last().map_or(&[] as &[usize], Vec::as_slice);
+    for index in final_frame.iter().take(final_rows) {
+        writeln!(
+            writer,
+            "<div class=\"terminal-replay__row\">{}</div>",
+            pool.get(*index).map_or("", String::as_str)
+        )?;
+    }
+    writeln!(writer, "</div></div>")?;
+
+    // Payload as inline JSON. `<` is escaped to `<` inside strings, so no
+    // recorded content can break out of the script element.
+    write!(
+        writer,
+        "<script type=\"application/json\" class=\"terminal-replay__data\">"
+    )?;
+    write_replay_json(
+        &mut writer,
+        &ReplayData {
+            cols,
+            rows,
+            final_rows,
+            total_ms,
+            times: &times,
+            pool: &pool,
+            frame_rows: &frame_rows,
+        },
+    )?;
+    writeln!(writer, "</script>")?;
+    writeln!(writer, "</div>")?;
+    writeln!(writer, "{REPLAY_PLAYER_SCRIPT}")?;
+    Ok(())
+}
+
+/// Pool the unique rendered rows across all frames and map each frame to a list
+/// of `rows` indices into that pool. Identical lines (the bulk of a session) are
+/// stored once; short frames are padded with blank rows.
+fn build_row_pool(
+    frames: &[replay::Frame],
+    rows: usize,
+    palette: &[Option<Rgb>; 16],
+) -> Result<(Vec<String>, Vec<Vec<usize>>), Error> {
+    // Each rendered row lives once, as a key in `index` mapping its HTML to its
+    // assigned pool slot. The pool itself is rebuilt from the map afterwards,
+    // placing each row at its slot, so a unique row's HTML is never cloned.
+    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut frame_rows: Vec<Vec<usize>> = Vec::with_capacity(frames.len());
+    for frame in frames {
+        let mut indices = Vec::with_capacity(rows);
+        for row in 0..rows {
+            let html = match frame.grid.row(row) {
+                Some(cells) => row_to_html(cells, palette)?,
+                None => String::new(),
+            };
+            let next = index.len();
+            indices.push(*index.entry(html).or_insert(next));
+        }
+        frame_rows.push(indices);
+    }
+    let mut pool = vec![String::new(); index.len()];
+    for (html, slot) in index {
+        if let Some(entry) = pool.get_mut(slot) {
+            *entry = html;
+        }
+    }
+    Ok((pool, frame_rows))
+}
+
+/// Render the replay's title bar: traffic-light dots and the recording's title.
+/// All styling lives in the stylesheet (`.terminal-replay__titlebar`, `__dots`,
+/// `__title`); only structure is emitted here.
+fn render_replay_titlebar<W: Write>(writer: &mut W, title: Option<&str>) -> Result<(), Error> {
+    write!(
+        writer,
+        "<div class=\"terminal-replay__titlebar\" aria-hidden=\"true\"><span class=\"terminal-replay__dots\"><span></span><span></span><span></span></span>"
+    )?;
+    if let Some(title) = title {
+        write!(
+            writer,
+            "<span class=\"terminal-replay__title\">{}</span>",
+            escape_html(title)
+        )?;
+    }
+    writeln!(writer, "</div>")?;
+    Ok(())
+}
+
+/// Number of rows from the top of `grid` up to and including its last row that
+/// holds any visible content (so trailing blank rows are excluded). Interior
+/// blank lines are kept.
+fn last_content_row(grid: &CellGrid) -> usize {
+    (0..grid.rows())
+        .rev()
+        .find(|&row| {
+            grid.row(row)
+                .is_some_and(|cells| cells.iter().any(|cell| !cell.is_blank()))
+        })
+        .map_or(0, |row| row + 1)
+}
+
+/// Render one terminal row to its HTML string for the player pool, using the
+/// same inline-styled markup as the static preview's [`render_row`] but with
+/// cell colours resolved against the recording's own palette (see
+/// [`resolve_cell_color`]).
+fn row_to_html(row: &[Cell], palette: &[Option<Rgb>; 16]) -> Result<String, Error> {
+    let mut buffer: Vec<u8> = Vec::new();
+    render_row_with(&mut buffer, row, palette)?;
+    Ok(String::from_utf8(buffer).unwrap_or_default())
+}
+
+/// Resolve a cell colour for the player: a palette index maps to the recording's
+/// own palette colour when present, so the replay shows the colours it was
+/// recorded with (libghostty resolves indices against its built-in palette;
+/// `palette` from the cast header overrides that). Truecolor / 256-colour cells
+/// have no index and use their already-resolved RGB.
+fn resolve_cell_color(
+    index: Option<u8>,
+    rgb: Option<Rgb>,
+    palette: &[Option<Rgb>; 16],
+) -> Option<Rgb> {
+    match index {
+        Some(slot) => palette.get(usize::from(slot)).copied().flatten().or(rgb),
+        None => rgb,
+    }
+}
+
+/// The replay player's payload, ready to serialise as JSON.
+struct ReplayData<'a> {
+    cols: usize,
+    rows: usize,
+    final_rows: usize,
+    total_ms: u128,
+    times: &'a [u128],
+    pool: &'a [String],
+    frame_rows: &'a [Vec<usize>],
+}
+
+/// Write the player payload as JSON: the unique-row pool, per-frame row indices,
+/// and frame times.
+fn write_replay_json<W: Write>(writer: &mut W, data: &ReplayData<'_>) -> Result<(), Error> {
+    let ReplayData {
+        cols,
+        rows,
+        final_rows,
+        total_ms,
+        times,
+        pool,
+        frame_rows,
+    } = *data;
+    write!(
+        writer,
+        "{{\"cols\":{cols},\"rows\":{rows},\"finalRows\":{final_rows},\"durationMs\":{total_ms},\"times\":["
+    )?;
+    for (position, time) in times.iter().enumerate() {
+        if position > 0 {
+            write!(writer, ",")?;
+        }
+        write!(writer, "{time}")?;
+    }
+    write!(writer, "],\"pool\":[")?;
+    for (position, html) in pool.iter().enumerate() {
+        if position > 0 {
+            write!(writer, ",")?;
+        }
+        write!(writer, "{}", json_string(html))?;
+    }
+    write!(writer, "],\"frames\":[")?;
+    for (position, indices) in frame_rows.iter().enumerate() {
+        if position > 0 {
+            write!(writer, ",")?;
+        }
+        write!(writer, "[")?;
+        for (slot, index) in indices.iter().enumerate() {
+            if slot > 0 {
+                write!(writer, ",")?;
+            }
+            write!(writer, "{index}")?;
+        }
+        write!(writer, "]")?;
+    }
+    write!(writer, "]}}")?;
+    Ok(())
+}
+
+/// Quote and escape `value` as a JSON string. `<` becomes `<` so embedding
+/// the JSON inside a `<script>` element can never be broken out of.
+fn json_string(value: &str) -> String {
+    use std::fmt::Write as _;
+    let mut out = String::with_capacity(value.len() + 2);
+    out.push('"');
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            '<' => out.push_str("\\u003c"),
+            c if (c as u32) < 0x20 => {
+                let _ = write!(out, "\\u{:04x}", c as u32);
+            }
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
 }
 
 /// A deterministic, per-block CSS animation name. Every replay block emits its
@@ -666,50 +1163,35 @@ fn replay_frame_budget(playback_ms: u128) -> usize {
     budget.clamp(2, MAX_REPLAY_RENDER_FRAMES)
 }
 
-fn sampled_indexes(item_count: usize, budget: usize) -> Vec<usize> {
-    if item_count == 0 {
-        return Vec::new();
-    }
-    let budget = budget.min(item_count);
-    if item_count <= budget {
-        return (0..item_count).collect();
-    }
-    if budget <= 1 {
-        return vec![item_count - 1];
-    }
+/// The empty palette used by the static preview: libghostty has already resolved
+/// every palette index to RGB, so there is nothing to re-resolve against.
+const NO_PALETTE: [Option<Rgb>; 16] = [None; 16];
 
-    let last_index = item_count - 1;
-    let last_slot = budget - 1;
-    let mut indexes = Vec::with_capacity(budget);
-    let mut previous_index = None;
-
-    for slot in 0..budget {
-        let index = if slot == last_slot {
-            last_index
-        } else {
-            slot.saturating_mul(last_index) / last_slot
-        };
-        if previous_index != Some(index) {
-            indexes.push(index);
-            previous_index = Some(index);
-        }
-    }
-
-    indexes
-}
-
-fn render_row<W: Write>(writer: &mut W, row: &[Cell]) -> Result<(), Error> {
+/// Render a terminal row as inline-styled spans, resolving each cell's colours
+/// against `palette` (see [`resolve_cell_color`]). The static preview passes an
+/// empty [`NO_PALETTE`] (the cells already carry resolved RGB); the replay player
+/// passes the recording's own palette so it shows the colours it was recorded
+/// with.
+fn render_row_with<W: Write>(
+    writer: &mut W,
+    row: &[Cell],
+    palette: &[Option<Rgb>; 16],
+) -> Result<(), Error> {
     let mut current_style = SpanStyle::default();
     let mut buffer = String::new();
     let mut has_open_span = false;
 
     for cell in row {
-        let style = SpanStyle::from(cell);
+        let style = SpanStyle {
+            fg: resolve_cell_color(cell.fg_index, cell.fg, palette),
+            bg: resolve_cell_color(cell.bg_index, cell.bg, palette),
+            decorations: cell.decorations,
+        };
         if style != current_style {
             flush_span(writer, &buffer, current_style, has_open_span)?;
             buffer.clear();
             current_style = style;
-            has_open_span = !is_default_style(style);
+            has_open_span = style != SpanStyle::default();
         }
         let text = if cell.text.is_empty() {
             " "
@@ -721,6 +1203,10 @@ fn render_row<W: Write>(writer: &mut W, row: &[Cell]) -> Result<(), Error> {
 
     flush_span(writer, buffer.trim_end(), current_style, has_open_span)?;
     Ok(())
+}
+
+fn render_row<W: Write>(writer: &mut W, row: &[Cell]) -> Result<(), Error> {
+    render_row_with(writer, row, &NO_PALETTE)
 }
 
 fn flush_span<W: Write>(
@@ -816,17 +1302,6 @@ where
         }
         Some(_) | None => {}
     }
-}
-
-fn is_default_style(style: SpanStyle) -> bool {
-    style.fg.is_none()
-        && style.bg.is_none()
-        && !style.decorations.bold
-        && !style.decorations.italic
-        && !style.decorations.underline
-        && !style.decorations.dim
-        && !style.decorations.inverse
-        && !style.decorations.strikethrough
 }
 
 fn style_attr(style: SpanStyle) -> String {
@@ -1207,7 +1682,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(!html.contains("terminal-replay"));
+        assert!(!html.contains("terminal-preview terminal-replay"));
         assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
         assert!(warnings.iter().any(|warning| {
             warning
@@ -1218,6 +1693,131 @@ mod tests {
             warning
                 .message
                 .contains("terminal replay requires positive `cols` and `rows`")
+        }));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_v2_replay_renders_player() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4}\n[0.0,\"o\",\"first\\r\\n\"]\n[0.5,\"o\",\"second\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains(
+            "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--light\""
+        ));
+        // A JSON payload + the shared inline player drive the row swaps.
+        assert!(
+            html.contains("<script type=\"application/json\" class=\"terminal-replay__data\">")
+        );
+        assert!(html.contains("window.__acdcReplayInit"));
+        // Final frame is server-rendered (no-JS / reduced-motion fallback).
+        assert!(html.contains("class=\"terminal-replay__row\""));
+        assert!(html.contains("first"));
+        assert!(html.contains("second"));
+        Ok(())
+    }
+
+    #[test]
+    fn player_script_csp_hash_stays_in_sync() {
+        // Tripwire: the documented CSP hash covers the JS between the <script>
+        // tags. If this length changes, the script changed; recompute
+        // REPLAY_PLAYER_SCRIPT_CSP_HASH (see its doc) and update it here.
+        let inner = super::REPLAY_PLAYER_SCRIPT
+            .strip_prefix("<script>")
+            .and_then(|script| script.strip_suffix("</script>"))
+            .unwrap_or_default();
+        assert_eq!(
+            inner.len(),
+            1353,
+            "player script changed; recompute REPLAY_PLAYER_SCRIPT_CSP_HASH"
+        );
+        assert!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH.starts_with("sha256-"));
+    }
+
+    #[test]
+    fn asciicast_replay_uses_header_dimensions_without_block_attributes() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast]\n----\n{\"version\":2,\"width\":30,\"height\":5}\n[0.0,\"o\",\"hi\\r\\n\"]\n[0.5,\"o\",\"bye\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("terminal-preview terminal-replay"));
+        assert!(html.contains("data-cols=\"30\""));
+        assert!(html.contains("data-rows=\"5\""));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_block_dimensions_override_header() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=12,rows=3]\n----\n{\"version\":2,\"width\":30,\"height\":5}\n[0.0,\"o\",\"hi\\r\\n\"]\n[0.5,\"o\",\"bye\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("data-cols=\"12\""));
+        assert!(html.contains("data-rows=\"3\""));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_v3_relative_timing_renders() -> TestResult {
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":3,\"term\":{\"cols\":20,\"rows\":4}}\n[0.0,\"o\",\"alpha\\r\\n\"]\n[0.3,\"o\",\"beta\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("terminal-preview terminal-replay"));
+        assert!(html.contains("alpha"));
+        assert!(html.contains("beta"));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_preserves_special_characters_in_output() -> TestResult {
+        // Output bytes containing `<`, `>`, `&` must survive parse -> capture and
+        // be HTML-escaped exactly once by the renderer (not double-escaped, which
+        // would mean the parser had escaped them before asciicast parsing).
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=40,rows=4]\n----\n{\"version\":2,\"width\":40,\"height\":4}\n[0.0,\"o\",\"<div> & </div>\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("&lt;div&gt; &amp; &lt;/div&gt;"));
+        assert!(!html.contains("&amp;lt;"));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_unsupported_version_falls_back_with_warning() -> TestResult {
+        let (html, warnings) = render_with_warnings(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":1,\"width\":20,\"height\":4,\"duration\":1.0,\"stdout\":[[0.0,\"x\\r\\n\"]]}\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(!html.contains("terminal-preview terminal-replay"));
+        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| { warning.message.contains("unsupported asciicast version 1") })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn unknown_replay_format_warns_and_replays_as_ansi() -> TestResult {
+        let (html, warnings) = render_with_warnings(
+            "= Example\n\n[terminal%replay,format=bogus,cols=20,rows=4]\n----\nfirst\nsecond\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("terminal-preview terminal-replay"));
+        assert!(warnings.iter().any(|warning| {
+            warning
+                .message
+                .contains("unknown terminal replay `format` value `bogus`")
         }));
         Ok(())
     }

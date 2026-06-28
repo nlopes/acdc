@@ -417,6 +417,8 @@ pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
 
 mod admonition;
 mod appearance;
+#[cfg(feature = "render-state")]
+pub mod asciicast;
 mod audio;
 #[cfg(feature = "render-state")]
 pub mod cell_grid;

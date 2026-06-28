@@ -33,7 +33,7 @@ mod section;
 mod syntax;
 mod table;
 #[cfg(feature = "terminal")]
-mod terminal_preview;
+mod terminal;
 mod toc;
 mod video;
 
@@ -43,6 +43,10 @@ pub(crate) use acdc_converters_core::section::{
 };
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
+/// CSP `script-src` hash for the inline terminal-replay player script, for hosts
+/// that want to allowlist it without `'unsafe-inline'`.
+#[cfg(feature = "terminal")]
+pub use terminal::REPLAY_PLAYER_SCRIPT_CSP_HASH;
 
 /// HTML output flavour, owned by the html converter.
 ///

@@ -61,13 +61,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   colors follow the document `:dark-mode:` setting. This is an acdc-only block
   style: Asciidoctor treats `[terminal]` as a plain listing or literal block
   and emits the raw text (including any ANSI escape sequences) unrendered.
-- Feature-gated `[terminal%replay]` blocks render pre-recorded ANSI output as
-  an animated HTML replay. Replay blocks require explicit `cols`/`rows`
-  dimensions, support a `replay-duration-ms` playback override, never execute
-  commands, and fall back to a static terminal preview (with a warning) when
-  dimensions are missing or invalid. Playback scales to long recordings with
-  compact output and ends on the final frame. Like `[terminal]`, this is an
-  acdc-only block style that Asciidoctor renders as raw text.
+- Feature-gated `[terminal%replay]` blocks render pre-recorded terminal output
+  as an animated HTML replay in one of two formats:
+  - default: raw ANSI as a pure-CSS filmstrip; needs `cols`/`rows`.
+  - `format=asciicast`: an asciicast v2/v3 recording (size and timing from its
+    header) played by a small self-contained inline script. It shows every
+    distinct screen, including in-place rewrites like progress bars and
+    full-screen TUIs, in the recording's own colours, with a window title bar
+    showing the recorded command.
+
+  Idle gaps are compressed (the header's `idle_time_limit`, the
+  `replay-idle-limit-ms` attribute, or a default) and `replay-duration-ms`
+  overrides total playback speed. The final frame is rendered server-side, so
+  readers without scripting (or with `prefers-reduced-motion`) still see the
+  finished screen; the inline script's hash is exposed as
+  `REPLAY_PLAYER_SCRIPT_CSP_HASH` for hosts on a strict `script-src`. Commands
+  are never executed, and Asciidoctor renders the block as raw text.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.

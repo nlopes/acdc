@@ -1,0 +1,43 @@
+= Asciicast Replay Sample
+:author: ACDC
+:toc:
+
+This document demonstrates replaying an https://docs.asciinema.org[asciicast]
+recording in an HTML terminal replay block. The block contains a recorded
+asciicast; acdc parses it as replay data and renders timed HTML frames. It never
+executes the recorded command, environment, or input — only recorded output
+bytes are fed to the terminal emulator.
+
+== Asciicast v2
+
+Set `format=asciicast` on a `[terminal%replay]` block. The terminal size comes
+from the recording header, so `cols`/`rows` are optional (block attributes
+override the header when present). Each event's time field is an absolute offset
+in seconds.
+
+[terminal%replay,format=asciicast]
+----
+{"version": 2, "width": 64, "height": 8, "title": "acdc demo"}
+[0.0, "o", "$ acdc convert guide.adoc --backend html\r\n"]
+[0.6, "o", "Parsing guide.adoc\r\n"]
+[1.2, "o", "\u001b[32mRendering replay frames\u001b[0m\r\n"]
+[1.9, "o", "Generated html file: ./guide.html\r\n"]
+[2.4, "o", "Done\r\n"]
+----
+
+== Asciicast v3
+
+Version 3 nests the terminal size under a `term` object, and each event's time
+field is the interval since the previous event. acdc accumulates those intervals
+into absolute timestamps, so playback timing matches the recording. A grow-only
+resize widens the terminal mid-replay.
+
+[terminal%replay,format=asciicast,replay-duration-ms=2500]
+----
+{"version": 3, "term": {"cols": 40, "rows": 6}}
+[0.0, "o", "starting...\r\n"]
+[0.5, "o", "loading modules\r\n"]
+[0.4, "r", "72x6"]
+[0.3, "o", "now there is room for much wider output lines\r\n"]
+[0.6, "o", "\u001b[1mdone\u001b[0m\r\n"]
+----
