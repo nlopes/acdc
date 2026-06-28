@@ -285,8 +285,9 @@ macro_rules! remap_simple_location {
     ($node:expr, $base_offset:expr) => {{
         $node.location.absolute_start += $base_offset;
         $node.location.absolute_end += $base_offset;
-        $node.location.start.column += $base_offset;
-        $node.location.end.column += $base_offset;
+        let col_shift = u32::try_from($base_offset).unwrap_or(u32::MAX);
+        $node.location.start.column += col_shift;
+        $node.location.end.column += col_shift;
     }};
 }
 

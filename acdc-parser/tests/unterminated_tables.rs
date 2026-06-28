@@ -44,7 +44,7 @@ fn warning_line(warning: &Warning) -> Result<usize, Box<dyn Error>> {
     let loc = warning
         .source_location()
         .ok_or("warning should carry a source location")?;
-    Ok(loc.location.start.line)
+    Ok(loc.location.start.line as usize)
 }
 
 fn unterminated_delimiter(warning: &Warning) -> Result<&str, Box<dyn Error>> {

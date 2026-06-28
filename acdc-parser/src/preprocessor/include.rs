@@ -182,7 +182,7 @@ impl LinesRange {
         Error::InvalidLineRange(
             Box::new(SourceLocation {
                 file: current_file.map(Path::to_path_buf),
-                location: crate::Location::point(Position::new(line_number, 1)),
+                location: crate::Location::point(Position::from_line_col(line_number, 1)),
             }),
             line_range.to_string(),
         )
@@ -290,7 +290,7 @@ impl<'a> Include<'a> {
                         Error::InvalidLevelOffset(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                location: crate::Location::point(Position::new(
+                                location: crate::Location::point(Position::from_line_col(
                                     self.line_number,
                                     1,
                                 )),
@@ -316,7 +316,7 @@ impl<'a> Include<'a> {
                         Error::InvalidIndent(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                location: crate::Location::point(Position::new(
+                                location: crate::Location::point(Position::from_line_col(
                                     self.line_number,
                                     1,
                                 )),
@@ -336,7 +336,10 @@ impl<'a> Include<'a> {
                     return Err(Error::InvalidIncludeDirective(
                         Box::new(SourceLocation {
                             file: self.current_file.clone(),
-                            location: crate::Location::point(Position::new(self.line_number, 1)),
+                            location: crate::Location::point(Position::from_line_col(
+                                self.line_number,
+                                1,
+                            )),
                         }),
                         unknown.to_string(),
                     ));
@@ -374,7 +377,10 @@ impl<'a> Include<'a> {
                     file: current_file.map(Path::to_path_buf),
                     // Adjust line number to be relative to the document
                     // PEG parser location.line is always 1 for a single line parse
-                    location: crate::Location::point(Position::new(line_number, location.column)),
+                    location: crate::Location::point(Position::from_line_col(
+                        line_number,
+                        location.column,
+                    )),
                 }),
                 e.expected.to_string(),
             )
@@ -690,7 +696,7 @@ impl<'a> Include<'a> {
     fn warn_located(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
         let source_location = crate::SourceLocation {
             file: self.current_file.clone(),
-            location: crate::Location::point(crate::Position::new(self.line_number, 1)),
+            location: crate::Location::point(crate::Position::from_line_col(self.line_number, 1)),
         };
         let warning = crate::Warning::new(
             crate::WarningKind::Other(message.into()),

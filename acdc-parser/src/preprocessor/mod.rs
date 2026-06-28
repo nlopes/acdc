@@ -327,7 +327,7 @@ impl Preprocessor {
         SourceLocation {
             file: file_parent.map(Path::to_path_buf),
             // Preprocessor doesn't track column — use 0 as placeholder.
-            location: Location::point(Position::new(line_number, 0)),
+            location: Location::point(Position::from_line_col(line_number, 0)),
         }
     }
 
@@ -1075,7 +1075,7 @@ more";
 
         let loc = state.create_location(offset, offset + needle.len());
         let resolved = state.create_error_source_location(loc);
-        Some((resolved.file, resolved.location.start.line))
+        Some((resolved.file, resolved.location.start.line as usize))
     }
 
     #[test]
@@ -1186,7 +1186,7 @@ more";
         let line_map = LineMap::new(&text);
         Some((
             file,
-            line_map.source_line(range, &text, offset),
+            line_map.source_line(range, &text, offset) as usize,
             range.source_offset(offset),
         ))
     }

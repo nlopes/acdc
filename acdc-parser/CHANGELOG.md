@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Location::byte_len()` returns the location's inclusive byte length, or `None` when its
   start and end fall in different files (where the byte offsets are in different coordinate
   spaces and can't be subtracted). Prefer it over `absolute_end - absolute_start`.
+- `Position::from_line_col(line, column)` builds a `Position` from `usize` line/column,
+  saturating at `u32::MAX`. Use it when constructing from `usize` indices; prefer
+  `Position::new` when the values are already `u32`.
 - `SectionKind` enum and a `kind` field on `Section` (and `TocEntry`) classifying
   a section as an `AsciiDoc` *special section* (`Preface`, `Glossary`, `Appendix`,
   …) or `Normal`, derived from its style. This is a structural classification only
@@ -87,6 +90,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SectionKind::as_style`).
 - Updated the parser grammar implementation to reduce location-tracking overhead while
   preserving the same parse output and diagnostics.
+- **Breaking:** `Position::line` and `Position::column` are now `u32` instead of `usize`
+  (saturating at `u32::MAX` for inputs beyond ~4 billion lines/columns), keeping the
+  per-node `Location` compact now that each boundary also carries its originating `file`.
 - **Breaking:** the `Positioning` enum is removed and `SourceLocation` now holds a
   single `location: Location` (a point diagnostic is a zero-width span with
   `start == end`). Read `source_location.location.start` for the line/column instead

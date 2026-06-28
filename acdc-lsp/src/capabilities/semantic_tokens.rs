@@ -165,7 +165,7 @@ fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
 
             if title_len > 0 {
                 tokens.push(RawToken {
-                    line: to_lsp_u32(section.location.start.line.saturating_sub(1)),
+                    line: section.location.start.line.saturating_sub(1),
                     // Skip the = markers and space
                     start_char: u32::from(section.level) + 2, // Skip = markers and space
                     length: to_lsp_u32(title_len),
@@ -212,7 +212,7 @@ fn collect_tokens_from_block(block: &Block, tokens: &mut Vec<RawToken>) {
         Block::DocumentAttribute(attr) => {
             // Attribute name as property
             tokens.push(RawToken {
-                line: to_lsp_u32(attr.location.start.line.saturating_sub(1)),
+                line: attr.location.start.line.saturating_sub(1),
                 start_char: 1, // Skip leading :
                 length: to_lsp_u32(attr.name.len()),
                 token_type: 2, // PROPERTY
@@ -341,12 +341,11 @@ fn add_token_for_location(
         // anyway, so emit a minimal 1-char token rather than a bogus length.
         None => 1,
         // Same line (and same file): use the column span.
-        Some(_) if loc.start.line == loc.end.line => to_lsp_u32(
-            loc.end
-                .column
-                .saturating_sub(loc.start.column)
-                .saturating_add(1),
-        ),
+        Some(_) if loc.start.line == loc.end.line => loc
+            .end
+            .column
+            .saturating_sub(loc.start.column)
+            .saturating_add(1),
         // Multi-line within one file: use the byte length (simplified — first-line only
         // would need the line width, which we don't have here).
         Some(bytes) => to_lsp_u32(bytes),
@@ -354,8 +353,8 @@ fn add_token_for_location(
 
     if length > 0 {
         tokens.push(RawToken {
-            line: to_lsp_u32(loc.start.line.saturating_sub(1)),
-            start_char: to_lsp_u32(loc.start.column.saturating_sub(1)),
+            line: loc.start.line.saturating_sub(1),
+            start_char: loc.start.column.saturating_sub(1),
             length,
             token_type,
             token_modifiers,

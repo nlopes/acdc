@@ -280,9 +280,9 @@ impl std::fmt::Display for Location {
 #[non_exhaustive]
 pub struct Position {
     /// The line number of the position (1-indexed).
-    pub line: usize,
+    pub line: u32,
     /// The column number of the position (1-indexed, counted as Unicode scalar values).
-    pub column: usize,
+    pub column: u32,
     /// The `include::` chain this position's content came through, outermost target
     /// first and the file directly containing the content last — each element the
     /// include target *as written* in its directive (e.g. `["a.adoc", "b.adoc"]` for
@@ -295,10 +295,24 @@ pub struct Position {
 impl Position {
     /// A position at `line`/`column` with no originating file (primary input).
     #[must_use]
-    pub fn new(line: usize, column: usize) -> Self {
+    pub fn new(line: u32, column: u32) -> Self {
         Self {
             line,
             column,
+            file: None,
+        }
+    }
+
+    /// A position from `usize` `line`/`column`, saturating at `u32::MAX` (neither can
+    /// realistically exceed it). For callers that already hold `u32` — the hot parse
+    /// and diagnostic paths — prefer the lossless [`new`](Self::new). The named
+    /// arguments here guard against accidentally transposing line and column at the
+    /// many `usize`-scanning call sites (preprocessor line counters, byte indices).
+    #[must_use]
+    pub fn from_line_col(line: usize, column: usize) -> Self {
+        Self {
+            line: u32::try_from(line).unwrap_or(u32::MAX),
+            column: u32::try_from(column).unwrap_or(u32::MAX),
             file: None,
         }
     }

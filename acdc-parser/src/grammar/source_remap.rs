@@ -106,7 +106,7 @@ struct Remapper<'a> {
     /// Preprocessed (1-indexed) start line of each range, precomputed so `map_offset`
     /// resolves a source line with a single `LineMap` lookup (for the queried offset)
     /// instead of also looking up the range start every time. Parallel to `ranges`.
-    preproc_start_lines: Vec<usize>,
+    preproc_start_lines: Vec<u32>,
     /// One shared `Arc<Vec<String>>` per distinct `include::` chain, keyed by the
     /// range's `file_chain`, so stamping a node's file is a refcount bump rather than
     /// cloning the chain per node. Primary-input ranges (empty chain) are not interned
@@ -201,13 +201,16 @@ impl<'a> Remapper<'a> {
     /// innermost containing range, plus that range — via a binary search over the
     /// precomputed segment cover (O(log R)). The source line goes through the shared
     /// [`LineMap::source_line`] so it can't drift from the diagnostic paths.
-    fn map_offset(&self, abs: usize) -> Option<(usize, usize, &'a SourceRange)> {
+    fn map_offset(&self, abs: usize) -> Option<(usize, u32, &'a SourceRange)> {
         let range_index = covering_range_index(&self.boundaries, &self.segment_cover, abs)?;
         let range = self.ranges.get(range_index)?;
         let preproc_start_line = *self.preproc_start_lines.get(range_index)?;
-        let source_line =
-            self.line_map
-                .source_line_from(range.start_line, preproc_start_line, self.input, abs);
+        let source_line = self.line_map.source_line_from(
+            u32::try_from(range.start_line).unwrap_or(u32::MAX),
+            preproc_start_line,
+            self.input,
+            abs,
+        );
         Some((range.source_offset(abs), source_line, range))
     }
 
@@ -293,12 +296,12 @@ fn covering_range_index(
 
 /// Subtract a re-indent's `column_shift` from a preprocessed `column` to recover the
 /// origin column, clamped to a minimum of 1. A `0` shift returns `column` unchanged.
-fn shift_column(column: usize, column_shift: isize) -> usize {
+fn shift_column(column: u32, column_shift: isize) -> u32 {
     if column_shift == 0 {
         return column;
     }
     let shifted = isize::try_from(column).unwrap_or(isize::MAX) - column_shift;
-    usize::try_from(shifted.max(1)).unwrap_or(1)
+    u32::try_from(shifted.max(1)).unwrap_or(1)
 }
 
 #[cfg(test)]

@@ -79,12 +79,12 @@ fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> Sourc
     SourceSpan::new(start_offset.into(), length)
 }
 
-fn source_location_line_column(loc: &SourceLocation) -> (usize, usize) {
+fn source_location_line_column(loc: &SourceLocation) -> (u32, u32) {
     (loc.location.start.line, loc.location.start.column)
 }
 
 /// Calculate byte offset from line and column numbers (both 1-indexed).
-fn calculate_offset_from_position(source: &str, line: usize, column: usize) -> usize {
+fn calculate_offset_from_position(source: &str, line: u32, column: u32) -> usize {
     let mut current_line = 1;
 
     for (idx, ch) in source.char_indices() {
