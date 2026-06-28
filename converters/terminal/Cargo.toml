@@ -24,7 +24,7 @@ tracing.workspace = true
 unicode-width.workspace = true
 libghostty-vt = { version = "0.2.0", optional = true }
 # asciicast (.cast) replay parsing (optional - only needed with render-state)
-asciicast-rs = { version = "0.2", optional = true }
+asciicast-rs = { version = "0.3", optional = true }
 # peek the asciicast version before picking a streaming reader (render-state only)
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }

@@ -355,11 +355,12 @@ dependencies = [
 
 [[package]]
 name = "asciicast-rs"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d16c9eed1f826287ee9824510e46061f6ac831e27c15d1917469283e3446e6c"
+checksum = "fc0ba000776cf478263576bca61217ca5557749c55a8a2d2daf973047188be03"
 dependencies = [
  "rgb",
+ "ruzstd",
  "serde",
  "serde_json",
  "thiserror",
@@ -2478,6 +2479,12 @@ dependencies = [
  "tempfile",
  "wait-timeout",
 ]
+
+[[package]]
+name = "ruzstd"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7c1c839d570d835527c9a5e4db7cb2198683a988cb9d7293fc8674e6bd58fc8"
 
 [[package]]
 name = "ryu"
