@@ -108,28 +108,19 @@ impl Recording {
         self.title.as_deref()
     }
 
-    /// Capture replay frames from the recording.
+    /// Capture replay frames from the recording at `size`.
     ///
-    /// Events are first down-sampled to at most `max_frames` terminal writes
-    /// (dropped output is folded into the next kept write so nothing is lost),
-    /// then fed to the shared replay capture pipeline at `size`.
-    /// `default_frame_duration` only spaces untimed events; asciicast events are
-    /// always timed, so it has no effect in practice.
+    /// Every distinct visible screen the session produced is captured (with
+    /// consecutive duplicates deduplicated by the shared replay pipeline).
+    /// asciicast events are always timed, so no synthetic frame spacing is
+    /// applied.
     ///
     /// # Errors
     ///
     /// Returns an error when terminal dimensions are invalid, render-state
     /// capture fails, or event timestamps move backwards.
-    pub fn capture(
-        self,
-        size: TerminalSize,
-        max_frames: usize,
-        default_frame_duration: Duration,
-    ) -> Result<replay::Timeline, replay::Error> {
-        let events = sample_events(self.events, max_frames);
-        let options =
-            replay::Options::new(size).with_default_frame_duration(default_frame_duration);
-        replay::capture(events, options)
+    pub fn capture(self, size: TerminalSize) -> Result<replay::Timeline, replay::Error> {
+        replay::capture(self.events, replay::Options::new(size))
     }
 }
 
@@ -356,60 +347,6 @@ impl IdleClock {
         self.previous_raw = raw;
         seconds(self.elapsed)
     }
-}
-
-/// Down-sample timed replay events to at most `max_frames` writes. Output bytes
-/// between kept writes are concatenated into the next kept write (so no output is
-/// lost) at that write's real timestamp; resize events are always kept and flush
-/// any pending bytes before them, preserving ordering and monotonic timing.
-fn sample_events(events: Vec<Event<'static>>, max_frames: usize) -> Vec<Event<'static>> {
-    let write_count = events
-        .iter()
-        .filter(|event| matches!(event, Event::Write { .. }))
-        .count();
-    // Every write fits the budget, so nothing is merged or dropped: hand back the
-    // events as-is instead of copying their bytes through the merge buffer below.
-    if max_frames >= write_count {
-        return events;
-    }
-    // The kept indices are sorted and unique and write ordinals are visited in
-    // order, so a single forward cursor over them replaces a set membership test.
-    let mut keep = replay::sampled_indexes(write_count, max_frames)
-        .into_iter()
-        .peekable();
-
-    let mut result = Vec::new();
-    let mut pending: Vec<u8> = Vec::new();
-    let mut pending_at = Duration::ZERO;
-    let mut write_ordinal = 0;
-
-    for event in events {
-        match event {
-            Event::Write { bytes, at } => {
-                pending.extend_from_slice(&bytes);
-                pending_at = at.unwrap_or(pending_at);
-                let keep_this = keep.peek() == Some(&write_ordinal);
-                if keep_this {
-                    keep.next();
-                }
-                write_ordinal += 1;
-                if keep_this && !pending.is_empty() {
-                    result.push(Event::write_at(std::mem::take(&mut pending), pending_at));
-                }
-            }
-            Event::Resize { size, at } => {
-                if !pending.is_empty() {
-                    result.push(Event::write_at(std::mem::take(&mut pending), pending_at));
-                }
-                result.push(Event::Resize { size, at });
-            }
-            other @ Event::TimingBoundary { .. } => result.push(other),
-        }
-    }
-    if !pending.is_empty() {
-        result.push(Event::write_at(pending, pending_at));
-    }
-    result
 }
 
 #[cfg(test)]
