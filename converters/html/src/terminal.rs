@@ -330,10 +330,14 @@ fn render_replay_ansi<W: Write>(
         let grid = capture_ansi(&ansi, size)?;
         return render_grid(&mut writer, &grid, preview_options.theme);
     }
-    render_replay_filmstrip(
-        &mut writer,
+    // Raw ANSI carries no recorded theme or title, so the player uses the
+    // generic light/dark colours and emits no `data-title`.
+    render_replay_player(
+        writer,
         &frames,
         preview_options.theme,
+        None,
+        None,
         playback_duration,
     )
 }
@@ -378,13 +382,20 @@ fn render_replay_asciicast<W: Write>(
     let recorded_theme = recording.theme();
     let title = recording.title().map(str::to_owned);
 
+    // Replay at the recording's native height so its cursor positioning renders
+    // the way it was recorded (a live progress region, full-screen TUI, etc.);
+    // capturing straight into a shorter `size.rows` would leave output stuck at
+    // the top with blank rows below. The captured frames are then windowed to
+    // `size.rows` for display (below).
+    let capture_size = TerminalSize::new(size.cols, recording.size().rows.max(size.rows));
+
     // Capture every distinct screen the session produced (deduplicated, but never
     // sampled): a terminal session may rewrite the screen in place (progress
     // bars, status lines, full-screen TUIs), so faithful playback needs each
     // visible state, not a scrolled window of one transcript. Capture errors are
     // caught here because the events come from user-supplied cast data, not acdc.
-    let frames = match recording.capture(size) {
-        Ok(timeline) => timeline.into_frames(),
+    let timeline = match recording.capture(capture_size) {
+        Ok(timeline) => timeline,
         Err(err) => {
             diagnostics.warn(format!(
                 "asciicast replay capture failed: {err}; rendering a static terminal preview instead"
@@ -392,6 +403,11 @@ fn render_replay_asciicast<W: Write>(
             return render_blank_preview(&mut writer, size, preview_options.theme);
         }
     };
+
+    // Show a `size.rows`-tall window of each frame, anchoring the last line with
+    // content to the bottom so the replay follows the output like a scrolling
+    // terminal (and rests on the final lines, not a region the recording cleared).
+    let frames = window_frames_to_bottom(timeline.into_frames(), size.rows);
 
     if frames.is_empty() {
         diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
@@ -406,6 +422,47 @@ fn render_replay_asciicast<W: Write>(
         title.as_deref(),
         playback_duration,
     )
+}
+
+/// Window every captured frame to `display_rows`, anchoring each frame's last
+/// line with content to the bottom. The replay then follows the output like a
+/// scrolling terminal instead of leaving content stuck at the top, and rests on
+/// the final lines rather than a region the recording erased at the end.
+fn window_frames_to_bottom(frames: Vec<replay::Frame>, display_rows: usize) -> Vec<replay::Frame> {
+    let display_rows = display_rows.max(1);
+    frames
+        .into_iter()
+        .map(|frame| replay::Frame {
+            at: frame.at,
+            grid: window_grid_to_bottom(&frame.grid, display_rows),
+        })
+        .collect()
+}
+
+/// Extract a `display_rows`-tall window of `grid` whose bottom is the last row
+/// holding visible content (trailing blank rows are dropped). When the content
+/// is shorter than `display_rows` it sits at the top with blank rows below, like
+/// fresh terminal output; once it exceeds the window the oldest rows scroll off
+/// the top.
+fn window_grid_to_bottom(grid: &CellGrid, display_rows: usize) -> CellGrid {
+    let cols = grid.cols();
+    let content_end = (0..grid.rows())
+        .rev()
+        .find(|&row| {
+            grid.row(row)
+                .is_some_and(|cells| cells.iter().any(|cell| !cell.is_blank()))
+        })
+        .map_or(0, |row| row + 1);
+    let start = content_end.saturating_sub(display_rows);
+    let mut cells = Vec::with_capacity(cols.saturating_mul(display_rows));
+    for offset in 0..display_rows {
+        let row = start + offset;
+        match grid.row(row) {
+            Some(row_cells) if row < content_end => cells.extend_from_slice(row_cells),
+            _ => cells.extend(std::iter::repeat_with(Cell::default).take(cols)),
+        }
+    }
+    CellGrid::new(cells, TerminalSize::new(cols, display_rows))
 }
 
 /// The `replay-duration-ms` playback override, if set to a positive integer.
@@ -665,86 +722,6 @@ fn render_grid<W: Write>(writer: &mut W, grid: &CellGrid, theme: Theme) -> Resul
     Ok(())
 }
 
-/// Render the replay as a single "filmstrip": every sampled frame stacked into
-/// one `<pre>`, with a clipped viewport showing one frame at a time and a single
-/// stepped `translateY` animation advancing through them. This keeps the DOM to
-/// one grid and one animation regardless of recording length, instead of N
-/// stacked frame layers. Playback ends on the final frame (no scroll-back).
-fn render_replay_filmstrip<W: Write>(
-    writer: &mut W,
-    frames: &[replay::Frame],
-    theme: Theme,
-    playback_duration: Option<std::time::Duration>,
-) -> Result<(), Error> {
-    let Some(first) = frames.first() else {
-        return Ok(());
-    };
-    let (bg, fg) = theme.colors();
-    let frame_duration = std::time::Duration::from_millis(REPLAY_FRAME_DURATION_MS);
-    let first_at = first.at;
-    let total_duration = frames.last().map_or(frame_duration, |frame| {
-        frame.at.saturating_sub(first_at) + frame_duration
-    });
-    let total_ms = playback_duration
-        .unwrap_or(total_duration)
-        .as_millis()
-        .max(1);
-    let cols = first.grid.cols();
-    let rows = first.grid.rows();
-    let animation_name = replay_animation_name(frames, rows, total_duration);
-
-    write!(
-        writer,
-        "<div class=\"terminal-preview terminal-replay terminal-preview--{}\" style=\"--acdc-term-bg:{};--acdc-term-fg:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\">",
-        theme.as_str(),
-        rgb_css(bg),
-        rgb_css(fg),
-        cols,
-        rows,
-        frames.len(),
-        total_ms
-    )?;
-    render_replay_scroll_keyframes(
-        writer,
-        &animation_name,
-        frames,
-        rows,
-        first_at,
-        total_duration,
-    )?;
-    // The viewport keeps the terminal padding and any horizontal scrolling; the
-    // clip is exactly `rows` tall (font-size pins `em` to the screen's line box)
-    // and hides everything but the current frame as the filmstrip scrolls.
-    writeln!(
-        writer,
-        "<div class=\"terminal-replay__viewport\" style=\"overflow:auto;max-width:100%;padding:18px;font-size:14px\">"
-    )?;
-    writeln!(
-        writer,
-        "<div class=\"terminal-replay__clip\" style=\"position:relative;overflow:hidden;width:max-content;height:{}\">",
-        row_em(rows)
-    )?;
-    writeln!(
-        writer,
-        "<pre class=\"terminal-preview__screen terminal-replay__scroll\" aria-label=\"Terminal replay\" style=\"margin:0;padding:0;animation:{animation_name} {total_ms}ms step-end both\">"
-    )?;
-    let mut first_row = true;
-    for frame in frames {
-        for row in frame.grid.rows_iter() {
-            if !first_row {
-                writeln!(writer)?;
-            }
-            first_row = false;
-            render_row(writer, row)?;
-        }
-    }
-    writeln!(writer, "</pre>")?;
-    writeln!(writer, "</div>")?;
-    writeln!(writer, "</div>")?;
-    writeln!(writer, "</div>")?;
-    Ok(())
-}
-
 /// A tiny, self-contained vanilla-JS player shared by every replay block on the
 /// page. It reads each block's JSON payload, swaps the visible rows on a clock
 /// (only touching rows that actually change), and honours `prefers-reduced-motion`
@@ -762,7 +739,8 @@ const REPLAY_PLAYER_SCRIPT: &str = "<script>(function(){function init(el){el.set
 pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
     "sha256-/mhN+UdwCNRQ7MxmgzvMM5DZpJy6Rs63LrQRESyqfNw=";
 
-/// Render a recording as an interactive replay player.
+/// Render a recording as an interactive replay player. This is the single
+/// renderer for every replay block (raw ANSI and asciicast alike).
 ///
 /// Every distinct visible screen is captured, but identical rows are pooled and
 /// emitted once; each frame is just a list of indices into that pool plus a
@@ -771,22 +749,24 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
 /// faithfully and smoothly while keeping the payload compact: a long session
 /// costs one copy of each unique line, not one screen per frame.
 ///
-/// The player wears the recording's own colours (when its header carried a
-/// theme) and a terminal-window title bar. The final frame is rendered into the
-/// DOM server-side, so readers with scripting disabled (or who prefer reduced
-/// motion) see the finished screen.
+/// The player wears the recording's own colours when its header carried a theme
+/// (raw ANSI has none, so it uses the generic light/dark colours). The final
+/// frame is rendered into the DOM server-side, so readers with scripting
+/// disabled (or who prefer reduced motion) see the finished screen; only the
+/// animation is lost.
 ///
 /// # CSS contract
 ///
-/// The window chrome is class-based in the built-in stylesheet, so a consumer
-/// (e.g. an embedding editor) can restyle it. The stable seams are the classes
-/// `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__titlebar`,
-/// `.terminal-replay__dots`, `.terminal-replay__title`,
-/// `.terminal-replay__viewport`, `.terminal-replay__screen`,
-/// `.terminal-replay__row`, plus custom properties `--acdc-term-bg`/
-/// `--acdc-term-fg` (the recorded theme, emitted inline on the container) and the
-/// stylesheet-defaulted `--acdc-term-font-family`/`--acdc-term-font-size`/
-/// `--acdc-term-line-height`/`--acdc-term-radius`/`--acdc-term-padding`.
+/// acdc emits no window chrome; the markup is class-based so a consumer (e.g. an
+/// embedding editor) can add its own. The stable seams are the classes
+/// `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__viewport`,
+/// `.terminal-replay__screen`, `.terminal-replay__row`, the `data-title`
+/// attribute (the recorded title, present only when the recording carried one,
+/// for building custom chrome via `::before{content:attr(data-title)}`), the
+/// custom properties `--acdc-term-bg`/`--acdc-term-fg` (the recorded theme,
+/// emitted inline on the container) and the stylesheet-defaulted
+/// `--acdc-term-font-family`/`--acdc-term-font-size`/`--acdc-term-line-height`/
+/// `--acdc-term-radius`/`--acdc-term-padding`.
 ///
 /// Per-cell colours are emitted as inline `style` colours (resolved against the
 /// recording's own palette via [`resolve_cell_color`]), matching the static
@@ -842,31 +822,31 @@ fn render_replay_player<W: Write>(
     // Recorded theme colours win over the generic light/dark default.
     let (bg, fg) = recorded.map_or_else(|| theme.colors(), |t| (t.bg, t.fg));
 
-    // Rows the final frame actually fills (trailing blank rows are the emptied
-    // live region, not real output). The replay rests on this height so it ends
-    // on its last line instead of a block of empty terminal rows.
-    let final_rows = frames
-        .last()
-        .map_or(0, |frame| last_content_row(&frame.grid))
-        .max(1);
+    // The replay rests on the full terminal height, so the configured `rows` is
+    // also the minimum number of lines shown at the end of the run: the box
+    // stays `rows` tall instead of collapsing to the final line's content.
+    let final_rows = rows;
 
-    // The container's only inline style is the per-recording theme bg/fg (as
-    // custom properties the chrome stylesheet consumes); cell colours are inline
-    // per span, and the rest of the chrome is class-based. See the CSS contract
-    // documented on `render_replay_player`.
+    // The container carries the per-recording theme bg/fg as custom properties
+    // (cell colours are inline per span; everything else is class-based). acdc
+    // emits no window chrome; the recorded title, when present, is exposed as
+    // `data-title` so a consumer can render its own chrome in CSS
+    // (`::before{content:attr(data-title)}`).
+    let title_attr = title.map_or_else(String::new, |title| {
+        format!(" data-title=\"{}\"", escape_html(title))
+    });
     writeln!(
         writer,
-        "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--{}\" style=\"--acdc-term-bg:{};--acdc-term-fg:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\">",
+        "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--{}\" style=\"--acdc-term-bg:{};--acdc-term-fg:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\"{}>",
         theme.as_str(),
         rgb_css(bg),
         rgb_css(fg),
         cols,
         rows,
         frames.len(),
-        total_ms
+        total_ms,
+        title_attr
     )?;
-
-    render_replay_titlebar(&mut writer, title)?;
 
     // The screen holds one block per terminal row. The final frame is rendered
     // server-side (trimmed of trailing blank rows) so it shows without scripting;
@@ -942,38 +922,6 @@ fn build_row_pool(
         }
     }
     Ok((pool, frame_rows))
-}
-
-/// Render the replay's title bar: traffic-light dots and the recording's title.
-/// All styling lives in the stylesheet (`.terminal-replay__titlebar`, `__dots`,
-/// `__title`); only structure is emitted here.
-fn render_replay_titlebar<W: Write>(writer: &mut W, title: Option<&str>) -> Result<(), Error> {
-    write!(
-        writer,
-        "<div class=\"terminal-replay__titlebar\" aria-hidden=\"true\"><span class=\"terminal-replay__dots\"><span></span><span></span><span></span></span>"
-    )?;
-    if let Some(title) = title {
-        write!(
-            writer,
-            "<span class=\"terminal-replay__title\">{}</span>",
-            escape_html(title)
-        )?;
-    }
-    writeln!(writer, "</div>")?;
-    Ok(())
-}
-
-/// Number of rows from the top of `grid` up to and including its last row that
-/// holds any visible content (so trailing blank rows are excluded). Interior
-/// blank lines are kept.
-fn last_content_row(grid: &CellGrid) -> usize {
-    (0..grid.rows())
-        .rev()
-        .find(|&row| {
-            grid.row(row)
-                .is_some_and(|cells| cells.iter().any(|cell| !cell.is_blank()))
-        })
-        .map_or(0, |row| row + 1)
 }
 
 /// Render one terminal row to its HTML string for the player pool, using the
@@ -1082,75 +1030,6 @@ fn json_string(value: &str) -> String {
     }
     out.push('"');
     out
-}
-
-/// A deterministic, per-block CSS animation name. Every replay block emits its
-/// own `@keyframes`, so a single shared global name would let a later block's
-/// keyframes override an earlier block's, animating the earlier block with the
-/// wrong offsets. The name hashes the inputs that define the keyframes (frame
-/// timings and row geometry); blocks that animate identically share a name,
-/// which is harmless.
-fn replay_animation_name(
-    frames: &[replay::Frame],
-    rows: usize,
-    total_duration: std::time::Duration,
-) -> String {
-    use std::hash::{Hash, Hasher};
-    let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    rows.hash(&mut hasher);
-    total_duration.hash(&mut hasher);
-    frames.len().hash(&mut hasher);
-    for frame in frames {
-        frame.at.hash(&mut hasher);
-    }
-    format!("terminal-replay-scroll-{:016x}", hasher.finish())
-}
-
-fn render_replay_scroll_keyframes<W: Write>(
-    writer: &mut W,
-    name: &str,
-    frames: &[replay::Frame],
-    rows: usize,
-    first_at: std::time::Duration,
-    total_duration: std::time::Duration,
-) -> Result<(), Error> {
-    writeln!(writer, "<style>")?;
-    write!(writer, "@keyframes {name}{{")?;
-    for (index, frame) in frames.iter().enumerate() {
-        let percent = replay_frame_percent(frame.at.saturating_sub(first_at), total_duration);
-        let offset = row_em(index.saturating_mul(rows));
-        write!(writer, "{percent:.4}%{{transform:translateY(-{offset})}}")?;
-    }
-    // Hold the final frame to the end of the timeline.
-    let last_offset = row_em(frames.len().saturating_sub(1).saturating_mul(rows));
-    writeln!(writer, "100%{{transform:translateY(-{last_offset})}}}}")?;
-    writeln!(writer, "</style>")?;
-    Ok(())
-}
-
-/// A length in hundredths of an `em`, formatted as a CSS `em` value
-/// (e.g. `145` -> `1.45em`).
-#[derive(Clone, Copy)]
-struct Em(usize);
-
-impl std::fmt::Display for Em {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}.{:02}em", self.0 / 100, self.0 % 100)
-    }
-}
-
-/// Height of `rows` terminal rows, matching the screen's `font: 14px/1.45`
-/// line box (1.45em per row).
-fn row_em(rows: usize) -> Em {
-    Em(rows.saturating_mul(145))
-}
-
-fn replay_frame_percent(elapsed: std::time::Duration, total_duration: std::time::Duration) -> f64 {
-    let total = total_duration.as_secs_f64();
-    if total == 0.0 {
-        return 0.0;
-    }
-    (elapsed.as_secs_f64() / total * 100.0).clamp(0.0, 100.0)
 }
 
 fn replay_frame_budget(playback_ms: u128) -> usize {
@@ -1541,64 +1420,43 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(
-            html.contains(
-                "<div class=\"terminal-preview terminal-replay terminal-preview--light\""
-            )
-        );
+        // Raw ANSI replay renders through the same JS player as asciicast: a
+        // player container, an inline JSON payload, the shared init script, and
+        // server-rendered rows. No CSS filmstrip and no window chrome.
+        assert!(html.contains(
+            "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--light\""
+        ));
         assert!(html.contains("data-cols=\"20\""));
         assert!(html.contains("data-rows=\"4\""));
         assert!(html.contains("data-frames=\"2\""));
         assert!(html.contains("data-duration-ms=\"1000\""));
-        // Single filmstrip grid + one stepped scroll animation, no per-frame
-        // layers or visibility toggling.
-        assert!(html.contains("@keyframes terminal-replay-scroll"));
-        assert!(html.contains("terminal-replay__scroll"));
-        assert!(html.contains("transform:translateY("));
-        assert!(html.contains("1000ms step-end both"));
-        assert!(!html.contains("<script>"));
-        assert!(!html.contains("terminal-replay__frame"));
-        assert!(!html.contains("terminal-replay__stage"));
-        assert!(!html.contains("terminal-replay__scrollback"));
-        assert!(!html.contains("@keyframes terminal-replay-frame-"));
+        assert!(
+            html.contains("<script type=\"application/json\" class=\"terminal-replay__data\">")
+        );
+        assert!(html.contains("window.__acdcReplayInit"));
+        assert!(html.contains("class=\"terminal-replay__row\""));
+        // No CSS filmstrip leftovers and no chrome (raw ANSI carries no title).
+        assert!(!html.contains("@keyframes terminal-replay-scroll"));
+        assert!(!html.contains("terminal-replay__scroll"));
+        assert!(!html.contains("class=\"terminal-replay__titlebar\""));
+        assert!(!html.contains("data-title"));
         assert!(html.contains("first"));
         assert!(html.contains("second</span>"));
         Ok(())
     }
 
     #[test]
-    fn terminal_replay_blocks_use_distinct_animation_names() -> TestResult {
-        // Two replay blocks in one document must not share a global
-        // `@keyframes` name, or the later block's keyframes would override the
-        // earlier block's and animate it with the wrong offsets.
+    fn terminal_replay_blocks_each_emit_their_own_payload() -> TestResult {
+        // Two replay blocks in one document each emit their own JSON payload;
+        // the single shared init script animates every player on the page.
         let html = render(
             "= Example\n\n[terminal%replay,cols=20,rows=4]\n----\nfirst\nsecond\n----\n\n[terminal%replay,cols=20,rows=4]\n----\nalpha\nbeta\ngamma\n----\n",
             crate::HtmlVariant::Standard,
         )?;
 
-        let names: Vec<&str> = html
-            .split("@keyframes ")
-            .skip(1)
-            .filter_map(|rest| rest.split('{').next())
-            .filter(|name| name.starts_with("terminal-replay-scroll-"))
-            .collect();
-
-        assert_eq!(
-            names.len(),
-            2,
-            "each replay block defines its own keyframes"
-        );
-        assert_ne!(
-            names.first(),
-            names.get(1),
-            "animation names must be unique per block"
-        );
-        for name in &names {
-            assert!(
-                html.contains(&format!("animation:{name} ")),
-                "each block animates with its own keyframes name"
-            );
-        }
+        let payloads = html.matches("class=\"terminal-replay__data\"").count();
+        assert_eq!(payloads, 2, "each replay block emits its own data payload");
+        assert!(html.contains("window.__acdcReplayInit"));
         Ok(())
     }
 
@@ -1610,7 +1468,7 @@ mod tests {
         )?;
 
         assert!(html.contains("data-duration-ms=\"250\""));
-        assert!(html.contains("250ms step-end both"));
+        assert!(html.contains("\"durationMs\":250"));
         Ok(())
     }
 
@@ -1667,7 +1525,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("terminal-replay__scroll"));
+        assert!(html.contains("terminal-replay--player"));
         assert!(html.contains("Working 0%"));
         assert!(html.contains("Working 50%"));
         assert!(html.contains("Working 100%"));
@@ -1771,6 +1629,30 @@ mod tests {
         assert!(html.contains("terminal-preview terminal-replay"));
         assert!(html.contains("alpha"));
         assert!(html.contains("beta"));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_replay_rests_on_the_last_rows_when_taller_than_the_block() -> TestResult {
+        // The recording is 6 rows tall but the block asks for rows=3. A single
+        // burst prints five lines, so the only captured screen has line4 at the
+        // bottom. The replay must rest on the LAST rows (line2..line4), windowed
+        // to the block height, not the first lines or a block of blanks.
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,rows=3]\n----\n{\"version\":2,\"width\":20,\"height\":6}\n[0.0,\"o\",\"line0\\r\\nline1\\r\\nline2\\r\\nline3\\r\\nline4\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("data-rows=\"3\""));
+        assert!(html.contains("line4"), "the last line is visible");
+        assert!(
+            html.contains("line2"),
+            "the window is filled with the last rows"
+        );
+        assert!(
+            !html.contains("line0"),
+            "the earliest lines scrolled out of the window"
+        );
         Ok(())
     }
 
