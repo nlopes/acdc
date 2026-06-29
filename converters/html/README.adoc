@@ -277,11 +277,24 @@ data and does not execute commands, shells, scripts, VHS tapes, or other
 recording formats. Replay blocks require explicit terminal dimensions via
 `cols`/`rows` block attributes or `:terminal-cols:`/`:terminal-rows:`
 document attributes; invalid or missing dimensions fall back to a static
-terminal preview with a structured warning. The default raw-ANSI replay samples
-dense recordings so the generated HTML stays small even for long output.
-`format=asciicast` keeps every recorded frame instead and stays compact by
-emitting each repeated line once and referencing it per frame. Both end playback
-on the final frame.
+terminal preview with a structured warning.
+
+Both formats render as an animated HTML replay driven by a small,
+self-contained inline player. The final frame is rendered into the page
+server-side, so readers without JavaScript (or who prefer reduced motion) still
+see the finished screen; only the animation is lost. The raw-ANSI replay samples
+dense recordings so the generated HTML stays small even for long output;
+`format=asciicast` keeps every recorded frame and stays compact by emitting each
+repeated line once and referencing it per frame. acdc draws no window chrome;
+the recorded title (asciicast only) is exposed as a `data-title` attribute so
+you can add your own.
+
+For `format=asciicast`, the recording is replayed at its own recorded size so
+its cursor movements render faithfully, then `rows` is the height of a window
+that follows the output like a scrolling terminal: when the recording is taller
+than `rows`, the replay shows the most recent `rows` lines and rests on the
+last lines of output (it does not freeze on a region the recording cleared at
+the end, such as a progress bar's live area).
 
 `[terminal]` and `[terminal%replay]` are acdc-only block styles. Asciidoctor
 renders them as a plain listing or literal block with the raw text (ANSI escapes
@@ -405,11 +418,12 @@ For full details, see the https://docs.asciidoctor.org/asciidoc/latest/docinfo/[
 
 The output is class-based, so you can restyle it without forking the converter. Use whichever seam fits:
 
-* **Override specific rules.** Load your own stylesheet after acdc's and target its classes. Body content uses the standard Asciidoctor classes (`.listingblock`, `.admonitionblock`, `.tableblock`, and so on). The terminal replay's window chrome uses this contract:
+* **Override specific rules.** Load your own stylesheet after acdc's and target its classes. Body content uses the standard Asciidoctor classes (`.listingblock`, `.admonitionblock`, `.tableblock`, and so on). The terminal replay emits no chrome of its own, but exposes a stable class/attribute contract you can build on:
 +
 [cols="1,3"]
 |===
-| Classes | `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__titlebar`, `.terminal-replay__dots`, `.terminal-replay__title`, `.terminal-replay__viewport`, `.terminal-replay__screen`, `.terminal-replay__row`
+| Classes | `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__viewport`, `.terminal-replay__screen`, `.terminal-replay__row`
+| Attributes | `data-title` (the recorded title, asciicast only, present only when the recording carried one) for building your own title bar, e.g. `.terminal-replay::before{content:attr(data-title)}`
 | Custom properties | `--acdc-term-bg`, `--acdc-term-fg` (the recorded terminal theme), plus `--acdc-term-font-family`, `--acdc-term-font-size`, `--acdc-term-line-height`, `--acdc-term-radius`, `--acdc-term-padding`
 |===
 

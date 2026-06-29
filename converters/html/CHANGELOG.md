@@ -41,42 +41,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
   specialchars are disabled; literal `--`, `(C)`, `->` preserved when
   replacements are disabled). The underlying gating was already in place.
-- Feature-gated `terminal` support lets both standard and semantic HTML
-  conversions include selectable terminal-styled previews via `libghostty-vt`.
-  The `:terminal-preview:` document attribute opts terminal-like source blocks
-  into preview rendering. Previews follow
-  `:dark-mode:`, preserve terminal-converter ANSI colors for source/listing
-  blocks, and auto-size to the rendered terminal text unless rows are explicitly
-  configured with `:terminal-rows:`. Preview width can be configured with
-  `:terminal-cols:`. The terminal preview base styles live in the built-in HTML
-  stylesheets, so they follow the same embedded, linked, and copied stylesheet
-  modes as the rest of the converter output. This is an acdc-only HTML
-  extension; Asciidoctor does not provide a `:terminal-preview:` attribute or
-  equivalent built-in terminal preview feature.
-- Feature-gated `[terminal]` listing and literal blocks provide the explicit
-  terminal-session path. They render as selectable terminal-styled HTML through
-  the same `libghostty-vt` CellGrid renderer and do not require the
-  `:terminal-preview:` source-block opt-in. Block attributes `cols=` and
-  `rows=` configure the terminal dimensions for each session, and terminal
-  colors follow the document `:dark-mode:` setting. This is an acdc-only block
-  style: Asciidoctor treats `[terminal]` as a plain listing or literal block
-  and emits the raw text (including any ANSI escape sequences) unrendered.
-- Feature-gated `[terminal%replay]` blocks render pre-recorded terminal output
-  as an animated HTML replay in one of two formats:
-  - default: raw ANSI as a pure-CSS filmstrip; needs `cols`/`rows`.
-  - `format=asciicast`: an asciicast v2/v3 recording (size and timing from its
-    header) played by a small self-contained inline script. It shows every
-    distinct screen, including in-place rewrites like progress bars and
-    full-screen TUIs, in the recording's own colours, with a window title bar
-    showing the recorded command.
-
-  Idle gaps are compressed (the header's `idle_time_limit`, the
-  `replay-idle-limit-ms` attribute, or a default) and `replay-duration-ms`
-  overrides total playback speed. The final frame is rendered server-side, so
-  readers without scripting (or with `prefers-reduced-motion`) still see the
-  finished screen; the inline script's hash is exposed as
-  `REPLAY_PLAYER_SCRIPT_CSP_HASH` for hosts on a strict `script-src`. Commands
-  are never executed, and Asciidoctor renders the block as raw text.
+- Terminal previews (feature-gated `terminal`). Set `:terminal-preview:` to
+  render terminal-like source blocks (`console`, `bash`, and similar) as
+  selectable, terminal-styled HTML with their ANSI colors intact. Previews
+  follow `:dark-mode:`, auto-size to their content, and take `:terminal-cols:` /
+  `:terminal-rows:`. acdc-only; asciidoctor has no equivalent.
+- `[terminal]` blocks (feature-gated `terminal`) render a listing or literal
+  block as a terminal-styled preview without the `:terminal-preview:` opt-in,
+  with `cols=`/`rows=` for size and colors following `:dark-mode:`. acdc-only;
+  asciidoctor renders the raw text, escape sequences included.
+- `[terminal%replay]` blocks (feature-gated `terminal`) animate pre-recorded
+  terminal output as HTML. Replay raw ANSI (the default; needs `cols`/`rows`) or
+  an `asciicast` v2/v3 recording with `format=asciicast`, which plays back in the
+  recording's own colors and reproduces in-place redraws such as progress bars
+  and full-screen TUIs. `rows` is a scrolling window that rests on the last lines
+  of output; idle gaps are compressed (tune with `replay-idle-limit-ms`) and
+  `replay-duration-ms` sets total playback time. Readers without JavaScript, or
+  who prefer reduced motion, see the final frame. Recorded commands are never
+  run. acdc-only; asciidoctor renders the raw text.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.

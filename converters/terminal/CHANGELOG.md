@@ -17,17 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An ordered list with an explicit numbering style (`[loweralpha]`, `[upperalpha]`,
   `[lowerroman]`, `[upperroman]`, `[lowergreek]`, `[arabic]`, `[decimal]`) renders
   its markers in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`.
-- Terminal replay frame capture (`replay::capture` / `capture_windowed`) builds
-  ordered, deduplicated `CellGrid` frames from recorded ANSI for animated replay
-  renderers; `capture_windowed` is a fast path for append-only recordings.
-  Captured cells carry their palette index alongside the resolved colour, so a
-  player can re-resolve against a recording's own palette.
-- `asciicast` module parses asciicast v2 and v3 (`.cast`) recordings (via the
-  `asciicast-rs` crate) into a `Recording` of replay frames. Recorded commands
-  and input are never executed. Long idle gaps are compressed to the header's
-  `idle_time_limit` (or a caller override, or a default) so playback dwells on
-  real output, and the recording's theme colours, palette, and command/title are
-  exposed for a player to render chrome and faithful colours.
+- Terminal replay frame capture (`replay::capture` / `capture_windowed`) turns
+  recorded ANSI into ordered, deduplicated `CellGrid` frames for animated replay
+  renderers; `capture_windowed` is a fast path for append-only recordings. Each
+  captured cell keeps its palette index alongside the resolved colour, so a
+  player can re-resolve it against a recording's own palette.
+- The `asciicast` module parses asciicast v2/v3 (`.cast`) recordings into a
+  `Recording` of replay frames (via `asciicast-rs`). Recorded commands and input
+  are never executed; long idle gaps are compressed (the header's
+  `idle_time_limit`, a caller override, or a default), and the recording's theme,
+  palette, and title are exposed for faithful playback.
 - `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
   `(C)`, `->`, `...`) literal instead of converting to Unicode.
 - User-facing converter warnings are now collected in `ConversionResult` for
