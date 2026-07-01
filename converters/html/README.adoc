@@ -435,9 +435,24 @@ NOTE: A few elements still carry inline `style` attributes that beat an external
 
 === Content Security Policy
 
-acdc emits self-contained HTML and does not set a CSP. The policy is up to whatever serves the file: your web server, CDN, or the page you embed into. https://antora.org[Antora] works the same way. The output runs under a normal policy you set yourself.
+By default acdc sets no CSP; the policy is up to whatever serves the file (your web server, CDN, or the page you embed into), exactly like https://antora.org[Antora].
 
-A baseline that covers everything acdc emits:
+==== Opt in with `:csp:`
+
+Set `:csp:` to have acdc emit a self-contained `<meta http-equiv="Content-Security-Policy">` that hardens standalone output with no server configuration:
+
+[source,console]
+....
+acdc convert -a csp document.adoc
+....
+
+The emitted policy locks scripts to acdc's own inline scripts by hash (no `'unsafe-inline'` for `script-src`), plus the MathJax CDN when `:stem:` is set; keeps `style-src 'unsafe-inline'` (acdc emits inline styles, including recording-coloured terminal cells, that cannot be hashed); and stays permissive on images, media, and video embeds so document content keeps loading.
+
+Keep in mind a CSP only *restricts* — it does not enable. A page with no CSP already runs anywhere, and a `<meta>` CSP cannot loosen a policy your host sends as a response header (the browser enforces the intersection). So `:csp:` is for shipping a hardened, self-contained page, not for "making it work" somewhere. Two consequences: `frame-ancestors` is omitted (it is ignored in a `<meta>` CSP — set it as a header), and an inline `<script>` you inject via <<Docinfo files>> will not run under `:csp:` unless you add its own hash. Embedded output has no `<head>`, so `:csp:` is standalone-only.
+
+==== Setting the policy yourself
+
+To set the CSP via a server header instead (or in embedded mode), a baseline that covers everything acdc emits:
 
 [source]
 ....
@@ -450,7 +465,7 @@ connect-src 'self';
 frame-ancestors 'none'
 ....
 
-`'unsafe-eval'` is never needed (the terminal-replay player is plain JS). Add the entries below only when you use the matching feature:
+`'unsafe-eval'` is never needed. Add the entries below only when you use the matching feature:
 
 [cols="1,2"]
 |===
@@ -464,9 +479,7 @@ frame-ancestors 'none'
 
 For a fully self-contained policy with no external origins, disable webfonts (`:!webfonts:`) and skip `:stem:` and `icons=font`. The baseline above then needs nothing extra.
 
-To keep `script-src` off `'unsafe-inline'`: the replay player is the only inline `<script>`, its code is constant, and its hash is exposed as `acdc_converters_html::REPLAY_PLAYER_SCRIPT_CSP_HASH`. Allowlist it as `script-src 'self' '<that hash>'`. Inline styles still need `style-src 'unsafe-inline'`. If the script is blocked, the replay still shows its final frame and only the animation is lost.
-
-NOTE: Embedded mode has no `<head>`, so the file cannot carry its own `<meta http-equiv="Content-Security-Policy">`. The embedding page or server sets the policy.
+To keep `script-src` off `'unsafe-inline'`, allowlist acdc's two constant inline scripts by hash instead: the terminal-replay player (`acdc_converters_html::REPLAY_PLAYER_SCRIPT_CSP_HASH`) and, with `:stem:`, the MathJax config (`MATHJAX_CONFIG_CSP_HASH`). For assembling your own head (embedded mode), the converter also exposes the script strings and the MathJax loader URL (`REPLAY_PLAYER_SCRIPT`, `MATHJAX_CONFIG_SCRIPT`, `MATHJAX_LOADER_URL`), and a `content_security_policy(&CspFeatures { .. })` builder that produces the same policy `:csp:` emits for the features a document uses. If the player script is blocked, the replay still shows its final frame and only the animation is lost.
 
 === Table Enhancements
 
