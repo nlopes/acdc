@@ -722,22 +722,24 @@ fn render_grid<W: Write>(writer: &mut W, grid: &CellGrid, theme: Theme) -> Resul
     Ok(())
 }
 
-/// A tiny, self-contained vanilla-JS player shared by every replay block on the
-/// page. It reads each block's JSON payload, swaps the visible rows on a clock
-/// (only touching rows that actually change), and honours `prefers-reduced-motion`
-/// by leaving the server-rendered final frame in place. Defining
-/// `__acdcReplayInit` is idempotent, so emitting this once per block is safe;
-/// every call initialises any not-yet-initialised player on the page.
-const REPLAY_PLAYER_SCRIPT: &str = "<script>(function(){function init(el){el.setAttribute('data-acdc-ready','1');var dataEl=el.querySelector('script.terminal-replay__data');if(!dataEl)return;var d;try{d=JSON.parse(dataEl.textContent);}catch(e){return;}var screen=el.querySelector('.terminal-replay__screen');if(!screen)return;if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;while(screen.children.length<d.rows){var r=document.createElement('div');r.className='terminal-replay__row';screen.appendChild(r);}var slots=screen.querySelectorAll('.terminal-replay__row');function show(s,on){slots[s].style.display=on?'':'none';}function fill(){for(var s=d.finalRows;s<slots.length;s++)show(s,true);}function trim(){for(var s=d.finalRows;s<slots.length;s++)show(s,false);}function apply(f){var idx=d.frames[f];for(var s=0;s<idx.length;s++){var h=d.pool[idx[s]];if(slots[s].__h!==h){slots[s].innerHTML=h;slots[s].__h=h;}}}fill();apply(0);var n=d.frames.length,i=0,start=null;function step(ts){if(start===null)start=ts;var t=ts-start;while(i<n-1&&d.times[i+1]<=t)i++;apply(i);if(i<n-1){requestAnimationFrame(step);}else{apply(n-1);trim();}}requestAnimationFrame(step);}window.__acdcReplayInit=function(){var els=document.querySelectorAll('.terminal-replay--player:not([data-acdc-ready])');for(var i=0;i<els.length;i++)init(els[i]);};window.__acdcReplayInit();})();</script>";
+/// The terminal-replay player `<script>`, wrapping the JavaScript in
+/// `static/terminal-replay-player.js` (embedded at compile time). Exposed so an
+/// embedded-mode consumer can include it themselves; its CSP `script-src` hash is
+/// [`REPLAY_PLAYER_SCRIPT_CSP_HASH`].
+pub const REPLAY_PLAYER_SCRIPT: &str = concat!(
+    "<script>",
+    include_str!("../static/terminal-replay-player.js"),
+    "</script>"
+);
 
 /// CSP `script-src` source for [`REPLAY_PLAYER_SCRIPT`]'s inline code, so a
 /// consumer can allowlist the player under a strict policy without
-/// `'unsafe-inline'` (e.g. `script-src 'self' 'sha256-...'`). The hash covers the
-/// code *between* the `<script>` tags. If you change `REPLAY_PLAYER_SCRIPT`,
-/// recompute it from a generated file with:
-/// `perl -0ne 'print $1 if m{<script>(\(function.*?\)\(\);)</script>}s' out.html | openssl dgst -sha256 -binary | openssl base64`
+/// `'unsafe-inline'` (e.g. `script-src 'self' 'sha256-...'`). The hash is the
+/// sha256 of `static/terminal-replay-player.js` (the code between the `<script>`
+/// tags). If you edit that file, recompute it with:
+/// `openssl dgst -sha256 -binary static/terminal-replay-player.js | openssl base64`
 pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
-    "sha256-/mhN+UdwCNRQ7MxmgzvMM5DZpJy6Rs63LrQRESyqfNw=";
+    "sha256-UCil6i+s7nDZjHY7yXxLIM0dkhXJFMvaoxLaoHlYXDQ=";
 
 /// Render a recording as an interactive replay player. This is the single
 /// renderer for every replay block (raw ANSI and asciicast alike).
@@ -1588,7 +1590,7 @@ mod tests {
             .unwrap_or_default();
         assert_eq!(
             inner.len(),
-            1353,
+            2666,
             "player script changed; recompute REPLAY_PLAYER_SCRIPT_CSP_HASH"
         );
         assert!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH.starts_with("sha256-"));

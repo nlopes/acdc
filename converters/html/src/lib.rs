@@ -17,6 +17,7 @@ use acdc_parser::{
 mod admonition;
 mod audio;
 mod constants;
+mod csp;
 mod delimited;
 mod docinfo;
 mod document;
@@ -41,12 +42,17 @@ pub(crate) use acdc_converters_core::section::{
     AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
     last_section_has_style,
 };
+pub use csp::{CspFeatures, content_security_policy};
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
-/// CSP `script-src` hash for the inline terminal-replay player script, for hosts
-/// that want to allowlist it without `'unsafe-inline'`.
+/// The `MathJax` assets acdc emits when `:stem:` is set, exposed so embedded-mode
+/// consumers can reproduce them: the inline configuration `<script>`, its CSP
+/// hash, and the loader URL.
+pub use html_visitor::{MATHJAX_CONFIG_CSP_HASH, MATHJAX_CONFIG_SCRIPT, MATHJAX_LOADER_URL};
+/// The inline terminal-replay player script and its CSP `script-src` hash, for
+/// embedded-mode consumers and hosts that allowlist it without `'unsafe-inline'`.
 #[cfg(feature = "terminal")]
-pub use terminal::REPLAY_PLAYER_SCRIPT_CSP_HASH;
+pub use terminal::{REPLAY_PLAYER_SCRIPT, REPLAY_PLAYER_SCRIPT_CSP_HASH};
 
 /// HTML output flavour, owned by the html converter.
 ///
@@ -1501,6 +1507,88 @@ This is a paragraph.
             "body should have dark class"
         );
         Ok(())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Content Security Policy (:csp:) tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    fn convert(content: &str, embedded: bool) -> Result<String, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(content, &acdc_parser::Options::default())?;
+        let doc = parsed.document();
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let render_options = RenderOptions {
+            embedded,
+            ..RenderOptions::default()
+        };
+        Ok(processor.convert_to_string(doc, &render_options)?)
+    }
+
+    #[test]
+    fn csp_attribute_emits_hardening_meta() -> TestResult {
+        let html = convert("= T\n:csp:\n\nHi.\n", false)?;
+        assert!(html.contains(r#"<meta http-equiv="Content-Security-Policy" content=""#));
+        assert!(html.contains("default-src 'self'"));
+        assert!(html.contains("script-src 'self'"));
+        // Scripts are never allowed inline wholesale (the point of the hardening).
+        assert!(!html.contains("script-src 'self' 'unsafe-inline'"));
+        // Inline styles must stay allowed (acdc emits inline style attributes).
+        assert!(html.contains("style-src 'self' 'unsafe-inline'"));
+        Ok(())
+    }
+
+    #[cfg(feature = "terminal")]
+    #[test]
+    fn csp_allowlists_the_replay_player_hash() -> TestResult {
+        let html = convert("= T\n:csp:\n\nHi.\n", false)?;
+        assert!(html.contains(REPLAY_PLAYER_SCRIPT_CSP_HASH));
+        Ok(())
+    }
+
+    #[test]
+    fn csp_with_stem_allowlists_mathjax() -> TestResult {
+        let html = convert("= T\n:csp:\n:stem:\n\nstem:[x^2]\n", false)?;
+        let csp = html
+            .lines()
+            .find(|line| line.contains("Content-Security-Policy"))
+            .ok_or("missing CSP meta")?;
+        assert!(csp.contains(MATHJAX_CONFIG_CSP_HASH));
+        assert!(csp.contains("https://cdn.jsdelivr.net"));
+        Ok(())
+    }
+
+    #[test]
+    fn no_csp_attribute_emits_no_meta() -> TestResult {
+        let html = convert("= T\n\nHi.\n", false)?;
+        assert!(!html.contains("Content-Security-Policy"));
+        Ok(())
+    }
+
+    #[test]
+    fn csp_is_standalone_only_not_embedded() -> TestResult {
+        let html = convert("= T\n:csp:\n\nHi.\n", true)?;
+        assert!(!html.contains("Content-Security-Policy"));
+        Ok(())
+    }
+
+    #[test]
+    fn mathjax_config_hash_stays_in_sync() {
+        // Tripwire: the documented CSP hash covers the JS between the <script>
+        // tags. If this length changes, the config changed; recompute
+        // MATHJAX_CONFIG_CSP_HASH (see its doc) and update it here.
+        let inner = MATHJAX_CONFIG_SCRIPT
+            .strip_prefix("<script>")
+            .and_then(|script| script.strip_suffix("</script>"))
+            .unwrap_or_default();
+        assert_eq!(
+            inner.len(),
+            1157,
+            "MathJax config changed; recompute MATHJAX_CONFIG_CSP_HASH"
+        );
+        assert!(MATHJAX_CONFIG_CSP_HASH.starts_with("sha256-"));
     }
 
     #[test]
