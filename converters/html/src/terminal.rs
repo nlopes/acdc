@@ -1,6 +1,23 @@
-//! HTML rendering for terminal-styled blocks: selectable cell-grid previews of
-//! terminal/source listings and terminal sessions, plus animated replay of
-//! recorded terminal output (raw ANSI and asciicast) as a CSS filmstrip.
+//! HTML rendering for terminal blocks.
+//!
+//! One "terminal screen" renderer (a `libghostty-vt` cell grid captured into
+//! acdc-owned rows, then written as styled HTML) drives two modes:
+//!
+//! - **static** — a single snapshot: `[terminal]` session/literal blocks and
+//!   `:terminal-preview:` source blocks. Rendered by [`render_static`].
+//! - **replay** — animated playback of recorded output (raw ANSI or asciicast)
+//!   via a small inline JS player ([`render_replay_player`]); the final frame is
+//!   server-rendered so no-JS / reduced-motion readers still see it.
+//!
+//! Both modes share the base CSS class `.terminal-view` (the box, the
+//! `.terminal-view--light`/`--dark` theme colours, and the static `.terminal-view__screen`
+//! `<pre>`). A replay additionally carries the `.terminal-view--replay` marker (which
+//! is also the player's JS hook) and its own inner structure —
+//! `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`. A recording
+//! that carried its own theme is painted with inline colours; otherwise the
+//! `.terminal-view--{light,dark}` class colours it. The authoring surface keeps the
+//! `terminal-preview`/`terminal`/`replay` names; only the rendered classes use
+//! the `terminal-view` hierarchy.
 
 use std::{borrow::Cow, io::Write};
 
@@ -44,35 +61,6 @@ impl Theme {
             Self::Dark
         } else {
             Self::Light
-        }
-    }
-
-    const fn colors(self) -> (Rgb, Rgb) {
-        match self {
-            Self::Dark => (
-                Rgb {
-                    r: 13,
-                    g: 17,
-                    b: 23,
-                },
-                Rgb {
-                    r: 230,
-                    g: 237,
-                    b: 243,
-                },
-            ),
-            Self::Light => (
-                Rgb {
-                    r: 246,
-                    g: 248,
-                    b: 250,
-                },
-                Rgb {
-                    r: 31,
-                    g: 35,
-                    b: 40,
-                },
-            ),
         }
     }
 
@@ -205,7 +193,7 @@ fn render_with_options<W: Write>(
     let size = preview_options.size_for_output(&ansi);
     let grid = capture_ansi(&ansi, size)?;
 
-    render_grid(&mut writer, &grid, preview_options.theme)?;
+    render_static(&mut writer, &grid, preview_options.theme)?;
     Ok(())
 }
 
@@ -328,7 +316,7 @@ fn render_replay_ansi<W: Write>(
         // the final screen.
         diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
         let grid = capture_ansi(&ansi, size)?;
-        return render_grid(&mut writer, &grid, preview_options.theme);
+        return render_static(&mut writer, &grid, preview_options.theme);
     }
     // Raw ANSI carries no recorded theme or title, so the player uses the
     // generic light/dark colours and emits no `data-title`.
@@ -518,7 +506,7 @@ fn render_blank_preview<W: Write>(
     theme: Theme,
 ) -> Result<(), Error> {
     let grid = capture_ansi(&[], size)?;
-    render_grid(writer, &grid, theme)
+    render_static(writer, &grid, theme)
 }
 
 fn replay_size(
@@ -696,20 +684,19 @@ fn normalize_terminal_newlines(ansi: &[u8]) -> Vec<u8> {
     normalized
 }
 
-fn render_grid<W: Write>(writer: &mut W, grid: &CellGrid, theme: Theme) -> Result<(), Error> {
-    let (bg, fg) = theme.colors();
+fn render_static<W: Write>(writer: &mut W, grid: &CellGrid, theme: Theme) -> Result<(), Error> {
+    // Colours come from the `.terminal-view--{light,dark}` stylesheet classes, so they
+    // are overridable with plain CSS (no inline style to fight).
     write!(
         writer,
-        "<div class=\"terminal-preview terminal-preview--{}\" style=\"background-color:{};color:{}\" data-cols=\"{}\" data-rows=\"{}\">",
+        "<div class=\"terminal-view terminal-view--{}\" data-cols=\"{}\" data-rows=\"{}\">",
         theme.as_str(),
-        rgb_css(bg),
-        rgb_css(fg),
         grid.cols(),
         grid.rows()
     )?;
     writeln!(
         writer,
-        "<pre class=\"terminal-preview__screen\" aria-label=\"Terminal preview\">"
+        "<pre class=\"terminal-view__screen\" aria-label=\"Terminal preview\">"
     )?;
     for (row_index, row) in grid.rows_iter().enumerate() {
         render_row(writer, row)?;
@@ -739,7 +726,7 @@ pub const REPLAY_PLAYER_SCRIPT: &str = concat!(
 /// tags). If you edit that file, recompute it with:
 /// `openssl dgst -sha256 -binary static/terminal-replay-player.js | openssl base64`
 pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
-    "sha256-UCil6i+s7nDZjHY7yXxLIM0dkhXJFMvaoxLaoHlYXDQ=";
+    "sha256-z2t/X8Ok+lAYeDw8UsWjjM7TntIjoggVHhJSfFmhTyQ=";
 
 /// Render a recording as an interactive replay player. This is the single
 /// renderer for every replay block (raw ANSI and asciicast alike).
@@ -760,15 +747,14 @@ pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
 /// # CSS contract
 ///
 /// acdc emits no window chrome; the markup is class-based so a consumer (e.g. an
-/// embedding editor) can add its own. The stable seams are the classes
-/// `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__viewport`,
-/// `.terminal-replay__screen`, `.terminal-replay__row`, the `data-title`
-/// attribute (the recorded title, present only when the recording carried one,
-/// for building custom chrome via `::before{content:attr(data-title)}`), the
-/// custom properties `--acdc-term-bg`/`--acdc-term-fg` (the recorded theme,
-/// emitted inline on the container) and the stylesheet-defaulted
-/// `--acdc-term-font-family`/`--acdc-term-font-size`/`--acdc-term-line-height`/
-/// `--acdc-term-radius`/`--acdc-term-padding`.
+/// embedding editor) can add its own. The stable seams are the base class
+/// `.terminal`, the `.terminal-view--replay` marker (also the player's JS hook), the
+/// inner `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`, and the
+/// `data-title` attribute (the recorded title, present only when the recording
+/// carried one, for building custom chrome via `::before{content:attr(data-title)}`).
+/// A theme-less replay takes its colours from the `.terminal-view--{light,dark}` class
+/// (overridable with plain CSS); a recording's own theme is painted inline
+/// (override it with `!important`).
 ///
 /// Per-cell colours are emitted as inline `style` colours (resolved against the
 /// recording's own palette via [`resolve_cell_color`]), matching the static
@@ -821,17 +807,25 @@ fn render_replay_player<W: Write>(
         })
         .collect();
 
-    // Recorded theme colours win over the generic light/dark default.
-    let (bg, fg) = recorded.map_or_else(|| theme.colors(), |t| (t.bg, t.fg));
+    // A recording that carried its own theme is painted faithfully with an inline
+    // background/foreground (its palette also colours the cells). Without one (raw
+    // ANSI, or a theme-less cast) the generic `.terminal-view--{light,dark}`
+    // class colours it, so no inline style is emitted and a consumer can restyle
+    // it with plain CSS.
+    let colour_style = recorded.map_or_else(String::new, |t| {
+        format!(
+            " style=\"background-color:{};color:{}\"",
+            rgb_css(t.bg),
+            rgb_css(t.fg)
+        )
+    });
 
     // The replay rests on the full terminal height, so the configured `rows` is
     // also the minimum number of lines shown at the end of the run: the box
     // stays `rows` tall instead of collapsing to the final line's content.
     let final_rows = rows;
 
-    // The container carries the per-recording theme bg/fg as custom properties
-    // (cell colours are inline per span; everything else is class-based). acdc
-    // emits no window chrome; the recorded title, when present, is exposed as
+    // acdc emits no window chrome; the recorded title, when present, is exposed as
     // `data-title` so a consumer can render its own chrome in CSS
     // (`::before{content:attr(data-title)}`).
     let title_attr = title.map_or_else(String::new, |title| {
@@ -839,10 +833,9 @@ fn render_replay_player<W: Write>(
     });
     writeln!(
         writer,
-        "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--{}\" style=\"--acdc-term-bg:{};--acdc-term-fg:{}\" data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\"{}>",
+        "<div class=\"terminal-view terminal-view--replay terminal-view--{}\"{} data-cols=\"{}\" data-rows=\"{}\" data-frames=\"{}\" data-duration-ms=\"{}\"{}>",
         theme.as_str(),
-        rgb_css(bg),
-        rgb_css(fg),
+        colour_style,
         cols,
         rows,
         frames.len(),
@@ -856,13 +849,13 @@ fn render_replay_player<W: Write>(
     // animates from there.
     writeln!(
         writer,
-        "<div class=\"terminal-replay__viewport\"><div class=\"terminal-replay__screen\" aria-label=\"Terminal replay\">"
+        "<div class=\"terminal-view__viewport\"><div class=\"terminal-view__stream\" aria-label=\"Terminal replay\">"
     )?;
     let final_frame = frame_rows.last().map_or(&[] as &[usize], Vec::as_slice);
     for index in final_frame.iter().take(final_rows) {
         writeln!(
             writer,
-            "<div class=\"terminal-replay__row\">{}</div>",
+            "<div class=\"terminal-view__row\">{}</div>",
             pool.get(*index).map_or("", String::as_str)
         )?;
     }
@@ -872,7 +865,7 @@ fn render_replay_player<W: Write>(
     // recorded content can break out of the script element.
     write!(
         writer,
-        "<script type=\"application/json\" class=\"terminal-replay__data\">"
+        "<script type=\"application/json\" class=\"terminal-view__data\">"
     )?;
     write_replay_json(
         &mut writer,
@@ -1287,15 +1280,17 @@ mod tests {
         )?;
 
         assert!(html.contains("<div id=\"content\">"));
-        assert!(html.contains("<div class=\"listingblock terminal-preview-block\">"));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
-        assert!(html.contains("background-color:#f6f8fa;color:#1f2328"));
+        assert!(html.contains("<div class=\"listingblock terminal-block\">"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
+        // Preview colours come from the stylesheet class, not an inline style.
+        assert!(html.contains(".terminal-view--light{background-color:#f6f8fa;color:#1f2328}"));
+        assert!(html.contains("terminal-view--light\" data-cols="));
         assert!(html.contains("$</span>"));
         assert!(html.contains(" acdc"));
         assert!(html.contains("--version"));
         assert!(html.contains("0.2.0"));
         let preview_offset = html
-            .find("terminal-preview")
+            .find("terminal-view terminal-view--")
             .ok_or("missing terminal preview")?;
         let after_offset = html
             .find("After preview.")
@@ -1312,8 +1307,8 @@ mod tests {
         )?;
 
         assert!(html.contains("<main id=\"content\">"));
-        assert!(html.contains("listing-block terminal-preview-block"));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("listing-block terminal-block"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
         assert!(html.contains("$</span>"));
         assert!(html.contains(" echo semantic"));
         Ok(())
@@ -1326,8 +1321,10 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--dark\""));
-        assert!(html.contains("background-color:#0d1117;color:#e6edf3"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--dark\""));
+        // Preview colours come from the stylesheet class, not an inline style.
+        assert!(html.contains(".terminal-view--dark{background-color:#0d1117;color:#e6edf3}"));
+        assert!(html.contains("terminal-view--dark\" data-cols="));
         Ok(())
     }
 
@@ -1352,8 +1349,8 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("<div class=\"terminalblock terminal-preview-block\">"));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("<div class=\"terminalblock terminal-block\">"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
         assert!(html.contains("$ cargo build"));
         assert!(html.contains(">error</span>"));
         assert!(html.contains("<span style=\"color:"));
@@ -1367,10 +1364,10 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
         assert!(html.contains("data-cols=\"12\""));
         assert!(html.contains("data-rows=\"4\""));
-        assert!(html.contains("background-color:#f6f8fa;color:#1f2328"));
+        assert!(html.contains(".terminal-view--light{background-color:#f6f8fa;color:#1f2328}"));
         Ok(())
     }
 
@@ -1381,10 +1378,10 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--dark\""));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--dark\""));
         assert!(html.contains("data-cols=\"12\""));
         assert!(html.contains("data-rows=\"7\""));
-        assert!(html.contains("background-color:#0d1117;color:#e6edf3"));
+        assert!(html.contains(".terminal-view--dark{background-color:#0d1117;color:#e6edf3}"));
         Ok(())
     }
 
@@ -1395,9 +1392,9 @@ mod tests {
             crate::HtmlVariant::Semantic,
         )?;
 
-        assert!(html.contains("<figure class=\"terminal-block terminal-preview-block\""));
+        assert!(html.contains("<figure class=\"terminal-block\""));
         assert!(html.contains("<figcaption>Terminal</figcaption>"));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
         assert!(html.contains("$ echo semantic"));
         Ok(())
     }
@@ -1409,7 +1406,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("<div class=\"terminalblock terminal-preview-block\">"));
+        assert!(html.contains("<div class=\"terminalblock terminal-block\">"));
         assert!(html.contains("data-cols=\"20\""));
         assert!(html.contains("$ echo literal"));
         Ok(())
@@ -1425,18 +1422,18 @@ mod tests {
         // Raw ANSI replay renders through the same JS player as asciicast: a
         // player container, an inline JSON payload, the shared init script, and
         // server-rendered rows. No CSS filmstrip and no window chrome.
-        assert!(html.contains(
-            "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--light\""
-        ));
+        assert!(
+            html.contains(
+                "<div class=\"terminal-view terminal-view--replay terminal-view--light\""
+            )
+        );
         assert!(html.contains("data-cols=\"20\""));
         assert!(html.contains("data-rows=\"4\""));
         assert!(html.contains("data-frames=\"2\""));
         assert!(html.contains("data-duration-ms=\"1000\""));
-        assert!(
-            html.contains("<script type=\"application/json\" class=\"terminal-replay__data\">")
-        );
+        assert!(html.contains("<script type=\"application/json\" class=\"terminal-view__data\">"));
         assert!(html.contains("window.__acdcReplayInit"));
-        assert!(html.contains("class=\"terminal-replay__row\""));
+        assert!(html.contains("class=\"terminal-view__row\""));
         // No CSS filmstrip leftovers and no chrome (raw ANSI carries no title).
         assert!(!html.contains("@keyframes terminal-replay-scroll"));
         assert!(!html.contains("terminal-replay__scroll"));
@@ -1456,7 +1453,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        let payloads = html.matches("class=\"terminal-replay__data\"").count();
+        let payloads = html.matches("class=\"terminal-view__data\"").count();
         assert_eq!(payloads, 2, "each replay block emits its own data payload");
         assert!(html.contains("window.__acdcReplayInit"));
         Ok(())
@@ -1527,7 +1524,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("terminal-replay--player"));
+        assert!(html.contains("terminal-view--replay"));
         assert!(html.contains("Working 0%"));
         assert!(html.contains("Working 50%"));
         assert!(html.contains("Working 100%"));
@@ -1542,8 +1539,8 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(!html.contains("terminal-preview terminal-replay"));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(!html.contains("terminal-view terminal-view--replay"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
         assert!(warnings.iter().any(|warning| {
             warning
                 .message
@@ -1564,18 +1561,46 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains(
-            "<div class=\"terminal-preview terminal-replay terminal-replay--player terminal-preview--light\""
-        ));
-        // A JSON payload + the shared inline player drive the row swaps.
         assert!(
-            html.contains("<script type=\"application/json\" class=\"terminal-replay__data\">")
+            html.contains(
+                "<div class=\"terminal-view terminal-view--replay terminal-view--light\""
+            )
         );
+        // A JSON payload + the shared inline player drive the row swaps.
+        assert!(html.contains("<script type=\"application/json\" class=\"terminal-view__data\">"));
         assert!(html.contains("window.__acdcReplayInit"));
         // Final frame is server-rendered (no-JS / reduced-motion fallback).
-        assert!(html.contains("class=\"terminal-replay__row\""));
+        assert!(html.contains("class=\"terminal-view__row\""));
         assert!(html.contains("first"));
         assert!(html.contains("second"));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_replay_with_recorded_theme_inlines_its_colours() -> TestResult {
+        // A cast that recorded its own theme is painted faithfully: the recorded
+        // background/foreground are inlined on the container.
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4,\"theme\":{\"fg\":\"#c0caf5\",\"bg\":\"#1a1b26\",\"palette\":\"#000000:#ff0000:#00ff00:#ffff00:#0000ff:#ff00ff:#00ffff:#ffffff\"}}\n[0.0,\"o\",\"first\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("terminal-view--replay"));
+        assert!(html.contains("style=\"background-color:#1a1b26;color:#c0caf5\""));
+        Ok(())
+    }
+
+    #[test]
+    fn asciicast_replay_without_recorded_theme_is_class_based() -> TestResult {
+        // A theme-less cast takes its colours from `.terminal-view--{theme}`,
+        // so the container carries no inline colour (overridable with plain CSS).
+        let html = render(
+            "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4}\n[0.0,\"o\",\"first\\r\\n\"]\n----\n",
+            crate::HtmlVariant::Standard,
+        )?;
+
+        assert!(html.contains("terminal-view--replay terminal-view--light\" data-cols="));
+        assert!(!html.contains("terminal-view--replay terminal-view--light\" style="));
         Ok(())
     }
 
@@ -1590,7 +1615,7 @@ mod tests {
             .unwrap_or_default();
         assert_eq!(
             inner.len(),
-            2666,
+            2656,
             "player script changed; recompute REPLAY_PLAYER_SCRIPT_CSP_HASH"
         );
         assert!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH.starts_with("sha256-"));
@@ -1603,7 +1628,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("terminal-preview terminal-replay"));
+        assert!(html.contains("terminal-view terminal-view--replay"));
         assert!(html.contains("data-cols=\"30\""));
         assert!(html.contains("data-rows=\"5\""));
         Ok(())
@@ -1628,7 +1653,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("terminal-preview terminal-replay"));
+        assert!(html.contains("terminal-view terminal-view--replay"));
         assert!(html.contains("alpha"));
         assert!(html.contains("beta"));
         Ok(())
@@ -1680,8 +1705,8 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(!html.contains("terminal-preview terminal-replay"));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
+        assert!(!html.contains("terminal-view terminal-view--replay"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
         assert!(
             warnings
                 .iter()
@@ -1697,7 +1722,7 @@ mod tests {
             crate::HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("terminal-preview terminal-replay"));
+        assert!(html.contains("terminal-view terminal-view--replay"));
         assert!(warnings.iter().any(|warning| {
             warning
                 .message
@@ -1720,7 +1745,9 @@ mod tests {
     fn skips_terminal_preview_without_attribute() -> TestResult {
         let html = render("= Example\n\nPlain HTML\n", crate::HtmlVariant::Standard)?;
 
-        assert!(!html.contains("terminal-preview--"));
+        // No preview container is rendered (the `.terminal-view--*` rules in the
+        // embedded stylesheet don't count).
+        assert!(!html.contains("<div class=\"terminal-view terminal-view--"));
         assert!(html.contains("Plain HTML"));
         Ok(())
     }
@@ -1733,9 +1760,9 @@ mod tests {
         )?;
 
         assert!(html.contains(r#"<link rel="stylesheet" href="./asciidoctor-light-mode.css">"#));
-        assert!(html.contains("<div class=\"terminal-preview terminal-preview--light\""));
-        assert!(!html.contains(".terminal-preview{"));
-        assert!(!html.contains(".terminal-preview__screen{"));
+        assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
+        assert!(!html.contains(".terminal-view{"));
+        assert!(!html.contains(".terminal-view__screen{"));
         Ok(())
     }
 

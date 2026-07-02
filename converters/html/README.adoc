@@ -418,20 +418,42 @@ For full details, see the https://docs.asciidoctor.org/asciidoc/latest/docinfo/[
 
 The output is class-based, so you can restyle it without forking the converter. Use whichever seam fits:
 
-* **Override specific rules.** Load your own stylesheet after acdc's and target its classes. Body content uses the standard Asciidoctor classes (`.listingblock`, `.admonitionblock`, `.tableblock`, and so on). The terminal replay emits no chrome of its own, but exposes a stable class/attribute contract you can build on:
+* **Override specific rules.** Load your own stylesheet after acdc's and target its classes. Body content uses the standard Asciidoctor classes (`.listingblock`, `.admonitionblock`, `.tableblock`, and so on). The terminal preview and replay expose a stable class/attribute contract:
 +
 [cols="1,3"]
 |===
-| Classes | `.terminal-replay`, `.terminal-replay--player`, `.terminal-replay__viewport`, `.terminal-replay__screen`, `.terminal-replay__row`
-| Attributes | `data-title` (the recorded title, asciicast only, present only when the recording carried one) for building your own title bar, e.g. `.terminal-replay::before{content:attr(data-title)}`
-| Custom properties | `--acdc-term-bg`, `--acdc-term-fg` (the recorded terminal theme), plus `--acdc-term-font-family`, `--acdc-term-font-size`, `--acdc-term-line-height`, `--acdc-term-radius`, `--acdc-term-padding`
+| Classes | Both share the base `.terminal-view` and a theme class (`.terminal-view--light` / `.terminal-view--dark`), and the block wrapper carries `.terminal-block`. Static preview adds `.terminal-view__screen` (the `<pre>`). Replay adds the `.terminal-view--replay` marker and `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`.
+| Attributes | `data-title` (the recorded title, asciicast only, present only when the recording carried one) for building your own title bar, e.g. `.terminal-view--replay::before{content:attr(data-title)}`
 |===
 
 * **Replace the whole stylesheet.** Use `:stylesheet: my.css` (see <<Custom stylesheet (`:stylesheet:`)>>), embedded or linked with `:linkcss:`. `:copycss:` copies the built-in CSS out as a starting point.
 * **Augment the `<head>`.** Inject extra `<style>`/`<link>` with <<Docinfo files>> (`:docinfo: shared-head`).
 * **Embedded mode.** There is no `<head>`, so the embedding page owns the stylesheet. Override acdc's classes from your page's own CSS.
 
-NOTE: A few elements still carry inline `style` attributes that beat an external stylesheet unless you use `!important`: terminal cell colours (resolved from the recording's own palette), table column and table widths, and image `align`/`float`. Override those with `!important`, or replace the stylesheet with `:stylesheet:`.
+==== Inline styles that need `!important`
+
+Most output is class-based and fully overridable by the seams above. A few elements carry an inline `style=` attribute, which beats *any* stylesheet rule (embedded, linked, replaced, or injected via docinfo) unless your rule uses `!important`:
+
+[cols="2,3"]
+|===
+| Inline-styled | How to override
+
+| Syntax-highlighted code colours | Inline is the default; set `:syntect-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
+| A recording's own colours | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
+| Table column and table widths | Per-table values (matches Asciidoctor); use `!important`.
+| Page break; image `align`/`float` (semantic backend) | Match Asciidoctor's output; use `!important`.
+|===
+
+The static preview container's colours are *not* inline: they come from `.terminal-view--light` / `.terminal-view--dark`, so override those classes directly. A replay with no recorded theme (raw ANSI, or a theme-less cast) uses those same classes; only a cast that carried its own theme paints the container colours inline.
+
+For example, to recolour terminal cells:
+
+[source,css]
+....
+.terminal-view__screen span { color: #eaeaea !important; }
+....
+
+NOTE: With `:!stylesheet:` (all CSS suppressed) the static preview shows no colours, consistent with opting out of styling entirely.
 
 === Content Security Policy
 
