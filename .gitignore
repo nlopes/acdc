@@ -8,3 +8,6 @@
 /profile.json.gz
 # Claude Code runtime locks (ScheduleWakeup, etc.)
 .claude/*.lock
+# vibe-check per-checkout theme record (personal, not shared)
+# this is a skill provided by incident-io/claude-skills
+.claude/vibe-check-themes.md
