@@ -24,4 +24,4 @@ Done
 == Notes
 
 Replay blocks require fixed terminal dimensions. Use `cols` and `rows` on the
-block, or set `:terminal-cols:` and `:terminal-rows:` document attributes.
+block, or set `:acdc-terminal-cols:` and `:acdc-terminal-rows:` document attributes.

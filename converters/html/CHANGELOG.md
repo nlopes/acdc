@@ -41,13 +41,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pinning asciidoctor-parity behaviour (raw `<`, `>`, `&` preserved when
   specialchars are disabled; literal `--`, `(C)`, `->` preserved when
   replacements are disabled). The underlying gating was already in place.
-- Terminal previews (feature-gated `terminal`). Set `:terminal-preview:` to
+- Terminal previews (feature-gated `terminal`). Set `:acdc-terminal:` to
   render terminal-like source blocks (`console`, `bash`, and similar) as
   selectable, terminal-styled HTML with their ANSI colors intact. Previews
-  follow `:dark-mode:`, auto-size to their content, and take `:terminal-cols:` /
-  `:terminal-rows:`. acdc-only; asciidoctor has no equivalent.
+  follow `:dark-mode:`, auto-size to their content, and take `:acdc-terminal-cols:` /
+  `:acdc-terminal-rows:`. acdc-only; asciidoctor has no equivalent.
 - `[terminal]` blocks (feature-gated `terminal`) render a listing or literal
-  block as a terminal-styled preview without the `:terminal-preview:` opt-in,
+  block as a terminal-styled preview without the `:acdc-terminal:` opt-in,
   with `cols=`/`rows=` for size and colors following `:dark-mode:`. acdc-only;
   asciidoctor renders the raw text, escape sequences included.
 - `[terminal%replay]` blocks (feature-gated `terminal`) animate pre-recorded

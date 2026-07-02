@@ -4,7 +4,7 @@
 //! acdc-owned rows, then written as styled HTML) drives two modes:
 //!
 //! - **static** — a single snapshot: `[terminal]` session/literal blocks and
-//!   `:terminal-preview:` source blocks. Rendered by [`render_static`].
+//!   `:acdc-terminal:` source blocks. Rendered by [`render_static`].
 //! - **replay** — animated playback of recorded output (raw ANSI or asciicast)
 //!   via a small inline JS player ([`render_replay_player`]); the final frame is
 //!   server-rendered so no-JS / reduced-motion readers still see it.
@@ -16,7 +16,7 @@
 //! `.terminal-view__viewport` > `.terminal-view__stream` > `.terminal-view__row`. A recording
 //! that carried its own theme is painted with inline colours; otherwise the
 //! `.terminal-view--{light,dark}` class colours it. The authoring surface keeps the
-//! `terminal-preview`/`terminal`/`replay` names; only the rendered classes use
+//! `acdc-terminal`/`terminal`/`replay` names; only the rendered classes use
 //! the `terminal-view` hierarchy.
 
 use std::{borrow::Cow, io::Write};
@@ -81,22 +81,22 @@ struct PreviewOptions {
 
 impl PreviewOptions {
     fn resolve(attrs: &DocumentAttributes<'_>, metadata: Option<&BlockMetadata<'_>>) -> Self {
-        let document_cols = attr_usize(attrs.get("terminal-cols"));
-        let document_rows = attr_usize(attrs.get("terminal-rows"));
+        let document_cols = attr_usize(attrs.get("acdc-terminal-cols"));
+        let document_rows = attr_usize(attrs.get("acdc-terminal-rows"));
         let document_theme = Theme::from_document_attributes(attrs);
 
         Self {
             cols: metadata
                 .and_then(|metadata| {
                     attr_usize(metadata.attributes.get("cols"))
-                        .or_else(|| attr_usize(metadata.attributes.get("terminal-cols")))
+                        .or_else(|| attr_usize(metadata.attributes.get("acdc-terminal-cols")))
                 })
                 .or(document_cols)
                 .unwrap_or(DEFAULT_COLS),
             rows: metadata
                 .and_then(|metadata| {
                     attr_usize(metadata.attributes.get("rows"))
-                        .or_else(|| attr_usize(metadata.attributes.get("terminal-rows")))
+                        .or_else(|| attr_usize(metadata.attributes.get("acdc-terminal-rows")))
                 })
                 .or(document_rows),
             theme: document_theme,
@@ -121,7 +121,7 @@ struct SpanStyle {
 
 pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
     attrs
-        .get("terminal-preview")
+        .get("acdc-terminal")
         .is_some_and(|value| !matches!(value, AttributeValue::Bool(false) | AttributeValue::None))
 }
 
@@ -467,7 +467,7 @@ fn replay_playback_override(
 }
 
 /// Resolve the replay terminal size, letting block `cols`/`rows` (or the
-/// `terminal-cols`/`terminal-rows` block/document attributes) override
+/// `acdc-terminal-cols`/`acdc-terminal-rows` block/document attributes) override
 /// `default`. Unlike [`replay_size`], a missing size is not a warning here
 /// because the asciicast header supplies the default.
 fn replay_size_with_default(
@@ -476,16 +476,16 @@ fn replay_size_with_default(
     default: TerminalSize,
     diagnostics: &mut Diagnostics<'_>,
 ) -> TerminalSize {
-    let cols = replay_dimension(attrs, metadata, "cols", "terminal-cols", diagnostics)
+    let cols = replay_dimension(attrs, metadata, "cols", "acdc-terminal-cols", diagnostics)
         .unwrap_or(default.cols);
-    let rows = replay_dimension(attrs, metadata, "rows", "terminal-rows", diagnostics)
+    let rows = replay_dimension(attrs, metadata, "rows", "acdc-terminal-rows", diagnostics)
         .unwrap_or(default.rows);
     TerminalSize::new(cols, rows)
 }
 
 /// Resolve one replay dimension by checking, in order: the block's `primary`
 /// attribute (`cols`/`rows`), the block's `document` attribute
-/// (`terminal-cols`/`terminal-rows`), then the document attribute of the same
+/// (`acdc-terminal-cols`/`acdc-terminal-rows`), then the document attribute of the same
 /// name. Returns `None` when none is set; a present but non-positive value is
 /// warned about by [`positive_attr`].
 fn replay_dimension(
@@ -514,14 +514,14 @@ fn replay_size(
     metadata: &BlockMetadata<'_>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<TerminalSize> {
-    let cols = replay_dimension(attrs, metadata, "cols", "terminal-cols", diagnostics);
-    let rows = replay_dimension(attrs, metadata, "rows", "terminal-rows", diagnostics);
+    let cols = replay_dimension(attrs, metadata, "cols", "acdc-terminal-cols", diagnostics);
+    let rows = replay_dimension(attrs, metadata, "rows", "acdc-terminal-rows", diagnostics);
 
     if let (Some(cols), Some(rows)) = (cols, rows) {
         Some(TerminalSize::new(cols, rows))
     } else {
         diagnostics.warn_with_advice(
-            "terminal replay requires positive `cols` and `rows` block attributes or `terminal-cols` and `terminal-rows` document attributes; rendering a static terminal preview instead",
+            "terminal replay requires positive `cols` and `rows` block attributes or `acdc-terminal-cols` and `acdc-terminal-rows` document attributes; rendering a static terminal preview instead",
             "Use a replay block such as `[terminal%replay,cols=80,rows=24]`.",
         );
         None
@@ -1275,7 +1275,7 @@ mod tests {
     #[test]
     fn standard_html_can_include_selectable_terminal_preview() -> TestResult {
         let html = render(
-            "= Example\n:terminal-preview:\n\n[source,console]\n----\n$ acdc --version\nacdc 0.2.0\n----\n\nAfter preview.\n",
+            "= Example\n:acdc-terminal:\n\n[source,console]\n----\n$ acdc --version\nacdc 0.2.0\n----\n\nAfter preview.\n",
             crate::HtmlVariant::Standard,
         )?;
 
@@ -1302,7 +1302,7 @@ mod tests {
     #[test]
     fn semantic_html_can_include_selectable_terminal_preview() -> TestResult {
         let html = render(
-            "= Example\n:terminal-preview:\n\n[source,terminal]\n----\n$ echo semantic\nsemantic\n----\n",
+            "= Example\n:acdc-terminal:\n\n[source,terminal]\n----\n$ echo semantic\nsemantic\n----\n",
             crate::HtmlVariant::Semantic,
         )?;
 
@@ -1317,7 +1317,7 @@ mod tests {
     #[test]
     fn dark_mode_uses_dark_terminal_preview_theme() -> TestResult {
         let html = render(
-            "= Example\n:terminal-preview:\n:dark-mode:\n\n[source,console]\n----\n$ echo dark\n----\n",
+            "= Example\n:acdc-terminal:\n:dark-mode:\n\n[source,console]\n----\n$ echo dark\n----\n",
             crate::HtmlVariant::Standard,
         )?;
 
@@ -1331,7 +1331,7 @@ mod tests {
     #[test]
     fn terminal_preview_preserves_syntax_colors() -> TestResult {
         let html = render(
-            "= Example\n:terminal-preview:\n\n[source,bash]\n----\necho \"hello\"\n----\n",
+            "= Example\n:acdc-terminal:\n\n[source,bash]\n----\necho \"hello\"\n----\n",
             crate::HtmlVariant::Standard,
         )?;
 
@@ -1374,7 +1374,7 @@ mod tests {
     #[test]
     fn terminal_session_options_layer_block_dimensions_over_document_dimensions() -> TestResult {
         let html = render(
-            "= Example\n:terminal-cols: 30\n:terminal-rows: 7\n:dark-mode:\n\n[terminal,cols=12]\n----\n$ echo layered\n----\n",
+            "= Example\n:acdc-terminal-cols: 30\n:acdc-terminal-rows: 7\n:dark-mode:\n\n[terminal,cols=12]\n----\n$ echo layered\n----\n",
             crate::HtmlVariant::Standard,
         )?;
 
@@ -1755,7 +1755,7 @@ mod tests {
     #[test]
     fn linkcss_uses_built_in_stylesheet_for_terminal_preview_styles() -> TestResult {
         let html = render(
-            "= Example\n:linkcss:\n:terminal-preview:\n\n[source,console]\n----\n$ echo linked\n----\n",
+            "= Example\n:linkcss:\n:acdc-terminal:\n\n[source,console]\n----\n$ echo linked\n----\n",
             crate::HtmlVariant::Standard,
         )?;
 
@@ -1769,7 +1769,7 @@ mod tests {
     #[test]
     fn escapes_terminal_text() -> TestResult {
         let html = render(
-            "= Example\n:terminal-preview:\n\n[source,console]\n----\n<&>\n----\n",
+            "= Example\n:acdc-terminal:\n\n[source,console]\n----\n<&>\n----\n",
             crate::HtmlVariant::Standard,
         )?;
 
