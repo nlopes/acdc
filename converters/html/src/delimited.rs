@@ -576,11 +576,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
-        write_block_div_open(
-            &mut self.writer,
-            metadata,
-            "terminalblock terminal-preview-block",
-        )?;
+        write_block_div_open(&mut self.writer, metadata, "terminalblock terminal-block")?;
 
         if !title.is_empty() {
             self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
@@ -614,12 +610,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Direct field access so the writer and diagnostics borrows stay
         // disjoint; `writer_mut()` would borrow all of `self`.
         if title.is_empty() {
-            write_semantic_tag_open(
-                &mut self.writer,
-                "div",
-                metadata,
-                "terminal-block terminal-preview-block",
-            )?;
+            write_semantic_tag_open(&mut self.writer, "div", metadata, "terminal-block")?;
             crate::terminal::render_session(
                 &mut self.writer,
                 inlines,
@@ -630,12 +621,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             )?;
             writeln!(self.writer, "</div>")?;
         } else {
-            write_semantic_tag_open(
-                &mut self.writer,
-                "figure",
-                metadata,
-                "terminal-block terminal-preview-block",
-            )?;
+            write_semantic_tag_open(&mut self.writer, "figure", metadata, "terminal-block")?;
             self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
             crate::terminal::render_session(
                 &mut self.writer,
@@ -659,11 +645,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
-        write_block_div_open(
-            &mut self.writer,
-            metadata,
-            "listingblock terminal-preview-block",
-        )?;
+        write_block_div_open(&mut self.writer, metadata, "listingblock terminal-block")?;
 
         if !title.is_empty() {
             self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
@@ -690,7 +672,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 &mut self.writer,
                 "div",
                 metadata,
-                "listing-block terminal-preview-block",
+                "listing-block terminal-block",
             )?;
             crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
             writeln!(self.writer, "</div>")?;
@@ -699,7 +681,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 &mut self.writer,
                 "figure",
                 metadata,
-                "listing-block terminal-preview-block",
+                "listing-block terminal-block",
             )?;
             self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
             crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;

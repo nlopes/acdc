@@ -8,7 +8,7 @@
   function init(el) {
     el.setAttribute('data-acdc-ready', '1');
 
-    var dataEl = el.querySelector('script.terminal-replay__data');
+    var dataEl = el.querySelector('script.terminal-view__data');
     if (!dataEl) return;
 
     var d;
@@ -18,20 +18,20 @@
       return;
     }
 
-    var screen = el.querySelector('.terminal-replay__screen');
-    if (!screen) return;
+    var stream = el.querySelector('.terminal-view__stream');
+    if (!stream) return;
 
     // Reduced motion: leave the server-rendered final frame as-is.
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
     // The server renders only the final frame; build the remaining row slots.
-    while (screen.children.length < d.rows) {
+    while (stream.children.length < d.rows) {
       var r = document.createElement('div');
-      r.className = 'terminal-replay__row';
-      screen.appendChild(r);
+      r.className = 'terminal-view__row';
+      stream.appendChild(r);
     }
 
-    var slots = screen.querySelectorAll('.terminal-replay__row');
+    var slots = stream.querySelectorAll('.terminal-view__row');
 
     function show(s, on) {
       slots[s].style.display = on ? '' : 'none';
@@ -81,7 +81,7 @@
   }
 
   window.__acdcReplayInit = function () {
-    var els = document.querySelectorAll('.terminal-replay--player:not([data-acdc-ready])');
+    var els = document.querySelectorAll('.terminal-view--replay:not([data-acdc-ready])');
     for (var i = 0; i < els.length; i++) init(els[i]);
   };
   window.__acdcReplayInit();
