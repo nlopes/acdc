@@ -200,20 +200,20 @@ Two separate switches are involved:
 * The `terminal` Cargo feature is a build-time feature flag. It compiles the
   HTML terminal renderer. From the CLI this is the `html-terminal` feature,
   which just enables this crate's `terminal` feature.
-* The `:terminal-preview:` document attribute is only a source-block opt-in.
+* The `:acdc-terminal:` document attribute is only a source-block opt-in.
   It makes terminal-like source blocks render through that terminal renderer.
 
 When the Cargo feature is enabled, acdc supports two terminal-looking HTML
 render paths:
 
 * Source blocks such as `[source,console]` render as terminal previews only
-  when the document sets `:terminal-preview:`.
+  when the document sets `:acdc-terminal:`.
 * `[terminal]` is an explicit block style for terminal session content. It
   renders as terminal output whenever the `terminal` Cargo feature is enabled; the
-  `:terminal-preview:` document attribute is not required.
+  `:acdc-terminal:` document attribute is not required.
 
 This is an acdc-only extension; Asciidoctor does not provide a
-`:terminal-preview:` attribute, the `[terminal]` or `[terminal%replay]` block
+`:acdc-terminal:` attribute, the `[terminal]` or `[terminal%replay]` block
 styles, or any equivalent built-in terminal preview or replay feature.
 
 NOTE: Terminal rendering is built directly into the HTML converter, the
@@ -222,14 +222,14 @@ NOTE: Terminal rendering is built directly into the HTML converter, the
 acdc grows a first-class extension mechanism, this functionality may migrate to
 an extension instead of being compiled into the converter.
 
-Use `:terminal-preview:` when existing source blocks should look like terminal
+Use `:acdc-terminal:` when existing source blocks should look like terminal
 examples:
 
 [source,asciidoc]
 ....
 = Demo
-:terminal-preview:
-:terminal-cols: 88
+:acdc-terminal:
+:acdc-terminal-cols: 88
 
 [source,console]
 ----
@@ -275,7 +275,7 @@ should be animated in HTML:
 Terminal replay is replay-only. acdc treats the block as recorded terminal
 data and does not execute commands, shells, scripts, VHS tapes, or other
 recording formats. Replay blocks require explicit terminal dimensions via
-`cols`/`rows` block attributes or `:terminal-cols:`/`:terminal-rows:`
+`cols`/`rows` block attributes or `:acdc-terminal-cols:`/`:acdc-terminal-rows:`
 document attributes; invalid or missing dimensions fall back to a static
 terminal preview with a structured warning.
 
@@ -305,13 +305,13 @@ under asciidoctor.
 |===
 | Attribute | Effect
 
-| `:terminal-preview:`
+| `:acdc-terminal:`
 | Enables terminal preview rendering for terminal-like source blocks only.
 
-| `:terminal-cols: N`
+| `:acdc-terminal-cols: N`
 | Sets the terminal grid width used to render source-block previews and `[terminal]` blocks. Defaults to `80`.
 
-| `:terminal-rows: N`
+| `:acdc-terminal-rows: N`
 | Sets a fixed terminal grid height for source-block previews and `[terminal]` blocks. When unset, acdc derives the height from the rendered terminal text plus a small padding row.
 
 | `:dark-mode:`
