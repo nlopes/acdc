@@ -1561,6 +1561,23 @@ This is a paragraph.
     }
 
     #[test]
+    fn mathjax_config_hash_matches_embedded_script() -> TestResult {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use sha2::{Digest, Sha256};
+
+        // The build-time hash must cover exactly the code between the <script>
+        // tags. Recomputing it here keeps build.rs and the runtime wrapping in
+        // sync without any manual step.
+        let inner = MATHJAX_CONFIG_SCRIPT
+            .strip_prefix("<script>")
+            .and_then(|script| script.strip_suffix("</script>"))
+            .ok_or("MathJax config must be wrapped in <script> tags")?;
+        let expected = format!("sha256-{}", STANDARD.encode(Sha256::digest(inner.as_bytes())));
+        assert_eq!(MATHJAX_CONFIG_CSP_HASH, expected);
+        Ok(())
+    }
+
+    #[test]
     fn no_csp_attribute_emits_no_meta() -> TestResult {
         let html = convert("= T\n\nHi.\n", false)?;
         assert!(!html.contains("Content-Security-Policy"));
@@ -1572,23 +1589,6 @@ This is a paragraph.
         let html = convert("= T\n:csp:\n\nHi.\n", true)?;
         assert!(!html.contains("Content-Security-Policy"));
         Ok(())
-    }
-
-    #[test]
-    fn mathjax_config_hash_stays_in_sync() {
-        // Tripwire: the documented CSP hash covers the JS between the <script>
-        // tags. If this length changes, the config changed; recompute
-        // MATHJAX_CONFIG_CSP_HASH (see its doc) and update it here.
-        let inner = MATHJAX_CONFIG_SCRIPT
-            .strip_prefix("<script>")
-            .and_then(|script| script.strip_suffix("</script>"))
-            .unwrap_or_default();
-        assert_eq!(
-            inner.len(),
-            1157,
-            "MathJax config changed; recompute MATHJAX_CONFIG_CSP_HASH"
-        );
-        assert!(MATHJAX_CONFIG_CSP_HASH.starts_with("sha256-"));
     }
 
     #[test]

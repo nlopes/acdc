@@ -721,12 +721,10 @@ pub const REPLAY_PLAYER_SCRIPT: &str = concat!(
 
 /// CSP `script-src` source for [`REPLAY_PLAYER_SCRIPT`]'s inline code, so a
 /// consumer can allowlist the player under a strict policy without
-/// `'unsafe-inline'` (e.g. `script-src 'self' 'sha256-...'`). The hash is the
-/// sha256 of `static/terminal-replay-player.js` (the code between the `<script>`
-/// tags). If you edit that file, recompute it with:
-/// `openssl dgst -sha256 -binary static/terminal-replay-player.js | openssl base64`
-pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str =
-    "sha256-z2t/X8Ok+lAYeDw8UsWjjM7TntIjoggVHhJSfFmhTyQ=";
+/// `'unsafe-inline'` (e.g. `script-src 'self' 'sha256-...'`). Computed in
+/// `build.rs` as the sha256 of `static/terminal-replay-player.js`, so it always
+/// matches the embedded script.
+pub const REPLAY_PLAYER_SCRIPT_CSP_HASH: &str = env!("ACDC_REPLAY_PLAYER_CSP_HASH");
 
 /// Render a recording as an interactive replay player. This is the single
 /// renderer for every replay block (raw ANSI and asciicast alike).
@@ -1605,20 +1603,20 @@ mod tests {
     }
 
     #[test]
-    fn player_script_csp_hash_stays_in_sync() {
-        // Tripwire: the documented CSP hash covers the JS between the <script>
-        // tags. If this length changes, the script changed; recompute
-        // REPLAY_PLAYER_SCRIPT_CSP_HASH (see its doc) and update it here.
+    fn player_script_csp_hash_matches_embedded_script() -> TestResult {
+        use base64::{Engine as _, engine::general_purpose::STANDARD};
+        use sha2::{Digest, Sha256};
+
+        // The build-time hash must cover exactly the code between the <script>
+        // tags. Recomputing it here keeps build.rs and the runtime wrapping in
+        // sync without any manual step.
         let inner = super::REPLAY_PLAYER_SCRIPT
             .strip_prefix("<script>")
             .and_then(|script| script.strip_suffix("</script>"))
-            .unwrap_or_default();
-        assert_eq!(
-            inner.len(),
-            2656,
-            "player script changed; recompute REPLAY_PLAYER_SCRIPT_CSP_HASH"
-        );
-        assert!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH.starts_with("sha256-"));
+            .ok_or("player script must be wrapped in <script> tags")?;
+        let expected = format!("sha256-{}", STANDARD.encode(Sha256::digest(inner.as_bytes())));
+        assert_eq!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH, expected);
+        Ok(())
     }
 
     #[test]

@@ -24,10 +24,17 @@ syntect = { version = "5.3", optional = true, default-features = false, features
 thiserror.workspace = true
 tracing.workspace = true
 
+[build-dependencies]
+# Compute CSP script-src hashes for embedded inline scripts at build time.
+base64 = "0.22"
+sha2 = "0.11"
+
 [dev-dependencies]
 acdc-converters-dev.workspace = true
+base64 = "0.22"
 pretty_assertions.workspace = true
 rstest.workspace = true
+sha2 = "0.11"
 tempfile = "3.25.0"
 tracing-test.workspace = true
 
