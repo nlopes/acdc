@@ -790,7 +790,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 #[cfg(feature = "terminal")]
-                if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
+                if crate::terminal::is_terminal_session(metadata)
+                    && self.terminal_emulator_allowed()
+                {
                     if self.processor.variant() == HtmlVariant::Semantic {
                         self.render_terminal_session_block_semantic(inlines, title, metadata)?;
                     } else {

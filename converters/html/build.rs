@@ -13,7 +13,10 @@ use base64::{Engine as _, engine::general_purpose::STANDARD};
 use sha2::{Digest, Sha256};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    emit_csp_hash("static/terminal-replay-player.js", "ACDC_REPLAY_PLAYER_CSP_HASH")?;
+    emit_csp_hash(
+        "static/terminal-replay-player.js",
+        "ACDC_REPLAY_PLAYER_CSP_HASH",
+    )?;
     emit_csp_hash("static/mathjax-config.js", "ACDC_MATHJAX_CONFIG_CSP_HASH")?;
     Ok(())
 }
