@@ -1,0 +1,24 @@
+= Changelog
+
+This project uses per-crate changelogs. See the relevant crate for its changelog:
+
+== Parser
+
+- link:acdc-parser/CHANGELOG.md[acdc-parser]: An AsciiDoc parser.
+
+== Tools
+
+- link:acdc-cli/CHANGELOG.md[acdc-cli]: This is the main binary for the command line processor. Think of it as the equivalent to the `asciidoctor` tool.
+- link:acdc-lsp/CHANGELOG.md[acdc-lsp]: A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered by link:acdc-parser[].
+- link:acdc-editor-wasm/CHANGELOG.md[acdc-editor-wasm]: A WebAssembly-based AsciiDoc live editor with syntax highlighting and HTML preview.
+
+== Converters
+
+- link:converters/html/CHANGELOG.md[acdc-converters-html]
+- link:converters/manpage/CHANGELOG.md[acdc-converters-manpage]
+- link:converters/markdown/CHANGELOG.md[acdc-converters-markdown]
+- link:converters/terminal/CHANGELOG.md[acdc-converters-terminal]
+
+=== Converter utilities
+
+- link:converters/core/CHANGELOG.md[acdc-converters-core]
