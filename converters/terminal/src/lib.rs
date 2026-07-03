@@ -15,7 +15,7 @@ use acdc_converters_core::{
     },
     visitor::Visitor,
 };
-#[cfg(feature = "render-state")]
+#[cfg(feature = "emulator")]
 use acdc_parser::BlockMetadata;
 use acdc_parser::{Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, TocEntry};
 
@@ -270,7 +270,7 @@ pub fn render_document_to_ansi(
 /// # Errors
 ///
 /// Returns an error if syntax highlighting or writing fails.
-#[cfg(feature = "render-state")]
+#[cfg(feature = "emulator")]
 pub fn render_listing_to_ansi(
     options: Options,
     document_attributes: DocumentAttributes<'_>,
@@ -300,7 +300,7 @@ pub fn render_listing_to_ansi(
     Ok(output)
 }
 
-#[cfg(feature = "render-state")]
+#[cfg(feature = "emulator")]
 fn preview_highlight_language(language: &str) -> &str {
     match language {
         "console" | "terminal" | "shell" => "bash",
@@ -417,10 +417,10 @@ pub(crate) fn extract_macro_text(m: &InlineMacro, line_break: &str) -> String {
 
 mod admonition;
 mod appearance;
-#[cfg(feature = "render-state")]
+#[cfg(feature = "emulator")]
 pub mod asciicast;
 mod audio;
-#[cfg(feature = "render-state")]
+#[cfg(feature = "emulator")]
 pub mod cell_grid;
 mod delimited;
 mod document;
@@ -430,7 +430,7 @@ mod index;
 mod inlines;
 mod list;
 mod paragraph;
-#[cfg(feature = "render-state")]
+#[cfg(feature = "emulator")]
 pub mod replay;
 mod section;
 mod syntax;

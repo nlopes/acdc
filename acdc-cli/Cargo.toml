@@ -61,9 +61,9 @@ html-terminal = ["html", "acdc-converters-html/terminal"]
 # Render `[terminal]` session blocks through libghostty-vt for the terminal
 # backend. Requires a Zig toolchain to build the bundled libghostty-vt, which is
 # statically linked into the binary.
-terminal-render-state = [
+terminal-emulator = [
     "terminal",
-    "acdc-converters-terminal/render-state",
+    "acdc-converters-terminal/emulator",
 ]
 
 # Development tools
