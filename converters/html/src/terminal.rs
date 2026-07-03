@@ -1249,12 +1249,21 @@ mod tests {
         input: &str,
         variant: crate::HtmlVariant,
     ) -> Result<(String, Vec<Warning>), Box<dyn std::error::Error>> {
+        render_with_safe_mode(input, variant, acdc_parser::SafeMode::Unsafe)
+    }
+
+    fn render_with_safe_mode(
+        input: &str,
+        variant: crate::HtmlVariant,
+        safe_mode: acdc_parser::SafeMode,
+    ) -> Result<(String, Vec<Warning>), Box<dyn std::error::Error>> {
         let parser_options =
             ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
         let parsed = acdc_parser::parse(input, &parser_options)?;
         let doc = parsed.document();
         let options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+            .safe_mode(safe_mode)
             .build();
         let processor = Processor::new_with_variant(options, doc.attributes.clone(), variant);
         let mut output = Vec::new();
@@ -1616,6 +1625,38 @@ mod tests {
             .ok_or("player script must be wrapped in <script> tags")?;
         let expected = format!("sha256-{}", STANDARD.encode(Sha256::digest(inner.as_bytes())));
         assert_eq!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn terminal_rendering_degrades_to_listing_under_server_safe_mode() -> TestResult {
+        // The emulator feeds document-controlled bytes through libghostty-vt, so
+        // at Server/Secure it must not run: the block falls back to a plain
+        // listing and the author is told why.
+        let input = "= Example\n\n[terminal%replay,format=asciicast]\n----\n{\"version\":2,\"width\":30,\"height\":5}\n[0.0,\"o\",\"hi\\r\\n\"]\n----\n";
+        let (html, warnings) = render_with_safe_mode(
+            input,
+            crate::HtmlVariant::Standard,
+            acdc_parser::SafeMode::Server,
+        )?;
+
+        // Match the rendered element, not the `.terminal-view` CSS rule that the
+        // embedded stylesheet always carries.
+        assert!(
+            !html.contains("class=\"terminal-view"),
+            "emulator preview should not render under Server safe mode, got: {html}"
+        );
+        assert!(!html.contains(super::REPLAY_PLAYER_SCRIPT_CSP_HASH));
+        assert!(
+            html.contains("class=\"listingblock\""),
+            "expected plain listing fallback, got: {html}"
+        );
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.message.contains("terminal rendering is disabled")),
+            "expected a safe-mode fallback warning, got: {warnings:?}"
+        );
         Ok(())
     }
 

@@ -500,12 +500,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_session(metadata) {
+        if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
             return self.render_terminal_session_block(inlines, title, metadata);
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(&processor.document_attributes, metadata) {
+        if crate::terminal::is_terminal_listing(&processor.document_attributes, metadata)
+            && self.terminal_emulator_allowed()
+        {
             return self.render_terminal_listing_block(inlines, title, metadata);
         }
 
@@ -543,12 +545,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
         #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_session(metadata) {
+        if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
             return self.render_terminal_session_block_semantic(inlines, title, metadata);
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(&self.processor.document_attributes, metadata) {
+        if crate::terminal::is_terminal_listing(&self.processor.document_attributes, metadata)
+            && self.terminal_emulator_allowed()
+        {
             return self.render_terminal_listing_block_semantic(inlines, title, metadata);
         }
 
@@ -565,6 +569,24 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "</figure>")?;
         }
         Ok(())
+    }
+
+    /// Whether the terminal emulator may render the current block. Terminal
+    /// rendering feeds document-controlled bytes through a native terminal
+    /// emulator (`libghostty-vt`), so it only runs for trusted documents. At
+    /// `SafeMode::Server` and above the block degrades to a plain listing,
+    /// mirroring how Asciidoctor renders an unrecognized block style, and a
+    /// warning records why the preview is absent.
+    #[cfg(feature = "terminal")]
+    fn terminal_emulator_allowed(&mut self) -> bool {
+        let safe_mode = self.processor.options.safe_mode();
+        if safe_mode < acdc_parser::SafeMode::Server {
+            return true;
+        }
+        self.diagnostics.warn(format!(
+            "terminal rendering is disabled at safe mode `{safe_mode:?}`; rendering the block as a plain listing"
+        ));
+        false
     }
 
     #[cfg(feature = "terminal")]
@@ -768,7 +790,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 #[cfg(feature = "terminal")]
-                if crate::terminal::is_terminal_session(metadata) {
+                if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
                     if self.processor.variant() == HtmlVariant::Semantic {
                         self.render_terminal_session_block_semantic(inlines, title, metadata)?;
                     } else {

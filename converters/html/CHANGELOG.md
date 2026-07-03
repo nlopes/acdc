@@ -59,12 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `replay-duration-ms` sets total playback time. Readers without JavaScript, or
   who prefer reduced motion, see the final frame. Recorded commands are never
   run. acdc-only; asciidoctor renders the raw text.
+- Terminal rendering (previews, `[terminal]`, and `[terminal%replay]`) runs the
+  bundled terminal emulator only below `SafeMode::Server`. At `server`/`secure`
+  the block degrades to a plain listing and a warning is emitted, since the
+  emulator processes document-controlled input.
 - Set `:csp:` to emit a self-contained `<meta http-equiv="Content-Security-Policy">`
   for standalone output: scripts are locked to acdc's inline scripts by hash (no
   `'unsafe-inline'`) plus the MathJax CDN when `:stem:` is set, while images,
   media, and embeds stay permissive so content keeps loading. For assembling your
-  own head/policy (e.g. embedded mode), the inline scripts, their hashes, the
-  MathJax loader URL, and a `content_security_policy` builder are public API.
+  own head/policy (e.g. embedded mode), the inline scripts, their hashes, and the
+  MathJax loader URL are public API.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable HTML conversion issues such as deprecated roles, docinfo option
   fallbacks, and stylesheet read/write failures.
