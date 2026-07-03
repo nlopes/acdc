@@ -23,6 +23,7 @@
 //!
 //! - [`code`] - Programming language detection for syntax highlighting
 //! - [`icon`] - Icon rendering mode configuration
+//! - [`inline_text`] - Plain-text extraction from inline nodes
 //! - [`substitutions`] - Text substitution utilities for escape handling
 //! - [`table`] - Table column width calculations
 //! - [`toc`] - Table of contents configuration
@@ -41,6 +42,7 @@ use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 pub mod code;
 mod doctype;
 pub mod icon;
+pub mod inline_text;
 pub mod list;
 pub mod section;
 pub mod substitutions;
@@ -51,6 +53,7 @@ pub mod visitor;
 mod warning;
 
 pub use doctype::Doctype;
+pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.

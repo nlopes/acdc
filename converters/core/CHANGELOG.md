@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `inline_text::InlineTextTransform` and `inlines_to_string()` provide shared
+  plain-text extraction from inline nodes for converters and tooling, including
+  configurable hard-line-break rendering.
 - **`#` callout guards in shell-session and PowerShell blocks** — `[source,console]`,
   `[source,terminal]`, and `[source,powershell]`/`[source,ps1]` source blocks use `#`
   as their line-comment prefix, so a guarding `# <1>` is stripped from the rendered
