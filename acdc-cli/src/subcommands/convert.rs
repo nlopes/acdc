@@ -734,6 +734,8 @@ mod tests {
         let cli = crate::Cli::try_parse_from(raw).map_err(|error| miette::miette!(error))?;
         match cli.command {
             Commands::Convert(args) => Ok(args),
+            #[cfg(feature = "execute")]
+            Commands::Execute(_) => Err(miette::miette!("test command selected execute")),
             #[cfg(feature = "inspect")]
             Commands::Inspect(_) => Err(miette::miette!("test command selected inspect")),
             #[cfg(feature = "lint")]
