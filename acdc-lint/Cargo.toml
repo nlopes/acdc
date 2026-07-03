@@ -1,0 +1,37 @@
+[package]
+name = "acdc-lint"
+version = "0.1.0"
+edition.workspace = true
+description = "AsciiDoc linting primitives"
+readme = "README.adoc"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/nlopes/acdc"
+keywords = ["asciidoc", "lint", "documentation"]
+categories = ["development-tools", "text-processing"]
+publish = false
+
+[features]
+default = ["pre-spec-subs"]
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+pre-spec-subs = ["acdc-parser/pre-spec-subs"]
+network = ["acdc-parser/network"]
+setext = ["acdc-parser/setext"]
+
+[dependencies]
+acdc-parser.workspace = true
+thiserror.workspace = true
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+wildcard_enum_match_arm = "deny"
+indexing_slicing = "deny"
+fallible_impl_from = "deny"
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+pedantic = "deny"
+todo = "warn"
+unimplemented = "warn"
+unreachable = "warn"

@@ -1,0 +1,41 @@
+= `acdc-lint`
+
+Lint command support for `acdc`.
+
+This crate owns the initial lint registry, lint groups, lint-level model, and report types used by `acdc lint`.
+
+== Lint levels
+
+The command-line model follows `rustc` and Clippy:
+
+* `allow` suppresses a lint or lint group
+* `warn` emits diagnostics without failing the run
+* `deny` treats emitted diagnostics as errors
+* `forbid` treats emitted diagnostics as errors and prevents later flags from lowering the level
+
+When multiple flags target the same lint, later flags win unless a previous `forbid` applies.
+
+== Initial lint set
+
+The initial lint names are based on recommendations from the https://asciidoctor.org/docs/asciidoc-recommended-practices/[Asciidoctor recommended-practices draft].
+
+The `recommended-practices` group starts with checks that have clear detection, clear remediation, and low expected style noise:
+
+* `document-extension`
+* `one-sentence-per-line`
+* `section-title-style`
+* `delimited-block-minimal-delimiter`
+* `attribute-url-prefix`
+* `counter-prefix`
+* `imagesdir`
+* `nested-unordered-list-marker`
+* `adjacent-list-separator`
+
+The `document-title-author` and `document-title-revision` lints are registered but intentionally opt-in because many snippets, partials, and internal docs omit those header lines on purpose.
+
+Available groups are `all` and `recommended-practices`.
+
+== Features
+
+`pre-spec-subs` is default-on and forwarded to `acdc-parser`.
+`setext` and `network` are available for parser compatibility with the rest of the workspace.
