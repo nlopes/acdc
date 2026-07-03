@@ -20,6 +20,7 @@ dependencies = [
  "miette",
  "open",
  "rayon",
+ "regex",
  "serde",
  "serde_json",
  "tempfile",

@@ -39,6 +39,7 @@ fn output_text(bytes: &[u8]) -> String {
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "inspect",
     feature = "lint",
     feature = "tck",
