@@ -114,11 +114,10 @@ pub const MATHJAX_CONFIG_SCRIPT: &str = concat!(
 );
 
 /// CSP `script-src` source (sha256) for [`MATHJAX_CONFIG_SCRIPT`]'s inline code,
-/// so a host can allowlist it without `'unsafe-inline'`. The hash is the sha256 of
-/// `static/mathjax-config.js` (the code between the `<script>` tags). If you edit
-/// that file, recompute it with:
-/// `openssl dgst -sha256 -binary static/mathjax-config.js | openssl base64`
-pub const MATHJAX_CONFIG_CSP_HASH: &str = "sha256-/viRmZJXKJF/fjIESAG3yWbh5QeUhdiM/Hr7b7qKm+c=";
+/// so a host can allowlist it without `'unsafe-inline'`. Computed in `build.rs`
+/// as the sha256 of `static/mathjax-config.js`, so it always matches the embedded
+/// script.
+pub const MATHJAX_CONFIG_CSP_HASH: &str = env!("ACDC_MATHJAX_CONFIG_CSP_HASH");
 
 fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
     writeln!(writer, "{MATHJAX_CONFIG_SCRIPT}")?;
