@@ -16,6 +16,7 @@ Usage: acdc <COMMAND>
 Commands:
   convert  Convert AsciiDoc documents to various output formats
   inspect  Inspect AST structure of AsciiDoc documents
+  lint     Lint AsciiDoc documents
   tck      Run TCK compliance tests (reads JSON from stdin)
   help     Print this message or the help of the given subcommand(s)
 
@@ -43,6 +44,42 @@ Inspect the AST structure of `AsciiDoc` documents. Useful for debugging and unde
 ....
 acdc inspect [OPTIONS] <FILE>
 ....
+
+=== lint
+
+Lint `AsciiDoc` documents. The command currently provides the CLI harness,
+lint registry, and lint-level flags; the lint checks are not implemented yet.
+
+[source,console]
+....
+acdc lint [OPTIONS] [FILES]...
+....
+
+Lint levels follow the same command-line shape as Clippy and rustc:
+
+* `--allow` / `-A` suppresses a lint or lint group
+* `--warn` / `-W` emits warnings for a lint or lint group
+* `--deny` / `-D` treats a lint or lint group as an error
+* `--forbid` / `-F` treats a lint or lint group as an error and prevents later flags from lowering it
+
+The `recommended-practices` group starts with lint names that have clear
+detection, clear remediation, and low expected style noise:
+
+* `document-extension`
+* `one-sentence-per-line`
+* `section-title-style`
+* `delimited-block-minimal-delimiter`
+* `attribute-url-prefix`
+* `counter-prefix`
+* `imagesdir`
+* `nested-unordered-list-marker`
+* `adjacent-list-separator`
+
+The `document-title-author` and `document-title-revision` lints are available
+by name but are not part of `recommended-practices`; they are intended for
+projects that want stricter document-header policy.
+
+The available groups are `all` and `recommended-practices`.
 
 === tck
 
@@ -84,9 +121,14 @@ cargo build --all-features
 * `markdown` - Markdown converter with CommonMark and GitHub Flavored Markdown support
 * `terminal` - Terminal converter with ANSI color support
 
+=== Document Tools
+
+* `lint` (default) - AsciiDoc lint command harness
+
 === Parser Options
 
 * `setext` - Enable setext-style (two-line underlined) section headers
+* `network` - Enable remote include parsing
 
 === Syntax Highlighting
 

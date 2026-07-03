@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A new `lint` command is available by default. It accepts files or `--stdin`
+  and Clippy-style lint level flags (`--allow`/`-A`, `--warn`/`-W`,
+  `--deny`/`-D`, `--forbid`/`-F`) for the initial Asciidoctor recommended
+  practices lint names. The `document-title-author` and
+  `document-title-revision` lints are available by name but are not part of
+  the `recommended-practices` group. The lint checks themselves are
+  placeholders for a follow-up implementation.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the
