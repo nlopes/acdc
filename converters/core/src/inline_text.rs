@@ -37,7 +37,10 @@ impl<'a> InlineTextTransform<'a> {
     }
 
     fn write_inline_node<W: Write + ?Sized>(self, w: &mut W, node: &InlineNode<'_>) -> fmt::Result {
-        #[allow(clippy::match_same_arms, clippy::wildcard_enum_match_arm)]
+        #[expect(
+            clippy::match_same_arms,
+            reason = "plain-text extraction intentionally ignores unknown non-exhaustive inline nodes"
+        )]
         match node {
             InlineNode::PlainText(text) => w.write_str(text.content),
             InlineNode::RawText(text) => w.write_str(text.content),
@@ -64,37 +67,12 @@ impl<'a> InlineTextTransform<'a> {
         w: &mut W,
         macro_node: &InlineMacro<'_>,
     ) -> fmt::Result {
-        #[allow(clippy::wildcard_enum_match_arm)]
         match macro_node {
-            InlineMacro::Link(link) => {
-                if link.text.is_empty() {
-                    write!(w, "{}", link.target)
-                } else {
-                    self.write(w, &link.text)
-                }
-            }
-            InlineMacro::Url(url) => {
-                if url.text.is_empty() {
-                    write!(w, "{}", url.target)
-                } else {
-                    self.write(w, &url.text)
-                }
-            }
-            InlineMacro::Mailto(mailto) => {
-                if mailto.text.is_empty() {
-                    write!(w, "{}", mailto.target)
-                } else {
-                    self.write(w, &mailto.text)
-                }
-            }
+            InlineMacro::Link(link) => self.write_link_text(w, &link.text, &link.target),
+            InlineMacro::Url(url) => self.write_link_text(w, &url.text, &url.target),
+            InlineMacro::Mailto(mailto) => self.write_link_text(w, &mailto.text, &mailto.target),
             InlineMacro::Autolink(autolink) => write!(w, "{}", autolink.url),
-            InlineMacro::CrossReference(xref) => {
-                if xref.text.is_empty() {
-                    write!(w, "{}", xref.target)
-                } else {
-                    self.write(w, &xref.text)
-                }
-            }
+            InlineMacro::CrossReference(xref) => self.write_link_text(w, &xref.text, &xref.target),
             InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
                 w.write_str(index_term.term())
             }
@@ -108,6 +86,19 @@ impl<'a> InlineTextTransform<'a> {
             | InlineMacro::Icon(_)
             | InlineMacro::IndexTerm(_)
             | _ => Ok(()),
+        }
+    }
+
+    fn write_link_text<W: Write + ?Sized>(
+        self,
+        w: &mut W,
+        text: &[InlineNode<'_>],
+        target: &impl fmt::Display,
+    ) -> fmt::Result {
+        if text.is_empty() {
+            write!(w, "{target}")
+        } else {
+            self.write(w, text)
         }
     }
 

@@ -215,12 +215,18 @@ pub fn table_has_spans(table: &Table) -> bool {
 }
 
 #[cfg(test)]
-#[allow(clippy::indexing_slicing)]
 mod tests {
     use super::*;
 
     fn make_column(width: ColumnWidth) -> ColumnFormat {
         ColumnFormat::new().with_width(width)
+    }
+
+    fn assert_widths_close(actual: &[f64], expected: &[f64]) {
+        assert_eq!(actual.len(), expected.len());
+        for (actual, expected) in actual.iter().zip(expected) {
+            assert!((*actual - *expected).abs() < 0.01);
+        }
     }
 
     #[test]
@@ -230,9 +236,7 @@ mod tests {
             make_column(ColumnWidth::Proportional(3)),
         ];
         let widths = calculate_column_widths(&columns);
-        assert_eq!(widths.len(), 2);
-        assert!((widths[0] - 25.0).abs() < 0.01);
-        assert!((widths[1] - 75.0).abs() < 0.01);
+        assert_widths_close(&widths, &[25.0, 75.0]);
     }
 
     #[test]
@@ -286,10 +290,14 @@ mod tests {
         let widths = calculate_column_widths(&columns);
         let sum: f64 = widths.iter().sum();
         assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
-        // Each scaled by 100/101
-        assert!((widths[0] - 34.0 * 100.0 / 101.0).abs() < 0.01);
-        assert!((widths[1] - 36.0 * 100.0 / 101.0).abs() < 0.01);
-        assert!((widths[2] - 31.0 * 100.0 / 101.0).abs() < 0.01);
+        assert_widths_close(
+            &widths,
+            &[
+                34.0 * 100.0 / 101.0,
+                36.0 * 100.0 / 101.0,
+                31.0 * 100.0 / 101.0,
+            ],
+        );
     }
 
     #[test]
@@ -303,9 +311,14 @@ mod tests {
         let widths = calculate_column_widths(&columns);
         let sum: f64 = widths.iter().sum();
         assert!((sum - 100.0).abs() < 0.01, "sum was {sum}");
-        assert!((widths[0] - 20.0 * 100.0 / 90.0).abs() < 0.01);
-        assert!((widths[1] - 30.0 * 100.0 / 90.0).abs() < 0.01);
-        assert!((widths[2] - 40.0 * 100.0 / 90.0).abs() < 0.01);
+        assert_widths_close(
+            &widths,
+            &[
+                20.0 * 100.0 / 90.0,
+                30.0 * 100.0 / 90.0,
+                40.0 * 100.0 / 90.0,
+            ],
+        );
     }
 
     #[test]
@@ -328,11 +341,9 @@ mod tests {
             make_column(ColumnWidth::Percentage(50)),
         ];
         let widths = calculate_column_widths(&columns);
-        assert!((widths[0] - 0.0).abs() < f64::EPSILON);
-        let pct_sum: f64 = widths[1] + widths[2];
+        let pct_sum: f64 = widths.iter().sum();
         assert!((pct_sum - 100.0).abs() < 0.01, "pct sum was {pct_sum}");
-        assert!((widths[1] - 60.0 * 100.0 / 110.0).abs() < 0.01);
-        assert!((widths[2] - 50.0 * 100.0 / 110.0).abs() < 0.01);
+        assert_widths_close(&widths, &[0.0, 60.0 * 100.0 / 110.0, 50.0 * 100.0 / 110.0]);
     }
 
     #[test]
@@ -356,13 +367,7 @@ mod tests {
             make_column(ColumnWidth::Proportional(1)),
         ];
         let widths = calculate_column_widths(&columns);
-        assert_eq!(widths.len(), 5);
-        // 2/(2+1+1+1+1) = 2/6 = 33.33%
-        assert!((widths[0] - 33.333).abs() < 0.01);
-        // 1/6 = 16.67%
-        for w in &widths[1..] {
-            assert!((*w - 16.667).abs() < 0.01);
-        }
+        assert_widths_close(&widths, &[33.333, 16.667, 16.667, 16.667, 16.667]);
     }
 
     mod grid {
@@ -373,10 +378,9 @@ mod tests {
         ///
         /// Leaks the parsed document so the returned `Table<'static>` borrows
         /// from memory that lives for the rest of the test process.
-        #[allow(clippy::expect_used)]
-        fn parse_table(adoc: &str) -> Table<'static> {
+        fn parse_table(adoc: &str) -> Result<Table<'static>, Box<dyn std::error::Error>> {
             let options = acdc_parser::Options::default();
-            let parsed = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
+            let parsed = acdc_parser::parse(adoc, &options)?;
             let parsed: &'static acdc_parser::ParseResult = Box::leak(Box::new(parsed));
             parsed
                 .document()
@@ -390,11 +394,20 @@ mod tests {
                     }
                     None
                 })
-                .expect("No table found in document")
+                .ok_or_else(|| std::io::Error::other("no table found in document").into())
+        }
+
+        fn assert_grid_rows(grid: &[GridRow<'_>], expected: &[(bool, bool, Vec<CellKind>)]) {
+            assert_eq!(grid.len(), expected.len());
+            for (row, (is_header, is_footer, cells)) in grid.iter().zip(expected) {
+                assert_eq!(row.is_header, *is_header);
+                assert_eq!(row.is_footer, *is_footer);
+                assert_eq!(&row.cells, cells);
+            }
         }
 
         #[test]
-        fn test_colspan() {
+        fn test_colspan() -> Result<(), Box<dyn std::error::Error>> {
             let table = parse_table(
                 r#"[cols="3*"]
 |===
@@ -403,43 +416,49 @@ mod tests {
 2+| Spans two columns | D
 | E | F | G
 |==="#,
-            );
+            )?;
 
             assert_eq!(determine_column_count(&table), 3);
             assert!(table_has_spans(&table));
 
             let grid = build_grid(&table, 3);
-            // Header + 2 body rows = 3
-            assert_eq!(grid.len(), 3);
-
-            // Header row: 3 content cells
-            assert_eq!(grid[0].cells.len(), 3);
-            assert!(grid[0].is_header);
-            assert!(!grid[0].is_footer);
-
-            // Row with colspan: Content, HSpan, Content
-            assert_eq!(
-                grid[1].cells,
-                vec![
-                    CellKind::Content { cell_index: 0 },
-                    CellKind::HSpan,
-                    CellKind::Content { cell_index: 1 },
-                ]
+            assert_grid_rows(
+                &grid,
+                &[
+                    (
+                        true,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::HSpan,
+                            CellKind::Content { cell_index: 1 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                        ],
+                    ),
+                ],
             );
-
-            // Normal row: 3 content cells
-            assert_eq!(
-                grid[2].cells,
-                vec![
-                    CellKind::Content { cell_index: 0 },
-                    CellKind::Content { cell_index: 1 },
-                    CellKind::Content { cell_index: 2 },
-                ]
-            );
+            Ok(())
         }
 
         #[test]
-        fn test_rowspan() {
+        fn test_rowspan() -> Result<(), Box<dyn std::error::Error>> {
             let table = parse_table(
                 r"|===
 | A | B | C
@@ -448,37 +467,58 @@ mod tests {
 | F | G
 | H | I | J
 |===",
-            );
+            )?;
 
             assert_eq!(determine_column_count(&table), 3);
             assert!(table_has_spans(&table));
 
             let grid = build_grid(&table, 3);
-            assert_eq!(grid.len(), 4);
-
-            // Row with rowspan: Content(0), Content(1), Content(2)
-            assert_eq!(
-                grid[1].cells,
-                vec![
-                    CellKind::Content { cell_index: 0 },
-                    CellKind::Content { cell_index: 1 },
-                    CellKind::Content { cell_index: 2 },
-                ]
+            assert_grid_rows(
+                &grid,
+                &[
+                    (
+                        true,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::VSpan,
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                        ],
+                    ),
+                ],
             );
-
-            // Next row: VSpan, Content(0), Content(1)
-            assert_eq!(
-                grid[2].cells,
-                vec![
-                    CellKind::VSpan,
-                    CellKind::Content { cell_index: 0 },
-                    CellKind::Content { cell_index: 1 },
-                ]
-            );
+            Ok(())
         }
 
         #[test]
-        fn test_combined_span() {
+        fn test_combined_span() -> Result<(), Box<dyn std::error::Error>> {
             let table = parse_table(
                 r"|===
 | A | B | C | D
@@ -487,51 +527,75 @@ mod tests {
 | G | H
 | I | J | K | L
 |===",
-            );
+            )?;
 
             assert_eq!(determine_column_count(&table), 4);
             assert!(table_has_spans(&table));
 
             let grid = build_grid(&table, 4);
-            assert_eq!(grid.len(), 4);
-
-            // Row with 2.2+ span: Content(0), HSpan, Content(1), Content(2)
-            assert_eq!(
-                grid[1].cells,
-                vec![
-                    CellKind::Content { cell_index: 0 },
-                    CellKind::HSpan,
-                    CellKind::Content { cell_index: 1 },
-                    CellKind::Content { cell_index: 2 },
-                ]
+            assert_grid_rows(
+                &grid,
+                &[
+                    (
+                        true,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                            CellKind::Content { cell_index: 3 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::HSpan,
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::VSpan,
+                            CellKind::VSpan,
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                            CellKind::Content { cell_index: 2 },
+                            CellKind::Content { cell_index: 3 },
+                        ],
+                    ),
+                ],
             );
-
-            // Next row: VSpan, VSpan, Content(0), Content(1)
-            assert_eq!(
-                grid[2].cells,
-                vec![
-                    CellKind::VSpan,
-                    CellKind::VSpan,
-                    CellKind::Content { cell_index: 0 },
-                    CellKind::Content { cell_index: 1 },
-                ]
-            );
+            Ok(())
         }
 
         #[test]
-        fn test_no_spans() {
+        fn test_no_spans() -> Result<(), Box<dyn std::error::Error>> {
             let table = parse_table(
                 r"|===
 | A | B
 | C | D
 |===",
-            );
+            )?;
 
             assert!(!table_has_spans(&table));
+            Ok(())
         }
 
         #[test]
-        fn test_footer_flag() {
+        fn test_footer_flag() -> Result<(), Box<dyn std::error::Error>> {
             let table = parse_table(
                 r"[%header%footer]
 |===
@@ -541,16 +605,39 @@ mod tests {
 
 | F1 | F2
 |===",
-            );
+            )?;
 
             let grid = build_grid(&table, 2);
-            assert_eq!(grid.len(), 3);
-            assert!(grid[0].is_header);
-            assert!(!grid[0].is_footer);
-            assert!(!grid[1].is_header);
-            assert!(!grid[1].is_footer);
-            assert!(!grid[2].is_header);
-            assert!(grid[2].is_footer);
+            assert_grid_rows(
+                &grid,
+                &[
+                    (
+                        true,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                        ],
+                    ),
+                    (
+                        false,
+                        false,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                        ],
+                    ),
+                    (
+                        false,
+                        true,
+                        vec![
+                            CellKind::Content { cell_index: 0 },
+                            CellKind::Content { cell_index: 1 },
+                        ],
+                    ),
+                ],
+            );
+            Ok(())
         }
     }
 }

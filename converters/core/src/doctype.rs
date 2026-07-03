@@ -70,17 +70,16 @@ impl std::fmt::Display for Doctype {
 }
 
 #[cfg(test)]
-#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_from_str() {
-        assert_eq!(Doctype::from_str("article").unwrap(), Doctype::Article);
-        assert_eq!(Doctype::from_str("ARTICLE").unwrap(), Doctype::Article);
-        assert_eq!(Doctype::from_str("book").unwrap(), Doctype::Book);
-        assert_eq!(Doctype::from_str("manpage").unwrap(), Doctype::Manpage);
-        assert_eq!(Doctype::from_str("inline").unwrap(), Doctype::Inline);
+        assert_eq!(Doctype::from_str("article"), Ok(Doctype::Article));
+        assert_eq!(Doctype::from_str("ARTICLE"), Ok(Doctype::Article));
+        assert_eq!(Doctype::from_str("book"), Ok(Doctype::Book));
+        assert_eq!(Doctype::from_str("manpage"), Ok(Doctype::Manpage));
+        assert_eq!(Doctype::from_str("inline"), Ok(Doctype::Inline));
         assert!(Doctype::from_str("invalid").is_err());
     }
 

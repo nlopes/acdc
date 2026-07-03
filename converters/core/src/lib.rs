@@ -441,15 +441,13 @@ impl PrettyDuration for std::time::Duration {
     fn pretty_print(&self) -> String {
         let nanos = self.as_nanos();
 
-        // This is actually fine. f64 can represent all integers up to u128::MAX: 2^128-1
-        // (roughly 3.8x10^38).
-        #[allow(clippy::cast_precision_loss)]
-        let f_nanos = nanos as f64;
         match nanos {
             0..=999 => format!("{nanos}ns"),
-            1_000..=999_999 => format!("{:.2}µs", f_nanos / 1_000.0),
-            1_000_000..=999_999_999 => format!("{:.2}ms", f_nanos / 1_000_000.0),
-            _ => format!("{:.2}s", f_nanos / 1_000_000_000.0),
+            1_000..=999_999 => format!("{:.2}µs", f64::from(self.subsec_nanos()) / 1_000.0),
+            1_000_000..=999_999_999 => {
+                format!("{:.2}ms", f64::from(self.subsec_nanos()) / 1_000_000.0)
+            }
+            _ => format!("{:.2}s", self.as_secs_f64()),
         }
         .trim_end_matches('0')
         .trim_end_matches('.')
@@ -459,17 +457,14 @@ impl PrettyDuration for std::time::Duration {
     fn pretty_print_precise(&self, precision: u8) -> String {
         let precision = precision.min(9);
         let nanos = self.as_nanos();
-        // This is actually fine. f64 can represent all integers up to u128::MAX: 2^128-1
-        // (roughly 3.8x10^38).
-        #[allow(clippy::cast_precision_loss)]
-        let f_nanos = nanos as f64;
+        let precision = usize::from(precision);
         match nanos {
             0..=999 => format!("{nanos}ns"),
-            1_000..=999_999 => format!("{:.1$}µs", nanos / 1_000, precision as usize),
+            1_000..=999_999 => format!("{:.1$}µs", nanos / 1_000, precision),
             1_000_000..=999_999_999 => {
-                format!("{:.1$}ms", nanos / 1_000_000, precision as usize)
+                format!("{:.1$}ms", nanos / 1_000_000, precision)
             }
-            _ => format!("{:.1$}s", f_nanos / 1_000_000_000.0, precision as usize),
+            _ => format!("{:.1$}s", self.as_secs_f64(), precision),
         }
     }
 }
