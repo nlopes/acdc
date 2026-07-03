@@ -6856,7 +6856,8 @@ References.
                 &doc.blocks[0],
                 Block::DelimitedBlock(delimited)
                 if matches!(&delimited.inner, DelimitedBlockType::DelimitedComment(nodes)
-                    if crate::inlines_to_string(nodes).contains("Hidden heading"))
+                    if matches!(&nodes[0], InlineNode::PlainText(text)
+                        if text.content.contains("Hidden heading")))
                         && delimited.delimiter == "--"
                         && delimited.metadata.style.is_none()
             ),
@@ -6871,7 +6872,9 @@ References.
 
         // The trailing blank-separated paragraph is normal content.
         assert!(
-            matches!(&doc.blocks[2], Block::Paragraph(para) if &crate::inlines_to_string(&para.content) == "Visible."),
+            matches!(&doc.blocks[2], Block::Paragraph(para)
+                if matches!(&para.content[..], [InlineNode::PlainText(text)]
+                    if text.content == "Visible.")),
             "the trailing paragraph should survive"
         );
         Ok(())
@@ -6967,7 +6970,9 @@ References.
             .title
             .as_ref()
             .expect("titled block has reference text");
-        assert_eq!(crate::inlines_to_string(title), "Important Data");
+        assert!(
+            matches!(&title[..], [InlineNode::PlainText(text)] if text.content == "Important Data")
+        );
         // The location points at the anchor on line 1 (for LSP navigation).
         assert_eq!(entry.location.start.line, 1);
         Ok(())

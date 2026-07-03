@@ -102,6 +102,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **Breaking:** `inlines_to_string()` is no longer exported by `acdc-parser`. Check
+  `acdc-converters-core::inlines_to_string()` for converter/tooling plain-text extraction
+  from inline nodes (even though we currently don't publish `acdc-converters-core`, you
+  can see an example).
 - **Breaking:** the unused `Location::shift`, `Location::shift_inline`, and
   `Location::shift_line_column` methods.
 

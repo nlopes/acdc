@@ -77,7 +77,7 @@ pub use model::{
     Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
     Substitution, Subtitle, Superscript, Table, TableColumn, TableOfContents, TableRow,
     ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
-    Verbatim, VerticalAlignment, Video, inlines_to_string, strip_quotes, substitute,
+    Verbatim, VerticalAlignment, Video, strip_quotes, substitute,
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};
@@ -901,25 +901,49 @@ mod tests {
         let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
         let result = parse_file(&path, &options).expect("parse");
 
-        let chain_of = |needle: &str| -> Option<Vec<String>> {
-            result.document().blocks.iter().find_map(|b| {
-                let Block::Paragraph(p) = b else { return None };
-                let text = inlines_to_string(&p.content);
-                text.contains(needle)
-                    .then(|| p.location.start.file.as_deref().cloned())
-                    .flatten()
+        let paragraphs = result
+            .document()
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                if let Block::Paragraph(para) = block {
+                    Some(para)
+                } else {
+                    None
+                }
             })
+            .collect::<Vec<_>>();
+        let [main, outer, inner] = paragraphs.as_slice() else {
+            panic!("expected main, outer, and inner paragraphs");
         };
-        // Primary content: no chain (paragraph has `file: None`, so `find_map` above
-        // returns `None` for the chain).
-        assert_eq!(chain_of("Main paragraph"), None);
+        assert!(
+            matches!(&main.content[..], [InlineNode::PlainText(text)] if text.content == "Main paragraph.")
+        );
+        assert!(
+            matches!(&outer.content[..], [InlineNode::PlainText(text)] if text.content == "Outer paragraph.")
+        );
+        assert!(
+            matches!(&inner.content[..], [InlineNode::PlainText(text)] if text.content == "Inner paragraph.")
+        );
+        // Primary content has no include chain.
+        assert!(main.location.start.file.is_none());
         assert_eq!(
-            chain_of("Outer paragraph"),
-            Some(vec!["outer.adoc".to_string()])
+            outer
+                .location
+                .start
+                .file
+                .as_ref()
+                .map(|chain| chain.as_slice()),
+            Some(["outer.adoc".to_string()].as_slice())
         );
         assert_eq!(
-            chain_of("Inner paragraph"),
-            Some(vec!["outer.adoc".to_string(), "inner.adoc".to_string()])
+            inner
+                .location
+                .start
+                .file
+                .as_ref()
+                .map(|chain| chain.as_slice()),
+            Some(["outer.adoc".to_string(), "inner.adoc".to_string()].as_slice())
         );
     }
 

@@ -3,11 +3,9 @@ use serde::{
     ser::{Error as _, SerializeMap, Serializer},
 };
 
-pub(crate) mod converter;
 mod macros;
 mod text;
 
-pub use converter::inlines_to_string;
 pub use macros::*;
 pub use text::*;
 
