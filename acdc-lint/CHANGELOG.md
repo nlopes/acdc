@@ -12,4 +12,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial lint command support crate with lint names, lint groups, severity
   overrides, and report types for future AsciiDoc recommended-practice checks.
   The `recommended-practices` group starts with low-noise style checks, while
-  stricter document-header checks remain opt-in by lint name.
+  stricter document-header checks remain opt-in by lint name. Counter naming is
+  intentionally omitted because acdc warns on unsupported counter syntax and
+  removes it from output.

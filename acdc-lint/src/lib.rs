@@ -57,8 +57,6 @@ pub enum LintId {
     DelimitedBlockMinimalDelimiter,
     /// Use `url-` or `uri-` prefixes for URL-valued attributes.
     AttributeUrlPrefix,
-    /// Prefix counter names to avoid document attribute collisions.
-    CounterPrefix,
     /// Use `imagesdir` instead of repeating the image directory in each target.
     Imagesdir,
     /// Use asterisk markers for nested unordered lists.
@@ -95,10 +93,9 @@ impl LintId {
             Self::DocumentTitleRevision => &LINTS[4],
             Self::DelimitedBlockMinimalDelimiter => &LINTS[5],
             Self::AttributeUrlPrefix => &LINTS[6],
-            Self::CounterPrefix => &LINTS[7],
-            Self::Imagesdir => &LINTS[8],
-            Self::NestedUnorderedListMarker => &LINTS[9],
-            Self::AdjacentListSeparator => &LINTS[10],
+            Self::Imagesdir => &LINTS[7],
+            Self::NestedUnorderedListMarker => &LINTS[8],
+            Self::AdjacentListSeparator => &LINTS[9],
         }
     }
 }
@@ -121,7 +118,6 @@ impl FromStr for LintId {
             "document-title-revision" => Ok(Self::DocumentTitleRevision),
             "delimited-block-minimal-delimiter" => Ok(Self::DelimitedBlockMinimalDelimiter),
             "attribute-url-prefix" => Ok(Self::AttributeUrlPrefix),
-            "counter-prefix" => Ok(Self::CounterPrefix),
             "imagesdir" => Ok(Self::Imagesdir),
             "nested-unordered-list-marker" => Ok(Self::NestedUnorderedListMarker),
             "adjacent-list-separator" => Ok(Self::AdjacentListSeparator),
@@ -147,7 +143,7 @@ pub struct LintInfo {
 
 /// The initial lint registry, based on objective rules from Asciidoctor's
 /// recommended-practices draft. Draft TODO sections are intentionally omitted.
-pub const LINTS: [LintInfo; 11] = [
+pub const LINTS: [LintInfo; 10] = [
     LintInfo {
         name: "document-extension",
         id: LintId::DocumentExtension,
@@ -189,12 +185,6 @@ pub const LINTS: [LintInfo; 11] = [
         id: LintId::AttributeUrlPrefix,
         default_level: LintLevel::Warn,
         summary: "prefix URL-valued attributes with url- or uri-",
-    },
-    LintInfo {
-        name: "counter-prefix",
-        id: LintId::CounterPrefix,
-        default_level: LintLevel::Warn,
-        summary: "prefix counter names to avoid attribute collisions",
     },
     LintInfo {
         name: "imagesdir",
@@ -253,7 +243,6 @@ fn is_recommended_practice(lint: LintId) -> bool {
             | LintId::SectionTitleStyle
             | LintId::DelimitedBlockMinimalDelimiter
             | LintId::AttributeUrlPrefix
-            | LintId::CounterPrefix
             | LintId::Imagesdir
             | LintId::NestedUnorderedListMarker
             | LintId::AdjacentListSeparator
@@ -531,6 +520,10 @@ mod tests {
         assert!(matches!(
             "not-real".parse::<LintSelector>(),
             Err(Error::UnknownLintName { name }) if name == "not-real"
+        ));
+        assert!(matches!(
+            "counter-prefix".parse::<LintSelector>(),
+            Err(Error::UnknownLintName { name }) if name == "counter-prefix"
         ));
     }
 
