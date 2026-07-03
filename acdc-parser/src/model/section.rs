@@ -3,7 +3,7 @@ use std::fmt::Display;
 use bumpalo::Bump;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
-use crate::{Block, BlockMetadata, InlineNode, Location, model::inlines::converter};
+use crate::{Block, BlockMetadata, InlineMacro, InlineNode, Location};
 
 use super::title::Title;
 
@@ -169,35 +169,159 @@ impl<'a> Section<'a> {
     /// pass. The `_` prefix on a generated id is added by `SafeId`, so leading
     /// separators here must be squeezed away to avoid a doubled `__`.
     fn id_from_title(title: &[InlineNode<'a>]) -> String {
-        let mut title_text = String::new();
-        // `write_inlines` on a `String` is infallible.
-        let _ = converter::write_inlines(&mut title_text, title);
-        let mut out = String::with_capacity(title_text.len());
+        let mut out = String::new();
         // Start as if a `_` was just emitted so leading separators are dropped.
         let mut last_was_underscore = true;
-        for c in title_text.to_lowercase().chars() {
-            let mapped = if c.is_alphanumeric() {
-                Some(c)
-            } else if c.is_whitespace() || c == '-' || c == '.' || c == '_' {
-                Some('_')
-            } else {
-                None
-            };
-            let Some(ch) = mapped else { continue };
-            if ch == '_' {
-                if !last_was_underscore {
-                    out.push('_');
-                }
-                last_was_underscore = true;
-            } else {
-                out.push(ch);
-                last_was_underscore = false;
-            }
-        }
+        Self::append_id_from_inlines(title, &mut out, &mut last_was_underscore);
         while out.ends_with('_') {
             out.pop();
         }
         out
+    }
+
+    fn append_id_from_inlines(
+        inlines: &[InlineNode<'a>],
+        out: &mut String,
+        last_was_underscore: &mut bool,
+    ) {
+        for node in inlines {
+            match node {
+                InlineNode::PlainText(text) => {
+                    Self::append_id_text(text.content, out, last_was_underscore);
+                }
+                InlineNode::RawText(text) => {
+                    Self::append_id_text(text.content, out, last_was_underscore);
+                }
+                InlineNode::VerbatimText(text) => {
+                    Self::append_id_text(text.content, out, last_was_underscore);
+                }
+                InlineNode::BoldText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::ItalicText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::MonospaceText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::HighlightText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::SubscriptText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::SuperscriptText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::CurvedQuotationText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::CurvedApostropheText(text) => {
+                    Self::append_id_from_inlines(&text.content, out, last_was_underscore);
+                }
+                InlineNode::StandaloneCurvedApostrophe(_) => {
+                    Self::append_id_text("'", out, last_was_underscore);
+                }
+                InlineNode::LineBreak(_) => {
+                    Self::append_id_text(" ", out, last_was_underscore);
+                }
+                InlineNode::InlineAnchor(_) => {}
+                InlineNode::Macro(macro_node) => {
+                    Self::append_id_from_macro(macro_node, out, last_was_underscore);
+                }
+                InlineNode::CalloutRef(callout) => {
+                    Self::append_id_text(
+                        &format!("<{}>", callout.number),
+                        out,
+                        last_was_underscore,
+                    );
+                }
+            }
+        }
+    }
+
+    fn append_id_from_macro(
+        macro_node: &InlineMacro<'a>,
+        out: &mut String,
+        last_was_underscore: &mut bool,
+    ) {
+        match macro_node {
+            InlineMacro::Link(link) => {
+                if link.text.is_empty() {
+                    Self::append_id_text(&link.target.to_string(), out, last_was_underscore);
+                } else {
+                    Self::append_id_from_inlines(&link.text, out, last_was_underscore);
+                }
+            }
+            InlineMacro::Url(url) => {
+                if url.text.is_empty() {
+                    Self::append_id_text(&url.target.to_string(), out, last_was_underscore);
+                } else {
+                    Self::append_id_from_inlines(&url.text, out, last_was_underscore);
+                }
+            }
+            InlineMacro::Mailto(mailto) => {
+                if mailto.text.is_empty() {
+                    Self::append_id_text(&mailto.target.to_string(), out, last_was_underscore);
+                } else {
+                    Self::append_id_from_inlines(&mailto.text, out, last_was_underscore);
+                }
+            }
+            InlineMacro::Autolink(autolink) => {
+                Self::append_id_text(&autolink.url.to_string(), out, last_was_underscore);
+            }
+            InlineMacro::CrossReference(xref) => {
+                if xref.text.is_empty() {
+                    Self::append_id_text(xref.target, out, last_was_underscore);
+                } else {
+                    Self::append_id_from_inlines(&xref.text, out, last_was_underscore);
+                }
+            }
+            InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
+                Self::append_id_text(index_term.term(), out, last_was_underscore);
+            }
+            InlineMacro::Pass(pass) => {
+                Self::append_id_text(pass.text.unwrap_or_default(), out, last_was_underscore);
+            }
+            InlineMacro::Keyboard(keyboard) => {
+                Self::append_id_text(&keyboard.keys.join("+"), out, last_was_underscore);
+            }
+            InlineMacro::Button(button) => {
+                Self::append_id_text(button.label, out, last_was_underscore);
+            }
+            InlineMacro::Menu(menu) => {
+                Self::append_id_text(&menu.items.join(" > "), out, last_was_underscore);
+            }
+            InlineMacro::Image(_)
+            | InlineMacro::Footnote(_)
+            | InlineMacro::Stem(_)
+            | InlineMacro::Icon(_)
+            | InlineMacro::IndexTerm(_) => {}
+        }
+    }
+
+    fn append_id_text(text: &str, out: &mut String, last_was_underscore: &mut bool) {
+        for c in text.chars() {
+            for c in c.to_lowercase() {
+                let mapped = if c.is_alphanumeric() {
+                    Some(c)
+                } else if c.is_whitespace() || c == '-' || c == '.' || c == '_' {
+                    Some('_')
+                } else {
+                    None
+                };
+                let Some(ch) = mapped else { continue };
+                if ch == '_' {
+                    if !*last_was_underscore {
+                        out.push('_');
+                    }
+                    *last_was_underscore = true;
+                } else {
+                    out.push(ch);
+                    *last_was_underscore = false;
+                }
+            }
+        }
     }
 
     /// Pick the explicit id if metadata provides one, else None. Shared by
