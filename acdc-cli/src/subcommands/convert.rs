@@ -235,6 +235,16 @@ pub fn run(args: &Args) -> miette::Result<()> {
             },
         )
         .map_err(|e| error::display(&e)),
+
+        #[cfg(feature = "pdf")]
+        Backend::Pdf => run_processor::<acdc_converters_pdf::Processor, _>(
+            args,
+            options,
+            document_attributes,
+            true,
+            acdc_converters_pdf::Processor::new,
+        )
+        .map_err(|e| error::display(&e)),
     };
 
     let output_paths = output_paths?;
@@ -980,6 +990,8 @@ pub enum BackendArg {
     #[cfg(feature = "markdown")]
     #[value(alias = "md")]
     Markdown,
+    #[cfg(feature = "pdf")]
+    Pdf,
 }
 
 impl std::fmt::Display for BackendArg {
@@ -995,6 +1007,8 @@ impl std::fmt::Display for BackendArg {
             Self::Terminal => f.write_str("terminal"),
             #[cfg(feature = "markdown")]
             Self::Markdown => f.write_str("markdown"),
+            #[cfg(feature = "pdf")]
+            Self::Pdf => f.write_str("pdf"),
         }
     }
 }
@@ -1053,6 +1067,8 @@ enum Backend {
     Terminal,
     #[cfg(feature = "markdown")]
     Markdown(MarkdownVariant),
+    #[cfg(feature = "pdf")]
+    Pdf,
 }
 
 /// Reject a `--variant` for a backend that doesn't define any. Interpolating
@@ -1060,7 +1076,7 @@ enum Backend {
 /// and means a future addition only needs one `resolve` arm, not a bespoke
 /// error string.
 #[cfg(all(
-    any(feature = "manpage", feature = "terminal"),
+    any(feature = "manpage", feature = "pdf", feature = "terminal"),
     any(feature = "html", feature = "markdown")
 ))]
 fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> miette::Result<()> {
@@ -1117,6 +1133,8 @@ impl BackendArg {
             ),
             #[cfg(feature = "manpage")]
             (Self::Manpage, v) => require_no_variant("manpage", v).map(|()| Backend::Manpage),
+            #[cfg(feature = "pdf")]
+            (Self::Pdf, v) => require_no_variant("pdf", v).map(|()| Backend::Pdf),
             #[cfg(feature = "terminal")]
             (Self::Terminal, v) => require_no_variant("terminal", v).map(|()| Backend::Terminal),
         }
@@ -1128,6 +1146,8 @@ impl BackendArg {
         match self {
             #[cfg(feature = "manpage")]
             Self::Manpage => Backend::Manpage,
+            #[cfg(feature = "pdf")]
+            Self::Pdf => Backend::Pdf,
             #[cfg(feature = "terminal")]
             Self::Terminal => Backend::Terminal,
         }

@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one flag, such as `-A delimited-block-minimal-delimiter@977,968`. If a scoped
   override no longer matches any diagnostic, the lint run reports the stale
   location.
+- `--backend pdf` is now available when the `pdf` or `all-backends` feature is
+  enabled. It writes `.pdf` files by default and writes raw PDF bytes when
+  `-o -` is selected.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the
