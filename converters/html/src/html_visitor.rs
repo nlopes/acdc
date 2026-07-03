@@ -363,7 +363,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             writeln!(
                 self.writer,
                 r#"<meta http-equiv="Content-Security-Policy" content="{}">"#,
-                crate::content_security_policy(&self.csp_features())
+                self.csp_features().content_security_policy()
             )?;
         }
 

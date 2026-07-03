@@ -42,7 +42,7 @@ pub(crate) use acdc_converters_core::section::{
     AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
     last_section_has_style,
 };
-pub use csp::{CspFeatures, content_security_policy};
+pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
 /// The `MathJax` assets acdc emits when `:stem:` is set, exposed so embedded-mode

@@ -3,8 +3,8 @@
 //! acdc emits self-contained HTML and, by default, sets no CSP. When the `:csp:`
 //! document attribute is set, standalone output carries a
 //! `<meta http-equiv="Content-Security-Policy">` built by
-//! [`content_security_policy`]. The same builder is public so embedded-mode
-//! consumers (who own their own `<head>`) can reproduce acdc's policy.
+//! [`CspFeatures::content_security_policy`] from the set of features the
+//! rendered document actually uses.
 //!
 //! A CSP is a restriction, not an enabler: the policy locks scripts down to
 //! acdc's own inline scripts (by hash, no `'unsafe-inline'`) plus the `MathJax`
@@ -18,7 +18,7 @@
     clippy::struct_excessive_bools,
     reason = "independent on/off feature flags for selecting CSP sources"
 )]
-pub struct CspFeatures {
+pub(crate) struct CspFeatures {
     /// `:stem:` is set, so the inline `MathJax` config and the `MathJax` CDN loader are
     /// emitted.
     pub stem: bool,
@@ -32,57 +32,59 @@ pub struct CspFeatures {
     pub replay: bool,
 }
 
-/// Build the Content Security Policy value (the `content="..."` string) for the
-/// given features.
-///
-/// `script-src` allow-lists acdc's inline scripts by hash with no
-/// `'unsafe-inline'`; `style-src` keeps `'unsafe-inline'` because acdc emits
-/// inline `style=` widely (e.g. terminal cell colours from recorded data, which
-/// cannot be hashed). Passive directives stay permissive so remote images,
-/// media, and video embeds in document content still load. `frame-ancestors` is
-/// omitted on purpose: it is ignored in a `<meta>` CSP and must be a response
-/// header.
-#[must_use]
-pub fn content_security_policy(features: &CspFeatures) -> String {
-    let mut script_src = String::from("script-src 'self'");
-    #[cfg(feature = "terminal")]
-    if features.replay {
-        script_src.push_str(" '");
-        script_src.push_str(crate::REPLAY_PLAYER_SCRIPT_CSP_HASH);
-        script_src.push('\'');
-    }
-    if features.stem {
-        script_src.push_str(" '");
-        script_src.push_str(crate::MATHJAX_CONFIG_CSP_HASH);
-        script_src.push_str("' https://cdn.jsdelivr.net");
-    }
+impl CspFeatures {
+    /// Build the Content Security Policy value (the `content="..."` string) for
+    /// these features.
+    ///
+    /// `script-src` allow-lists acdc's inline scripts by hash with no
+    /// `'unsafe-inline'`; `style-src` keeps `'unsafe-inline'` because acdc emits
+    /// inline `style=` widely (e.g. terminal cell colours from recorded data,
+    /// which cannot be hashed). Passive directives stay permissive so remote
+    /// images, media, and video embeds in document content still load.
+    /// `frame-ancestors` is omitted on purpose: it is ignored in a `<meta>` CSP
+    /// and must be a response header.
+    #[must_use]
+    pub(crate) fn content_security_policy(self) -> String {
+        let mut script_src = String::from("script-src 'self'");
+        #[cfg(feature = "terminal")]
+        if self.replay {
+            script_src.push_str(" '");
+            script_src.push_str(crate::REPLAY_PLAYER_SCRIPT_CSP_HASH);
+            script_src.push('\'');
+        }
+        if self.stem {
+            script_src.push_str(" '");
+            script_src.push_str(crate::MATHJAX_CONFIG_CSP_HASH);
+            script_src.push_str("' https://cdn.jsdelivr.net");
+        }
 
-    let mut style_src = String::from("style-src 'self' 'unsafe-inline'");
-    if features.webfonts {
-        style_src.push_str(" https://fonts.googleapis.com");
-    }
-    if features.icons_font {
-        style_src.push_str(" https://cdn.jsdelivr.net");
-    }
+        let mut style_src = String::from("style-src 'self' 'unsafe-inline'");
+        if self.webfonts {
+            style_src.push_str(" https://fonts.googleapis.com");
+        }
+        if self.icons_font {
+            style_src.push_str(" https://cdn.jsdelivr.net");
+        }
 
-    let mut font_src = String::from("font-src 'self'");
-    if features.webfonts {
-        font_src.push_str(" https://fonts.gstatic.com");
-    }
-    if features.icons_font {
-        font_src.push_str(" https://cdn.jsdelivr.net");
-    }
+        let mut font_src = String::from("font-src 'self'");
+        if self.webfonts {
+            font_src.push_str(" https://fonts.gstatic.com");
+        }
+        if self.icons_font {
+            font_src.push_str(" https://cdn.jsdelivr.net");
+        }
 
-    [
-        "default-src 'self'",
-        &script_src,
-        &style_src,
-        &font_src,
-        "img-src 'self' data: https:",
-        "media-src 'self' https:",
-        "frame-src https://www.youtube.com https://player.vimeo.com",
-    ]
-    .join("; ")
+        [
+            "default-src 'self'",
+            &script_src,
+            &style_src,
+            &font_src,
+            "img-src 'self' data: https:",
+            "media-src 'self' https:",
+            "frame-src https://www.youtube.com https://player.vimeo.com",
+        ]
+        .join("; ")
+    }
 }
 
 #[cfg(test)]
@@ -91,7 +93,7 @@ mod tests {
 
     #[test]
     fn baseline_locks_scripts_without_unsafe_inline() {
-        let policy = content_security_policy(&CspFeatures::default());
+        let policy = CspFeatures::default().content_security_policy();
         assert!(policy.contains("default-src 'self'"));
         assert!(policy.contains("script-src 'self'"));
         // Scripts are never allowed inline wholesale.
@@ -108,10 +110,11 @@ mod tests {
 
     #[test]
     fn stem_adds_mathjax_hash_and_cdn() {
-        let policy = content_security_policy(&CspFeatures {
+        let policy = CspFeatures {
             stem: true,
             ..CspFeatures::default()
-        });
+        }
+        .content_security_policy();
         assert!(policy.contains(super::super::MATHJAX_CONFIG_CSP_HASH));
         assert!(policy.contains("script-src 'self'"));
         assert!(policy.contains("https://cdn.jsdelivr.net"));
@@ -119,11 +122,12 @@ mod tests {
 
     #[test]
     fn webfonts_and_icons_add_font_hosts() {
-        let policy = content_security_policy(&CspFeatures {
+        let policy = CspFeatures {
             webfonts: true,
             icons_font: true,
             ..CspFeatures::default()
-        });
+        }
+        .content_security_policy();
         assert!(policy.contains("style-src 'self' 'unsafe-inline' https://fonts.googleapis.com"));
         assert!(policy.contains("https://fonts.gstatic.com"));
         // Font Awesome's stylesheet and fonts both come from jsDelivr.
@@ -135,10 +139,11 @@ mod tests {
     #[cfg(feature = "terminal")]
     #[test]
     fn replay_adds_player_hash() {
-        let policy = content_security_policy(&CspFeatures {
+        let policy = CspFeatures {
             replay: true,
             ..CspFeatures::default()
-        });
+        }
+        .content_security_policy();
         assert!(policy.contains(crate::REPLAY_PLAYER_SCRIPT_CSP_HASH));
     }
 }
