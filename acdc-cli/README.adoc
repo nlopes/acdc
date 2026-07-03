@@ -70,7 +70,6 @@ detection, clear remediation, and low expected style noise:
 * `section-title-style`
 * `delimited-block-minimal-delimiter`
 * `attribute-url-prefix`
-* `counter-prefix`
 * `imagesdir`
 * `nested-unordered-list-marker`
 * `adjacent-list-separator`
@@ -78,6 +77,11 @@ detection, clear remediation, and low expected style noise:
 The `document-title-author` and `document-title-revision` lints are available
 by name but are not part of `recommended-practices`; they are intended for
 projects that want stricter document-header policy.
+
+The Asciidoctor draft also recommends prefixed counter names. acdc does not
+currently support counters; the parser already warns on `{counter:...}` and
+`{counter2:...}` and removes them from output, so there is no separate
+`counter-prefix` lint.
 
 The available groups are `all` and `recommended-practices`.
 

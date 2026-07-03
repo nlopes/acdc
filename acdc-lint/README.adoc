@@ -26,12 +26,13 @@ The `recommended-practices` group starts with checks that have clear detection, 
 * `section-title-style`
 * `delimited-block-minimal-delimiter`
 * `attribute-url-prefix`
-* `counter-prefix`
 * `imagesdir`
 * `nested-unordered-list-marker`
 * `adjacent-list-separator`
 
 The `document-title-author` and `document-title-revision` lints are registered but intentionally opt-in because many snippets, partials, and internal docs omit those header lines on purpose.
+
+The Asciidoctor draft also recommends prefixed counter names. acdc does not currently support counters; the parser already warns on `{counter:...}` and `{counter2:...}` and removes them from output, so `counter-prefix` is intentionally omitted.
 
 Available groups are `all` and `recommended-practices`.
 
