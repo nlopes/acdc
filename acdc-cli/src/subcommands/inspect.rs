@@ -4,12 +4,12 @@ use std::{
     path::PathBuf,
 };
 
-use acdc_converters_core::visitor::Visitor;
+use acdc_converters_core::{inlines_to_string, visitor::Visitor};
 use acdc_parser::{
     Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, Location,
     Options, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
-    UnorderedList, Video, inlines_to_string, parse,
+    UnorderedList, Video, parse,
 };
 use crossterm::style::Stylize;
 

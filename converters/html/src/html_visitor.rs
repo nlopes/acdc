@@ -3,7 +3,7 @@
 use std::{io::Write, rc::Rc, string::ToString};
 
 use acdc_converters_core::{
-    Diagnostics,
+    Diagnostics, inlines_to_string,
     visitor::{Visitor, WritableVisitor},
 };
 
@@ -825,7 +825,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         // title attribute to this section; restore the parent (or None) on exit
         // so nested sections pop back correctly.
         let previous_section_title = self.current_section_title.take();
-        self.current_section_title = Some(acdc_parser::inlines_to_string(&section.title));
+        self.current_section_title = Some(inlines_to_string(&section.title));
         let result = self.render_section(section);
         self.current_section_title = previous_section_title;
         self.section_style = previous_style;

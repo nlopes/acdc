@@ -6,8 +6,11 @@ use std::io::Write;
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{Paragraph, inlines_to_string};
+use acdc_converters_core::{
+    inlines_to_string,
+    visitor::{Visitor, WritableVisitor},
+};
+use acdc_parser::Paragraph;
 
 use crate::{
     Error, ManpageVisitor,

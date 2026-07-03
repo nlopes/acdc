@@ -4,8 +4,11 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, inlines_to_string};
+use acdc_converters_core::{
+    inlines_to_string,
+    visitor::{Visitor, WritableVisitor},
+};
+use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
 
 use crate::{
     Error, ManpageVisitor,

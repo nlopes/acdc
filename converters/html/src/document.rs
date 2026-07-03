@@ -1,7 +1,7 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::{Author, Header, inlines_to_string};
+use acdc_converters_core::{inlines_to_string, visitor::WritableVisitor};
+use acdc_parser::{Author, Header};
 
 use crate::{Error, HtmlVisitor};
 

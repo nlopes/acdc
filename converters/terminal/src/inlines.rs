@@ -4,7 +4,7 @@ use std::io::Write;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
-    decode_numeric_char_refs,
+    decode_numeric_char_refs, inlines_to_string,
     substitutions::Replacements,
     visitor::{Visitor, WritableVisitor},
 };
@@ -615,7 +615,7 @@ fn render_cross_reference<W: Write + ?Sized>(
         ))?;
     } else {
         // Render custom text with subtle styling to indicate it's a cross-reference
-        let text = acdc_parser::inlines_to_string(&xref.text);
+        let text = inlines_to_string(&xref.text);
         w.queue(PrintStyledContent(text.blue().underlined()))?;
     }
     Ok(())

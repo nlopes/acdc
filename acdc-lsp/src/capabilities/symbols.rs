@@ -1,8 +1,7 @@
 //! Document symbols: extract full block tree from AST
 
-use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, Section, inlines_to_string,
-};
+use acdc_converters_core::inlines_to_string;
+use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Section};
 use tower_lsp_server::ls_types::{DocumentSymbol, SymbolKind};
 
 use crate::convert::location_to_range;

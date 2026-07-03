@@ -6,7 +6,9 @@ use std::{
     rc::Rc,
 };
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource, visitor::Visitor};
+use acdc_converters_core::{
+    Converter, Diagnostics, Options, WarningSource, inlines_to_string, visitor::Visitor,
+};
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
@@ -179,7 +181,7 @@ impl<'a> Processor<'a> {
                 if let Some(label) = reference.xreflabel {
                     label.to_string()
                 } else if let Some(title) = &reference.title {
-                    acdc_parser::inlines_to_string(title)
+                    inlines_to_string(title)
                 } else {
                     format!("[{target}]")
                 }

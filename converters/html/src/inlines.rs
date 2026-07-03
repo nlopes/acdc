@@ -45,6 +45,7 @@
 use std::io::{self, Write};
 
 use acdc_converters_core::{
+    inlines_to_string,
     substitutions::{restore_escaped_patterns, strip_backslash_escapes},
     visitor::{Visitor, WritableVisitor},
 };
@@ -53,7 +54,7 @@ use acdc_parser::{
     CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
     IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu, Monospace, Pass,
     Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url, Verbatim,
-    inlines_to_string, parse_text_for_quotes, strip_quotes, substitute,
+    parse_text_for_quotes, strip_quotes, substitute,
 };
 
 /// Leak a `&str` into a `&'static str` so index term kinds can be cached

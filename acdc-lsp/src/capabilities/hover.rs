@@ -1,8 +1,7 @@
 //! Hover: show information about elements at cursor position
 
-use acdc_parser::{
-    Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, inlines_to_string,
-};
+use acdc_converters_core::inlines_to_string;
+use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location};
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Uri};
 
 use crate::convert::{location_to_range, offset_in_location, position_to_offset};

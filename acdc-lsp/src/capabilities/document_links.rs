@@ -1,8 +1,7 @@
 //! Document Links: make URLs, file references, and includes clickable
 
-use acdc_parser::{
-    Block, DelimitedBlockType, InlineMacro, InlineNode, Location, inlines_to_string,
-};
+use acdc_converters_core::inlines_to_string;
+use acdc_parser::{Block, DelimitedBlockType, InlineMacro, InlineNode, Location};
 use tower_lsp_server::ls_types::{DocumentLink, Uri};
 
 use crate::convert::{location_to_range, resolve_relative_uri};

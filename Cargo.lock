@@ -133,6 +133,7 @@ dependencies = [
 name = "acdc-lsp"
 version = "0.2.0"
 dependencies = [
+ "acdc-converters-core",
  "acdc-parser",
  "dashmap",
  "fluent-uri",

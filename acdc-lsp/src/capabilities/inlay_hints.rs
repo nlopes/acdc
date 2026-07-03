@@ -1,8 +1,7 @@
 //! Inlay hints: show resolved attribute values and xref titles inline
 
-use acdc_parser::{
-    AttributeValue, Block, DelimitedBlockType, Document, InlineMacro, InlineNode, inlines_to_string,
-};
+use acdc_converters_core::inlines_to_string;
+use acdc_parser::{AttributeValue, Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
 use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
 use crate::convert::location_to_range;
