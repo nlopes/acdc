@@ -16,6 +16,9 @@ For architecture and design decisions, see link:./ARCHITECTURE.adoc[ARCHITECTURE
 # Parse and convert AsciiDoc to HTML
 cargo run --bin acdc -- convert document.adoc
 
+# Inspect the lint command harness and available lint-level flags
+cargo run --bin acdc -- lint --help
+
 # Run the test suite
 cargo nextest run
 ----

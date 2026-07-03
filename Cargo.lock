@@ -11,6 +11,7 @@ dependencies = [
  "acdc-converters-manpage",
  "acdc-converters-markdown",
  "acdc-converters-terminal",
+ "acdc-lint",
  "acdc-parser",
  "anyhow",
  "clap",
@@ -127,6 +128,14 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+]
+
+[[package]]
+name = "acdc-lint"
+version = "0.1.0"
+dependencies = [
+ "acdc-parser",
+ "thiserror",
 ]
 
 [[package]]
