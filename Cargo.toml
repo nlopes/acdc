@@ -10,6 +10,7 @@ members = [
   "converters/html",
   "converters/manpage",
   "converters/markdown",
+  "converters/pdf",
   "converters/terminal",
 ]
 default-members = [
@@ -22,6 +23,7 @@ default-members = [
   "converters/html",
   "converters/manpage",
   "converters/markdown",
+  "converters/pdf",
   "converters/terminal",
 ]
 resolver = "2"
@@ -35,6 +37,7 @@ acdc-converters-dev = { path = "converters/dev" }
 acdc-converters-html = { path = "converters/html", default-features = false }
 acdc-converters-manpage = { path = "converters/manpage", default-features = false }
 acdc-converters-markdown = { path = "converters/markdown" }
+acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }

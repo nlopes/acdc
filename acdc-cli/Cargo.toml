@@ -23,6 +23,7 @@ acdc-parser.workspace = true
 acdc-converters-terminal = { workspace = true, optional = true }
 acdc-converters-manpage = { workspace = true, optional = true }
 acdc-converters-markdown = { workspace = true, optional = true }
+acdc-converters-pdf = { workspace = true, optional = true }
 anyhow = "1.0.100"
 clap.workspace = true
 crossterm.workspace = true
@@ -46,6 +47,7 @@ pre-spec-subs = [
     "acdc-converters-core/pre-spec-subs",
     "acdc-converters-html?/pre-spec-subs",
     "acdc-converters-manpage?/pre-spec-subs",
+    "acdc-converters-pdf?/pre-spec-subs",
     "acdc-converters-terminal?/pre-spec-subs",
     "acdc-lint?/pre-spec-subs",
 ]
@@ -54,6 +56,7 @@ pre-spec-subs = [
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
 manpage = ["dep:acdc-converters-manpage"]      # Manpage (roff/troff) converter for man pages
 markdown = ["dep:acdc-converters-markdown"]    # Markdown converter (CommonMark and GitHub Flavored Markdown)
+pdf = ["dep:acdc-converters-pdf"]              # PDF converter backed by the Rust Typst engine
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
 # Document tools
@@ -80,7 +83,7 @@ setext = ["acdc-parser/setext", "acdc-lint?/setext"]  # Enable Setext-style (und
 network = ["acdc-parser/network", "acdc-lint?/network"]  # Enable remote include parsing
 
 # Feature groups for convenience
-all-backends = ["html", "manpage", "markdown", "terminal"]  # Enable all output converters
+all-backends = ["html", "manpage", "markdown", "pdf", "terminal"]  # Enable all output converters
 dev-tools = ["inspect"]              # Enable development utilities
 test-tools = ["tck"]                 # Enable testing and compliance tools
 
