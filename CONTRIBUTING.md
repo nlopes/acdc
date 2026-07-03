@@ -29,6 +29,7 @@ Thank you for your interest in contributing! This guide covers the essentials. F
 - [README.adoc](README.adoc) - Project overview, building, testing, and development workflow
 - [ARCHITECTURE.adoc](ARCHITECTURE.adoc) - Design decisions and architecture
 - [acdc-cli/README.adoc](acdc-cli/README.adoc) - CLI usage and feature flags
+- [acdc-lint/README.adoc](acdc-lint/README.adoc) - lint support crate and lint-level model
 - [acdc-parser/README.adoc](acdc-parser/README.adoc) - Parser features and details
 - [acdc-lsp/README.md](acdc-lsp/README.md) - Language Server setup and supported LSP capabilities
 - [acdc-editor-wasm/README.md](acdc-editor-wasm/README.md) - WASM live editor (embedding, API, syntax highlighting classes)

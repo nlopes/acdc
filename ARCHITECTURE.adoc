@@ -6,7 +6,7 @@
 
 `acdc` (AsciiDoc Tooling) is a spec-first (really, best effort) AsciiDoc parser and toolchain built in Rust. The project aims to be a potential canonical implementation of the https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang[AsciiDoc Language specification] once it is formalized.
 
-The toolchain includes a parser library, converters for various output formats (HTML, manpage, terminal), a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
+The toolchain includes a parser library, converters for various output formats (HTML, manpage, Markdown, terminal), a linting support crate, a command-line interface, and a Language Server Protocol (LSP) implementation for editor integration.
 
 === What I'm trying to build
 
@@ -222,6 +222,7 @@ The workspace is organized into clearly bounded modules:
 acdc/
 ├── acdc-cli/          # Command-line interface
 ├── acdc-editor-wasm/  # WASM live editor (syntax highlight + HTML preview)
+├── acdc-lint/         # Lint command support and lint registry
 ├── acdc-lsp/          # Language Server Protocol implementation
 ├── acdc-parser/       # Parser library (PEG grammar, preprocessor, AST)
 └── converters/
@@ -233,7 +234,7 @@ acdc/
     └── terminal/      # ANSI terminal output
 ----
 
-This keeps clear boundaries - parser, CLI, LSP, and converters are independently testable. The parser has no knowledge of output formats. Converters and the LSP depend on the parser, not the other way around. New features can be scoped to specific modules without touching everything else.
+This keeps clear boundaries - parser, CLI, linting, LSP, and converters are independently testable. The parser has no knowledge of output formats or lint policy. Converters, linting, and the LSP depend on the parser, not the other way around. New features can be scoped to specific modules without touching everything else.
 
 === Location tracking
 

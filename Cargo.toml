@@ -2,6 +2,7 @@
 members = [
   "acdc-cli",
   "acdc-editor-wasm",
+  "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
   "converters/core",
@@ -13,6 +14,7 @@ members = [
 ]
 default-members = [
   "acdc-cli",
+  "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
   "converters/core",
@@ -34,6 +36,7 @@ acdc-converters-html = { path = "converters/html", default-features = false }
 acdc-converters-manpage = { path = "converters/manpage", default-features = false }
 acdc-converters-markdown = { path = "converters/markdown" }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
+acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }

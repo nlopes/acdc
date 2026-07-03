@@ -18,7 +18,7 @@
 
 | Feature | Default | Crate | Notes |
 |---------|---------|-------|-------|
-| `pre-spec-subs` | on | parser (+ all converters) | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (plumbing & fixtures) |
+| `pre-spec-subs` | on | parser (+ all converters and lint) | `acdc-parser/AGENTS.md` (parser contract) + `converters/AGENTS.md` (converter plumbing & fixtures) |
 | `setext` | on | parser | Setext (two-line underlined) headers |
 | `network` | off | parser | Remote `include::https://...[]` (pulls in `ureq`) |
 | `highlighting` | off | html, terminal | syntect source highlighting |
@@ -56,7 +56,7 @@ All crates have **independent versions** — bump only crates that changed.
 ### Publish status
 
 - **Published to crates.io**: `acdc-parser`
-- **Not published**: `acdc-cli`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
+- **Not published**: `acdc-cli`, `acdc-lint`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
 
 `acdc-cli` and `acdc-lsp` are distributed as binaries but we haven't built a pipeline to produce these as GitHub releases yet; `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
 

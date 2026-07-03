@@ -29,6 +29,7 @@ acdc/
 ├── acdc-cli/                 # Command-line interface
 │   └── src/
 │       └── main.rs          # CLI entry point
+├── acdc-lint/                # Lint command support and lint registry
 ├── acdc-lsp/                 # Language Server Protocol server
 │   └── src/
 │       ├── capabilities/    # LSP features (diagnostics, hover, completion, rename, references, semantic tokens, …)
@@ -54,6 +55,7 @@ acdc/
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)
 * link:./acdc-editor-wasm[acdc-editor-wasm] - WASM live editor with syntax highlighting and preview
+* link:./acdc-lint[acdc-lint] - lint command support and recommended-practice lint registry
 * link:./acdc-lsp[acdc-lsp] - Language Server Protocol implementation
 * link:./acdc-parser[acdc-parser] - AsciiDoc parser library
 * link:./converters[converters] - collection of AsciiDoc converters (HTML, manpage, markdown, terminal)
