@@ -13,7 +13,7 @@ pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-sub
 # Enable syntax highlighting for source blocks using syntect
 highlighting = ["dep:syntect"]
 # Render terminal-converter output into selectable HTML via libghostty-vt.
-terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/render-state", "acdc-converters-terminal/highlighting"]
+terminal = ["dep:acdc-converters-terminal", "acdc-converters-terminal/emulator", "acdc-converters-terminal/highlighting"]
 
 [dependencies]
 acdc-converters-core.workspace = true

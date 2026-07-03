@@ -22,7 +22,7 @@ pub enum Error {
 
     #[cfg(feature = "terminal")]
     #[error(transparent)]
-    TerminalRenderState(#[from] acdc_converters_terminal::cell_grid::Error),
+    TerminalGrid(#[from] acdc_converters_terminal::cell_grid::Error),
 
     #[cfg(feature = "terminal")]
     #[error(transparent)]

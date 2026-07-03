@@ -23,7 +23,7 @@
 | `network` | off | parser | Remote `include::https://...[]` (pulls in `ureq`) |
 | `highlighting` | off | html, terminal | syntect source highlighting |
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
-| `render-state` | off | terminal | libghostty-vt grid rendering |
+| `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
 
 New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.

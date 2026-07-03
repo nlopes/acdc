@@ -12,7 +12,7 @@ default = ["pre-spec-subs"]
 pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
 images = ["dep:viuer"]
 highlighting = ["dep:syntect"]
-render-state = ["dep:libghostty-vt", "dep:asciicast-rs", "dep:serde", "dep:serde_json"]
+emulator = ["dep:libghostty-vt", "dep:asciicast-rs", "dep:serde", "dep:serde_json"]
 
 [dependencies]
 acdc-converters-core.workspace = true
@@ -23,9 +23,9 @@ thiserror.workspace = true
 tracing.workspace = true
 unicode-width.workspace = true
 libghostty-vt = { version = "0.2.0", optional = true }
-# asciicast (.cast) replay parsing (optional - only needed with render-state)
+# asciicast (.cast) replay parsing (optional - only needed with emulator)
 asciicast-rs = { version = "0.3", optional = true }
-# peek the asciicast version before picking a streaming reader (render-state only)
+# peek the asciicast version before picking a streaming reader (emulator only)
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 # syntax highlighting (optional - saves ~7s compile time when disabled)

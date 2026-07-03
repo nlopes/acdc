@@ -53,7 +53,7 @@ Supports all major AsciiDoc constructs:
 - **Tables**: Full table support with headers, footers, cell formatting, cell spanning, and nested tables
 - **Cross-references**: Internal links and anchors
 - **Attributes**: Document-level attribute substitution
-- **Index terms**: Visible `((term))` and concealed `(((term,secondary,tertiary)))` with catalog generation
+- **Index terms**: Visible `((term))` and concealed `\(((term,secondary,tertiary)))` with catalog generation
 
 === Section Numbering
 
