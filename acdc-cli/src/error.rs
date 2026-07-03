@@ -6,6 +6,13 @@
 
 use std::path::Path;
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "pdf",
+    feature = "terminal"
+))]
 use acdc_converters_core::Warning as ConverterWarning;
 #[cfg(feature = "lint")]
 use acdc_lint::{LintDiagnostic, LintLevel};
@@ -282,6 +289,13 @@ impl WarningReport for ParserWarning {
     }
 }
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "pdf",
+    feature = "terminal"
+))]
 impl WarningReport for ConverterWarning {
     fn to_report(&self, context: WarningReportContext<'_>) -> Report {
         build_warning_report(
