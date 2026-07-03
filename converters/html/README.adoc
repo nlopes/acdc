@@ -1,4 +1,8 @@
 = `acdc-converters-html`
+:icons: font
+:toc: right
+
+toc::[]
 
 HTML converter for `AsciiDoc` documents. This is the default backend for `acdc`.
 
@@ -300,6 +304,17 @@ the end, such as a progress bar's live area).
 renders them as a plain listing or literal block with the raw text (ANSI escapes
 included) left as-is, so documents that rely on them will not render the same
 under asciidoctor.
+
+[NOTE]
+====
+Terminal rendering runs the bundled terminal emulator only below the `server`
+safe mode. At `--safe-mode server` or `secure`, source-block previews,
+`[terminal]`, and `[terminal%replay]` degrade to a plain listing block and acdc
+emits a warning, because the emulator feeds document-controlled input through a
+native library (`libghostty-vt`). The default safe mode renders terminal blocks
+normally; raise the safe mode when converting untrusted documents, e.g.
+server-side, to keep that input away from the emulator.
+====
 
 [cols="1,2", options="header"]
 |===

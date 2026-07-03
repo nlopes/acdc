@@ -1623,7 +1623,10 @@ mod tests {
             .strip_prefix("<script>")
             .and_then(|script| script.strip_suffix("</script>"))
             .ok_or("player script must be wrapped in <script> tags")?;
-        let expected = format!("sha256-{}", STANDARD.encode(Sha256::digest(inner.as_bytes())));
+        let expected = format!(
+            "sha256-{}",
+            STANDARD.encode(Sha256::digest(inner.as_bytes()))
+        );
         assert_eq!(super::REPLAY_PLAYER_SCRIPT_CSP_HASH, expected);
         Ok(())
     }
