@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_lint::{LintLevel, LintOptions, LintOverride, LintReport, LintSelector};
+use acdc_lint::{LintLevel, LintOptions, LintOverride, LintReport, LintSelector, Lintable};
 use clap::{ArgAction, ArgMatches, Args as ClapArgs};
 
 /// Lint `AsciiDoc` documents
@@ -66,7 +66,8 @@ pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
         std::io::stdin()
             .read_to_string(&mut source)
             .map_err(|error| miette::miette!("failed to read stdin: {error}"))?;
-        let report = acdc_lint::lint_source(Some("<stdin>"), &source, &options)
+        let report = source
+            .lint(&options)
             .map_err(|error| miette::miette!("lint failed: {error}"))?;
         return finish_report(&report);
     }
@@ -79,7 +80,8 @@ pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
 
     let mut failed = false;
     for file in &args.files {
-        let report = acdc_lint::lint_path(file, &options)
+        let report = file
+            .lint(&options)
             .map_err(|error| miette::miette!("lint failed for {}: {error}", file.display()))?;
         render_report(Some(file), &report);
         failed |= report.has_errors();

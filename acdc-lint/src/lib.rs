@@ -3,9 +3,11 @@
 //! This crate defines the public lint registry, lint levels, and report
 //! structures used by `acdc lint`.
 
-use std::{fmt, path::Path, str::FromStr};
+use std::{fmt, fs, path::Path, str::FromStr};
 
 mod error;
+mod rules;
+mod runner;
 pub use error::Error;
 
 /// A lint severity level.
@@ -165,13 +167,13 @@ pub const LINTS: [LintInfo; 10] = [
     LintInfo {
         name: "document-title-author",
         id: LintId::DocumentTitleAuthor,
-        default_level: LintLevel::Warn,
+        default_level: LintLevel::Allow,
         summary: "include an author line after the document title",
     },
     LintInfo {
         name: "document-title-revision",
         id: LintId::DocumentTitleRevision,
-        default_level: LintLevel::Warn,
+        default_level: LintLevel::Allow,
         summary: "include a revision line after the author line",
     },
     LintInfo {
@@ -434,7 +436,11 @@ impl LintDiagnostic {
 
 impl fmt::Display for LintDiagnostic {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}[{}]: {}", self.level, self.lint, self.message)?;
+        write!(f, "{}[{}]", self.level, self.lint)?;
+        if let Some(location) = &self.location {
+            write!(f, " at {location}")?;
+        }
+        write!(f, ": {}", self.message)?;
         if let Some(help) = &self.help {
             write!(f, "\nhelp: {help}")?;
         }
@@ -476,28 +482,38 @@ impl LintReport {
     }
 }
 
-/// Lints a file.
+/// An input that can be linted as `AsciiDoc`.
 ///
-/// # Errors
-///
-/// Will return parser or I/O errors once lint execution is implemented.
-pub fn lint_path(path: &Path, options: &LintOptions) -> Result<LintReport, Error> {
-    let _ = (path, options);
-    todo!("implement AsciiDoc lint execution for files")
+/// Implemented for filesystem paths and in-memory strings.
+pub trait Lintable {
+    /// Lints this source with `options`.
+    ///
+    /// # Errors
+    ///
+    /// Returns parser errors for invalid `AsciiDoc` input, or I/O errors when
+    /// the source must be read from disk.
+    fn lint(&self, options: &LintOptions) -> Result<LintReport, Error>;
 }
 
-/// Lints an in-memory `AsciiDoc` source.
-///
-/// # Errors
-///
-/// Will return parser errors once lint execution is implemented.
-pub fn lint_source(
-    name: Option<&str>,
-    source: &str,
-    options: &LintOptions,
-) -> Result<LintReport, Error> {
-    let _ = (name, source, options);
-    todo!("implement AsciiDoc lint execution for in-memory sources")
+impl Lintable for Path {
+    fn lint(&self, options: &LintOptions) -> Result<LintReport, Error> {
+        let source = fs::read_to_string(self)?;
+        let parsed = acdc_parser::parse_file(self, &acdc_parser::Options::default())?;
+        Ok(runner::lint_parsed(
+            Some(self.to_path_buf()),
+            Some(self),
+            &source,
+            &parsed,
+            options,
+        ))
+    }
+}
+
+impl Lintable for str {
+    fn lint(&self, options: &LintOptions) -> Result<LintReport, Error> {
+        let parsed = acdc_parser::parse(self, &acdc_parser::Options::default())?;
+        Ok(runner::lint_parsed(None, None, self, &parsed, options))
+    }
 }
 
 #[cfg(test)]
@@ -583,6 +599,14 @@ mod tests {
         assert!(selector.contains(LintId::SectionTitleStyle));
         assert!(!selector.contains(LintId::DocumentTitleAuthor));
         assert!(!selector.contains(LintId::DocumentTitleRevision));
+        assert_eq!(
+            LintId::DocumentTitleAuthor.default_level(),
+            LintLevel::Allow
+        );
+        assert_eq!(
+            LintId::DocumentTitleRevision.default_level(),
+            LintLevel::Allow
+        );
     }
 
     #[test]

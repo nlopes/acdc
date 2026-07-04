@@ -2,7 +2,21 @@
 
 Lint command support for `acdc`.
 
-This crate owns the initial lint registry, lint groups, lint-level model, and report types used by `acdc lint`.
+This crate owns the initial lint registry, lint groups, lint-level model, lint execution, and report types used by `acdc lint`.
+
+== Programmatic use
+
+Bring `Lintable` into scope and call `lint` on a filesystem path or an in-memory string:
+
+[source,rust]
+----
+use std::path::Path;
+
+use acdc_lint::{LintOptions, Lintable};
+
+let report = Path::new("README.adoc").lint(&LintOptions::default())?;
+let report = "= Title\n\nContent.\n".lint(&LintOptions::default())?;
+----
 
 == Lint levels
 
@@ -19,7 +33,7 @@ When multiple flags target the same lint, later flags win unless a previous `for
 
 The initial lint names are based on recommendations from the https://asciidoctor.org/docs/asciidoc-recommended-practices/[Asciidoctor recommended-practices draft].
 
-The `recommended-practices` group starts with checks that have clear detection, clear remediation, and low expected style noise:
+The `recommended-practices` group starts with implemented checks that have clear detection, clear remediation, and low expected style noise:
 
 * `document-extension`
 * `one-sentence-per-line`
