@@ -1,4 +1,6 @@
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Location};
+use acdc_parser::{
+    Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+};
 
 use crate::LintId;
 
@@ -7,7 +9,7 @@ use super::{
     root_list_family, source_line_at, split_first_char,
 };
 
-pub(crate) fn lint_section_title_style(
+pub(crate) fn lint_section_title_styles(
     emitter: &mut LintEmitter<'_>,
     document: &Document<'_>,
     lines: &[SourceLine<'_>],
@@ -105,7 +107,7 @@ fn lint_symmetric_title_line(
     };
     if is_symmetric_atx_title(line.text.trim()) {
         emitter.emit(
-            LintId::SectionTitleStyle,
+            LintId::SectionTitleSymmetricMarker,
             "section title uses symmetric ATX markers",
             Some("remove the closing title marker".to_string()),
             Some(emitter.point_location(line.number, 1)),
@@ -129,13 +131,224 @@ fn lint_setext_title_style(
         let underline = underline_line.text.trim();
         if is_setext_title_pair(title, underline) {
             emitter.emit(
-                LintId::SectionTitleStyle,
+                LintId::SectionTitleSetextStyle,
                 "section title uses setext underline style",
                 Some("use an asymmetric ATX title such as `== Section`".to_string()),
                 Some(emitter.point_location(underline_line.number, 1)),
             );
         }
     }
+}
+
+pub(crate) fn lint_section_title_marker_spacing(
+    emitter: &mut LintEmitter<'_>,
+    lines: &[SourceLine<'_>],
+    skipped_lines: &[bool],
+) {
+    for line in lines {
+        if is_skipped_line(line.number, skipped_lines) {
+            continue;
+        }
+
+        let trimmed = line.text.trim_start();
+        let Some(marker_len) = bad_heading_marker_len(trimmed) else {
+            continue;
+        };
+        let leading_columns = line
+            .text
+            .chars()
+            .take_while(|ch| ch.is_whitespace())
+            .count();
+        emitter.emit(
+            LintId::SectionTitleMarkerSpacing,
+            "section title marker should be followed by whitespace",
+            Some("insert a space after the opening title marker".to_string()),
+            Some(emitter.point_location(
+                line.number,
+                leading_columns.saturating_add(marker_len).saturating_add(1),
+            )),
+        );
+    }
+}
+
+fn bad_heading_marker_len(trimmed: &str) -> Option<usize> {
+    let (marker, _) = split_first_char(trimmed)?;
+    if !matches!(marker, '=' | '#') {
+        return None;
+    }
+
+    let marker_len = trimmed.chars().take_while(|ch| *ch == marker).count();
+    if !(1..=6).contains(&marker_len) {
+        return None;
+    }
+
+    trimmed
+        .chars()
+        .nth(marker_len)
+        .is_some_and(|ch| !ch.is_whitespace())
+        .then_some(marker_len)
+}
+
+pub(crate) fn lint_section_title_capitalization(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+) {
+    if let Some(header) = &document.header {
+        lint_title_capitalization(emitter, header.title.as_ref(), "document title");
+    }
+    lint_section_title_capitalization_blocks(emitter, &document.blocks);
+}
+
+fn lint_section_title_capitalization_blocks(emitter: &mut LintEmitter<'_>, blocks: &[Block<'_>]) {
+    for block in blocks {
+        match block {
+            Block::Admonition(block) => {
+                lint_section_title_capitalization_blocks(emitter, &block.blocks);
+            }
+            Block::CalloutList(list) => {
+                for item in &list.items {
+                    lint_section_title_capitalization_blocks(emitter, &item.blocks);
+                }
+            }
+            Block::DescriptionList(list) => {
+                for item in &list.items {
+                    lint_section_title_capitalization_blocks(emitter, &item.description);
+                }
+            }
+            Block::DelimitedBlock(block) => {
+                lint_section_title_capitalization_delimited_block(emitter, block);
+            }
+            Block::DiscreteHeader(header) => {
+                lint_title_capitalization(emitter, header.title.as_ref(), "discrete heading");
+            }
+            Block::OrderedList(list) => {
+                for item in &list.items {
+                    lint_section_title_capitalization_blocks(emitter, &item.blocks);
+                }
+            }
+            Block::Section(section) => {
+                lint_title_capitalization(emitter, section.title.as_ref(), "section title");
+                lint_section_title_capitalization_blocks(emitter, &section.content);
+            }
+            Block::UnorderedList(list) => {
+                for item in &list.items {
+                    lint_section_title_capitalization_blocks(emitter, &item.blocks);
+                }
+            }
+            Block::Audio(_)
+            | Block::Comment(_)
+            | Block::DocumentAttribute(_)
+            | Block::Image(_)
+            | Block::PageBreak(_)
+            | Block::Paragraph(_)
+            | Block::TableOfContents(_)
+            | Block::ThematicBreak(_)
+            | Block::Video(_)
+            | _ => {}
+        }
+    }
+}
+
+fn lint_section_title_capitalization_delimited_block(
+    emitter: &mut LintEmitter<'_>,
+    block: &DelimitedBlock<'_>,
+) {
+    match &block.inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks) => {
+            lint_section_title_capitalization_blocks(emitter, blocks);
+        }
+        DelimitedBlockType::DelimitedComment(_)
+        | DelimitedBlockType::DelimitedListing(_)
+        | DelimitedBlockType::DelimitedLiteral(_)
+        | DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        | DelimitedBlockType::DelimitedTable(_)
+        | DelimitedBlockType::DelimitedVerse(_)
+        | _ => {}
+    }
+}
+
+fn lint_title_capitalization(
+    emitter: &mut LintEmitter<'_>,
+    title: &[InlineNode<'_>],
+    title_kind: &str,
+) {
+    let Some((first, location)) = first_alphabetic_inlines(title) else {
+        return;
+    };
+    if !first.is_lowercase() {
+        return;
+    }
+
+    emitter.emit(
+        LintId::SectionTitleCapitalization,
+        format!("{title_kind} should start with an uppercase letter"),
+        Some("capitalize the first word of the title".to_string()),
+        Some(emitter.source_location(location)),
+    );
+}
+
+fn first_alphabetic_inlines<'nodes>(
+    nodes: &'nodes [InlineNode<'_>],
+) -> Option<(char, &'nodes Location)> {
+    for node in nodes {
+        let found = match node {
+            InlineNode::PlainText(text) => first_alphabetic_text(text.content, &text.location),
+            InlineNode::RawText(text) => first_alphabetic_text(text.content, &text.location),
+            InlineNode::VerbatimText(text) => first_alphabetic_text(text.content, &text.location),
+            InlineNode::BoldText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::CurvedApostropheText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::CurvedQuotationText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::HighlightText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::ItalicText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::MonospaceText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::SubscriptText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::SuperscriptText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::Macro(macro_node) => first_alphabetic_macro(macro_node),
+            InlineNode::CalloutRef(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::LineBreak(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | _ => None,
+        };
+        if found.is_some() {
+            return found;
+        }
+    }
+    None
+}
+
+fn first_alphabetic_macro<'nodes>(
+    macro_node: &'nodes InlineMacro<'_>,
+) -> Option<(char, &'nodes Location)> {
+    match macro_node {
+        InlineMacro::Button(button) => first_alphabetic_text(button.label, &button.location),
+        InlineMacro::CrossReference(reference) => first_alphabetic_inlines(&reference.text),
+        InlineMacro::Footnote(footnote) => first_alphabetic_inlines(&footnote.content),
+        InlineMacro::Link(link) => first_alphabetic_inlines(&link.text),
+        InlineMacro::Mailto(mailto) => first_alphabetic_inlines(&mailto.text),
+        InlineMacro::Menu(menu) => first_alphabetic_text(menu.target, &menu.location),
+        InlineMacro::Pass(pass) => pass
+            .text
+            .and_then(|text| first_alphabetic_text(text, &pass.location)),
+        InlineMacro::Url(url) => first_alphabetic_inlines(&url.text),
+        InlineMacro::Autolink(_)
+        | InlineMacro::Icon(_)
+        | InlineMacro::Image(_)
+        | InlineMacro::IndexTerm(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Stem(_)
+        | _ => None,
+    }
+}
+
+fn first_alphabetic_text<'a>(text: &str, location: &'a Location) -> Option<(char, &'a Location)> {
+    text.chars()
+        .find(|ch| ch.is_alphabetic())
+        .map(|ch| (ch, location))
 }
 
 pub(crate) fn lint_document_header(
@@ -340,26 +553,42 @@ mod tests {
     use super::super::test_support::{has_lint, report_for};
 
     #[test]
-    fn section_title_style_flags_symmetric_titles() -> Result<(), Error> {
+    fn section_title_symmetric_marker_flags_symmetric_titles() -> Result<(), Error> {
         let report = report_for("= Title\n\n== Section ==\n\nContent.\n")?;
 
-        assert!(has_lint(&report, LintId::SectionTitleStyle));
+        assert!(has_lint(&report, LintId::SectionTitleSymmetricMarker));
         Ok(())
     }
 
     #[test]
-    fn section_title_style_ignores_symmetric_title_text_inside_listing() -> Result<(), Error> {
+    fn section_title_symmetric_marker_ignores_text_inside_listing() -> Result<(), Error> {
         let report = report_for("= Title\n\n----\n== Not Section ==\n----\n")?;
 
-        assert!(!has_lint(&report, LintId::SectionTitleStyle));
+        assert!(!has_lint(&report, LintId::SectionTitleSymmetricMarker));
         Ok(())
     }
 
     #[test]
-    fn section_title_style_flags_setext_title_pairs() -> Result<(), Error> {
+    fn section_title_setext_style_flags_setext_title_pairs() -> Result<(), Error> {
         let report = report_for("= Title\n\nSetext\n^^^^^^\n\nContent.\n")?;
 
-        assert!(has_lint(&report, LintId::SectionTitleStyle));
+        assert!(has_lint(&report, LintId::SectionTitleSetextStyle));
+        Ok(())
+    }
+
+    #[test]
+    fn section_title_marker_spacing_flags_missing_space() -> Result<(), Error> {
+        let report = report_for("= Title\n\n==Section\n\nContent.\n")?;
+
+        assert!(has_lint(&report, LintId::SectionTitleMarkerSpacing));
+        Ok(())
+    }
+
+    #[test]
+    fn section_title_capitalization_flags_lowercase_titles() -> Result<(), Error> {
+        let report = report_for("= title\n\n== section\n\nContent.\n")?;
+
+        assert!(has_lint(&report, LintId::SectionTitleCapitalization));
         Ok(())
     }
 
