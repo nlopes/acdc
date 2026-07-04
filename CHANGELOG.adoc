@@ -9,7 +9,7 @@ This project uses per-crate changelogs. See the relevant crate for its changelog
 == Tools
 
 - link:acdc-cli/CHANGELOG.md[acdc-cli]: This is the main binary for the command line processor. Think of it as the equivalent to the `asciidoctor` tool.
-- link:acdc-lint/CHANGELOG.md[acdc-lint]: Shared lint command support and lint registry primitives for AsciiDoc recommended-practice checks.
+- link:acdc-lint/CHANGELOG.md[acdc-lint]: Shared lint command support for https://asciidoctor.org/docs/asciidoc-recommended-practices/[AsciiDoc recommended-practice checks].
 - link:acdc-lsp/CHANGELOG.md[acdc-lsp]: A Language Server Protocol (LSP) implementation for AsciiDoc documents, powered by link:acdc-parser[].
 - link:acdc-editor-wasm/CHANGELOG.md[acdc-editor-wasm]: A WebAssembly-based AsciiDoc live editor with syntax highlighting and HTML preview.
 

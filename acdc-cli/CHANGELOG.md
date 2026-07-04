@@ -35,8 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `document-title-revision` lints are available by name but are not part of
   the `recommended-practices` group. Counter naming is not exposed as a lint
   because acdc already warns that counters are unsupported and removes them
-  from output. The lint checks themselves are placeholders for a follow-up
-  implementation.
+  from output.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the
