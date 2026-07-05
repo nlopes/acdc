@@ -254,7 +254,7 @@ fn run_multiple_document_title(emitter: &mut LintEmitter<'_>, context: &LintCont
 }
 
 fn run_delimited_blocks(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    blocks::lint_blocks(emitter, &context.document().blocks);
+    blocks::lint_blocks(emitter, &context.document().blocks, context.lines);
 }
 
 fn run_section_title_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {

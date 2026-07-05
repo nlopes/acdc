@@ -463,18 +463,18 @@ Prefer linting the assembled document in that case.
 
 .Bad
 [source,asciidoc]
-------
+-----
 ----
 code sample
-------
+-----
 
 .Good
 [source,asciidoc]
-------
+-----
 ----
 code sample
 ----
-------
+-----
 
 [[lint-unterminated-table]]
 === `unterminated-table`
@@ -761,7 +761,7 @@ Groups:: `all`, `recommended-practices`, `source-format`
 
 ==== What it does
 
-Checks for delimited block fences longer than the minimum required delimiter.
+Checks for delimited block fences longer than the shortest delimiter that can safely enclose the block content.
 
 ==== Why it is bad
 
@@ -771,24 +771,32 @@ Minimal delimiters are easier to recognize and keep consistent.
 ==== Drawbacks
 
 Longer delimiters may be necessary when documenting delimiter syntax inside a block.
-Allow this lint for teaching material or generated examples that need nested delimiters.
+The lint accounts for that and allows the shortest delimiter length that does not appear as a matching delimiter line inside the block.
 
 ==== Example
 
 .Bad
 [source,asciidoc]
---------
+-------
 ------
 code sample
 ------
---------
+-------
+
+.Good
+[source,asciidoc]
+-----
+----
+code sample
+----
+-----
 
 .Good
 [source,asciidoc]
 ------
+-----
 ----
-code sample
-----
+-----
 ------
 
 [[lint-section-title-marker-spacing]]
@@ -925,22 +933,22 @@ Allow this lint for generated files or compact examples.
 
 .Bad
 [source,asciidoc]
-------
+-----
 Intro text.
 ----
 code sample
 ----
-------
+-----
 
 .Good
 [source,asciidoc]
-------
+-----
 Intro text.
 
 ----
 code sample
 ----
-------
+-----
 
 [[lint-delimited-block-trailing-blank-line]]
 === `delimited-block-trailing-blank-line`
@@ -967,22 +975,22 @@ Allow this lint for generated or space-constrained examples.
 
 .Bad
 [source,asciidoc]
-------
+-----
 ----
 code sample
 ----
 Next paragraph.
-------
+-----
 
 .Good
 [source,asciidoc]
-------
+-----
 ----
 code sample
 ----
 
 Next paragraph.
-------
+-----
 
 [[lint-trailing-whitespace]]
 === `trailing-whitespace`
@@ -1564,12 +1572,12 @@ fn main() {}
 
 .Good
 [source,asciidoc]
-------
+-----
 [source,rust]
 ----
 fn main() {}
 ----
-------
+-----
 
 [[lint-markdown-table]]
 === `markdown-table`

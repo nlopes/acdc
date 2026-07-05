@@ -378,10 +378,10 @@ pub const LINTS: &[LintInfo] = &[
         id: LintId::DelimitedBlockMinimalDelimiter,
         default_level: LintLevel::Warn,
         summary: "use minimum required delimited block fences",
-        explanation: "Checks delimited blocks for fences longer than the minimum required by \
-                      AsciiDoc. Minimal delimiters reduce visual noise while preserving block \
-                      semantics.",
-        help: Some("shorten the opening and closing block delimiters"),
+        explanation: "Checks delimited blocks for fences longer than the shortest delimiter that \
+                      can safely enclose the block content. Minimal delimiters reduce visual \
+                      noise while preserving block semantics.",
+        help: Some("shorten the opening and closing block delimiters to the shortest safe length"),
     },
     LintInfo {
         name: "section-title-marker-spacing",
