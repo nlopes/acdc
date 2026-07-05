@@ -591,7 +591,10 @@ fn line_after(line: u32) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Error, LintId, LintLevel, LintOptions, LintOverride, LintSelector, Lintable};
+    use crate::{
+        Error, LintId, LintLevel, LintOptions, LintOverride, LintSelector, LintSourcePosition,
+        LintSourceRange, Lintable,
+    };
 
     use super::super::test_support::{has_lint, report_for};
 
@@ -673,6 +676,51 @@ mod tests {
             &report,
             LintId::SectionTitleCapitalizationMonospace
         ));
+        Ok(())
+    }
+
+    #[test]
+    fn location_scoped_override_only_suppresses_matching_title() -> Result<(), Error> {
+        let source = "= title\n\n== section\n\nContent.\n";
+        let options = LintOptions::new(vec![LintOverride::with_location(
+            LintLevel::Allow,
+            LintSelector::Lint(LintId::SectionTitleCapitalization),
+            LintSourceRange::point(LintSourcePosition::new(1, None)),
+        )]);
+        let report = source.lint(&options)?;
+        let diagnostics = report
+            .diagnostics()
+            .iter()
+            .filter(|diagnostic| diagnostic.lint() == LintId::SectionTitleCapitalization)
+            .collect::<Vec<_>>();
+
+        assert_eq!(diagnostics.len(), 1);
+        let diagnostic = diagnostics.first();
+        assert_eq!(
+            diagnostic
+                .and_then(|diagnostic| diagnostic.location())
+                .map(|location| location.location.start.line),
+            Some(3)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn location_scoped_override_reports_stale_location() -> Result<(), Error> {
+        let source = "= Title\n\nContent.\n";
+        let options = LintOptions::new(vec![LintOverride::with_location(
+            LintLevel::Allow,
+            LintSelector::Lint(LintId::SectionTitleCapitalization),
+            LintSourceRange::point(LintSourcePosition::new(1, None)),
+        )]);
+        let report = source.lint(&options)?;
+
+        assert!(report.diagnostics().iter().any(|diagnostic| {
+            diagnostic.lint() == LintId::SectionTitleCapitalization
+                && diagnostic
+                    .message()
+                    .contains("did not match any diagnostic")
+        }));
         Ok(())
     }
 

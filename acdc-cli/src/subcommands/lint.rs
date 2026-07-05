@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_lint::{LintLevel, LintOptions, LintOverride, LintReport, LintSelector, Lintable};
+use acdc_lint::{LintLevel, LintOptions, LintOverride, LintOverrideSelector, LintReport, Lintable};
 use clap::{ArgAction, ArgMatches, Args as ClapArgs, ValueEnum};
 
 use crate::error;
@@ -33,45 +33,45 @@ pub struct Args {
     #[arg(conflicts_with = "stdin")]
     pub files: Vec<PathBuf>,
 
-    /// Suppress a lint or lint group
+    /// Suppress a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
         short = 'A',
         long = "allow",
-        value_name = "LINT",
-        value_parser = clap::value_parser!(LintSelector),
+        value_name = "LINT[@LOCATION[,LOCATION]...]",
+        value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub allow: Vec<LintSelector>,
+    pub allow: Vec<LintOverrideSelector>,
 
-    /// Warn on a lint or lint group
+    /// Warn on a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
         short = 'W',
         long = "warn",
-        value_name = "LINT",
-        value_parser = clap::value_parser!(LintSelector),
+        value_name = "LINT[@LOCATION[,LOCATION]...]",
+        value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub warn: Vec<LintSelector>,
+    pub warn: Vec<LintOverrideSelector>,
 
-    /// Deny a lint or lint group
+    /// Deny a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
         short = 'D',
         long = "deny",
-        value_name = "LINT",
-        value_parser = clap::value_parser!(LintSelector),
+        value_name = "LINT[@LOCATION[,LOCATION]...]",
+        value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub deny: Vec<LintSelector>,
+    pub deny: Vec<LintOverrideSelector>,
 
-    /// Forbid a lint or lint group so later flags cannot lower it
+    /// Forbid a lint or lint group so later flags cannot lower it, optionally scoped as LINT@LOCATION[,LOCATION]...
     #[arg(
         short = 'F',
         long = "forbid",
-        value_name = "LINT",
-        value_parser = clap::value_parser!(LintSelector),
+        value_name = "LINT[@LOCATION[,LOCATION]...]",
+        value_parser = clap::value_parser!(LintOverrideSelector),
         action = ArgAction::Append
     )]
-    pub forbid: Vec<LintSelector>,
+    pub forbid: Vec<LintOverrideSelector>,
 
     /// Diagnostic output style
     #[arg(long = "output-style", value_enum, default_value = "full")]
@@ -230,22 +230,23 @@ fn collect_overrides(
     let Some(indices) = matches.indices_of(id) else {
         return Ok(());
     };
-    let Some(selectors) = matches.get_many::<LintSelector>(id) else {
+    let Some(selectors) = matches.get_many::<LintOverrideSelector>(id) else {
         return Err(miette::miette!(
             "internal error: missing values for lint flag `{id}`"
         ));
     };
 
-    indexed.extend(
-        indices
-            .zip(selectors.copied())
-            .map(|(index, selector)| (index, LintOverride::new(level, selector))),
-    );
+    for (index, selector) in indices.zip(selectors) {
+        for lint_override in selector.clone().into_overrides(level) {
+            indexed.push((index, lint_override));
+        }
+    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use acdc_lint::{LintId, LintSelector, LintSourcePosition, LintSourceRange};
     use clap::CommandFactory;
 
     use super::*;
@@ -289,6 +290,57 @@ mod tests {
                 LintOverride::new(
                     LintLevel::Allow,
                     LintSelector::Lint(acdc_lint::LintId::OneSentencePerLine),
+                ),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parses_location_scoped_lint_level_flags() -> miette::Result<()> {
+        let matches = lint_matches([
+            "acdc",
+            "lint",
+            "-A",
+            "section-title-capitalization@37",
+            "doc.adoc",
+        ])?;
+        let overrides = ordered_overrides(&matches)?;
+
+        assert_eq!(
+            overrides,
+            vec![LintOverride::with_location(
+                LintLevel::Allow,
+                LintSelector::Lint(LintId::SectionTitleCapitalization),
+                LintSourceRange::point(LintSourcePosition::new(37, None)),
+            )]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn expands_comma_separated_lint_location_flags() -> miette::Result<()> {
+        let matches = lint_matches([
+            "acdc",
+            "lint",
+            "--allow",
+            "delimited-block-minimal-delimiter@977,968",
+            "doc.adoc",
+        ])?;
+        let overrides = ordered_overrides(&matches)?;
+
+        assert_eq!(
+            overrides,
+            vec![
+                LintOverride::with_location(
+                    LintLevel::Allow,
+                    LintSelector::Lint(LintId::DelimitedBlockMinimalDelimiter),
+                    LintSourceRange::point(LintSourcePosition::new(977, None)),
+                ),
+                LintOverride::with_location(
+                    LintLevel::Allow,
+                    LintSelector::Lint(LintId::DelimitedBlockMinimalDelimiter),
+                    LintSourceRange::point(LintSourcePosition::new(968, None)),
                 ),
             ]
         );

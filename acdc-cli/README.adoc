@@ -89,6 +89,21 @@ currently support counters; the parser already warns on `{counter:...}` and
 The available groups are `all`, `recommended-practices`, `document-structure`,
 `source-format`, `semantic-asciidoc`, and `resources`.
 
+Level flags can be scoped to one source location for an individual lint ID:
+
+[source,console]
+....
+acdc lint -A section-title-capitalization@37 docs/architecture.adoc
+acdc lint -D image-alt-text@10:1-10:80 docs/architecture.adoc
+acdc lint -A delimited-block-minimal-delimiter@977,968 docs/architecture.adoc
+....
+
+Supported scopes are `LINE`, `START-END`, `LINE:COLUMN`, and `LINE:COLUMN-LINE:COLUMN`.
+Multiple scopes for the same lint ID can be separated with commas after one `@`.
+Line-only scopes match any diagnostic on that line.
+Scoped overrides apply to lint IDs, not groups.
+When the selected location no longer matches any diagnostic, `acdc lint` reports the stale override.
+
 === tck
 
 Run TCK (Test Compatibility Kit) compliance tests. Reads JSON from stdin and outputs AST as JSON. Only available with `--features tck`.
