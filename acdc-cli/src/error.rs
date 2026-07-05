@@ -64,6 +64,26 @@ pub(crate) struct PlainWarning {
     advice: Option<String>,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct WarningReportContext<'a> {
+    file: Option<&'a Path>,
+}
+
+impl<'a> WarningReportContext<'a> {
+    pub(crate) const fn new() -> Self {
+        Self { file: None }
+    }
+
+    pub(crate) const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
+        self
+    }
+}
+
+pub(crate) trait WarningReport {
+    fn to_report(&self, context: WarningReportContext<'_>) -> Report;
+}
+
 #[cfg(feature = "lint")]
 #[derive(Debug, thiserror::Error)]
 #[error("{message}")]
@@ -112,6 +132,45 @@ pub(crate) struct CompactLintDiagnostic {
     code: String,
     severity: Severity,
     advice: Option<String>,
+}
+
+#[cfg(feature = "lint")]
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct LintDiagnosticReportContext<'a> {
+    file: Option<&'a Path>,
+    source_name: Option<&'a str>,
+    source: Option<&'a str>,
+}
+
+#[cfg(feature = "lint")]
+impl<'a> LintDiagnosticReportContext<'a> {
+    pub(crate) const fn new() -> Self {
+        Self {
+            file: None,
+            source_name: None,
+            source: None,
+        }
+    }
+
+    pub(crate) const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
+        self
+    }
+
+    pub(crate) const fn with_optional_source_name(mut self, source_name: Option<&'a str>) -> Self {
+        self.source_name = source_name;
+        self
+    }
+
+    pub(crate) const fn with_optional_source(mut self, source: Option<&'a str>) -> Self {
+        self.source = source;
+        self
+    }
+}
+
+#[cfg(feature = "lint")]
+pub(crate) trait LintDiagnosticReport {
+    fn to_report(&self, context: LintDiagnosticReportContext<'_>) -> Report;
 }
 
 #[cfg(feature = "lint")]
@@ -218,30 +277,26 @@ fn build_warning_report(
     }
 }
 
-/// Render a parser warning as a miette `Report`.
-pub(crate) fn parser_warning_report(
-    warning: &ParserWarning,
-    fallback_file: Option<&Path>,
-) -> Report {
-    build_warning_report(
-        warning.kind.to_string(),
-        warning.advice().map(str::to_string),
-        warning.source_location(),
-        fallback_file,
-    )
+impl WarningReport for ParserWarning {
+    fn to_report(&self, context: WarningReportContext<'_>) -> Report {
+        build_warning_report(
+            self.kind.to_string(),
+            self.advice().map(str::to_string),
+            self.source_location(),
+            context.file,
+        )
+    }
 }
 
-/// Render a converter warning as a miette `Report`.
-pub(crate) fn converter_warning_report(
-    warning: &ConverterWarning,
-    fallback_file: Option<&Path>,
-) -> Report {
-    build_warning_report(
-        warning.to_string(),
-        warning.advice().map(str::to_string),
-        warning.source_location(),
-        fallback_file,
-    )
+impl WarningReport for ConverterWarning {
+    fn to_report(&self, context: WarningReportContext<'_>) -> Report {
+        build_warning_report(
+            self.to_string(),
+            self.advice().map(str::to_string),
+            self.source_location(),
+            context.file,
+        )
+    }
 }
 
 #[cfg(feature = "lint")]
@@ -253,52 +308,49 @@ fn severity_for_lint_level(level: LintLevel) -> Severity {
 }
 
 #[cfg(feature = "lint")]
-pub(crate) fn lint_diagnostic_report(
-    diagnostic: &LintDiagnostic,
-    fallback_file: Option<&Path>,
-    fallback_source_name: Option<&str>,
-    fallback_source: Option<&str>,
-) -> Report {
-    let message = diagnostic.message().to_owned();
-    let code = diagnostic.lint().name().to_owned();
-    let severity = severity_for_lint_level(diagnostic.level());
-    let advice = diagnostic.help().map(str::to_string);
+impl LintDiagnosticReport for LintDiagnostic {
+    fn to_report(&self, context: LintDiagnosticReportContext<'_>) -> Report {
+        let message = self.message().to_owned();
+        let code = self.lint().name().to_owned();
+        let severity = severity_for_lint_level(self.level());
+        let advice = self.help().map(str::to_string);
 
-    let full = diagnostic.location().and_then(|loc| {
-        let (name, source_str) = match loc.file.as_deref().or(fallback_file) {
-            Some(path) => (
-                path.display().to_string(),
-                std::fs::read_to_string(path).ok()?,
-            ),
-            None => (
-                fallback_source_name.unwrap_or("<stdin>").to_owned(),
-                fallback_source?.to_owned(),
-            ),
-        };
-        let span = source_span_from_source_location(loc, &source_str);
-        let (line, column) = source_location_line_column(loc);
-        Some(FullLintDiagnostic {
-            message: message.clone(),
-            code: code.clone(),
-            severity,
-            advice: advice.clone(),
-            src: NamedSource::new(name, source_str),
-            span,
-            position_advice: format!(
-                "{} triggered here (line {line}, column {column})",
-                diagnostic.lint()
-            ),
-        })
-    });
+        let full = self.location().and_then(|loc| {
+            let (name, source_str) = match loc.file.as_deref().or(context.file) {
+                Some(path) => (
+                    path.display().to_string(),
+                    std::fs::read_to_string(path).ok()?,
+                ),
+                None => (
+                    context.source_name.unwrap_or("<stdin>").to_owned(),
+                    context.source?.to_owned(),
+                ),
+            };
+            let span = source_span_from_source_location(loc, &source_str);
+            let (line, column) = source_location_line_column(loc);
+            Some(FullLintDiagnostic {
+                message: message.clone(),
+                code: code.clone(),
+                severity,
+                advice: advice.clone(),
+                src: NamedSource::new(name, source_str),
+                span,
+                position_advice: format!(
+                    "{} triggered here (line {line}, column {column})",
+                    self.lint()
+                ),
+            })
+        });
 
-    match full {
-        Some(full) => Report::new(full),
-        None => Report::new(CompactLintDiagnostic {
-            message,
-            code,
-            severity,
-            advice,
-        }),
+        match full {
+            Some(full) => Report::new(full),
+            None => Report::new(CompactLintDiagnostic {
+                message,
+                code,
+                severity,
+                advice,
+            }),
+        }
     }
 }
 

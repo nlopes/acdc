@@ -9,7 +9,7 @@ use acdc_lint::{
 };
 use clap::{ArgAction, ArgMatches, Args as ClapArgs, ValueEnum};
 
-use crate::error;
+use crate::error::{LintDiagnosticReport, LintDiagnosticReportContext};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum OutputStyle {
@@ -209,16 +209,12 @@ impl ReportRenderer for LintReport {
     }
 
     fn render_full(&self, context: LintReportRenderContext<'_>) {
+        let context = LintDiagnosticReportContext::new()
+            .with_optional_file(context.file)
+            .with_optional_source_name(context.source_name)
+            .with_optional_source(context.source);
         for diagnostic in self.diagnostics() {
-            eprintln!(
-                "{:?}",
-                error::lint_diagnostic_report(
-                    diagnostic,
-                    context.file,
-                    context.source_name,
-                    context.source,
-                )
-            );
+            eprintln!("{:?}", diagnostic.to_report(context));
         }
     }
 
