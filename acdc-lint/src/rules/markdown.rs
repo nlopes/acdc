@@ -29,7 +29,7 @@ fn lint_markdown_lines(emitter: &mut LintEmitter<'_>, lines: &[SourceLine<'_>]) 
             emitter.emit(
                 LintId::MarkdownCodeFence,
                 "Markdown code fence used in AsciiDoc source",
-                Some("use an AsciiDoc listing block delimiter such as `----`".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
             active_delimiter = Some(delimiter.to_string());
@@ -45,7 +45,7 @@ fn lint_markdown_lines(emitter: &mut LintEmitter<'_>, lines: &[SourceLine<'_>]) 
             emitter.emit(
                 LintId::MarkdownHeading,
                 "Markdown heading marker used in AsciiDoc source",
-                Some("use AsciiDoc section markers such as `== Section`".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
         }
@@ -54,7 +54,7 @@ fn lint_markdown_lines(emitter: &mut LintEmitter<'_>, lines: &[SourceLine<'_>]) 
             emitter.emit(
                 LintId::MarkdownImage,
                 "Markdown image syntax used in AsciiDoc source",
-                Some("use `image::target[alt]` or `image:target[alt]`".to_string()),
+                None,
                 Some(emitter.point_location(line.number, column)),
             );
         }
@@ -63,7 +63,7 @@ fn lint_markdown_lines(emitter: &mut LintEmitter<'_>, lines: &[SourceLine<'_>]) 
             emitter.emit(
                 LintId::MarkdownLink,
                 "Markdown link syntax used in AsciiDoc source",
-                Some("use `link:target[text]` or an AsciiDoc URL macro".to_string()),
+                None,
                 Some(emitter.point_location(line.number, column)),
             );
         }
@@ -88,7 +88,7 @@ fn lint_markdown_tables(
             emitter.emit(
                 LintId::MarkdownTable,
                 "Markdown table syntax used in AsciiDoc source",
-                Some("use an AsciiDoc table block such as `|===`".to_string()),
+                None,
                 Some(emitter.point_location(separator.number, 1)),
             );
         }

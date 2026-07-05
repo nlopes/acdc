@@ -17,12 +17,7 @@ pub(crate) fn lint_document_extension(emitter: &mut LintEmitter<'_>, path: &Path
     } else {
         "AsciiDoc files should use the .adoc extension"
     };
-    emitter.emit(
-        LintId::DocumentExtension,
-        message,
-        Some("rename the file to use the .adoc extension".to_string()),
-        None,
-    );
+    emitter.emit(LintId::DocumentExtension, message, None, None);
 }
 
 pub(crate) fn lint_parser_warnings(emitter: &mut LintEmitter<'_>, parsed: &ParseResult) {
@@ -90,7 +85,7 @@ pub(crate) fn lint_multiple_document_title(
             emitter.emit(
                 LintId::MultipleDocumentTitle,
                 "document contains more than one top-level document title",
-                Some("use section titles (`==`) after the document title".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
         }

@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
 use acdc_parser::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, Image, InlineMacro, InlineNode, Source,
+    Block, CalloutList, DelimitedBlock, DelimitedBlockType, DescriptionList, Document, Image,
+    InlineMacro, InlineNode, OrderedList, Paragraph, Section, Source, UnorderedList,
 };
 
 use crate::LintId;
@@ -28,16 +29,10 @@ fn lint_resource_blocks(
                 lint_resource_blocks(emitter, document, &block.blocks, source_path);
             }
             Block::CalloutList(list) => {
-                for item in &list.items {
-                    lint_resource_blocks(emitter, document, &item.blocks, source_path);
-                }
+                lint_resource_callout_list(emitter, document, list, source_path);
             }
             Block::DescriptionList(list) => {
-                for item in &list.items {
-                    lint_resource_inlines(emitter, document, &item.term, source_path);
-                    lint_resource_inlines(emitter, document, &item.principal_text, source_path);
-                    lint_resource_blocks(emitter, document, &item.description, source_path);
-                }
+                lint_resource_description_list(emitter, document, list, source_path);
             }
             Block::DelimitedBlock(block) => {
                 lint_resource_delimited_block(emitter, document, block, source_path);
@@ -47,26 +42,16 @@ fn lint_resource_blocks(
             }
             Block::Image(image) => lint_image(emitter, document, image, source_path),
             Block::OrderedList(list) => {
-                lint_resource_inlines(emitter, document, list.title.as_ref(), source_path);
-                for item in &list.items {
-                    lint_resource_inlines(emitter, document, &item.principal, source_path);
-                    lint_resource_blocks(emitter, document, &item.blocks, source_path);
-                }
+                lint_resource_ordered_list(emitter, document, list, source_path);
             }
             Block::Paragraph(paragraph) => {
-                lint_resource_inlines(emitter, document, paragraph.title.as_ref(), source_path);
-                lint_resource_inlines(emitter, document, &paragraph.content, source_path);
+                lint_resource_paragraph(emitter, document, paragraph, source_path);
             }
             Block::Section(section) => {
-                lint_resource_inlines(emitter, document, section.title.as_ref(), source_path);
-                lint_resource_blocks(emitter, document, &section.content, source_path);
+                lint_resource_section(emitter, document, section, source_path);
             }
             Block::UnorderedList(list) => {
-                lint_resource_inlines(emitter, document, list.title.as_ref(), source_path);
-                for item in &list.items {
-                    lint_resource_inlines(emitter, document, &item.principal, source_path);
-                    lint_resource_blocks(emitter, document, &item.blocks, source_path);
-                }
+                lint_resource_unordered_list(emitter, document, list, source_path);
             }
             Block::Audio(_)
             | Block::Comment(_)
@@ -78,6 +63,76 @@ fn lint_resource_blocks(
             | _ => {}
         }
     }
+}
+
+fn lint_resource_callout_list(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    list: &CalloutList<'_>,
+    source_path: Option<&Path>,
+) {
+    for item in &list.items {
+        lint_resource_blocks(emitter, document, &item.blocks, source_path);
+    }
+}
+
+fn lint_resource_description_list(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    list: &DescriptionList<'_>,
+    source_path: Option<&Path>,
+) {
+    for item in &list.items {
+        lint_resource_inlines(emitter, document, &item.term, source_path);
+        lint_resource_inlines(emitter, document, &item.principal_text, source_path);
+        lint_resource_blocks(emitter, document, &item.description, source_path);
+    }
+}
+
+fn lint_resource_ordered_list(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    list: &OrderedList<'_>,
+    source_path: Option<&Path>,
+) {
+    lint_resource_inlines(emitter, document, list.title.as_ref(), source_path);
+    for item in &list.items {
+        lint_resource_inlines(emitter, document, &item.principal, source_path);
+        lint_resource_blocks(emitter, document, &item.blocks, source_path);
+    }
+}
+
+fn lint_resource_unordered_list(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    list: &UnorderedList<'_>,
+    source_path: Option<&Path>,
+) {
+    lint_resource_inlines(emitter, document, list.title.as_ref(), source_path);
+    for item in &list.items {
+        lint_resource_inlines(emitter, document, &item.principal, source_path);
+        lint_resource_blocks(emitter, document, &item.blocks, source_path);
+    }
+}
+
+fn lint_resource_paragraph(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    paragraph: &Paragraph<'_>,
+    source_path: Option<&Path>,
+) {
+    lint_resource_inlines(emitter, document, paragraph.title.as_ref(), source_path);
+    lint_resource_inlines(emitter, document, &paragraph.content, source_path);
+}
+
+fn lint_resource_section(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    section: &Section<'_>,
+    source_path: Option<&Path>,
+) {
+    lint_resource_inlines(emitter, document, section.title.as_ref(), source_path);
+    lint_resource_blocks(emitter, document, &section.content, source_path);
 }
 
 fn lint_resource_delimited_block(
@@ -154,7 +209,9 @@ fn lint_resource_inlines(
                 InlineMacro::Footnote(footnote) => {
                     lint_resource_inlines(emitter, document, &footnote.content, source_path);
                 }
-                InlineMacro::Image(image) => lint_image(emitter, document, image, source_path),
+                InlineMacro::Image(image) => {
+                    lint_image(emitter, document, image, source_path);
+                }
                 InlineMacro::Link(link) => {
                     lint_resource_inlines(emitter, document, &link.text, source_path);
                 }
@@ -226,7 +283,7 @@ fn lint_image_alt_text(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
     emitter.emit(
         LintId::ImageAltText,
         "image is missing alt text",
-        Some("add positional alt text or an `alt=` attribute".to_string()),
+        None,
         Some(emitter.source_location(&image.location)),
     );
 }
@@ -247,7 +304,7 @@ fn lint_image_target_exists(
     emitter.emit(
         LintId::ImageTargetExists,
         format!("image target `{}` does not exist", image.source),
-        Some("fix the image target or create the referenced file".to_string()),
+        None,
         Some(emitter.source_location(&image.location)),
     );
 }

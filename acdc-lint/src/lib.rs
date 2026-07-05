@@ -2,10 +2,26 @@
 //!
 //! This crate defines the public lint registry, lint levels, and report
 //! structures used by `acdc lint`.
+//!
+//! # Terminology
+//!
+//! A lint is a user-visible rule that can be configured by name and emitted as
+//! a diagnostic. In code, a lint is identified by [`LintId`].
+//!
+//! [`LintInfo`] is the static, user-facing metadata for one lint: its stable
+//! command-line name, default level, short summary, and long explanation. The
+//! [`LINTS`] registry is the source of truth for metadata and is suitable for
+//! future rule documentation or `--explain` output.
+//!
+//! A lint pass is an internal execution unit. A pass owns one traversal or
+//! checker function and may emit diagnostics for one or more lint IDs. Passes
+//! are grouped around efficient implementation, while lints remain the stable
+//! user-facing rule boundary.
 
 use std::{fmt, fs, path::Path, str::FromStr};
 
 mod error;
+mod registry;
 mod rules;
 mod runner;
 pub use error::Error;
@@ -42,7 +58,11 @@ impl fmt::Display for LintLevel {
     }
 }
 
-/// A single known lint.
+/// Stable identifier for one user-visible lint rule.
+///
+/// `LintId` is the value emitted on diagnostics and used by command-line
+/// severity overrides. It intentionally contains no execution behavior and no
+/// prose metadata; those live in `LintPass` and [`LintInfo`] respectively.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LintId {
     /// Prefer `.adoc` and avoid `.asc`.
@@ -124,262 +144,40 @@ pub enum LintId {
 impl LintId {
     /// Returns this lint's command-line name.
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         self.info().name
     }
 
     /// Returns this lint's default level.
     #[must_use]
-    pub const fn default_level(self) -> LintLevel {
+    pub fn default_level(self) -> LintLevel {
         self.info().default_level
     }
 
     /// Returns this lint's short user-facing description.
     #[must_use]
-    pub const fn summary(self) -> &'static str {
+    pub fn summary(self) -> &'static str {
         self.info().summary
     }
 
-    #[allow(clippy::too_many_lines)]
-    const fn info(self) -> LintInfo {
-        match self {
-            Self::DocumentExtension => lint_info(
-                self,
-                "document-extension",
-                LintLevel::Warn,
-                "prefer .adoc and avoid .asc",
-            ),
-            Self::OneSentencePerLine => lint_info(
-                self,
-                "one-sentence-per-line",
-                LintLevel::Warn,
-                "write one sentence per source line",
-            ),
-            Self::SectionTitleSymmetricMarker => lint_info(
-                self,
-                "section-title-symmetric-marker",
-                LintLevel::Warn,
-                "prefer asymmetric ATX section titles",
-            ),
-            Self::SectionTitleSetextStyle => lint_info(
-                self,
-                "section-title-setext-style",
-                LintLevel::Warn,
-                "prefer ATX section titles over setext titles",
-            ),
-            Self::DocumentTitleAuthor => lint_info(
-                self,
-                "document-title-author",
-                LintLevel::Allow,
-                "include an author line after the document title",
-            ),
-            Self::DocumentTitleRevision => lint_info(
-                self,
-                "document-title-revision",
-                LintLevel::Allow,
-                "include a revision line after the author line",
-            ),
-            Self::SectionLevelSequence => lint_info(
-                self,
-                "section-level-sequence",
-                LintLevel::Warn,
-                "do not skip section levels",
-            ),
-            Self::UnterminatedDelimitedBlock => lint_info(
-                self,
-                "unterminated-delimited-block",
-                LintLevel::Warn,
-                "close delimited blocks",
-            ),
-            Self::UnterminatedTable => lint_info(
-                self,
-                "unterminated-table",
-                LintLevel::Warn,
-                "close table blocks",
-            ),
-            Self::CounterSyntax => lint_info(
-                self,
-                "counter-syntax",
-                LintLevel::Warn,
-                "avoid unsupported counter syntax",
-            ),
-            Self::MultipleDocumentTitle => lint_info(
-                self,
-                "multiple-document-title",
-                LintLevel::Warn,
-                "use only one document title",
-            ),
-            Self::TableUnknownFormat => lint_info(
-                self,
-                "table-unknown-format",
-                LintLevel::Warn,
-                "use a supported table format",
-            ),
-            Self::TableIncompleteRow => lint_info(
-                self,
-                "table-incomplete-row",
-                LintLevel::Warn,
-                "complete table rows",
-            ),
-            Self::TableColumnCount => lint_info(
-                self,
-                "table-column-count",
-                LintLevel::Warn,
-                "match table rows to the configured column count",
-            ),
-            Self::TableCellOverflow => lint_info(
-                self,
-                "table-cell-overflow",
-                LintLevel::Warn,
-                "keep table cells within the configured column count",
-            ),
-            Self::DelimitedBlockMinimalDelimiter => lint_info(
-                self,
-                "delimited-block-minimal-delimiter",
-                LintLevel::Warn,
-                "use minimum required delimited block fences",
-            ),
-            Self::SectionTitleMarkerSpacing => lint_info(
-                self,
-                "section-title-marker-spacing",
-                LintLevel::Warn,
-                "put whitespace after section title markers",
-            ),
-            Self::SectionTitleCapitalization => lint_info(
-                self,
-                "section-title-capitalization",
-                LintLevel::Warn,
-                "start section titles with an uppercase letter",
-            ),
-            Self::DelimitedBlockLeadingBlankLine => lint_info(
-                self,
-                "delimited-block-leading-blank-line",
-                LintLevel::Warn,
-                "put a blank line before delimited blocks",
-            ),
-            Self::DelimitedBlockTrailingBlankLine => lint_info(
-                self,
-                "delimited-block-trailing-blank-line",
-                LintLevel::Warn,
-                "put a blank line after delimited blocks",
-            ),
-            Self::TrailingWhitespace => lint_info(
-                self,
-                "trailing-whitespace",
-                LintLevel::Warn,
-                "avoid trailing whitespace",
-            ),
-            Self::HardTab => lint_info(
-                self,
-                "hard-tab",
-                LintLevel::Warn,
-                "avoid hard tab characters",
-            ),
-            Self::ExcessiveBlankLines => lint_info(
-                self,
-                "excessive-blank-lines",
-                LintLevel::Warn,
-                "avoid repeated blank lines",
-            ),
-            Self::ListMarkerSpacing => lint_info(
-                self,
-                "list-marker-spacing",
-                LintLevel::Warn,
-                "put whitespace after list markers",
-            ),
-            Self::AttributeUrlPrefix => lint_info(
-                self,
-                "attribute-url-prefix",
-                LintLevel::Warn,
-                "prefix URL-valued attributes with url- or uri-",
-            ),
-            Self::Imagesdir => lint_info(
-                self,
-                "imagesdir",
-                LintLevel::Warn,
-                "use imagesdir instead of repeating image directories",
-            ),
-            Self::ImageAltText => lint_info(
-                self,
-                "image-alt-text",
-                LintLevel::Warn,
-                "provide image alt text",
-            ),
-            Self::ImageTargetExists => lint_info(
-                self,
-                "image-target-exists",
-                LintLevel::Warn,
-                "reference image files that exist",
-            ),
-            Self::NestedUnorderedListMarker => lint_info(
-                self,
-                "nested-unordered-list-marker",
-                LintLevel::Warn,
-                "use asterisk markers for nested unordered lists",
-            ),
-            Self::AdjacentListSeparator => lint_info(
-                self,
-                "adjacent-list-separator",
-                LintLevel::Warn,
-                "separate adjacent lists with an empty line comment",
-            ),
-            Self::OrderedListExplicitNumber => lint_info(
-                self,
-                "ordered-list-explicit-number",
-                LintLevel::Warn,
-                "prefer dot ordered-list markers over explicit numbers",
-            ),
-            Self::DescriptionListBoldTerm => lint_info(
-                self,
-                "description-list-bold-term",
-                LintLevel::Warn,
-                "prefer description-list syntax over bold-term paragraphs",
-            ),
-            Self::MarkdownHeading => lint_info(
-                self,
-                "markdown-heading",
-                LintLevel::Warn,
-                "avoid Markdown heading syntax",
-            ),
-            Self::MarkdownLink => lint_info(
-                self,
-                "markdown-link",
-                LintLevel::Warn,
-                "avoid Markdown link syntax",
-            ),
-            Self::MarkdownImage => lint_info(
-                self,
-                "markdown-image",
-                LintLevel::Warn,
-                "avoid Markdown image syntax",
-            ),
-            Self::MarkdownCodeFence => lint_info(
-                self,
-                "markdown-code-fence",
-                LintLevel::Warn,
-                "avoid Markdown code fences",
-            ),
-            Self::MarkdownTable => lint_info(
-                self,
-                "markdown-table",
-                LintLevel::Warn,
-                "avoid Markdown table syntax",
-            ),
-        }
+    /// Returns this lint's long-form explanation.
+    #[must_use]
+    pub fn explanation(self) -> &'static str {
+        self.info().explanation
     }
-}
 
-const fn lint_info(
-    id: LintId,
-    name: &'static str,
-    default_level: LintLevel,
-    summary: &'static str,
-) -> LintInfo {
-    LintInfo {
-        name,
-        id,
-        default_level,
-        summary,
+    /// Returns this lint's default remediation help, when it has one.
+    #[must_use]
+    pub fn help(self) -> Option<&'static str> {
+        self.info().help
+    }
+
+    #[allow(clippy::unreachable)]
+    fn info(self) -> &'static LintInfo {
+        match LINTS.get(self as usize) {
+            Some(info) => info,
+            None => unreachable!("registered lint metadata must contain every LintId"),
+        }
     }
 }
 
@@ -393,52 +191,20 @@ impl FromStr for LintId {
     type Err = Error;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        match value {
-            "document-extension" => Ok(Self::DocumentExtension),
-            "one-sentence-per-line" => Ok(Self::OneSentencePerLine),
-            "section-title-symmetric-marker" => Ok(Self::SectionTitleSymmetricMarker),
-            "section-title-setext-style" => Ok(Self::SectionTitleSetextStyle),
-            "document-title-author" => Ok(Self::DocumentTitleAuthor),
-            "document-title-revision" => Ok(Self::DocumentTitleRevision),
-            "section-level-sequence" => Ok(Self::SectionLevelSequence),
-            "unterminated-delimited-block" => Ok(Self::UnterminatedDelimitedBlock),
-            "unterminated-table" => Ok(Self::UnterminatedTable),
-            "counter-syntax" => Ok(Self::CounterSyntax),
-            "multiple-document-title" => Ok(Self::MultipleDocumentTitle),
-            "table-unknown-format" => Ok(Self::TableUnknownFormat),
-            "table-incomplete-row" => Ok(Self::TableIncompleteRow),
-            "table-column-count" => Ok(Self::TableColumnCount),
-            "table-cell-overflow" => Ok(Self::TableCellOverflow),
-            "delimited-block-minimal-delimiter" => Ok(Self::DelimitedBlockMinimalDelimiter),
-            "section-title-marker-spacing" => Ok(Self::SectionTitleMarkerSpacing),
-            "section-title-capitalization" => Ok(Self::SectionTitleCapitalization),
-            "delimited-block-leading-blank-line" => Ok(Self::DelimitedBlockLeadingBlankLine),
-            "delimited-block-trailing-blank-line" => Ok(Self::DelimitedBlockTrailingBlankLine),
-            "trailing-whitespace" => Ok(Self::TrailingWhitespace),
-            "hard-tab" => Ok(Self::HardTab),
-            "excessive-blank-lines" => Ok(Self::ExcessiveBlankLines),
-            "list-marker-spacing" => Ok(Self::ListMarkerSpacing),
-            "attribute-url-prefix" => Ok(Self::AttributeUrlPrefix),
-            "imagesdir" => Ok(Self::Imagesdir),
-            "image-alt-text" => Ok(Self::ImageAltText),
-            "image-target-exists" => Ok(Self::ImageTargetExists),
-            "nested-unordered-list-marker" => Ok(Self::NestedUnorderedListMarker),
-            "adjacent-list-separator" => Ok(Self::AdjacentListSeparator),
-            "ordered-list-explicit-number" => Ok(Self::OrderedListExplicitNumber),
-            "description-list-bold-term" => Ok(Self::DescriptionListBoldTerm),
-            "markdown-heading" => Ok(Self::MarkdownHeading),
-            "markdown-link" => Ok(Self::MarkdownLink),
-            "markdown-image" => Ok(Self::MarkdownImage),
-            "markdown-code-fence" => Ok(Self::MarkdownCodeFence),
-            "markdown-table" => Ok(Self::MarkdownTable),
-            _ => Err(Error::UnknownLintName {
+        LINTS
+            .iter()
+            .find(|info| info.name == value)
+            .map(|info| info.id)
+            .ok_or_else(|| Error::UnknownLintName {
                 name: value.to_owned(),
-            }),
-        }
+            })
     }
 }
 
-/// Metadata for one lint.
+/// User-facing metadata for one lint.
+///
+/// This is documentation/configuration data, not executable lint logic. The
+/// implementation that emits a lint lives in one of the internal lint passes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct LintInfo {
     /// Stable command-line name.
@@ -449,47 +215,363 @@ pub struct LintInfo {
     pub default_level: LintLevel,
     /// Short user-facing description.
     pub summary: &'static str,
+    /// Long-form explanation for documentation and future explain output.
+    pub explanation: &'static str,
+    /// Default remediation help for emitted diagnostics.
+    ///
+    /// Rule implementations can override this with occurrence-specific help.
+    pub help: Option<&'static str>,
 }
 
-/// The known lint registry.
-pub const LINTS: [LintInfo; 37] = [
-    LintId::DocumentExtension.info(),
-    LintId::OneSentencePerLine.info(),
-    LintId::SectionTitleSymmetricMarker.info(),
-    LintId::SectionTitleSetextStyle.info(),
-    LintId::DocumentTitleAuthor.info(),
-    LintId::DocumentTitleRevision.info(),
-    LintId::SectionLevelSequence.info(),
-    LintId::UnterminatedDelimitedBlock.info(),
-    LintId::UnterminatedTable.info(),
-    LintId::CounterSyntax.info(),
-    LintId::MultipleDocumentTitle.info(),
-    LintId::TableUnknownFormat.info(),
-    LintId::TableIncompleteRow.info(),
-    LintId::TableColumnCount.info(),
-    LintId::TableCellOverflow.info(),
-    LintId::DelimitedBlockMinimalDelimiter.info(),
-    LintId::SectionTitleMarkerSpacing.info(),
-    LintId::SectionTitleCapitalization.info(),
-    LintId::DelimitedBlockLeadingBlankLine.info(),
-    LintId::DelimitedBlockTrailingBlankLine.info(),
-    LintId::TrailingWhitespace.info(),
-    LintId::HardTab.info(),
-    LintId::ExcessiveBlankLines.info(),
-    LintId::ListMarkerSpacing.info(),
-    LintId::AttributeUrlPrefix.info(),
-    LintId::Imagesdir.info(),
-    LintId::ImageAltText.info(),
-    LintId::ImageTargetExists.info(),
-    LintId::NestedUnorderedListMarker.info(),
-    LintId::AdjacentListSeparator.info(),
-    LintId::OrderedListExplicitNumber.info(),
-    LintId::DescriptionListBoldTerm.info(),
-    LintId::MarkdownHeading.info(),
-    LintId::MarkdownLink.info(),
-    LintId::MarkdownImage.info(),
-    LintId::MarkdownCodeFence.info(),
-    LintId::MarkdownTable.info(),
+/// Static metadata registry for every known lint.
+///
+/// This registry defines the stable lint names and documentation text. Execution
+/// is registered separately by internal lint passes.
+pub const LINTS: &[LintInfo] = &[
+    LintInfo {
+        name: "document-extension",
+        id: LintId::DocumentExtension,
+        default_level: LintLevel::Warn,
+        summary: "prefer .adoc and avoid .asc",
+        explanation: "Checks file paths passed to the linter. AsciiDoc sources should use the \
+                      .adoc extension so editor, build, and publishing tools can identify them \
+                      consistently.",
+        help: Some("rename the file to use the .adoc extension"),
+    },
+    LintInfo {
+        name: "one-sentence-per-line",
+        id: LintId::OneSentencePerLine,
+        default_level: LintLevel::Warn,
+        summary: "write one sentence per source line",
+        explanation: "Checks prose paragraphs for multiple sentences on one source line. Keeping \
+                      one sentence per line makes reviews and diffs easier without changing \
+                      rendered output.",
+        help: Some("write one complete sentence per source line"),
+    },
+    LintInfo {
+        name: "section-title-symmetric-marker",
+        id: LintId::SectionTitleSymmetricMarker,
+        default_level: LintLevel::Warn,
+        summary: "prefer asymmetric ATX section titles",
+        explanation: "Checks section titles written with a closing marker such as `== Title ==`. \
+                      AsciiDoc does not require the closing marker, and asymmetric titles are \
+                      simpler to edit.",
+        help: Some("remove the closing title marker"),
+    },
+    LintInfo {
+        name: "section-title-setext-style",
+        id: LintId::SectionTitleSetextStyle,
+        default_level: LintLevel::Warn,
+        summary: "prefer ATX section titles over setext titles",
+        explanation: "Checks two-line underline section titles. ATX-style section titles such as \
+                      `== Title` make the section level explicit on the title line.",
+        help: Some("use an asymmetric ATX title such as `== Section`"),
+    },
+    LintInfo {
+        name: "document-title-author",
+        id: LintId::DocumentTitleAuthor,
+        default_level: LintLevel::Allow,
+        summary: "include an author line after the document title",
+        explanation: "Checks whether a document header with a title also has an author line. This \
+                      lint is opt-in because not every document type needs author metadata.",
+        help: Some("add an author line immediately after the document title"),
+    },
+    LintInfo {
+        name: "document-title-revision",
+        id: LintId::DocumentTitleRevision,
+        default_level: LintLevel::Allow,
+        summary: "include a revision line after the author line",
+        explanation: "Checks whether a document header with an author also has revision metadata. \
+                      This lint is opt-in because revision lines are a project convention, not a \
+                      general AsciiDoc requirement.",
+        help: Some("add a revision line after the author line"),
+    },
+    LintInfo {
+        name: "section-level-sequence",
+        id: LintId::SectionLevelSequence,
+        default_level: LintLevel::Warn,
+        summary: "do not skip section levels",
+        explanation: "Surfaces parser recovery warnings for skipped section levels, such as \
+                      jumping from level 1 to level 3. Sequential section levels preserve the \
+                      intended document outline.",
+        help: Some("adjust section levels so they increase one level at a time"),
+    },
+    LintInfo {
+        name: "unterminated-delimited-block",
+        id: LintId::UnterminatedDelimitedBlock,
+        default_level: LintLevel::Warn,
+        summary: "close delimited blocks",
+        explanation: "Surfaces parser recovery warnings for delimited blocks without a matching \
+                      closing delimiter. Unterminated blocks can consume more source than \
+                      intended.",
+        help: Some("add the matching closing block delimiter"),
+    },
+    LintInfo {
+        name: "unterminated-table",
+        id: LintId::UnterminatedTable,
+        default_level: LintLevel::Warn,
+        summary: "close table blocks",
+        explanation: "Surfaces parser recovery warnings for table blocks without a closing \
+                      delimiter. Unterminated tables can change how following content is parsed.",
+        help: Some("add the matching table closing delimiter"),
+    },
+    LintInfo {
+        name: "counter-syntax",
+        id: LintId::CounterSyntax,
+        default_level: LintLevel::Warn,
+        summary: "avoid unsupported counter syntax",
+        explanation: "Surfaces parser warnings for counter syntax that acdc does not support. \
+                      These counters are removed from output, so authors should avoid relying on \
+                      them.",
+        help: Some("remove the unsupported counter or replace it with supported content"),
+    },
+    LintInfo {
+        name: "multiple-document-title",
+        id: LintId::MultipleDocumentTitle,
+        default_level: LintLevel::Warn,
+        summary: "use only one document title",
+        explanation: "Checks non-book documents for more than one top-level document title. After \
+                      the document title, additional headings should normally be section titles.",
+        help: Some("use section titles (`==`) after the document title"),
+    },
+    LintInfo {
+        name: "table-unknown-format",
+        id: LintId::TableUnknownFormat,
+        default_level: LintLevel::Warn,
+        summary: "use a supported table format",
+        explanation: "Surfaces parser warnings for table formats that acdc does not support. \
+                      Unknown formats may not be parsed with the structure authors expect.",
+        help: Some("use a supported table format or remove the format attribute"),
+    },
+    LintInfo {
+        name: "table-incomplete-row",
+        id: LintId::TableIncompleteRow,
+        default_level: LintLevel::Warn,
+        summary: "complete table rows",
+        explanation: "Surfaces parser warnings for table rows that end before all expected cells \
+                      are present. Incomplete rows can shift table content in rendered output.",
+        help: Some("add the missing table cells or adjust the column count"),
+    },
+    LintInfo {
+        name: "table-column-count",
+        id: LintId::TableColumnCount,
+        default_level: LintLevel::Warn,
+        summary: "match table rows to the configured column count",
+        explanation: "Surfaces parser warnings for rows whose cell count does not match the \
+                      configured table column count. Matching the column count keeps table \
+                      structure predictable.",
+        help: Some("match each table row to the configured column count"),
+    },
+    LintInfo {
+        name: "table-cell-overflow",
+        id: LintId::TableCellOverflow,
+        default_level: LintLevel::Warn,
+        summary: "keep table cells within the configured column count",
+        explanation: "Surfaces parser warnings for cells that overflow the configured table column \
+                      count. Overflowing cells indicate that the table structure is ambiguous.",
+        help: Some("remove extra cells or increase the configured column count"),
+    },
+    LintInfo {
+        name: "delimited-block-minimal-delimiter",
+        id: LintId::DelimitedBlockMinimalDelimiter,
+        default_level: LintLevel::Warn,
+        summary: "use minimum required delimited block fences",
+        explanation: "Checks delimited blocks for fences longer than the minimum required by \
+                      AsciiDoc. Minimal delimiters reduce visual noise while preserving block \
+                      semantics.",
+        help: Some("shorten the opening and closing block delimiters"),
+    },
+    LintInfo {
+        name: "section-title-marker-spacing",
+        id: LintId::SectionTitleMarkerSpacing,
+        default_level: LintLevel::Warn,
+        summary: "put whitespace after section title markers",
+        explanation: "Checks ATX-style section titles for missing whitespace after the marker. The \
+                      space separates the marker from the title text and avoids ambiguous source.",
+        help: Some("insert a space after the opening title marker"),
+    },
+    LintInfo {
+        name: "section-title-capitalization",
+        id: LintId::SectionTitleCapitalization,
+        default_level: LintLevel::Warn,
+        summary: "start section titles with an uppercase letter",
+        explanation: "Checks document, section, and discrete titles whose first alphabetic \
+                      character is lowercase. This is a style lint for projects that expect \
+                      title-style starts.",
+        help: Some("capitalize the first word of the title"),
+    },
+    LintInfo {
+        name: "delimited-block-leading-blank-line",
+        id: LintId::DelimitedBlockLeadingBlankLine,
+        default_level: LintLevel::Warn,
+        summary: "put a blank line before delimited blocks",
+        explanation: "Checks delimited block openings that directly follow another source line. A \
+                      blank line before the block makes the block boundary clear.",
+        help: Some("insert a blank line before the opening delimiter"),
+    },
+    LintInfo {
+        name: "delimited-block-trailing-blank-line",
+        id: LintId::DelimitedBlockTrailingBlankLine,
+        default_level: LintLevel::Warn,
+        summary: "put a blank line after delimited blocks",
+        explanation: "Checks delimited block closings that are immediately followed by more \
+                      content. A blank line after the block makes the following block boundary \
+                      clear.",
+        help: Some("insert a blank line after the closing delimiter"),
+    },
+    LintInfo {
+        name: "trailing-whitespace",
+        id: LintId::TrailingWhitespace,
+        default_level: LintLevel::Warn,
+        summary: "avoid trailing whitespace",
+        explanation: "Checks source lines that end with whitespace. Trailing whitespace is \
+                      invisible in editors and creates noisy diffs.",
+        help: Some("remove the trailing whitespace"),
+    },
+    LintInfo {
+        name: "hard-tab",
+        id: LintId::HardTab,
+        default_level: LintLevel::Warn,
+        summary: "avoid hard tab characters",
+        explanation: "Checks source lines containing tab characters. Spaces keep indentation and \
+                      alignment stable across editors and renderers.",
+        help: Some("replace the tab with spaces"),
+    },
+    LintInfo {
+        name: "excessive-blank-lines",
+        id: LintId::ExcessiveBlankLines,
+        default_level: LintLevel::Warn,
+        summary: "avoid repeated blank lines",
+        explanation: "Checks for repeated blank lines. A single blank line is enough to separate \
+                      adjacent blocks in normal AsciiDoc source.",
+        help: Some("keep a single blank line between adjacent blocks"),
+    },
+    LintInfo {
+        name: "list-marker-spacing",
+        id: LintId::ListMarkerSpacing,
+        default_level: LintLevel::Warn,
+        summary: "put whitespace after list markers",
+        explanation: "Checks list markers without whitespace before the item text. The spacing \
+                      makes list syntax unambiguous and easier to scan.",
+        help: Some("insert a space after the list marker"),
+    },
+    LintInfo {
+        name: "attribute-url-prefix",
+        id: LintId::AttributeUrlPrefix,
+        default_level: LintLevel::Warn,
+        summary: "prefix URL-valued attributes with url- or uri-",
+        explanation: "Checks URL-valued attributes that are not named with a `url-` or `uri-` \
+                      prefix. Prefixing documents the attribute's expected value type.",
+        help: Some("rename the attribute with a url- or uri- prefix"),
+    },
+    LintInfo {
+        name: "imagesdir",
+        id: LintId::Imagesdir,
+        default_level: LintLevel::Warn,
+        summary: "use imagesdir instead of repeating image directories",
+        explanation: "Checks image targets that repeat a directory path. Prefer setting \
+                      `:imagesdir:` once and using filename-only image targets.",
+        help: Some("set :imagesdir: and use filename-only image targets"),
+    },
+    LintInfo {
+        name: "image-alt-text",
+        id: LintId::ImageAltText,
+        default_level: LintLevel::Warn,
+        summary: "provide image alt text",
+        explanation: "Checks image macros with missing or empty alt text. Alt text improves \
+                      accessible output and gives non-visual renderers meaningful fallback text.",
+        help: Some("add positional alt text or an `alt=` attribute"),
+    },
+    LintInfo {
+        name: "image-target-exists",
+        id: LintId::ImageTargetExists,
+        default_level: LintLevel::Warn,
+        summary: "reference image files that exist",
+        explanation: "Checks local image targets resolved from the source path and `imagesdir`. \
+                      Missing image files usually indicate broken output.",
+        help: Some("fix the image target or create the referenced file"),
+    },
+    LintInfo {
+        name: "nested-unordered-list-marker",
+        id: LintId::NestedUnorderedListMarker,
+        default_level: LintLevel::Warn,
+        summary: "use asterisk markers for nested unordered lists",
+        explanation: "Checks nested unordered list markers that do not use asterisk depth markers. \
+                      Asterisk markers make nesting depth explicit in AsciiDoc source.",
+        help: Some("use asterisk markers for nested unordered lists"),
+    },
+    LintInfo {
+        name: "adjacent-list-separator",
+        id: LintId::AdjacentListSeparator,
+        default_level: LintLevel::Warn,
+        summary: "separate adjacent lists with an empty line comment",
+        explanation: "Checks adjacent list blocks that are not separated by an empty line comment. \
+                      The separator makes it explicit that the lists are distinct blocks.",
+        help: Some("insert a line comment such as `//-` between the lists"),
+    },
+    LintInfo {
+        name: "ordered-list-explicit-number",
+        id: LintId::OrderedListExplicitNumber,
+        default_level: LintLevel::Warn,
+        summary: "prefer dot ordered-list markers over explicit numbers",
+        explanation: "Checks ordered list items written with explicit numeric markers. Dot markers \
+                      let AsciiDoc number the list and avoid stale numbering after edits.",
+        help: Some("use AsciiDoc dot syntax such as `. item`"),
+    },
+    LintInfo {
+        name: "description-list-bold-term",
+        id: LintId::DescriptionListBoldTerm,
+        default_level: LintLevel::Warn,
+        summary: "prefer description-list syntax over bold-term paragraphs",
+        explanation: "Checks paragraphs that look like bold terms followed by text. \
+                      Description-list syntax captures that structure directly.",
+        help: Some("use description-list syntax such as `Term:: description`"),
+    },
+    LintInfo {
+        name: "markdown-heading",
+        id: LintId::MarkdownHeading,
+        default_level: LintLevel::Warn,
+        summary: "avoid Markdown heading syntax",
+        explanation: "Checks Markdown `#` heading markers in AsciiDoc source. Use AsciiDoc \
+                      section markers so the document is parsed consistently as AsciiDoc.",
+        help: Some("use AsciiDoc section markers such as `== Section`"),
+    },
+    LintInfo {
+        name: "markdown-link",
+        id: LintId::MarkdownLink,
+        default_level: LintLevel::Warn,
+        summary: "avoid Markdown link syntax",
+        explanation: "Checks Markdown inline link syntax in AsciiDoc source. Use AsciiDoc link \
+                      macros or bare URLs instead.",
+        help: Some("use `link:target[text]` or an AsciiDoc URL macro"),
+    },
+    LintInfo {
+        name: "markdown-image",
+        id: LintId::MarkdownImage,
+        default_level: LintLevel::Warn,
+        summary: "avoid Markdown image syntax",
+        explanation: "Checks Markdown image syntax in AsciiDoc source. Use `image::` or `image:` \
+                      macros so image attributes and paths follow AsciiDoc rules.",
+        help: Some("use `image::target[alt]` or `image:target[alt]`"),
+    },
+    LintInfo {
+        name: "markdown-code-fence",
+        id: LintId::MarkdownCodeFence,
+        default_level: LintLevel::Warn,
+        summary: "avoid Markdown code fences",
+        explanation: "Checks Markdown backtick code fences in AsciiDoc source. Use AsciiDoc \
+                      listing blocks, commonly delimited with `----`.",
+        help: Some("use an AsciiDoc listing block delimiter such as `----`"),
+    },
+    LintInfo {
+        name: "markdown-table",
+        id: LintId::MarkdownTable,
+        default_level: LintLevel::Warn,
+        summary: "avoid Markdown table syntax",
+        explanation: "Checks Markdown pipe-table separator rows in AsciiDoc source. Use AsciiDoc \
+                      table blocks such as `|===` for table content.",
+        help: Some("use an AsciiDoc table block such as `|===`"),
+    },
 ];
 
 /// A named group of lints.

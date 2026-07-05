@@ -9,17 +9,15 @@ use super::{
     root_list_family, source_line_at, split_first_char,
 };
 
-pub(crate) fn lint_section_title_styles(
+pub(crate) fn lint_section_title_symmetric_marker(
     emitter: &mut LintEmitter<'_>,
     document: &Document<'_>,
     lines: &[SourceLine<'_>],
-    skipped_lines: &[bool],
 ) {
     if let Some(header) = &document.header {
         lint_symmetric_title_line(emitter, lines, &header.location);
     }
     lint_section_title_blocks(emitter, &document.blocks, lines);
-    lint_setext_title_style(emitter, lines, skipped_lines);
 }
 
 fn lint_section_title_blocks(
@@ -109,13 +107,13 @@ fn lint_symmetric_title_line(
         emitter.emit(
             LintId::SectionTitleSymmetricMarker,
             "section title uses symmetric ATX markers",
-            Some("remove the closing title marker".to_string()),
+            None,
             Some(emitter.point_location(line.number, 1)),
         );
     }
 }
 
-fn lint_setext_title_style(
+pub(crate) fn lint_section_title_setext_style(
     emitter: &mut LintEmitter<'_>,
     lines: &[SourceLine<'_>],
     skipped_lines: &[bool],
@@ -133,7 +131,7 @@ fn lint_setext_title_style(
             emitter.emit(
                 LintId::SectionTitleSetextStyle,
                 "section title uses setext underline style",
-                Some("use an asymmetric ATX title such as `== Section`".to_string()),
+                None,
                 Some(emitter.point_location(underline_line.number, 1)),
             );
         }
@@ -162,7 +160,7 @@ pub(crate) fn lint_section_title_marker_spacing(
         emitter.emit(
             LintId::SectionTitleMarkerSpacing,
             "section title marker should be followed by whitespace",
-            Some("insert a space after the opening title marker".to_string()),
+            None,
             Some(emitter.point_location(
                 line.number,
                 leading_columns.saturating_add(marker_len).saturating_add(1),
@@ -286,7 +284,7 @@ fn lint_title_capitalization(
     emitter.emit(
         LintId::SectionTitleCapitalization,
         format!("{title_kind} should start with an uppercase letter"),
-        Some("capitalize the first word of the title".to_string()),
+        None,
         Some(emitter.source_location(location)),
     );
 }
@@ -351,7 +349,7 @@ fn first_alphabetic_text<'a>(text: &str, location: &'a Location) -> Option<(char
         .map(|ch| (ch, location))
 }
 
-pub(crate) fn lint_document_header(
+pub(crate) fn lint_document_title_author(
     emitter: &mut LintEmitter<'_>,
     document: &Document<'_>,
     lines: &[SourceLine<'_>],
@@ -369,11 +367,25 @@ pub(crate) fn lint_document_header(
         emitter.emit(
             LintId::DocumentTitleAuthor,
             "document title is missing an author line",
-            Some("add an author line immediately after the document title".to_string()),
+            None,
             Some(emitter.point_location(line, 1)),
         );
+    }
+}
+
+pub(crate) fn lint_document_title_revision(
+    emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
+    lines: &[SourceLine<'_>],
+) {
+    let Some(header) = document.header.as_ref() else {
+        return;
+    };
+    if header.authors.is_empty() {
         return;
     }
+
+    let header_lines = collect_header_lines(lines);
 
     let has_revision_attribute = document.attributes.contains_key("revnumber")
         || document.attributes.contains_key("revdate")
@@ -389,7 +401,7 @@ pub(crate) fn lint_document_header(
     emitter.emit(
         LintId::DocumentTitleRevision,
         "document header is missing a revision line",
-        Some("add a revision line after the author line".to_string()),
+        None,
         Some(emitter.point_location(line, 1)),
     );
 }
