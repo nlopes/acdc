@@ -345,10 +345,13 @@ where
             }
             Err(e) => Err(e.into()),
         };
-        return Ok(report_errors(std::iter::once((
-            file.clone(),
-            convert_result,
-        ))));
+        return Ok(vec![FileResult {
+            path: file.clone(),
+            result: convert_result,
+            parse_dur: None,
+            convert_dur: None,
+        }]
+        .report());
     }
 
     Ok(run_multi_file::<P, _>(
@@ -446,18 +449,12 @@ where
         let wall_clock = wall_clock_start.map(|s| s.elapsed());
         let timing_entries: Vec<_> = file_results
             .iter()
-            .filter_map(|fr| {
-                Some(TimingEntry {
-                    path: fr.path.clone(),
-                    parse: fr.parse_dur?,
-                    convert: fr.convert_dur?,
-                })
-            })
+            .filter_map(FileResult::timing_entry)
             .collect();
         timing_entries.render(wall_clock);
     }
 
-    report_errors(file_results.into_iter().map(|fr| (fr.path, fr.result)))
+    file_results.report()
 }
 
 fn convert_parse_result<P, F>(
@@ -496,6 +493,55 @@ struct FileResult<E> {
     result: Result<ConversionResult, E>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
+}
+
+impl<E> FileResult<E> {
+    fn timing_entry(&self) -> Option<TimingEntry> {
+        Some(TimingEntry {
+            path: self.path.clone(),
+            parse: self.parse_dur?,
+            convert: self.convert_dur?,
+        })
+    }
+}
+
+trait FileResultsReporter {
+    fn report(self) -> Vec<PathBuf>;
+}
+
+impl<E> FileResultsReporter for Vec<FileResult<E>>
+where
+    E: std::error::Error + 'static,
+{
+    fn report(self) -> Vec<PathBuf> {
+        let mut output_paths = Vec::new();
+        let mut errors = Vec::new();
+
+        for file_result in self {
+            match file_result.result {
+                Ok(result) => {
+                    let (output_path, warnings) = result.into_parts();
+                    warnings.render(WarningRenderContext::new().with_file(&file_result.path));
+                    if let Some(output_path) = output_path {
+                        output_paths.push(output_path);
+                    }
+                }
+                Err(error) => errors.push((file_result.path, error)),
+            }
+        }
+
+        if !errors.is_empty() {
+            eprintln!("\nFailed to process {} file(s):", errors.len());
+            for (idx, (file, err)) in errors.iter().enumerate() {
+                eprintln!("\n{}. File: {}", idx + 1, file.display());
+                let report = error::display(err);
+                eprintln!("{report:?}");
+            }
+            std::process::exit(1);
+        }
+
+        output_paths
+    }
 }
 
 /// A parsed document paired with its source path and optional parse timing.
@@ -563,38 +609,6 @@ impl WarningRenderer for [acdc_converters_core::Warning] {
             eprintln!("{:?}", warning.to_report(context));
         }
     }
-}
-
-fn report_errors<E: std::error::Error + 'static>(
-    results: impl Iterator<Item = (PathBuf, Result<ConversionResult, E>)>,
-) -> Vec<PathBuf> {
-    let mut output_paths = Vec::new();
-    let mut errors = Vec::new();
-
-    for (file, result) in results {
-        match result {
-            Ok(result) => {
-                let (output_path, warnings) = result.into_parts();
-                warnings.render(WarningRenderContext::new().with_file(&file));
-                if let Some(output_path) = output_path {
-                    output_paths.push(output_path);
-                }
-            }
-            Err(error) => errors.push((file, error)),
-        }
-    }
-
-    if !errors.is_empty() {
-        eprintln!("\nFailed to process {} file(s):", errors.len());
-        for (idx, (file, err)) in errors.iter().enumerate() {
-            eprintln!("\n{}. File: {}", idx + 1, file.display());
-            let report = error::display(err);
-            eprintln!("{report:?}");
-        }
-        std::process::exit(1);
-    }
-
-    output_paths
 }
 
 fn output_paths_from_result(result: ConversionResult) -> Vec<PathBuf> {
