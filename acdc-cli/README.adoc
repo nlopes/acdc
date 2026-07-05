@@ -48,7 +48,8 @@ acdc inspect [OPTIONS] <FILE>
 === lint
 
 Lint `AsciiDoc` documents. The command renders full colored diagnostics by
-default, including source snippets, lint IDs, labels, and help text.
+default, including source snippets, lint IDs, labels, help text, and an
+end-of-run lint statistics summary.
 Use `--output-style=compact` for compact `line:column` diagnostics without
 colors or source snippets.
 

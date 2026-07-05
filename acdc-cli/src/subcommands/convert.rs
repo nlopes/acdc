@@ -516,24 +516,53 @@ type TimedParseResult = (
 /// `eprintln!` before it exits, so they stash the warnings and print them
 /// after `pager.wait()`.
 fn report_warnings(parsed: ParseResult, file: Option<&Path>) -> ParseResult {
-    render_parser_warnings(parsed.warnings(), file);
+    parsed
+        .warnings()
+        .render(WarningRenderContext::new().with_optional_file(file));
     parsed
 }
 
-/// Render parser warnings to stderr.
-fn render_parser_warnings(warnings: &[acdc_parser::Warning], file: Option<&Path>) {
-    for warning in warnings {
-        eprintln!("{:?}", error::parser_warning_report(warning, file));
+#[derive(Debug, Clone, Copy)]
+struct WarningRenderContext<'a> {
+    file: Option<&'a Path>,
+}
+
+impl<'a> WarningRenderContext<'a> {
+    const fn new() -> Self {
+        Self { file: None }
+    }
+
+    const fn with_file(mut self, file: &'a Path) -> Self {
+        self.file = Some(file);
+        self
+    }
+
+    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
+        self
     }
 }
 
-/// Render converter warnings to stderr with the same miette treatment.
-fn render_converter_warnings(
-    warnings: impl IntoIterator<Item = acdc_converters_core::Warning>,
-    file: Option<&Path>,
-) {
-    for warning in warnings {
-        eprintln!("{:?}", error::converter_warning_report(&warning, file));
+trait WarningRenderer {
+    fn render(&self, context: WarningRenderContext<'_>);
+}
+
+impl WarningRenderer for [acdc_parser::Warning] {
+    fn render(&self, context: WarningRenderContext<'_>) {
+        for warning in self {
+            eprintln!("{:?}", error::parser_warning_report(warning, context.file));
+        }
+    }
+}
+
+impl WarningRenderer for [acdc_converters_core::Warning] {
+    fn render(&self, context: WarningRenderContext<'_>) {
+        for warning in self {
+            eprintln!(
+                "{:?}",
+                error::converter_warning_report(warning, context.file)
+            );
+        }
     }
 }
 
@@ -547,7 +576,7 @@ fn report_errors<E: std::error::Error + 'static>(
         match result {
             Ok(result) => {
                 let (output_path, warnings) = result.into_parts();
-                render_converter_warnings(warnings, Some(&file));
+                warnings.render(WarningRenderContext::new().with_file(&file));
                 if let Some(output_path) = output_path {
                     output_paths.push(output_path);
                 }
@@ -571,7 +600,7 @@ fn report_errors<E: std::error::Error + 'static>(
 
 fn output_paths_from_result(result: ConversionResult) -> Vec<PathBuf> {
     let (output_path, warnings) = result.into_parts();
-    render_converter_warnings(warnings, None);
+    warnings.render(WarningRenderContext::new());
     output_path.into_iter().collect()
 }
 
@@ -761,14 +790,14 @@ fn run_terminal_stdin(
         // `parsed` and its arena drop here; the pager output is already in flight.
         drop(parsed);
         let _ = pager.wait()?;
-        render_parser_warnings(&parser_warnings, None);
-        render_converter_warnings(converter_warnings, None);
+        parser_warnings.render(WarningRenderContext::new());
+        converter_warnings.render(WarningRenderContext::new());
         return Ok(Vec::new());
     }
     let parsed = report_warnings(parsed, None);
     let result = processor.convert(parsed.document(), None)?;
     let (_, warnings) = result.into_parts();
-    render_converter_warnings(warnings, None);
+    warnings.render(WarningRenderContext::new());
     Ok(Vec::new())
 }
 
@@ -805,9 +834,9 @@ fn run_terminal_through_pager(
     // Wait for pager, ignore exit status (user may quit with 'q')
     let _ = pager.wait()?;
     for (warnings, file) in &deferred {
-        render_parser_warnings(warnings, Some(file));
+        warnings.render(WarningRenderContext::new().with_file(file));
     }
-    render_converter_warnings(converter_warnings, None);
+    converter_warnings.render(WarningRenderContext::new());
     Ok(())
 }
 
@@ -880,7 +909,7 @@ fn run_terminal_with_pager(
                     let parsed = report_warnings(parsed, Some(&file));
                     let result = processor.convert(parsed.document(), Some(&file))?;
                     let (output_path, warnings) = result.into_parts();
-                    render_converter_warnings(warnings, Some(&file));
+                    warnings.render(WarningRenderContext::new().with_file(&file));
                     if let Some(output_path) = output_path {
                         output_paths.push(output_path);
                     }
@@ -902,7 +931,7 @@ fn run_terminal_with_pager(
                     let parsed = report_warnings(parsed, Some(&file));
                     let result = processor.convert(parsed.document(), Some(&file))?;
                     let (_, warnings) = result.into_parts();
-                    render_converter_warnings(warnings, Some(&file));
+                    warnings.render(WarningRenderContext::new().with_file(&file));
                 }
                 Err(e) => return Err(e.into()),
             }
