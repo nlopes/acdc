@@ -270,7 +270,7 @@ fn run_delimited_block_layout(emitter: &mut LintEmitter<'_>, context: &LintConte
 }
 
 fn run_source_whitespace(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    whitespace::lint_source_whitespace(emitter, context.lines);
+    whitespace::lint_source_whitespace(emitter, context.document(), context.lines);
 }
 
 fn run_list_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {

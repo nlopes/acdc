@@ -40,5 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `excessive-blank-lines` lint no longer reports repeated blank lines
+  inside listing/source block content.
 - The `one-sentence-per-line` lint no longer treats a standalone
   colon-terminated lead-in line as a sentence wrapped onto the following line.
