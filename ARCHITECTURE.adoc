@@ -69,14 +69,14 @@ Input Document → [Preprocessor] → [Parser] → [Converter] → Output
 
 === Stage 1: preprocessor
 
-The preprocessor (`acdc-parser/src/preprocessor/`) handles text-level transformations that need to happen before parsing.
-This includes:
+The preprocessor (`acdc-parser/src/preprocessor/`) handles text-level transformations that need to happen before parsing. This includes:
 
 * Expanding `include::[]` directives (recursively processing included files)
 * Evaluating conditional directives like `ifdef::[]`, `ifndef::[]`, and `ifeval::[]`
 * Processing document attribute definitions (`:attr:`) and multi-line attribute continuations
 
-Why keep this separate? Because the AsciiDoc spec says these expansions must happen before parsing.
+Why keep this separate?
+Because the AsciiDoc spec says these expansions must happen before parsing.
 The preprocessor works on raw text and produces expanded content that the parser then processes.
 
 === Stage 2: parser (PEG + inline preprocessing)
@@ -172,13 +172,13 @@ The parser keeps track of state through `ParserState`, which includes document a
 
 ==== Location tracking
 
-Every piece of the AST knows where it came from in the source document. The `LineMap` structure provides efficient offset-to-position conversion, mapping byte offsets to line and column positions.
+Every piece of the AST knows where it came from in the source document.
+The `LineMap` structure provides efficient offset-to-position conversion, mapping byte offsets to line and column positions.
 This enables accurate error reporting, and has minimal overhead (I think!) thanks to pre-computed line boundaries.
 
 === Stage 3: converters
 
-Converters (`converters/`) transform the AST into various output formats.
-They all implement the `Processable` trait:
+Converters (`converters/`) transform the AST into various output formats. They all implement the `Processable` trait:
 
 [source,rust]
 ----
@@ -195,13 +195,13 @@ pub trait Processable {
 
 Right now I have four converters:
 
-. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes.
-  Also ships a `html5s` variant (inspired by https://github.com/jirutka/asciidoctor-html5s[Jakub Jirutka's asciidoctor-html5s]) that emits `<section>`/`<aside>`/`<figure>` instead of div-based layout
+. HTML (`converters/html`) for HTML5 output with semantic markup and accessibility attributes. Also ships a `html5s` variant (inspired by https://github.com/jirutka/asciidoctor-html5s[Jakub Jirutka's asciidoctor-html5s]) that emits `<section>`/`<aside>`/`<figure>` instead of div-based layout
 . Manpage (`converters/manpage`) for native roff/troff output suitable for the `man` command
 . Markdown (`converters/markdown`) for CommonMark and GitHub Flavored Markdown output
 . Terminal (`converters/terminal`) for ANSI-formatted terminal display
 
-Why this trait-based design? I didn't think it over too much, honestly.
+Why this trait-based design?
+I didn't think it over too much, honestly.
 It keeps things clean - the parser doesn't know anything about output formats.
 Each converter defines its own options and error types, which gives type safety.
 And implementing the trait to add a new output format is straightforward.
@@ -211,8 +211,7 @@ And implementing the trait to add a new output format is straightforward.
 Document attributes follow a 4-level precedence hierarchy (lowest to highest priority):
 
 . **Base rendering defaults** - Common defaults from `converters/core` like `lang: "en"`, admonition captions, `toclevels: "2"`, `sectnumlevels: "3"`
-. **Converter-specific defaults** - Each converter can override defaults via `document_attributes_defaults()`.
-  For example, HTML sets `copycss`, `stylesdir`, `stylesheet`; manpage sets `man-linkstyle: "blue R <>"`
+. **Converter-specific defaults** - Each converter can override defaults via `document_attributes_defaults()`. For example, HTML sets `copycss`, `stylesdir`, `stylesheet`; manpage sets `man-linkstyle: "blue R <>"`
 . **CLI attributes** - User-provided via `-a name=value` command-line flags
 . **Document attributes** - Highest priority, defined in the document header with `:name: value` syntax
 
@@ -221,8 +220,7 @@ Users can override via CLI for batch processing, and authors can override in ind
 
 ==== Type-based AST instead of property-based
 
-One thing worth calling out: the spec's reference implementation uses a property-based approach for the AST (look at the `*.json` fixtures in `acdc-parser/fixtures/tests/`).
-Everything is a generic object with properties like `"name"`, `"type"`, `"variant"`, etc.
+One thing worth calling out: the spec's reference implementation uses a property-based approach for the AST (look at the `*.json` fixtures in `acdc-parser/fixtures/tests/`). Everything is a generic object with properties like `"name"`, `"type"`, `"variant"`, etc.
 
 I went a different route.
 I created distinct Rust types for each element - `Block`, `InlineNode`, `Paragraph`, `Section`, and so on.
@@ -275,7 +273,8 @@ acdc/
 ----
 
 This keeps clear boundaries - parser, CLI, linting, LSP, and converters are independently testable.
-The parser has no knowledge of output formats or lint policy for the most part. An exception to this perhaps is warning on unsupported counters, which it does.
+The parser has no knowledge of output formats or lint policy for the most part.
+An exception to this perhaps is warning on unsupported counters, which it does.
 Converters, linting, and the LSP depend on the parser, not the other way around.
 New features can be scoped to specific modules without touching everything else.
 
@@ -307,21 +306,22 @@ If you want to add a new converter, implement the `Processable` trait. The trait
 * `convert()` - Convert a parsed document, writing output to the destination
 * `document_attributes()` - Access the document attributes
 
-The best way to understand how this works is to look at an existing converter. The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
+The best way to understand how this works is to look at an existing converter.
+The Terminal converter (`converters/terminal/src/lib.rs`) is a good starting point - it's relatively straightforward and shows all the essential patterns.
 
 To add a new converter:
 
-1. Create a new crate under `converters/`
-2. Add dependencies on `acdc-converters-core` and `acdc-parser`
-3. Define your options and error types
-4. Implement the `Processable` trait
-5. Walk the AST to generate your output format
+. Create a new crate under `converters/`
+. Add dependencies on `acdc-converters-core` and `acdc-parser`
+. Define your options and error types
+. Implement the `Processable` trait
+. Walk the AST to generate your output format
 
 === Adding new grammar rules
 
 To extend the parser with new AsciiDoc constructs:
 
-1. Add AST model types in `acdc-parser/src/model/`:
+. Add AST model types in `acdc-parser/src/model/`:
 +
 [source,rust]
 ----
@@ -332,7 +332,8 @@ pub struct MyNewElement {
     // ... additional fields
 }
 ----
-2. Add the grammar rule in `acdc-parser/src/grammar/document.rs`:
+
+. Add the grammar rule in `acdc-parser/src/grammar/document.rs`:
 +
 [source,rust]
 ----
@@ -344,7 +345,8 @@ rule my_new_element() -> MyNewElement
         }
     }
 ----
-3. Add it to the AST by adding a variant to `Block` or `InlineNode` enum:
+
+. Add it to the AST by adding a variant to `Block` or `InlineNode` enum:
 +
 [source,rust]
 ----
@@ -353,7 +355,8 @@ pub enum Block {
     MyNewElement(MyNewElement),
 }
 ----
-4. Update converters to handle the new element type
+
+. Update converters to handle the new element type
 
 === Adding new block or inline types
 

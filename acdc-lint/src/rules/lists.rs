@@ -1,8 +1,11 @@
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, UnorderedList};
+use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, ListItem, UnorderedList};
 
 use crate::LintId;
 
-use super::{LintEmitter, SourceLine, is_list_continuation, is_skipped_line, root_list_family};
+use super::{
+    LintEmitter, SourceLine, is_list_continuation, is_skipped_line, root_list_family,
+    source_line_at,
+};
 
 pub(crate) fn lint_adjacent_list_separator(
     emitter: &mut LintEmitter<'_>,
@@ -58,28 +61,136 @@ pub(crate) fn lint_adjacent_list_separator(
 
 pub(crate) fn lint_list_marker_spacing(
     emitter: &mut LintEmitter<'_>,
+    document: &Document<'_>,
     lines: &[SourceLine<'_>],
-    skipped_lines: &[bool],
 ) {
-    for line in lines {
-        if is_skipped_line(line.number, skipped_lines) {
-            continue;
+    lint_list_marker_spacing_blocks(emitter, &document.blocks, lines);
+}
+
+fn lint_list_marker_spacing_blocks(
+    emitter: &mut LintEmitter<'_>,
+    blocks: &[Block<'_>],
+    lines: &[SourceLine<'_>],
+) {
+    for block in blocks {
+        match block {
+            Block::Admonition(block) => {
+                lint_list_marker_spacing_blocks(emitter, &block.blocks, lines);
+            }
+            Block::CalloutList(list) => {
+                for item in &list.items {
+                    lint_list_marker_spacing_blocks(emitter, &item.blocks, lines);
+                }
+            }
+            Block::DescriptionList(list) => {
+                for item in &list.items {
+                    lint_list_marker_spacing_blocks(emitter, &item.description, lines);
+                }
+            }
+            Block::DelimitedBlock(block) => {
+                lint_list_marker_spacing_delimited_block(emitter, block, lines);
+            }
+            Block::OrderedList(list) => {
+                lint_list_marker_spacing_items(emitter, &list.items, lines);
+            }
+            Block::Section(section) => {
+                lint_list_marker_spacing_blocks(emitter, &section.content, lines);
+            }
+            Block::UnorderedList(list) => {
+                lint_list_marker_spacing_items(emitter, &list.items, lines);
+            }
+            Block::Audio(_)
+            | Block::Comment(_)
+            | Block::DiscreteHeader(_)
+            | Block::DocumentAttribute(_)
+            | Block::Image(_)
+            | Block::PageBreak(_)
+            | Block::Paragraph(_)
+            | Block::TableOfContents(_)
+            | Block::ThematicBreak(_)
+            | Block::Video(_)
+            | _ => {}
         }
-        let trimmed = line.text.trim_start();
-        if let Some(marker_len) = bad_list_marker_len(trimmed) {
-            let column = line
-                .text
-                .len()
-                .saturating_sub(trimmed.len())
-                .saturating_add(marker_len)
-                .saturating_add(1);
-            emitter.emit(
-                LintId::ListMarkerSpacing,
-                "list marker should be followed by whitespace",
-                None,
-                Some(emitter.point_location(line.number, column)),
-            );
+    }
+}
+
+fn lint_list_marker_spacing_delimited_block(
+    emitter: &mut LintEmitter<'_>,
+    block: &DelimitedBlock<'_>,
+    lines: &[SourceLine<'_>],
+) {
+    match &block.inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks) => {
+            lint_list_marker_spacing_blocks(emitter, blocks, lines);
         }
+        DelimitedBlockType::DelimitedTable(table) => {
+            for row in table
+                .header
+                .iter()
+                .chain(table.rows.iter())
+                .chain(table.footer.iter())
+            {
+                for column in &row.columns {
+                    lint_list_marker_spacing_blocks(emitter, &column.content, lines);
+                }
+            }
+        }
+        DelimitedBlockType::DelimitedComment(_)
+        | DelimitedBlockType::DelimitedListing(_)
+        | DelimitedBlockType::DelimitedLiteral(_)
+        | DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedStem(_)
+        | DelimitedBlockType::DelimitedVerse(_)
+        | _ => {}
+    }
+}
+
+fn lint_list_marker_spacing_items(
+    emitter: &mut LintEmitter<'_>,
+    items: &[ListItem<'_>],
+    lines: &[SourceLine<'_>],
+) {
+    for item in items {
+        lint_list_item_marker_spacing(emitter, item, lines);
+        lint_list_marker_spacing_blocks(emitter, &item.blocks, lines);
+    }
+}
+
+fn lint_list_item_marker_spacing(
+    emitter: &mut LintEmitter<'_>,
+    item: &ListItem<'_>,
+    lines: &[SourceLine<'_>],
+) {
+    let Some(line) = source_line_at(lines, item.location.start.line) else {
+        return;
+    };
+    let trimmed = line.text.trim_start();
+    let Some(after_marker) = trimmed.strip_prefix(item.marker) else {
+        return;
+    };
+
+    if after_marker
+        .chars()
+        .next()
+        .is_some_and(|ch| !ch.is_whitespace())
+    {
+        let leading_columns = line
+            .text
+            .chars()
+            .take_while(|ch| ch.is_whitespace())
+            .count();
+        let column = leading_columns
+            .saturating_add(item.marker.chars().count())
+            .saturating_add(1);
+        emitter.emit(
+            LintId::ListMarkerSpacing,
+            "list marker should be followed by whitespace",
+            None,
+            Some(emitter.point_location(line.number, column)),
+        );
     }
 }
 
@@ -232,45 +343,6 @@ fn lint_unordered_list(emitter: &mut LintEmitter<'_>, list: &UnorderedList<'_>, 
     }
 }
 
-fn bad_list_marker_len(trimmed: &str) -> Option<usize> {
-    if bold_description_term(trimmed).is_some() {
-        return None;
-    }
-
-    if let Some(rest) = trimmed.strip_prefix('-')
-        && rest.chars().next().is_some_and(|ch| !ch.is_whitespace())
-    {
-        return Some(1);
-    }
-
-    let marker_len = trimmed.chars().take_while(|ch| *ch == '*').count();
-    if marker_len > 0
-        && trimmed
-            .chars()
-            .nth(marker_len)
-            .is_some_and(|ch| !ch.is_whitespace())
-    {
-        return Some(marker_len);
-    }
-
-    let dot_len = trimmed.chars().take_while(|ch| *ch == '.').count();
-    if dot_len > 1
-        && trimmed
-            .chars()
-            .nth(dot_len)
-            .is_some_and(|ch| !ch.is_whitespace())
-    {
-        return Some(dot_len);
-    }
-
-    let marker_len = explicit_ordered_marker(trimmed)?;
-    trimmed
-        .chars()
-        .nth(marker_len)
-        .is_some_and(|ch| !ch.is_whitespace())
-        .then_some(marker_len)
-}
-
 fn bold_description_term(trimmed: &str) -> Option<usize> {
     bold_description_term_with_marker(trimmed, "**")
         .or_else(|| bold_description_term_with_marker(trimmed, "*"))
@@ -322,10 +394,20 @@ mod tests {
     }
 
     #[test]
-    fn list_marker_spacing_flags_missing_space() -> Result<(), Error> {
-        let report = report_for("= Title\n\n*Item\n")?;
+    fn list_marker_spacing_allows_valid_list_items() -> Result<(), Error> {
+        let report = report_for("= Title\n\n* Item\n- Item\n. Item\n")?;
 
-        assert!(has_lint(&report, LintId::ListMarkerSpacing));
+        assert!(!has_lint(&report, LintId::ListMarkerSpacing));
+        Ok(())
+    }
+
+    #[test]
+    fn list_marker_spacing_ignores_marker_like_paragraphs() -> Result<(), Error> {
+        let report = report_for(
+            "= Title\n\n*Item\n\n**The grammar mirrors the spec directly**.\n\n*Important* paragraph.\n",
+        )?;
+
+        assert!(!has_lint(&report, LintId::ListMarkerSpacing));
         Ok(())
     }
 
