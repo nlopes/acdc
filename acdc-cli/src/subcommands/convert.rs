@@ -18,7 +18,7 @@ use rayon::prelude::*;
 
 use crate::{
     error::{self, WarningReport, WarningReportContext},
-    timing::{TimingEntry, print_timing_table},
+    timing::{TimingEntry, TimingRenderer},
 };
 
 /// Convert `AsciiDoc` documents to various output formats
@@ -454,7 +454,7 @@ where
                 })
             })
             .collect();
-        print_timing_table(&timing_entries, wall_clock);
+        timing_entries.render(wall_clock);
     }
 
     report_errors(file_results.into_iter().map(|fr| (fr.path, fr.result)))
