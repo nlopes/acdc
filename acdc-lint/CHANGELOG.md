@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `delimited-block-minimal-delimiter` lint now accounts for delimiter
+  lines inside block content before deciding whether a longer delimiter can be
+  shortened.
 - The `excessive-blank-lines` lint no longer reports repeated blank lines
   inside listing/source block content.
 - The `one-sentence-per-line` lint no longer treats a standalone
