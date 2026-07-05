@@ -92,13 +92,16 @@ pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
         let report = source
             .lint(&options)
             .map_err(|error| miette::miette!("lint failed: {error}"))?;
-        return finish_report(
-            None,
-            Some("<stdin>"),
-            Some(&source),
-            &report,
-            args.output_style,
+        report.render_with_stats(
+            LintReportRenderContext::new(args.output_style).with_source("<stdin>", &source),
         );
+        return if report.has_errors() {
+            Err(miette::miette!(
+                "lint diagnostics denied by configured lint levels"
+            ))
+        } else {
+            Ok(())
+        };
     }
 
     if args.files.is_empty() {
@@ -120,32 +123,6 @@ pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
     stats.render(args.output_style);
 
     if failed {
-        Err(miette::miette!(
-            "lint diagnostics denied by configured lint levels"
-        ))
-    } else {
-        Ok(())
-    }
-}
-
-fn finish_report(
-    file: Option<&Path>,
-    source_name: Option<&str>,
-    source: Option<&str>,
-    report: &LintReport,
-    output_style: OutputStyle,
-) -> miette::Result<()> {
-    report.render(
-        LintReportRenderContext::new(output_style)
-            .with_optional_file(file)
-            .with_optional_source_name(source_name)
-            .with_optional_source(source),
-    );
-
-    let mut stats = LintStats::default();
-    stats.record_report(report);
-    stats.render(output_style);
-    if report.has_errors() {
         Err(miette::miette!(
             "lint diagnostics denied by configured lint levels"
         ))
@@ -177,24 +154,16 @@ impl<'a> LintReportRenderContext<'a> {
         self
     }
 
-    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
-        self.file = file;
-        self
-    }
-
-    const fn with_optional_source_name(mut self, source_name: Option<&'a str>) -> Self {
-        self.source_name = source_name;
-        self
-    }
-
-    const fn with_optional_source(mut self, source: Option<&'a str>) -> Self {
-        self.source = source;
+    const fn with_source(mut self, source_name: &'a str, source: &'a str) -> Self {
+        self.source_name = Some(source_name);
+        self.source = Some(source);
         self
     }
 }
 
 trait ReportRenderer {
     fn render(&self, context: LintReportRenderContext<'_>);
+    fn render_with_stats(&self, context: LintReportRenderContext<'_>);
     fn render_full(&self, context: LintReportRenderContext<'_>);
     fn render_compact(&self, context: LintReportRenderContext<'_>);
 }
@@ -206,6 +175,13 @@ impl ReportRenderer for LintReport {
         } else {
             self.render_compact(context);
         }
+    }
+
+    fn render_with_stats(&self, context: LintReportRenderContext<'_>) {
+        self.render(context);
+        let mut stats = LintStats::default();
+        stats.record_report(self);
+        stats.render(context.output_style);
     }
 
     fn render_full(&self, context: LintReportRenderContext<'_>) {
