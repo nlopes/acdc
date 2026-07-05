@@ -456,8 +456,9 @@ pub const LINTS: &[LintInfo] = &[
         id: LintId::ExcessiveBlankLines,
         default_level: LintLevel::Warn,
         summary: "avoid repeated blank lines",
-        explanation: "Checks for repeated blank lines. A single blank line is enough to separate \
-                      adjacent blocks in normal AsciiDoc source.",
+        explanation: "Checks for repeated blank lines outside listing/source block content. A \
+                      single blank line is enough to separate adjacent blocks in normal AsciiDoc \
+                      source, while source code may intentionally contain larger vertical gaps.",
         help: Some("keep a single blank line between adjacent blocks"),
     },
     LintInfo {

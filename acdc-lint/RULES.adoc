@@ -1064,6 +1064,7 @@ Groups:: `all`, `source-format`
 ==== What it does
 
 Checks for repeated blank lines where a single blank line is enough to separate adjacent blocks.
+Blank lines inside listing/source block content are ignored because they are part of the example or code being shown.
 
 ==== Why it is bad
 
@@ -1074,6 +1075,7 @@ They also make unrelated spacing changes show up in diffs.
 
 Extra spacing may be useful in generated source or long hand-edited notes.
 Allow this lint for files that intentionally use whitespace as visual grouping.
+Source blocks are not a drawback of this lint; their internal blank lines are intentionally allowed.
 
 ==== Example
 
