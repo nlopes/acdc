@@ -23,3 +23,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   heading/link/image/code fence/table syntax. Lint metadata now includes stable
   long-form explanations for each lint ID, suitable for generated rule docs and future
   `acdc lint --explain` output.
+- Added a linked `RULES.adoc` reference that documents every lint ID, default level,
+  group membership, detection intent, and remediation guidance.

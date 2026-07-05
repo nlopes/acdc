@@ -1,0 +1,442 @@
+= `acdc-lint` Rules
+:toc:
+:toclevels: 3
+:sectanchors:
+
+This page documents every lint ID and lint group supported by `acdc-lint`.
+
+A lint ID is the stable command-line selector shown in diagnostics and accepted by lint-level overrides.
+The default level is the level used before command-line overrides are applied.
+All lint IDs are also members of the `all` group.
+
+== Groups
+
+Groups are command-line selectors that apply one lint level to several lint IDs.
+Groups are organized by authoring intent, so one lint can belong to more than one group.
+
+=== `all`
+
+Includes every registered lint.
+Use this group when a command or configuration should apply to the complete lint registry.
+
+=== `recommended-practices`
+
+The low-noise subset of implemented AsciiDoc recommended-practice checks.
+This group avoids opt-in document-header checks and higher-noise migration checks.
+
+Members:
+
+* `document-extension`
+* `one-sentence-per-line`
+* `section-title-symmetric-marker`
+* `section-title-setext-style`
+* `delimited-block-minimal-delimiter`
+* `attribute-url-prefix`
+* `imagesdir`
+* `nested-unordered-list-marker`
+* `adjacent-list-separator`
+
+=== `document-structure`
+
+Checks that protect the document outline, parser recovery, document metadata, and table structure.
+
+Members:
+
+* `document-extension`
+* `document-title-author`
+* `document-title-revision`
+* `section-level-sequence`
+* `unterminated-delimited-block`
+* `unterminated-table`
+* `counter-syntax`
+* `multiple-document-title`
+* `table-unknown-format`
+* `table-incomplete-row`
+* `table-column-count`
+* `table-cell-overflow`
+
+=== `source-format`
+
+Checks for source layout and style conventions that keep AsciiDoc easy to scan, diff, and maintain.
+
+Members:
+
+* `one-sentence-per-line`
+* `section-title-symmetric-marker`
+* `section-title-setext-style`
+* `delimited-block-minimal-delimiter`
+* `section-title-marker-spacing`
+* `section-title-capitalization`
+* `delimited-block-leading-blank-line`
+* `delimited-block-trailing-blank-line`
+* `trailing-whitespace`
+* `hard-tab`
+* `excessive-blank-lines`
+* `list-marker-spacing`
+* `nested-unordered-list-marker`
+* `adjacent-list-separator`
+
+=== `semantic-asciidoc`
+
+Checks that prefer AsciiDoc-native constructs over ambiguous style conventions or Markdown syntax.
+
+Members:
+
+* `attribute-url-prefix`
+* `ordered-list-explicit-number`
+* `description-list-bold-term`
+* `markdown-heading`
+* `markdown-link`
+* `markdown-image`
+* `markdown-code-fence`
+* `markdown-table`
+
+=== `resources`
+
+Checks for image/resource references and accessibility metadata.
+
+Members:
+
+* `imagesdir`
+* `image-alt-text`
+* `image-target-exists`
+
+== Lints
+
+=== `document-extension`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `document-structure`
+* Summary: prefer `.adoc` and avoid `.asc`
+* Intent: Keep AsciiDoc source filenames predictable for editors, build tools, and publishing pipelines.
+* Detects: File paths passed to the linter that do not use the `.adoc` extension.
+* Remediation: Rename the file to use the `.adoc` extension.
+
+=== `one-sentence-per-line`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `source-format`
+* Summary: write one sentence per source line
+* Intent: Make prose reviews and diffs more focused by avoiding unrelated sentence churn on one line.
+* Detects: Prose paragraphs with more than one sentence ending on a line, or a sentence that appears to span multiple source lines.
+* Remediation: Write one complete sentence per source line.
+
+=== `section-title-symmetric-marker`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `source-format`
+* Summary: prefer asymmetric ATX section titles
+* Intent: Prefer the simpler AsciiDoc title form where the opening marker alone communicates the level.
+* Detects: Section titles written with a closing marker, such as `== Title ==`.
+* Remediation: Remove the closing title marker.
+
+=== `section-title-setext-style`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `source-format`
+* Summary: prefer ATX section titles over setext titles
+* Intent: Keep the section level visible on the title line.
+* Detects: Two-line setext-style section titles that use an underline marker below the title text.
+* Remediation: Use an asymmetric ATX title such as `== Section`.
+
+=== `document-title-author`
+
+* Default level: `allow`
+* Groups: `all`, `document-structure`
+* Summary: include an author line after the document title
+* Intent: Enforce projects that require document-header author metadata.
+* Detects: A document header with a title but no author line.
+* Remediation: Add an author line immediately after the document title.
+* Notes: This lint is opt-in because snippets, partials, and internal documents often omit author metadata intentionally.
+
+=== `document-title-revision`
+
+* Default level: `allow`
+* Groups: `all`, `document-structure`
+* Summary: include a revision line after the author line
+* Intent: Enforce projects that require document-header revision metadata.
+* Detects: A document header with author metadata but no revision line or revision attributes.
+* Remediation: Add a revision line after the author line.
+* Notes: This lint is opt-in because revision metadata is a project convention, not a general AsciiDoc requirement.
+
+=== `section-level-sequence`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: do not skip section levels
+* Intent: Preserve a predictable document outline.
+* Detects: Parser recovery warnings for skipped section levels, such as jumping from level 1 to level 3.
+* Remediation: Adjust section levels so they increase one level at a time.
+
+=== `unterminated-delimited-block`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: close delimited blocks
+* Intent: Prevent delimited blocks from accidentally consuming following content.
+* Detects: Parser recovery warnings for delimited blocks without a matching closing delimiter.
+* Remediation: Add the matching closing block delimiter.
+
+=== `unterminated-table`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: close table blocks
+* Intent: Prevent table syntax from changing how following content is parsed.
+* Detects: Parser recovery warnings for table blocks without a closing delimiter.
+* Remediation: Add the matching table closing delimiter.
+
+=== `counter-syntax`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: avoid unsupported counter syntax
+* Intent: Make unsupported counter usage visible before it disappears from output.
+* Detects: Parser warnings for unsupported `{counter:...}` and `{counter2:...}` syntax.
+* Remediation: Remove the unsupported counter or replace it with supported content.
+* Notes: acdc currently removes unsupported counter syntax from output.
+
+=== `multiple-document-title`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: use only one document title
+* Intent: Keep non-book documents from having multiple top-level document titles.
+* Detects: More than one document-title-level heading in a non-book document.
+* Remediation: Use section titles (`==`) after the document title.
+
+=== `table-unknown-format`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: use a supported table format
+* Intent: Surface table syntax that acdc may not parse with the structure the author intended.
+* Detects: Parser warnings for table formats that acdc does not support.
+* Remediation: Use a supported table format or remove the format attribute.
+
+=== `table-incomplete-row`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: complete table rows
+* Intent: Keep table rows aligned with the expected cell structure.
+* Detects: Parser warnings for table rows that end before all expected cells are present.
+* Remediation: Add the missing table cells or adjust the column count.
+
+=== `table-column-count`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: match table rows to the configured column count
+* Intent: Keep table structure predictable across parsers and converters.
+* Detects: Parser warnings for rows whose cell count does not match the configured table column count.
+* Remediation: Match each table row to the configured column count.
+
+=== `table-cell-overflow`
+
+* Default level: `warn`
+* Groups: `all`, `document-structure`
+* Summary: keep table cells within the configured column count
+* Intent: Avoid ambiguous table structure caused by extra cells.
+* Detects: Parser warnings for cells that overflow the configured table column count.
+* Remediation: Remove extra cells or increase the configured column count.
+
+=== `delimited-block-minimal-delimiter`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `source-format`
+* Summary: use minimum required delimited block fences
+* Intent: Reduce visual noise while preserving block semantics.
+* Detects: Delimited block fences longer than the minimum required by AsciiDoc.
+* Remediation: Shorten the opening and closing block delimiters.
+
+=== `section-title-marker-spacing`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: put whitespace after section title markers
+* Intent: Keep ATX-style section titles unambiguous and readable.
+* Detects: Section title markers that are immediately followed by title text.
+* Remediation: Insert a space after the opening title marker.
+
+=== `section-title-capitalization`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: start section titles with an uppercase letter
+* Intent: Enforce projects that expect title text to start with an uppercase letter.
+* Detects: Document, section, and discrete titles whose first alphabetic character is lowercase.
+* Remediation: Capitalize the first word of the title.
+
+=== `delimited-block-leading-blank-line`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: put a blank line before delimited blocks
+* Intent: Make block boundaries clear in source.
+* Detects: Delimited block openings that directly follow another source line.
+* Remediation: Insert a blank line before the opening delimiter.
+
+=== `delimited-block-trailing-blank-line`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: put a blank line after delimited blocks
+* Intent: Make the boundary between a closed delimited block and following content clear.
+* Detects: Delimited block closings that are immediately followed by more content.
+* Remediation: Insert a blank line after the closing delimiter.
+
+=== `trailing-whitespace`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: avoid trailing whitespace
+* Intent: Avoid invisible source differences and noisy diffs.
+* Detects: Source lines that end with whitespace.
+* Remediation: Remove the trailing whitespace.
+
+=== `hard-tab`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: avoid hard tab characters
+* Intent: Keep indentation and alignment stable across editors and renderers.
+* Detects: Source lines containing tab characters.
+* Remediation: Replace the tab with spaces.
+
+=== `excessive-blank-lines`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: avoid repeated blank lines
+* Intent: Keep source spacing consistent without adding visual noise.
+* Detects: Repeated blank lines where a single blank line is enough to separate adjacent blocks.
+* Remediation: Keep a single blank line between adjacent blocks.
+
+=== `list-marker-spacing`
+
+* Default level: `warn`
+* Groups: `all`, `source-format`
+* Summary: put whitespace after list markers
+* Intent: Keep parsed list item syntax readable and unambiguous.
+* Detects: Parsed list items whose source marker is not followed by whitespace before item text.
+* Remediation: Insert a space after the list marker.
+* Notes: This lint operates on parsed list items; it does not treat arbitrary paragraph text as a list marker.
+
+=== `attribute-url-prefix`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `semantic-asciidoc`
+* Summary: prefix URL-valued attributes with url- or uri-
+* Intent: Make attribute names communicate that their values are URLs.
+* Detects: Document attributes with URL-like values whose names do not start with `url-` or `uri-`.
+* Remediation: Rename the attribute with a `url-` or `uri-` prefix.
+
+=== `imagesdir`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `resources`
+* Summary: use imagesdir instead of repeating image directories
+* Intent: Avoid repeating the same image directory in every image target.
+* Detects: Image targets that include directory components.
+* Remediation: Set `:imagesdir:` and use filename-only image targets.
+
+=== `image-alt-text`
+
+* Default level: `warn`
+* Groups: `all`, `resources`
+* Summary: provide image alt text
+* Intent: Improve accessible output and meaningful fallbacks in non-visual renderers.
+* Detects: Image macros with missing or empty alt text.
+* Remediation: Add positional alt text or an `alt=` attribute.
+
+=== `image-target-exists`
+
+* Default level: `warn`
+* Groups: `all`, `resources`
+* Summary: reference image files that exist
+* Intent: Catch broken local image references before conversion or publishing.
+* Detects: Local image targets that do not exist after resolving the source path and `imagesdir`.
+* Remediation: Fix the image target or create the referenced file.
+* Notes: URL targets are not checked as local files.
+
+=== `nested-unordered-list-marker`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `source-format`
+* Summary: use asterisk markers for nested unordered lists
+* Intent: Make unordered-list nesting depth explicit in source.
+* Detects: Nested unordered list items that use a hyphen marker instead of asterisk depth markers.
+* Remediation: Use asterisk markers for nested unordered lists.
+
+=== `adjacent-list-separator`
+
+* Default level: `warn`
+* Groups: `all`, `recommended-practices`, `source-format`
+* Summary: separate adjacent lists with an empty line comment
+* Intent: Make it explicit when two adjacent lists are distinct blocks rather than one list.
+* Detects: Adjacent list blocks of the same family separated only by a blank line.
+* Remediation: Insert a line comment such as `//-` between the lists.
+
+=== `ordered-list-explicit-number`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: prefer dot ordered-list markers over explicit numbers
+* Intent: Let AsciiDoc manage ordered-list numbering so source numbers do not become stale.
+* Detects: Ordered list items written with explicit numeric markers.
+* Remediation: Use AsciiDoc dot syntax such as `. item`.
+
+=== `description-list-bold-term`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: prefer description-list syntax over bold-term paragraphs
+* Intent: Use structural AsciiDoc syntax for term/description content.
+* Detects: Paragraphs that look like a bold term followed by descriptive text.
+* Remediation: Use description-list syntax such as `Term:: description`.
+
+=== `markdown-heading`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: avoid Markdown heading syntax
+* Intent: Keep headings parsed consistently as AsciiDoc section titles.
+* Detects: Markdown `#` heading markers in AsciiDoc source.
+* Remediation: Use AsciiDoc section markers such as `== Section`.
+
+=== `markdown-link`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: avoid Markdown link syntax
+* Intent: Prefer AsciiDoc link syntax so links follow AsciiDoc parsing rules.
+* Detects: Markdown inline link syntax.
+* Remediation: Use `link:target[text]` or an AsciiDoc URL macro.
+
+=== `markdown-image`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: avoid Markdown image syntax
+* Intent: Prefer AsciiDoc image macros so image attributes and paths follow AsciiDoc rules.
+* Detects: Markdown image syntax.
+* Remediation: Use `image::target[alt]` or `image:target[alt]`.
+
+=== `markdown-code-fence`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: avoid Markdown code fences
+* Intent: Prefer AsciiDoc listing blocks for verbatim source content.
+* Detects: Markdown backtick code fences.
+* Remediation: Use an AsciiDoc listing block delimiter such as `----`.
+
+=== `markdown-table`
+
+* Default level: `warn`
+* Groups: `all`, `semantic-asciidoc`
+* Summary: avoid Markdown table syntax
+* Intent: Prefer AsciiDoc table blocks so table content follows AsciiDoc table parsing.
+* Detects: Markdown pipe-table separator rows.
+* Remediation: Use an AsciiDoc table block such as `|===`.

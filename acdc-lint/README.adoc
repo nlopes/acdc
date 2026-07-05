@@ -33,6 +33,7 @@ When multiple flags target the same lint, later flags win unless a previous `for
 The lints themselves are based on recommendations from the https://asciidoctor.org/docs/asciidoc-recommended-practices/[Asciidoctor recommended-practices draft].
 
 The lint names are organized by `AsciiDoc` authoring intent rather than by any external linter's rule IDs.
+See link:RULES.adoc[`acdc-lint` Rules] for the full lint ID and group reference.
 
 The `recommended-practices` group starts with implemented checks that have clear detection, clear remediation, and low expected style noise:
 
