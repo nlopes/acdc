@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use acdc_parser::{InlineNode, Location, Position, SourceLocation};
 
-use crate::{LintDiagnostic, LintId, LintLevel, LintOptions, LintReport};
+use crate::{LintDiagnostic, LintId, LintLevel, LintOptions, LintReport, LintSelector};
 
 #[derive(Clone, Copy)]
 pub(crate) struct SourceLine<'a> {
@@ -20,6 +20,7 @@ pub(crate) struct LintEmitter<'a> {
     file: Option<PathBuf>,
     options: &'a LintOptions,
     diagnostics: Vec<LintDiagnostic>,
+    matched_scoped_overrides: Vec<bool>,
 }
 
 impl<'a> LintEmitter<'a> {
@@ -28,6 +29,7 @@ impl<'a> LintEmitter<'a> {
             file,
             options,
             diagnostics: Vec::new(),
+            matched_scoped_overrides: vec![false; options.overrides().len()],
         }
     }
 
@@ -38,7 +40,18 @@ impl<'a> LintEmitter<'a> {
         help: Option<String>,
         location: Option<SourceLocation>,
     ) {
-        let level = self.options.level_for(lint);
+        if let Some(location) = location.as_ref() {
+            for index in self
+                .options
+                .matching_scoped_override_indexes(lint, location)
+            {
+                if let Some(matched) = self.matched_scoped_overrides.get_mut(index) {
+                    *matched = true;
+                }
+            }
+        }
+
+        let level = self.options.level_for_location(lint, location.as_ref());
         if level == LintLevel::Allow {
             return;
         }
@@ -66,8 +79,43 @@ impl<'a> LintEmitter<'a> {
         SourceLocation::at_location(self.file.clone(), location.clone())
     }
 
-    pub(crate) fn finish(self) -> LintReport {
+    pub(crate) fn finish(mut self) -> LintReport {
+        self.emit_unmatched_scoped_overrides();
         LintReport::new(self.diagnostics)
+    }
+
+    fn emit_unmatched_scoped_overrides(&mut self) {
+        for (index, lint_override) in self.options.overrides().iter().enumerate() {
+            if self
+                .matched_scoped_overrides
+                .get(index)
+                .copied()
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            let Some(scope) = lint_override.location else {
+                continue;
+            };
+            let LintSelector::Lint(lint) = lint_override.selector else {
+                continue;
+            };
+
+            let diagnostic = LintDiagnostic::new(
+                lint,
+                LintLevel::Warn,
+                format!(
+                    "location-scoped {} override for {}@{} did not match any diagnostic",
+                    lint_override.level, lint, scope
+                ),
+            )
+            .with_help(
+                "remove the location scope or update it to a line/range that still emits this lint",
+            )
+            .at(scope.source_location(self.file.clone()));
+            self.diagnostics.push(diagnostic);
+        }
     }
 }
 

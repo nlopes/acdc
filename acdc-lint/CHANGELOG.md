@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added location-scoped lint level overrides for individual lint IDs. Overrides
+  can now target `lint@line`, `lint@start-end`, `lint@line:column`, or
+  `lint@start-line:start-column-end-line:end-column`, with comma-separated
+  scopes such as `lint@line,line`; stale scopes that no longer match a
+  diagnostic now report a warning so obsolete local suppressions can be removed
+  or moved.
 - Added the opt-in `section-title-capitalization-monospace` lint for projects
   that want lowercase leading monospace title text to be reported. The existing
   `section-title-capitalization` lint now ignores titles that start with

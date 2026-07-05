@@ -3,7 +3,7 @@ use std::path::Path;
 use acdc_parser::{Document, ParseResult};
 
 use crate::{
-    LintId, LintLevel, LintOptions,
+    LintId, LintOptions,
     rules::{
         self, LintEmitter, SourceLine, attributes, blocks, document, headings, lists, markdown,
         prose, resources, whitespace,
@@ -55,9 +55,7 @@ impl LintPass {
     /// Returns whether at least one lint emitted by this pass is enabled.
     pub(crate) fn is_enabled(self, options: &LintOptions) -> bool {
         debug_assert!(!self.name.is_empty());
-        self.lints
-            .iter()
-            .any(|lint| options.level_for(*lint) != LintLevel::Allow)
+        self.lints.iter().any(|lint| options.may_emit(*lint))
     }
 
     /// Executes this pass's checker function.

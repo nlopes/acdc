@@ -16,4 +16,13 @@ pub enum Error {
         /// Unknown name as it was provided by the caller.
         name: String,
     },
+
+    /// Failed to parse a location scope attached to a lint override.
+    #[error("invalid lint location `{location}`: {reason}")]
+    InvalidLintLocation {
+        /// Location text as it was provided by the caller.
+        location: String,
+        /// Human-readable reason parsing failed.
+        reason: &'static str,
+    },
 }

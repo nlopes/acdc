@@ -17,6 +17,35 @@ Each lint entry follows the same structure:
 * drawbacks: when the lint may be too strict for a project
 * examples: a failing source shape and a better source shape
 
+== Level Overrides
+
+Lint levels can be changed for a whole lint ID, a group, or one source location for a lint ID.
+Use the global form when the project accepts or rejects a rule everywhere:
+
+[source,console]
+----
+acdc lint -A one-sentence-per-line docs/architecture.adoc
+acdc lint -D resources docs/architecture.adoc
+----
+
+Use a location-scoped override when one local source shape is intentional but the rule should still run elsewhere:
+
+[source,console]
+----
+acdc lint -A section-title-capitalization@37 docs/architecture.adoc
+acdc lint -D image-alt-text@10:1-10:80 docs/architecture.adoc
+acdc lint -A delimited-block-minimal-delimiter@977,968 docs/architecture.adoc
+----
+
+Location scopes are written after a lint ID with `@`.
+They support `LINE`, `START-END`, `LINE:COLUMN`, and `LINE:COLUMN-LINE:COLUMN`.
+Multiple scopes for the same lint ID can be separated with commas after one `@`.
+Line-only scopes match any diagnostic on that line.
+Scoped overrides apply to lint IDs, not groups, because groups are too broad for source-local intent.
+
+If the source changes and a scoped override no longer matches any diagnostic, the linter reports the scoped override as stale.
+That keeps local suppressions from silently surviving after the title, paragraph, image, or other source construct they were written for has changed.
+
 == Groups
 
 Groups are command-line selectors that apply one lint level to several lint IDs.

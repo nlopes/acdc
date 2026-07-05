@@ -41,6 +41,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `acdc lint` now renders full colored diagnostics by default, including source
   snippets, lint IDs, labels, and help text. Use `--output-style=compact` for
   compact `line:column` diagnostics without colors or snippets.
+- `acdc lint` level flags now accept location-scoped overrides for individual
+  lint IDs, such as `-A section-title-capitalization@37` or
+  `-D image-alt-text@10:1-10:80`. Multiple locations can be comma-separated in
+  one flag, such as `-A delimited-block-minimal-delimiter@977,968`. If a scoped
+  override no longer matches any diagnostic, the lint run reports the stale
+  location.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the

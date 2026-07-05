@@ -29,6 +29,21 @@ The command-line model follows `rustc` and Clippy:
 
 When multiple flags target the same lint, later flags win unless a previous `forbid` applies.
 
+Level overrides can also be scoped to a source location for one lint ID:
+
+[source,console]
+----
+acdc lint -A section-title-capitalization@37 docs/architecture.adoc
+acdc lint -D image-alt-text@10:1-10:80 docs/architecture.adoc
+acdc lint -A delimited-block-minimal-delimiter@977,968 docs/architecture.adoc
+----
+
+Supported scopes are `LINE`, `START-END`, `LINE:COLUMN`, and `LINE:COLUMN-LINE:COLUMN`.
+Multiple scopes for the same lint ID can be separated with commas after one `@`.
+Line-only scopes match any diagnostic on that line.
+Scoped overrides apply to lint IDs, not groups.
+When a scoped override no longer matches any diagnostic, the linter reports it as stale so local suppressions do not silently drift away from the source they were written for.
+
 == Lint set
 The lints themselves are based on recommendations from the https://asciidoctor.org/docs/asciidoc-recommended-practices/[Asciidoctor recommended-practices draft].
 

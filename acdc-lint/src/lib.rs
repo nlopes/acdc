@@ -741,6 +741,276 @@ pub enum LintSelector {
     Group(LintGroup),
 }
 
+/// A source position used by a location-scoped lint override.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LintSourcePosition {
+    /// One-indexed line number.
+    pub line: u32,
+    /// Optional one-indexed column number.
+    pub column: Option<u32>,
+}
+
+impl LintSourcePosition {
+    /// Creates a new source position.
+    #[must_use]
+    pub const fn new(line: u32, column: Option<u32>) -> Self {
+        Self { line, column }
+    }
+}
+
+impl fmt::Display for LintSourcePosition {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.column {
+            Some(column) => write!(f, "{}:{column}", self.line),
+            None => write!(f, "{}", self.line),
+        }
+    }
+}
+
+/// A source range used by a location-scoped lint override.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct LintSourceRange {
+    /// Inclusive start position.
+    pub start: LintSourcePosition,
+    /// Inclusive end position.
+    pub end: LintSourcePosition,
+}
+
+impl LintSourceRange {
+    /// Creates a source range from `start` to `end`.
+    #[must_use]
+    pub const fn new(start: LintSourcePosition, end: LintSourcePosition) -> Self {
+        Self { start, end }
+    }
+
+    /// Creates a source range that covers one position.
+    #[must_use]
+    pub const fn point(position: LintSourcePosition) -> Self {
+        Self {
+            start: position,
+            end: position,
+        }
+    }
+
+    fn matches(self, location: &acdc_parser::SourceLocation) -> bool {
+        let diagnostic = SourceComparableRange::from_location(location);
+        let scope = SourceComparableRange::from_lint_range(self);
+        diagnostic.overlaps(scope)
+    }
+
+    pub(crate) fn source_location(
+        self,
+        file: Option<std::path::PathBuf>,
+    ) -> acdc_parser::SourceLocation {
+        let start = acdc_parser::Position::new(
+            self.start.line.max(1),
+            self.start.column.unwrap_or(1).max(1),
+        );
+        let end =
+            acdc_parser::Position::new(self.end.line.max(1), self.end.column.unwrap_or(1).max(1));
+        let mut location = acdc_parser::Location::point(start);
+        location.end = end;
+        acdc_parser::SourceLocation::at_location(file, location)
+    }
+}
+
+impl fmt::Display for LintSourceRange {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        if self.start == self.end {
+            self.start.fmt(f)
+        } else {
+            write!(f, "{}-{}", self.start, self.end)
+        }
+    }
+}
+
+impl FromStr for LintSourceRange {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (start, end) = value
+            .split_once('-')
+            .map_or((value, None), |(start, end)| (start, Some(end)));
+        let start = parse_lint_source_position(start)?;
+        let end = end.map_or(Ok(start), parse_lint_source_position)?;
+        if SourceComparablePosition::from_lint_start(start)
+            > SourceComparablePosition::from_lint_end(end)
+        {
+            return Err(Error::InvalidLintLocation {
+                location: value.to_owned(),
+                reason: "range start must not come after range end",
+            });
+        }
+        Ok(Self::new(start, end))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct SourceComparablePosition {
+    line: u32,
+    column: u32,
+}
+
+impl SourceComparablePosition {
+    const fn from_lint_start(position: LintSourcePosition) -> Self {
+        Self {
+            line: position.line,
+            column: match position.column {
+                Some(column) => column,
+                None => 1,
+            },
+        }
+    }
+
+    const fn from_lint_end(position: LintSourcePosition) -> Self {
+        Self {
+            line: position.line,
+            column: match position.column {
+                Some(column) => column,
+                None => u32::MAX,
+            },
+        }
+    }
+
+    const fn from_parser_position(position: &acdc_parser::Position) -> Self {
+        Self {
+            line: position.line,
+            column: position.column,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct SourceComparableRange {
+    start: SourceComparablePosition,
+    end: SourceComparablePosition,
+}
+
+impl SourceComparableRange {
+    fn from_lint_range(range: LintSourceRange) -> Self {
+        Self {
+            start: SourceComparablePosition::from_lint_start(range.start),
+            end: SourceComparablePosition::from_lint_end(range.end),
+        }
+    }
+
+    fn from_location(location: &acdc_parser::SourceLocation) -> Self {
+        Self {
+            start: SourceComparablePosition::from_parser_position(&location.location.start),
+            end: SourceComparablePosition::from_parser_position(&location.location.end),
+        }
+    }
+
+    fn overlaps(self, other: Self) -> bool {
+        self.start <= other.end && other.start <= self.end
+    }
+}
+
+fn parse_lint_source_position(value: &str) -> Result<LintSourcePosition, Error> {
+    if value.is_empty() {
+        return Err(Error::InvalidLintLocation {
+            location: value.to_owned(),
+            reason: "expected a line number",
+        });
+    }
+    let (line, column) = value
+        .split_once(':')
+        .map_or((value, None), |(line, column)| (line, Some(column)));
+    let line = parse_positive_u32(line, value, "line")?;
+    let column = column
+        .map(|column| parse_positive_u32(column, value, "column"))
+        .transpose()?;
+    Ok(LintSourcePosition::new(line, column))
+}
+
+fn parse_positive_u32(value: &str, location: &str, name: &'static str) -> Result<u32, Error> {
+    match value.parse::<u32>() {
+        Ok(number) if number > 0 => Ok(number),
+        _ => Err(Error::InvalidLintLocation {
+            location: location.to_owned(),
+            reason: match name {
+                "line" => "line must be a positive integer",
+                "column" => "column must be a positive integer",
+                _ => "value must be a positive integer",
+            },
+        }),
+    }
+}
+
+/// A lint selector as written for a level override.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct LintOverrideSelector {
+    /// Lint or group to apply the override to.
+    pub selector: LintSelector,
+    /// Optional source location scopes.
+    pub locations: Vec<LintSourceRange>,
+}
+
+impl LintOverrideSelector {
+    /// Creates a new override selector.
+    #[must_use]
+    pub fn new(selector: LintSelector, location: Option<LintSourceRange>) -> Self {
+        Self {
+            selector,
+            locations: location.into_iter().collect(),
+        }
+    }
+
+    /// Creates a new override selector with multiple source location scopes.
+    #[must_use]
+    pub fn with_locations(selector: LintSelector, locations: Vec<LintSourceRange>) -> Self {
+        Self {
+            selector,
+            locations,
+        }
+    }
+
+    /// Returns the configured source location scopes.
+    #[must_use]
+    pub fn locations(&self) -> &[LintSourceRange] {
+        &self.locations
+    }
+}
+
+impl FromStr for LintOverrideSelector {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (selector, locations) = value
+            .split_once('@')
+            .map_or((value, None), |(selector, location)| {
+                (selector, Some(location))
+            });
+        let locations = locations.map(parse_lint_source_ranges).transpose()?;
+        let selector = if locations.is_some() {
+            LintSelector::Lint(LintId::from_str(selector)?)
+        } else {
+            LintSelector::from_str(selector)?
+        };
+        Ok(Self::with_locations(
+            selector,
+            locations.unwrap_or_default(),
+        ))
+    }
+}
+
+impl fmt::Display for LintOverrideSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.selector.fmt(f)?;
+        if let Some((first, rest)) = self.locations.split_first() {
+            write!(f, "@{first}")?;
+            for location in rest {
+                write!(f, ",{location}")?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn parse_lint_source_ranges(value: &str) -> Result<Vec<LintSourceRange>, Error> {
+    value.split(',').map(str::parse).collect()
+}
+
 impl LintSelector {
     /// Returns whether this selector includes `lint`.
     #[must_use]
@@ -784,13 +1054,48 @@ pub struct LintOverride {
     pub level: LintLevel,
     /// Lint or group to apply it to.
     pub selector: LintSelector,
+    /// Optional source location scope for this override.
+    pub location: Option<LintSourceRange>,
 }
 
 impl LintOverride {
     /// Creates a new lint override.
     #[must_use]
     pub const fn new(level: LintLevel, selector: LintSelector) -> Self {
-        Self { level, selector }
+        Self {
+            level,
+            selector,
+            location: None,
+        }
+    }
+
+    /// Creates a location-scoped lint override.
+    #[must_use]
+    pub const fn with_location(
+        level: LintLevel,
+        selector: LintSelector,
+        location: LintSourceRange,
+    ) -> Self {
+        Self {
+            level,
+            selector,
+            location: Some(location),
+        }
+    }
+}
+
+impl LintOverrideSelector {
+    /// Expands a parsed selector into concrete lint overrides.
+    #[must_use]
+    pub fn into_overrides(self, level: LintLevel) -> Vec<LintOverride> {
+        if self.locations.is_empty() {
+            return vec![LintOverride::new(level, self.selector)];
+        }
+
+        self.locations
+            .into_iter()
+            .map(|location| LintOverride::with_location(level, self.selector, location))
+            .collect()
     }
 }
 
@@ -816,10 +1121,25 @@ impl LintOptions {
     /// Resolves the effective level for `lint`.
     #[must_use]
     pub fn level_for(&self, lint: LintId) -> LintLevel {
+        self.level_for_location(lint, None)
+    }
+
+    /// Resolves the effective level for `lint` at `location`.
+    #[must_use]
+    pub fn level_for_location(
+        &self,
+        lint: LintId,
+        location: Option<&acdc_parser::SourceLocation>,
+    ) -> LintLevel {
         let mut level = lint.default_level();
 
         for lint_override in &self.overrides {
             if !lint_override.selector.contains(lint) {
+                continue;
+            }
+            if let Some(scope) = lint_override.location
+                && !location.is_some_and(|location| scope.matches(location))
+            {
                 continue;
             }
             if level == LintLevel::Forbid {
@@ -829,6 +1149,45 @@ impl LintOptions {
         }
 
         level
+    }
+
+    #[must_use]
+    pub(crate) fn may_emit(&self, lint: LintId) -> bool {
+        let mut global_level = lint.default_level();
+        for lint_override in &self.overrides {
+            if !lint_override.selector.contains(lint) || lint_override.location.is_some() {
+                continue;
+            }
+            if global_level == LintLevel::Forbid {
+                continue;
+            }
+            global_level = lint_override.level;
+        }
+
+        global_level != LintLevel::Allow
+            || self.overrides.iter().any(|lint_override| {
+                lint_override.location.is_some()
+                    && lint_override.selector.contains(lint)
+                    && lint_override.level != LintLevel::Allow
+            })
+    }
+
+    pub(crate) fn matching_scoped_override_indexes(
+        &self,
+        lint: LintId,
+        location: &acdc_parser::SourceLocation,
+    ) -> Vec<usize> {
+        self.overrides
+            .iter()
+            .enumerate()
+            .filter(|(_, lint_override)| {
+                lint_override.selector.contains(lint)
+                    && lint_override
+                        .location
+                        .is_some_and(|scope| scope.matches(location))
+            })
+            .map(|(index, _)| index)
+            .collect()
     }
 }
 
@@ -1010,6 +1369,46 @@ mod tests {
     }
 
     #[test]
+    fn parses_location_scoped_lint_selectors() {
+        let line_scoped = "section-title-capitalization@37".parse::<LintOverrideSelector>();
+        let expected_line_scoped = LintOverrideSelector::new(
+            LintSelector::Lint(LintId::SectionTitleCapitalization),
+            Some(LintSourceRange::point(LintSourcePosition::new(37, None))),
+        );
+        assert!(line_scoped.is_ok_and(|selector| selector == expected_line_scoped));
+
+        let range_scoped = "section-title-capitalization@37:3-38:4".parse::<LintOverrideSelector>();
+        let expected_range_scoped = LintOverrideSelector::new(
+            LintSelector::Lint(LintId::SectionTitleCapitalization),
+            Some(LintSourceRange::new(
+                LintSourcePosition::new(37, Some(3)),
+                LintSourcePosition::new(38, Some(4)),
+            )),
+        );
+        assert!(range_scoped.is_ok_and(|selector| selector == expected_range_scoped));
+
+        let multi_scoped =
+            "delimited-block-minimal-delimiter@977,968".parse::<LintOverrideSelector>();
+        let expected_multi_scoped = LintOverrideSelector::with_locations(
+            LintSelector::Lint(LintId::DelimitedBlockMinimalDelimiter),
+            vec![
+                LintSourceRange::point(LintSourcePosition::new(977, None)),
+                LintSourceRange::point(LintSourcePosition::new(968, None)),
+            ],
+        );
+        assert!(multi_scoped.is_ok_and(|selector| selector == expected_multi_scoped));
+
+        assert!(matches!(
+            "source-format@37".parse::<LintOverrideSelector>(),
+            Err(Error::UnknownLintName { name }) if name == "source-format"
+        ));
+        assert!(matches!(
+            "section-title-capitalization@2-1".parse::<LintOverrideSelector>(),
+            Err(Error::InvalidLintLocation { reason, .. }) if reason == "range start must not come after range end"
+        ));
+    }
+
+    #[test]
     fn later_overrides_win_for_non_forbid_levels() {
         let options = LintOptions::new(vec![
             LintOverride::new(LintLevel::Deny, ONE_SENTENCE),
@@ -1058,6 +1457,32 @@ mod tests {
         assert_eq!(
             options.level_for(LintId::SectionTitleSetextStyle),
             LintLevel::Deny
+        );
+    }
+
+    #[test]
+    fn scoped_override_applies_only_at_matching_location() {
+        let options = LintOptions::new(vec![LintOverride::with_location(
+            LintLevel::Allow,
+            LintSelector::Lint(LintId::SectionTitleCapitalization),
+            LintSourceRange::point(LintSourcePosition::new(1, None)),
+        )]);
+        let line_one =
+            acdc_parser::SourceLocation::at_position(None, acdc_parser::Position::new(1, 12));
+        let line_two =
+            acdc_parser::SourceLocation::at_position(None, acdc_parser::Position::new(2, 1));
+
+        assert_eq!(
+            options.level_for(LintId::SectionTitleCapitalization),
+            LintLevel::Warn
+        );
+        assert_eq!(
+            options.level_for_location(LintId::SectionTitleCapitalization, Some(&line_one)),
+            LintLevel::Allow
+        );
+        assert_eq!(
+            options.level_for_location(LintId::SectionTitleCapitalization, Some(&line_two)),
+            LintLevel::Warn
         );
     }
 
