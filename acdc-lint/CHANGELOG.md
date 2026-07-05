@@ -37,3 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a linked `RULES.adoc` reference that documents every lint ID, default level,
   group membership, detection intent, drawbacks, and bad/good examples. Lint
   references inside the page link to the corresponding lint sections.
+
+### Fixed
+
+- The `one-sentence-per-line` lint no longer treats a standalone
+  colon-terminated lead-in line as a sentence wrapped onto the following line.

@@ -116,7 +116,8 @@ fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>])
 
     let mut open_sentence_line = None;
     for line in paragraph {
-        let count = sentence_ending_count(prose_text(line.text));
+        let text = prose_text(line.text);
+        let count = sentence_ending_count(text);
         if open_sentence_line.is_some() && count > 0 {
             if let Some(open_line) = open_sentence_line {
                 emitter.emit(
@@ -129,6 +130,9 @@ fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>])
             return;
         }
         if count == 0 {
+            if open_sentence_line.is_none() && is_colon_lead_in(text) {
+                continue;
+            }
             open_sentence_line.get_or_insert(line.number);
         } else {
             open_sentence_line = None;
@@ -160,6 +164,10 @@ fn prose_text(line: &str) -> &str {
     }
 
     trimmed
+}
+
+fn is_colon_lead_in(text: &str) -> bool {
+    text.trim_end().ends_with(':')
 }
 
 fn is_list_marker_token(marker: &str) -> bool {
@@ -265,6 +273,31 @@ mod tests {
     #[test]
     fn one_sentence_per_line_flags_wrapped_sentence() -> Result<(), Error> {
         let report = report_for("= Title\n\nThis sentence wraps\nonto another line.\n")?;
+
+        assert!(has_lint(&report, LintId::OneSentencePerLine));
+        Ok(())
+    }
+
+    #[test]
+    fn one_sentence_per_line_allows_colon_lead_in_before_prose() -> Result<(), Error> {
+        let report = report_for("= Title\n\nThe supported values are:\nUse `foo` for one mode.\n")?;
+
+        assert!(!has_lint(&report, LintId::OneSentencePerLine));
+        Ok(())
+    }
+
+    #[test]
+    fn one_sentence_per_line_allows_colon_lead_in_before_list() -> Result<(), Error> {
+        let report = report_for("= Title\n\nThe supported values are:\n\n* `foo`\n* `bar`\n")?;
+
+        assert!(!has_lint(&report, LintId::OneSentencePerLine));
+        Ok(())
+    }
+
+    #[test]
+    fn one_sentence_per_line_flags_colon_line_inside_wrapped_sentence() -> Result<(), Error> {
+        let report =
+            report_for("= Title\n\nThis sentence starts\nwith a lead-in:\nand ends here.\n")?;
 
         assert!(has_lint(&report, LintId::OneSentencePerLine));
         Ok(())
