@@ -47,8 +47,10 @@ acdc inspect [OPTIONS] <FILE>
 
 === lint
 
-Lint `AsciiDoc` documents. The command currently provides the CLI harness,
-lint registry, and lint-level flags; the lint checks are not implemented yet.
+Lint `AsciiDoc` documents. The command renders full colored diagnostics by
+default, including source snippets, lint IDs, labels, and help text.
+Use `--output-style=compact` for compact `line:column` diagnostics without
+colors or source snippets.
 
 [source,console]
 ....
@@ -67,7 +69,8 @@ detection, clear remediation, and low expected style noise:
 
 * `document-extension`
 * `one-sentence-per-line`
-* `section-title-style`
+* `section-title-symmetric-marker`
+* `section-title-setext-style`
 * `delimited-block-minimal-delimiter`
 * `attribute-url-prefix`
 * `imagesdir`
@@ -83,7 +86,8 @@ currently support counters; the parser already warns on `{counter:...}` and
 `{counter2:...}` and removes them from output, so there is no separate
 `counter-prefix` lint.
 
-The available groups are `all` and `recommended-practices`.
+The available groups are `all`, `recommended-practices`, `document-structure`,
+`source-format`, `semantic-asciidoc`, and `resources`.
 
 === tck
 

@@ -7,8 +7,12 @@
 use std::{path::Path, process::exit};
 
 use acdc_converters_core::Warning as ConverterWarning;
+#[cfg(feature = "lint")]
+use acdc_lint::{LintDiagnostic, LintLevel};
 use acdc_parser::{SourceLocation, Warning as ParserWarning};
 use miette::{Diagnostic, NamedSource, Report, SourceSpan};
+#[cfg(feature = "lint")]
+use miette::{LabeledSpan, Severity};
 
 /// Rich error wrapper for beautiful miette display with source code
 #[derive(Debug, Diagnostic, thiserror::Error)]
@@ -58,6 +62,73 @@ pub(crate) struct PlainWarning {
 
     #[help]
     advice: Option<String>,
+}
+
+#[cfg(feature = "lint")]
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub(crate) struct FullLintDiagnostic {
+    message: String,
+    code: String,
+    severity: Severity,
+    advice: Option<String>,
+    src: NamedSource<String>,
+    span: SourceSpan,
+    position_advice: String,
+}
+
+#[cfg(feature = "lint")]
+impl Diagnostic for FullLintDiagnostic {
+    fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        Some(Box::new(&self.code))
+    }
+
+    fn severity(&self) -> Option<Severity> {
+        Some(self.severity)
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        self.advice
+            .as_ref()
+            .map(|help| Box::new(help) as Box<dyn std::fmt::Display + 'a>)
+    }
+
+    fn source_code(&self) -> Option<&dyn miette::SourceCode> {
+        Some(&self.src)
+    }
+
+    fn labels(&self) -> Option<Box<dyn Iterator<Item = LabeledSpan> + '_>> {
+        Some(Box::new(std::iter::once(
+            LabeledSpan::new_primary_with_span(Some(self.position_advice.clone()), self.span),
+        )))
+    }
+}
+
+#[cfg(feature = "lint")]
+#[derive(Debug, thiserror::Error)]
+#[error("{message}")]
+pub(crate) struct CompactLintDiagnostic {
+    message: String,
+    code: String,
+    severity: Severity,
+    advice: Option<String>,
+}
+
+#[cfg(feature = "lint")]
+impl Diagnostic for CompactLintDiagnostic {
+    fn code<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        Some(Box::new(&self.code))
+    }
+
+    fn severity(&self) -> Option<Severity> {
+        Some(self.severity)
+    }
+
+    fn help<'a>(&'a self) -> Option<Box<dyn std::fmt::Display + 'a>> {
+        self.advice
+            .as_ref()
+            .map(|help| Box::new(help) as Box<dyn std::fmt::Display + 'a>)
+    }
 }
 
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
@@ -171,6 +242,64 @@ pub(crate) fn converter_warning_report(
         warning.source_location(),
         fallback_file,
     )
+}
+
+#[cfg(feature = "lint")]
+fn severity_for_lint_level(level: LintLevel) -> Severity {
+    match level {
+        LintLevel::Allow | LintLevel::Warn => Severity::Warning,
+        LintLevel::Deny | LintLevel::Forbid => Severity::Error,
+    }
+}
+
+#[cfg(feature = "lint")]
+pub(crate) fn lint_diagnostic_report(
+    diagnostic: &LintDiagnostic,
+    fallback_file: Option<&Path>,
+    fallback_source_name: Option<&str>,
+    fallback_source: Option<&str>,
+) -> Report {
+    let message = diagnostic.message().to_owned();
+    let code = diagnostic.lint().name().to_owned();
+    let severity = severity_for_lint_level(diagnostic.level());
+    let advice = diagnostic.help().map(str::to_string);
+
+    let full = diagnostic.location().and_then(|loc| {
+        let (name, source_str) = match loc.file.as_deref().or(fallback_file) {
+            Some(path) => (
+                path.display().to_string(),
+                std::fs::read_to_string(path).ok()?,
+            ),
+            None => (
+                fallback_source_name.unwrap_or("<stdin>").to_owned(),
+                fallback_source?.to_owned(),
+            ),
+        };
+        let span = source_span_from_source_location(loc, &source_str);
+        let (line, column) = source_location_line_column(loc);
+        Some(FullLintDiagnostic {
+            message: message.clone(),
+            code: code.clone(),
+            severity,
+            advice: advice.clone(),
+            src: NamedSource::new(name, source_str),
+            span,
+            position_advice: format!(
+                "{} triggered here (line {line}, column {column})",
+                diagnostic.lint()
+            ),
+        })
+    });
+
+    match full {
+        Some(full) => Report::new(full),
+        None => Report::new(CompactLintDiagnostic {
+            message,
+            code,
+            severity,
+            advice,
+        }),
+    }
 }
 
 pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {
