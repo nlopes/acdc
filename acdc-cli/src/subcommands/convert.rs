@@ -307,7 +307,7 @@ where
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
-            .map(output_paths_from_result);
+            .map(|result| result.report(WarningRenderContext::new()));
     }
 
     // When --out-file is specified with multiple files, only process the first file
@@ -610,10 +610,16 @@ impl WarningRenderer for [acdc_converters_core::Warning] {
     }
 }
 
-fn output_paths_from_result(result: ConversionResult) -> Vec<PathBuf> {
-    let (output_path, warnings) = result.into_parts();
-    warnings.render(WarningRenderContext::new());
-    output_path.into_iter().collect()
+trait ConversionResultReporter {
+    fn report(self, context: WarningRenderContext<'_>) -> Vec<PathBuf>;
+}
+
+impl ConversionResultReporter for ConversionResult {
+    fn report(self, context: WarningRenderContext<'_>) -> Vec<PathBuf> {
+        let (output_path, warnings) = self.into_parts();
+        warnings.render(context);
+        output_path.into_iter().collect()
+    }
 }
 
 #[cfg(test)]
@@ -782,7 +788,7 @@ fn run_terminal_stdin(
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
-            .map(output_paths_from_result);
+            .map(|result| result.report(WarningRenderContext::new()));
     }
 
     // Try pager. The pager's screen takeover would visually bury anything we
@@ -808,8 +814,7 @@ fn run_terminal_stdin(
     }
     let parsed = parsed.report_warnings(WarningRenderContext::new());
     let result = processor.convert(parsed.document(), None)?;
-    let (_, warnings) = result.into_parts();
-    warnings.render(WarningRenderContext::new());
+    result.report(WarningRenderContext::new());
     Ok(Vec::new())
 }
 
