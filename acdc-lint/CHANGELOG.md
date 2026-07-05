@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Added the opt-in `section-title-capitalization-monospace` lint for projects
+  that want lowercase leading monospace title text to be reported. The existing
+  `section-title-capitalization` lint now ignores titles that start with
+  monospace text, so case-sensitive tool and command names can keep their exact
+  casing by default.
 - Initial lint command support crate with lint names, lint groups, severity overrides,
   report types, and implemented AsciiDoc recommended-practice checks. The
   `recommended-practices` group starts with low-noise style checks, while stricter
