@@ -43,6 +43,8 @@ impl<'a> LintEmitter<'a> {
             return;
         }
 
+        let help = help.or_else(|| lint.help().map(ToString::to_string));
+
         let mut diagnostic = LintDiagnostic::new(lint, level, message);
         if let Some(help) = help {
             diagnostic = diagnostic.with_help(help);

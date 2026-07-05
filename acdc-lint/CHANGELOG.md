@@ -20,4 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   marker spacing and capitalization, delimited block blank-line layout, trailing
   whitespace, hard tabs, repeated blank lines, list marker spacing, explicit numbered list
   markers, bold-term paragraphs, image alt text, missing local image files, and Markdown
-  heading/link/image/code fence/table syntax.
+  heading/link/image/code fence/table syntax. Lint metadata now includes stable
+  long-form explanations for each lint ID, suitable for generated rule docs and future
+  `acdc lint --explain` output.

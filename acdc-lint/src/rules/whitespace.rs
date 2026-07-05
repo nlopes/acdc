@@ -15,7 +15,7 @@ pub(crate) fn lint_source_whitespace(emitter: &mut LintEmitter<'_>, lines: &[Sou
                 emitter.emit(
                     LintId::ExcessiveBlankLines,
                     "source contains repeated blank lines",
-                    Some("keep a single blank line between adjacent blocks".to_string()),
+                    None,
                     Some(emitter.point_location(line.number, 1)),
                 );
             }
@@ -33,7 +33,7 @@ fn lint_trailing_whitespace(emitter: &mut LintEmitter<'_>, line: &SourceLine<'_>
     emitter.emit(
         LintId::TrailingWhitespace,
         "source line has trailing whitespace",
-        Some("remove the trailing whitespace".to_string()),
+        None,
         Some(emitter.point_location(line.number, line.text.chars().count().max(1))),
     );
 }
@@ -46,7 +46,7 @@ fn lint_hard_tab(emitter: &mut LintEmitter<'_>, line: &SourceLine<'_>) {
     emitter.emit(
         LintId::HardTab,
         "source line contains a hard tab",
-        Some("replace the tab with spaces".to_string()),
+        None,
         Some(emitter.point_location(line.number, column.saturating_add(1))),
     );
 }

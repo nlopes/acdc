@@ -108,7 +108,7 @@ fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>])
             emitter.emit(
                 LintId::OneSentencePerLine,
                 "multiple sentences on one source line",
-                Some("write each sentence on its own source line".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
         }
@@ -122,7 +122,7 @@ fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>])
                 emitter.emit(
                     LintId::OneSentencePerLine,
                     "sentence spans multiple source lines",
-                    Some("keep each sentence on a single source line".to_string()),
+                    None,
                     Some(emitter.point_location(open_line, 1)),
                 );
             }
@@ -141,7 +141,7 @@ fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>])
         emitter.emit(
             LintId::OneSentencePerLine,
             "sentence spans multiple source lines",
-            Some("keep each sentence on a single source line".to_string()),
+            None,
             Some(emitter.point_location(line, 1)),
         );
     }

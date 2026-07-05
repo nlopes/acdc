@@ -1,8 +1,8 @@
 use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
 
-use crate::LintId;
-
 use super::{LintEmitter, SourceLine, delimiter_token, is_block_attribute_line, split_first_char};
+
+use crate::LintId;
 
 pub(crate) fn lint_delimited_block_layout(emitter: &mut LintEmitter<'_>, lines: &[SourceLine<'_>]) {
     let mut active_delimiter: Option<String> = None;
@@ -21,7 +21,7 @@ pub(crate) fn lint_delimited_block_layout(emitter: &mut LintEmitter<'_>, lines: 
                     emitter.emit(
                         LintId::DelimitedBlockTrailingBlankLine,
                         "delimited block should be followed by a blank line",
-                        Some("insert a blank line after the closing delimiter".to_string()),
+                        None,
                         Some(emitter.point_location(next.number, 1)),
                     );
                 }
@@ -37,7 +37,7 @@ pub(crate) fn lint_delimited_block_layout(emitter: &mut LintEmitter<'_>, lines: 
             emitter.emit(
                 LintId::DelimitedBlockLeadingBlankLine,
                 "delimited block should be preceded by a blank line",
-                Some("insert a blank line before the opening delimiter".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
         }
@@ -117,7 +117,7 @@ fn lint_delimited_block(emitter: &mut LintEmitter<'_>, block: &DelimitedBlock<'_
                     "delimited block uses `{}` but only {minimum} delimiter characters are needed",
                     block.delimiter
                 ),
-                Some("shorten the opening and closing block delimiters".to_string()),
+                None,
                 Some(emitter.source_location(location)),
             );
         }

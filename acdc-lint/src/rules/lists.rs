@@ -41,7 +41,7 @@ pub(crate) fn lint_adjacent_list_separator(
                 emitter.emit(
                     LintId::AdjacentListSeparator,
                     "adjacent lists should be separated with an empty line comment",
-                    Some("insert a line comment such as `//-` between the lists".to_string()),
+                    None,
                     Some(emitter.point_location(line.number, 1)),
                 );
             }
@@ -76,7 +76,7 @@ pub(crate) fn lint_list_marker_spacing(
             emitter.emit(
                 LintId::ListMarkerSpacing,
                 "list marker should be followed by whitespace",
-                Some("insert a space after the list marker".to_string()),
+                None,
                 Some(emitter.point_location(line.number, column)),
             );
         }
@@ -97,7 +97,7 @@ pub(crate) fn lint_ordered_list_explicit_numbers(
             emitter.emit(
                 LintId::OrderedListExplicitNumber,
                 "ordered list item uses an explicit number",
-                Some("use AsciiDoc dot syntax such as `. item`".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
         }
@@ -118,7 +118,7 @@ pub(crate) fn lint_description_list_bold_terms(
             emitter.emit(
                 LintId::DescriptionListBoldTerm,
                 "bold term paragraph used where a description list fits",
-                Some("use description-list syntax such as `Term:: description`".to_string()),
+                None,
                 Some(emitter.point_location(line.number, 1)),
             );
         }
@@ -224,7 +224,7 @@ fn lint_unordered_list(emitter: &mut LintEmitter<'_>, list: &UnorderedList<'_>, 
             emitter.emit(
                 LintId::NestedUnorderedListMarker,
                 "nested unordered list item uses a hyphen marker",
-                Some("use asterisk markers for nested unordered lists".to_string()),
+                None,
                 Some(emitter.source_location(&item.location)),
             );
         }
