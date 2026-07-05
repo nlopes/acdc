@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `acdc lint` now renders full colored diagnostics by default, including source
   snippets, lint IDs, labels, and help text. Use `--output-style=compact` for
   compact `line:column` diagnostics without colors or snippets.
+- Full `acdc lint` output now ends with lint statistics that count diagnostics
+  by lint ID for the run.
 - `acdc lint` level flags now accept location-scoped overrides for individual
   lint IDs, such as `-A section-title-capitalization@37` or
   `-D image-alt-text@10:1-10:80`. Multiple locations can be comma-separated in

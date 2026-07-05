@@ -1,9 +1,12 @@
 use std::{
+    collections::HashMap,
     io::Read,
     path::{Path, PathBuf},
 };
 
-use acdc_lint::{LintLevel, LintOptions, LintOverride, LintOverrideSelector, LintReport, Lintable};
+use acdc_lint::{
+    LintId, LintLevel, LintOptions, LintOverride, LintOverrideSelector, LintReport, Lintable,
+};
 use clap::{ArgAction, ArgMatches, Args as ClapArgs, ValueEnum};
 
 use crate::error;
@@ -105,13 +108,16 @@ pub fn run(args: &Args, matches: &ArgMatches) -> miette::Result<()> {
     }
 
     let mut failed = false;
+    let mut stats = LintStats::default();
     for file in &args.files {
         let report = file
             .lint(&options)
             .map_err(|error| miette::miette!("lint failed for {}: {error}", file.display()))?;
-        render_report(Some(file), None, None, &report, args.output_style);
+        report.render(LintReportRenderContext::new(args.output_style).with_file(file));
+        stats.record_report(&report);
         failed |= report.has_errors();
     }
+    stats.render(args.output_style);
 
     if failed {
         Err(miette::miette!(
@@ -129,7 +135,16 @@ fn finish_report(
     report: &LintReport,
     output_style: OutputStyle,
 ) -> miette::Result<()> {
-    render_report(file, source_name, source, report, output_style);
+    report.render(
+        LintReportRenderContext::new(output_style)
+            .with_optional_file(file)
+            .with_optional_source_name(source_name)
+            .with_optional_source(source),
+    );
+
+    let mut stats = LintStats::default();
+    stats.record_report(report);
+    stats.render(output_style);
     if report.has_errors() {
         Err(miette::miette!(
             "lint diagnostics denied by configured lint levels"
@@ -139,57 +154,98 @@ fn finish_report(
     }
 }
 
-fn render_report(
-    file: Option<&Path>,
-    source_name: Option<&str>,
-    source: Option<&str>,
-    report: &LintReport,
+#[derive(Debug, Clone, Copy)]
+struct LintReportRenderContext<'a> {
     output_style: OutputStyle,
-) {
-    if output_style.is_full() {
-        render_report_full(file, source_name, source, report);
-    } else {
-        render_report_compact(file, report);
+    file: Option<&'a Path>,
+    source_name: Option<&'a str>,
+    source: Option<&'a str>,
+}
+
+impl<'a> LintReportRenderContext<'a> {
+    const fn new(output_style: OutputStyle) -> Self {
+        Self {
+            output_style,
+            file: None,
+            source_name: None,
+            source: None,
+        }
+    }
+
+    const fn with_file(mut self, file: &'a Path) -> Self {
+        self.file = Some(file);
+        self
+    }
+
+    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
+        self
+    }
+
+    const fn with_optional_source_name(mut self, source_name: Option<&'a str>) -> Self {
+        self.source_name = source_name;
+        self
+    }
+
+    const fn with_optional_source(mut self, source: Option<&'a str>) -> Self {
+        self.source = source;
+        self
     }
 }
 
-fn render_report_full(
-    file: Option<&Path>,
-    source_name: Option<&str>,
-    source: Option<&str>,
-    report: &LintReport,
-) {
-    for diagnostic in report.diagnostics() {
-        eprintln!(
-            "{:?}",
-            error::lint_diagnostic_report(diagnostic, file, source_name, source)
-        );
-    }
+trait ReportRenderer {
+    fn render(&self, context: LintReportRenderContext<'_>);
+    fn render_full(&self, context: LintReportRenderContext<'_>);
+    fn render_compact(&self, context: LintReportRenderContext<'_>);
 }
 
-fn render_report_compact(file: Option<&Path>, report: &LintReport) {
-    for diagnostic in report.diagnostics() {
-        let location = diagnostic
-            .location()
-            .map_or_else(String::new, compact_location);
-        if let Some(path) = file {
-            eprintln!(
-                "{}: {}[{}]{location}: {}",
-                path.display(),
-                diagnostic.level(),
-                diagnostic.lint(),
-                diagnostic.message()
-            );
+impl ReportRenderer for LintReport {
+    fn render(&self, context: LintReportRenderContext<'_>) {
+        if context.output_style.is_full() {
+            self.render_full(context);
         } else {
+            self.render_compact(context);
+        }
+    }
+
+    fn render_full(&self, context: LintReportRenderContext<'_>) {
+        for diagnostic in self.diagnostics() {
             eprintln!(
-                "{}[{}]{location}: {}",
-                diagnostic.level(),
-                diagnostic.lint(),
-                diagnostic.message()
+                "{:?}",
+                error::lint_diagnostic_report(
+                    diagnostic,
+                    context.file,
+                    context.source_name,
+                    context.source,
+                )
             );
         }
-        if let Some(help) = diagnostic.help() {
-            eprintln!("help: {help}");
+    }
+
+    fn render_compact(&self, context: LintReportRenderContext<'_>) {
+        for diagnostic in self.diagnostics() {
+            let location = diagnostic
+                .location()
+                .map_or_else(String::new, compact_location);
+            if let Some(path) = context.file {
+                eprintln!(
+                    "{}: {}[{}]{location}: {}",
+                    path.display(),
+                    diagnostic.level(),
+                    diagnostic.lint(),
+                    diagnostic.message()
+                );
+            } else {
+                eprintln!(
+                    "{}[{}]{location}: {}",
+                    diagnostic.level(),
+                    diagnostic.lint(),
+                    diagnostic.message()
+                );
+            }
+            if let Some(help) = diagnostic.help() {
+                eprintln!("help: {help}");
+            }
         }
     }
 }
@@ -204,6 +260,57 @@ fn compact_location(location: &acdc_parser::SourceLocation) -> String {
             " at {}:{}, {}:{}",
             start.line, start.column, end.line, end.column
         )
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct LintStats {
+    counts: HashMap<LintId, usize>,
+    total: usize,
+}
+
+impl LintStats {
+    fn record_report(&mut self, report: &LintReport) {
+        for diagnostic in report.diagnostics() {
+            *self.counts.entry(diagnostic.lint()).or_default() += 1;
+            self.total += 1;
+        }
+    }
+
+    const fn is_empty(&self) -> bool {
+        self.total == 0
+    }
+
+    fn sorted_counts(&self) -> Vec<(LintId, usize)> {
+        let mut counts = self
+            .counts
+            .iter()
+            .map(|(lint, count)| (*lint, *count))
+            .collect::<Vec<_>>();
+        counts.sort_by(|(left_lint, left_count), (right_lint, right_count)| {
+            right_count
+                .cmp(left_count)
+                .then_with(|| left_lint.name().cmp(right_lint.name()))
+        });
+        counts
+    }
+
+    fn render(&self, output_style: OutputStyle) {
+        if output_style.is_full() {
+            self.render_full();
+        }
+    }
+
+    fn render_full(&self) {
+        if self.is_empty() {
+            return;
+        }
+
+        eprintln!("\nlint stats:");
+        for (lint, count) in self.sorted_counts() {
+            eprintln!("  {count:>4} {lint}");
+        }
+        eprintln!("  {:>4} total diagnostics", self.total);
     }
 }
 
@@ -246,7 +353,7 @@ fn collect_overrides(
 
 #[cfg(test)]
 mod tests {
-    use acdc_lint::{LintId, LintSelector, LintSourcePosition, LintSourceRange};
+    use acdc_lint::{LintDiagnostic, LintId, LintSelector, LintSourcePosition, LintSourceRange};
     use clap::CommandFactory;
 
     use super::*;
@@ -345,6 +452,53 @@ mod tests {
             ]
         );
         Ok(())
+    }
+
+    #[test]
+    fn lint_stats_count_lints_in_frequency_order() {
+        let report = LintReport::new(vec![
+            LintDiagnostic::new(
+                LintId::SectionTitleCapitalization,
+                LintLevel::Warn,
+                "lowercase title",
+            ),
+            LintDiagnostic::new(
+                LintId::OneSentencePerLine,
+                LintLevel::Warn,
+                "multiple sentences",
+            ),
+            LintDiagnostic::new(
+                LintId::SectionTitleCapitalization,
+                LintLevel::Warn,
+                "lowercase title",
+            ),
+        ]);
+        let mut stats = LintStats::default();
+        stats.record_report(&report);
+
+        assert_eq!(stats.total, 3);
+        assert_eq!(
+            stats.sorted_counts(),
+            vec![
+                (LintId::SectionTitleCapitalization, 2),
+                (LintId::OneSentencePerLine, 1),
+            ]
+        );
+    }
+
+    #[test]
+    fn lint_stats_sort_equal_counts_by_lint_name() {
+        let report = LintReport::new(vec![
+            LintDiagnostic::new(LintId::TrailingWhitespace, LintLevel::Warn, "trailing"),
+            LintDiagnostic::new(LintId::HardTab, LintLevel::Warn, "tab"),
+        ]);
+        let mut stats = LintStats::default();
+        stats.record_report(&report);
+
+        assert_eq!(
+            stats.sorted_counts(),
+            vec![(LintId::HardTab, 1), (LintId::TrailingWhitespace, 1)]
+        );
     }
 
     #[test]
