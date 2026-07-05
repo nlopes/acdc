@@ -178,7 +178,8 @@ This enables accurate error reporting, and has minimal overhead (I think!) thank
 
 === Stage 3: converters
 
-Converters (`converters/`) transform the AST into various output formats. They all implement the `Processable` trait:
+Converters (`converters/`) transform the AST into various output formats.
+They all implement the `Processable` trait:
 
 [source,rust]
 ----
