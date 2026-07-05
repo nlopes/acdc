@@ -273,7 +273,7 @@ fn run_source_whitespace(emitter: &mut LintEmitter<'_>, context: &LintContext<'_
 }
 
 fn run_list_marker_spacing(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
-    lists::lint_list_marker_spacing(emitter, context.lines, context.skipped_lines);
+    lists::lint_list_marker_spacing(emitter, context.document(), context.lines);
 }
 
 fn run_attribute_url_prefix(emitter: &mut LintEmitter<'_>, context: &LintContext<'_, '_>) {
