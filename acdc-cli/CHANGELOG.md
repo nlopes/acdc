@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- CLI subcommand errors now exit with a non-zero status after rendering the
+  error message. This includes `acdc lint` runs with denied diagnostics.
 - A warning that points into an `include::`d file (or any content shifted by the
   preprocessor) now renders its source snippet against the correct file instead of
   aborting with `Failed to read contents … OutOfBounds`.
@@ -36,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `recommended-practices` group. Counter naming is not exposed as a lint
   because acdc already warns that counters are unsupported and removes them
   from output.
+- `acdc lint` now renders full colored diagnostics by default, including source
+  snippets, lint IDs, labels, and help text. Use `--output-style=compact` for
+  compact `line:column` diagnostics without colors or snippets.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the
