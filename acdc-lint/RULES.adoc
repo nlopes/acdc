@@ -9,434 +9,1532 @@ A lint ID is the stable command-line selector shown in diagnostics and accepted 
 The default level is the level used before command-line overrides are applied.
 All lint IDs are also members of the `all` group.
 
+Each lint entry follows the same structure:
+
+* metadata: default level and groups
+* what it does: the diagnostic boundary
+* why it is bad: the problem the lint is trying to prevent
+* drawbacks: when the lint may be too strict for a project
+* examples: a failing source shape and a better source shape
+
 == Groups
 
 Groups are command-line selectors that apply one lint level to several lint IDs.
 Groups are organized by authoring intent, so one lint can belong to more than one group.
 
+[cols="1,3,2",options="header"]
+|===
+| Group | Purpose | Default use
+
+| xref:group-all[all]
+| Every registered lint.
+| Use when a command or configuration should apply to the complete lint registry.
+
+| xref:group-recommended-practices[recommended-practices]
+| Low-noise implemented AsciiDoc recommended-practice checks.
+| Good starting point for projects that want helpful style checks without enforcing document-header policy.
+
+| xref:group-document-structure[document-structure]
+| Checks that protect the document outline, parser recovery, document metadata, and table structure.
+| Useful when malformed structure is more important than source style.
+
+| xref:group-source-format[source-format]
+| Checks for source layout and style conventions that keep AsciiDoc easy to scan, diff, and maintain.
+| Useful for repositories that want consistent authoring style.
+
+| xref:group-semantic-asciidoc[semantic-asciidoc]
+| Checks that prefer AsciiDoc-native constructs over ambiguous style conventions or Markdown syntax.
+| Useful during Markdown-to-AsciiDoc migrations.
+
+| xref:group-resources[resources]
+| Checks for image/resource references and accessibility metadata.
+| Useful before publishing rendered documentation.
+|===
+
+[[group-all]]
 === `all`
 
 Includes every registered lint.
-Use this group when a command or configuration should apply to the complete lint registry.
 
+[[group-recommended-practices]]
 === `recommended-practices`
 
-The low-noise subset of implemented AsciiDoc recommended-practice checks.
-This group avoids opt-in document-header checks and higher-noise migration checks.
-
 Members:
 
-* `document-extension`
-* `one-sentence-per-line`
-* `section-title-symmetric-marker`
-* `section-title-setext-style`
-* `delimited-block-minimal-delimiter`
-* `attribute-url-prefix`
-* `imagesdir`
-* `nested-unordered-list-marker`
-* `adjacent-list-separator`
+* xref:lint-document-extension[document-extension]
+* xref:lint-one-sentence-per-line[one-sentence-per-line]
+* xref:lint-section-title-symmetric-marker[section-title-symmetric-marker]
+* xref:lint-section-title-setext-style[section-title-setext-style]
+* xref:lint-delimited-block-minimal-delimiter[delimited-block-minimal-delimiter]
+* xref:lint-attribute-url-prefix[attribute-url-prefix]
+* xref:lint-imagesdir[imagesdir]
+* xref:lint-nested-unordered-list-marker[nested-unordered-list-marker]
+* xref:lint-adjacent-list-separator[adjacent-list-separator]
 
+[[group-document-structure]]
 === `document-structure`
 
-Checks that protect the document outline, parser recovery, document metadata, and table structure.
-
 Members:
 
-* `document-extension`
-* `document-title-author`
-* `document-title-revision`
-* `section-level-sequence`
-* `unterminated-delimited-block`
-* `unterminated-table`
-* `counter-syntax`
-* `multiple-document-title`
-* `table-unknown-format`
-* `table-incomplete-row`
-* `table-column-count`
-* `table-cell-overflow`
+* xref:lint-document-extension[document-extension]
+* xref:lint-document-title-author[document-title-author]
+* xref:lint-document-title-revision[document-title-revision]
+* xref:lint-section-level-sequence[section-level-sequence]
+* xref:lint-unterminated-delimited-block[unterminated-delimited-block]
+* xref:lint-unterminated-table[unterminated-table]
+* xref:lint-counter-syntax[counter-syntax]
+* xref:lint-multiple-document-title[multiple-document-title]
+* xref:lint-table-unknown-format[table-unknown-format]
+* xref:lint-table-incomplete-row[table-incomplete-row]
+* xref:lint-table-column-count[table-column-count]
+* xref:lint-table-cell-overflow[table-cell-overflow]
 
+[[group-source-format]]
 === `source-format`
 
-Checks for source layout and style conventions that keep AsciiDoc easy to scan, diff, and maintain.
-
 Members:
 
-* `one-sentence-per-line`
-* `section-title-symmetric-marker`
-* `section-title-setext-style`
-* `delimited-block-minimal-delimiter`
-* `section-title-marker-spacing`
-* `section-title-capitalization`
-* `delimited-block-leading-blank-line`
-* `delimited-block-trailing-blank-line`
-* `trailing-whitespace`
-* `hard-tab`
-* `excessive-blank-lines`
-* `list-marker-spacing`
-* `nested-unordered-list-marker`
-* `adjacent-list-separator`
+* xref:lint-one-sentence-per-line[one-sentence-per-line]
+* xref:lint-section-title-symmetric-marker[section-title-symmetric-marker]
+* xref:lint-section-title-setext-style[section-title-setext-style]
+* xref:lint-delimited-block-minimal-delimiter[delimited-block-minimal-delimiter]
+* xref:lint-section-title-marker-spacing[section-title-marker-spacing]
+* xref:lint-section-title-capitalization[section-title-capitalization]
+* xref:lint-delimited-block-leading-blank-line[delimited-block-leading-blank-line]
+* xref:lint-delimited-block-trailing-blank-line[delimited-block-trailing-blank-line]
+* xref:lint-trailing-whitespace[trailing-whitespace]
+* xref:lint-hard-tab[hard-tab]
+* xref:lint-excessive-blank-lines[excessive-blank-lines]
+* xref:lint-list-marker-spacing[list-marker-spacing]
+* xref:lint-nested-unordered-list-marker[nested-unordered-list-marker]
+* xref:lint-adjacent-list-separator[adjacent-list-separator]
 
+[[group-semantic-asciidoc]]
 === `semantic-asciidoc`
 
-Checks that prefer AsciiDoc-native constructs over ambiguous style conventions or Markdown syntax.
-
 Members:
 
-* `attribute-url-prefix`
-* `ordered-list-explicit-number`
-* `description-list-bold-term`
-* `markdown-heading`
-* `markdown-link`
-* `markdown-image`
-* `markdown-code-fence`
-* `markdown-table`
+* xref:lint-attribute-url-prefix[attribute-url-prefix]
+* xref:lint-ordered-list-explicit-number[ordered-list-explicit-number]
+* xref:lint-description-list-bold-term[description-list-bold-term]
+* xref:lint-markdown-heading[markdown-heading]
+* xref:lint-markdown-link[markdown-link]
+* xref:lint-markdown-image[markdown-image]
+* xref:lint-markdown-code-fence[markdown-code-fence]
+* xref:lint-markdown-table[markdown-table]
 
+[[group-resources]]
 === `resources`
 
-Checks for image/resource references and accessibility metadata.
-
 Members:
 
-* `imagesdir`
-* `image-alt-text`
-* `image-target-exists`
+* xref:lint-imagesdir[imagesdir]
+* xref:lint-image-alt-text[image-alt-text]
+* xref:lint-image-target-exists[image-target-exists]
+
+== Defaults
+
+=== Allowed by Default
+
+These lints are opt-in because they encode project policy rather than general AsciiDoc hygiene.
+
+* xref:lint-document-title-author[document-title-author]
+* xref:lint-document-title-revision[document-title-revision]
+
+=== Warn by Default
+
+All other registered lints warn by default.
+Use `--allow`, `--deny`, or `--forbid` to change their level for a run.
 
 == Lints
 
+[[lint-document-extension]]
 === `document-extension`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `document-structure`
-* Summary: prefer `.adoc` and avoid `.asc`
-* Intent: Keep AsciiDoc source filenames predictable for editors, build tools, and publishing pipelines.
-* Detects: File paths passed to the linter that do not use the `.adoc` extension.
-* Remediation: Rename the file to use the `.adoc` extension.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `document-structure`
 
+==== What it does
+
+Checks file paths passed to the linter and warns when a source file does not use the `.adoc` extension.
+
+==== Why it is bad
+
+Mixed AsciiDoc extensions make editor setup, documentation tooling, and publishing pipelines harder to keep predictable.
+The `.adoc` extension is the common convention for AsciiDoc source files.
+
+==== Drawbacks
+
+Some older repositories still use `.asc`, and renaming files can break external links or build scripts.
+Allow this lint when a project cannot rename files yet.
+
+==== Example
+
+.Bad
+[source,console]
+----
+docs/architecture.asc
+----
+
+.Good
+[source,console]
+----
+docs/architecture.adoc
+----
+
+[[lint-one-sentence-per-line]]
 === `one-sentence-per-line`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `source-format`
-* Summary: write one sentence per source line
-* Intent: Make prose reviews and diffs more focused by avoiding unrelated sentence churn on one line.
-* Detects: Prose paragraphs with more than one sentence ending on a line, or a sentence that appears to span multiple source lines.
-* Remediation: Write one complete sentence per source line.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `source-format`
 
+==== What it does
+
+Checks prose paragraphs for multiple sentences on one source line and for sentences split across multiple source lines.
+
+==== Why it is bad
+
+When each sentence has its own line, reviews and diffs stay focused on the changed sentence.
+Rewrapping a paragraph no longer makes unrelated sentences look edited.
+
+==== Drawbacks
+
+This is a source-maintenance convention, not a rendering requirement.
+Allow it for imported text, generated prose, or projects that prefer hard-wrapped paragraphs.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+This sentence changed. This unrelated sentence did not.
+----
+
+.Good
+[source,asciidoc]
+----
+This sentence changed.
+This unrelated sentence did not.
+----
+
+[[lint-section-title-symmetric-marker]]
 === `section-title-symmetric-marker`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `source-format`
-* Summary: prefer asymmetric ATX section titles
-* Intent: Prefer the simpler AsciiDoc title form where the opening marker alone communicates the level.
-* Detects: Section titles written with a closing marker, such as `== Title ==`.
-* Remediation: Remove the closing title marker.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `source-format`
 
+==== What it does
+
+Checks for section titles with a closing marker, such as `== Title ==`.
+
+==== Why it is bad
+
+The closing marker adds visual noise without changing the section level.
+Asymmetric titles keep the level visible at the start of the line, where authors usually scan.
+
+==== Drawbacks
+
+Symmetric titles are valid AsciiDoc and may be part of an existing house style.
+Allow this lint if symmetric titles are intentional.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+== Install ==
+----
+
+.Good
+[source,asciidoc]
+----
+== Install
+----
+
+[[lint-section-title-setext-style]]
 === `section-title-setext-style`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `source-format`
-* Summary: prefer ATX section titles over setext titles
-* Intent: Keep the section level visible on the title line.
-* Detects: Two-line setext-style section titles that use an underline marker below the title text.
-* Remediation: Use an asymmetric ATX title such as `== Section`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `source-format`
 
+==== What it does
+
+Checks for two-line setext-style section titles that use an underline marker below the title text.
+
+==== Why it is bad
+
+Setext titles hide the section level on the following line, which makes long outlines harder to scan.
+ATX-style AsciiDoc titles show the level and text together.
+
+==== Drawbacks
+
+Setext titles may be familiar to authors coming from Markdown or legacy AsciiDoc content.
+Allow this lint during gradual migrations.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+Install
+-------
+----
+
+.Good
+[source,asciidoc]
+----
+== Install
+----
+
+[[lint-document-title-author]]
 === `document-title-author`
 
-* Default level: `allow`
-* Groups: `all`, `document-structure`
-* Summary: include an author line after the document title
-* Intent: Enforce projects that require document-header author metadata.
-* Detects: A document header with a title but no author line.
-* Remediation: Add an author line immediately after the document title.
-* Notes: This lint is opt-in because snippets, partials, and internal documents often omit author metadata intentionally.
+[horizontal]
+Default level:: `allow`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Checks for a document title that is not followed by an author line.
+
+==== Why it is bad
+
+Projects that publish formal documents often need author metadata for generated headers, attribution, or review ownership.
+Missing author metadata can make output look incomplete.
+
+==== Drawbacks
+
+Many snippets, partials, internal notes, and README-style documents intentionally omit author metadata.
+This lint is allowed by default because it is a project policy.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+= User Guide
+
+This document starts immediately.
+----
+
+.Good
+[source,asciidoc]
+----
+= User Guide
+Ada Lovelace
+
+This document starts after the header.
+----
+
+[[lint-document-title-revision]]
 === `document-title-revision`
 
-* Default level: `allow`
-* Groups: `all`, `document-structure`
-* Summary: include a revision line after the author line
-* Intent: Enforce projects that require document-header revision metadata.
-* Detects: A document header with author metadata but no revision line or revision attributes.
-* Remediation: Add a revision line after the author line.
-* Notes: This lint is opt-in because revision metadata is a project convention, not a general AsciiDoc requirement.
+[horizontal]
+Default level:: `allow`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Checks for document headers with author metadata but no revision line or revision attributes.
+
+==== Why it is bad
+
+Formal documents often need revision metadata so generated output can show version, date, or release information.
+When revision metadata is required but missing, readers may not know which version they are reading.
+
+==== Drawbacks
+
+Revision metadata is not useful for every document.
+Allow this lint for living documents, examples, snippets, and repositories that track history elsewhere.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+= User Guide
+Ada Lovelace
+----
+
+.Good
+[source,asciidoc]
+----
+= User Guide
+Ada Lovelace
+v1.2, 2026-07-05
+----
+
+[[lint-section-level-sequence]]
 === `section-level-sequence`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: do not skip section levels
-* Intent: Preserve a predictable document outline.
-* Detects: Parser recovery warnings for skipped section levels, such as jumping from level 1 to level 3.
-* Remediation: Adjust section levels so they increase one level at a time.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports parser recovery warnings for skipped section levels, such as jumping from level 1 to level 3.
+
+==== Why it is bad
+
+Skipped levels create an uneven outline.
+That can confuse table-of-contents generation, screen-reader navigation, and readers scanning the source.
+
+==== Drawbacks
+
+Generated or assembled documents may produce temporary outline gaps.
+Allow this lint around generated inputs when the final assembled document is checked elsewhere.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+= Guide
+
+=== Install
+----
+
+.Good
+[source,asciidoc]
+----
+= Guide
+
+== Install
+----
+
+[[lint-unterminated-delimited-block]]
 === `unterminated-delimited-block`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: close delimited blocks
-* Intent: Prevent delimited blocks from accidentally consuming following content.
-* Detects: Parser recovery warnings for delimited blocks without a matching closing delimiter.
-* Remediation: Add the matching closing block delimiter.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports delimited blocks that do not have a matching closing delimiter.
+
+==== Why it is bad
+
+An unterminated block can consume all following content and change how the rest of the document is parsed.
+The rendered output may hide sections, lists, or prose inside the wrong block.
+
+==== Drawbacks
+
+Partials generated for inclusion may intentionally contain an opening or closing delimiter owned by another file.
+Prefer linting the assembled document in that case.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+------
+----
+code sample
+------
+
+.Good
+[source,asciidoc]
+------
+----
+code sample
+----
+------
+
+[[lint-unterminated-table]]
 === `unterminated-table`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: close table blocks
-* Intent: Prevent table syntax from changing how following content is parsed.
-* Detects: Parser recovery warnings for table blocks without a closing delimiter.
-* Remediation: Add the matching table closing delimiter.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports table blocks that do not have a closing `|===` delimiter.
+
+==== Why it is bad
+
+An unterminated table can make all following content parse as table content.
+This usually produces confusing output and follow-on diagnostics.
+
+==== Drawbacks
+
+Generated table fragments may be incomplete until they are assembled.
+Lint the assembled document or allow this lint for those fragments.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+|===
+|Name |Role
+|Ada  |Author
+----
+
+.Good
+[source,asciidoc]
+----
+|===
+|Name |Role
+|Ada  |Author
+|===
+----
+
+[[lint-counter-syntax]]
 === `counter-syntax`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: avoid unsupported counter syntax
-* Intent: Make unsupported counter usage visible before it disappears from output.
-* Detects: Parser warnings for unsupported `{counter:...}` and `{counter2:...}` syntax.
-* Remediation: Remove the unsupported counter or replace it with supported content.
-* Notes: acdc currently removes unsupported counter syntax from output.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports unsupported `{counter:...}` and `{counter2:...}` syntax.
+
+==== Why it is bad
+
+acdc currently removes unsupported counter syntax from output.
+Leaving counters in source can make rendered text silently lose numbering or labels.
+
+==== Drawbacks
+
+Counters are valid in other AsciiDoc processors.
+Allow this lint only when another processor is the source of truth and acdc output is not expected to preserve counters.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+Chapter {counter:chapter}
+----
+
+.Good
+[source,asciidoc]
+----
+Chapter 1
+----
+
+[[lint-multiple-document-title]]
 === `multiple-document-title`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: use only one document title
-* Intent: Keep non-book documents from having multiple top-level document titles.
-* Detects: More than one document-title-level heading in a non-book document.
-* Remediation: Use section titles (`==`) after the document title.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Checks non-book documents for more than one document-title-level heading.
+
+==== Why it is bad
+
+A document should have one top-level title.
+Additional top-level headings can be mistaken for separate documents and may produce confusing output metadata.
+
+==== Drawbacks
+
+Book-like or assembled content may intentionally contain multiple top-level units.
+Allow this lint when the document model expects that structure.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+= User Guide
+
+= Reference
+----
+
+.Good
+[source,asciidoc]
+----
+= User Guide
+
+== Reference
+----
+
+[[lint-table-unknown-format]]
 === `table-unknown-format`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: use a supported table format
-* Intent: Surface table syntax that acdc may not parse with the structure the author intended.
-* Detects: Parser warnings for table formats that acdc does not support.
-* Remediation: Use a supported table format or remove the format attribute.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports table format attributes that acdc does not support.
+
+==== Why it is bad
+
+Unsupported table formats may parse differently from what the author intended.
+The table can render with missing cells, wrong rows, or literal markup.
+
+==== Drawbacks
+
+Another AsciiDoc processor may support a format that acdc does not.
+Allow this lint while migrating, or keep processor-specific tables in excluded inputs.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+[format=custom]
+|===
+|A |B
+|===
+----
+
+.Good
+[source,asciidoc]
+----
+|===
+|A |B
+|===
+----
+
+[[lint-table-incomplete-row]]
 === `table-incomplete-row`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: complete table rows
-* Intent: Keep table rows aligned with the expected cell structure.
-* Detects: Parser warnings for table rows that end before all expected cells are present.
-* Remediation: Add the missing table cells or adjust the column count.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports table rows that end before all expected cells are present.
+
+==== Why it is bad
+
+Incomplete rows make table structure ambiguous.
+Different processors may fill or align the missing cells differently.
+
+==== Drawbacks
+
+Some generated tables may intentionally rely on later processing to complete rows.
+Prefer fixing the generator or linting generated output after completion.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+[cols="2"]
+|===
+|Name
+|===
+----
+
+.Good
+[source,asciidoc]
+----
+[cols="2"]
+|===
+|Name |Role
+|===
+----
+
+[[lint-table-column-count]]
 === `table-column-count`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: match table rows to the configured column count
-* Intent: Keep table structure predictable across parsers and converters.
-* Detects: Parser warnings for rows whose cell count does not match the configured table column count.
-* Remediation: Match each table row to the configured column count.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports rows whose cell count does not match the configured table column count.
+
+==== Why it is bad
+
+Column-count mismatches make the table harder to maintain and can produce unexpected cell wrapping or row boundaries.
+
+==== Drawbacks
+
+Complex tables with spans can be harder to reason about in source.
+Allow this lint temporarily while converting legacy tables.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+[cols="3"]
+|===
+|Name |Role
+|===
+----
+
+.Good
+[source,asciidoc]
+----
+[cols="3"]
+|===
+|Name |Role |Team
+|===
+----
+
+[[lint-table-cell-overflow]]
 === `table-cell-overflow`
 
-* Default level: `warn`
-* Groups: `all`, `document-structure`
-* Summary: keep table cells within the configured column count
-* Intent: Avoid ambiguous table structure caused by extra cells.
-* Detects: Parser warnings for cells that overflow the configured table column count.
-* Remediation: Remove extra cells or increase the configured column count.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `document-structure`
 
+==== What it does
+
+Reports cells that overflow the configured table column count.
+
+==== Why it is bad
+
+Extra cells can shift content into unintended columns or rows.
+That makes rendered tables hard to compare with the source.
+
+==== Drawbacks
+
+Legacy tables may have inconsistent rows that still render acceptably in a specific processor.
+Allow this lint only while cleaning them up.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+[cols="2"]
+|===
+|Name |Role |Team
+|===
+----
+
+.Good
+[source,asciidoc]
+----
+[cols="2"]
+|===
+|Name |Role
+|===
+----
+
+[[lint-delimited-block-minimal-delimiter]]
 === `delimited-block-minimal-delimiter`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `source-format`
-* Summary: use minimum required delimited block fences
-* Intent: Reduce visual noise while preserving block semantics.
-* Detects: Delimited block fences longer than the minimum required by AsciiDoc.
-* Remediation: Shorten the opening and closing block delimiters.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `source-format`
 
+==== What it does
+
+Checks for delimited block fences longer than the minimum required delimiter.
+
+==== Why it is bad
+
+Overlong delimiters add visual noise and make blocks look more important than they are.
+Minimal delimiters are easier to recognize and keep consistent.
+
+==== Drawbacks
+
+Longer delimiters may be necessary when documenting delimiter syntax inside a block.
+Allow this lint for teaching material or generated examples that need nested delimiters.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+--------
+------
+code sample
+------
+--------
+
+.Good
+[source,asciidoc]
+------
+----
+code sample
+----
+------
+
+[[lint-section-title-marker-spacing]]
 === `section-title-marker-spacing`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: put whitespace after section title markers
-* Intent: Keep ATX-style section titles unambiguous and readable.
-* Detects: Section title markers that are immediately followed by title text.
-* Remediation: Insert a space after the opening title marker.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks ATX-style section titles whose marker is immediately followed by title text.
+
+==== Why it is bad
+
+Missing spacing makes titles harder to scan and can make the marker look like part of the title.
+
+==== Drawbacks
+
+There is little downside to this lint for handwritten source.
+Allow it only for generated source that cannot easily be changed.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+==Install
+----
+
+.Good
+[source,asciidoc]
+----
+== Install
+----
+
+[[lint-section-title-capitalization]]
 === `section-title-capitalization`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: start section titles with an uppercase letter
-* Intent: Enforce projects that expect title text to start with an uppercase letter.
-* Detects: Document, section, and discrete titles whose first alphabetic character is lowercase.
-* Remediation: Capitalize the first word of the title.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks document, section, and discrete titles whose first alphabetic character is lowercase.
+
+==== Why it is bad
+
+Lowercase title starts can look accidental in projects that use sentence-case or title-case headings.
+Consistent capitalization makes generated tables of contents look cleaner.
+
+==== Drawbacks
+
+Some headings intentionally start with lowercase identifiers, command names, or product names.
+Allow this lint for projects that use lowercase title style.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+== install acdc
+----
+
+.Good
+[source,asciidoc]
+----
+== Install acdc
+----
+
+[[lint-delimited-block-leading-blank-line]]
 === `delimited-block-leading-blank-line`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: put a blank line before delimited blocks
-* Intent: Make block boundaries clear in source.
-* Detects: Delimited block openings that directly follow another source line.
-* Remediation: Insert a blank line before the opening delimiter.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks delimited block openings that directly follow another source line.
+
+==== Why it is bad
+
+A blank line before a delimited block makes the block boundary clear.
+Without it, prose and block syntax can run together visually.
+
+==== Drawbacks
+
+Dense generated source may omit blank lines to save space.
+Allow this lint for generated files or compact examples.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+------
+Intro text.
+----
+code sample
+----
+------
+
+.Good
+[source,asciidoc]
+------
+Intro text.
+
+----
+code sample
+----
+------
+
+[[lint-delimited-block-trailing-blank-line]]
 === `delimited-block-trailing-blank-line`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: put a blank line after delimited blocks
-* Intent: Make the boundary between a closed delimited block and following content clear.
-* Detects: Delimited block closings that are immediately followed by more content.
-* Remediation: Insert a blank line after the closing delimiter.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks delimited block closings that are immediately followed by more content.
+
+==== Why it is bad
+
+A blank line after a block makes it clear where the block ends and normal content resumes.
+This keeps source scanning and editing predictable.
+
+==== Drawbacks
+
+Some compact examples intentionally keep related text close together.
+Allow this lint for generated or space-constrained examples.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+------
+----
+code sample
+----
+Next paragraph.
+------
+
+.Good
+[source,asciidoc]
+------
+----
+code sample
+----
+
+Next paragraph.
+------
+
+[[lint-trailing-whitespace]]
 === `trailing-whitespace`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: avoid trailing whitespace
-* Intent: Avoid invisible source differences and noisy diffs.
-* Detects: Source lines that end with whitespace.
-* Remediation: Remove the trailing whitespace.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks for source lines that end with whitespace.
+
+==== Why it is bad
+
+Trailing whitespace is invisible in most editors but still changes the file.
+It creates noisy diffs and can be confused with intentional hard line-break syntax.
+
+==== Drawbacks
+
+Some AsciiDoc source intentionally uses trailing spaces for line breaks.
+Prefer explicit syntax or allow this lint where that convention is required.
+
+==== Example
+
+.Bad
+[source,text]
+----
+Text with trailing spaces<space><space>
+----
+
+.Good
+[source,asciidoc]
+----
+Text without trailing spaces
+----
+
+[[lint-hard-tab]]
 === `hard-tab`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: avoid hard tab characters
-* Intent: Keep indentation and alignment stable across editors and renderers.
-* Detects: Source lines containing tab characters.
-* Remediation: Replace the tab with spaces.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks for tab characters in source lines.
+
+==== Why it is bad
+
+Tabs render at different widths across editors and terminals.
+That makes indentation, lists, and tables harder to review reliably.
+
+==== Drawbacks
+
+Some projects intentionally use tabs for indentation.
+Allow this lint if tabs are a documented source style.
+
+==== Example
+
+.Bad
+[source,text]
+----
+<tab>* Item
+----
+
+.Good
+[source,asciidoc]
+----
+  * Item
+----
+
+[[lint-excessive-blank-lines]]
 === `excessive-blank-lines`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: avoid repeated blank lines
-* Intent: Keep source spacing consistent without adding visual noise.
-* Detects: Repeated blank lines where a single blank line is enough to separate adjacent blocks.
-* Remediation: Keep a single blank line between adjacent blocks.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks for repeated blank lines where a single blank line is enough to separate adjacent blocks.
+
+==== Why it is bad
+
+Repeated blank lines add vertical noise and make source layout less consistent.
+They also make unrelated spacing changes show up in diffs.
+
+==== Drawbacks
+
+Extra spacing may be useful in generated source or long hand-edited notes.
+Allow this lint for files that intentionally use whitespace as visual grouping.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+First paragraph.
+
+
+Second paragraph.
+----
+
+.Good
+[source,asciidoc]
+----
+First paragraph.
+
+Second paragraph.
+----
+
+[[lint-list-marker-spacing]]
 === `list-marker-spacing`
 
-* Default level: `warn`
-* Groups: `all`, `source-format`
-* Summary: put whitespace after list markers
-* Intent: Keep parsed list item syntax readable and unambiguous.
-* Detects: Parsed list items whose source marker is not followed by whitespace before item text.
-* Remediation: Insert a space after the list marker.
-* Notes: This lint operates on parsed list items; it does not treat arbitrary paragraph text as a list marker.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `source-format`
 
+==== What it does
+
+Checks parsed list items whose source marker is not followed by whitespace before item text.
+
+==== Why it is bad
+
+Spacing after the marker makes list syntax readable and unambiguous.
+It also keeps the source visually aligned with other list items.
+
+==== Drawbacks
+
+This lint operates on parsed list items, so the main drawback is source style disagreement.
+Allow it if a project intentionally uses compact list markers.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+*Item
+----
+
+.Good
+[source,asciidoc]
+----
+* Item
+----
+
+[[lint-attribute-url-prefix]]
 === `attribute-url-prefix`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `semantic-asciidoc`
-* Summary: prefix URL-valued attributes with url- or uri-
-* Intent: Make attribute names communicate that their values are URLs.
-* Detects: Document attributes with URL-like values whose names do not start with `url-` or `uri-`.
-* Remediation: Rename the attribute with a `url-` or `uri-` prefix.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `semantic-asciidoc`
 
+==== What it does
+
+Checks document attributes with URL-like values whose names do not start with `url-` or `uri-`.
+
+==== Why it is bad
+
+URL-valued attributes are easier to recognize when the name communicates the value type.
+This helps authors distinguish ordinary text attributes from link targets.
+
+==== Drawbacks
+
+Renaming attributes can require updates throughout a document set.
+Allow this lint while migrating existing attribute names.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+:docs: https://example.com/docs
+----
+
+.Good
+[source,asciidoc]
+----
+:url-docs: https://example.com/docs
+----
+
+[[lint-imagesdir]]
 === `imagesdir`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `resources`
-* Summary: use imagesdir instead of repeating image directories
-* Intent: Avoid repeating the same image directory in every image target.
-* Detects: Image targets that include directory components.
-* Remediation: Set `:imagesdir:` and use filename-only image targets.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `resources`
 
+==== What it does
+
+Checks image targets that repeat directory components instead of using `:imagesdir:`.
+
+==== Why it is bad
+
+Repeating the image directory in every macro makes image moves noisy and error-prone.
+`imagesdir` keeps the shared path in one place.
+
+==== Drawbacks
+
+Small documents with one or two images may not need a shared image directory.
+Allow this lint when explicit paths are clearer.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+image::images/logo.png[Project logo]
+----
+
+.Good
+[source,asciidoc]
+----
+:imagesdir: images
+
+image::logo.png[Project logo]
+----
+
+[[lint-image-alt-text]]
 === `image-alt-text`
 
-* Default level: `warn`
-* Groups: `all`, `resources`
-* Summary: provide image alt text
-* Intent: Improve accessible output and meaningful fallbacks in non-visual renderers.
-* Detects: Image macros with missing or empty alt text.
-* Remediation: Add positional alt text or an `alt=` attribute.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `resources`
 
+==== What it does
+
+Checks image macros with missing or empty alt text.
+
+==== Why it is bad
+
+Alt text is important for accessible output and non-visual renderers.
+It also gives readers useful context when an image fails to load.
+
+==== Drawbacks
+
+Decorative images may intentionally have empty alt text in some publishing systems.
+Allow this lint for files where decorative-image policy is handled elsewhere.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+image::logo.png[]
+----
+
+.Good
+[source,asciidoc]
+----
+image::logo.png[Project logo]
+----
+
+[[lint-image-target-exists]]
 === `image-target-exists`
 
-* Default level: `warn`
-* Groups: `all`, `resources`
-* Summary: reference image files that exist
-* Intent: Catch broken local image references before conversion or publishing.
-* Detects: Local image targets that do not exist after resolving the source path and `imagesdir`.
-* Remediation: Fix the image target or create the referenced file.
-* Notes: URL targets are not checked as local files.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `resources`
 
+==== What it does
+
+Checks local image targets after resolving them relative to the source file and the `:imagesdir:` document attribute.
+URL targets are not checked as local files.
+
+See also xref:lint-imagesdir[imagesdir].
+
+==== Why it is bad
+
+Broken image paths are often only noticed after publishing.
+Checking them during linting catches missing assets earlier.
+
+==== Drawbacks
+
+Generated images may not exist until a later build step.
+Allow this lint for sources that reference assets produced after linting.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+image::missing-diagram.png[Architecture diagram]
+----
+
+.Good
+[source,asciidoc]
+----
+image::diagrams/architecture.png[Architecture diagram]
+----
+
+[[lint-nested-unordered-list-marker]]
 === `nested-unordered-list-marker`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `source-format`
-* Summary: use asterisk markers for nested unordered lists
-* Intent: Make unordered-list nesting depth explicit in source.
-* Detects: Nested unordered list items that use a hyphen marker instead of asterisk depth markers.
-* Remediation: Use asterisk markers for nested unordered lists.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `source-format`
 
+==== What it does
+
+Checks nested unordered list items that use a hyphen marker instead of asterisk depth markers.
+
+==== Why it is bad
+
+Asterisk depth markers make the nesting level visible in the marker itself.
+Hyphen markers can make nested lists look flat in source.
+
+==== Drawbacks
+
+Hyphen markers may be familiar to authors coming from Markdown.
+Allow this lint during migration if changing list markers would create too much churn.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+* Parent
+  - Child
+----
+
+.Good
+[source,asciidoc]
+----
+* Parent
+** Child
+----
+
+[[lint-adjacent-list-separator]]
 === `adjacent-list-separator`
 
-* Default level: `warn`
-* Groups: `all`, `recommended-practices`, `source-format`
-* Summary: separate adjacent lists with an empty line comment
-* Intent: Make it explicit when two adjacent lists are distinct blocks rather than one list.
-* Detects: Adjacent list blocks of the same family separated only by a blank line.
-* Remediation: Insert a line comment such as `//-` between the lists.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `recommended-practices`, `source-format`
 
+==== What it does
+
+Checks adjacent list blocks of the same family that are separated only by a blank line.
+
+==== Why it is bad
+
+Two adjacent lists can be mistaken for one logical list.
+An empty line comment makes it explicit that the author intended separate list blocks.
+
+==== Drawbacks
+
+The separator comment adds a line that is only there for source structure.
+Allow this lint when the distinction between adjacent lists is obvious in context.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+* Apples
+
+* Oranges
+----
+
+.Good
+[source,asciidoc]
+----
+* Apples
+
+//-
+
+* Oranges
+----
+
+[[lint-ordered-list-explicit-number]]
 === `ordered-list-explicit-number`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: prefer dot ordered-list markers over explicit numbers
-* Intent: Let AsciiDoc manage ordered-list numbering so source numbers do not become stale.
-* Detects: Ordered list items written with explicit numeric markers.
-* Remediation: Use AsciiDoc dot syntax such as `. item`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
 
+==== What it does
+
+Checks ordered list items written with explicit numeric markers.
+
+==== Why it is bad
+
+Explicit numbers can become stale when items are inserted or reordered.
+AsciiDoc dot markers let the processor number the list.
+
+==== Drawbacks
+
+Some imported Markdown or legal-style documents may need visible source numbers.
+Allow this lint where source numbering is intentional.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+1. Install acdc
+2. Run acdc
+----
+
+.Good
+[source,asciidoc]
+----
+. Install acdc
+. Run acdc
+----
+
+[[lint-description-list-bold-term]]
 === `description-list-bold-term`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: prefer description-list syntax over bold-term paragraphs
-* Intent: Use structural AsciiDoc syntax for term/description content.
-* Detects: Paragraphs that look like a bold term followed by descriptive text.
-* Remediation: Use description-list syntax such as `Term:: description`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
 
+==== What it does
+
+Checks paragraphs that look like a bold term followed by descriptive text.
+
+==== Why it is bad
+
+Bold text communicates visual emphasis, not term/description structure.
+Description-list syntax gives converters and assistive tools the correct semantics.
+
+==== Drawbacks
+
+Some prose intentionally starts with a bold phrase without being a description list.
+Allow this lint when the bold phrase is stylistic rather than structural.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+*Install*: Add the binary to your path.
+----
+
+.Good
+[source,asciidoc]
+----
+Install:: Add the binary to your path.
+----
+
+[[lint-markdown-heading]]
 === `markdown-heading`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: avoid Markdown heading syntax
-* Intent: Keep headings parsed consistently as AsciiDoc section titles.
-* Detects: Markdown `#` heading markers in AsciiDoc source.
-* Remediation: Use AsciiDoc section markers such as `== Section`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
 
+==== What it does
+
+Checks Markdown `#` heading markers in AsciiDoc source.
+
+==== Why it is bad
+
+Markdown headings are not AsciiDoc section titles.
+They can render as plain text or parse inconsistently across tools.
+
+==== Drawbacks
+
+Markdown syntax may appear in documentation about Markdown itself.
+Allow this lint for examples that intentionally show Markdown.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+## Install
+----
+
+.Good
+[source,asciidoc]
+----
+== Install
+----
+
+[[lint-markdown-link]]
 === `markdown-link`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: avoid Markdown link syntax
-* Intent: Prefer AsciiDoc link syntax so links follow AsciiDoc parsing rules.
-* Detects: Markdown inline link syntax.
-* Remediation: Use `link:target[text]` or an AsciiDoc URL macro.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
 
+==== What it does
+
+Checks Markdown inline link syntax in AsciiDoc source.
+
+==== Why it is bad
+
+Markdown links do not use AsciiDoc link parsing rules.
+They can fail to render as links or miss AsciiDoc-specific macro behavior.
+
+==== Drawbacks
+
+Markdown link syntax may be intentional in code examples or migration guides.
+Allow this lint for files that document Markdown syntax.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+[Project](https://example.com)
+----
+
+.Good
+[source,asciidoc]
+----
+link:https://example.com[Project]
+----
+
+[[lint-markdown-image]]
 === `markdown-image`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: avoid Markdown image syntax
-* Intent: Prefer AsciiDoc image macros so image attributes and paths follow AsciiDoc rules.
-* Detects: Markdown image syntax.
-* Remediation: Use `image::target[alt]` or `image:target[alt]`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
 
+==== What it does
+
+Checks Markdown image syntax in AsciiDoc source.
+
+==== Why it is bad
+
+Markdown image syntax bypasses AsciiDoc image macro rules for targets, alt text, and attributes.
+It can render incorrectly or lose metadata.
+
+==== Drawbacks
+
+Markdown image syntax may be necessary in examples that teach Markdown.
+Allow this lint for those files.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+![Project logo](logo.png)
+----
+
+.Good
+[source,asciidoc]
+----
+image::logo.png[Project logo]
+----
+
+[[lint-markdown-code-fence]]
 === `markdown-code-fence`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: avoid Markdown code fences
-* Intent: Prefer AsciiDoc listing blocks for verbatim source content.
-* Detects: Markdown backtick code fences.
-* Remediation: Use an AsciiDoc listing block delimiter such as `----`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
 
+==== What it does
+
+Checks Markdown backtick code fences in AsciiDoc source.
+
+==== Why it is bad
+
+Backtick fences are Markdown syntax, not AsciiDoc listing blocks.
+AsciiDoc listing blocks have clearer block semantics and attribute handling.
+
+==== Drawbacks
+
+Backtick fences may be intentional in Markdown examples.
+Allow this lint where the source is documenting Markdown.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+```rust
+fn main() {}
+```
+----
+
+.Good
+[source,asciidoc]
+------
+[source,rust]
+----
+fn main() {}
+----
+------
+
+[[lint-markdown-table]]
 === `markdown-table`
 
-* Default level: `warn`
-* Groups: `all`, `semantic-asciidoc`
-* Summary: avoid Markdown table syntax
-* Intent: Prefer AsciiDoc table blocks so table content follows AsciiDoc table parsing.
-* Detects: Markdown pipe-table separator rows.
-* Remediation: Use an AsciiDoc table block such as `|===`.
+[horizontal]
+Default level:: `warn`
+Groups:: `all`, `semantic-asciidoc`
+
+==== What it does
+
+Checks Markdown pipe-table separator rows in AsciiDoc source.
+
+==== Why it is bad
+
+Markdown tables are not AsciiDoc table blocks.
+They may render as plain text or parse differently from the table the author intended.
+
+==== Drawbacks
+
+Markdown tables may be intentional in migration docs or examples.
+Allow this lint for files that need to show Markdown syntax.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+| Name | Role |
+| ---- | ---- |
+| Ada  | Author |
+----
+
+.Good
+[source,asciidoc]
+----
+|===
+|Name |Role
+
+|Ada |Author
+|===
+----

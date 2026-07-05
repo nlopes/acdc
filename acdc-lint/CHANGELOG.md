@@ -24,4 +24,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   long-form explanations for each lint ID, suitable for generated rule docs and future
   `acdc lint --explain` output.
 - Added a linked `RULES.adoc` reference that documents every lint ID, default level,
-  group membership, detection intent, and remediation guidance.
+  group membership, detection intent, drawbacks, and bad/good examples. Lint
+  references inside the page link to the corresponding lint sections.
