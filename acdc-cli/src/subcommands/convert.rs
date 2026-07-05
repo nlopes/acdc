@@ -304,7 +304,7 @@ where
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
         let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
-        let parsed = report_warnings(parsed, None);
+        let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
             .map(output_paths_from_result);
@@ -340,7 +340,7 @@ where
         let processor = make_processor(base_options, document_attributes);
         let convert_result = match parse_result {
             Ok(parsed) => {
-                let parsed = report_warnings(parsed, Some(file));
+                let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
                 processor.convert(parsed.document(), Some(file))
             }
             Err(e) => Err(e.into()),
@@ -473,7 +473,7 @@ where
     let now = Instant::now();
     let result = match parse_result {
         Ok(parsed) => {
-            let parsed = report_warnings(parsed, Some(&file));
+            let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(&file));
             processor.convert(parsed.document(), Some(&file))
         }
         Err(e) => Err(e.into()),
@@ -561,13 +561,6 @@ type TimedParseResult = (
 /// — the pager's screen takeover would visually bury anything we
 /// `eprintln!` before it exits, so they stash the warnings and print them
 /// after `pager.wait()`.
-fn report_warnings(parsed: ParseResult, file: Option<&Path>) -> ParseResult {
-    parsed
-        .warnings()
-        .render(WarningRenderContext::new().with_optional_file(file));
-    parsed
-}
-
 #[derive(Debug, Clone, Copy)]
 struct WarningRenderContext<'a> {
     file: Option<&'a Path>,
@@ -582,9 +575,15 @@ impl<'a> WarningRenderContext<'a> {
         self.file = Some(file);
         self
     }
+}
 
-    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
-        self.file = file;
+trait ParseResultWarningReporter {
+    fn report_warnings(self, context: WarningRenderContext<'_>) -> Self;
+}
+
+impl ParseResultWarningReporter for ParseResult {
+    fn report_warnings(self, context: WarningRenderContext<'_>) -> Self {
+        self.warnings().render(context);
         self
     }
 }
@@ -780,7 +779,7 @@ fn run_terminal_stdin(
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
-        let parsed = report_warnings(parsed, None);
+        let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
             .map(output_paths_from_result);
@@ -807,7 +806,7 @@ fn run_terminal_stdin(
         converter_warnings.render(WarningRenderContext::new());
         return Ok(Vec::new());
     }
-    let parsed = report_warnings(parsed, None);
+    let parsed = parsed.report_warnings(WarningRenderContext::new());
     let result = processor.convert(parsed.document(), None)?;
     let (_, warnings) = result.into_parts();
     warnings.render(WarningRenderContext::new());
@@ -919,7 +918,8 @@ fn run_terminal_with_pager(
         for (file, parse_result) in parse_results {
             match parse_result {
                 Ok(parsed) => {
-                    let parsed = report_warnings(parsed, Some(&file));
+                    let parsed =
+                        parsed.report_warnings(WarningRenderContext::new().with_file(&file));
                     let result = processor.convert(parsed.document(), Some(&file))?;
                     let (output_path, warnings) = result.into_parts();
                     warnings.render(WarningRenderContext::new().with_file(&file));
@@ -941,7 +941,8 @@ fn run_terminal_with_pager(
         for (file, parse_result) in parse_results {
             match parse_result {
                 Ok(parsed) => {
-                    let parsed = report_warnings(parsed, Some(&file));
+                    let parsed =
+                        parsed.report_warnings(WarningRenderContext::new().with_file(&file));
                     let result = processor.convert(parsed.document(), Some(&file))?;
                     let (_, warnings) = result.into_parts();
                     warnings.render(WarningRenderContext::new().with_file(&file));
