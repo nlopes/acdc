@@ -101,6 +101,8 @@ pub enum LintId {
     SectionTitleMarkerSpacing,
     /// Start headings with an uppercase letter.
     SectionTitleCapitalization,
+    /// Start headings with a leading monospace span with an uppercase letter.
+    SectionTitleCapitalizationMonospace,
     /// Put a blank line before delimited blocks.
     DelimitedBlockLeadingBlankLine,
     /// Put a blank line after delimited blocks.
@@ -397,8 +399,20 @@ pub const LINTS: &[LintInfo] = &[
         summary: "start section titles with an uppercase letter",
         explanation: "Checks document, section, and discrete titles whose first alphabetic \
                       character is lowercase. This is a style lint for projects that expect \
-                      title-style starts.",
+                      title-style starts. Leading monospace spans are ignored so tool and command \
+                      names can keep their exact casing.",
         help: Some("capitalize the first word of the title"),
+    },
+    LintInfo {
+        name: "section-title-capitalization-monospace",
+        id: LintId::SectionTitleCapitalizationMonospace,
+        default_level: LintLevel::Allow,
+        summary: "start leading monospace title text with an uppercase letter",
+        explanation: "Checks document, section, and discrete titles whose first alphabetic \
+                      character is lowercase inside a leading monospace span. This lint is opt-in \
+                      because titles often start with case-sensitive tool, package, or command \
+                      names.",
+        help: Some("capitalize the leading monospace title text"),
     },
     LintInfo {
         name: "delimited-block-leading-blank-line",
@@ -661,6 +675,7 @@ fn is_source_format(lint: LintId) -> bool {
             | LintId::DelimitedBlockMinimalDelimiter
             | LintId::SectionTitleMarkerSpacing
             | LintId::SectionTitleCapitalization
+            | LintId::SectionTitleCapitalizationMonospace
             | LintId::DelimitedBlockLeadingBlankLine
             | LintId::DelimitedBlockTrailingBlankLine
             | LintId::TrailingWhitespace

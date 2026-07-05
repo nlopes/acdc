@@ -86,7 +86,10 @@ const PARSER_WARNINGS: &[LintId] = &[
 const MULTIPLE_DOCUMENT_TITLE: &[LintId] = &[LintId::MultipleDocumentTitle];
 const DELIMITED_BLOCKS: &[LintId] = &[LintId::DelimitedBlockMinimalDelimiter];
 const SECTION_TITLE_MARKER_SPACING: &[LintId] = &[LintId::SectionTitleMarkerSpacing];
-const SECTION_TITLE_CAPITALIZATION: &[LintId] = &[LintId::SectionTitleCapitalization];
+const SECTION_TITLE_CAPITALIZATION: &[LintId] = &[
+    LintId::SectionTitleCapitalization,
+    LintId::SectionTitleCapitalizationMonospace,
+];
 const DELIMITED_BLOCK_LAYOUT: &[LintId] = &[
     LintId::DelimitedBlockLeadingBlankLine,
     LintId::DelimitedBlockTrailingBlankLine,

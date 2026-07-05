@@ -274,24 +274,40 @@ fn lint_title_capitalization(
     title: &[InlineNode<'_>],
     title_kind: &str,
 ) {
-    let Some((first, location)) = first_alphabetic_inlines(title) else {
+    let Some(first) = first_alphabetic_inlines(title) else {
         return;
     };
-    if !first.is_lowercase() {
+    if !first.character.is_lowercase() {
         return;
     }
 
-    emitter.emit(
-        LintId::SectionTitleCapitalization,
-        format!("{title_kind} should start with an uppercase letter"),
-        None,
-        Some(emitter.source_location(location)),
-    );
+    if first.in_monospace {
+        emitter.emit(
+            LintId::SectionTitleCapitalizationMonospace,
+            format!("{title_kind} monospace text should start with an uppercase letter"),
+            None,
+            Some(emitter.source_location(first.location)),
+        );
+    } else {
+        emitter.emit(
+            LintId::SectionTitleCapitalization,
+            format!("{title_kind} should start with an uppercase letter"),
+            None,
+            Some(emitter.source_location(first.location)),
+        );
+    }
+}
+
+#[derive(Clone, Copy)]
+struct FirstAlphabetic<'a> {
+    character: char,
+    location: &'a Location,
+    in_monospace: bool,
 }
 
 fn first_alphabetic_inlines<'nodes>(
     nodes: &'nodes [InlineNode<'_>],
-) -> Option<(char, &'nodes Location)> {
+) -> Option<FirstAlphabetic<'nodes>> {
     for node in nodes {
         let found = match node {
             InlineNode::PlainText(text) => first_alphabetic_text(text.content, &text.location),
@@ -302,7 +318,9 @@ fn first_alphabetic_inlines<'nodes>(
             InlineNode::CurvedQuotationText(text) => first_alphabetic_inlines(&text.content),
             InlineNode::HighlightText(text) => first_alphabetic_inlines(&text.content),
             InlineNode::ItalicText(text) => first_alphabetic_inlines(&text.content),
-            InlineNode::MonospaceText(text) => first_alphabetic_inlines(&text.content),
+            InlineNode::MonospaceText(text) => {
+                first_alphabetic_inlines(&text.content).map(FirstAlphabetic::with_monospace)
+            }
             InlineNode::SubscriptText(text) => first_alphabetic_inlines(&text.content),
             InlineNode::SuperscriptText(text) => first_alphabetic_inlines(&text.content),
             InlineNode::Macro(macro_node) => first_alphabetic_macro(macro_node),
@@ -321,7 +339,7 @@ fn first_alphabetic_inlines<'nodes>(
 
 fn first_alphabetic_macro<'nodes>(
     macro_node: &'nodes InlineMacro<'_>,
-) -> Option<(char, &'nodes Location)> {
+) -> Option<FirstAlphabetic<'nodes>> {
     match macro_node {
         InlineMacro::Button(button) => first_alphabetic_text(button.label, &button.location),
         InlineMacro::CrossReference(reference) => first_alphabetic_inlines(&reference.text),
@@ -343,10 +361,23 @@ fn first_alphabetic_macro<'nodes>(
     }
 }
 
-fn first_alphabetic_text<'a>(text: &str, location: &'a Location) -> Option<(char, &'a Location)> {
+impl FirstAlphabetic<'_> {
+    const fn with_monospace(self) -> Self {
+        Self {
+            in_monospace: true,
+            ..self
+        }
+    }
+}
+
+fn first_alphabetic_text<'a>(text: &str, location: &'a Location) -> Option<FirstAlphabetic<'a>> {
     text.chars()
         .find(|ch| ch.is_alphabetic())
-        .map(|ch| (ch, location))
+        .map(|character| FirstAlphabetic {
+            character,
+            location,
+            in_monospace: false,
+        })
 }
 
 pub(crate) fn lint_document_title_author(
@@ -601,6 +632,47 @@ mod tests {
         let report = report_for("= title\n\n== section\n\nContent.\n")?;
 
         assert!(has_lint(&report, LintId::SectionTitleCapitalization));
+        Ok(())
+    }
+
+    #[test]
+    fn section_title_capitalization_ignores_leading_monospace_titles() -> Result<(), Error> {
+        let report = report_for("= `acdc-lint`\n\n== `acdc-cli`\n\nContent.\n")?;
+
+        assert!(!has_lint(&report, LintId::SectionTitleCapitalization));
+        assert!(!has_lint(
+            &report,
+            LintId::SectionTitleCapitalizationMonospace
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn section_title_capitalization_flags_lowercase_bold_titles() -> Result<(), Error> {
+        let report = report_for("= **a tool**\n\nContent.\n")?;
+
+        assert!(has_lint(&report, LintId::SectionTitleCapitalization));
+        assert!(!has_lint(
+            &report,
+            LintId::SectionTitleCapitalizationMonospace
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn section_title_capitalization_monospace_is_opt_in() -> Result<(), Error> {
+        let source = "= `acdc-lint`\n\nContent.\n";
+        let options = LintOptions::new(vec![LintOverride::new(
+            LintLevel::Warn,
+            LintSelector::Lint(LintId::SectionTitleCapitalizationMonospace),
+        )]);
+        let report = source.lint(&options)?;
+
+        assert!(!has_lint(&report, LintId::SectionTitleCapitalization));
+        assert!(has_lint(
+            &report,
+            LintId::SectionTitleCapitalizationMonospace
+        ));
         Ok(())
     }
 

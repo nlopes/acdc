@@ -1,5 +1,5 @@
 = `acdc-lint` Rules
-:toc:
+:toc: right
 :toclevels: 3
 :sectanchors:
 
@@ -100,6 +100,7 @@ Members:
 * xref:lint-delimited-block-minimal-delimiter[delimited-block-minimal-delimiter]
 * xref:lint-section-title-marker-spacing[section-title-marker-spacing]
 * xref:lint-section-title-capitalization[section-title-capitalization]
+* xref:lint-section-title-capitalization-monospace[section-title-capitalization-monospace]
 * xref:lint-delimited-block-leading-blank-line[delimited-block-leading-blank-line]
 * xref:lint-delimited-block-trailing-blank-line[delimited-block-trailing-blank-line]
 * xref:lint-trailing-whitespace[trailing-whitespace]
@@ -140,6 +141,7 @@ These lints are opt-in because they encode project policy rather than general As
 
 * xref:lint-document-title-author[document-title-author]
 * xref:lint-document-title-revision[document-title-revision]
+* xref:lint-section-title-capitalization-monospace[section-title-capitalization-monospace]
 
 === Warn by Default
 
@@ -804,6 +806,7 @@ Groups:: `all`, `source-format`
 ==== What it does
 
 Checks document, section, and discrete titles whose first alphabetic character is lowercase.
+Leading monospace spans are ignored by this lint.
 
 ==== Why it is bad
 
@@ -813,7 +816,7 @@ Consistent capitalization makes generated tables of contents look cleaner.
 ==== Drawbacks
 
 Some headings intentionally start with lowercase identifiers, command names, or product names.
-Allow this lint for projects that use lowercase title style.
+Use monospace syntax for those names, or allow this lint for projects that use lowercase title style.
 
 ==== Example
 
@@ -828,6 +831,45 @@ Allow this lint for projects that use lowercase title style.
 ----
 == Install acdc
 ----
+
+See also xref:lint-section-title-capitalization-monospace[section-title-capitalization-monospace].
+
+[[lint-section-title-capitalization-monospace]]
+=== `section-title-capitalization-monospace`
+
+[horizontal]
+Default level:: `allow`
+Groups:: `all`, `source-format`
+
+==== What it does
+
+Checks document, section, and discrete titles whose first alphabetic character is lowercase inside a leading monospace span.
+
+==== Why it is bad
+
+Projects with strict title casing may want every visible title start capitalized, including code-styled text.
+This opt-in lint lets those projects enforce that policy without making the regular capitalization lint noisy for command names.
+
+==== Drawbacks
+
+Tool names, package names, command names, and file names are often case-sensitive or conventionally lowercase.
+Enabling this lint can produce unwanted diagnostics for titles that start with lowercase tool names such as `acdc-lint`.
+
+==== Example
+
+.Bad
+[source,asciidoc]
+----
+= `tool-name`
+----
+
+.Good
+[source,asciidoc]
+----
+= `Tool-name`
+----
+
+Most projects should leave this lint disabled when the monospace text is a case-sensitive name.
 
 [[lint-delimited-block-leading-blank-line]]
 === `delimited-block-leading-blank-line`
