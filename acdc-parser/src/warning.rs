@@ -50,6 +50,15 @@ impl Warning {
             | WarningKind::UnterminatedDelimitedBlock { .. } => Some(
                 "The opening delimiter was found but no matching closing delimiter was seen before end of document. Add the closing delimiter on its own line, or remove the opening delimiter if not intended.",
             ),
+            WarningKind::TableUnknownFormat { .. } => Some(
+                "Use a supported table format (`csv`, `dsv`, or `tsv`) or remove the `format` attribute to use the table delimiter's default separator.",
+            ),
+            WarningKind::TableIncompleteRow => Some(
+                "Complete the final table row or remove the trailing cells that do not fill the configured column count.",
+            ),
+            WarningKind::TableCellOverflow { .. } | WarningKind::TableColumnCount { .. } => Some(
+                "Adjust the `cols` attribute or the row's cells/spans so each row occupies the configured number of columns.",
+            ),
             WarningKind::NonStandardAuthorLine { .. } => Some(
                 "Author lines use `firstname [middlename] [lastname] [<email>]`, with multiple authors separated by `;`. Keeping the whole line as a single author name.",
             ),
@@ -135,6 +144,45 @@ pub enum WarningKind {
         kind: &'static str,
         /// The opening delimiter that was left unmatched.
         delimiter: String,
+    },
+
+    /// A table declared an unsupported `format` attribute, so the parser fell
+    /// back to the table delimiter's default separator.
+    #[error("unknown table format `{format}`, using default separator")]
+    TableUnknownFormat {
+        /// The unsupported format value.
+        format: String,
+    },
+
+    /// A table ended with cells that could not fill a complete row, so those
+    /// trailing cells were dropped.
+    #[error("dropping cells from incomplete row detected end of table")]
+    TableIncompleteRow,
+
+    /// A table row contained a cell/span that exceeded the configured column
+    /// count, so the row was dropped.
+    #[error(
+        "dropping cell because it exceeds specified number of columns: actual={actual}, expected={expected}"
+    )]
+    TableCellOverflow {
+        /// The row's logical column count.
+        actual: usize,
+        /// The configured column count.
+        expected: usize,
+    },
+
+    /// A table row's logical column count did not match the configured column
+    /// count, so the row was dropped.
+    #[error(
+        "table row has incorrect column count: actual={actual}, expected={expected}, occupied_from_rowspans={occupied_from_rowspans}"
+    )]
+    TableColumnCount {
+        /// The row's logical column count.
+        actual: usize,
+        /// The configured column count.
+        expected: usize,
+        /// Columns already occupied by active rowspans.
+        occupied_from_rowspans: usize,
     },
 
     /// A document header author line did not match the structured

@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `CommentKind` on `Comment` separates `//` lines from `[comment]` paragraphs,
   and a `[comment]` `--` block is a `DelimitedComment` (distinguished from a
   `////` block by its `--` delimiter).
+- Table recovery warnings for unsupported formats, incomplete final rows, row
+  column-count mismatches, and cells that exceed the configured column count are
+  now distinguishable warning categories with targeted advice, so callers can
+  present separate diagnostics without matching warning text.
 
 ### Changed
 

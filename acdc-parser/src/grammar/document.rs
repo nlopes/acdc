@@ -952,10 +952,12 @@ fn parse_table_block_impl<'input>(
             "dsv" => ":",
             "tsv" => "\t",
             unknown_format => {
-                state.add_generic_warning_at(
-                    format!("unknown table format '{unknown_format}', using default separator"),
-                    table_location.clone(),
-                );
+                state.add_warning(crate::Warning::new(
+                    crate::WarningKind::TableUnknownFormat {
+                        format: unknown_format.to_string(),
+                    },
+                    Some(state.create_error_source_location(table_location.clone())),
+                ));
                 default_separator
             }
         }
@@ -1107,10 +1109,10 @@ fn parse_table_block_impl<'input>(
     );
 
     if let Some((start, end)) = dropped_span {
-        state.add_generic_warning_at(
-            "dropping cells from incomplete row detected end of table".to_string(),
-            state.create_location(start, end),
-        );
+        state.add_warning(crate::Warning::new(
+            crate::WarningKind::TableIncompleteRow,
+            Some(state.create_error_source_location(state.create_location(start, end))),
+        ));
     }
 
     // If the user forces a `noheader`, we should not have a header, so after we've tried
@@ -1195,19 +1197,22 @@ fn parse_table_block_impl<'input>(
             // Check if any cell's colspan exceeds the table width
             let has_overflow = columns.iter().any(|c| c.colspan > ncols);
             if has_overflow {
-                state.add_generic_warning_at(
-                    format!(
-                        "dropping cell because it exceeds specified number of columns: actual={logical_col_count}, expected={ncols}"
-                    ),
-                    row_location,
-                );
+                state.add_warning(crate::Warning::new(
+                    crate::WarningKind::TableCellOverflow {
+                        actual: logical_col_count,
+                        expected: ncols,
+                    },
+                    Some(state.create_error_source_location(row_location)),
+                ));
             } else {
-                state.add_generic_warning_at(
-                    format!(
-                        "table row has incorrect column count: actual={logical_col_count}, expected={ncols}, occupied_from_rowspans={occupied_from_rowspans}"
-                    ),
-                    row_location,
-                );
+                state.add_warning(crate::Warning::new(
+                    crate::WarningKind::TableColumnCount {
+                        actual: logical_col_count,
+                        expected: ncols,
+                        occupied_from_rowspans,
+                    },
+                    Some(state.create_error_source_location(row_location)),
+                ));
             }
             continue;
         }
@@ -7094,10 +7099,7 @@ References.
         let warnings = state.warnings.borrow();
         let warning = warnings
             .iter()
-            .find(|w| {
-                matches!(&w.kind, crate::WarningKind::Other(m)
-                    if m.contains("dropping cells from incomplete row detected end of table"))
-            })
+            .find(|w| matches!(&w.kind, crate::WarningKind::TableIncompleteRow))
             .expect("expected dropping-cells warning");
         let loc = warning
             .source_location()
