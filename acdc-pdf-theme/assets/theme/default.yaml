@@ -1,0 +1,49 @@
+# The built-in default theme: a bland, neutral look (white page, grayscale,
+# bundled fonts). This file is the single source of truth for `Theme::default()`
+# — it is embedded via `include_str!` and parsed at runtime.
+palette:
+  page_bg: "#ffffff"
+  body_text: "#111111"
+  heading: "#000000"
+  accent: "#374151"
+  link: "#2563eb"
+  bullet: "#6b7280"
+  counter: "#9ca3af"
+  border: "#e5e7eb"
+  quote_text: "#4b5563"
+  quote_rule: "#d1d5db"
+  callout_bg: "#f3f4f6"
+  callout_title: "#111111"
+  code_bg: "#1e1e1e"
+  code_fg: "#d4d4d4"
+typography:
+  body_font:
+    brand: null
+    fallback: ["IBM Plex Serif"]
+  heading_font:
+    brand: null
+    fallback: ["IBM Plex Serif"]
+  mono_font:
+    brand: null
+    fallback: ["IBM Plex Mono"]
+  body_size_pt: 11.0
+  heading_pt: [24.0, 18.0, 14.0, 12.0, 11.0, 10.0]
+  tracking_em: 0.0
+  body_leading_em: 0.65
+  body_weight: 400
+  strong_weight: 700
+  heading_weight: 700
+  table_header_weight: 700
+spacing:
+  margin_x_cm: 2.5
+  margin_y_cm: 2.5
+  image_radius_pt: 4.0
+  code_radius_pt: 4.0
+  callout_radius_pt: 4.0
+  callout_indent_pt: 0.0
+  callout_pad_x_pt: 12.0
+  callout_pad_y_pt: 10.0
+  code_pad_pt: 10.0
+  quote_rule_pt: 3.0
+  quote_indent_pt: 12.0
+  border_pt: 0.75

@@ -1,0 +1,18 @@
+[package]
+name = "acdc-pdf-theme"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Design tokens (YAML-loadable), bundled fonts, and syntax theme for acdc-pdf. Typst-free."
+
+[dependencies]
+serde.workspace = true
+serde-saphyr.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest = "1.9"
+ttf-parser.workspace = true
+
+[lints]
+workspace = true
