@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>name</key>
+  <string>acdc-pdf-dark</string>
+  <key>settings</key>
+  <array>
+    <dict>
+      <key>settings</key>
+      <dict>
+        <key>background</key>
+        <string>#1f2937</string>
+        <key>foreground</key>
+        <string>#e5e7eb</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>comment, punctuation.definition.comment</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#9aa4b2</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>keyword, storage, storage.type, storage.modifier, keyword.control, keyword.operator</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#ff7b72</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>string, string.quoted, constant.character.escape</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#a5d6a7</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>constant.numeric, constant.language, constant.other</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#f0b429</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>entity.name.function, support.function, meta.function-call</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#79c0ff</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>entity.name.type, support.type, support.class, entity.name.class</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#d2a8ff</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>scope</key>
+      <string>variable, variable.parameter, meta.definition.variable</string>
+      <key>settings</key>
+      <dict>
+        <key>foreground</key>
+        <string>#e5e7eb</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>
