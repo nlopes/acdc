@@ -20,7 +20,7 @@ This crate is *source-format-agnostic*: it holds no knowledge of AsciiDoc. It pr
 - **`Writer`** — the primitive for emitting Typst *body* markup with correct escaping of Typst's special characters.
 - **`escape`** — the escaping helpers the `Writer` builds on.
 - **`preamble`** — turns an `acdc-pdf-theme` `Theme` plus `EmitOptions` into the document's Typst preamble: page setup, `#set`/`#show` rules, and the branded header, footer, and watermark.
-- **`EmitOptions`** / **`PageSize`** — document-level knobs that shape the generated markup (page size, title, header logo, watermark, table of contents, and whether to strip branding chrome or name brand fonts).
+- **`EmitOptions`** / **`PageSize`** — document-level knobs that shape the generated markup (page size, title, header logo, watermark, and whether to strip branding chrome or name brand fonts).
 
 Each converter supplies its own AST walk to produce the body; everything else here is shared.
 

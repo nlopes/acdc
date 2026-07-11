@@ -3,10 +3,14 @@ use std::{
     path::{Path, PathBuf},
 };
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
 use acdc_parser::{Document, DocumentAttributes};
+#[cfg(feature = "pre-spec-subs")]
+use std::{cell::Cell, rc::Rc};
 
-use crate::{Error, Processor};
+use crate::{Error, PdfOptions, Processor};
 
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
@@ -15,6 +19,9 @@ impl<'a> Converter<'a> for Processor<'a> {
         Self {
             options,
             document_attributes,
+            pdf_options: PdfOptions::default(),
+            #[cfg(feature = "pre-spec-subs")]
+            current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }
     }
 
@@ -42,13 +49,17 @@ impl<'a> Converter<'a> for Processor<'a> {
         &self,
         doc: &Document<'_>,
         mut writer: W,
-        _source_file: Option<&Path>,
+        source_file: Option<&Path>,
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
-        let source = self.convert_to_typst_source(doc, diagnostics)?;
-        let pdf = Self::compile_pdf(&source)?;
-        writer.write_all(&pdf)?;
+        let rendered = self.render_document(doc, source_file, diagnostics)?;
+        if self.options().timings() {
+            rendered
+                .timings
+                .write_report(rendered.resolved_document_image_count);
+        }
+        writer.write_all(&rendered.pdf)?;
         Ok(())
     }
 

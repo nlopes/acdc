@@ -9,19 +9,22 @@ publish = false
 [features]
 default = ["pre-spec-subs"]
 pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
+# Fetch remote http(s) images referenced by the document. Off by default;
+# without it remote images are reported as per-image failures.
+network = ["acdc-pdf-images/network"]
 
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
+acdc-pdf-images.workspace = true
+acdc-pdf-render.workspace = true
+acdc-pdf-theme.workspace = true
+acdc-pdf-typst.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
-typst = "0.15"
-typst-as-lib = { version = "0.16", default-features = false }
-typst-assets = { version = "0.15", features = ["fonts"] }
-typst-layout = "0.15"
-typst-pdf = "0.15"
 
 [dev-dependencies]
-pretty_assertions.workspace = true
+lopdf.workspace = true
 
 [lints]
 workspace = true

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `EmitOptions` now contains only preamble configuration; converters place tables of
+  contents during their document traversal.
+
 ### Added
 
 - Initial shared Typst writer, escaping, page preamble, header/footer,
