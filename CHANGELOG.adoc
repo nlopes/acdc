@@ -18,8 +18,13 @@ This project uses per-crate changelogs. See the relevant crate for its changelog
 - link:converters/html/CHANGELOG.md[acdc-converters-html]
 - link:converters/manpage/CHANGELOG.md[acdc-converters-manpage]
 - link:converters/markdown/CHANGELOG.md[acdc-converters-markdown]
+- link:converters/pdf/CHANGELOG.md[acdc-converters-pdf]
 - link:converters/terminal/CHANGELOG.md[acdc-converters-terminal]
 
 === Converter utilities
 
 - link:converters/core/CHANGELOG.md[acdc-converters-core]
+- link:acdc-pdf-images/CHANGELOG.md[acdc-pdf-images]
+- link:acdc-pdf-render/CHANGELOG.md[acdc-pdf-render]
+- link:acdc-pdf-theme/CHANGELOG.md[acdc-pdf-theme]
+- link:acdc-pdf-typst/CHANGELOG.md[acdc-pdf-typst]

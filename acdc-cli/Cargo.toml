@@ -2,7 +2,7 @@
 name = "acdc-cli"
 version = "0.2.0"
 edition.workspace = true
-description = "Text processor for parsing AsciiDoc and converting it to output formats such as HTML, manual pages, or even the terminal."
+description = "Text processor for parsing AsciiDoc and converting it to HTML, PDF, manual pages, Markdown, or terminal output."
 readme = "README.adoc"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/nlopes/acdc"
@@ -25,6 +25,7 @@ acdc-converters-manpage = { workspace = true, optional = true }
 acdc-converters-markdown = { workspace = true, optional = true }
 acdc-converters-pdf = { workspace = true, optional = true }
 anyhow = "1.0.100"
+chrono = { workspace = true, optional = true }
 clap.workspace = true
 crossterm.workspace = true
 miette = { version = "7", features = ["derive", "fancy"] }
@@ -56,7 +57,7 @@ pre-spec-subs = [
 html = ["dep:acdc-converters-html"]            # HTML5 converter with Asciidoctor-compatible styling
 manpage = ["dep:acdc-converters-manpage"]      # Manpage (roff/troff) converter for man pages
 markdown = ["dep:acdc-converters-markdown"]    # Markdown converter (CommonMark and GitHub Flavored Markdown)
-pdf = ["dep:acdc-converters-pdf"]              # PDF converter backed by the Rust Typst engine
+pdf = ["dep:acdc-converters-pdf", "dep:chrono"] # PDF converter backed by the Rust Typst engine
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
 # Document tools
@@ -80,7 +81,7 @@ tck = []      # Technology Compatibility Kit for spec compliance testing
 
 # Compatibility features
 setext = ["acdc-parser/setext", "acdc-lint?/setext"]  # Enable Setext-style (underlined) header parsing
-network = ["acdc-parser/network", "acdc-lint?/network"]  # Enable remote include parsing
+network = ["acdc-parser/network", "acdc-lint?/network", "acdc-converters-pdf?/network"]  # Enable remote include parsing and remote PDF images
 
 # Feature groups for convenience
 all-backends = ["html", "manpage", "markdown", "pdf", "terminal"]  # Enable all output converters

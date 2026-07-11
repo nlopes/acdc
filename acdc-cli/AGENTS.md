@@ -2,7 +2,9 @@
 
 ## Features
 
-`pre-spec-subs` (default-on) is forwarded to every selected converter (`acdc-converters-html?`, `acdc-converters-manpage?`, `acdc-converters-terminal?`), to `acdc-lint?`, and to `acdc-parser`. For the parser contract see `acdc-parser/AGENTS.md`; for converter plumbing see `converters/AGENTS.md`.
+`pre-spec-subs` (default-on) is forwarded to every selected converter (`acdc-converters-html?`, `acdc-converters-manpage?`, `acdc-converters-pdf?`, `acdc-converters-terminal?`), to `acdc-lint?`, and to `acdc-parser`. For the parser contract see `acdc-parser/AGENTS.md`; for converter plumbing see `converters/AGENTS.md`.
+
+`network` is forwarded to `acdc-converters-pdf?` as well as the parser and lint crate, so PDF builds can resolve remote images and logos under the converter's network policy.
 
 ## TCK compliance
 

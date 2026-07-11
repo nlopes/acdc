@@ -29,7 +29,7 @@ Options:
 
 === convert
 
-Convert `AsciiDoc` documents to various output formats (HTML, manpage, markdown, terminal).
+Convert `AsciiDoc` documents to various output formats (HTML, manpage, markdown, PDF, terminal).
 
 [source,console]
 ....
@@ -116,6 +116,7 @@ Check the `link:../converters/README.adoc[converters README]` for details.
 - `link:../converters/html[html]` (default)
 - `link:../converters/manpage[manpage]` (available with `--features manpage`)
 - `link:../converters/markdown[markdown]` (available with `--features markdown`)
+- `link:../converters/pdf[pdf]` (available with `--features pdf`)
 - `link:../converters/terminal[terminal]` (available with `--features terminal`)
 
 === Building an optional backend or tool
@@ -143,6 +144,7 @@ cargo build --all-features
 * `html` (default) - HTML5 converter with Asciidoctor-compatible styling
 * `manpage` - Manpage converter
 * `markdown` - Markdown converter with CommonMark and GitHub Flavored Markdown support
+* `pdf` - PDF converter backed by the Rust Typst engine
 * `terminal` - Terminal converter with ANSI color support
 
 === Document Tools
@@ -152,7 +154,7 @@ cargo build --all-features
 === Parser Options
 
 * `setext` - Enable setext-style (two-line underlined) section headers
-* `network` - Enable remote include parsing
+* `network` - Enable remote include parsing and, when the PDF backend is selected, remote PDF images and logos
 
 === Syntax Highlighting
 
@@ -173,7 +175,7 @@ cargo build --all-features
 
 For convenience, you can use these feature groups:
 
-* `all-backends` - Enables all output converters (`html`, `manpage`, `markdown`, `terminal`)
+* `all-backends` - Enables all output converters (`html`, `manpage`, `markdown`, `pdf`, `terminal`)
 * `dev-tools` - Enables the inspect tool
 * `test-tools` - Enables the TCK tool
 
@@ -219,9 +221,9 @@ cargo build --all-features
 The parser bundles `evalexpr` (conditional expressions) and `encoding_rs`
 (encoding detection) — always available, no feature flag needed.
 
-Remote includes (`include::https://...[]`) require the parser's `network`
-feature, which pulls in `ureq`. It's off by default; build with
-`--features acdc-parser/network` to enable it.
+Remote includes (`include::https://...[]`) and remote PDF assets require the
+CLI's `network` feature. It's off by default; build with `--features network`
+to enable it. The PDF converter still applies its asset safety policy.
 
 == Examples
 
@@ -245,6 +247,19 @@ Pick a backend variant (e.g. CommonMark instead of GFM):
 ....
 acdc convert --backend markdown --variant commonmark document.adoc
 acdc convert --backend html --variant semantic document.adoc  # equivalent to --backend html5s
+....
+
+Convert to PDF with page chrome:
+
+[source,console]
+....
+cargo run --features pdf --bin acdc -- convert --backend pdf document.adoc \
+  --font-dir fonts/stk-bureau \
+  --logo assets/logo.svg \
+  --title "Internal Architecture" \
+  --watermark "Internal Copy" \
+  --watermark-timestamp \
+  --timings
 ....
 
 Render acdc-only terminal previews in HTML:

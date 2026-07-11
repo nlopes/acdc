@@ -2,6 +2,7 @@
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal"
 ))]
 pub mod convert;

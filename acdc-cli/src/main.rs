@@ -2,6 +2,7 @@
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal",
     feature = "inspect",
     feature = "lint",
@@ -13,6 +14,7 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal",
     feature = "lint"
 ))]
@@ -22,6 +24,7 @@ mod subcommands;
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal"
 ))]
 mod timing;
@@ -30,6 +33,7 @@ mod timing;
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal",
     feature = "inspect",
     feature = "lint",
@@ -47,6 +51,7 @@ struct Cli {
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal",
     feature = "inspect",
     feature = "lint",
@@ -58,6 +63,7 @@ enum Commands {
         feature = "html",
         feature = "manpage",
         feature = "markdown",
+        feature = "pdf",
         feature = "terminal"
     ))]
     /// Convert `AsciiDoc` documents to various output formats
@@ -96,6 +102,7 @@ fn setup_logging() {
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal",
     feature = "inspect",
     feature = "lint",
@@ -116,6 +123,7 @@ fn main() {
             feature = "html",
             feature = "manpage",
             feature = "markdown",
+            feature = "pdf",
             feature = "terminal"
         ))]
         Commands::Convert(args) => subcommands::convert::run(&args),
@@ -167,6 +175,7 @@ fn main() {
     feature = "html",
     feature = "manpage",
     feature = "markdown",
+    feature = "pdf",
     feature = "terminal",
     feature = "inspect",
     feature = "lint",
@@ -176,7 +185,7 @@ fn main() {
     setup_logging();
     eprintln!(
         "acdc was built without any subcommand features. Enable at least \
-         one of: html, manpage, markdown, terminal, inspect, lint, tck."
+         one of: html, manpage, markdown, pdf, terminal, inspect, lint, tck."
     );
     std::process::exit(2);
 }
