@@ -1,0 +1,28 @@
+[package]
+name = "acdc-pdf-images"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Resolves and content-addresses images (local, remote, data URIs) for acdc PDF output."
+
+[features]
+# Remote http(s) image fetching. Off by default so a `--no-default-features`
+# build links no network stack, matching the workspace `network` convention.
+network = ["dep:ureq"]
+
+[dependencies]
+thiserror.workspace = true
+image.workspace = true
+sha2.workspace = true
+base64.workspace = true
+percent-encoding.workspace = true
+url.workspace = true
+usvg.workspace = true
+tempfile.workspace = true
+ureq = { workspace = true, optional = true }
+
+[dev-dependencies]
+mockito.workspace = true
+
+[lints]
+workspace = true
