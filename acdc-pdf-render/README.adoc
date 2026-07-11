@@ -1,0 +1,52 @@
+= `acdc-pdf-render`
+
+Compiles a Typst markup string into PDF bytes for acdc's PDF output.
+
+This is an internal workspace crate. It is not published to crates.io and has no stability guarantees outside the `acdc-pdf-*` pipeline.
+
+== Where it sits
+
+[source]
+....
+converters/pdf  ──▶  acdc-pdf-render  ──▶  Typst compiler
+  (produces markup       (loads fonts,          (isolated here,
+   + resolved assets)     compiles, exports)      behind a &str boundary)
+....
+
+This is the *only* crate that depends on the Typst compiler. Everything upstream produces a plain `String` of Typst markup, so the heavy Typst dependency stays isolated behind a `&str` boundary and never leaks into the converter or the parser.
+
+== What it does
+
+`render_pdf(markup, assets, config)` returns a `Rendered { pdf, warnings }`:
+
+. **Load fonts** — the fonts bundled in `acdc-pdf-theme` plus any extra
+  directories in `RenderConfig::font_dirs`, so a brand family supplied at
+  runtime is available wherever the markup names it. Bundled faces are parsed
+  once per process and cheaply shared between renders; directory fonts are read
+  on each render so changes on disk are observed. Entries are scanned in stable
+  path order, and directory symlinks inside the tree are not followed.
+. **Register images** — a custom file resolver maps each `virtual_path` in the `ImageMap` (see `acdc-pdf-images`) to the image's file on disk and reads it only when the compiler asks for it. The renderer retains only paths; ownership of bytes passes to Typst after a read. The small bundled syntax-highlight theme is served in-memory alongside it. The markup's `#image("/images/…")` calls resolve against these.
+. **Compile** the markup and **export** the resulting document to PDF bytes.
+
+Non-fatal Typst diagnostics are returned as `warnings`; a failed compile or export is an `Error`.
+
+== `RenderConfig`
+
+[cols="1,3"]
+|===
+| `font_dirs` | Extra directories to search for `ttf`/`otf`/`ttc`/`otc` fonts, registered alongside the bundled fonts.
+|===
+
+== Testing
+
+[source,console]
+....
+cargo nextest run -p acdc-pdf-render --all-features
+....
+
+Tests compile minimal markup and assert the output is a valid PDF (parsed back
+with `lopdf`), verify the bundled font cache reuses static asset storage, load
+custom fonts in deterministic order without following directory symlink cycles,
+exercise a resolved image through Typst's real file resolver, load the syntax
+theme through Typst's raw-code consumer, and check that malformed markup
+surfaces an `Error::Compile`.

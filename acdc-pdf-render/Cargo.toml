@@ -1,0 +1,22 @@
+[package]
+name = "acdc-pdf-render"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Compiles Typst markup to PDF bytes. Isolates the Typst compiler."
+
+[dependencies]
+acdc-pdf-theme.workspace = true
+acdc-pdf-images.workspace = true
+thiserror.workspace = true
+typst.workspace = true
+typst-pdf.workspace = true
+typst-layout.workspace = true
+typst-as-lib.workspace = true
+
+[dev-dependencies]
+lopdf.workspace = true
+tempfile.workspace = true
+
+[lints]
+workspace = true
