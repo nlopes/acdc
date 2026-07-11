@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no-pager terminal paths also render converter warnings (previously dropped
   alongside the discarded `ConversionResult`), including file input converted
   with `--out-file`.
+- A PDF-only build (`--no-default-features --features pdf`) now exposes the
+  `convert` command instead of reporting that the binary has no subcommands.
 
 ### Added
 
@@ -51,7 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   location.
 - `--backend pdf` is now available when the `pdf` or `all-backends` feature is
   enabled. It writes `.pdf` files by default and writes raw PDF bytes when
-  `-o -` is selected.
+  `-o -` is selected. PDF runs accept `--font-dir`, `--logo`, `--title`,
+  `--watermark`, `--watermark-timestamp`, `--page`, `--theme`, `--plain`,
+  `--toc`, and `--emit-typst`; `--strict` now makes unresolved PDF images or
+  logos fail instead of falling back with a warning.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the

@@ -17,6 +17,7 @@ jobs:
       converters: ${{ steps.filter.outputs.converters }}
       cli: ${{ steps.filter.outputs.cli }}
       lsp: ${{ steps.filter.outputs.lsp }}
+      pdf: ${{ steps.filter.outputs.pdf }}
       wasm: ${{ steps.filter.outputs.wasm }}
     steps:
       - uses: actions/checkout@v7
@@ -41,6 +42,16 @@ jobs:
               - 'Cargo.lock'
             lsp:
               - 'acdc-lsp/**'
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            pdf:
+              - 'acdc-pdf-images/**'
+              - 'acdc-pdf-render/**'
+              - 'acdc-pdf-theme/**'
+              - 'acdc-pdf-typst/**'
+              - 'converters/core/**'
+              - 'converters/pdf/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
               - 'Cargo.lock'
@@ -118,6 +129,18 @@ jobs:
       - name: Run Ghostty-backed terminal tests
         run: cargo nextest run -p acdc-converters-terminal --test headless_terminal_test --all-features --verbose
 
+  test-pdf:
+    needs: changes
+    if: needs.changes.outputs.pdf == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run PDF pipeline tests - all features
+        run: cargo nextest run -p acdc-pdf-theme -p acdc-pdf-typst -p acdc-pdf-render -p acdc-pdf-images -p acdc-converters-pdf --all-features --verbose
+
   test-cli:
     needs: changes
     if: needs.changes.outputs.cli == 'true'
@@ -132,6 +155,8 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - name: Run CLI tests
         run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn
+      - name: Smoke-test PDF-only CLI
+        run: cargo run -p acdc-cli --no-default-features --features pdf -- convert --help
 
   test-lsp:
     needs: changes
@@ -182,4 +207,4 @@ jobs:
           version: 0.15.2
       - uses: Swatinem/rust-cache@v2
       - name: Run doc tests
-        run: cargo test --doc --verbose
+        run: cargo test --doc --all-features --verbose

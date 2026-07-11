@@ -12,6 +12,8 @@ use acdc_converters_core::{
 use acdc_converters_html::HtmlVariant;
 #[cfg(feature = "markdown")]
 use acdc_converters_markdown::MarkdownVariant;
+#[cfg(feature = "pdf")]
+use acdc_converters_pdf::{PageSize, PdfOptions};
 use acdc_parser::{AttributeValue, DocumentAttributes, ParseResult, SafeMode};
 use clap::{ArgAction, Args as ClapArgs};
 use rayon::prelude::*;
@@ -79,6 +81,56 @@ pub struct Args {
     #[arg(short = 't', long)]
     pub timings: bool,
 
+    /// Extra directory of PDF fonts (`ttf`, `otf`, `ttc`, `otc`). Repeatable.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "DIR")]
+    pub font_dir: Vec<PathBuf>,
+
+    /// Logo image (SVG or raster) shown in the PDF running header.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "FILE")]
+    pub logo: Option<PathBuf>,
+
+    /// Title shown in the PDF running header.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "TEXT")]
+    pub title: Option<String>,
+
+    /// Diagonal gray PDF watermark text stamped on every page.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "TEXT")]
+    pub watermark: Option<String>,
+
+    /// Show the current date and time in the PDF footer watermark metadata.
+    #[cfg(feature = "pdf")]
+    #[arg(long)]
+    pub watermark_timestamp: bool,
+
+    /// PDF page size.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_enum, value_name = "SIZE")]
+    pub page: Option<PdfPageArg>,
+
+    /// PDF theme YAML file. Defaults to the bundled neutral theme.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "FILE")]
+    pub theme: Option<PathBuf>,
+
+    /// Strip PDF branding chrome (page background, header, footer).
+    #[cfg(feature = "pdf")]
+    #[arg(long)]
+    pub plain: bool,
+
+    /// Prepend a PDF table of contents built from headings.
+    #[cfg(feature = "pdf")]
+    #[arg(long)]
+    pub toc: bool,
+
+    /// Also write the generated Typst markup to this path for debugging.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_name = "FILE")]
+    pub emit_typst: Option<PathBuf>,
+
     /// Attributes to pass to the backend
     #[arg(
         short = 'a',
@@ -99,8 +151,8 @@ pub struct Args {
     /// Strict mode
     ///
     /// When enabled, some errors related with non-conformance (but still recoverable)
-    /// will not allow conversion. For example: non-conforming manpage titles (not
-    /// matching `name(volume)` format) will cause conversion to fail instead of using
+    /// will not allow conversion. For example, non-conforming manpage titles and
+    /// unresolved PDF images or logos will cause conversion to fail instead of using
     /// fallback values.
     #[arg(long)]
     pub strict: bool,
@@ -143,6 +195,20 @@ impl Args {
                 }
             })
     }
+
+    #[cfg(feature = "pdf")]
+    fn has_pdf_only_options(&self) -> bool {
+        !self.font_dir.is_empty()
+            || self.logo.is_some()
+            || self.title.is_some()
+            || self.watermark.is_some()
+            || self.watermark_timestamp
+            || self.page.is_some()
+            || self.theme.is_some()
+            || self.plain
+            || self.toc
+            || self.emit_typst.is_some()
+    }
 }
 
 pub fn run(args: &Args) -> miette::Result<()> {
@@ -150,6 +216,9 @@ pub fn run(args: &Args) -> miette::Result<()> {
     let backend = args.backend.resolve(args.variant)?;
     #[cfg(not(any(feature = "html", feature = "markdown")))]
     let backend = args.backend.resolve();
+
+    #[cfg(feature = "pdf")]
+    validate_pdf_options(args, backend)?;
 
     let safe_mode = if args.safe {
         SafeMode::Safe
@@ -237,14 +306,20 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .map_err(|e| error::display(&e)),
 
         #[cfg(feature = "pdf")]
-        Backend::Pdf => run_processor::<acdc_converters_pdf::Processor, _>(
-            args,
-            options,
-            document_attributes,
-            true,
-            acdc_converters_pdf::Processor::new,
-        )
-        .map_err(|e| error::display(&e)),
+        Backend::Pdf => {
+            let pdf_options = pdf_options_from_args(args);
+            run_processor::<acdc_converters_pdf::Processor, _>(
+                args,
+                options,
+                document_attributes,
+                true,
+                move |opts, attrs| {
+                    acdc_converters_pdf::Processor::new(opts, attrs)
+                        .with_pdf_options(pdf_options.clone())
+                },
+            )
+            .map_err(|e| error::display(&e))
+        }
     };
 
     let output_paths = output_paths?;
@@ -254,6 +329,46 @@ pub fn run(args: &Args) -> miette::Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(feature = "pdf")]
+fn validate_pdf_options(args: &Args, backend: Backend) -> miette::Result<()> {
+    if matches!(backend, Backend::Pdf) {
+        if args.emit_typst.is_some() && !args.stdin && args.files.len() > 1 {
+            return Err(miette::miette!(
+                "--emit-typst can only be used with a single input file"
+            ));
+        }
+        return Ok(());
+    }
+
+    if args.has_pdf_only_options() {
+        return Err(miette::miette!(
+            "PDF-only options such as --font-dir, --logo, --title, --watermark, \
+             --watermark-timestamp, --page, --theme, --plain, --toc, and \
+             --emit-typst require `--backend pdf`"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pdf")]
+fn pdf_options_from_args(args: &Args) -> PdfOptions {
+    PdfOptions {
+        font_dirs: args.font_dir.clone(),
+        logo: args.logo.clone(),
+        title: args.title.clone(),
+        watermark: args.watermark.clone(),
+        watermark_timestamp: args
+            .watermark_timestamp
+            .then(|| chrono::Local::now().format("%Y-%m-%d %H:%M").to_string()),
+        page: args.page.map(PdfPageArg::to_page_size),
+        theme: args.theme.clone(),
+        plain: args.plain,
+        toc: args.toc,
+        strict_assets: args.strict,
+        emit_typst: args.emit_typst.clone(),
+    }
 }
 
 fn open_output_files<E>(
@@ -299,7 +414,7 @@ fn run_processor<P, F>(
 where
     P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
-    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync + Copy,
+    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync,
 {
     if !args.stdin && args.files.is_empty() {
         tracing::error!("You must pass at least one file to this processor");
@@ -385,7 +500,7 @@ fn run_multi_file<P, F>(
 where
     P: Converter<'static>,
     P::Error: Send + 'static + From<acdc_parser::Error>,
-    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync + Copy,
+    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync,
 {
     let show_timings = base_options.timings();
     let multi_file = files_to_process.len() > 1;
@@ -436,7 +551,7 @@ where
                     &converter_options,
                     document_attributes,
                     show_timings,
-                    make_processor,
+                    &make_processor,
                 )
             })
             .collect()
@@ -449,7 +564,7 @@ where
                     &converter_options,
                     document_attributes,
                     show_timings,
-                    make_processor,
+                    &make_processor,
                 )
             })
             .collect()
@@ -472,7 +587,7 @@ fn convert_parse_result<P, F>(
     converter_options: &Options,
     document_attributes: &DocumentAttributes<'static>,
     show_timings: bool,
-    make_processor: F,
+    make_processor: &F,
 ) -> FileResult<P::Error>
 where
     P: Converter<'static>,
@@ -636,7 +751,145 @@ impl ConversionResultReporter for ConversionResult {
 mod tests {
     use std::convert::Infallible;
 
+    #[cfg(feature = "pdf")]
+    use clap::{CommandFactory, Parser};
+
     use super::*;
+
+    #[cfg(feature = "pdf")]
+    fn parse_pdf_args<const N: usize>(raw: [&str; N]) -> miette::Result<Args> {
+        let cli = crate::Cli::try_parse_from(raw).map_err(|error| miette::miette!(error))?;
+        match cli.command {
+            crate::Commands::Convert(args) => Ok(args),
+            #[cfg(feature = "inspect")]
+            crate::Commands::Inspect(_) => Err(miette::miette!("test command selected inspect")),
+            #[cfg(feature = "lint")]
+            crate::Commands::Lint(_) => Err(miette::miette!("test command selected lint")),
+            #[cfg(feature = "tck")]
+            crate::Commands::Tck(_) => Err(miette::miette!("test command selected tck")),
+        }
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn pdf_feature_exposes_convert_command() {
+        assert!(
+            crate::Cli::command()
+                .get_subcommands()
+                .any(|command| command.get_name() == "convert")
+        );
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn maps_pdf_command_line_options() -> miette::Result<()> {
+        let args = parse_pdf_args([
+            "acdc",
+            "convert",
+            "--backend",
+            "pdf",
+            "--font-dir",
+            "fonts/primary",
+            "--font-dir",
+            "fonts/secondary",
+            "--logo",
+            "assets/logo.svg",
+            "--title",
+            "Architecture",
+            "--watermark",
+            "Draft",
+            "--watermark-timestamp",
+            "--page",
+            "letter",
+            "--theme",
+            "theme.yml",
+            "--plain",
+            "--toc",
+            "--strict",
+            "--emit-typst",
+            "debug.typ",
+            "document.adoc",
+        ])?;
+        let options = pdf_options_from_args(&args);
+
+        assert_eq!(
+            options.font_dirs,
+            [
+                PathBuf::from("fonts/primary"),
+                PathBuf::from("fonts/secondary")
+            ]
+        );
+        assert_eq!(options.logo, Some(PathBuf::from("assets/logo.svg")));
+        assert_eq!(options.title.as_deref(), Some("Architecture"));
+        assert_eq!(options.watermark.as_deref(), Some("Draft"));
+        assert!(options.watermark_timestamp.is_some());
+        assert_eq!(options.page, Some(PageSize::Letter));
+        assert_eq!(options.theme, Some(PathBuf::from("theme.yml")));
+        assert!(options.plain);
+        assert!(options.toc);
+        assert!(options.strict_assets);
+        assert_eq!(options.emit_typst, Some(PathBuf::from("debug.typ")));
+        Ok(())
+    }
+
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn rejects_emit_typst_for_multiple_inputs() -> miette::Result<()> {
+        let args = parse_pdf_args([
+            "acdc",
+            "convert",
+            "--backend",
+            "pdf",
+            "--emit-typst",
+            "debug.typ",
+            "first.adoc",
+            "second.adoc",
+        ])?;
+        let backend = {
+            #[cfg(any(feature = "html", feature = "markdown"))]
+            {
+                args.backend.resolve(args.variant)?
+            }
+            #[cfg(not(any(feature = "html", feature = "markdown")))]
+            {
+                args.backend.resolve()
+            }
+        };
+        let Err(error) = validate_pdf_options(&args, backend) else {
+            return Err(miette::miette!(
+                "--emit-typst unexpectedly accepted multiple inputs"
+            ));
+        };
+
+        assert!(error.to_string().contains("single input file"));
+        Ok(())
+    }
+
+    #[cfg(all(feature = "pdf", feature = "html"))]
+    #[test]
+    fn rejects_pdf_options_for_other_backends() -> miette::Result<()> {
+        let args = parse_pdf_args([
+            "acdc",
+            "convert",
+            "--backend",
+            "html",
+            "--title",
+            "Architecture",
+            "document.adoc",
+        ])?;
+        let backend = args.backend.resolve(args.variant)?;
+        let Err(error) = validate_pdf_options(&args, backend) else {
+            return Err(miette::miette!(
+                "PDF-only option unexpectedly accepted by HTML"
+            ));
+        };
+        let message = error.to_string();
+
+        assert!(message.contains("--title"));
+        assert!(message.contains("--theme"));
+        assert!(message.contains("--backend pdf"));
+        Ok(())
+    }
 
     #[test]
     fn opens_reported_paths_for_derived_outputs() {
@@ -931,18 +1184,13 @@ fn run_terminal_with_pager(
     if output_to_file {
         let mut output_paths = Vec::new();
         for (file, parse_result) in parse_results {
-            match parse_result {
-                Ok(parsed) => {
-                    let parsed =
-                        parsed.report_warnings(WarningRenderContext::new().with_file(&file));
-                    let result = processor.convert(parsed.document(), Some(&file))?;
-                    let (output_path, warnings) = result.into_parts();
-                    warnings.render(WarningRenderContext::new().with_file(&file));
-                    if let Some(output_path) = output_path {
-                        output_paths.push(output_path);
-                    }
-                }
-                Err(e) => return Err(e.into()),
+            let parsed = parse_result?;
+            let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(&file));
+            let result = processor.convert(parsed.document(), Some(&file))?;
+            let (output_path, warnings) = result.into_parts();
+            warnings.render(WarningRenderContext::new().with_file(&file));
+            if let Some(output_path) = output_path {
+                output_paths.push(output_path);
             }
         }
         return Ok(output_paths);
@@ -954,16 +1202,11 @@ fn run_terminal_with_pager(
     } else {
         // No pager - use convert() which writes to stdout
         for (file, parse_result) in parse_results {
-            match parse_result {
-                Ok(parsed) => {
-                    let parsed =
-                        parsed.report_warnings(WarningRenderContext::new().with_file(&file));
-                    let result = processor.convert(parsed.document(), Some(&file))?;
-                    let (_, warnings) = result.into_parts();
-                    warnings.render(WarningRenderContext::new().with_file(&file));
-                }
-                Err(e) => return Err(e.into()),
-            }
+            let parsed = parse_result?;
+            let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(&file));
+            let result = processor.convert(parsed.document(), Some(&file))?;
+            let (_, warnings) = result.into_parts();
+            warnings.render(WarningRenderContext::new().with_file(&file));
         }
     }
 
@@ -992,6 +1235,24 @@ pub enum BackendArg {
     Markdown,
     #[cfg(feature = "pdf")]
     Pdf,
+}
+
+/// PDF page size parsed from `--page`.
+#[cfg(feature = "pdf")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum PdfPageArg {
+    A4,
+    Letter,
+}
+
+#[cfg(feature = "pdf")]
+impl PdfPageArg {
+    const fn to_page_size(self) -> PageSize {
+        match self {
+            Self::A4 => PageSize::A4,
+            Self::Letter => PageSize::Letter,
+        }
+    }
 }
 
 impl std::fmt::Display for BackendArg {

@@ -5,6 +5,10 @@ members = [
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
+  "acdc-pdf-images",
+  "acdc-pdf-render",
+  "acdc-pdf-theme",
+  "acdc-pdf-typst",
   "converters/core",
   "converters/dev",
   "converters/html",
@@ -18,6 +22,10 @@ default-members = [
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
+  "acdc-pdf-images",
+  "acdc-pdf-render",
+  "acdc-pdf-theme",
+  "acdc-pdf-typst",
   "converters/core",
   "converters/dev",
   "converters/html",
@@ -30,8 +38,14 @@ resolver = "2"
 
 [workspace.package]
 edition = "2024"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+acdc-pdf-images = { path = "acdc-pdf-images" }
+acdc-pdf-render = { path = "acdc-pdf-render" }
+acdc-pdf-theme = { path = "acdc-pdf-theme" }
+acdc-pdf-typst = { path = "acdc-pdf-typst" }
 acdc-converters-core = { path = "converters/core", default-features = false }
 acdc-converters-dev = { path = "converters/dev" }
 acdc-converters-html = { path = "converters/html", default-features = false }
@@ -41,19 +55,35 @@ acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
+base64 = "0.22"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
+lopdf = "0.43"
+mockito = "1"
 pretty_assertions = "1.4"
 rayon = "1.11"
 rstest = "0.26"
 rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+serde-saphyr = { version = "0.0.29", default-features = false, features = ["deserialize"] }
+sha2 = "0.10"
+tempfile = "3"
 tracing = "0.1"
 tracing-test = "0.2"
 thiserror = "2"
+ttf-parser = "0.25"
+typst = "=0.15.0"
+typst-as-lib = { version = "=0.16.0", default-features = false }
+typst-layout = "=0.15.0"
+typst-pdf = "=0.15.0"
 unicode-width = "0.2"
+ureq = "3.3"
+url = "2"
+percent-encoding = "2"
+usvg = "0.47"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
