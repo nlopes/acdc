@@ -1,0 +1,61 @@
+= `acdc-pdf-images`
+
+Resolves the images an `AsciiDoc` document references (local paths, `file://` and remote `http(s)` URLs, and `data:` URIs) to files on disk, keyed by a stable content-addressed virtual path, for acdc's PDF output. The map carries a *path* per image, not its bytes, so the renderer reads each file on demand and the images are never all held in memory at once.
+
+This is an internal workspace crate. It is not published to crates.io and has no stability guarantees outside the `acdc-pdf-*` pipeline.
+
+== Where it sits
+
+[source]
+....
+converters/pdf  ──▶  acdc-pdf-images  ──▶  acdc-pdf-render
+  (walks the AST,      (fetch + detect +      (reads each image's file
+   collects URLs)       hash + spool)          at its virtual path, on demand)
+....
+
+The converter walks the document tree and hands this crate a list of image reference strings. This crate is deliberately *IR-agnostic*: it knows nothing about the AsciiDoc AST, only strings in and a map out. The emitter references each image by the `virtual_path` this crate assigns; the renderer reads the file at that same path, so the reference and the file can never drift apart.
+
+=== Memory
+
+The map holds a *path* per image, never its bytes. Every validated source is copied into the caller-owned `ResolveConfig::spool_dir`, including local files, so changing a source after resolution cannot change what the renderer sees. The renderer (and, through it, Typst) reads each snapshot only when it lays the image out, so this crate never pins every image's bytes in memory at once — at most one image is held transiently while it is fetched, validated, hashed, and spooled. Typst becomes the sole holder of an image's bytes once it loads one.
+
+== What it does
+
+`resolve(urls, config)` processes each reference and returns a `Resolved { assets, failures }`. Repeated references to the same source string are resolved once:
+
+. **Fetch** the raw bytes by scheme (matched case-insensitively) — inline `data:`, remote `http(s)`, a `file://` URL, or a bare local path (relative paths resolve against `ResolveConfig::base_dir`). `SourcePolicy` can deny all sources or confine local paths to `base_dir`, including resolving symlinks before the containment check. The encoded size cap is enforced while reading, including after HTTP content decompression.
+. **Detect and validate** the format from the bytes themselves (magic bytes, not the URL extension). Raster images are fully decoded with a 256 MiB allocation cap. SVGs are parsed with `usvg` without loading external file references; inline data images remain supported.
+. **Content-hash** the validated bytes into a stable `/images/<hash>.<ext>` virtual path and atomically persist a snapshot under `spool_dir` (identical bytes are written once). The `ResolvedImage` carries the resulting path, not the bytes.
+
+A reference that fails any step is recorded in `failures` and resolution continues, so one broken image never aborts the document. Failures are categorised (timeout, HTTP status, too large, unsupported format, decode failure, invalid SVG, local read error) so the caller can render specific warnings. The caller decides policy: `converters/pdf` turns failures into structured warnings, or hard errors under `strict_assets`.
+
+== The `network` feature
+
+Remote `http(s)` fetching lives behind the `network` feature, which is **off by default** to match the workspace-wide convention (a `--no-default-features` build links no HTTP stack). It is forwarded up through `converters/pdf` to the CLI's own `network` feature.
+
+With the feature off, a remote reference resolves to a `NetworkDisabled` per-image failure; local files and `data:` URIs are unaffected.
+
+== `ResolveConfig`
+
+[cols="1,3"]
+|===
+| `base_dir` | Directory relative image paths resolve against.
+| `spool_dir` | Private caller-owned directory where every validated image snapshot is written. The caller cleans it up after rendering.
+| `timeout` | Per-request timeout for remote fetches (has no effect without `network`).
+| `max_bytes` | Size cap enforced per image across *every* source; anything larger is a per-image failure. Default 20 MiB.
+| `source_policy` | `Unrestricted`, `Confined { allow_network }`, or `DenyAll`. Confined local paths must remain beneath `base_dir` after canonicalisation.
+|===
+
+Construct the configuration with `ResolveConfig::new(base_dir, spool_dir)` so
+the spool location is always an explicit caller decision.
+
+== Testing
+
+Per the workspace convention, run with `--all-features` so the mockito-backed remote-fetch tests are exercised:
+
+[source,console]
+....
+cargo nextest run -p acdc-pdf-images --all-features
+....
+
+Without the `network` feature the remote tests are compiled out and a test covering the disabled path runs instead.
