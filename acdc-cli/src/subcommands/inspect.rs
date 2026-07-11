@@ -1,19 +1,18 @@
 use std::{
-    fs,
-    io::{self, Write},
+    io::{self, IsTerminal, Write},
     path::PathBuf,
 };
 
 use acdc_converters_core::{inlines_to_string, visitor::Visitor};
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
+    Admonition, AttributeValue, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, Location,
     Options, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
-    UnorderedList, Video, parse,
+    UnorderedList, Video, parse_file,
 };
 use crossterm::style::Stylize;
 
-/// Inspect the AST structure of an `AsciiDoc` document
+/// Show a human-readable structural outline of an `AsciiDoc` document
 #[derive(clap::Args)]
 pub struct Args {
     /// Input `AsciiDoc` file
@@ -34,16 +33,18 @@ struct TreeVisitor<W: Write> {
     is_last_stack: Vec<bool>,
     show_locations: bool,
     max_depth: usize,
+    color: bool,
 }
 
 impl<W: Write> TreeVisitor<W> {
-    fn new(writer: W, show_locations: bool, max_depth: usize) -> Self {
+    fn new(writer: W, show_locations: bool, max_depth: usize, color: bool) -> Self {
         Self {
             writer,
             depth: 0,
             is_last_stack: Vec::new(),
             show_locations,
             max_depth,
+            color,
         }
     }
 
@@ -77,11 +78,19 @@ impl<W: Write> TreeVisitor<W> {
             }
         }
 
-        write!(self.writer, "{}", name.cyan().bold())?;
+        if self.color {
+            write!(self.writer, "{}", name.cyan().bold())?;
+        } else {
+            write!(self.writer, "{name}")?;
+        }
 
         // Print detail if present
         if let Some(d) = detail {
-            write!(self.writer, ": {}", d.yellow())?;
+            if self.color {
+                write!(self.writer, ": {}", d.yellow())?;
+            } else {
+                write!(self.writer, ": {d}")?;
+            }
         }
 
         // Print location if enabled
@@ -92,7 +101,11 @@ impl<W: Write> TreeVisitor<W> {
                 " @{}:{} -> {}:{}",
                 location.start.line, location.start.column, location.end.line, location.end.column
             );
-            write!(self.writer, "{}", loc_str.dark_grey())?;
+            if self.color {
+                write!(self.writer, "{}", loc_str.dark_grey())?;
+            } else {
+                write!(self.writer, "{loc_str}")?;
+            }
         }
 
         writeln!(self.writer)?;
@@ -123,18 +136,43 @@ impl<W: Write> TreeVisitor<W> {
 
 /// Truncate text for display
 fn truncate(text: &str, max_len: usize) -> String {
-    if text.len() <= max_len {
+    let character_count = text.chars().count();
+    if character_count <= max_len {
         text.to_string()
     } else {
-        format!("{}... ({} chars)", &text[..max_len], text.len())
+        let prefix: String = text.chars().take(max_len).collect();
+        format!("{prefix}... ({character_count} chars)")
     }
 }
 
 impl<W: Write> Visitor for TreeVisitor<W> {
     type Error = io::Error;
 
-    fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        writeln!(self.writer, "{}", "Document".blue().bold())?;
+    fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
+        if self.color {
+            writeln!(self.writer, "{}", "Document".blue().bold())?;
+        } else {
+            writeln!(self.writer, "Document")?;
+        }
+
+        let visible_blocks = doc
+            .blocks
+            .iter()
+            .filter(|block| !matches!(block, Block::DocumentAttribute(_) | Block::Comment(_)));
+        let child_count = usize::from(doc.header.is_some()) + visible_blocks.clone().count();
+        let mut child_index = 0;
+        if let Some(header) = &doc.header {
+            child_index += 1;
+            self.with_child(child_index == child_count, |visitor| {
+                visitor.visit_header(header)
+            })?;
+        }
+        for block in visible_blocks {
+            child_index += 1;
+            self.with_child(child_index == child_count, |visitor| {
+                visitor.visit_block(block)
+            })?;
+        }
         Ok(())
     }
 
@@ -170,20 +208,22 @@ impl<W: Write> Visitor for TreeVisitor<W> {
         let detail = format!("Level {}", section.level);
         self.print_tree_line("Section", Some(&detail), Some(&section.location))?;
 
-        self.with_child(false, |visitor| {
-            if !section.title.is_empty() {
+        let child_count = usize::from(!section.title.is_empty()) + section.content.len();
+        let mut child_index = 0;
+        if !section.title.is_empty() {
+            child_index += 1;
+            self.with_child(child_index == child_count, |visitor| {
                 let title = inlines_to_string(&section.title);
                 let title_text = truncate(&title, 60);
-                visitor.print_tree_line("Title", Some(&title_text), None)?;
-            }
-
-            for (i, block) in section.content.iter().enumerate() {
-                let is_last = i == section.content.len() - 1;
-                visitor.with_child(is_last, |v| v.visit_block(block))?;
-            }
-
-            Ok(())
-        })?;
+                visitor.print_tree_line("Title", Some(&title_text), None)
+            })?;
+        }
+        for block in &section.content {
+            child_index += 1;
+            self.with_child(child_index == child_count, |visitor| {
+                visitor.visit_block(block)
+            })?;
+        }
 
         Ok(())
     }
@@ -338,19 +378,54 @@ impl<W: Write> Visitor for TreeVisitor<W> {
 }
 
 pub fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
-    // Read input file
-    let content = fs::read_to_string(&args.file)?;
-
-    // Parse document
     let options = Options::default();
-    let parsed = parse(&content, &options)?;
+    let parsed = parse_file(&args.file, &options)?;
 
-    // Create tree visitor
     let stdout = io::stdout();
-    let mut visitor = TreeVisitor::new(stdout.lock(), args.show_locations, args.max_depth);
-
-    // Visit document
+    let color = stdout.is_terminal();
+    let mut visitor = TreeVisitor::new(stdout.lock(), args.show_locations, args.max_depth, color);
     visitor.visit_document(parsed.document())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use acdc_parser::{Options, parse};
+
+    use super::*;
+
+    #[test]
+    fn truncates_at_unicode_scalar_boundaries() {
+        assert_eq!(truncate("éclair", 2), "éc... (6 chars)");
+        assert_eq!(truncate("éclair", 6), "éclair");
+    }
+
+    #[test]
+    fn renders_truthful_plain_tree_connectors() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse("= Document\n\n== Section\n\nBody.\n", &Options::default())?;
+        let mut output = Vec::new();
+        TreeVisitor::new(&mut output, false, 0, false).visit_document(parsed.document())?;
+        let output = String::from_utf8(output)?;
+
+        assert!(output.contains("Document\n├─ Header"));
+        assert!(output.contains("└─ Section: Level 1"));
+        assert!(output.contains("   ├─ Title: Section"));
+        assert!(output.contains("   └─ Paragraph: Body."));
+        assert!(!output.contains('\u{1b}'));
+        Ok(())
+    }
+
+    #[test]
+    fn max_depth_hides_deeper_nodes() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse("= Document\n\n== Section\n\nBody.\n", &Options::default())?;
+        let mut output = Vec::new();
+        TreeVisitor::new(&mut output, false, 1, false).visit_document(parsed.document())?;
+        let output = String::from_utf8(output)?;
+
+        assert!(output.contains("Section: Level 1"));
+        assert!(!output.contains("Title: Section"));
+        assert!(!output.contains("Paragraph: Body."));
+        Ok(())
+    }
 }

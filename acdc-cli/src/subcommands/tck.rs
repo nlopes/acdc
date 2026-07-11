@@ -1,6 +1,6 @@
-//! TCK (Test Compatibility Kit) binary for spec compliance testing
+//! TCK (Test Compatibility Kit) subcommand for specification compliance testing.
 //!
-//! This binary is used by the asciidoc-tck test harness to validate
+//! This subcommand is used by the asciidoc-tck test harness to validate
 //! acdc's parser against the official `AsciiDoc` Language specification.
 //!
 //! ## Input format (JSON from stdin):
@@ -9,7 +9,7 @@
 //! {
 //!   "contents": "= Document Title\n\nContent here",
 //!   "path": "/path/to/input.adoc",
-//!   "type": "block"  // or "inline"
+//!   "type": "block"
 //! }
 //! ```
 //!
@@ -37,6 +37,9 @@ pub enum Error {
 
     #[error("Parsing error: {0}")]
     Parse(#[from] acdc_parser::Error),
+
+    #[error("unsupported TCK type `{0}`; expected `block` or `inline`")]
+    UnsupportedType(String),
 }
 
 #[derive(Debug, Deserialize)]
@@ -77,8 +80,7 @@ pub fn run(_args: &Args) -> Result<(), Error> {
             serde_json::to_writer(&stdout, parsed.inlines())?;
         }
         other => {
-            tracing::error!(type=other, "Unsupported type, expected 'block' or 'inline'");
-            std::process::exit(1);
+            return Err(Error::UnsupportedType(other.to_owned()));
         }
     }
     stdout.flush()?;

@@ -24,7 +24,6 @@ acdc-converters-terminal = { workspace = true, optional = true }
 acdc-converters-manpage = { workspace = true, optional = true }
 acdc-converters-markdown = { workspace = true, optional = true }
 acdc-converters-pdf = { workspace = true, optional = true }
-anyhow = "1.0.100"
 chrono = { workspace = true, optional = true }
 clap.workspace = true
 crossterm.workspace = true
@@ -37,9 +36,12 @@ thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html", "lint", "pre-spec-subs"]
+default = ["html", "lint", "pre-spec-subs", "setext"]
 
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
 # Forwarded to every converter dependency that honours subs=.
@@ -63,8 +65,11 @@ terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI co
 # Document tools
 lint = ["dep:acdc-lint"]                       # AsciiDoc lint command
 
-# Syntax highlighting for source blocks (requires html feature)
-highlighting = ["acdc-converters-html?/highlighting"]
+# Syntax highlighting for source blocks in selected HTML and terminal backends.
+highlighting = [
+    "acdc-converters-html?/highlighting",
+    "acdc-converters-terminal?/highlighting",
+]
 # Enable terminal-styled rendering in the HTML converter.
 html-terminal = ["html", "acdc-converters-html/terminal"]
 # Render `[terminal]` session blocks through libghostty-vt for the terminal

@@ -1,391 +1,228 @@
-= `acdc-cli`
+= `acdc` command-line interface
 
-This is the main binary for the command line processor. Think of it as the equivalent to
-the `asciidoctor` tool.
+`acdc` is the command-line entry point for the acdc AsciiDoc toolchain.
+It converts documents, runs project lints, displays a structural parser outline, and provides the AsciiDoc TCK adapter.
 
-== Usage
+Use `acdc <command> --help` for the exhaustive option reference.
+This guide focuses on common workflows and build-time features.
 
-[source,console]
-....
-cargo run --all-features -- --help
+== Build and run
 
-AsciiDoc toolchain
-
-Usage: acdc <COMMAND>
-
-Commands:
-  convert  Convert AsciiDoc documents to various output formats
-  inspect  Inspect AST structure of AsciiDoc documents
-  lint     Lint AsciiDoc documents
-  tck      Run TCK compliance tests (reads JSON from stdin)
-  help     Print this message or the help of the given subcommand(s)
-
-Options:
-  -h, --help     Print help
-  -V, --version  Print version
-....
-
-== Subcommands
-
-=== convert
-
-Convert `AsciiDoc` documents to various output formats (HTML, manpage, markdown, PDF, terminal).
+The default build includes HTML conversion, linting, pre-spec `subs=` compatibility, and the runtime `convert --setext` compatibility flag.
 
 [source,console]
 ....
-acdc convert [OPTIONS] [FILES]...
+cargo build -p acdc-cli
+cargo run -p acdc-cli -- convert document.adoc
 ....
 
-=== inspect
-
-Inspect the AST structure of `AsciiDoc` documents. Useful for debugging and understanding how acdc parses documents. Only available with `--features inspect`.
+Optional backends and tools are Cargo features:
 
 [source,console]
 ....
-acdc inspect [OPTIONS] <FILE>
+cargo build -p acdc-cli --features pdf
+cargo build -p acdc-cli --features terminal,highlighting
+cargo build -p acdc-cli --all-features
 ....
 
-=== lint
+== Commands
 
-Lint `AsciiDoc` documents. The command renders full colored diagnostics by
-default, including source snippets, lint IDs, labels, help text, and an
-end-of-run lint statistics summary.
-Use `--output-style=compact` for compact `line:column` diagnostics without
-colors or source snippets.
+=== `convert`
+
+Convert one or more AsciiDoc files.
+HTML is the default backend in a default build; other backends must be selected explicitly.
 
 [source,console]
 ....
-acdc lint [OPTIONS] [FILES]...
+acdc convert document.adoc
+acdc convert --backend markdown --variant commonmark document.adoc
+acdc convert --backend terminal --no-pager document.adoc
 ....
 
-Lint levels follow the same command-line shape as Clippy and rustc:
+Supported backends depend on the features used to build the binary:
 
-* `--allow` / `-A` suppresses a lint or lint group
-* `--warn` / `-W` emits warnings for a lint or lint group
-* `--deny` / `-D` treats a lint or lint group as an error
-* `--forbid` / `-F` treats a lint or lint group as an error and prevents later flags from lowering it
+[cols="1,1,2", options="header"]
+|===
+| Backend | Feature | Notes
 
-The `recommended-practices` group starts with lint names that have clear
-detection, clear remediation, and low expected style noise:
+| `html`
+| `html` (default)
+| Standard HTML by default; `--variant semantic` selects semantic HTML.
 
-* `document-extension`
-* `one-sentence-per-line`
-* `section-title-symmetric-marker`
-* `section-title-setext-style`
-* `delimited-block-minimal-delimiter`
-* `attribute-url-prefix`
-* `imagesdir`
-* `nested-unordered-list-marker`
-* `adjacent-list-separator`
+| `manpage`
+| `manpage`
+| Native roff/troff manual pages.
 
-The `document-title-author` and `document-title-revision` lints are available
-by name but are not part of `recommended-practices`; they are intended for
-projects that want stricter document-header policy.
+| `markdown`
+| `markdown`
+| GFM by default; `--variant commonmark` selects CommonMark.
 
-The Asciidoctor draft also recommends prefixed counter names. acdc does not
-currently support counters; the parser already warns on `{counter:...}` and
-`{counter2:...}` and removes them from output, so there is no separate
-`counter-prefix` lint.
+| `pdf`
+| `pdf`
+| PDF output backed by the Rust Typst engine.
 
-The available groups are `all`, `recommended-practices`, `document-structure`,
-`source-format`, `semantic-asciidoc`, and `resources`.
+| `terminal`
+| `terminal`
+| ANSI terminal output with an automatic pager on interactive stdout.
+|===
 
-Level flags can be scoped to one source location for an individual lint ID:
+`--backend html5s` remains an alias for `--backend html --variant semantic`.
+
+==== Input and output
+
+Without `--out-file`, file input produces a backend-specific path next to each input.
+Use `--out-file -` for stdout or `--stdin` for standard input.
+
+[source,console]
+....
+acdc convert -o output.html document.adoc
+acdc convert -o - document.adoc
+printf '= Title\n\nBody.\n' | acdc convert --stdin -o -
+....
+
+When `--out-file` is combined with several inputs, only the first input is processed.
+`--open` opens converter-reported output files with the system's default application and is ignored for stdout.
+
+Use `--timings` for parse/conversion timings, `--strict` to turn supported fallbacks into errors, `--safe` or `--safe-mode` for parser safety policy, and `--embedded` to suppress enclosing document structure where the backend supports embedded output.
+
+==== PDF
+
+Build with `pdf` (or `all-backends`) and select `--backend pdf`:
+
+[source,console]
+....
+cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
+  --page letter \
+  --font-dir fonts \
+  --logo assets/logo.svg \
+  --title "Internal Architecture" \
+  --watermark "Draft" \
+  --watermark-timestamp \
+  --toc
+....
+
+`--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
+`--strict` makes unresolved PDF images or logos fatal.
+Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.
+
+==== Terminal and HTML terminal previews
+
+Interactive terminal output uses `$PAGER`, defaulting to `less -FRX` on Unix and `more` on Windows.
+Use `--no-pager` or an empty `PAGER` to disable it.
+
+The `html-terminal` feature enables acdc-specific terminal previews in HTML, including `[terminal]` blocks and source blocks opted in with `:acdc-terminal:`.
+See link:../converters/html/README.adoc[the HTML converter documentation] for the rendering syntax, attributes, replay support, and Asciidoctor differences.
+
+The `terminal-emulator` feature enables Ghostty-backed `[terminal]` session rendering in the terminal backend and requires the documented Zig build prerequisite.
+
+=== `lint`
+
+The default build includes the lint command:
+
+[source,console]
+....
+acdc lint docs/*.adoc
+acdc lint --output-style compact --deny image-alt-text docs/*.adoc
+....
+
+Lint levels follow the Clippy/rustc shape: `--allow`/`-A`, `--warn`/`-W`, `--deny`/`-D`, and `--forbid`/`-F`.
+Individual lint IDs can be scoped to source locations:
 
 [source,console]
 ....
 acdc lint -A section-title-capitalization@37 docs/architecture.adoc
 acdc lint -D image-alt-text@10:1-10:80 docs/architecture.adoc
-acdc lint -A delimited-block-minimal-delimiter@977,968 docs/architecture.adoc
 ....
 
-Supported scopes are `LINE`, `START-END`, `LINE:COLUMN`, and `LINE:COLUMN-LINE:COLUMN`.
-Multiple scopes for the same lint ID can be separated with commas after one `@`.
-Line-only scopes match any diagnostic on that line.
-Scoped overrides apply to lint IDs, not groups.
-When the selected location no longer matches any diagnostic, `acdc lint` reports the stale override.
+Scopes support `LINE`, `START-END`, `LINE:COLUMN`, and `LINE:COLUMN-LINE:COLUMN`; comma-separated locations can follow one `@`.
+Full diagnostics and lint statistics are the default.
+Compact output omits colors and source snippets.
+See link:../acdc-lint/README.adoc[the lint crate documentation] for lint IDs, groups, levels, and location semantics.
 
-=== tck
+=== `inspect`
 
-Run TCK (Test Compatibility Kit) compliance tests. Reads JSON from stdin and outputs AST as JSON. Only available with `--features tck`.
-
-== Backends (converters) supported
-
-Check the `link:../converters/README.adoc[converters README]` for details.
-
-- `link:../converters/html[html]` (default)
-- `link:../converters/manpage[manpage]` (available with `--features manpage`)
-- `link:../converters/markdown[markdown]` (available with `--features markdown`)
-- `link:../converters/pdf[pdf]` (available with `--features pdf`)
-- `link:../converters/terminal[terminal]` (available with `--features terminal`)
-
-=== Building an optional backend or tool
+Build with `inspect` to print a human-readable structural outline of a parsed file.
+It honors file context and local includes; it is not a lossless AST serialization.
 
 [source,console]
 ....
-cargo build --features terminal
-cargo build --features inspect
-cargo build --features tck
+cargo run -p acdc-cli --features inspect -- inspect document.adoc --show-locations
 ....
 
-Alternatively, you can build them all like so:
+`--max-depth` limits displayed nesting.
+Color is used only on interactive stdout and respects `NO_COLOR`.
+
+=== `tck`
+
+The `tck` feature provides the JSON stdin/stdout adapter used by the AsciiDoc Test Compatibility Kit.
 
 [source,console]
 ....
-cargo build --all-features
+echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
+  | cargo run -p acdc-cli --no-default-features --features tck -- tck
 ....
 
-== Feature Flags
+== Feature reference
 
-`acdc-cli` uses Cargo feature flags to enable optional converters and development tools. Here's what's available:
-
-=== Output Converters
-
-* `html` (default) - HTML5 converter with Asciidoctor-compatible styling
-* `manpage` - Manpage converter
-* `markdown` - Markdown converter with CommonMark and GitHub Flavored Markdown support
-* `pdf` - PDF converter backed by the Rust Typst engine
-* `terminal` - Terminal converter with ANSI color support
-
-=== Document Tools
-
-* `lint` (default) - AsciiDoc lint command harness
-
-=== Parser Options
-
-* `setext` - Enable setext-style (two-line underlined) section headers
-* `network` - Enable remote include parsing and, when the PDF backend is selected, remote PDF images and logos
-
-=== Syntax Highlighting
-
-* `highlighting` - Enable syntax highlighting for source blocks in HTML output (uses syntect)
-* `html-terminal` - Enable acdc-only terminal-styled HTML rendering. This
-  includes `[terminal]` blocks and `:acdc-terminal:` source-block previews.
-  It enables the html converter's `terminal` feature; see the converters/html
-  README for what it renders. Asciidoctor does not provide a
-  `:acdc-terminal:` attribute, `[terminal]` block style, or equivalent
-  built-in terminal preview support.
-
-=== Development Tools
-
-* `inspect` - AST inspection tool for debugging parser output
-* `tck` - Technology Compatibility Kit for spec compliance testing
-
-=== Feature Groups
-
-For convenience, you can use these feature groups:
-
-* `all-backends` - Enables all output converters (`html`, `manpage`, `markdown`, `pdf`, `terminal`)
-* `dev-tools` - Enables the inspect tool
-* `test-tools` - Enables the TCK tool
-
-=== Usage Examples
-
-Build with terminal converter:
-
-[source,console]
-....
-cargo build --features terminal
-....
-
-Build with all backends:
-
-[source,console]
-....
-cargo build --features all-backends
-....
-
-Build with HTML terminal rendering:
-
-[source,console]
-....
-cargo build --features html-terminal
-....
-
-Build with development tools:
-
-[source,console]
-....
-cargo build --features dev-tools
-....
-
-Build with everything:
-
-[source,console]
-....
-cargo build --all-features
-....
-
-=== Built-in dependencies
-
-The parser bundles `evalexpr` (conditional expressions) and `encoding_rs`
-(encoding detection) — always available, no feature flag needed.
-
-Remote includes (`include::https://...[]`) and remote PDF assets require the
-CLI's `network` feature. It's off by default; build with `--features network`
-to enable it. The PDF converter still applies its asset safety policy.
-
-== Examples
-
-Convert a file to HTML:
-
-[source,console]
-....
-acdc convert document.adoc
-....
-
-Convert with terminal backend:
-
-[source,console]
-....
-acdc convert --backend terminal document.adoc
-....
-
-Pick a backend variant (e.g. CommonMark instead of GFM):
-
-[source,console]
-....
-acdc convert --backend markdown --variant commonmark document.adoc
-acdc convert --backend html --variant semantic document.adoc  # equivalent to --backend html5s
-....
-
-Convert to PDF with page chrome:
-
-[source,console]
-....
-cargo run --features pdf --bin acdc -- convert --backend pdf document.adoc \
-  --font-dir fonts/stk-bureau \
-  --logo assets/logo.svg \
-  --title "Internal Architecture" \
-  --watermark "Internal Copy" \
-  --watermark-timestamp \
-  --timings
-....
-
-Render acdc-only terminal previews in HTML:
-
-[source,console]
-....
-cargo build --features html-terminal
-acdc convert --backend html -a acdc-terminal document.adoc
-....
-
-The `html-terminal` Cargo feature enables two terminal-looking HTML render
-paths.
-
-* `:acdc-terminal:` is a document attribute that opts terminal-like
-  source blocks such as `[source,console]`, `[source,terminal]`, and
-  `[source,bash]` into selectable terminal preview rendering.
-* `[terminal]` is an explicit block style for terminal session content. It
-  always renders as terminal output when `html-terminal` is enabled and does
-  not require `:acdc-terminal:`.
-
-Use `[terminal]` for terminal session transcripts or captured terminal output:
-
-[source,asciidoc]
-....
-[terminal,cols=80,rows=24]
-----
-$ acdc --version
-acdc 0.2.0
-----
-....
-
-Both `:acdc-terminal:` and `[terminal]` are acdc extensions and are
-intentionally not Asciidoctor-compatible syntax. Asciidoctor renders
-`[terminal]` as a plain listing or literal block with the raw text (ANSI
-escapes included) left as-is.
-
-Terminal preview attributes:
-
-[cols="1,2", options="header"]
+[cols="1,1,2", options="header"]
 |===
-| Attribute | Effect
+| Feature | Default | Effect
 
-| `:acdc-terminal:`
-| Enables terminal preview rendering for terminal-like source blocks only.
+| `html`
+| yes
+| HTML backend.
 
-| `:acdc-terminal-cols: N`
-| Sets the terminal grid width used to render source-block previews and `[terminal]` blocks. Defaults to `80`.
+| `lint`
+| yes
+| Lint command.
 
-| `:acdc-terminal-rows: N`
-| Sets a fixed terminal grid height for source-block previews and `[terminal]` blocks. When unset, acdc derives the height from the rendered terminal text plus a small padding row.
+| `pre-spec-subs`
+| yes
+| Asciidoctor-compatible pre-spec `subs=` behavior, forwarded through selected components.
 
-| `:dark-mode:`
-| Uses dark terminal shell colors for both source-block previews and `[terminal]` blocks, matching the HTML converter's dark stylesheet mode.
+| `setext`
+| yes
+| Compiles Setext header support; parsing is enabled per run with `convert --setext`.
 
-| `[terminal,cols=N]`
-| Overrides the terminal grid width for one explicit terminal session block.
+| `manpage`, `markdown`, `pdf`, `terminal`
+| no
+| Optional output backends.
 
-| `[terminal,rows=N]`
-| Overrides the terminal grid height for one explicit terminal session block. When unset, acdc derives the height from the content.
+| `highlighting`
+| no
+| Source highlighting in each selected HTML or terminal backend; does not select a backend.
+
+| `html-terminal`
+| no
+| HTML terminal previews and session/replay rendering.
+
+| `terminal-emulator`
+| no
+| Ghostty-backed terminal session rendering; selects the terminal backend.
+
+| `network`
+| no
+| Remote includes and remote PDF assets when PDF is selected.
+
+| `inspect`, `tck`
+| no
+| Developer/specification commands.
 |===
 
-Terminal output with pager disabled:
+Convenience groups are `all-backends`, `dev-tools` (`inspect`), and `test-tools` (`tck`).
+A build with no command-enabling features exits with a diagnostic that lists the available command features.
+
+== Diagnostics and exit status
+
+Parser and converter warnings are written to stderr with source snippets when available.
+Lint diagnostics use the selected output style.
+Command-line usage errors exit with status 2; processing failures and denied lint diagnostics exit with status 1; successful commands exit with status 0.
+
+== Logging
+
+Set `ACDC_LOG` for diagnostic tracing while troubleshooting:
 
 [source,console]
 ....
-acdc convert --backend terminal --no-pager document.adoc
-....
-
-Convert to embeddable HTML (no DOCTYPE, html, head, body):
-
-[source,console]
-....
-acdc convert --embedded document.adoc
-# or short form
-acdc convert -e document.adoc
-....
-
-Write to a specific file (or stdout with `-`):
-
-[source,console]
-....
-acdc convert -o out.html document.adoc
-acdc convert -o - document.adoc
-....
-
-Open the result in the default app after converting:
-
-[source,console]
-....
-acdc convert --open document.adoc
-....
-
-Fail instead of falling back on non-conforming input (e.g. bad manpage titles):
-
-[source,console]
-....
-acdc convert --backend manpage --strict mycommand.adoc
-....
-
-Enable legacy Setext (two-line underlined) headers:
-
-[source,console]
-....
-acdc convert --setext document.adoc
-....
-
-Inspect document AST:
-
-[source,console]
-....
-acdc inspect document.adoc --show-locations
-....
-
-== Extra Logging
-
-If you want more logs, especially useful if you're troubleshooting or reporting an error,
-please adjust the `ACDC_LOG` environment variable.
-
-[source,console]
-....
-ACDC_LOG=trace cargo run -- convert your-file.adoc
-....
-
-or if you're running a binary already built:
-
-[source,console]
-....
-ACDC_LOG=trace acdc convert your-file.adoc
+ACDC_LOG=trace acdc convert document.adoc
 ....

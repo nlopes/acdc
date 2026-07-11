@@ -155,8 +155,20 @@ jobs:
       - uses: taiki-e/install-action@nextest
       - name: Run CLI tests
         run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn
-      - name: Smoke-test PDF-only CLI
-        run: cargo run -p acdc-cli --no-default-features --features pdf -- convert --help
+      - name: Smoke-test backend-only CLI builds
+        shell: bash
+        run: |
+          for feature in html manpage markdown pdf terminal; do
+            cargo run -p acdc-cli --no-default-features --features "$feature" -- convert --help
+          done
+      - name: Smoke-test tool-only CLI builds
+        shell: bash
+        run: |
+          cargo run -p acdc-cli --no-default-features --features inspect -- inspect --help
+          cargo run -p acdc-cli --no-default-features --features lint -- lint --help
+          cargo run -p acdc-cli --no-default-features --features tck -- tck --help
+      - name: Test the no-command CLI diagnostic
+        run: cargo nextest run -p acdc-cli --no-default-features --test cli
 
   test-lsp:
     needs: changes

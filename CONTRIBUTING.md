@@ -20,8 +20,8 @@ Thank you for your interest in contributing! This guide covers the essentials. F
    The unpatched upstream 0.15.2 binary can fail with missing Darwin symbols such as `_bzero`, `_fork`, or `__availability_version_check`.
 4. **Build and test**:
    ```bash
-   cargo build --all
-   cargo nextest run
+   cargo build --workspace --all-features
+   cargo nextest run --all-features
    ```
 
 ## Documentation
@@ -41,7 +41,7 @@ Before submitting, ensure:
 
 - Code is formatted: `cargo fmt --all`
 - Lints pass: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
-- Tests pass: `cargo nextest run`
+- Tests pass: `cargo nextest run --all-features`
 
 `--all-features` clippy and converter tests build `libghostty-vt-sys`, which
 uses Zig to compile Ghostty's virtual terminal library. Set `GHOSTTY_SOURCE_DIR`
@@ -66,7 +66,7 @@ Examples:
 
 1. Create a branch: `git checkout -b feat/your-feature-name`
 2. Make your changes (with tests!)
-3. Run checks: `cargo fmt --all && cargo clippy --all-targets --all-features -- --deny clippy::pedantic && cargo nextest run`
+3. Run checks: `cargo fmt --all && cargo clippy --all-targets --all-features -- --deny clippy::pedantic && cargo nextest run --all-features`
 4. Commit using conventional commits
 5. Push and open a Pull Request
 

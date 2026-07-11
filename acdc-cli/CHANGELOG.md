@@ -11,24 +11,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - CLI subcommand errors now exit with a non-zero status after rendering the
   error message. This includes `acdc lint` runs with denied diagnostics.
+- Missing `convert` and `lint` inputs now produce normal command usage errors,
+  unsupported TCK input types return a regular command failure, and multi-file
+  conversion failures are reported without bypassing top-level error handling.
 - A warning that points into an `include::`d file (or any content shifted by the
   preprocessor) now renders its source snippet against the correct file instead of
   aborting with `Failed to read contents … OutOfBounds`.
+- Diagnostics for empty files, multi-byte UTF-8 text, and stale or out-of-range
+  locations now clamp to valid source spans instead of producing an invalid
+  source-snippet range.
 - `--no-default-features` builds no longer re-enable parser default features
   through internal workspace dependencies.
-- Peak memory during multi-file conversion no longer grows linearly with
-  the input set. The CLI used to leak each parsed document via `Box::leak`
-  to satisfy `'static`, holding every bumpalo arena until the process
-  exited; arenas now drop after each file's conversion finishes.
+- Peak memory during multi-file conversion is now bounded by active work;
+  parsed documents are released after their conversion instead of being
+  retained for the complete input batch.
 - Terminal backend warnings are now visible. Parser and converter warnings
   emitted during a `--backend terminal` run with a pager were previously
   written to stderr before the pager took over the screen, leaving them
   visually buried. They are now deferred until after the pager exits, and the
-  no-pager terminal paths also render converter warnings (previously dropped
-  alongside the discarded `ConversionResult`), including file input converted
-  with `--out-file`.
+  no-pager terminal paths also render converter warnings, including file input
+  converted with `--out-file`.
 - A PDF-only build (`--no-default-features --features pdf`) now exposes the
   `convert` command instead of reporting that the binary has no subcommands.
+- Default builds now include the runtime `convert --setext` compatibility flag,
+  with `--enable-setext-compatibility` retained as an alias. The `highlighting`
+  build feature now also enables terminal-backend source highlighting when that
+  backend is selected.
+- `inspect` now resolves includes relative to the inspected file, handles long
+  Unicode text without panicking, renders accurate tree relationships, and
+  omits ANSI styling when output is redirected.
 
 ### Added
 
@@ -80,8 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`--variant` flag for `convert`** — pick a backend-specific output style.
   HTML: `standard` (default) or `semantic`. Markdown: `commonmark` or `gfm`
   (default). `--backend html5s` remains an alias for `--backend html --variant
-  semantic` and rejects `--variant`. Invalid combinations are rejected up-front.
-  Both flags and the resolved typed `Backend` are feature-gated.
+  semantic` and rejects `--variant`. Invalid combinations are rejected up-front,
+  and unavailable backends or variants are omitted from command help.
 - **Timing summary table for multi-file conversions** — when `convert` is invoked with
   `--timings` and more than one input file, a summary table is printed after the
   per-file output with parse time, convert time, total per-file time, and wall-clock

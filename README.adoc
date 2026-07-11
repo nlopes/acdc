@@ -1,9 +1,6 @@
-= acdc - AsciiDoc Parser & Converter
+= ACDC - AsciiDoc Parser & Converter
 
-image:https://github.com/nlopes/acdc/workflows/Test/badge.svg[CI Status,link=https://github.com/nlopes/acdc/actions]
-image:https://docs.rs/acdc-parser/badge.svg[docs.rs,link=https://docs.rs/acdc-parser]
-image:https://img.shields.io/crates/v/acdc-parser.svg[crates.io,link=https://crates.io/crates/acdc-parser]
-image:https://img.shields.io/badge/license-MIT-blue.svg[MIT licensed,link=https://github.com/nlopes/acdc/blob/main/LICENSE]
+image:https://github.com/nlopes/acdc/workflows/Test/badge.svg[alt="CI status",link=https://github.com/nlopes/acdc/actions] image:https://docs.rs/acdc-parser/badge.svg[alt="docs.rs",link=https://docs.rs/acdc-parser] image:https://img.shields.io/crates/v/acdc-parser.svg[alt="crates.io",link=https://crates.io/crates/acdc-parser] image:https://img.shields.io/badge/license-MIT-blue.svg[alt="MIT licensed",link=https://github.com/nlopes/acdc/blob/main/LICENSE]
 
 Fast, correct AsciiDoc parser and converter written in Rust using PEG grammar.
 
@@ -69,30 +66,29 @@ acdc/
 
 === Parser design
 
-* **PEG-based**: Uses the `peg` crate for grammar definition
-* **Two-pass inline processing**: First identifies boundaries, then parses content
-* **Fail-fast**: Stops on first error (by design)
-* **Preprocessor**: Handles includes and conditionals before parsing
+PEG-based:: Uses the `peg` crate for grammar definition.
+Two-pass inline processing:: First identifies boundaries, then parses content.
+Fail-fast:: Stops on the first error by design.
+Preprocessor:: Handles includes and conditionals before parsing.
 
 === Testing strategy
 
-1. **Fixture tests**: Compare against known good outputs
-2. **Property tests**: Verify invariants hold for any input (proptest)
-3. **TCK tests**: Check specification compliance
-4. **Integration tests**: End-to-end conversion testing
+. Fixture tests compare against known good outputs.
+. Property tests verify invariants for generated input.
+. TCK tests check specification compliance.
+. Integration tests exercise end-to-end conversion.
 
 == Building & testing
 
-Before running all-features checks, install the development prerequisites in
-link:./CONTRIBUTING.md[CONTRIBUTING.md].
+Before running all-features checks, install the development prerequisites in link:./CONTRIBUTING.md[CONTRIBUTING.md].
 
 [source,bash]
 ----
-# Build all crates
-cargo build --all
+# Build all crates and features
+cargo build --workspace --all-features
 
 # Run tests with detailed output
-RUST_LOG=error cargo nextest run --no-fail-fast --all-features --all-targets
+cargo nextest run --no-fail-fast --all-features --all-targets
 
 # Run clippy with pedantic lints
 cargo clippy --all-targets --all-features -- --deny clippy::pedantic
@@ -107,8 +103,8 @@ PROPTEST_CASES=1000 cargo test --package acdc-parser --lib proptests
 
 [source,bash]
 ----
-# Enable trace logging for grammar module
-RUST_LOG=acdc_parser::grammar::document=trace cargo run --bin acdc -- convert file.adoc
+# Enable CLI trace logging for the grammar module
+ACDC_LOG=acdc_parser::grammar::document=trace cargo run --bin acdc -- convert file.adoc
 ----
 
 === Compare with reference implementation
@@ -123,8 +119,8 @@ diff -u file.asciidoctor.html file.html
 
 == Contributing
 
-1. Use conventional commits (`feat:`, `fix:`, `docs:`, etc.)
-2. Run the full test suite before committing
+. Use conventional commits (`feat:`, `fix:`, `docs:`, etc.).
+. Run the full test suite before committing.
 
 == Acknowledgments
 

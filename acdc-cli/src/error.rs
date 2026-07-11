@@ -4,7 +4,7 @@
 // https://github.com/zkat/miette/pull/459 for more details.
 #![allow(unused_assignments)]
 
-use std::{path::Path, process::exit};
+use std::path::Path;
 
 use acdc_converters_core::Warning as ConverterWarning;
 #[cfg(feature = "lint")]
@@ -191,21 +191,20 @@ impl Diagnostic for CompactLintDiagnostic {
 }
 
 fn source_span_from_source_location(loc: &SourceLocation, source: &str) -> SourceSpan {
-    // `absolute_start`/`absolute_end` index the *preprocessed* buffer, which diverges
-    // from `source` (the original file rendered here) once includes, conditionals, or
-    // dropped comments shift content — using them directly can run the span past the
-    // file end (miette `OutOfBounds`). Derive the start from the source-relative
-    // line/column instead, and clamp the length so it can never exceed the remaining
-    // bytes in `source`. A zero-width (point) location renders as a 1-byte span.
+    // Parser locations are original-source-relative. Resolve their Unicode-scalar
+    // line/column positions back to byte offsets in the source miette will render.
     let location = &loc.location;
-    let start_offset =
-        calculate_offset_from_position(source, location.start.line, location.start.column);
-    let preprocessed_len = location
-        .absolute_end
-        .saturating_sub(location.absolute_start);
-    let length = preprocessed_len
-        .min(source.len().saturating_sub(start_offset))
-        .max(1);
+    let start_offset = offset_from_position(source, location.start.line, location.start.column);
+    let end_offset = if location.start.file == location.end.file {
+        offset_from_position(source, location.end.line, location.end.column).max(start_offset)
+    } else {
+        start_offset
+    };
+    let end_exclusive = source
+        .get(end_offset..)
+        .and_then(|remainder| remainder.chars().next())
+        .map_or(end_offset, |character| end_offset + character.len_utf8());
+    let length = end_exclusive.saturating_sub(start_offset);
     SourceSpan::new(start_offset.into(), length)
 }
 
@@ -213,35 +212,30 @@ fn source_location_line_column(loc: &SourceLocation) -> (u32, u32) {
     (loc.location.start.line, loc.location.start.column)
 }
 
-/// Calculate byte offset from line and column numbers (both 1-indexed).
-fn calculate_offset_from_position(source: &str, line: u32, column: u32) -> usize {
-    let mut current_line = 1;
-
-    for (idx, ch) in source.char_indices() {
+/// Resolve 1-indexed line and Unicode-scalar column numbers to a byte offset.
+fn offset_from_position(source: &str, line: u32, column: u32) -> usize {
+    let mut current_line = 1_u32;
+    let mut line_start = 0;
+    for source_line in source.split_inclusive('\n') {
         if current_line == line {
-            // Found the target line, now count columns (1-indexed)
-            let line_start = idx;
-            for (col, (col_idx, col_ch)) in (1..).zip(source[line_start..].char_indices()) {
-                if col == column {
-                    return line_start + col_idx;
+            let column_index = column.saturating_sub(1);
+            let mut current_column = 0_u32;
+            for (byte_offset, character) in source_line.char_indices() {
+                if current_column == column_index {
+                    return line_start + byte_offset;
                 }
-                if col_ch == '\n' {
-                    break;
+                if character == '\n' {
+                    return line_start + byte_offset;
                 }
+                current_column = current_column.saturating_add(1);
             }
-            // Column not found on line, return end of line
-            return line_start
-                + source[line_start..]
-                    .find('\n')
-                    .unwrap_or(source.len() - line_start);
+            return line_start + source_line.len();
         }
-        if ch == '\n' {
-            current_line += 1;
-        }
+        line_start += source_line.len();
+        current_line = current_line.saturating_add(1);
     }
 
-    // Line not found, return end of source
-    source.len().saturating_sub(1)
+    source.len()
 }
 
 /// Build a miette `Report` from extracted warning fields.
@@ -316,15 +310,22 @@ impl LintDiagnosticReport for LintDiagnostic {
         let advice = self.help().map(str::to_string);
 
         let full = self.location().and_then(|loc| {
-            let (name, source_str) = match loc.file.as_deref().or(context.file) {
-                Some(path) => (
+            let location_file = loc.file.as_deref().or(context.file);
+            let context_source_matches = context.source.filter(|_| match location_file {
+                Some(path) => context.file == Some(path),
+                None => true,
+            });
+            let (name, source_str) = match (location_file, context_source_matches) {
+                (Some(path), Some(source)) => (path.display().to_string(), source.to_owned()),
+                (Some(path), None) => (
                     path.display().to_string(),
                     std::fs::read_to_string(path).ok()?,
                 ),
-                None => (
+                (None, Some(source)) => (
                     context.source_name.unwrap_or("<stdin>").to_owned(),
-                    context.source?.to_owned(),
+                    source.to_owned(),
                 ),
+                (None, None) => return None,
             };
             let span = source_span_from_source_location(loc, &source_str);
             let (line, column) = source_location_line_column(loc);
@@ -381,7 +382,65 @@ pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {
         return Report::new(rich_error);
     }
 
-    // Fallback: No parser error with location found, or couldn't read file, display normally
-    eprintln!("Error: {e}");
-    exit(1);
+    // Fallback: no parser error with a readable source location was found.
+    Report::msg(e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use acdc_parser::{Location, Position, SourceLocation};
+
+    use super::*;
+
+    #[test]
+    fn resolves_unicode_columns_to_byte_offsets() {
+        assert_eq!(offset_from_position("éx\nnext", 1, 1), 0);
+        assert_eq!(offset_from_position("éx\nnext", 1, 2), 2);
+        assert_eq!(offset_from_position("éx\nnext", 2, 1), 4);
+    }
+
+    #[test]
+    fn clamps_missing_positions_to_source_end() {
+        let source = "é";
+        let offset = offset_from_position(source, 99, 99);
+
+        assert_eq!(offset, source.len());
+        assert!(source.is_char_boundary(offset));
+    }
+
+    #[test]
+    fn creates_empty_span_for_empty_source() {
+        let location = SourceLocation::at_position(None, Position::new(1, 1));
+        let span = source_span_from_source_location(&location, "");
+
+        assert_eq!(span.offset(), 0);
+        assert!(span.is_empty());
+    }
+
+    #[test]
+    fn spans_a_complete_unicode_scalar() {
+        let location = SourceLocation::at_position(None, Position::new(1, 1));
+        let span = source_span_from_source_location(&location, "éx");
+
+        assert_eq!(span.offset(), 0);
+        assert_eq!(span.len(), "é".len());
+    }
+
+    #[test]
+    fn included_file_positions_use_their_source_coordinates() {
+        let chain = Arc::new(vec!["included.adoc".to_owned()]);
+        let mut start = Position::new(2, 1);
+        start.file = Some(Arc::clone(&chain));
+        let mut end = Position::new(2, 2);
+        end.file = Some(chain);
+        let mut location = Location::point(start);
+        location.end = end;
+        let location = SourceLocation::at_location(None, location);
+        let span = source_span_from_source_location(&location, "first\néx\n");
+
+        assert_eq!(span.offset(), 6);
+        assert_eq!(span.len(), 3);
+    }
 }
