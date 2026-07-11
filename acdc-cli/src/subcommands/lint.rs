@@ -33,7 +33,7 @@ pub struct Args {
     pub stdin: bool,
 
     /// List of files to lint
-    #[arg(conflicts_with = "stdin")]
+    #[arg(conflicts_with = "stdin", required_unless_present = "stdin")]
     pub files: Vec<PathBuf>,
 
     /// Suppress a lint or lint group, optionally scoped as LINT@LOCATION[,LOCATION]...
@@ -185,10 +185,13 @@ impl ReportRenderer for LintReport {
     }
 
     fn render_full(&self, context: LintReportRenderContext<'_>) {
+        let loaded_source = context
+            .file
+            .and_then(|file| std::fs::read_to_string(file).ok());
         let context = LintDiagnosticReportContext::new()
             .with_optional_file(context.file)
             .with_optional_source_name(context.source_name)
-            .with_optional_source(context.source);
+            .with_optional_source(context.source.or(loaded_source.as_deref()));
         for diagnostic in self.diagnostics() {
             eprintln!("{:?}", diagnostic.to_report(context));
         }

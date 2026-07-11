@@ -52,7 +52,7 @@ jobs:
 
     - name: Build acdc with TCK feature
       working-directory: acdc
-      run: cargo build --features tck
+      run: cargo build -p acdc-cli --no-default-features --features tck
 
     - name: Install asciidoc-tck dependencies
       working-directory: asciidoc-tck

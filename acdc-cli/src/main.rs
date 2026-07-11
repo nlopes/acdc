@@ -70,7 +70,7 @@ enum Commands {
     Convert(subcommands::convert::Args),
 
     #[cfg(feature = "inspect")]
-    /// Inspect AST structure of `AsciiDoc` documents
+    /// Show a structural outline of an `AsciiDoc` document
     Inspect(subcommands::inspect::Args),
 
     #[cfg(feature = "lint")]
@@ -117,7 +117,21 @@ fn main() {
     };
 
     #[cfg(feature = "lint")]
-    let mut full_error_output = true;
+    let full_error_output = match &cli.command {
+        Commands::Lint(args) => args.output_style.is_full(),
+        #[cfg(any(
+            feature = "html",
+            feature = "manpage",
+            feature = "markdown",
+            feature = "pdf",
+            feature = "terminal"
+        ))]
+        Commands::Convert(_) => true,
+        #[cfg(feature = "inspect")]
+        Commands::Inspect(_) => true,
+        #[cfg(feature = "tck")]
+        Commands::Tck(_) => true,
+    };
     let result = match cli.command {
         #[cfg(any(
             feature = "html",
@@ -134,15 +148,12 @@ fn main() {
         }
 
         #[cfg(feature = "lint")]
-        Commands::Lint(args) => {
-            full_error_output = args.output_style.is_full();
-            match matches.subcommand() {
-                Some(("lint", lint_matches)) => subcommands::lint::run(&args, lint_matches),
-                _ => Err(miette::miette!(
-                    "internal error: missing lint argument matches"
-                )),
-            }
-        }
+        Commands::Lint(args) => match matches.subcommand() {
+            Some(("lint", lint_matches)) => subcommands::lint::run(&args, lint_matches),
+            _ => Err(miette::miette!(
+                "internal error: missing lint argument matches"
+            )),
+        },
 
         #[cfg(feature = "tck")]
         Commands::Tck(args) => {
