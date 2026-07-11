@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Resolves and content-addresses images (local, remote, data URIs) for acdc PDF output."
+publish = false
 
 [features]
 # Remote http(s) image fetching. Off by default so a `--no-default-features`

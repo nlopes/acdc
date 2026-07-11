@@ -4,10 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Compiles Typst markup to PDF bytes. Isolates the Typst compiler."
+publish = false
 
 [dependencies]
-acdc-pdf-theme.workspace = true
-acdc-pdf-images.workspace = true
+acdc-pdf-images = { path = "../images" }
+acdc-pdf-theme = { path = "../theme" }
 thiserror.workspace = true
 typst.workspace = true
 typst-pdf.workspace = true
