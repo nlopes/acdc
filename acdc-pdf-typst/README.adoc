@@ -1,0 +1,41 @@
+= `acdc-pdf-typst`
+
+Shared Typst-generation utilities (escaping, a markup `Writer`, document options, and the themed preamble) used by acdc's PDF converters.
+
+This is an internal workspace crate. It is not published to crates.io and has no stability guarantees outside the `acdc-pdf-*` pipeline.
+
+== Where it sits
+
+[source]
+....
+acdc-pdf-theme  ──▶  acdc-pdf-typst  ──▶  converters/pdf
+  (design tokens,      (Writer, escaping,    (walks the AST and
+   fonts)               preamble, options)     writes body markup)
+....
+
+This crate is *source-format-agnostic*: it holds no knowledge of AsciiDoc. It provides the building blocks a converter uses to assemble a Typst document, so the body-generation walk in `converters/pdf` (and any future backend) reuses the same escaping, preamble, and options rather than reinventing them.
+
+== What it provides
+
+- **`Writer`** — the primitive for emitting Typst *body* markup with correct escaping of Typst's special characters.
+- **`escape`** — the escaping helpers the `Writer` builds on.
+- **`preamble`** — turns an `acdc-pdf-theme` `Theme` plus `EmitOptions` into the document's Typst preamble: page setup, `#set`/`#show` rules, and the branded header, footer, and watermark.
+- **`EmitOptions`** / **`PageSize`** — document-level knobs that shape the generated markup (page size, title, header logo, watermark, table of contents, and whether to strip branding chrome or name brand fonts).
+
+Each converter supplies its own AST walk to produce the body; everything else here is shared.
+
+== Theme-data boundary
+
+Theme values are data, never Typst source. `acdc-pdf-theme` validates and
+canonicalises colours before this crate sees them, and the preamble emitter
+escapes every theme-derived font-family name as a Typst string literal. Keep
+that escaping at this boundary even when a value has already been validated:
+quotes, backslashes, and other Typst-significant characters can be legitimate
+parts of a font's family name.
+
+== Testing
+
+[source,console]
+....
+cargo nextest run -p acdc-pdf-typst --all-features
+....

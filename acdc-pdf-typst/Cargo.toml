@@ -1,0 +1,13 @@
+[package]
+name = "acdc-pdf-typst"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "Shared Typst writing utilities (escaping, Writer, preamble, options) for acdc-pdf converters."
+publish = false
+
+[dependencies]
+acdc-pdf-theme.workspace = true
+
+[lints]
+workspace = true
