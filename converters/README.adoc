@@ -3,6 +3,7 @@
 - `link:./html[html]` - `AsciiDoc` html backend
 - `link:./manpage[manpage]` - `AsciiDoc` manpage backend
 - `link:./markdown[markdown]` - `AsciiDoc` markdown backend (CommonMark & GitHub Flavored Markdown)
+- `link:./pdf[pdf]` - experimental `AsciiDoc` PDF backend backed by the Rust Typst engine
 - `link:./terminal[terminal]` - `AsciiDoc` terminal printer backend (à la *nix command `cat`)
 
 == Development prerequisites

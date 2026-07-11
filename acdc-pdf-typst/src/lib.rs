@@ -19,8 +19,6 @@ pub struct EmitOptions {
     pub page: PageSize,
     /// Strip branding chrome (page background, header, footer).
     pub plain: bool,
-    /// Emit a table of contents from the headings.
-    pub toc: bool,
     /// Whether brand fonts are available at render time. When set, the brand
     /// family is named first in each font stack; otherwise only the bundled
     /// fallbacks are named (so Typst is never asked for an absent font).
@@ -41,7 +39,6 @@ impl Default for EmitOptions {
         EmitOptions {
             page: PageSize::A4,
             plain: false,
-            toc: false,
             brand_fonts: false,
             title: None,
             logo: None,

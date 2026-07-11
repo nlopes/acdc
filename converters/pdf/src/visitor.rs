@@ -1,29 +1,39 @@
-use std::fmt::Write;
+use std::fmt::Write as _;
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{decode_numeric_char_refs, inlines_to_string, visitor::Visitor};
 use acdc_parser::{
     Admonition, AdmonitionVariant, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
-    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
+    DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
+    Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
-use crate::{Error, PdfVisitor, sanitize_label};
+use crate::{Error, PdfVisitor, encode_label};
 
-impl Visitor for PdfVisitor<'_, '_> {
+impl Visitor for PdfVisitor<'_, '_, '_> {
     type Error = Error;
 
-    fn visit_document_start(&mut self, doc: &Document<'_>) -> Result<(), Self::Error> {
-        self.write_preamble(doc);
+    fn visit_body_content_start(
+        &mut self,
+        _doc: &acdc_parser::Document<'_>,
+    ) -> Result<(), Self::Error> {
+        self.render_toc(None, "auto");
+        Ok(())
+    }
+
+    fn visit_preamble_end(&mut self, _doc: &acdc_parser::Document<'_>) -> Result<(), Self::Error> {
+        self.render_toc(None, "preamble");
         Ok(())
     }
 
     fn visit_header(&mut self, header: &Header<'_>) -> Result<(), Self::Error> {
-        self.source.push_str("#align(center)[\n");
-        self.source.push_str("#text(size: 22pt, weight: \"bold\")[");
+        self.writer.raw("#align(center)[\n");
+        self.writer.raw("#text(size: 22pt, weight: \"bold\")[");
         self.write_title(&header.title)?;
-        self.source.push_str("]\n");
+        self.writer.raw("]\n");
         if !header.authors.is_empty() {
-            self.source.push_str("#v(0.4em)\n");
+            self.writer.raw("#v(0.4em)\n");
             let authors = header
                 .authors
                 .iter()
@@ -36,9 +46,9 @@ impl Visitor for PdfVisitor<'_, '_> {
                 .collect::<Vec<_>>()
                 .join(", ");
             self.write_text_expr(&authors);
-            self.source.push('\n');
+            self.writer.raw("\n");
         }
-        self.source.push_str("]\n#v(1em)\n\n");
+        self.writer.raw("]\n#v(1em)\n\n");
         Ok(())
     }
 
@@ -56,56 +66,89 @@ impl Visitor for PdfVisitor<'_, '_> {
         }
 
         let level = section.level.max(1);
-        let _ = write!(self.source, "#heading(level: {level})[");
+        let _ = write!(self.writer, "#heading(level: {level})[");
         if !prefix.is_empty() {
             self.write_text_expr(&prefix);
         }
         self.write_title(&section.title)?;
-        self.source.push(']');
+        self.writer.raw("]");
         let id =
             acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
         if !id.is_empty() {
-            let _ = write!(self.source, " <{}>", sanitize_label(&id));
+            let _ = write!(self.writer, " <{}>", encode_label(&id));
         }
-        self.source.push_str("\n\n");
+        self.writer.raw("\n\n");
         self.write_blocks(&section.content)
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph<'_>) -> Result<(), Self::Error> {
-        self.write_block_title(&para.title)?;
-        self.write_inlines(&para.content)?;
-        self.source.push_str("\n\n");
-        Ok(())
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+            para.metadata.substitutions.as_ref(),
+            matches!(
+                para.metadata.style,
+                Some("verse" | "literal" | "listing" | "source")
+            ),
+        ));
+
+        let result = (|| {
+            self.write_block_title(&para.title)?;
+            self.write_inlines(&para.content)?;
+            self.writer.raw("\n\n");
+            Ok(())
+        })();
+
+        #[cfg(feature = "pre-spec-subs")]
+        self.processor.current_subs.set(previous_subs);
+        result
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock<'_>) -> Result<(), Self::Error> {
-        self.write_block_title(&block.title)?;
-        match &block.inner {
-            DelimitedBlockType::DelimitedExample(blocks)
-            | DelimitedBlockType::DelimitedOpen(blocks)
-            | DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.write_framed_blocks(None, blocks)
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+            block.metadata.substitutions.as_ref(),
+            matches!(
+                block.inner,
+                DelimitedBlockType::DelimitedListing(_)
+                    | DelimitedBlockType::DelimitedLiteral(_)
+                    | DelimitedBlockType::DelimitedPass(_)
+                    | DelimitedBlockType::DelimitedVerse(_)
+            ),
+        ));
+
+        let result = (|| {
+            self.write_block_title(&block.title)?;
+            match &block.inner {
+                DelimitedBlockType::DelimitedExample(blocks)
+                | DelimitedBlockType::DelimitedOpen(blocks)
+                | DelimitedBlockType::DelimitedSidebar(blocks) => {
+                    self.write_framed_blocks(None, blocks)
+                }
+                DelimitedBlockType::DelimitedQuote(blocks) => {
+                    self.writer.raw("#blockquote[\n");
+                    self.write_blocks(blocks)?;
+                    self.writer.raw("]\n\n");
+                    Ok(())
+                }
+                DelimitedBlockType::DelimitedListing(nodes)
+                | DelimitedBlockType::DelimitedLiteral(nodes)
+                | DelimitedBlockType::DelimitedPass(nodes)
+                | DelimitedBlockType::DelimitedVerse(nodes) => {
+                    self.write_verbatim_block(nodes);
+                    Ok(())
+                }
+                DelimitedBlockType::DelimitedTable(table) => self.write_table(table),
+                DelimitedBlockType::DelimitedStem(stem) => {
+                    self.write_stem_fallback(stem.content, true);
+                    Ok(())
+                }
+                DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
             }
-            DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.source.push_str("#quote(block: true)[\n");
-                self.write_blocks(blocks)?;
-                self.source.push_str("]\n\n");
-                Ok(())
-            }
-            DelimitedBlockType::DelimitedListing(nodes)
-            | DelimitedBlockType::DelimitedLiteral(nodes)
-            | DelimitedBlockType::DelimitedPass(nodes)
-            | DelimitedBlockType::DelimitedVerse(nodes) => {
-                self.write_verbatim_block(nodes);
-                Ok(())
-            }
-            DelimitedBlockType::DelimitedTable(table) => self.write_table(table),
-            DelimitedBlockType::DelimitedStem(stem) => {
-                let _ = writeln!(self.source, "$ {} $\n", crate::escape_math(stem.content));
-                Ok(())
-            }
-            DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
-        }
+        })();
+
+        #[cfg(feature = "pre-spec-subs")]
+        self.processor.current_subs.set(previous_subs);
+        result
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList<'_>) -> Result<(), Self::Error> {
@@ -115,7 +158,7 @@ impl Visitor for PdfVisitor<'_, '_> {
             self.write_list_item("+", item)?;
         }
         self.list_depth -= 1;
-        self.source.push('\n');
+        self.writer.raw("\n");
         Ok(())
     }
 
@@ -126,36 +169,36 @@ impl Visitor for PdfVisitor<'_, '_> {
             self.write_list_item("-", item)?;
         }
         self.list_depth -= 1;
-        self.source.push('\n');
+        self.writer.raw("\n");
         Ok(())
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Self::Error> {
         self.write_block_title(&list.title)?;
         for item in &list.items {
-            self.source.push_str("#text(weight: \"bold\")[");
+            self.writer.raw("#text(weight: \"bold\")[");
             self.write_inlines(&item.term)?;
-            self.source.push_str("]\n");
+            self.writer.raw("]\n");
             if !item.principal_text.is_empty() {
                 self.write_inlines(&item.principal_text)?;
-                self.source.push('\n');
+                self.writer.raw("\n");
             }
             self.write_blocks(&item.description)?;
         }
-        self.source.push('\n');
+        self.writer.raw("\n");
         Ok(())
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList<'_>) -> Result<(), Self::Error> {
         self.write_block_title(&list.title)?;
         for item in &list.items {
-            let _ = write!(self.source, "- ");
+            self.writer.raw("- ");
             self.write_text_expr(&format!("({}) ", item.callout.number));
             self.write_inlines(&item.principal)?;
-            self.source.push('\n');
+            self.writer.raw("\n");
             self.write_blocks(&item.blocks)?;
         }
-        self.source.push('\n');
+        self.writer.raw("\n");
         Ok(())
     }
 
@@ -164,23 +207,19 @@ impl Visitor for PdfVisitor<'_, '_> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition<'_>) -> Result<(), Self::Error> {
-        let label = match admon.variant {
-            AdmonitionVariant::Note => "Note",
-            AdmonitionVariant::Tip => "Tip",
-            AdmonitionVariant::Important => "Important",
-            AdmonitionVariant::Caution => "Caution",
-            AdmonitionVariant::Warning => "Warning",
+        let kind = match admon.variant {
+            AdmonitionVariant::Note => "note",
+            AdmonitionVariant::Tip => "tip",
+            AdmonitionVariant::Important => "important",
+            AdmonitionVariant::Caution => "caution",
+            AdmonitionVariant::Warning => "warning",
         };
         self.write_block_title(&admon.title)?;
-        self.write_framed_blocks(Some(label), &admon.blocks)
+        self.write_callout(kind, &admon.blocks)
     }
 
     fn visit_image(&mut self, img: &Image<'_>) -> Result<(), Self::Error> {
-        self.warn_unsupported("block images", "rendering the image target as text");
-        self.write_block_title(&img.title)?;
-        self.write_text_expr(&format!("[image: {}]", img.source));
-        self.source.push_str("\n\n");
-        Ok(())
+        self.write_block_image(img)
     }
 
     fn visit_video(&mut self, video: &Video<'_>) -> Result<(), Self::Error> {
@@ -193,7 +232,7 @@ impl Visitor for PdfVisitor<'_, '_> {
             .collect::<Vec<_>>()
             .join(", ");
         self.write_text_expr(&format!("[video: {sources}]"));
-        self.source.push_str("\n\n");
+        self.writer.raw("\n\n");
         Ok(())
     }
 
@@ -201,30 +240,30 @@ impl Visitor for PdfVisitor<'_, '_> {
         self.warn_unsupported("audio blocks", "rendering the audio target as text");
         self.write_block_title(&audio.title)?;
         self.write_text_expr(&format!("[audio: {}]", audio.source));
-        self.source.push_str("\n\n");
+        self.writer.raw("\n\n");
         Ok(())
     }
 
     fn visit_thematic_break(&mut self, _br: &ThematicBreak<'_>) -> Result<(), Self::Error> {
-        self.source.push_str("#line(length: 100%)\n\n");
+        self.writer.raw("#hr()\n\n");
         Ok(())
     }
 
     fn visit_page_break(&mut self, _br: &PageBreak<'_>) -> Result<(), Self::Error> {
-        self.source.push_str("#pagebreak()\n\n");
+        self.writer.raw("#pagebreak()\n\n");
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, _toc: &TableOfContents<'_>) -> Result<(), Self::Error> {
-        self.write_toc();
+    fn visit_table_of_contents(&mut self, toc: &TableOfContents<'_>) -> Result<(), Self::Error> {
+        self.render_toc(Some(toc), "macro");
         Ok(())
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader<'_>) -> Result<(), Self::Error> {
         let level = header.level.max(1);
-        let _ = write!(self.source, "#heading(level: {level}, outlined: false)[");
+        let _ = write!(self.writer, "#heading(level: {level}, outlined: false)[");
         self.write_title(&header.title)?;
-        self.source.push_str("]\n\n");
+        self.writer.raw("]\n\n");
         Ok(())
     }
 
@@ -243,7 +282,9 @@ impl Visitor for PdfVisitor<'_, '_> {
             }
             InlineNode::MonospaceText(mono) => {
                 let text = inlines_to_string(&mono.content);
-                let _ = write!(self.source, "#raw({})", crate::typst_string(&text));
+                self.writer.raw("#raw(");
+                self.writer.string_literal(&text);
+                self.writer.raw(")");
             }
             InlineNode::HighlightText(highlight) => {
                 self.write_quoted_span("#highlight[", &highlight.content, "]")?;
@@ -265,13 +306,9 @@ impl Visitor for PdfVisitor<'_, '_> {
                 self.write_text_expr("\u{2019}");
             }
             InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
-            InlineNode::LineBreak(_) => self.source.push_str("#linebreak()"),
+            InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),
             InlineNode::InlineAnchor(anchor) => {
-                let _ = write!(
-                    self.source,
-                    "#metadata(none) <{}>",
-                    sanitize_label(anchor.id)
-                );
+                let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
             }
             InlineNode::Macro(inline_macro) => self.write_inline_macro(inline_macro)?,
             InlineNode::CalloutRef(callout) => {

@@ -1,82 +1,97 @@
-use std::{borrow::Cow, fmt::Write};
+use std::{borrow::Cow, fmt::Write as _};
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, inlines_to_string,
     section::{AppendixTracker, SectionNumberTracker, SpecialSectionTracker},
     substitutions::Replacements,
     table::{build_grid, determine_column_count, table_has_spans},
+    toc::Config as TocConfig,
     visitor::Visitor,
 };
-
 use acdc_parser::{
-    Block, Document, IndexTermKind, InlineMacro, InlineNode, ListItem, Source, Table, Title,
+    Block, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Source, Table, TableOfContents,
+    Title,
 };
+use acdc_pdf_images::ImageMap;
+use acdc_pdf_typst::Writer;
 
-use crate::{Error, Processor, typst_string};
+use crate::{Error, Processor};
 
-pub(crate) struct PdfVisitor<'a, 'd> {
-    pub(crate) source: String,
+pub(crate) struct PdfVisitor<'a, 'd, 'm> {
+    pub(crate) writer: Writer,
     pub(crate) processor: Processor<'a>,
+    assets: &'m ImageMap,
     diagnostics: Diagnostics<'d>,
     pub(crate) section_number_tracker: SectionNumberTracker,
     pub(crate) appendix_tracker: AppendixTracker,
     pub(crate) special_section_tracker: SpecialSectionTracker,
     pub(crate) list_depth: usize,
+    has_toc_entries: bool,
+    toc_written: bool,
 }
 
-impl<'a, 'd> PdfVisitor<'a, 'd> {
-    pub(crate) fn new(processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
-        let section_number_tracker = SectionNumberTracker::new(&processor.document_attributes);
+impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
+    pub(crate) fn new(
+        processor: Processor<'a>,
+        assets: &'m ImageMap,
+        has_toc_entries: bool,
+        diagnostics: Diagnostics<'d>,
+    ) -> Self {
+        let section_number_tracker = SectionNumberTracker::new(processor.document_attributes());
         let appendix_tracker = AppendixTracker::new(
-            &processor.document_attributes,
+            processor.document_attributes(),
             section_number_tracker.clone(),
         );
         Self {
-            source: String::new(),
+            writer: Writer::new(),
             processor,
+            assets,
             diagnostics,
             section_number_tracker,
             appendix_tracker,
             special_section_tracker: SpecialSectionTracker::new(),
             list_depth: 0,
+            has_toc_entries,
+            toc_written: false,
         }
     }
 
-    pub(crate) fn write_preamble(&mut self, doc: &Document<'_>) {
-        let lang = doc
-            .attributes
-            .get_string("lang")
-            .unwrap_or(Cow::Borrowed("en"));
-        let toc_enabled = doc.attributes.contains_key("toc");
-        let page_size = doc
-            .attributes
-            .get_string("pdf-page-size")
-            .unwrap_or(Cow::Borrowed("us-letter"));
-
-        let _ = writeln!(
-            self.source,
-            "#set page(paper: {}, margin: (x: 0.8in, y: 0.8in))",
-            typst_string(&page_size)
-        );
-        let _ = writeln!(
-            self.source,
-            "#set text(font: \"New Computer Modern\", size: 10pt, lang: {})",
-            typst_string(&lang)
-        );
-        self.source.push_str(
-            "#set par(justify: true, leading: 0.65em)\n\
-             #set heading(supplement: none)\n\
-             #show link: underline\n\n",
-        );
-
-        if toc_enabled {
-            self.write_toc();
+    pub(crate) fn render_toc(&mut self, toc_macro: Option<&TableOfContents<'_>>, placement: &str) {
+        if self.toc_written || !self.has_toc_entries {
+            return;
         }
-    }
 
-    pub(crate) fn write_toc(&mut self) {
-        self.source
-            .push_str("#outline(title: [Table of Contents])\n#pagebreak()\n\n");
+        let config = TocConfig::from_attributes(toc_macro, self.processor.document_attributes());
+        let configured_placement =
+            if config.placement() == "none" && self.processor.pdf_options().toc {
+                "auto"
+            } else {
+                config.placement()
+            };
+        let should_render = match placement {
+            "auto" => matches!(
+                configured_placement,
+                "auto" | "left" | "right" | "top" | "bottom"
+            ),
+            other => configured_placement == other,
+        };
+        if !should_render {
+            return;
+        }
+
+        self.toc_written = true;
+        self.writer.raw("#outline(title: ");
+        match config.title() {
+            Some("") | None => self.writer.raw("none"),
+            Some(title) => self.writer.string_literal(title),
+        }
+        let _ = write!(
+            self.writer,
+            ", depth: {})\n#pagebreak()\n\n",
+            config.levels()
+        );
     }
 
     pub(crate) fn write_blocks(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {
@@ -101,11 +116,22 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
     }
 
     pub(crate) fn write_text_expr(&mut self, text: &str) {
-        let _ = write!(self.source, "#text({})", typst_string(text));
+        self.writer.raw("#text(");
+        self.writer.string_literal(text);
+        self.writer.raw(")");
     }
 
     pub(crate) fn write_plain(&mut self, text: &str) {
-        self.write_text_expr(&Replacements::unicode().transform(text, false));
+        #[cfg(feature = "pre-spec-subs")]
+        let text = apply_replacements(
+            text,
+            self.processor.current_subs.get(),
+            &Replacements::unicode(),
+            false,
+        );
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let text = Cow::Owned(Replacements::unicode().transform(text, false));
+        self.write_text_expr(&text);
     }
 
     pub(crate) fn write_quoted_span(
@@ -114,9 +140,9 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
         nodes: &[InlineNode<'_>],
         suffix: &str,
     ) -> Result<(), Error> {
-        self.source.push_str(prefix);
+        self.writer.raw(prefix);
         self.write_inlines(nodes)?;
-        self.source.push_str(suffix);
+        self.writer.raw(suffix);
         Ok(())
     }
 
@@ -124,9 +150,9 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
         if title.is_empty() {
             return Ok(());
         }
-        self.source.push_str("#text(weight: \"bold\")[");
+        self.writer.raw("#text(weight: \"bold\")[");
         self.write_title(title)?;
-        self.source.push_str("]\n");
+        self.writer.raw("]\n");
         Ok(())
     }
 
@@ -134,11 +160,31 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
         let text = InlineTextTransform::default()
             .line_break("\n")
             .to_string(nodes);
-        let _ = writeln!(
-            self.source,
-            "#block(fill: luma(245), inset: 8pt, width: 100%)[#raw({}, block: true)]\n",
-            typst_string(&text)
-        );
+        self.writer.raw("#raw(block: true, ");
+        #[cfg(feature = "pre-spec-subs")]
+        {
+            let text = apply_replacements(
+                &text,
+                self.processor.current_subs.get(),
+                &Replacements::unicode(),
+                true,
+            );
+            self.writer.string_literal(&text);
+        }
+        #[cfg(not(feature = "pre-spec-subs"))]
+        self.writer.string_literal(&text);
+        self.writer.raw(")\n\n");
+    }
+
+    pub(crate) fn write_stem_fallback(&mut self, content: &str, block: bool) {
+        self.warn_unsupported("stem content", "rendering it as literal text");
+        if block {
+            self.writer.raw("#block[");
+        }
+        self.write_text_expr(content);
+        if block {
+            self.writer.raw("]\n\n");
+        }
     }
 
     pub(crate) fn write_framed_blocks(
@@ -146,17 +192,24 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
         label: Option<&str>,
         blocks: &[Block<'_>],
     ) -> Result<(), Error> {
-        self.source
-            .push_str("#block(fill: luma(248), inset: 8pt, width: 100%)[\n");
+        self.writer
+            .raw("#block(fill: luma(248), inset: 8pt, width: 100%)[\n");
         if let Some(label) = label {
-            let _ = writeln!(
-                self.source,
-                "#text(weight: \"bold\")[{}]#linebreak()",
-                typst_string(label)
-            );
+            self.writer.raw("#text(weight: \"bold\")[");
+            self.write_text_expr(label);
+            self.writer.raw("]#linebreak()\n");
         }
         self.write_blocks(blocks)?;
-        self.source.push_str("]\n\n");
+        self.writer.raw("]\n\n");
+        Ok(())
+    }
+
+    pub(crate) fn write_callout(&mut self, kind: &str, blocks: &[Block<'_>]) -> Result<(), Error> {
+        self.writer.raw("#callout(");
+        self.writer.string_literal(kind);
+        self.writer.raw(")[\n");
+        self.write_blocks(blocks)?;
+        self.writer.raw("]\n\n");
         Ok(())
     }
 
@@ -173,17 +226,18 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
         item: &ListItem<'_>,
     ) -> Result<(), Error> {
         let indent = "  ".repeat(self.list_depth);
-        let _ = write!(self.source, "{indent}{marker} ");
+        let _ = write!(self.writer, "{indent}{marker} ");
         if let Some(checked) = &item.checked {
-            let checkbox = match checked {
-                acdc_parser::ListItemCheckedStatus::Checked => "[x] ",
-                acdc_parser::ListItemCheckedStatus::Unchecked => "[ ] ",
-                _ => "",
-            };
-            self.write_text_expr(checkbox);
+            match checked {
+                acdc_parser::ListItemCheckedStatus::Checked => self.writer.raw("#checkbox(true) "),
+                acdc_parser::ListItemCheckedStatus::Unchecked => {
+                    self.writer.raw("#checkbox(false) ");
+                }
+                _ => {}
+            }
         }
         self.write_inlines(&item.principal)?;
-        self.source.push('\n');
+        self.writer.raw("\n");
 
         if !item.blocks.is_empty() {
             self.list_depth += 1;
@@ -201,30 +255,60 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
         }
 
         let column_count = determine_column_count(table);
-        let _ = write!(self.source, "#table(columns: {column_count}");
+        let _ = write!(self.writer, "#table(columns: {column_count}");
         for row in build_grid(table, column_count) {
             for cell in row.cells {
                 match cell {
                     acdc_converters_core::table::CellKind::Content { cell_index } => {
                         if let Some(ast_cell) = row.ast_row.columns.get(cell_index) {
-                            self.source.push_str(", [");
-                            let was_empty = self.source.len();
+                            self.writer.raw(", [");
+                            if row.is_header {
+                                self.writer.raw("#tableheader[");
+                            }
                             self.write_blocks(&ast_cell.content)?;
-                            if self.source.len() == was_empty {
+                            if ast_cell.content.is_empty() {
                                 self.write_text_expr("");
                             }
-                            self.source.push(']');
+                            if row.is_header {
+                                self.writer.raw("]");
+                            }
+                            self.writer.raw("]");
                         }
                     }
                     acdc_converters_core::table::CellKind::HSpan
                     | acdc_converters_core::table::CellKind::VSpan => {
-                        self.source.push_str(", []");
+                        self.writer.raw(", []");
                     }
                 }
             }
         }
-        self.source.push_str(")\n\n");
+        self.writer.raw(")\n\n");
         Ok(())
+    }
+
+    pub(crate) fn write_block_image(&mut self, image: &Image<'_>) -> Result<(), Error> {
+        self.write_block_title(&image.title)?;
+        let source = image.source.to_string();
+        if let Some(asset) = self.assets.get(&source) {
+            self.writer.raw("#docimage(");
+            self.writer.string_literal(&asset.virtual_path);
+            self.writer.raw(")\n\n");
+        } else {
+            self.write_text_expr(&image_fallback_text(image));
+            self.writer.raw("\n\n");
+        }
+        Ok(())
+    }
+
+    pub(crate) fn write_inline_image(&mut self, image: &Image<'_>) {
+        let source = image.source.to_string();
+        if let Some(asset) = self.assets.get(&source) {
+            self.writer.raw("#image(");
+            self.writer.string_literal(&asset.virtual_path);
+            self.writer.raw(", height: 1em)");
+        } else {
+            self.write_text_expr(&image_fallback_text(image));
+        }
     }
 
     pub(crate) fn write_inline_macro(
@@ -233,21 +317,20 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
     ) -> Result<(), Error> {
         match inline_macro {
             InlineMacro::Footnote(footnote) => {
-                self.source.push_str("#footnote[");
+                self.writer.raw("#footnote[");
                 self.write_inlines(&footnote.content)?;
-                self.source.push(']');
+                self.writer.raw("]");
             }
             InlineMacro::Icon(icon) => {
                 self.warn_unsupported("inline icons", "rendering the icon name as text");
                 self.write_text_expr(&format!("[icon: {}]", icon.target));
             }
-            InlineMacro::Image(img) => {
-                self.warn_unsupported("inline images", "rendering the image target as text");
-                self.write_text_expr(&format!("[image: {}]", img.source));
-            }
+            InlineMacro::Image(image) => self.write_inline_image(image),
             InlineMacro::Keyboard(keyboard) => {
                 let joined = keyboard.keys.join("+");
-                let _ = write!(self.source, "#raw({})", typst_string(&joined));
+                self.writer.raw("#raw(");
+                self.writer.string_literal(&joined);
+                self.writer.raw(")");
             }
             InlineMacro::Button(button) => self.write_text_expr(button.label),
             InlineMacro::Menu(menu) => {
@@ -267,21 +350,18 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
                 self.write_link_text(&target, &[])?;
             }
             InlineMacro::CrossReference(xref) => {
-                let label = crate::sanitize_label(xref.target);
+                let label = crate::encode_label(xref.target);
                 let text = if xref.text.is_empty() {
                     self.processor
-                        .document_attributes
+                        .document_attributes()
                         .get_string(xref.target)
                         .map_or_else(|| xref.target.to_string(), Cow::into_owned)
                 } else {
                     inlines_to_string(&xref.text)
                 };
-                let _ = write!(
-                    self.source,
-                    "#link(<{}>)[#text({})]",
-                    label,
-                    typst_string(&text)
-                );
+                let _ = write!(self.writer, "#link(<{label}>)[");
+                self.write_text_expr(&text);
+                self.writer.raw("]");
             }
             InlineMacro::Pass(pass) => {
                 if let Some(text) = pass.text {
@@ -289,7 +369,7 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
                 }
             }
             InlineMacro::Stem(stem) => {
-                let _ = write!(self.source, "$ {} $", crate::escape_math(stem.content));
+                self.write_stem_fallback(stem.content, false);
             }
             InlineMacro::IndexTerm(term) => {
                 if let IndexTermKind::Flow(text) = &term.kind {
@@ -306,13 +386,26 @@ impl<'a, 'd> PdfVisitor<'a, 'd> {
     }
 
     fn write_link_text(&mut self, target: &str, text: &[InlineNode<'_>]) -> Result<(), Error> {
-        let _ = write!(self.source, "#link({})[", typst_string(target));
+        self.writer.raw("#link(");
+        self.writer.string_literal(target);
+        self.writer.raw(")[");
         if text.is_empty() {
             self.write_text_expr(target);
         } else {
             self.write_inlines(text)?;
         }
-        self.source.push(']');
+        self.writer.raw("]");
         Ok(())
     }
+}
+
+fn image_fallback_text(image: &Image<'_>) -> String {
+    if !image.title.is_empty() {
+        return inlines_to_string(image.title.as_ref());
+    }
+    image
+        .metadata
+        .attributes
+        .get_string("alt")
+        .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
 }
