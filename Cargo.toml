@@ -5,16 +5,13 @@ members = [
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
-  "acdc-pdf-images",
-  "acdc-pdf-render",
-  "acdc-pdf-theme",
-  "acdc-pdf-typst",
   "converters/core",
   "converters/dev",
   "converters/html",
   "converters/manpage",
   "converters/markdown",
   "converters/pdf",
+  "converters/pdf/crates/*",
   "converters/terminal",
 ]
 default-members = [
@@ -22,16 +19,13 @@ default-members = [
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
-  "acdc-pdf-images",
-  "acdc-pdf-render",
-  "acdc-pdf-theme",
-  "acdc-pdf-typst",
   "converters/core",
   "converters/dev",
   "converters/html",
   "converters/manpage",
   "converters/markdown",
   "converters/pdf",
+  "converters/pdf/crates/*",
   "converters/terminal",
 ]
 resolver = "2"
@@ -42,10 +36,6 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
-acdc-pdf-images = { path = "acdc-pdf-images" }
-acdc-pdf-render = { path = "acdc-pdf-render" }
-acdc-pdf-theme = { path = "acdc-pdf-theme" }
-acdc-pdf-typst = { path = "acdc-pdf-typst" }
 acdc-converters-core = { path = "converters/core", default-features = false }
 acdc-converters-dev = { path = "converters/dev" }
 acdc-converters-html = { path = "converters/html", default-features = false }

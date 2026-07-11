@@ -609,8 +609,7 @@ mod tests {
 
     use super::*;
 
-    const DEFAULT_THEME_YAML: &str =
-        include_str!("../../../acdc-pdf-theme/assets/theme/default.yaml");
+    const DEFAULT_THEME_YAML: &str = include_str!("../crates/theme/assets/theme/default.yaml");
 
     #[test]
     fn labels_are_typst_safe_and_collision_resistant() {

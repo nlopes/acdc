@@ -16,10 +16,10 @@ network = ["acdc-pdf-images/network"]
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
-acdc-pdf-images.workspace = true
-acdc-pdf-render.workspace = true
-acdc-pdf-theme.workspace = true
-acdc-pdf-typst.workspace = true
+acdc-pdf-images = { path = "crates/images" }
+acdc-pdf-render = { path = "crates/render" }
+acdc-pdf-theme = { path = "crates/theme" }
+acdc-pdf-typst = { path = "crates/typst" }
 tempfile.workspace = true
 thiserror.workspace = true
 

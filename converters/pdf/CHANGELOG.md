@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Nested the private PDF implementation crates under `converters/pdf/crates`; their Cargo
+  package names and the converter's public API remain unchanged.
 - Refined and hardened the initial backend: themes and images are validated and bounded,
   image access follows safe mode, fonts load only from explicitly configured directories,
   and unsupported stem notation remains escaped text. Table headers, TOC placement and

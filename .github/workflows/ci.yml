@@ -46,10 +46,6 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
             pdf:
-              - 'acdc-pdf-images/**'
-              - 'acdc-pdf-render/**'
-              - 'acdc-pdf-theme/**'
-              - 'acdc-pdf-typst/**'
               - 'converters/core/**'
               - 'converters/pdf/**'
               - 'acdc-parser/**'

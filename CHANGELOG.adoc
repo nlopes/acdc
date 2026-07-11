@@ -24,7 +24,7 @@ This project uses per-crate changelogs. See the relevant crate for its changelog
 === Converter utilities
 
 - link:converters/core/CHANGELOG.md[acdc-converters-core]
-- link:acdc-pdf-images/CHANGELOG.md[acdc-pdf-images]
-- link:acdc-pdf-render/CHANGELOG.md[acdc-pdf-render]
-- link:acdc-pdf-theme/CHANGELOG.md[acdc-pdf-theme]
-- link:acdc-pdf-typst/CHANGELOG.md[acdc-pdf-typst]
+- link:converters/pdf/crates/images/CHANGELOG.md[acdc-pdf-images]
+- link:converters/pdf/crates/render/CHANGELOG.md[acdc-pdf-render]
+- link:converters/pdf/crates/theme/CHANGELOG.md[acdc-pdf-theme]
+- link:converters/pdf/crates/typst/CHANGELOG.md[acdc-pdf-typst]

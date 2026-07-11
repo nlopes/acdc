@@ -7,7 +7,7 @@ description = "Shared Typst writing utilities (escaping, Writer, preamble, optio
 publish = false
 
 [dependencies]
-acdc-pdf-theme.workspace = true
+acdc-pdf-theme = { path = "../theme" }
 
 [lints]
 workspace = true

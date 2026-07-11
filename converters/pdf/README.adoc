@@ -157,10 +157,11 @@ crates own the boundaries that need different dependencies:
 [source]
 ....
 converters/pdf
-  ├─ acdc-pdf-theme   validated design tokens and bundled assets
-  ├─ acdc-pdf-typst   escaped Typst writer and themed preamble
-  ├─ acdc-pdf-images  bounded image resolution and snapshots
-  └─ acdc-pdf-render  font loading, Typst compilation, and PDF export
+  └─ crates
+     ├─ theme   acdc-pdf-theme: validated design tokens and bundled assets
+     ├─ typst   acdc-pdf-typst: escaped Typst writer and themed preamble
+     ├─ images  acdc-pdf-images: bounded image resolution and snapshots
+     └─ render  acdc-pdf-render: font loading, Typst compilation, and PDF export
 ....
 
 Only `acdc-pdf-render` depends directly on the Typst compiler. No additional
