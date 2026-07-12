@@ -221,6 +221,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are rejected before conversion.
 - **Breaking:** direct visitor callbacks now receive the current traversal
   context, including source-ordered and nested-cell attributes.
+- **Syntax highlighting now uses giallo instead of syntect**, including giallo's
+  built-in grammar aliases and ANSI terminal renderer. Source lines selected with
+  `highlight=` keep their background across syntax colors.
 - Terminal tables truncated to the available width now use a single ellipsis
   (`…`) as the truncation marker, leaving more space for cell content.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed

@@ -33,13 +33,19 @@ pub(crate) fn highlight_text<W: Write + ?Sized>(
     language: &str,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
+    let mut code = code.to_owned();
+    // Giallo's terminal renderer uses a trailing empty token line to preserve the
+    // separator before the final non-empty line, then omits that sentinel line.
+    if !code.ends_with('\n') {
+        code.push('\n');
+    }
     let registry = get_registry();
 
     let theme_name = processor.appearance.theme.highlight_theme();
     let theme_variant = giallo::ThemeVariant::Single(theme_name);
     let options = giallo::HighlightOptions::new(language, theme_variant).fallback_to_plain(true);
 
-    let highlighted = match registry.highlight(code, &options) {
+    let highlighted = match registry.highlight(&code, &options) {
         Ok(h) => h,
         Err(e) => {
             tracing::warn!("giallo highlighting failed for language '{language}': {e}");
