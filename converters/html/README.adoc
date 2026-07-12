@@ -169,7 +169,7 @@ An absent or unset signifier keeps the number-only form.
 
 === Syntax Highlighting
 
-Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses syntect with inline CSS styles by default.
+Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses giallo with inline CSS styles by default.
 
 Callouts keep their positions and authored spacing when highlighting is enabled,
 including multiple markers on one line and markers inside XML comment guards.
@@ -195,8 +195,8 @@ token classes instead. Standalone output supplies the highlighting stylesheet;
 in embedded output, the containing page supplies it. Asciidoctor's Rouge
 highlighter uses `:rouge-css: class` and different token classes.
 
-Set `:highlight-style: Solarized (dark)`, or pass
-`-a 'highlight-style=Solarized (dark)'`, to choose a theme. Without a theme,
+Set `:highlight-style: solarized-dark`, or pass
+`-a 'highlight-style=solarized-dark'`, to choose a theme. Without a theme,
 the default follows `:dark-mode:`.
 
 NOTE: [deprecated] `syntect-css` and `syntect-style` remain compatibility aliases.
@@ -907,5 +907,5 @@ While the HTML converter aims for compatibility with Asciidoctor, there are some
   `class="café&quot;quote"`. Asciidoctor leaves the quote unescaped, producing
   malformed HTML. acdc preserves the complete role as one attribute value.
 - The `css-signature` attribute is not supported. Use a document ID instead (`[[my-id]]` above the title).
-- Syntax highlighting uses syntect with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
+- Syntax highlighting uses giallo with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
 - The `html5s` backend is inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem but is a separate implementation with its own output.
