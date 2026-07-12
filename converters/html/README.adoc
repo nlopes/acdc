@@ -72,7 +72,7 @@ Table of contents entries are also numbered when `:sectnums:` is set.
 
 === Syntax Highlighting
 
-Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). Uses syntect with inline CSS styles.
+Source blocks with a language specified render with syntax highlighting (requires the `highlighting` feature flag). The converter uses giallo and emits inline CSS styles by default. Set `:highlight-style:` to choose a giallo theme, or `:highlight-css: class` to emit reusable `syntax-*` classes instead. The legacy `:syntect-style:` and `:syntect-css:` names remain accepted for compatibility.
 
 [source,console]
 ....
@@ -347,7 +347,7 @@ server-side, to keep that input away from the emulator.
 
 ==== Syntax highlighting CSS
 
-When using class-based syntax highlighting (`:syntect-css: class`), the highlighting CSS is handled the same way, embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
+When using class-based syntax highlighting (`:highlight-css: class`), the highlighting CSS is handled the same way, embedded by default, or linked/written to disk when `:linkcss:` is set. See the <<Syntax Highlighting>> section above.
 
 === Docinfo files
 
@@ -453,7 +453,7 @@ Most output is class-based and fully overridable by the seams above. A few eleme
 |===
 | Inline-styled | How to override
 
-| Syntax-highlighted code colours | Inline is the default; set `:syntect-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
+| Syntax-highlighted code colours | Inline is the default; set `:highlight-css: class` to emit overridable `syntax-*` classes (plus a `<style>` block) instead.
 | A recording's own colours | The cell palette, plus a replay container's background/foreground when the cast recorded a theme; use `!important`.
 | Table column and table widths | Per-table values (matches Asciidoctor); use `!important`.
 | Page break; image `align`/`float` (semantic backend) | Match Asciidoctor's output; use `!important`.
@@ -739,5 +739,5 @@ The HTML converter:
 While the HTML converter aims for compatibility with Asciidoctor, there are some known differences and limitations.
 
 - The `css-signature` attribute is not supported. Use a document ID instead (`[[my-id]]` above the title).
-- Syntax highlighting uses syntect with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
+- Syntax highlighting uses giallo with inline CSS styles rather than external highlight.js or Pygments. Language coverage may differ.
 - The `html5s` backend is inspired by Jakub Jirutka's https://github.com/jirutka/asciidoctor-html5s[asciidoctor-html5s] gem but is a separate implementation with its own output.

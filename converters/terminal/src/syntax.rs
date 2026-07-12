@@ -36,7 +36,12 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     language: &str,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
-    let code = extract_text_from_inlines(inlines);
+    let mut code = extract_text_from_inlines(inlines);
+    // Giallo's terminal renderer uses a trailing empty token line to preserve the
+    // separator before the final non-empty line, then omits that sentinel line.
+    if !code.ends_with('\n') {
+        code.push('\n');
+    }
     let registry = get_registry();
 
     let theme_name = processor.appearance.theme.highlight_theme();

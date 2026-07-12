@@ -358,6 +358,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Syntax highlighting now uses giallo instead of syntect** — both inline-style and
+  class-based HTML output use giallo's built-in grammars and themes. The preferred
+  attributes are now `:highlight-style:` and `:highlight-css:`, while the legacy
+  `:syntect-style:` and `:syntect-css:` names remain supported.
 - **Use shared `replace_apostrophes` from converters-core** — smart apostrophe logic moved to
   converters-core for reuse across converters.
 - **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`

@@ -79,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Syntax highlighting now uses giallo instead of syntect**, including giallo's
+  built-in grammar aliases and ANSI terminal renderer.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed
 - Deduplicated ANSI escape skipping logic into shared `skip_ansi_escape` helper
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
