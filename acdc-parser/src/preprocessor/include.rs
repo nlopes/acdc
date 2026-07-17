@@ -281,6 +281,21 @@ pub(crate) struct IncludeResult {
     pub(crate) nested_source_ranges: Vec<SourceRange>,
 }
 
+impl IncludeResult {
+    fn secure_fallback(target: &str) -> Self {
+        Self {
+            lines: vec![format!("link:{target}[role=include]")],
+            source_lines: Vec::new(),
+            column_shift: 0,
+            effective_leveloffset: None,
+            nested_leveloffset_ranges: Vec::new(),
+            file: None,
+            target: String::new(),
+            nested_source_ranges: Vec::new(),
+        }
+    }
+}
+
 impl<'a> Include<'a> {
     fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
         for (key, value) in attributes {
@@ -597,6 +612,10 @@ impl<'a> Include<'a> {
     }
 
     pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {
+        if self.options.safe_mode == SafeMode::Secure {
+            return Ok(IncludeResult::secure_fallback(&self.target_as_written()));
+        }
+
         // Resolve target path (handles both file paths and URL downloads)
         let Some(path) = self.resolve_target_path()? else {
             return Ok(IncludeResult {

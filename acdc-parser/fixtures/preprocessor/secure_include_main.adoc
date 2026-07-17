@@ -1,0 +1,5 @@
+= Secure Includes
+
+include::include_quote_part.adoc[]
+
+include::https://example.invalid/secret.adoc[]
