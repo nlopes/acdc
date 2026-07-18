@@ -99,6 +99,8 @@ jobs:
         run: cargo nextest run -p acdc-parser --all-features --verbose
       - name: Run parser tests - no default features
         run: cargo nextest run -p acdc-parser --no-default-features --verbose
+      - name: Compile conditional performance benchmark
+        run: cargo check -p acdc-parser --bench conditional_bench --all-features
       - name: Check parser fixtures
         run: |
           cargo run -p acdc-parser --example generate_parser_fixtures --all-features

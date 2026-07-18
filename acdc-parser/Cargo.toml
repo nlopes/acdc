@@ -69,5 +69,14 @@ harness = false
 bench = false
 test = false
 
+# Active/inactive block-conditional benchmark. Disabled by default so ordinary
+# workspace bench/test commands skip the longer Criterion run. Run on demand:
+# `cargo bench --bench conditional_bench`.
+[[bench]]
+name = "conditional_bench"
+harness = false
+bench = false
+test = false
+
 [lints]
 workspace = true
