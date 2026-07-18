@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `convert` makes the selected backend's attributes and the converter's default
+  attributes available while the document is parsed, so backend conditionals such
+  as `ifdef::backend-pdf[]` and references to `backend`, `basebackend`, `filetype`,
+  `outfilesuffix`, and `htmlsyntax` reflect the chosen output during parsing —
+  consistently for both stdin and file inputs.
 - CLI subcommand errors now exit with a non-zero status after rendering the
   error message. This includes `acdc lint` runs with denied diagnostics.
 - Missing `convert` and `lint` inputs now produce normal command usage errors,

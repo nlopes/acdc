@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- PDF conversion attributes now include `backend=pdf`, `basebackend=html`,
+  `filetype=pdf`, `outfilesuffix=.pdf`, `htmlsyntax=html`, and their conditional
+  convenience attributes, matching Asciidoctor PDF's backend traits.
 - Initial Typst-backed PDF converter with core AsciiDoc rendering, themed page chrome,
   branding and watermark options, colour emoji, local and remote images, asset warnings
   and strict mode, plus optional generated-Typst output for debugging. Unsupported table

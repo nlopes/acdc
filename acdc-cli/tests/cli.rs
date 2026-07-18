@@ -140,6 +140,38 @@ fn converts_stdin_to_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "html")]
 #[test]
+fn selected_backend_attributes_are_available_during_parsing()
+-> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let document = temp.path().join("backend-attributes.adoc");
+    fs::write(
+        &document,
+        "ifdef::backend-html5-doctype-book[]\n\
+         backend={backend}; basebackend={basebackend}; filetype={filetype}; \
+         outfilesuffix={outfilesuffix}; htmlsyntax={htmlsyntax}\n\
+         endif::[]\n\
+         ifdef::backend-pdf[]\n\
+         wrong backend\n\
+         endif::[]\n",
+    )?;
+    let document_arg = document.to_string_lossy();
+
+    let output = run_acdc(
+        &["convert", "--doctype", "book", document_arg.as_ref()],
+        None,
+    )?;
+    let converted = fs::read_to_string(document.with_extension("html"))?;
+
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(converted.contains(
+        "backend=html5; basebackend=html; filetype=html; outfilesuffix=.html; htmlsyntax=html"
+    ));
+    assert!(!converted.contains("wrong backend"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
 fn converts_multiple_files_with_a_timing_summary() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
     let first = temp.path().join("first.adoc");

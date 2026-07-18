@@ -8,7 +8,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    Converter, Diagnostics, Options, decode_numeric_char_refs,
+    BackendTraits, Converter, Diagnostics, Options, decode_numeric_char_refs,
     section::{
         AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
         last_section_has_style,
@@ -23,6 +23,10 @@ pub(crate) use appearance::Appearance;
 
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 pub(crate) const MAX_TERMINAL_WIDTH: usize = 120;
+
+/// Intrinsic traits for the terminal backend.
+const BACKEND_TRAITS: BackendTraits =
+    BackendTraits::new("terminal", "terminal", "terminal", ".terminal");
 
 /// Leak a `&str` into a `&'static str`.
 ///
@@ -93,6 +97,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         for (name, value) in Self::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
         }
+        BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
         let appearance = Appearance::detect();
 
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
@@ -298,6 +303,31 @@ pub fn render_listing_to_ansi(
 
     drop(color_guard);
     Ok(output)
+}
+
+#[cfg(test)]
+mod backend_tests {
+    use super::*;
+
+    #[test]
+    fn constructor_applies_terminal_backend_traits() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("backend")
+                .as_deref(),
+            Some("terminal")
+        );
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("filetype")
+                .as_deref(),
+            Some("terminal")
+        );
+    }
 }
 
 #[cfg(feature = "emulator")]

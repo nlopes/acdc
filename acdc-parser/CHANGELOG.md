@@ -115,6 +115,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- When parsing with the `manpage` backend, `outfilesuffix` now changes from its
+  initial `.man` value to the document's man volume suffix (for example `.1` or
+  `.3p`) once the manpage title is known, matching `asciidoctor`.
 - `ifdef` and `ifndef` conditions now accept any number of attribute names joined
   by `,` or `+`. A named `endif` can repeat the complete condition
   case-insensitively, matching `asciidoctor`. Conditional blocks also remain in

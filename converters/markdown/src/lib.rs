@@ -56,7 +56,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource, visitor::Visitor};
+use acdc_converters_core::{
+    BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
+};
 use acdc_parser::{Document, DocumentAttributes};
 
 mod error;
@@ -104,6 +106,9 @@ impl MarkdownVariant {
     }
 }
 
+/// Intrinsic traits for the Markdown backend.
+const BACKEND_TRAITS: BackendTraits = BackendTraits::new("markdown", "markdown", "md", ".md");
+
 impl std::fmt::Display for MarkdownVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
@@ -123,6 +128,7 @@ impl Processor<'_> {
     #[must_use]
     pub fn with_variant(mut self, variant: MarkdownVariant) -> Self {
         self.variant = variant;
+        BACKEND_TRAITS.apply(&mut self.document_attributes, self.options.doctype());
         self
     }
 
@@ -136,7 +142,8 @@ impl Processor<'_> {
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
+    fn new(options: Options, mut document_attributes: DocumentAttributes<'a>) -> Self {
+        BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
         Self {
             options,
             document_attributes,
@@ -200,6 +207,20 @@ mod tests {
     fn new_defaults_to_gfm() {
         let processor = Processor::new(Options::default(), DocumentAttributes::default());
         assert_eq!(processor.variant(), MarkdownVariant::GitHubFlavored);
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("backend")
+                .as_deref(),
+            Some("markdown")
+        );
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("filetype")
+                .as_deref(),
+            Some("md")
+        );
     }
 
     #[test]

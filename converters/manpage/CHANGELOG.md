@@ -16,6 +16,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Manpage conversion attributes now include the `manpage` backend and
+  base-backend, `man` file type, `.man` default output suffix, implied manpage
+  doctype, and their conditional convenience attributes.
 - An ordered list with an explicit numbering style (`[loweralpha]`, `[upperalpha]`,
   `[lowerroman]`, `[upperroman]`, `[lowergreek]`, `[arabic]`, `[decimal]`) renders
   its `.IP` tags in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`.

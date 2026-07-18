@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Converter backends can declare their Asciidoctor-compatible backend,
+  base-backend, file-type, output-suffix, and HTML-syntax traits and apply the
+  corresponding intrinsic and doctype convenience attributes consistently.
 - `inline_text::InlineTextTransform` and `inlines_to_string()` provide shared
   plain-text extraction from inline nodes for converters and tooling, including
   configurable hard-line-break rendering.

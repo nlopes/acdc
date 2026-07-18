@@ -38,6 +38,7 @@ use std::{
 
 use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
 
+mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
 mod doctype;
@@ -52,6 +53,7 @@ pub mod video;
 pub mod visitor;
 mod warning;
 
+pub use backend::BackendTraits;
 pub use doctype::Doctype;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
@@ -519,6 +521,17 @@ impl std::fmt::Display for GeneratorMetadata {
 /// 2. **Converter-specific defaults** - from [`Converter::document_attributes_defaults()`] (e.g., `man-linkstyle` for manpage)
 /// 3. **CLI attributes** - user-provided via `-a name=value`
 /// 4. **Document attributes** - `:name: value` in document header
+///
+/// Intrinsic backend attributes are an exception to this precedence: converters
+/// apply their [`BackendTraits`] when constructed, replacing conflicting values.
+///
+/// ## Attributes and parsing
+///
+/// A converter establishes its full attribute set on construction (base defaults,
+/// converter defaults, backend traits, and doctype). Construct the converter
+/// first, then parse using its [`document_attributes`](Converter::document_attributes)
+/// so preprocessing and attribute substitution see the selected backend and the
+/// converter's defaults (`ifdef::backend-*[]`, `{backend}`, `{outfilesuffix}`, …).
 ///
 /// ## Implementation
 ///

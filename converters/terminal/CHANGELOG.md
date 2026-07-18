@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Terminal conversion attributes now include the `terminal` backend,
+  base-backend and file type, `.terminal` output suffix, and their conditional
+  convenience attributes.
 - An ordered list with an explicit numbering style (`[loweralpha]`, `[upperalpha]`,
   `[lowerroman]`, `[upperroman]`, `[lowergreek]`, `[arabic]`, `[decimal]`) renders
   its markers in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`.

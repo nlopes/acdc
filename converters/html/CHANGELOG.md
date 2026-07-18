@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- HTML conversion attributes now identify the standard backend as `html5`
+  (`basebackend=html`, `filetype=html`, `outfilesuffix=.html`,
+  `htmlsyntax=html`) and the semantic variant as `html5s`, including the
+  matching convenience attributes used by conditionals.
 - A standalone document with a revision number now renders a
   `{version-label} {revnumber}` line (e.g. `Version 2.0`) in the footer above the
   "Last updated" line, matching `asciidoctor`.

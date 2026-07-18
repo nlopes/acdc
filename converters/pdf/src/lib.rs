@@ -18,7 +18,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    Diagnostics, Options, PrettyDuration, inlines_to_string, visitor::Visitor,
+    BackendTraits, Diagnostics, Options, PrettyDuration, inlines_to_string, visitor::Visitor,
 };
 use acdc_parser::{
     Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode, ListItem,
@@ -38,6 +38,10 @@ mod visitor;
 
 pub use acdc_pdf_typst::PageSize;
 pub use error::Error;
+
+/// Intrinsic traits for the PDF backend.
+pub(crate) const BACKEND_TRAITS: BackendTraits =
+    BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
 use pdf_visitor::PdfVisitor;
 

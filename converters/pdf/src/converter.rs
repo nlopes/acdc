@@ -10,12 +10,13 @@ use acdc_parser::{Document, DocumentAttributes};
 #[cfg(feature = "pre-spec-subs")]
 use std::{cell::Cell, rc::Rc};
 
-use crate::{Error, PdfOptions, Processor};
+use crate::{BACKEND_TRAITS, Error, PdfOptions, Processor};
 
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
+    fn new(options: Options, mut document_attributes: DocumentAttributes<'a>) -> Self {
+        BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
         Self {
             options,
             document_attributes,
@@ -69,5 +70,31 @@ impl<'a> Converter<'a> for Processor<'a> {
 
     fn warning_source(&self) -> WarningSource {
         WarningSource::new("pdf")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constructor_applies_pdf_backend_traits() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("backend")
+                .as_deref(),
+            Some("pdf")
+        );
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("basebackend")
+                .as_deref(),
+            Some("html")
+        );
+        assert!(processor.document_attributes().contains_key("backend-pdf"));
     }
 }

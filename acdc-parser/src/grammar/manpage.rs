@@ -227,6 +227,15 @@ pub(super) fn derive_manpage_header_attrs<'a>(
         );
     }
 
+    if attrs.get_string("backend").as_deref() == Some("manpage")
+        && let Some(manvolnum) = attrs.get_string("manvolnum")
+    {
+        attrs.set(
+            "outfilesuffix".into(),
+            AttributeValue::String(format!(".{manvolnum}").into()),
+        );
+    }
+
     Ok(true)
 }
 
@@ -334,6 +343,27 @@ mod tests {
         let mut attrs = DocumentAttributes::default();
         assert!(!derive_name_section_attrs("just a name", &mut attrs));
         assert!(attrs.get("manname").is_none());
+    }
+
+    #[test]
+    fn test_manpage_backend_uses_volume_as_output_suffix() -> Result<(), Error> {
+        let mut attrs = DocumentAttributes::default();
+        attrs.set("backend".into(), "manpage".into());
+        attrs.set("doctype".into(), "manpage".into());
+        attrs.set("outfilesuffix".into(), ".man".into());
+        let options = crate::Options::with_attributes(attrs);
+
+        let parsed = crate::parse("= cmd(7)\n\n== Name\n\ncmd - test\n", &options)?;
+
+        assert_eq!(
+            parsed
+                .document()
+                .attributes
+                .get_string("outfilesuffix")
+                .as_deref(),
+            Some(".7")
+        );
+        Ok(())
     }
 
     #[test]

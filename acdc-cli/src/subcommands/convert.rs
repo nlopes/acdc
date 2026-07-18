@@ -225,16 +225,16 @@ pub fn run(args: &Args) -> miette::Result<()> {
         args.safe_mode
     };
 
+    // Build only the CLI-relevant attributes here. Each converter establishes its
+    // own backend traits, defaults, and doctype when constructed; the parser then
+    // runs against `processor.document_attributes()` so it sees the full set.
     let (document_attributes, doctype) = {
         #[cfg(feature = "manpage")]
         {
-            let mut document_attributes = build_attributes_map(&args.attributes);
+            let document_attributes = build_attributes_map(&args.attributes);
             // Auto-set doctype to Manpage when using manpage backend
             // This matches asciidoctor behavior where --backend manpage implies --doctype manpage
             let doctype = if matches!(backend, Backend::Manpage) {
-                // Set doctype attribute for the parser (parser checks this to derive manpage attrs)
-                document_attributes
-                    .insert("doctype".into(), AttributeValue::String("manpage".into()));
                 Doctype::Manpage
             } else {
                 args.doctype
@@ -266,7 +266,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         #[cfg(feature = "html")]
         Backend::Html(variant) => run_processor::<acdc_converters_html::Processor, _>(
             args,
-            options,
+            &options,
             document_attributes,
             move |opts, attrs| {
                 acdc_converters_html::Processor::new(opts, attrs).with_variant(variant)
@@ -283,7 +283,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         #[cfg(feature = "manpage")]
         Backend::Manpage => run_processor::<acdc_converters_manpage::Processor, _>(
             args,
-            options,
+            &options,
             document_attributes,
             acdc_converters_manpage::Processor::new,
         ),
@@ -291,7 +291,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         #[cfg(feature = "markdown")]
         Backend::Markdown(variant) => run_processor::<acdc_converters_markdown::Processor, _>(
             args,
-            options,
+            &options,
             document_attributes,
             move |opts, attrs| {
                 acdc_converters_markdown::Processor::new(opts, attrs).with_variant(variant)
@@ -303,7 +303,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
             let pdf_options = pdf_options_from_args(args);
             run_processor::<acdc_converters_pdf::Processor, _>(
                 args,
-                options,
+                &options,
                 document_attributes,
                 move |opts, attrs| {
                     acdc_converters_pdf::Processor::new(opts, attrs)
@@ -409,7 +409,7 @@ fn selected_input_files(args: &Args) -> &[PathBuf] {
 #[tracing::instrument(skip(base_options, document_attributes, make_processor))]
 fn run_processor<P, F>(
     args: &Args,
-    base_options: Options,
+    base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
     make_processor: F,
 ) -> miette::Result<Vec<PathBuf>>
@@ -422,7 +422,7 @@ where
     if args.stdin {
         let processor = make_processor(base_options.clone(), document_attributes.clone());
         let parser_options =
-            build_parser_options(args, &base_options, processor.document_attributes().clone());
+            build_parser_options(args, base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
         let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
@@ -440,7 +440,9 @@ where
 
     // Single-file fast path: skip rayon thread pool overhead entirely
     if let [file] = files_to_process {
-        let parser_options = build_parser_options(args, &base_options, document_attributes.clone());
+        let processor = make_processor(base_options.clone(), document_attributes);
+        let parser_options =
+            build_parser_options(args, base_options, processor.document_attributes().clone());
         let parse_result = if base_options.timings() {
             let now = Instant::now();
             let result = acdc_parser::parse_file(file, &parser_options);
@@ -453,7 +455,6 @@ where
         } else {
             acdc_parser::parse_file(file, &parser_options)
         };
-        let processor = make_processor(base_options, document_attributes);
         let convert_result = match parse_result {
             Ok(parsed) => {
                 let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
@@ -473,7 +474,7 @@ where
 
     run_multi_file::<P, _>(
         args,
-        &base_options,
+        base_options,
         &document_attributes,
         files_to_process,
         make_processor,
@@ -517,8 +518,9 @@ where
     let file_results: Vec<FileResult<P::Error>> = files_to_process
         .par_iter()
         .map(|file| {
+            let processor = make_processor(converter_options.clone(), document_attributes.clone());
             let parser_options =
-                build_parser_options(args, base_options, document_attributes.clone());
+                build_parser_options(args, base_options, processor.document_attributes().clone());
             let entry = if show_timings {
                 let now = Instant::now();
                 let result = acdc_parser::parse_file(file, &parser_options);
@@ -527,13 +529,7 @@ where
                 let result = acdc_parser::parse_file(file, &parser_options);
                 (file.clone(), result, None)
             };
-            convert_parse_result::<P, _>(
-                entry,
-                &converter_options,
-                document_attributes,
-                show_timings,
-                &make_processor,
-            )
+            convert_parse_result(entry, &processor, show_timings)
         })
         .collect();
 
@@ -549,19 +545,15 @@ where
     file_results.report()
 }
 
-fn convert_parse_result<P, F>(
+fn convert_parse_result<P>(
     (file, parse_result, parse_dur): TimedParseResult,
-    converter_options: &Options,
-    document_attributes: &DocumentAttributes<'static>,
+    processor: &P,
     show_timings: bool,
-    make_processor: &F,
 ) -> FileResult<P::Error>
 where
     P: Converter<'static>,
     P::Error: From<acdc_parser::Error>,
-    F: Fn(Options, DocumentAttributes<'static>) -> P,
 {
-    let processor = make_processor(converter_options.clone(), document_attributes.clone());
     let now = Instant::now();
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
@@ -1088,7 +1080,6 @@ fn run_terminal_through_pager(
     processor: &acdc_converters_terminal::Processor<'static>,
     args: &Args,
     base_options: &Options,
-    document_attributes: &DocumentAttributes<'static>,
     files: &[PathBuf],
     mut pager: std::process::Child,
 ) -> Result<(), acdc_converters_terminal::Error> {
@@ -1102,7 +1093,8 @@ fn run_terminal_through_pager(
         let mut diagnostics =
             acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
         for file in files {
-            let mut parsed = parse_terminal_file(args, base_options, document_attributes, file)?;
+            let mut parsed =
+                parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parser_warnings = parsed.take_warnings();
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
@@ -1139,13 +1131,14 @@ fn run_terminal_with_pager(
     }
 
     let files_to_process = selected_input_files(args);
-    let processor = Processor::new(base_options.clone(), document_attributes.clone());
+    let processor = Processor::new(base_options.clone(), document_attributes);
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
         let mut output_paths = Vec::new();
         for file in files_to_process {
-            let parsed = parse_terminal_file(args, base_options, &document_attributes, file)?;
+            let parsed =
+                parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (output_path, warnings) = result.into_parts();
@@ -1159,18 +1152,12 @@ fn run_terminal_with_pager(
 
     // Try to spawn pager.
     if let Some(pager) = spawn_pager(args.no_pager) {
-        run_terminal_through_pager(
-            &processor,
-            args,
-            base_options,
-            &document_attributes,
-            files_to_process,
-            pager,
-        )?;
+        run_terminal_through_pager(&processor, args, base_options, files_to_process, pager)?;
     } else {
         // No pager - use convert() which writes to stdout
         for file in files_to_process {
-            let parsed = parse_terminal_file(args, base_options, &document_attributes, file)?;
+            let parsed =
+                parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (_, warnings) = result.into_parts();

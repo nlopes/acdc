@@ -42,6 +42,19 @@ pub enum Doctype {
     Inline,
 }
 
+impl Doctype {
+    /// Return the lowercase `AsciiDoc` name of this document type.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Article => "article",
+            Self::Book => "book",
+            Self::Manpage => "manpage",
+            Self::Inline => "inline",
+        }
+    }
+}
+
 impl FromStr for Doctype {
     type Err = String;
 
@@ -60,12 +73,7 @@ impl FromStr for Doctype {
 
 impl std::fmt::Display for Doctype {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Article => write!(f, "article"),
-            Self::Book => write!(f, "book"),
-            Self::Manpage => write!(f, "manpage"),
-            Self::Inline => write!(f, "inline"),
-        }
+        f.write_str(self.as_str())
     }
 }
 

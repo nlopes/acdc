@@ -36,7 +36,9 @@ use std::{cell::Cell, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
-use acdc_converters_core::{Converter, Diagnostics, Options, visitor::Visitor};
+use acdc_converters_core::{
+    BackendTraits, Converter, Diagnostics, Doctype, Options, visitor::Visitor,
+};
 
 use acdc_parser::{AttributeValue, Document, DocumentAttributes};
 
@@ -55,6 +57,9 @@ mod table;
 pub use error::Error;
 pub use escape::{EscapeMode, manify};
 pub use manpage_visitor::ManpageVisitor;
+
+/// Intrinsic traits for the manpage backend.
+const BACKEND_TRAITS: BackendTraits = BackendTraits::new("manpage", "manpage", "man", ".man");
 
 /// Manpage converter processor.
 #[derive(Clone, Debug)]
@@ -139,6 +144,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         for (name, value) in Self::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
         }
+        document_attributes.set("doctype".into(), Doctype::Manpage.as_str().into());
+        BACKEND_TRAITS.apply(&mut document_attributes, Doctype::Manpage);
 
         Self {
             options,
@@ -192,4 +199,34 @@ fn file_modified_date(path: &Path) -> Option<String> {
     let modified = metadata.modified().ok()?;
     let datetime: chrono::DateTime<chrono::Local> = modified.into();
     Some(datetime.format("%Y-%m-%d").to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn constructor_applies_manpage_backend_traits() {
+        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("backend")
+                .as_deref(),
+            Some("manpage")
+        );
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("doctype")
+                .as_deref(),
+            Some("manpage")
+        );
+        assert!(
+            processor
+                .document_attributes()
+                .contains_key("backend-manpage-doctype-manpage")
+        );
+    }
 }

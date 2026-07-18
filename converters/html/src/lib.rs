@@ -7,7 +7,8 @@ use std::{
 };
 
 use acdc_converters_core::{
-    Converter, Diagnostics, Options, WarningSource, inlines_to_string, visitor::Visitor,
+    BackendTraits, Converter, Diagnostics, Options, WarningSource, inlines_to_string,
+    visitor::Visitor,
 };
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
@@ -93,6 +94,15 @@ impl HtmlVariant {
             Self::Standard => "standard",
             Self::Semantic => "semantic",
         }
+    }
+
+    /// Intrinsic backend traits for this HTML output variant.
+    const fn backend_traits(self) -> BackendTraits {
+        let backend = match self {
+            Self::Standard => "html5",
+            Self::Semantic => "html5s",
+        };
+        BackendTraits::new(backend, "html", "html", ".html").with_htmlsyntax("html")
     }
 }
 
@@ -230,6 +240,9 @@ impl<'a> Processor<'a> {
     #[must_use]
     pub fn with_variant(mut self, variant: HtmlVariant) -> Self {
         self.variant = variant;
+        variant
+            .backend_traits()
+            .apply(&mut self.document_attributes, self.options.doctype());
         self
     }
 
@@ -610,6 +623,9 @@ impl<'a> Processor<'a> {
         for (name, value) in <Self as Converter<'a>>::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
         }
+        variant
+            .backend_traits()
+            .apply(&mut document_attributes, options.doctype());
 
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
         let part_number_tracker =
@@ -1067,6 +1083,18 @@ mod tests {
     fn new_defaults_to_standard() {
         let processor = Processor::new(Options::default(), DocumentAttributes::default());
         assert_eq!(processor.variant(), HtmlVariant::Standard);
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("backend")
+                .as_deref(),
+            Some("html5")
+        );
+        assert!(
+            processor
+                .document_attributes()
+                .contains_key("backend-html5")
+        );
     }
 
     #[test]
@@ -1074,6 +1102,23 @@ mod tests {
         let processor = Processor::new(Options::default(), DocumentAttributes::default())
             .with_variant(HtmlVariant::Semantic);
         assert_eq!(processor.variant(), HtmlVariant::Semantic);
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("backend")
+                .as_deref(),
+            Some("html5s")
+        );
+        assert!(
+            processor
+                .document_attributes()
+                .contains_key("backend-html5s")
+        );
+        assert!(
+            !processor
+                .document_attributes()
+                .contains_key("backend-html5")
+        );
     }
 
     #[test]
