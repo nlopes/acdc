@@ -11,7 +11,7 @@ default = ["pre-spec-subs"]
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
 pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
 images = ["dep:viuer"]
-highlighting = ["dep:syntect"]
+highlighting = ["dep:giallo"]
 emulator = ["dep:libghostty-vt", "dep:asciicast-rs", "dep:serde", "dep:serde_json"]
 
 [dependencies]
@@ -29,7 +29,7 @@ asciicast-rs = { version = "0.3", optional = true }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 # syntax highlighting (optional - saves ~7s compile time when disabled)
-syntect = { version = "5.3", optional = true }
+giallo = { git = "https://github.com/getzola/giallo.git", branch = "fancy-regex", optional = true, features = ["dump"] }
 # images on the terminal (optional - saves ~16s compile time when disabled)
 viuer = { version = "0.11", features = ["print-file"], optional = true }
 

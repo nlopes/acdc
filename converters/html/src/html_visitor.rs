@@ -194,7 +194,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// Emit syntax highlighting CSS in `<head>` when class-based mode is active.
     ///
     /// - Without `linkcss`: embeds CSS in a `<style>` block (default).
-    /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-syntect.css`.
+    /// - With `linkcss`: emits a `<link>` to `{stylesdir}/acdc-highlight.css`.
     #[cfg(feature = "highlighting")]
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
         if self
@@ -218,7 +218,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                         self.writer,
                         r#"<link rel="stylesheet" href="{}/{}">"#,
                         stylesdir.trim_end_matches('/'),
-                        crate::SYNTECT_STYLESHEET
+                        crate::HIGHLIGHT_STYLESHEET
                     )?;
                 } else if let Ok(css) = crate::syntax::highlight_css(&theme_name) {
                     writeln!(self.writer, "<style>\n{css}</style>")?;
