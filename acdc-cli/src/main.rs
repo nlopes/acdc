@@ -4,6 +4,7 @@
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "inspect",
     feature = "lint",
     feature = "tck",
@@ -16,6 +17,7 @@ use clap::{CommandFactory, FromArgMatches, Parser, Subcommand};
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "lint"
 ))]
 mod error;
@@ -35,6 +37,7 @@ mod timing;
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "inspect",
     feature = "lint",
     feature = "tck",
@@ -53,6 +56,7 @@ struct Cli {
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "inspect",
     feature = "lint",
     feature = "tck",
@@ -68,6 +72,10 @@ enum Commands {
     ))]
     /// Convert `AsciiDoc` documents to various output formats
     Convert(subcommands::convert::Args),
+
+    #[cfg(feature = "execute")]
+    /// Execute command blocks defined in `AsciiDoc` documents
+    Execute(subcommands::execute::Args),
 
     #[cfg(feature = "inspect")]
     /// Show a structural outline of an `AsciiDoc` document
@@ -104,6 +112,7 @@ fn setup_logging() {
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "inspect",
     feature = "lint",
     feature = "tck",
@@ -127,6 +136,8 @@ fn main() {
             feature = "terminal"
         ))]
         Commands::Convert(_) => true,
+        #[cfg(feature = "execute")]
+        Commands::Execute(_) => true,
         #[cfg(feature = "inspect")]
         Commands::Inspect(_) => true,
         #[cfg(feature = "tck")]
@@ -141,6 +152,11 @@ fn main() {
             feature = "terminal"
         ))]
         Commands::Convert(args) => subcommands::convert::run(&args),
+
+        #[cfg(feature = "execute")]
+        Commands::Execute(args) => {
+            subcommands::execute::run(&args).map_err(|e| miette::miette!("Execute failed: {e}"))
+        }
 
         #[cfg(feature = "inspect")]
         Commands::Inspect(args) => {
@@ -188,6 +204,7 @@ fn main() {
     feature = "markdown",
     feature = "pdf",
     feature = "terminal",
+    feature = "execute",
     feature = "inspect",
     feature = "lint",
     feature = "tck",
@@ -196,7 +213,7 @@ fn main() {
     setup_logging();
     eprintln!(
         "acdc was built without any subcommand features. Enable at least \
-         one of: html, manpage, markdown, pdf, terminal, inspect, lint, tck."
+         one of: html, manpage, markdown, pdf, terminal, execute, inspect, lint, tck."
     );
     std::process::exit(2);
 }

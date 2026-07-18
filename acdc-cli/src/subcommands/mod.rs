@@ -7,6 +7,9 @@
 ))]
 pub mod convert;
 
+#[cfg(feature = "execute")]
+pub mod execute;
+
 #[cfg(feature = "inspect")]
 pub mod inspect;
 

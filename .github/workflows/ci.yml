@@ -80,7 +80,7 @@ jobs:
           version: 0.15.2
       - uses: Swatinem/rust-cache@v2
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+        run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Run clippy (WASM editor)
