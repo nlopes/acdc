@@ -14,6 +14,11 @@ use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
 #[global_allocator]
 static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 
+// Requested allocation sizes can differ slightly across compiler targets due
+// to standard-library type layout. Keep this fixed tolerance small enough that
+// per-line or capacity-growth regressions still fail the budget.
+const ALLOCATED_BYTE_LAYOUT_TOLERANCE: usize = 128;
+
 #[derive(Clone, Copy)]
 struct Budget {
     allocations: usize,
@@ -130,6 +135,10 @@ fn measure(input: &str, options: &Options) -> Result<Stats, acdc_parser::Error> 
 }
 
 fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Budget) {
+    let allocated_byte_limit = budget
+        .bytes_allocated
+        .saturating_add(ALLOCATED_BYTE_LAYOUT_TOLERANCE);
+
     assert!(
         stats.allocations <= budget.allocations,
         "{case}/{line_count} allocation count regressed: {} > {} ({stats:?})",
@@ -143,10 +152,10 @@ fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Bud
         budget.reallocations
     );
     assert!(
-        stats.bytes_allocated <= budget.bytes_allocated,
+        stats.bytes_allocated <= allocated_byte_limit,
         "{case}/{line_count} allocated-byte count regressed: {} > {} ({stats:?})",
         stats.bytes_allocated,
-        budget.bytes_allocated
+        allocated_byte_limit
     );
     assert!(
         stats.bytes_reallocated <= budget.bytes_reallocated,
