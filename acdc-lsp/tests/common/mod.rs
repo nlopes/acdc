@@ -92,14 +92,29 @@ impl LspTestClient {
     ///
     /// Returns an error if the initialize handshake fails.
     pub(crate) fn initialize(&mut self) -> Result<Value, HarnessError> {
-        let result = self.send_request(
-            "initialize",
-            json!({
-                "processId": null,
-                "capabilities": {},
-                "rootUri": null
-            }),
-        )?;
+        self.initialize_with_options(Value::Null)
+    }
+
+    /// Initialize the server with implementation-specific options.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the initialize handshake fails.
+    pub(crate) fn initialize_with_options(
+        &mut self,
+        initialization_options: Value,
+    ) -> Result<Value, HarnessError> {
+        let mut params = json!({
+            "processId": null,
+            "capabilities": {},
+            "rootUri": null
+        });
+        if !initialization_options.is_null()
+            && let Some(object) = params.as_object_mut()
+        {
+            object.insert("initializationOptions".into(), initialization_options);
+        }
+        let result = self.send_request("initialize", params)?;
         self.send_notification("initialized", json!({}))?;
         Ok(result)
     }

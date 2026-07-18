@@ -1,9 +1,9 @@
 //! Workspace-level state management
 
 use std::collections::HashMap;
-use std::sync::RwLock;
+use std::sync::{PoisonError, RwLock};
 
-use acdc_parser::Location;
+use acdc_parser::{Location, Options};
 use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
 use tower_lsp_server::ls_types::Uri;
@@ -12,6 +12,7 @@ use crate::capabilities::{
     definition, diagnostics,
     workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
 };
+use crate::config::AnalysisBackend;
 use crate::limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded};
 use crate::state::DocumentState;
 use crate::state::document::ParsedText;
@@ -26,6 +27,8 @@ pub(crate) struct Workspace {
     roots: RwLock<Vec<Uri>>,
     /// Cached symbols for non-open files (populated by workspace scan)
     symbol_index: DashMap<Uri, Vec<IndexedSymbol>>,
+    /// Parser configuration shared by live and on-disk document analysis.
+    parser_options: RwLock<Options<'static>>,
 }
 
 impl Workspace {
@@ -37,7 +40,17 @@ impl Workspace {
             anchor_index: DashMap::new(),
             roots: RwLock::new(Vec::new()),
             symbol_index: DashMap::new(),
+            parser_options: RwLock::new(AnalysisBackend::default().parser_options()),
         }
+    }
+
+    /// Select the backend whose intrinsic attributes are visible during analysis.
+    pub(crate) fn set_analysis_backend(&self, backend: AnalysisBackend) {
+        let mut options = self
+            .parser_options
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
+        *options = backend.parser_options();
     }
 
     /// Set workspace root directories (from initialize params)
@@ -55,7 +68,7 @@ impl Workspace {
         // Remove old anchors for this URI from the global index
         self.remove_anchors_for_uri(&uri);
 
-        let mut state = Self::parse_and_index(text, version);
+        let mut state = self.parse_and_index(text, version);
 
         // Insert new anchors into the global index
         for (id, loc) in &state.anchors {
@@ -78,7 +91,9 @@ impl Workspace {
                 && let Some(target_uri) = crate::convert::resolve_relative_uri(&uri, file_path)
             {
                 if let Some(anchor_id) = &parsed.anchor {
-                    return Self::find_anchor_in_file_on_disk(&target_uri, anchor_id).is_some();
+                    return self
+                        .find_anchor_in_file_on_disk(&target_uri, anchor_id)
+                        .is_some();
                 }
                 // File-only reference (no anchor) — just check file exists
                 return target_uri.to_file_path().is_some_and(|p| p.exists());
@@ -166,15 +181,19 @@ impl Workspace {
         }
 
         // Try reading from disk if not open
-        Self::find_anchor_in_file_on_disk(uri, anchor_id)
+        self.find_anchor_in_file_on_disk(uri, anchor_id)
     }
 
     /// Read a file from disk and search for an anchor without indexing it
-    fn find_anchor_in_file_on_disk(uri: &Uri, anchor_id: &str) -> Option<Location> {
+    fn find_anchor_in_file_on_disk(&self, uri: &Uri, anchor_id: &str) -> Option<Location> {
         let path = uri.to_file_path()?;
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
         let text = read_bounded(path.as_ref())?;
-        let parsed = acdc_parser::parse(&text, &acdc_parser::Options::default()).ok()?;
+        let options = self
+            .parser_options
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
+        let parsed = acdc_parser::parse(&text, &options).ok()?;
         let anchors = definition::collect_anchors(parsed.document());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
@@ -203,6 +222,10 @@ impl Workspace {
     pub(crate) fn scan_workspace_files(&self) {
         let roots: Vec<Uri> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
         let files = discover_adoc_files(&roots);
+        let options = self
+            .parser_options
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
 
         for path in files {
             let Some(uri) = Uri::from_file_path(&path) else {
@@ -213,7 +236,7 @@ impl Workspace {
                 continue;
             }
             if let Some(text) = read_bounded(&path)
-                && let Ok(parsed) = acdc_parser::parse(&text, &acdc_parser::Options::default())
+                && let Ok(parsed) = acdc_parser::parse(&text, &options)
             {
                 let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri, symbols);
@@ -302,10 +325,15 @@ impl Workspace {
     fn reindex_file_from_disk(&self, uri: &Uri) {
         if let Some(path) = uri.to_file_path()
             && let Some(text) = read_bounded(path.as_ref())
-            && let Ok(parsed) = acdc_parser::parse(&text, &acdc_parser::Options::default())
         {
-            let symbols = extract_workspace_symbols(parsed.document());
-            self.symbol_index.insert(uri.clone(), symbols);
+            let options = self
+                .parser_options
+                .read()
+                .unwrap_or_else(PoisonError::into_inner);
+            if let Ok(parsed) = acdc_parser::parse(&text, &options) {
+                let symbols = extract_workspace_symbols(parsed.document());
+                self.symbol_index.insert(uri.clone(), symbols);
+            }
         }
     }
 
@@ -366,8 +394,11 @@ impl Workspace {
     }
 
     /// Parse document and extract all navigation data
-    fn parse_and_index(text: String, version: i32) -> DocumentState {
-        let options = acdc_parser::Options::default();
+    fn parse_and_index(&self, text: String, version: i32) -> DocumentState {
+        let options = self
+            .parser_options
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
 
         let mut anchors: HashMap<String, Location> = HashMap::new();
         let mut xrefs: Vec<(String, Location)> = Vec::new();
@@ -418,10 +449,7 @@ impl Workspace {
         let raw_conditionals = if let Some(attrs) = &ast_attributes {
             crate::state::document::extract_conditionals(raw_text, attrs)
         } else {
-            crate::state::document::extract_conditionals(
-                raw_text,
-                &acdc_parser::DocumentAttributes::default(),
-            )
+            crate::state::document::extract_conditionals(raw_text, &options.document_attributes)
         };
 
         DocumentState {
@@ -588,6 +616,75 @@ mod tests {
             has_warning,
             "expected a WARNING diagnostic from parser, got: {:?}",
             doc.diagnostics,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn default_html5_backend_activates_html_conditionals() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let workspace = Workspace::new();
+        let uri = "file:///backend-default.adoc".parse::<Uri>()?;
+        let content = "= Document\n\nifdef::backend-html5[]\n[[html-only]]\n== HTML Only\nendif::[]\n\nifdef::backend-pdf[]\n[[pdf-only]]\n== PDF Only\nendif::[]\n";
+
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let document = workspace
+            .get_document(&uri)
+            .ok_or("document should be indexed")?;
+        let ast = document.ast().ok_or("document should parse")?;
+        assert_eq!(
+            ast.document().attributes.get_string("backend").as_deref(),
+            Some("html5")
+        );
+        drop(ast);
+        assert!(document.anchors.contains_key("html-only"));
+        assert!(!document.anchors.contains_key("pdf-only"));
+        assert_eq!(
+            document
+                .conditionals
+                .iter()
+                .map(|conditional| conditional.is_active)
+                .collect::<Vec<_>>(),
+            [true, false]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn configured_pdf_backend_activates_reported_or_conditional()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        workspace.set_analysis_backend(AnalysisBackend::Pdf);
+        let uri = "file:///backend-pdf.adoc".parse::<Uri>()?;
+        let content = "= Document\nifdef::backend-pdf,backend-docbook5[]\n:title-page:\nendif::backend-pdf,backend-docbook5[]\n\nifdef::backend-pdf,backend-docbook5[]\n[[pdf-or-docbook]]\n== PDF or DocBook\nendif::backend-pdf,backend-docbook5[]\n";
+
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+
+        let document = workspace
+            .get_document(&uri)
+            .ok_or("document should be indexed")?;
+        let ast = document.ast().ok_or("document should parse")?;
+        assert_eq!(
+            ast.document().attributes.get_string("backend").as_deref(),
+            Some("pdf")
+        );
+        assert!(ast.document().attributes.contains_key("title-page"));
+        drop(ast);
+        assert!(document.anchors.contains_key("pdf-or-docbook"));
+        assert!(
+            document
+                .conditionals
+                .iter()
+                .all(|conditional| conditional.is_active)
+        );
+        assert!(
+            document
+                .diagnostics
+                .iter()
+                .all(|diagnostic| !diagnostic.message.starts_with("Inactive conditional block")),
+            "configured backend conditionals should not produce inactive diagnostics: {:?}",
+            document.diagnostics
         );
         Ok(())
     }

@@ -2,7 +2,7 @@
 //!
 //! Contains the main `Backend` struct that implements the `LanguageServer` trait.
 
-use tower_lsp_server::jsonrpc::Result;
+use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
     CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
     CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
@@ -32,6 +32,7 @@ use crate::capabilities::{
     folding, formatting, hover, inlay_hints, on_type_formatting, references, rename,
     selection_range, semantic_tokens, signature_help, symbols,
 };
+use crate::config::ServerOptions;
 use crate::state::Workspace;
 
 /// LSP backend for `AsciiDoc` documents
@@ -65,6 +66,15 @@ impl Backend {
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("Initializing acdc-lsp");
+
+        let options = params
+            .initialization_options
+            .map(serde_json::from_value::<ServerOptions>)
+            .transpose()
+            .map_err(|error| Error::invalid_params(error.to_string()))?
+            .unwrap_or_default();
+        self.workspace.set_analysis_backend(options.backend);
+        tracing::info!(backend = ?options.backend, "configured analysis backend");
 
         // Capture workspace roots for cross-file resolution
         let mut roots = Vec::new();

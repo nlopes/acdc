@@ -44,6 +44,26 @@ cargo build --release -p acdc-lsp
 
 The server communicates over stdio (standard input/output) using JSON-RPC, which is the standard LSP transport. You don't run it directly - your editor starts it automatically.
 
+### Analysis backend
+
+The language server analyzes documents using the `html5` backend by default, matching
+Asciidoctor. Projects targeting another output format can select it through the LSP
+initialization options:
+
+```json
+{
+  "initializationOptions": {
+    "backend": "pdf"
+  }
+}
+```
+
+Supported values are `html5`, `html5s`, `docbook5`, `manpage`, `markdown`, `pdf`, and
+`terminal`. The Asciidoctor aliases `html` and `docbook` are also accepted. The selected
+backend controls intrinsic attributes such as `backend`, `backend-pdf`, `basebackend`,
+`filetype`, and `outfilesuffix`, so conditional blocks and attribute references are
+analyzed in the same context as conversion.
+
 For debugging, you can enable trace logging:
 
 ```bash
