@@ -115,6 +115,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `ifdef` and `ifndef` conditions now accept any number of attribute names joined
+  by `,` or `+`. A named `endif` can repeat the complete condition
+  case-insensitively, matching `asciidoctor`. Conditional blocks also remain in
+  effect across blank lines and nest correctly, so skipped content and closing
+  directives no longer leak into the parsed document.
 - Warnings now report the correct original file and line for content that follows a
   preprocessor edit. A dropped adjacent line comment, a stripped
   `ifdef`/`ifndef`/`ifeval` block, or a collapsed multi-line attribute continuation

@@ -3,7 +3,7 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
-    fmt::Write as _,
+    ops::Range,
     path::{Path, PathBuf},
     rc::Rc,
 };
@@ -66,9 +66,22 @@ struct DirectiveContext<'a> {
     file_parent: Option<&'a Path>,
 }
 
+/// An open block-form conditional and whether its content is active after
+/// accounting for every enclosing conditional.
+#[derive(Debug)]
+struct ConditionalFrame<'input> {
+    conditional: conditional::Conditional<'input>,
+    active: bool,
+}
+
 /// Mutable state accumulated during preprocessing.
-struct PreprocessorState {
-    lines: Vec<String>,
+struct PreprocessorState<'input> {
+    input: &'input str,
+    output: Vec<Cow<'input, str>>,
+    /// A maximal run of unchanged output lines borrowed directly from `input`.
+    /// Interior newlines are part of the range; the newline after the final line
+    /// is supplied when output chunks are joined.
+    borrowed_run: Option<Range<usize>>,
     byte_offset: usize,
     leveloffset_ranges: Vec<LeveloffsetRange>,
     source_ranges: Vec<SourceRange>,
@@ -120,10 +133,63 @@ impl OriginMapping {
     }
 }
 
-impl PreprocessorState {
-    fn push_line(&mut self, line: String) {
+impl<'input> PreprocessorState<'input> {
+    fn new(input: &'input str, source_file: Option<&Path>) -> Self {
+        let mut src_line_starts = vec![0];
+        src_line_starts.extend(
+            input
+                .bytes()
+                .enumerate()
+                .filter_map(|(idx, byte)| (byte == b'\n').then_some(idx + 1)),
+        );
+        Self {
+            input,
+            output: Vec::new(),
+            borrowed_run: None,
+            byte_offset: 0,
+            leveloffset_ranges: Vec::new(),
+            source_ranges: Vec::new(),
+            source_file: source_file.map(Path::to_path_buf),
+            src_line_starts,
+            run: None,
+            run_expected_src_line: 1,
+        }
+    }
+
+    /// Flush the pending unchanged source run into a single borrowed output
+    /// chunk. This is the key slow-path allocation invariant: retained source
+    /// lines are grouped by contiguous input range instead of owned one-by-one.
+    fn flush_borrowed_run(&mut self) {
+        if let Some(range) = self.borrowed_run.take() {
+            self.output.push(Cow::Borrowed(&self.input[range]));
+        }
+    }
+
+    /// Emit a line that cannot be coalesced with unchanged source text.
+    fn push_line(&mut self, line: Cow<'input, str>) {
+        self.flush_borrowed_run();
         self.byte_offset += line.len() + 1;
-        self.lines.push(line);
+        self.output.push(line);
+    }
+
+    /// Emit an unchanged line from the primary input. Consecutive source lines
+    /// extend a single borrowed range, including their interior newlines.
+    fn push_source_line(&mut self, line: &'input str, src_line: usize) {
+        self.note_source_line(src_line);
+
+        let start = self.src_offset_of_line(src_line);
+        let end = start + line.len();
+        debug_assert_eq!(self.input.get(start..end), Some(line));
+
+        if let Some(range) = &mut self.borrowed_run
+            && range.end.checked_add(1) == Some(start)
+        {
+            range.end = end;
+        } else {
+            self.flush_borrowed_run();
+            self.borrowed_run = Some(start..end);
+        }
+        self.byte_offset += line.len() + 1;
     }
 
     /// Byte offset of 1-indexed source `line` in the primary input.
@@ -192,16 +258,16 @@ impl PreprocessorState {
         }
     }
 
-    /// Emit a multi-source-line chunk (a collapsed attribute continuation or a
-    /// retained conditional body) as its own standalone [`SourceRange`] anchored
-    /// at `src_start_line`, so it never shares a run with surrounding lines whose
+    /// Emit synthesized content (a collapsed attribute continuation or active
+    /// single-line conditional) as its own standalone [`SourceRange`] anchored at
+    /// `src_start_line`, so it never shares a run with surrounding lines whose
     /// output-newline count would otherwise be miscounted.
     fn push_chunk(&mut self, content: String, src_start_line: usize) {
         self.flush_run();
         let start = self.byte_offset;
         let source_start_offset = self.src_offset_of_line(src_start_line);
-        self.push_line(content);
-        // A collapsed continuation / retained conditional body is not re-indented.
+        self.push_line(Cow::Owned(content));
+        // Synthesized content is not re-indented.
         self.push_source_range(
             start,
             self.byte_offset,
@@ -295,7 +361,7 @@ pub(crate) fn read_and_decode_file(
 ///
 /// All public entry points take the handle explicitly; the struct is
 /// purely a carrier so nested `&self` helpers (`process_include`,
-/// `process_conditional`, `process_directive_line`) can reach the sink
+/// `process_conditional_line`, `process_directive_line`) can reach the sink
 /// without threading it through every parameter list.
 #[derive(Debug)]
 pub(crate) struct Preprocessor {
@@ -522,85 +588,6 @@ impl Preprocessor {
         Ok(None)
     }
 
-    /// Process a conditional directive (ifdef/ifndef/ifeval)
-    #[tracing::instrument(skip(self, lines, attributes))]
-    fn process_conditional<'a, I: Iterator<Item = &'a str>>(
-        &self,
-        line: &str,
-        lines: &mut std::iter::Peekable<I>,
-        ctx: &mut DirectiveContext<'_>,
-        attributes: &crate::DocumentAttributes,
-    ) -> Result<Option<(String, usize)>, Error> {
-        let mut content = String::new();
-        let condition_line_number = *ctx.line_number;
-        // Tracks whether any body line was consumed, so the returned content maps
-        // to the first body line (multi-line form) rather than the directive line
-        // (single-line form).
-        let mut body_consumed = false;
-        let condition = conditional::parse_line(
-            line,
-            condition_line_number,
-            ctx.current_offset,
-            ctx.file_parent,
-        )?;
-
-        while let Some(next_line) = lines.peek() {
-            if next_line.is_empty() {
-                tracing::trace!(?line, "single line if directive");
-                break;
-            } else if next_line.starts_with("endif") {
-                // Calculate the line number and offset for the endif line
-                let endif_line_number = *ctx.line_number + 1;
-                let endif_offset =
-                    ctx.current_offset + line.len() + content.len() + content.lines().count();
-                let endif = conditional::parse_endif(
-                    next_line,
-                    endif_line_number,
-                    endif_offset,
-                    ctx.file_parent,
-                )?;
-
-                if !endif.closes(&condition) {
-                    // Record as a warning in addition to raising the hard
-                    // error: the warning lands on `ParseResult::warnings`
-                    // even if the caller recovers from the error.
-                    self.add_warning_at(
-                        "attribute mismatch between if and endif directives",
-                        Self::create_source_location(endif_line_number, ctx.file_parent),
-                    );
-                    return Err(Error::InvalidConditionalDirective(Box::new(
-                        Self::create_source_location(endif_line_number, ctx.file_parent),
-                    )));
-                }
-                tracing::trace!(?content, "multiline if directive");
-                lines.next();
-                *ctx.line_number += 1;
-                break;
-            }
-            let _ = writeln!(content, "{next_line}");
-            lines.next();
-            *ctx.line_number += 1;
-            body_consumed = true;
-        }
-
-        if condition.is_true(
-            attributes,
-            &mut content,
-            condition_line_number,
-            ctx.current_offset,
-            ctx.file_parent,
-        )? {
-            let content_start_line = if body_consumed {
-                condition_line_number + 1
-            } else {
-                condition_line_number
-            };
-            Ok(Some((content, content_start_line)))
-        } else {
-            Ok(None)
-        }
-    }
-
     #[tracing::instrument(skip(lines, attribute_content))]
     fn process_continuation<'a, I: Iterator<Item = &'a str>>(
         attribute_content: &mut String,
@@ -682,7 +669,8 @@ impl Preprocessor {
     /// This also merges nested ranges from included files, adjusting their byte offsets
     /// to be relative to the current output position. This enables proper accumulation
     /// through arbitrarily deep include nesting.
-    fn handle_include_result(include_result: IncludeResult, state: &mut PreprocessorState) {
+    fn handle_include_result(include_result: IncludeResult, state: &mut PreprocessorState<'_>) {
+        state.flush_borrowed_run();
         let start_offset = state.byte_offset;
 
         // Calculate the byte length of the included content
@@ -809,16 +797,90 @@ impl Preprocessor {
         }
 
         state.byte_offset += content_len;
-        state.lines.extend(include_result.lines);
+        state
+            .output
+            .extend(include_result.lines.into_iter().map(Cow::Owned));
     }
 
-    fn process_directive_line<'a>(
+    /// Process a block or single-line conditional directive.
+    ///
+    /// Returns `true` when `line` was a conditional directive and therefore
+    /// must not be emitted as ordinary document content.
+    fn process_conditional_line<'input>(
         &self,
-        line: &'a str,
-        lines: &mut std::iter::Peekable<std::str::Lines<'a>>,
+        line: &'input str,
+        ctx: &DirectiveContext<'_>,
+        attributes: &crate::DocumentAttributes,
+        stack: &mut Vec<ConditionalFrame<'input>>,
+        out: &mut PreprocessorState<'_>,
+    ) -> Result<bool, Error> {
+        if !line.ends_with(']') || line.starts_with('[') || !line.contains("::") {
+            return Ok(false);
+        }
+
+        if line.starts_with("ifdef") || line.starts_with("ifndef") || line.starts_with("ifeval") {
+            let mut content = String::new();
+            let conditional = conditional::parse_line(
+                line,
+                *ctx.line_number,
+                ctx.current_offset,
+                ctx.file_parent,
+            )?;
+            let parent_active = stack.last().is_none_or(|frame| frame.active);
+            let is_inline = conditional.has_inline_content();
+            let active = parent_active
+                && conditional.is_true(
+                    attributes,
+                    &mut content,
+                    *ctx.line_number,
+                    ctx.current_offset,
+                    ctx.file_parent,
+                )?;
+
+            if is_inline {
+                if active {
+                    out.push_chunk(content, *ctx.line_number);
+                }
+            } else {
+                stack.push(ConditionalFrame {
+                    conditional,
+                    active,
+                });
+            }
+            return Ok(true);
+        }
+
+        if line.starts_with("endif")
+            && let Some(frame) = stack.last()
+        {
+            let endif = conditional::parse_endif(
+                line,
+                *ctx.line_number,
+                ctx.current_offset,
+                ctx.file_parent,
+            )?;
+            if !endif.closes(&frame.conditional) {
+                self.add_warning_at(
+                    "attribute mismatch between if and endif directives",
+                    Self::create_source_location(*ctx.line_number, ctx.file_parent),
+                );
+                return Err(Error::InvalidConditionalDirective(Box::new(
+                    Self::create_source_location(*ctx.line_number, ctx.file_parent),
+                )));
+            }
+            stack.pop();
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    fn process_directive_line<'input>(
+        &self,
+        line: &'input str,
         ctx: &mut DirectiveContext<'_>,
         options: &Options,
-        out: &mut PreprocessorState,
+        out: &mut PreprocessorState<'input>,
     ) -> Result<(), Error> {
         if line.starts_with("\\include")
             || line.starts_with("\\ifdef")
@@ -826,16 +888,7 @@ impl Preprocessor {
             || line.starts_with("\\ifeval")
         {
             out.note_source_line(*ctx.line_number);
-            out.push_line(line[1..].to_string());
-        } else if line.starts_with("ifdef")
-            || line.starts_with("ifndef")
-            || line.starts_with("ifeval")
-        {
-            if let Some((content, content_start_line)) =
-                self.process_conditional(line, lines, ctx, &options.document_attributes)?
-            {
-                out.push_chunk(content, content_start_line);
-            }
+            out.push_line(Cow::Borrowed(&line[1..]));
         } else if line.starts_with("include") {
             // Included content carries its own source ranges; close the main-file
             // run first so it does not overlap them.
@@ -850,8 +903,7 @@ impl Preprocessor {
                 Self::handle_include_result(include_result, out);
             }
         } else {
-            out.note_source_line(*ctx.line_number);
-            out.push_line(line.to_string());
+            out.push_source_line(line, *ctx.line_number);
         }
         Ok(())
     }
@@ -877,49 +929,66 @@ impl Preprocessor {
             });
         }
 
+        self.process_slow_path(&normalized, file_parent, options, setext)
+    }
+
+    /// Rebuild a document that contains at least one preprocessor trigger.
+    ///
+    /// Keep this out of line so the much larger include/conditional machinery
+    /// cannot perturb instruction layout for the common pass-through path.
+    #[cold]
+    #[inline(never)]
+    fn process_slow_path<'a>(
+        &self,
+        normalized: &Cow<'a, str>,
+        file_parent: Option<&Path>,
+        options: &Options,
+        setext: bool,
+    ) -> Result<PreprocessorResult<'a>, Error> {
         // Slow path: at least one trigger fires (include, conditional,
         // multi-line attribute continuation, or escaped directive). Rebuild
-        // line-by-line as before. Hold the normalized text as a local so the
-        // peekable iterator can borrow from it for the duration of this call.
-        let normalized_owned;
-        let normalized_ref: &str = match &normalized {
-            Cow::Borrowed(s) => s,
-            Cow::Owned(s) => {
-                normalized_owned = s;
-                normalized_owned.as_str()
-            }
-        };
+        // line-by-line. The output is materialized before `normalized` drops,
+        // whether normalization borrowed the caller's input or created a buffer.
+        let normalized_ref = normalized.as_ref();
 
         let mut options = options.clone();
-        let output = Vec::with_capacity(normalized_ref.lines().count());
-        // Byte offset of each source line in the normalized primary input, so a
-        // run/chunk anchored at a source line can record its origin-file byte offset.
-        let mut src_line_starts = vec![0usize];
-        src_line_starts.extend(
-            normalized_ref
-                .bytes()
-                .enumerate()
-                .filter_map(|(idx, b)| (b == b'\n').then_some(idx + 1)),
-        );
         let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut current_offset = 0;
-        let mut out = PreprocessorState {
-            lines: output,
-            byte_offset: 0,
-            leveloffset_ranges: Vec::new(),
-            source_ranges: Vec::new(),
-            source_file: file_parent.map(Path::to_path_buf),
-            src_line_starts,
-            run: None,
-            run_expected_src_line: 1,
-        };
+        let mut out = PreprocessorState::new(normalized_ref, file_parent);
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
         let mut scanner = CommentScanner::new(setext);
+        let mut conditional_stack = Vec::new();
 
         while let Some(line) = lines.next() {
+            let conditional_consumed = {
+                let ctx = DirectiveContext {
+                    line_number: &mut line_number,
+                    current_offset,
+                    file_parent,
+                };
+                self.process_conditional_line(
+                    line,
+                    &ctx,
+                    &options.document_attributes,
+                    &mut conditional_stack,
+                    &mut out,
+                )?
+            };
+            if conditional_consumed {
+                current_offset += line.len() + 1;
+                line_number += 1;
+                continue;
+            }
+
+            if conditional_stack.last().is_some_and(|frame| !frame.active) {
+                current_offset += line.len() + 1;
+                line_number += 1;
+                continue;
+            }
+
             if line.starts_with(':') && (line.ends_with(" + \\") || line.ends_with(" \\")) {
                 let mut attribute_content = String::with_capacity(line.len() * 2);
                 if line.ends_with(" + \\") {
@@ -946,8 +1015,7 @@ impl Preprocessor {
                 attribute::parse_line(&mut options.document_attributes, line.trim());
             }
             if scanner.at_verbatim_delimiter(line) {
-                out.note_source_line(line_number);
-                out.push_line(line.to_string());
+                out.push_source_line(line, line_number);
             } else if line.starts_with("//") {
                 if scanner.drops(line) {
                     // Drop the adjacent comment; don't `record` it, so a run of
@@ -958,18 +1026,16 @@ impl Preprocessor {
                     line_number += 1;
                     continue;
                 }
-                out.note_source_line(line_number);
-                out.push_line(line.to_string());
+                out.push_source_line(line, line_number);
             } else if line.ends_with(']') && !line.starts_with('[') && line.contains("::") {
                 let mut ctx = DirectiveContext {
                     line_number: &mut line_number,
                     current_offset,
                     file_parent,
                 };
-                self.process_directive_line(line, &mut lines, &mut ctx, &options, &mut out)?;
+                self.process_directive_line(line, &mut ctx, &options, &mut out)?;
             } else {
-                out.note_source_line(line_number);
-                out.push_line(line.to_string());
+                out.push_source_line(line, line_number);
             }
             scanner.record(line);
             current_offset += line.len() + 1;
@@ -977,9 +1043,10 @@ impl Preprocessor {
         }
 
         out.flush_run();
+        out.flush_borrowed_run();
 
         Ok(PreprocessorResult {
-            text: Cow::Owned(out.lines.join("\n")),
+            text: Cow::Owned(out.output.join("\n")),
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
         })
@@ -992,6 +1059,23 @@ mod tests {
     use crate::grammar::LineMap;
 
     #[test]
+    fn unchanged_source_lines_share_one_borrowed_output_chunk() {
+        let input = "first\n\nsecond\nthird";
+        let mut state = PreprocessorState::new(input, None);
+
+        for (index, line) in input.lines().enumerate() {
+            state.push_source_line(line, index + 1);
+        }
+        state.flush_borrowed_run();
+
+        assert_eq!(state.output.len(), 1);
+        assert!(matches!(
+            state.output.as_slice(),
+            [Cow::Borrowed(output)] if *output == input
+        ));
+    }
+
+    #[test]
     fn test_process() -> Result<(), Error> {
         let options = Options::default();
         let input = ":attribute: value
@@ -1001,7 +1085,140 @@ content
 endif::[]
 ";
         let result = Preprocessor::process(input, &options, Rc::default())?;
-        assert_eq!(result.text, ":attribute: value\n\ncontent\n");
+        assert_eq!(result.text, ":attribute: value\n\ncontent");
+        Ok(())
+    }
+
+    #[test]
+    fn multi_attribute_conditional_in_header() -> Result<(), Error> {
+        let input = "= Title
+ifdef::backend-pdf,backend-docbook5[]
+:title-page:
+endif::backend-pdf,backend-docbook5[]
+
+== Visible
+Body";
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+        assert_eq!(result.text, "= Title\n\n== Visible\nBody");
+        Ok(())
+    }
+
+    #[test]
+    fn active_multi_attribute_conditional_in_header() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_attribute("backend-pdf", true)
+            .build();
+        let input = "= Title
+ifdef::backend-pdf,backend-docbook5[]
+:title-page:
+endif::backend-pdf,backend-docbook5[]
+
+== Visible
+Body";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "= Title\n:title-page:\n\n== Visible\nBody");
+        Ok(())
+    }
+
+    #[test]
+    fn parser_accepts_multi_attribute_conditional_in_header() -> Result<(), Error> {
+        let input = "= Title
+ifdef::backend-pdf,backend-docbook5[]
+:title-page:
+endif::backend-pdf,backend-docbook5[]
+
+== Visible
+Body";
+        let parsed = crate::parse(input, &Options::default())?;
+        assert!(parsed.document().header.is_some());
+        assert!(matches!(
+            parsed.document().blocks.as_slice(),
+            [crate::Block::Section(_)]
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn inactive_conditional_body_can_contain_blank_lines() -> Result<(), Error> {
+        let input = "= Title
+
+ifdef::backend-pdf,backend-docbook5[]
+
+== Hidden
+
+Hidden body
+
+endif::backend-pdf,backend-docbook5[]
+
+== Visible
+Visible body";
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+        assert_eq!(result.text, "= Title\n\n\n== Visible\nVisible body");
+        assert!(!result.text.contains("Hidden"));
+        assert!(!result.text.contains("endif::"));
+        Ok(())
+    }
+
+    #[test]
+    fn nested_conditionals_follow_enclosing_activity() -> Result<(), Error> {
+        let options = Options::builder().with_attribute("outer", true).build();
+        let input = "ifdef::outer[]
+outer content
+ifdef::inner[]
+hidden inner content
+endif::inner[]
+after inner
+endif::outer[]
+tail";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "outer content\nafter inner\ntail");
+        Ok(())
+    }
+
+    #[test]
+    fn inactive_enclosing_conditional_hides_active_nested_condition() -> Result<(), Error> {
+        let options = Options::builder().with_attribute("inner", true).build();
+        let input = "ifdef::outer[]
+hidden outer content
+ifdef::inner[]
+hidden inner content
+endif::inner[]
+endif::outer[]
+tail";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "tail");
+        Ok(())
+    }
+
+    #[test]
+    fn multi_attribute_conditions_evaluate_every_attribute() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_attribute("third", true)
+            .with_attribute("first", true)
+            .with_attribute("second", true)
+            .build();
+        let input = "ifdef::missing-one,missing-two,third[]
+or content
+endif::missing-one,missing-two,third[]
+ifdef::first+second+third[]
+and content
+endif::first+second+third[]";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, "or content\nand content");
+        Ok(())
+    }
+
+    #[test]
+    fn attribute_defined_in_active_conditional_affects_later_condition() -> Result<(), Error> {
+        let options = Options::builder().with_attribute("outer", true).build();
+        let input = "ifdef::outer[]
+:inner:
+endif::outer[]
+ifdef::inner[]
+visible
+endif::inner[]";
+        let result = Preprocessor::process(input, &options, Rc::default())?;
+        assert_eq!(result.text, ":inner:\nvisible");
         Ok(())
     }
 
@@ -1097,6 +1314,13 @@ more";
         let input = "one\nifdef::cond[]\nhidden\nendif::[]\ntwo\n";
         assert_eq!(reported_source_line(input, "doc.adoc", "one"), Some(1));
         assert_eq!(reported_source_line(input, "doc.adoc", "two"), Some(5));
+    }
+
+    #[test]
+    fn active_conditional_remaps_body_and_following_lines_to_source() {
+        let input = ":cond:\nifdef::cond[]\ninside\nendif::[]\nafter\n";
+        assert_eq!(reported_source_line(input, "doc.adoc", "inside"), Some(3));
+        assert_eq!(reported_source_line(input, "doc.adoc", "after"), Some(5));
     }
 
     #[test]
@@ -1318,7 +1542,7 @@ ifdef::asdf[]
 content
 endif::asdf[]";
         let result = Preprocessor::process(input, &options, Rc::default())?;
-        assert_eq!(result.text, ":asdf:\n\ncontent\n");
+        assert_eq!(result.text, ":asdf:\n\ncontent");
         Ok(())
     }
 
@@ -1329,6 +1553,18 @@ endif::asdf[]";
 content
 endif::another[]";
         let output = Preprocessor::process(input, &options, Rc::default());
+        assert!(matches!(
+            output,
+            Err(Error::InvalidConditionalDirective(..))
+        ));
+    }
+
+    #[test]
+    fn multi_attribute_endif_must_match_complete_condition() {
+        let input = "ifdef::backend-pdf,backend-docbook5[]
+content
+endif::backend-pdf[]";
+        let output = Preprocessor::process(input, &Options::default(), Rc::default());
         assert!(matches!(
             output,
             Err(Error::InvalidConditionalDirective(..))

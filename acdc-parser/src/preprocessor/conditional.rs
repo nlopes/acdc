@@ -7,34 +7,32 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) enum Conditional {
-    Ifdef(Ifdef),
-    Ifndef(Ifndef),
-    Ifeval(Ifeval),
+pub(crate) struct Conditional<'input> {
+    condition: Condition<'input>,
+    content: Option<&'input str>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
+enum Condition<'input> {
+    Ifdef(AttributeCondition<'input>),
+    Ifndef(AttributeCondition<'input>),
+    Ifeval(EvalCondition),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum Operation {
     Or,
     And,
 }
 
-#[derive(Debug)]
-pub(crate) struct Ifdef {
-    attributes: Vec<String>,
-    content: Option<String>,
+#[derive(Debug, PartialEq)]
+struct AttributeCondition<'input> {
+    attributes: Vec<&'input str>,
     operation: Option<Operation>,
 }
 
 #[derive(Debug)]
-pub(crate) struct Ifndef {
-    attributes: Vec<String>,
-    content: Option<String>,
-    operation: Option<Operation>,
-}
-
-#[derive(Debug)]
-pub(crate) struct Ifeval {
+struct EvalCondition {
     left: EvalValue,
     operator: Operator,
     right: EvalValue,
@@ -58,63 +56,67 @@ pub(crate) enum Operator {
 }
 
 #[derive(Debug)]
-pub(crate) struct Endif {
-    pub(crate) attribute: Option<String>,
+pub(crate) struct Endif<'input> {
+    condition: Option<AttributeCondition<'input>>,
 }
 
 peg::parser! {
     grammar conditional_parser() for str {
-        pub(crate) rule conditional() -> Conditional
+        pub(crate) rule conditional() -> Conditional<'input>
             = ifdef() / ifndef() / ifeval()
 
-        pub(crate) rule endif() -> Endif
-            = "endif::" attribute:name()? "[]" {
+        pub(crate) rule endif() -> Endif<'input>
+            = "endif::" condition:attribute_condition()? "[]" {
                 Endif {
-                    attribute
+                    condition
                 }
             }
 
-        rule ifdef() -> Conditional
-            = "ifdef::" a:attributes() "[" content:content()? "]" {
-                Conditional::Ifdef(Ifdef {
-                    attributes: a.0,
-                    operation: a.1,
+        rule ifdef() -> Conditional<'input>
+            = "ifdef::" condition:attribute_condition() "[" content:content()? "]" {
+                Conditional {
+                    condition: Condition::Ifdef(condition),
                     content,
-                })
+                }
             }
 
-        rule ifndef() -> Conditional
-            = "ifndef::" a:attributes() "[" content:content()? "]" {
-                Conditional::Ifndef(Ifndef {
-                    attributes: a.0,
-                    operation: a.1,
+        rule ifndef() -> Conditional<'input>
+            = "ifndef::" condition:attribute_condition() "[" content:content()? "]" {
+                Conditional {
+                    condition: Condition::Ifndef(condition),
                     content,
-                })
+                }
             }
 
-        rule ifeval() -> Conditional
+        rule ifeval() -> Conditional<'input>
             = "ifeval::[" left:eval_value() operator:operator() right:eval_value() "]" {
 
                 // We parse everything we get here as a string, then whoever gets this,
                 // should convert into the proper EvalValue
-                Conditional::Ifeval(Ifeval {
-                    left: EvalValue::String(left),
-                    operator,
-                    right: EvalValue::String(right)
-                })
+                Conditional {
+                    condition: Condition::Ifeval(EvalCondition {
+                        left: EvalValue::String(left),
+                        operator,
+                        right: EvalValue::String(right)
+                    }),
+                    content: None,
+                }
             }
 
-        rule attributes() -> (Vec<String>, Option<Operation>)
-            = n1:name() op:operation() rest:(n:name() { n })* {
-                let mut names = vec![n1];
-                names.extend(rest);
-                (names, Some(op))
+        rule attribute_condition() -> AttributeCondition<'input>
+            = first:name() rest:("," name:name() { name })+ {
+                let mut attributes = Vec::with_capacity(rest.len() + 1);
+                attributes.push(first);
+                attributes.extend(rest);
+                AttributeCondition::new(attributes, Some(Operation::Or))
             }
-        / n1:name() { (vec![n1], None) }
-
-        rule operation() -> Operation
-            = "+" { Operation::And }
-        / "," { Operation::Or }
+        / first:name() rest:("+" name:name() { name })+ {
+                let mut attributes = Vec::with_capacity(rest.len() + 1);
+                attributes.push(first);
+                attributes.extend(rest);
+                AttributeCondition::new(attributes, Some(Operation::And))
+            }
+        / name:name() { AttributeCondition::new(vec![name], None) }
 
         rule eval_value() -> String
             = n:$((!operator() ![']'] [_])+)  {
@@ -131,21 +133,40 @@ peg::parser! {
 
         rule name_match() = (!['[' | ',' | '+'] [_])+
 
-        rule name() -> String
+        rule name() -> &'input str
             = n:$(name_match())  {
-                n.to_string()
+                n
             }
 
-        rule content() -> String
+        rule content() -> &'input str
             = c:$((!"]" [_])+) {
-                c.to_string()
+                c
             }
     }
 }
 
-impl Conditional {
+impl<'input> AttributeCondition<'input> {
+    fn new(attributes: Vec<&'input str>, operation: Option<Operation>) -> Self {
+        Self {
+            attributes,
+            operation,
+        }
+    }
+
+    fn matches(&self, other: &Self) -> bool {
+        self.operation == other.operation
+            && self.attributes.len() == other.attributes.len()
+            && self
+                .attributes
+                .iter()
+                .zip(&other.attributes)
+                .all(|(left, right)| left.eq_ignore_ascii_case(right))
+    }
+}
+
+impl Conditional<'_> {
     fn evaluate_attributes(
-        attrs: &[String],
+        attrs: &[&str],
         operation: Option<&Operation>,
         doc_attrs: &DocumentAttributes,
         negate: bool,
@@ -171,54 +192,53 @@ impl Conditional {
         current_offset: usize,
         file_parent: Option<&Path>,
     ) -> Result<bool, Error> {
-        Ok(match self {
-            Conditional::Ifdef(ifdef) => {
-                let is_true = Self::evaluate_attributes(
-                    &ifdef.attributes,
-                    ifdef.operation.as_ref(),
-                    attributes,
-                    false,
-                );
-                if is_true && let Some(if_content) = &ifdef.content {
-                    content.clone_from(if_content);
-                }
-                is_true
-            }
-            Conditional::Ifndef(ifndef) => {
-                let is_true = Self::evaluate_attributes(
-                    &ifndef.attributes,
-                    ifndef.operation.as_ref(),
-                    attributes,
-                    true,
-                );
-                if is_true && let Some(if_content) = &ifndef.content {
-                    content.clone_from(if_content);
-                }
-                is_true
-            }
-            Conditional::Ifeval(ifeval) => {
+        let is_true = match &self.condition {
+            Condition::Ifdef(condition) => Self::evaluate_attributes(
+                &condition.attributes,
+                condition.operation.as_ref(),
+                attributes,
+                false,
+            ),
+            Condition::Ifndef(condition) => Self::evaluate_attributes(
+                &condition.attributes,
+                condition.operation.as_ref(),
+                attributes,
+                true,
+            ),
+            Condition::Ifeval(ifeval) => {
                 ifeval.evaluate(attributes, line_number, current_offset, file_parent)?
             }
-        })
+        };
+        if is_true && let Some(if_content) = &self.content {
+            content.push_str(if_content);
+        }
+        Ok(is_true)
     }
-}
 
-impl Endif {
-    #[tracing::instrument(level = "trace")]
-    pub(crate) fn closes(&self, conditional: &Conditional) -> bool {
-        if let Some(attribute) = &self.attribute {
-            match conditional {
-                Conditional::Ifdef(ifdef) => ifdef.attributes.contains(attribute),
-                Conditional::Ifndef(ifndef) => ifndef.attributes.contains(attribute),
-                Conditional::Ifeval(_ifeval) => false,
-            }
-        } else {
-            true
+    pub(crate) fn has_inline_content(&self) -> bool {
+        self.content.is_some()
+    }
+
+    fn attribute_condition(&self) -> Option<&AttributeCondition<'_>> {
+        match &self.condition {
+            Condition::Ifdef(condition) | Condition::Ifndef(condition) => Some(condition),
+            Condition::Ifeval(_) => None,
         }
     }
 }
 
-impl Ifeval {
+impl Endif<'_> {
+    #[tracing::instrument(level = "trace")]
+    pub(crate) fn closes(&self, conditional: &Conditional<'_>) -> bool {
+        match (&self.condition, conditional.attribute_condition()) {
+            (None, _) => true,
+            (Some(endif), Some(opening)) => endif.matches(opening),
+            (Some(_), None) => false,
+        }
+    }
+}
+
+impl EvalCondition {
     #[tracing::instrument(level = "trace", skip(file_parent))]
     fn evaluate(
         &self,
@@ -294,12 +314,12 @@ impl EvalValue {
 }
 
 #[tracing::instrument(level = "trace", skip(file_parent))]
-pub(crate) fn parse_line(
-    line: &str,
+pub(crate) fn parse_line<'input>(
+    line: &'input str,
     line_number: usize,
     current_offset: usize,
     file_parent: Option<&Path>,
-) -> Result<Conditional, Error> {
+) -> Result<Conditional<'input>, Error> {
     conditional_parser::conditional(line).map_err(|error| {
         tracing::error!(?error, "failed to parse conditional directive");
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
@@ -310,12 +330,12 @@ pub(crate) fn parse_line(
 }
 
 #[tracing::instrument(level = "trace", skip(file_parent))]
-pub(crate) fn parse_endif(
-    line: &str,
+pub(crate) fn parse_endif<'input>(
+    line: &'input str,
     line_number: usize,
     current_offset: usize,
     file_parent: Option<&Path>,
-) -> Result<Endif, Error> {
+) -> Result<Endif<'input>, Error> {
     conditional_parser::endif(line).map_err(|error| {
         tracing::error!(?error, "failed to parse endif directive");
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
@@ -334,7 +354,7 @@ mod tests {
         let line = "ifdef::attribute[]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attribute"] && ifdef.operation.is_none() && ifdef.content.is_none())
+            matches!(conditional, Conditional { condition: Condition::Ifdef(condition), content: None } if condition.attributes == vec!["attribute"] && condition.operation.is_none())
         );
         Ok(())
     }
@@ -344,7 +364,7 @@ mod tests {
         let line = "ifdef::attr1,attr2[]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attr1", "attr2"] && ifdef.operation == Some(Operation::Or) && ifdef.content.is_none())
+            matches!(conditional, Conditional { condition: Condition::Ifdef(condition), content: None } if condition.attributes == vec!["attr1", "attr2"] && condition.operation == Some(Operation::Or))
         );
         Ok(())
     }
@@ -354,9 +374,35 @@ mod tests {
         let line = "ifdef::attr1+attr2[]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attr1", "attr2"] && ifdef.operation == Some(Operation::And) && ifdef.content.is_none())
+            matches!(conditional, Conditional { condition: Condition::Ifdef(condition), content: None } if condition.attributes == vec!["attr1", "attr2"] && condition.operation == Some(Operation::And))
         );
         Ok(())
+    }
+
+    #[test]
+    fn test_ifdef_three_or_attributes() -> Result<(), Error> {
+        let conditional = parse_line("ifdef::attr1,attr2,attr3[]", 1, 0, None)?;
+        assert!(
+            matches!(conditional, Conditional { condition: Condition::Ifdef(condition), .. } if condition.attributes == vec!["attr1", "attr2", "attr3"] && condition.operation == Some(Operation::Or))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_ifdef_three_and_attributes() -> Result<(), Error> {
+        let conditional = parse_line("ifdef::attr1+attr2+attr3[]", 1, 0, None)?;
+        assert!(
+            matches!(conditional, Conditional { condition: Condition::Ifdef(condition), .. } if condition.attributes == vec!["attr1", "attr2", "attr3"] && condition.operation == Some(Operation::And))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_ifdef_rejects_mixed_attribute_operators() {
+        assert!(matches!(
+            parse_line("ifdef::attr1,attr2+attr3[]", 1, 0, None),
+            Err(Error::InvalidConditionalDirective(..))
+        ));
     }
 
     #[test]
@@ -364,7 +410,7 @@ mod tests {
         let line = "ifndef::attribute[]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(conditional, Conditional::Ifndef(ifndef) if ifndef.attributes == vec!["attribute"] && ifndef.operation.is_none() && ifndef.content.is_none())
+            matches!(conditional, Conditional { condition: Condition::Ifndef(condition), content: None } if condition.attributes == vec!["attribute"] && condition.operation.is_none())
         );
         Ok(())
     }
@@ -374,7 +420,7 @@ mod tests {
         let line = "ifeval::[1 + 1 == 2]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("1 + 1".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("2".to_string()))
+            matches!(&conditional, Conditional { condition: Condition::Ifeval(ifeval), content: None } if ifeval.left == EvalValue::String("1 + 1".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("2".to_string()))
         );
         assert!(conditional.is_true(
             &DocumentAttributes::default(),
@@ -391,7 +437,7 @@ mod tests {
         let line = "ifeval::['ASDF' == ASDF]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("'ASDF'".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("ASDF".to_string()))
+            matches!(&conditional, Conditional { condition: Condition::Ifeval(ifeval), content: None } if ifeval.left == EvalValue::String("'ASDF'".to_string()) && ifeval.operator == Operator::Equal && ifeval.right == EvalValue::String("ASDF".to_string()))
         );
         assert!(conditional.is_true(
             &DocumentAttributes::default(),
@@ -408,7 +454,7 @@ mod tests {
         let line = "ifeval::['1+1' >= 2]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(&conditional, Conditional::Ifeval(ifeval) if ifeval.left == EvalValue::String("'1+1'".to_string()) && ifeval.operator == Operator::GreaterThanOrEqual && ifeval.right == EvalValue::String("2".to_string()))
+            matches!(&conditional, Conditional { condition: Condition::Ifeval(ifeval), content: None } if ifeval.left == EvalValue::String("'1+1'".to_string()) && ifeval.operator == Operator::GreaterThanOrEqual && ifeval.right == EvalValue::String("2".to_string()))
         );
 
         assert!(matches!(
@@ -429,7 +475,7 @@ mod tests {
         let line = "ifdef::attribute[Some content here]";
         let conditional = parse_line(line, 1, 0, None)?;
         assert!(
-            matches!(conditional, Conditional::Ifdef(ifdef) if ifdef.attributes == vec!["attribute"] && ifdef.operation.is_none() && ifdef.content == Some("Some content here".to_string()))
+            matches!(conditional, Conditional { condition: Condition::Ifdef(condition), content: Some(content) } if condition.attributes == vec!["attribute"] && condition.operation.is_none() && content == "Some content here")
         );
         Ok(())
     }
@@ -438,7 +484,13 @@ mod tests {
     fn test_endif() -> Result<(), Error> {
         let line = "endif::attribute[]";
         let endif = parse_endif(line, 1, 0, None)?;
-        assert_eq!(endif.attribute, Some("attribute".to_string()));
+        assert!(matches!(
+            endif.condition,
+            Some(AttributeCondition {
+                attributes,
+                operation: None,
+            }) if attributes == ["attribute"]
+        ));
         Ok(())
     }
 
@@ -446,7 +498,27 @@ mod tests {
     fn test_endif_no_attribute() -> Result<(), Error> {
         let line = "endif::[]";
         let endif = parse_endif(line, 1, 0, None)?;
-        assert_eq!(endif.attribute, None);
+        assert_eq!(endif.condition, None);
+        Ok(())
+    }
+
+    #[test]
+    fn test_endif_matches_complete_condition_case_insensitively() -> Result<(), Error> {
+        let conditional = parse_line("ifdef::Backend-PDF,Backend-DocBook5[]", 1, 0, None)?;
+        let endif = parse_endif("endif::backend-pdf,backend-docbook5[]", 2, 0, None)?;
+        assert!(endif.closes(&conditional));
+        Ok(())
+    }
+
+    #[test]
+    fn test_endif_rejects_partial_or_reordered_condition() -> Result<(), Error> {
+        let conditional = parse_line("ifdef::backend-pdf,backend-docbook5[]", 1, 0, None)?;
+        let partial = parse_endif("endif::backend-pdf[]", 2, 0, None)?;
+        let reordered = parse_endif("endif::backend-docbook5,backend-pdf[]", 2, 0, None)?;
+        let different_operation = parse_endif("endif::backend-pdf+backend-docbook5[]", 2, 0, None)?;
+        assert!(!partial.closes(&conditional));
+        assert!(!reordered.closes(&conditional));
+        assert!(!different_operation.closes(&conditional));
         Ok(())
     }
 }
