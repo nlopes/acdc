@@ -47,8 +47,24 @@ The server communicates over stdio (standard input/output) using JSON-RPC, which
 ### Analysis backend
 
 The language server analyzes documents using the `html5` backend by default, matching
-Asciidoctor. Projects targeting another output format can select it through the LSP
-initialization options:
+Asciidoctor. Clients that support `workspace/configuration` can set the `backend` key in
+the `acdc-lsp` settings section:
+
+```json
+{
+  "acdc-lsp": {
+    "backend": "pdf"
+  }
+}
+```
+
+These settings are resource-scoped. In a multi-root workspace, each folder can therefore
+select a different backend; the setting for the most specific containing workspace folder
+wins. Changes made while the server is running take effect immediately and refresh parsed
+documents, diagnostics, semantic tokens, code lenses, inlay hints, and workspace symbols.
+
+For clients without workspace configuration support, or as a fallback until workspace
+settings are loaded, use the LSP initialization options:
 
 ```json
 {
@@ -62,7 +78,8 @@ Supported values are `html5`, `html5s`, `docbook5`, `manpage`, `markdown`, `pdf`
 `terminal`. The Asciidoctor aliases `html` and `docbook` are also accepted. The selected
 backend controls intrinsic attributes such as `backend`, `backend-pdf`, `basebackend`,
 `filetype`, and `outfilesuffix`, so conditional blocks and attribute references are
-analyzed in the same context as conversion.
+analyzed in the same context as conversion. A workspace setting overrides the initialization
+fallback; setting the workspace `backend` to `null` restores that fallback.
 
 For debugging, you can enable trace logging:
 
@@ -89,6 +106,19 @@ Add to your Emacs config:
 ;; Optional: enable semantic highlighting
 (setq eglot-enable-semantic-highlighting t)
 ```
+
+To select a backend for one project, add a `.dir-locals.el` file at the project root:
+
+```elisp
+((adoc-mode
+  . ((eglot-workspace-configuration
+      . (:acdc-lsp (:backend "pdf"))))))
+```
+
+Eglot supplies this setting through `workspace/configuration`. After changing the setting
+during an active session, reload the directory-local variables and run
+`M-x eglot-signal-didChangeConfiguration`. Use
+`M-x eglot-show-workspace-configuration` to inspect the JSON Eglot will send.
 
 ### Zed
 

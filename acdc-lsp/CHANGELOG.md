@@ -11,8 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Configurable analysis backend** — the LSP now supplies `html5` backend attributes by
   default, matching Asciidoctor, and accepts `initializationOptions.backend` for projects
-  targeting PDF, DocBook, manpage, Markdown, terminal, or semantic HTML. Backend
-  conditionals and attribute references are analyzed using the selected output format.
+  targeting PDF, DocBook, manpage, Markdown, terminal, or semantic HTML. Clients with
+  workspace configuration support can change the backend at runtime and assign different
+  backends to folders in a multi-root workspace. Backend conditionals, diagnostics,
+  navigation, semantic tokens, inlay hints, code lenses, and workspace symbols update to
+  use the selected output format.
 - **Large file gate** — files above 10 MiB are skipped during workspace indexing (anchor
   resolution, rename, call hierarchy). Opening a document above the limit publishes an
   informational diagnostic on line 1 and leaves text-only features working.

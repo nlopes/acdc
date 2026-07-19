@@ -2,13 +2,16 @@
 //!
 //! Contains the main `Backend` struct that implements the `LanguageServer` trait.
 
+use std::sync::{Mutex, PoisonError, RwLock};
+
 use tower_lsp_server::jsonrpc::{Error, Result};
 use tower_lsp_server::ls_types::{
     CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
     CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
     CallHierarchyServerCapability, CodeActionOptions, CodeActionParams,
     CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions, CodeLensParams,
-    CompletionOptions, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
+    CompletionOptions, CompletionParams, CompletionResponse, ConfigurationItem,
+    DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
     DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
     DocumentOnTypeFormattingParams, DocumentRangeFormattingParams, DocumentSymbolParams,
@@ -16,14 +19,14 @@ use tower_lsp_server::ls_types::{
     FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
     FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
     HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams,
-    InlayHint, InlayHintParams, OneOf, PrepareRenameResponse, ReferenceParams, RenameFilesParams,
-    RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
-    SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
-    ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
-    SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
+    InlayHint, InlayHintParams, MessageType, OneOf, PrepareRenameResponse, ReferenceParams,
+    Registration, RenameFilesParams, RenameOptions, RenameParams, SelectionRange,
+    SelectionRangeParams, SelectionRangeProviderCapability, SemanticTokensParams,
+    SemanticTokensResult, ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions,
+    SignatureHelpParams, SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
     TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
-    WorkspaceFileOperationsServerCapabilities, WorkspaceServerCapabilities, WorkspaceSymbolParams,
-    WorkspaceSymbolResponse,
+    WorkspaceFileOperationsServerCapabilities, WorkspaceFoldersServerCapabilities,
+    WorkspaceServerCapabilities, WorkspaceSymbolParams, WorkspaceSymbolResponse,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
@@ -32,8 +35,30 @@ use crate::capabilities::{
     folding, formatting, hover, inlay_hints, on_type_formatting, references, rename,
     selection_range, semantic_tokens, signature_help, symbols,
 };
-use crate::config::ServerOptions;
+use crate::config::{
+    AnalysisConfiguration, BackendUpdate, RootConfiguration, ServerOptions, WorkspaceSettings,
+    parse_backend_update,
+};
 use crate::state::Workspace;
+
+#[derive(Clone, Copy, Default)]
+struct ClientFeatures {
+    configuration: ConfigurationSupport,
+    refresh: RefreshSupport,
+}
+
+#[derive(Clone, Copy, Default)]
+struct ConfigurationSupport {
+    pull: bool,
+    dynamic_registration: bool,
+}
+
+#[derive(Clone, Copy, Default)]
+struct RefreshSupport {
+    semantic_tokens: bool,
+    code_lens: bool,
+    inlay_hints: bool,
+}
 
 /// LSP backend for `AsciiDoc` documents
 pub struct Backend {
@@ -41,6 +66,10 @@ pub struct Backend {
     client: Client,
     /// Workspace state management
     workspace: Workspace,
+    /// Serializes mutations that rebuild parsed workspace state.
+    mutation: Mutex<()>,
+    /// Client capabilities captured during initialization.
+    client_features: RwLock<ClientFeatures>,
 }
 
 impl Backend {
@@ -50,6 +79,8 @@ impl Backend {
         Self {
             client,
             workspace: Workspace::new(),
+            mutation: Mutex::new(()),
+            client_features: RwLock::new(ClientFeatures::default()),
         }
     }
 
@@ -61,11 +92,163 @@ impl Backend {
                 .await;
         }
     }
+
+    fn features(&self) -> ClientFeatures {
+        *self
+            .client_features
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn capture_client_features(&self, params: &InitializeParams) {
+        let workspace = params.capabilities.workspace.as_ref();
+        let features = ClientFeatures {
+            configuration: ConfigurationSupport {
+                pull: workspace
+                    .and_then(|capabilities| capabilities.configuration)
+                    .unwrap_or(false),
+                dynamic_registration: workspace
+                    .and_then(|capabilities| capabilities.did_change_configuration.as_ref())
+                    .and_then(|capability| capability.dynamic_registration)
+                    .unwrap_or(false),
+            },
+            refresh: RefreshSupport {
+                semantic_tokens: workspace
+                    .and_then(|capabilities| capabilities.semantic_tokens.as_ref())
+                    .and_then(|capability| capability.refresh_support)
+                    .unwrap_or(false),
+                code_lens: workspace
+                    .and_then(|capabilities| capabilities.code_lens.as_ref())
+                    .and_then(|capability| capability.refresh_support)
+                    .unwrap_or(false),
+                inlay_hints: workspace
+                    .and_then(|capabilities| capabilities.inlay_hint.as_ref())
+                    .and_then(|capability| capability.refresh_support)
+                    .unwrap_or(false),
+            },
+        };
+        *self
+            .client_features
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = features;
+    }
+
+    async fn pull_configuration(
+        &self,
+        mut configuration: AnalysisConfiguration,
+    ) -> Option<AnalysisConfiguration> {
+        let roots = configuration.roots();
+        let mut items = Vec::with_capacity(roots.len() + 1);
+        items.push(ConfigurationItem {
+            scope_uri: None,
+            section: Some("acdc-lsp".to_string()),
+        });
+        items.extend(roots.iter().cloned().map(|root| ConfigurationItem {
+            scope_uri: Some(root),
+            section: Some("acdc-lsp".to_string()),
+        }));
+
+        let values = match self.client.configuration(items).await {
+            Ok(values) => values,
+            Err(error) => {
+                self.client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!("failed to load acdc-lsp workspace configuration: {error}"),
+                    )
+                    .await;
+                return None;
+            }
+        };
+
+        if let Some(value) = values.first() {
+            match parse_workspace_settings(value) {
+                Ok(settings) => configuration.set_unscoped(settings.backend),
+                Err(error) => self.client.log_message(MessageType::WARNING, error).await,
+            }
+        } else {
+            self.client
+                .log_message(
+                    MessageType::WARNING,
+                    "workspace/configuration omitted the unscoped acdc-lsp settings",
+                )
+                .await;
+        }
+
+        let mut root_configurations = Vec::with_capacity(roots.len());
+        for (index, uri) in roots.into_iter().enumerate() {
+            let previous = configuration.root_backend(&uri);
+            let backend = if let Some(value) = values.get(index + 1) {
+                match parse_workspace_settings(value) {
+                    Ok(settings) => settings.backend,
+                    Err(error) => {
+                        self.client
+                            .log_message(
+                                MessageType::WARNING,
+                                format!("{error} for workspace root {}", uri.as_str()),
+                            )
+                            .await;
+                        previous
+                    }
+                }
+            } else {
+                self.client
+                    .log_message(
+                        MessageType::WARNING,
+                        format!(
+                            "workspace/configuration omitted settings for workspace root {}",
+                            uri.as_str()
+                        ),
+                    )
+                    .await;
+                previous
+            };
+            root_configurations.push(RootConfiguration { uri, backend });
+        }
+        configuration.replace_roots(root_configurations);
+        Some(configuration)
+    }
+
+    async fn apply_configuration(&self, configuration: AnalysisConfiguration) {
+        let result = {
+            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+            self.workspace.apply_analysis_configuration(&configuration)
+        };
+        if !result.changed {
+            return;
+        }
+
+        for uri in result.reparsed_documents {
+            self.publish_diagnostics(uri).await;
+        }
+
+        let features = self.features();
+        if features.refresh.semantic_tokens {
+            let _ = self.client.semantic_tokens_refresh().await;
+        }
+        if features.refresh.code_lens {
+            let _ = self.client.code_lens_refresh().await;
+        }
+        if features.refresh.inlay_hints {
+            let _ = self.client.inlay_hint_refresh().await;
+        }
+    }
+}
+
+fn parse_workspace_settings(
+    value: &serde_json::Value,
+) -> std::result::Result<WorkspaceSettings, String> {
+    if value.is_null() {
+        return Ok(WorkspaceSettings::default());
+    }
+    serde_json::from_value(value.clone())
+        .map_err(|error| format!("invalid acdc-lsp workspace configuration: {error}"))
 }
 
 impl LanguageServer for Backend {
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("Initializing acdc-lsp");
+        self.capture_client_features(&params);
 
         let options = params
             .initialization_options
@@ -73,7 +256,6 @@ impl LanguageServer for Backend {
             .transpose()
             .map_err(|error| Error::invalid_params(error.to_string()))?
             .unwrap_or_default();
-        self.workspace.set_analysis_backend(options.backend);
         tracing::info!(backend = ?options.backend, "configured analysis backend");
 
         // Capture workspace roots for cross-file resolution
@@ -85,9 +267,7 @@ impl LanguageServer for Backend {
         } else if let Some(root_uri) = params.root_uri {
             roots.push(root_uri);
         }
-        if !roots.is_empty() {
-            self.workspace.set_workspace_roots(roots);
-        }
+        self.workspace.initialize_analysis(options.backend, roots);
 
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
@@ -171,6 +351,10 @@ impl LanguageServer for Backend {
                 }),
                 // Enable automatic link updates on file rename
                 workspace: Some(WorkspaceServerCapabilities {
+                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                        supported: Some(true),
+                        change_notifications: Some(OneOf::Left(true)),
+                    }),
                     file_operations: Some(WorkspaceFileOperationsServerCapabilities {
                         will_rename: Some(FileOperationRegistrationOptions {
                             filters: vec![FileOperationFilter {
@@ -184,7 +368,6 @@ impl LanguageServer for Backend {
                         }),
                         ..Default::default()
                     }),
-                    ..Default::default()
                 }),
                 ..Default::default()
             },
@@ -198,7 +381,34 @@ impl LanguageServer for Backend {
 
     async fn initialized(&self, _params: InitializedParams) {
         tracing::info!("acdc-lsp initialized");
-        self.workspace.scan_workspace_files();
+        let features = self.features();
+        if features.configuration.dynamic_registration
+            && let Err(error) = self
+                .client
+                .register_capability(vec![Registration {
+                    id: "acdc-lsp-did-change-configuration".to_string(),
+                    method: "workspace/didChangeConfiguration".to_string(),
+                    register_options: None,
+                }])
+                .await
+        {
+            self.client
+                .log_message(
+                    MessageType::WARNING,
+                    format!("failed to register dynamic configuration support: {error}"),
+                )
+                .await;
+        }
+        if features.configuration.pull {
+            let current = self.workspace.analysis_configuration();
+            if let Some(configuration) = self.pull_configuration(current).await {
+                self.apply_configuration(configuration).await;
+            }
+        }
+        {
+            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+            self.workspace.scan_workspace_files();
+        }
         tracing::info!(
             indexed_files = self.workspace.symbol_index_len(),
             "workspace file scan complete"
@@ -215,7 +425,10 @@ impl LanguageServer for Backend {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
         let version = params.text_document.version;
-        self.workspace.update_document(uri.clone(), text, version);
+        {
+            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+            self.workspace.update_document(uri.clone(), text, version);
+        }
         self.publish_diagnostics(uri).await;
     }
 
@@ -226,8 +439,11 @@ impl LanguageServer for Backend {
 
         // With FULL sync, we get the complete new text
         if let Some(change) = params.content_changes.into_iter().next() {
-            self.workspace
-                .update_document(uri.clone(), change.text, version);
+            {
+                let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+                self.workspace
+                    .update_document(uri.clone(), change.text, version);
+            }
             self.publish_diagnostics(uri).await;
         }
     }
@@ -235,9 +451,78 @@ impl LanguageServer for Backend {
     #[tracing::instrument(name = "lsp/didClose", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
         let uri = params.text_document.uri;
-        self.workspace.remove_document(&uri);
+        {
+            let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
+            self.workspace.remove_document(&uri);
+        }
         // Clear diagnostics for closed file
         self.client.publish_diagnostics(uri, vec![], None).await;
+    }
+
+    #[tracing::instrument(name = "lsp/didChangeConfiguration", level = "debug", skip_all)]
+    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
+        let features = self.features();
+        if features.configuration.pull {
+            let current = self.workspace.analysis_configuration();
+            if let Some(configuration) = self.pull_configuration(current).await {
+                self.apply_configuration(configuration).await;
+            }
+            return;
+        }
+
+        let update = match parse_backend_update(&params.settings) {
+            Ok(update) => update,
+            Err(error) => {
+                self.client.log_message(MessageType::WARNING, error).await;
+                return;
+            }
+        };
+        let mut configuration = self.workspace.analysis_configuration();
+        match update {
+            BackendUpdate::Unchanged => return,
+            BackendUpdate::Set(backend) => configuration.set_unscoped(Some(backend)),
+            BackendUpdate::Reset => configuration.set_unscoped(None),
+        }
+        self.apply_configuration(configuration).await;
+    }
+
+    #[tracing::instrument(name = "lsp/didChangeWorkspaceFolders", level = "debug", skip_all, fields(added = params.event.added.len(), removed = params.event.removed.len()))]
+    async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
+        let mut configuration = self.workspace.analysis_configuration();
+        let removed: Vec<Uri> = params
+            .event
+            .removed
+            .into_iter()
+            .map(|folder| folder.uri)
+            .collect();
+        let mut roots: Vec<RootConfiguration> = configuration
+            .roots()
+            .into_iter()
+            .filter(|root| !removed.contains(root))
+            .map(|uri| RootConfiguration {
+                backend: configuration.root_backend(&uri),
+                uri,
+            })
+            .collect();
+        for folder in params.event.added {
+            if !roots.iter().any(|root| root.uri == folder.uri) {
+                roots.push(RootConfiguration {
+                    uri: folder.uri,
+                    backend: None,
+                });
+            }
+        }
+        configuration.replace_roots(roots);
+
+        if self.features().configuration.pull {
+            let pulled = self
+                .pull_configuration(configuration.clone())
+                .await
+                .unwrap_or(configuration);
+            self.apply_configuration(pulled).await;
+        } else {
+            self.apply_configuration(configuration).await;
+        }
     }
 
     #[tracing::instrument(name = "lsp/documentSymbol", level = "debug", skip_all, fields(uri = params.text_document.uri.as_str()))]
@@ -563,6 +848,7 @@ impl LanguageServer for Backend {
 
     #[tracing::instrument(name = "lsp/didRenameFiles", level = "debug", skip_all, fields(count = params.files.len()))]
     async fn did_rename_files(&self, params: RenameFilesParams) {
+        let _mutation = self.mutation.lock().unwrap_or_else(PoisonError::into_inner);
         file_rename::update_workspace_after_rename(&self.workspace, &params.files);
     }
 

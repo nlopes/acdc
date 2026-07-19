@@ -9,6 +9,8 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
+type ServerRequestHandler = dyn FnMut(&str, &Value) -> Value;
+
 /// Errors from the LSP test harness.
 #[derive(Debug)]
 pub(crate) enum HarnessError {
@@ -51,6 +53,7 @@ pub(crate) struct LspTestClient {
     stdin: ChildStdin,
     stdout: BufReader<ChildStdout>,
     next_id: i64,
+    server_request_handler: Option<Box<ServerRequestHandler>>,
 }
 
 impl LspTestClient {
@@ -83,7 +86,16 @@ impl LspTestClient {
             stdin,
             stdout: BufReader::new(stdout),
             next_id: 1,
+            server_request_handler: None,
         })
+    }
+
+    /// Set a handler for requests sent by the language server to the client.
+    pub(crate) fn set_server_request_handler<F>(&mut self, handler: F)
+    where
+        F: FnMut(&str, &Value) -> Value + 'static,
+    {
+        self.server_request_handler = Some(Box::new(handler));
     }
 
     /// Send an LSP `initialize` request followed by `initialized` notification.
@@ -114,6 +126,11 @@ impl LspTestClient {
         {
             object.insert("initializationOptions".into(), initialization_options);
         }
+        self.initialize_with_params(params)
+    }
+
+    /// Initialize the server with complete LSP initialize parameters.
+    pub(crate) fn initialize_with_params(&mut self, params: Value) -> Result<Value, HarnessError> {
         let result = self.send_request("initialize", params)?;
         self.send_notification("initialized", json!({}))?;
         Ok(result)
@@ -190,7 +207,7 @@ impl LspTestClient {
             let msg = self.read_message()?;
 
             // Check if this is the response to our request
-            if msg.get("id").and_then(Value::as_i64) == Some(id) {
+            if msg.get("method").is_none() && msg.get("id").and_then(Value::as_i64) == Some(id) {
                 if let Some(error) = msg.get("error") {
                     return Err(HarnessError::Lsp {
                         method: method.into(),
@@ -200,14 +217,20 @@ impl LspTestClient {
                 return Ok(msg.get("result").cloned().unwrap_or(Value::Null));
             }
 
-            // If it's a server request (has "method" and "id"), send an empty response
-            if msg.get("method").is_some()
+            // If it's a server request (has "method" and "id"), respond through
+            // the configured test-client behavior.
+            if let Some(server_method) = msg.get("method").and_then(Value::as_str)
                 && let Some(server_id) = msg.get("id").cloned()
             {
+                let params = msg.get("params").unwrap_or(&Value::Null);
+                let result = self
+                    .server_request_handler
+                    .as_mut()
+                    .map_or(Value::Null, |handler| handler(server_method, params));
                 let response = json!({
                     "jsonrpc": "2.0",
                     "id": server_id,
-                    "result": null
+                    "result": result
                 });
                 self.write_message(&response)?;
             }
@@ -236,6 +259,35 @@ impl LspTestClient {
             obj.insert("params".into(), params);
         }
         self.write_message(&message)
+    }
+
+    /// Process server traffic until a particular server request is observed.
+    pub(crate) fn wait_for_server_request(
+        &mut self,
+        expected_method: &str,
+    ) -> Result<(), HarnessError> {
+        loop {
+            let message = self.read_message()?;
+            let Some(method) = message.get("method").and_then(Value::as_str) else {
+                continue;
+            };
+            let Some(id) = message.get("id").cloned() else {
+                continue;
+            };
+            let params = message.get("params").unwrap_or(&Value::Null);
+            let result = self
+                .server_request_handler
+                .as_mut()
+                .map_or(Value::Null, |handler| handler(method, params));
+            self.write_message(&json!({
+                "jsonrpc": "2.0",
+                "id": id,
+                "result": result
+            }))?;
+            if method == expected_method {
+                return Ok(());
+            }
+        }
     }
 
     /// Write a JSON-RPC message with `Content-Length` header to stdin.

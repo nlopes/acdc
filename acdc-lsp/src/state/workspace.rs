@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::sync::{PoisonError, RwLock};
 
-use acdc_parser::{Location, Options};
+use acdc_parser::Location;
 use dashmap::DashMap;
 use dashmap::mapref::one::Ref;
 use tower_lsp_server::ls_types::Uri;
@@ -12,7 +12,7 @@ use crate::capabilities::{
     definition, diagnostics,
     workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
 };
-use crate::config::AnalysisBackend;
+use crate::config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles};
 use crate::limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded};
 use crate::state::DocumentState;
 use crate::state::document::ParsedText;
@@ -23,12 +23,18 @@ pub(crate) struct Workspace {
     documents: DashMap<Uri, DocumentState>,
     /// Global anchor index: `anchor_id` -> [(`file_uri`, location)]
     anchor_index: DashMap<String, Vec<(Uri, Location)>>,
-    /// Workspace root directories
-    roots: RwLock<Vec<Uri>>,
     /// Cached symbols for non-open files (populated by workspace scan)
     symbol_index: DashMap<Uri, Vec<IndexedSymbol>>,
-    /// Parser configuration shared by live and on-disk document analysis.
-    parser_options: RwLock<Options<'static>>,
+    /// Resource-scoped analysis configuration.
+    analysis_configuration: RwLock<AnalysisConfiguration>,
+    /// Prebuilt parser options for every supported analysis backend.
+    parser_profiles: ParserProfiles,
+}
+
+/// Result of applying a runtime analysis configuration change.
+pub(crate) struct Reconfiguration {
+    pub(crate) changed: bool,
+    pub(crate) reparsed_documents: Vec<Uri>,
 }
 
 impl Workspace {
@@ -38,26 +44,113 @@ impl Workspace {
         Self {
             documents: DashMap::new(),
             anchor_index: DashMap::new(),
-            roots: RwLock::new(Vec::new()),
             symbol_index: DashMap::new(),
-            parser_options: RwLock::new(AnalysisBackend::default().parser_options()),
+            analysis_configuration: RwLock::new(AnalysisConfiguration::default()),
+            parser_profiles: ParserProfiles::new(),
         }
     }
 
-    /// Select the backend whose intrinsic attributes are visible during analysis.
-    pub(crate) fn set_analysis_backend(&self, backend: AnalysisBackend) {
-        let mut options = self
-            .parser_options
+    /// Set the initialization fallback and initial workspace roots.
+    pub(crate) fn initialize_analysis(&self, backend: AnalysisBackend, roots: Vec<Uri>) {
+        let mut configuration = self
+            .analysis_configuration
             .write()
             .unwrap_or_else(PoisonError::into_inner);
-        *options = backend.parser_options();
+        *configuration = AnalysisConfiguration::new(backend, roots);
     }
 
-    /// Set workspace root directories (from initialize params)
-    pub(crate) fn set_workspace_roots(&self, roots: Vec<Uri>) {
-        if let Ok(mut w) = self.roots.write() {
-            *w = roots;
+    /// Return a snapshot of the current analysis configuration.
+    #[must_use]
+    pub(crate) fn analysis_configuration(&self) -> AnalysisConfiguration {
+        self.analysis_configuration
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .clone()
+    }
+
+    /// Return the configured workspace roots.
+    #[must_use]
+    pub(crate) fn workspace_roots(&self) -> Vec<Uri> {
+        self.analysis_configuration
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .roots()
+    }
+
+    /// Apply configuration atomically, then reparse only resources whose
+    /// effective backend or workspace membership changed.
+    pub(crate) fn apply_analysis_configuration(
+        &self,
+        configuration: &AnalysisConfiguration,
+    ) -> Reconfiguration {
+        let previous = self.analysis_configuration();
+        if previous == *configuration {
+            return Reconfiguration {
+                changed: false,
+                reparsed_documents: Vec::new(),
+            };
         }
+
+        let open_documents: Vec<(Uri, String, i32)> = self
+            .documents
+            .iter()
+            .filter(|entry| {
+                previous.backend_for(entry.key()) != configuration.backend_for(entry.key())
+            })
+            .map(|entry| {
+                (
+                    entry.key().clone(),
+                    entry.value().text().to_owned(),
+                    entry.value().version,
+                )
+            })
+            .collect();
+        let indexed_documents: Vec<Uri> = self
+            .symbol_index
+            .iter()
+            .map(|entry| entry.key().clone())
+            .collect();
+        let previous_roots = previous.roots();
+        let added_roots: Vec<Uri> = configuration
+            .roots()
+            .into_iter()
+            .filter(|root| !previous_roots.contains(root))
+            .collect();
+
+        *self
+            .analysis_configuration
+            .write()
+            .unwrap_or_else(PoisonError::into_inner) = configuration.clone();
+
+        for uri in indexed_documents {
+            if !configuration.contains(&uri) {
+                self.symbol_index.remove(&uri);
+            } else if previous.backend_for(&uri) != configuration.backend_for(&uri) {
+                self.reindex_file_from_disk(&uri);
+            }
+        }
+
+        let reparsed_documents = open_documents
+            .into_iter()
+            .map(|(uri, text, version)| {
+                self.update_document(uri.clone(), text, version);
+                uri
+            })
+            .collect();
+
+        self.scan_roots(&added_roots);
+
+        Reconfiguration {
+            changed: true,
+            reparsed_documents,
+        }
+    }
+
+    fn backend_for(&self, uri: &Uri) -> AnalysisBackend {
+        self.analysis_configuration
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+            .backend_for(uri)
     }
 
     /// Update document on open/change
@@ -68,7 +161,7 @@ impl Workspace {
         // Remove old anchors for this URI from the global index
         self.remove_anchors_for_uri(&uri);
 
-        let mut state = self.parse_and_index(text, version);
+        let mut state = self.parse_and_index(&uri, text, version);
 
         // Insert new anchors into the global index
         for (id, loc) in &state.anchors {
@@ -189,11 +282,8 @@ impl Workspace {
         let path = uri.to_file_path()?;
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
         let text = read_bounded(path.as_ref())?;
-        let options = self
-            .parser_options
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
-        let parsed = acdc_parser::parse(&text, &options).ok()?;
+        let backend = self.backend_for(uri);
+        let parsed = acdc_parser::parse(&text, self.parser_profiles.get(backend)).ok()?;
         let anchors = definition::collect_anchors(parsed.document());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
@@ -220,23 +310,24 @@ impl Workspace {
 
     /// Scan workspace roots for `AsciiDoc` files and populate the symbol index.
     pub(crate) fn scan_workspace_files(&self) {
-        let roots: Vec<Uri> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
-        let files = discover_adoc_files(&roots);
-        let options = self
-            .parser_options
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+        let roots = self.workspace_roots();
+        self.scan_roots(&roots);
+    }
+
+    fn scan_roots(&self, roots: &[Uri]) {
+        let files = discover_adoc_files(roots);
 
         for path in files {
             let Some(uri) = Uri::from_file_path(&path) else {
                 continue;
             };
             // Skip files that are already open in the editor
-            if self.documents.contains_key(&uri) {
+            if self.documents.contains_key(&uri) || self.symbol_index.contains_key(&uri) {
                 continue;
             }
             if let Some(text) = read_bounded(&path)
-                && let Ok(parsed) = acdc_parser::parse(&text, &options)
+                && let Ok(parsed) =
+                    acdc_parser::parse(&text, self.parser_profiles.get(self.backend_for(&uri)))
             {
                 let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri, symbols);
@@ -318,7 +409,7 @@ impl Workspace {
     /// Discover all `AsciiDoc` files in the workspace roots.
     #[must_use]
     pub(crate) fn discover_workspace_files(&self) -> Vec<std::path::PathBuf> {
-        let roots: Vec<Uri> = self.roots.read().map(|r| r.clone()).unwrap_or_default();
+        let roots = self.workspace_roots();
         discover_adoc_files(&roots)
     }
 
@@ -326,11 +417,8 @@ impl Workspace {
         if let Some(path) = uri.to_file_path()
             && let Some(text) = read_bounded(path.as_ref())
         {
-            let options = self
-                .parser_options
-                .read()
-                .unwrap_or_else(PoisonError::into_inner);
-            if let Ok(parsed) = acdc_parser::parse(&text, &options) {
+            let backend = self.backend_for(uri);
+            if let Ok(parsed) = acdc_parser::parse(&text, self.parser_profiles.get(backend)) {
                 let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri.clone(), symbols);
             }
@@ -394,11 +482,9 @@ impl Workspace {
     }
 
     /// Parse document and extract all navigation data
-    fn parse_and_index(&self, text: String, version: i32) -> DocumentState {
-        let options = self
-            .parser_options
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+    fn parse_and_index(&self, uri: &Uri, text: String, version: i32) -> DocumentState {
+        let backend = self.backend_for(uri);
+        let options = self.parser_profiles.get(backend);
 
         let mut anchors: HashMap<String, Location> = HashMap::new();
         let mut xrefs: Vec<(String, Location)> = Vec::new();
@@ -418,7 +504,7 @@ impl Workspace {
             parse_diagnostics.push(Self::oversized_document_diagnostic(text.len()));
             ParsedText::from_source(text.into_boxed_str())
         } else {
-            match acdc_parser::parse(&text, &options) {
+            match acdc_parser::parse(&text, options) {
                 Ok(mut parse_result) => {
                     {
                         let doc = parse_result.document();
@@ -655,7 +741,7 @@ mod tests {
     fn configured_pdf_backend_activates_reported_or_conditional()
     -> Result<(), Box<dyn std::error::Error>> {
         let workspace = Workspace::new();
-        workspace.set_analysis_backend(AnalysisBackend::Pdf);
+        workspace.initialize_analysis(AnalysisBackend::Pdf, Vec::new());
         let uri = "file:///backend-pdf.adoc".parse::<Uri>()?;
         let content = "= Document\nifdef::backend-pdf,backend-docbook5[]\n:title-page:\nendif::backend-pdf,backend-docbook5[]\n\nifdef::backend-pdf,backend-docbook5[]\n[[pdf-or-docbook]]\n== PDF or DocBook\nendif::backend-pdf,backend-docbook5[]\n";
 
@@ -686,6 +772,146 @@ mod tests {
             "configured backend conditionals should not produce inactive diagnostics: {:?}",
             document.diagnostics
         );
+        Ok(())
+    }
+
+    #[test]
+    fn runtime_configuration_reparses_only_documents_whose_backend_changed()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let html_root = "file:///workspace/html".parse::<Uri>()?;
+        let pdf_root = "file:///workspace/pdf".parse::<Uri>()?;
+        let html_uri = "file:///workspace/html/index.adoc".parse::<Uri>()?;
+        let pdf_uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
+        let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
+        configuration.replace_roots(vec![
+            crate::config::RootConfiguration {
+                uri: html_root.clone(),
+                backend: Some(AnalysisBackend::Html5),
+            },
+            crate::config::RootConfiguration {
+                uri: pdf_root.clone(),
+                backend: Some(AnalysisBackend::Pdf),
+            },
+        ]);
+        workspace.apply_analysis_configuration(&configuration);
+        let content = "= Document\n\nifdef::backend-html5[]\n[[html-only]]\n== HTML Only\nendif::[]\n\nifdef::backend-pdf[]\n[[pdf-only]]\n== PDF Only\nendif::[]\n";
+        workspace.update_document(html_uri.clone(), content.to_string(), 1);
+        workspace.update_document(pdf_uri.clone(), content.to_string(), 1);
+
+        configuration.replace_roots(vec![
+            crate::config::RootConfiguration {
+                uri: html_root,
+                backend: Some(AnalysisBackend::Markdown),
+            },
+            crate::config::RootConfiguration {
+                uri: pdf_root,
+                backend: Some(AnalysisBackend::Pdf),
+            },
+        ]);
+        let result = workspace.apply_analysis_configuration(&configuration);
+
+        assert!(result.changed);
+        assert_eq!(result.reparsed_documents, [html_uri]);
+        assert!(
+            workspace
+                .get_document(&pdf_uri)
+                .is_some_and(|document| document.anchors.contains_key("pdf-only"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn removing_workspace_root_reapplies_unscoped_backend() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let workspace = Workspace::new();
+        let root = "file:///workspace/pdf".parse::<Uri>()?;
+        let uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
+        let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
+        configuration.replace_roots(vec![crate::config::RootConfiguration {
+            uri: root,
+            backend: Some(AnalysisBackend::Pdf),
+        }]);
+        workspace.apply_analysis_configuration(&configuration);
+        workspace.update_document(
+            uri.clone(),
+            "= Document\n\nifdef::backend-html5[]\n[[html-only]]\n== HTML Only\nendif::[]\n\nifdef::backend-pdf[]\n[[pdf-only]]\n== PDF Only\nendif::[]\n"
+                .to_string(),
+            1,
+        );
+        assert!(
+            workspace
+                .get_document(&uri)
+                .is_some_and(|document| document.anchors.contains_key("pdf-only"))
+        );
+
+        configuration.replace_roots(Vec::new());
+        let result = workspace.apply_analysis_configuration(&configuration);
+
+        assert_eq!(
+            result.reparsed_documents.as_slice(),
+            std::slice::from_ref(&uri)
+        );
+        let document = workspace
+            .get_document(&uri)
+            .ok_or("document should remain open")?;
+        assert!(document.anchors.contains_key("html-only"));
+        assert!(!document.anchors.contains_key("pdf-only"));
+        Ok(())
+    }
+
+    #[test]
+    fn unchanged_configuration_does_not_reparse_documents() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let workspace = Workspace::new();
+        let uri = "file:///workspace/index.adoc".parse::<Uri>()?;
+        workspace.update_document(uri, "= Document\n".to_string(), 1);
+        let configuration = workspace.analysis_configuration();
+
+        let result = workspace.apply_analysis_configuration(&configuration);
+
+        assert!(!result.changed);
+        assert!(result.reparsed_documents.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn runtime_configuration_reindexes_closed_workspace_files()
+    -> Result<(), Box<dyn std::error::Error>> {
+        use std::fs;
+
+        let directory = std::env::temp_dir().join("acdc_lsp_backend_reindex");
+        let _ = fs::remove_dir_all(&directory);
+        fs::create_dir_all(&directory)?;
+        fs::write(
+            directory.join("index.adoc"),
+            "= Document\n\nifdef::backend-html5[]\n== HTML Only\nendif::[]\n\nifdef::backend-pdf[]\n== PDF Only\nendif::[]\n",
+        )?;
+        let root = Uri::from_file_path(&directory).ok_or("temporary path should become a URI")?;
+        let workspace = Workspace::new();
+        workspace.initialize_analysis(AnalysisBackend::Html5, vec![root]);
+        workspace.scan_workspace_files();
+        assert!(
+            workspace
+                .query_workspace_symbols("HTML Only")
+                .iter()
+                .any(|(_, symbol)| symbol.name == "HTML Only")
+        );
+
+        let mut configuration = workspace.analysis_configuration();
+        configuration.set_unscoped(Some(AnalysisBackend::Pdf));
+        let result = workspace.apply_analysis_configuration(&configuration);
+
+        assert!(result.changed);
+        assert!(result.reparsed_documents.is_empty());
+        assert!(workspace.query_workspace_symbols("HTML Only").is_empty());
+        assert!(
+            workspace
+                .query_workspace_symbols("PDF Only")
+                .iter()
+                .any(|(_, symbol)| symbol.name == "PDF Only")
+        );
+        fs::remove_dir_all(directory)?;
         Ok(())
     }
 
@@ -738,7 +964,7 @@ mod tests {
 
         let workspace = Workspace::new();
         let root_url = Uri::from_file_path(&tmp).ok_or("bad path")?;
-        workspace.set_workspace_roots(vec![root_url]);
+        workspace.initialize_analysis(AnalysisBackend::Html5, vec![root_url]);
 
         // Scan workspace — should populate symbol_index
         workspace.scan_workspace_files();

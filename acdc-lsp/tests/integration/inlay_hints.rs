@@ -1,8 +1,6 @@
 //! Integration tests for `textDocument/inlayHint`.
 
-mod common;
-
-use common::LspTestClient;
+use crate::common::LspTestClient;
 use serde_json::json;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
