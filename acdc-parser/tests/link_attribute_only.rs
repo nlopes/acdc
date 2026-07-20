@@ -8,7 +8,7 @@ fn unexpected(message: &str, actual: impl std::fmt::Debug) -> Box<dyn std::error
 
 fn assert_plain_text(text: &[InlineNode<'_>], expected: &str) -> TestResult {
     let [InlineNode::PlainText(text)] = text else {
-        return Err(unexpected("expected plain link text", text));
+        return Err(unexpected("expected plain macro text", text));
     };
     assert_eq!(text.content, expected);
     Ok(())
@@ -31,6 +31,38 @@ fn attribute_only_link_role_is_not_display_text() -> TestResult {
         link.attributes.get_string("role").as_deref(),
         Some("include")
     );
+
+    Ok(())
+}
+
+#[test]
+fn attribute_only_url_role_is_not_display_text() -> TestResult {
+    let parsed = parse_inline("https://example.com[role=include]", &Options::default())?;
+    let [InlineNode::Macro(InlineMacro::Url(url))] = parsed.inlines() else {
+        return Err(unexpected("expected one URL macro", parsed.inlines()));
+    };
+
+    assert_eq!(url.target.to_string(), "https://example.com");
+    assert!(url.text.is_empty());
+    assert_eq!(url.attributes.iter().count(), 1);
+    assert_eq!(
+        url.attributes.get_string("role").as_deref(),
+        Some("include")
+    );
+
+    Ok(())
+}
+
+#[test]
+fn attribute_like_mailto_content_remains_display_text() -> TestResult {
+    let parsed = parse_inline("mailto:joe@example.com[role=include]", &Options::default())?;
+    let [InlineNode::Macro(InlineMacro::Mailto(mailto))] = parsed.inlines() else {
+        return Err(unexpected("expected one mailto macro", parsed.inlines()));
+    };
+
+    assert_eq!(mailto.target.to_string(), "mailto:joe@example.com");
+    assert_plain_text(&mailto.text, "role=include")?;
+    assert!(mailto.attributes.is_empty());
 
     Ok(())
 }
@@ -96,6 +128,27 @@ fn url_with_text_and_attributes_parses_both() -> TestResult {
     assert_eq!(
         url.attributes.get_string("window").as_deref(),
         Some("_blank")
+    );
+
+    Ok(())
+}
+
+#[test]
+fn mailto_with_text_and_attributes_parses_both() -> TestResult {
+    let parsed = parse_inline(
+        "mailto:joe@example.com[Joe,role=include]",
+        &Options::default(),
+    )?;
+    let [InlineNode::Macro(InlineMacro::Mailto(mailto))] = parsed.inlines() else {
+        return Err(unexpected("expected one mailto macro", parsed.inlines()));
+    };
+
+    assert_eq!(mailto.target.to_string(), "mailto:joe@example.com");
+    assert_plain_text(&mailto.text, "Joe")?;
+    assert_eq!(mailto.attributes.iter().count(), 1);
+    assert_eq!(
+        mailto.attributes.get_string("role").as_deref(),
+        Some("include")
     );
 
     Ok(())

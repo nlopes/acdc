@@ -247,8 +247,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bare links from text links.
 - **`link:` macro now maps `role=X` to `class="X"`** — `link:URL[text,role=external]`
   now renders as `<a href="URL" class="external">text</a>`, matching asciidoctor.
-  An attribute-only form such as `link:URL[role=include]` displays the URL and
-  produces `class="bare include"`.
+  Attribute-only link and URL forms such as `link:URL[role=include]` and
+  `https://example.com[role=include]` display the URL and produce
+  `class="bare include"`. In contrast, `mailto:user@example.com[role=include]`
+  displays `role=include` as its link text, matching asciidoctor.
 - `<meta name="author">` no longer includes the email address in the content attribute,
   matching asciidoctor behavior
 - **`<header>` no longer carries an `id` attribute** — the `<header>` wrapper in html5s

@@ -2,6 +2,12 @@ Empty text: link:https://example.com[]
 
 Attribute-only role: link:https://example.com[role=include]
 
+Attribute-only URL role: https://example.com[role=include]
+
 Text with role: link:https://example.com[Example,role=external]
 
 Text with role and window: link:https://example.com[Example,role=external,window=_blank]
+
+Attribute-like mailto text: mailto:joe@example.com[role=include]
+
+Mailto text with role: mailto:joe@example.com[Joe,role=include]

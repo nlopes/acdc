@@ -514,17 +514,16 @@ peg::parser! {
         / s:$([^(']' | '\\')]+) { s }
         / "\\" { "\\" }
 
-        /// Parse link/URL title content that may contain balanced brackets
+        /// Parse link, URL, or mailto display text that may contain balanced brackets.
         ///
         /// This is similar to balanced_bracket_content but stops at comma and attribute
         /// patterns
         ///
         /// Supports two formats:
         /// 1. **Quoted text**: `"any text including 'quotes' and ,commas"`
-        /// 2. **Unquoted text**: `any text until , or ]`; content that starts with a
-        ///    named attribute (`name=value`) is parsed as attributes only
+        /// 2. **Unquoted text**: `any text until , or ]`
         ///
-        /// Unlike block attributes, link titles can contain:
+        /// Unlike block attributes, macro display text can contain:
         /// - Single quotes: `link:file[see the 'source' code]`
         /// - Periods: `link:file[version 1.2.3 notes]`
         /// - Hash symbols: `link:file[C# programming guide]`
@@ -533,11 +532,17 @@ peg::parser! {
         /// The unquoted parsing stops at:
         /// - `,` (start of attributes)
         /// - `]` (end of link)
-        /// - A leading `name=` pattern selects the attribute-only branch
         rule link_title() -> &'input str
         = "\"" title:$((!"\"" [_])*) "\"" { title }
         / "'" title:$((!("'" whitespace()* ("," / "]")) [_])*) "'" { title }
-        / !(whitespace()* attribute_name() "=") parts:$(balanced_link_title_part()+) { parts }
+        / parts:$(balanced_link_title_part()+) { parts }
+
+        /// Parse link and URL title content while allowing an attribute-only list.
+        ///
+        /// `mailto:` deliberately uses `link_title()` directly because asciidoctor treats
+        /// `mailto:user@example.com[role=include]` as display text rather than attributes.
+        rule link_or_url_title() -> &'input str
+        = !(whitespace()* attribute_name() "=") title:link_title() { title }
 
         /// Parse parts of link title content
         rule balanced_link_title_part() -> Cow<'input, str>
@@ -720,7 +725,7 @@ peg::parser! {
         "["
         content_start:position!()
         content:(
-            title:link_title() attributes:("," att:attribute() { att })* {
+            title:link_or_url_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
             attributes:(att:attribute() comma()? { att })* {
@@ -1085,10 +1090,12 @@ peg::parser! {
         ///
         /// ## Parsing Strategy
         ///
-        /// 1. **Try text + attributes**: `link_title()` followed by comma-separated attributes
+        /// 1. **Try text + attributes**: `link_or_url_title()` followed by comma-separated
+        ///    attributes
         /// 2. **Fallback to attributes only**: If no valid title is found, parse as pure attributes
         ///
-        /// The `link_title()` rule handles both quoted (`"text"`) and unquoted text, stopping at:
+        /// The `link_or_url_title()` rule handles both quoted (`"text"`) and unquoted text,
+        /// stopping at:
         /// - Commas (indicating start of attributes)
         /// - Closing brackets (end of link)
         /// - Attribute patterns (`name=value`)
@@ -1100,7 +1107,7 @@ peg::parser! {
         = "link:" target:source() fragment:path_fragment()? "["
         content_start:position!()
         content:(
-            title:link_title() attributes:("," att:attribute() { att })* {
+            title:link_or_url_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
             attributes:(att:attribute() comma()? { att })* {
