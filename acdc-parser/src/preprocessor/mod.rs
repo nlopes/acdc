@@ -11,7 +11,7 @@ use std::{
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    Location, Options, Warning, WarningKind,
+    AttributeValue, Location, Options, Warning, WarningKind,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
@@ -23,7 +23,7 @@ mod include;
 mod tag;
 
 use comment::CommentScanner;
-use include::{Include, IncludeResult, IncludedLineOrigin};
+use include::{Include, IncludeResult, IncludedLineOrigin, LocationContext};
 
 /// Result from preprocessing that includes both the processed text and metadata needed
 /// for accurate parsing (like leveloffset ranges).
@@ -360,15 +360,28 @@ pub(crate) fn read_and_decode_file(
 /// warnings.
 ///
 /// All public entry points take the handle explicitly; the struct is
-/// purely a carrier so nested `&self` helpers (`process_include`,
-/// `process_conditional_line`, `process_directive_line`) can reach the sink
-/// without threading it through every parameter list.
+/// a carrier so nested `&self` helpers (`process_include`,
+/// `process_conditional_line`, `process_directive_line`) can reach the sink and
+/// immutable caller authority without threading them through every parameter list.
 #[derive(Debug)]
 pub(crate) struct Preprocessor {
     warnings: Rc<RefCell<Vec<Warning>>>,
+    /// Whether the caller supplied `allow-uri-read` before document attributes
+    /// were processed. Document content must not be able to grant this authority.
+    caller_allows_uri_read: bool,
 }
 
 impl Preprocessor {
+    fn new(options: &Options<'_>, warnings: Rc<RefCell<Vec<Warning>>>) -> Self {
+        Self {
+            warnings,
+            caller_allows_uri_read: matches!(
+                options.document_attributes.get("allow-uri-read"),
+                Some(AttributeValue::String(_) | AttributeValue::Bool(true))
+            ),
+        }
+    }
+
     /// Push a warning with an attached source location, also emitting it
     /// through `tracing::warn!` as a belt-and-suspenders fallback so
     /// subscribers keep seeing the same messages.
@@ -510,7 +523,7 @@ impl Preprocessor {
         })?;
         // The local `input` cannot outlive this function, so materialize any
         // borrowed text into an owned result.
-        Ok(Self { warnings }
+        Ok(Self::new(options, warnings)
             .process_inner(&input, None, options)?
             .into_owned())
     }
@@ -521,7 +534,7 @@ impl Preprocessor {
         options: &Options,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'a>, Error> {
-        Self { warnings }.process_inner(input, None, options)
+        Self::new(options, warnings).process_inner(input, None, options)
     }
 
     /// Like `process` but lets the caller pass the file path explicitly, used
@@ -533,7 +546,7 @@ impl Preprocessor {
         options: &Options,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'a>, Error> {
-        Self { warnings }.process_inner(input, Some(file_path), options)
+        Self::new(options, warnings).process_inner(input, Some(file_path), options)
     }
 
     #[cfg(test)]
@@ -546,7 +559,7 @@ impl Preprocessor {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            Ok(Self { warnings }
+            Ok(Self::new(options, warnings)
                 .process_inner(&input, Some(file_path.as_ref()), options)?
                 .into_owned())
         } else {
@@ -574,10 +587,9 @@ impl Preprocessor {
                 let include = Include::parse(
                     parent_dir,
                     line,
-                    line_number,
-                    current_offset,
-                    Some(current_file_path),
+                    LocationContext::new(line_number, current_offset, Some(current_file_path)),
                     options,
+                    self.caller_allows_uri_read,
                     &self.warnings,
                 )?;
                 return Ok(Some(include.lines()?));

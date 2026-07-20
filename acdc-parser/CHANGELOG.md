@@ -115,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- URI includes now require caller-supplied `allow-uri-read`; a document header can no
+  longer grant itself network-read authority or revoke a hard caller grant. Caller
+  string values are presence-based, so empty and textual `false` values still enable
+  URI reads, while boolean `false` and no-value caller entries do not. This matches
+  `asciidoctor`. Denied-URI fallback output and diagnostics retain their existing
+  behavior pending the separate compatibility work.
 - `Secure` mode no longer reads local or URI `include::` targets. It preserves each
   ordinary target as a `link:...[role=include]`, matching `asciidoctor`.
 - Link and URL macros containing only named attributes, such as

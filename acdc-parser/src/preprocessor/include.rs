@@ -47,6 +47,8 @@ pub(crate) struct Include<'a> {
     encoding: Option<String>,
     opts: Vec<String>,
     options: Options<'a>,
+    /// Immutable snapshot of whether the caller supplied `allow-uri-read`.
+    caller_allows_uri_read: bool,
     // Location information for error reporting
     line_number: usize,
     current_offset: usize,
@@ -75,8 +77,7 @@ enum LinesRange {
 /// The target of the include, which can be a filesystem path pointing to a file, or a
 /// url.
 ///
-/// NOTE: Urls will only be fetched if the attribute `allow-uri-read` is set to `true` (or
-/// present).
+/// NOTE: URLs will only be fetched if the caller supplied the `allow-uri-read` attribute.
 #[derive(Debug)]
 pub(crate) enum Target {
     Path(PathBuf),
@@ -85,20 +86,35 @@ pub(crate) enum Target {
 
 /// Location context for error reporting in include directives
 #[derive(Debug, Clone, Copy)]
-struct LocationContext<'a> {
+pub(super) struct LocationContext<'a> {
     line_number: usize,
     current_offset: usize,
     current_file: Option<&'a Path>,
 }
 
+impl<'a> LocationContext<'a> {
+    pub(super) const fn new(
+        line_number: usize,
+        current_offset: usize,
+        current_file: Option<&'a Path>,
+    ) -> Self {
+        Self {
+            line_number,
+            current_offset,
+            current_file,
+        }
+    }
+}
+
 /// Bundled inputs for the `include_parser` PEG grammar.
 ///
-/// The grammar needs the owning file path, parser options, location info
-/// for diagnostics, and a shared warnings sink. Passing them as one
+/// The grammar needs the owning file path, parser options, caller URI authority,
+/// location info for diagnostics, and a shared warnings sink. Passing them as one
 /// struct keeps each generated rule under clippy's argument-count limit.
 struct IncludeParserInputs<'a, 'b> {
     path: &'b Path,
     options: &'b Options<'a>,
+    caller_allows_uri_read: bool,
     location: LocationContext<'b>,
     warnings: &'b Rc<RefCell<Vec<crate::Warning>>>,
 }
@@ -125,6 +141,7 @@ peg::parser! {
                     encoding: None,
                     opts: Vec::new(),
                     options: inputs.options.clone(),
+                    caller_allows_uri_read: inputs.caller_allows_uri_read,
                     line_number: inputs.location.line_number,
                     current_offset: inputs.location.current_offset,
                     current_file: inputs.location.current_file.map(Path::to_path_buf),
@@ -367,34 +384,29 @@ impl<'a> Include<'a> {
     pub(crate) fn parse(
         file_parent: &Path,
         line: &str,
-        line_number: usize,
-        line_start_offset: usize,
-        current_file: Option<&Path>,
+        location: LocationContext<'_>,
         options: &Options<'a>,
+        caller_allows_uri_read: bool,
         warnings: &Rc<RefCell<Vec<crate::Warning>>>,
     ) -> Result<Self, Error> {
-        let location = LocationContext {
-            line_number,
-            current_offset: line_start_offset,
-            current_file,
-        };
         let inputs = IncludeParserInputs {
             path: file_parent,
             options,
+            caller_allows_uri_read,
             location,
             warnings,
         };
         include_parser::include(line, &inputs).map_err(|e| {
             tracing::error!(?line, error=?e, "failed to parse include directive");
-            let location = e.location;
+            let peg_location = e.location;
             Error::Parse(
                 Box::new(crate::SourceLocation {
-                    file: current_file.map(Path::to_path_buf),
+                    file: inputs.location.current_file.map(Path::to_path_buf),
                     // Adjust line number to be relative to the document
                     // PEG parser location.line is always 1 for a single line parse
                     location: crate::Location::point(Position::from_line_col(
-                        line_number,
-                        location.column,
+                        inputs.location.line_number,
+                        peg_location.column,
                     )),
                 }),
                 e.expected.to_string(),
@@ -433,12 +445,7 @@ impl<'a> Include<'a> {
             );
             return Ok(None);
         }
-        if self
-            .options
-            .document_attributes
-            .get("allow-uri-read")
-            .is_none()
-        {
+        if !self.caller_allows_uri_read {
             self.warn_unlocated(
                 "URL includes are disabled by default. Set the 'allow-uri-read' attribute to 'true' to enable.",
             );
@@ -588,6 +595,7 @@ impl<'a> Include<'a> {
             // include warnings end up on the outer `ParseResult`.
             return super::Preprocessor {
                 warnings: Rc::clone(&self.warnings),
+                caller_allows_uri_read: self.caller_allows_uri_read,
             }
             .process_inner(&content, Some(file_path), &self.options)
             .map(|result| {
@@ -849,12 +857,27 @@ mod tests {
     use super::*;
     use std::path::PathBuf;
 
+    fn parse_include<'a>(
+        path: &Path,
+        line: &str,
+        options: &Options<'a>,
+    ) -> Result<Include<'a>, Error> {
+        Include::parse(
+            path,
+            line,
+            LocationContext::new(1, 0, None),
+            options,
+            false,
+            &Rc::default(),
+        )
+    }
+
     #[test]
     fn test_parse_simple_include() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert!(matches!(
             include.target,
@@ -868,7 +891,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[leveloffset=+1,lines=1..5,tag=example]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.level_offset, Some(1));
         assert_eq!(include.tags, vec![TagName::from("example")]);
@@ -881,7 +904,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::https://example.com/doc.adoc[]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert!(matches!(
             include.target,
@@ -895,7 +918,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = r#"include::target.adoc[tag="example code",encoding="utf-8"]"#;
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.tags, vec![TagName::from("example code")]);
         assert_eq!(include.encoding, Some("utf-8".to_string()));
@@ -907,7 +930,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[tags=intro;main;conclusion]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert_eq!(
             include.tags,
@@ -925,7 +948,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[tags=*;!debug]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert_eq!(
             include.tags,
@@ -939,7 +962,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[tags=**]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.tags, vec![TagName::from("**")]);
         Ok(())
@@ -950,7 +973,7 @@ mod tests {
         let path = PathBuf::from("/tmp");
         let line = "include::target.adoc[indent=4]";
         let options = Options::default();
-        let include = Include::parse(&path, line, 1, 0, None, &options, &Rc::default())?;
+        let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.indent, Some(4));
         Ok(())
