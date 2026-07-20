@@ -117,6 +117,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Secure` mode no longer reads local or URI `include::` targets. It preserves each
   ordinary target as a `link:...[role=include]`, matching `asciidoctor`.
+- A `link:` macro containing only named attributes, such as
+  `link:https://example.com[role=include]`, now treats them as attributes instead of
+  visible link text. With no explicit text, converters display the target, matching
+  `asciidoctor`.
 - When parsing with the `manpage` backend, `outfilesuffix` now changes from its
   initial `.man` value to the document's man volume suffix (for example `.1` or
   `.3p`) once the manpage title is known, matching `asciidoctor`.

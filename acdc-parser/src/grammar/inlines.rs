@@ -521,7 +521,8 @@ peg::parser! {
         ///
         /// Supports two formats:
         /// 1. **Quoted text**: `"any text including 'quotes' and ,commas"`
-        /// 2. **Unquoted text**: `any text until , or ] or name=value`
+        /// 2. **Unquoted text**: `any text until , or ]`; content that starts with a
+        ///    named attribute (`name=value`) is parsed as attributes only
         ///
         /// Unlike block attributes, link titles can contain:
         /// - Single quotes: `link:file[see the 'source' code]`
@@ -532,11 +533,11 @@ peg::parser! {
         /// The unquoted parsing stops at:
         /// - `,` (start of attributes)
         /// - `]` (end of link)
-        /// - `name=` patterns (attribute definitions)
+        /// - A leading `name=` pattern selects the attribute-only branch
         rule link_title() -> &'input str
         = "\"" title:$((!"\"" [_])*) "\"" { title }
         / "'" title:$((!("'" whitespace()* ("," / "]")) [_])*) "'" { title }
-        / parts:$(balanced_link_title_part()+) { parts }
+        / !(whitespace()* attribute_name() "=") parts:$(balanced_link_title_part()+) { parts }
 
         /// Parse parts of link title content
         rule balanced_link_title_part() -> Cow<'input, str>
