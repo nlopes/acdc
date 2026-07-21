@@ -761,7 +761,14 @@ impl<'a> Include<'a> {
                     };
                     let path = self.resolve_file_target(parent, base_dir, target)?;
                     if !path.exists() {
-                        if !self.opts.contains(&"optional".to_string()) {
+                        if self.opts.iter().any(|option| option == "optional") {
+                            tracing::info!(
+                                source_file = ?self.current_file,
+                                line = self.line_number,
+                                include_path = %path.display(),
+                                "optional include dropped because include file not found",
+                            );
+                        } else {
                             self.warn_located(format!(
                                 "file is missing — include directive won't be processed: {}",
                                 path.display(),
@@ -1107,6 +1114,28 @@ mod tests {
         let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.indent, Some(4));
+        Ok(())
+    }
+
+    #[test]
+    #[tracing_test::traced_test]
+    fn optional_missing_include_emits_info_trace() -> Result<(), Error> {
+        let path = std::env::temp_dir().join(format!(
+            "acdc-parser-optional-include-info-{}",
+            std::process::id()
+        ));
+        let missing_path = path.join("missing.adoc");
+        let options = Options::default();
+        let include = parse_include(&path, "include::missing.adoc[opts=optional]", &options)?;
+
+        let result = include.lines()?;
+
+        assert!(result.lines.is_empty());
+        assert!(include.warnings.borrow().is_empty());
+        assert!(logs_contain(
+            "optional include dropped because include file not found"
+        ));
+        assert!(logs_contain(&missing_path.to_string_lossy()));
         Ok(())
     }
 
