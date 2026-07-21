@@ -1,6 +1,6 @@
 use std::{
     cell::RefCell,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     rc::Rc,
     str::FromStr,
 };
@@ -609,6 +609,69 @@ impl<'a> Include<'a> {
         })
     }
 
+    fn rebase_absolute_target(base_dir: &Path, target: &Path) -> PathBuf {
+        let mut recovered = base_dir.to_path_buf();
+        for component in target.components() {
+            if let Component::Normal(segment) = component {
+                recovered.push(segment);
+            }
+        }
+        recovered
+    }
+
+    /// Resolve a local target using the Safe/Server entry-directory boundary.
+    ///
+    /// With `base_dir` set to `/workspace/docs`, `../shared.adoc` becomes
+    /// `/workspace/docs/shared.adoc`, and `/tmp/shared.adoc` becomes
+    /// `/workspace/docs/tmp/shared.adoc`. Symlinks are deliberately not canonicalized.
+    fn resolve_file_target(
+        &self,
+        current_parent: &Path,
+        base_dir: &Path,
+        target: &Path,
+    ) -> Result<PathBuf, Error> {
+        if self.options.safe_mode < SafeMode::Safe {
+            return Ok(current_parent.join(target));
+        }
+
+        if target.is_absolute() {
+            let target = super::absolute_normalized(target)?;
+            if target.starts_with(base_dir) {
+                return Ok(target);
+            }
+            self.warn_unlocated("include file is outside of jail; recovering automatically");
+            return Ok(Self::rebase_absolute_target(base_dir, &target));
+        }
+
+        let mut resolved = super::absolute_normalized(current_parent)?;
+        if !resolved.starts_with(base_dir) {
+            self.warn_unlocated("include file is outside of jail; recovering automatically");
+            return Ok(Self::rebase_absolute_target(base_dir, target));
+        }
+
+        let mut recovered = false;
+        for component in target.components() {
+            match component {
+                Component::Prefix(_) | Component::RootDir => resolved.push(component.as_os_str()),
+                Component::CurDir => {}
+                Component::ParentDir => {
+                    if resolved == base_dir {
+                        recovered = true;
+                    } else {
+                        resolved.pop();
+                    }
+                }
+                Component::Normal(segment) => resolved.push(segment),
+            }
+        }
+        if recovered {
+            self.warn_unlocated(
+                "include file has illegal reference to ancestor of jail; recovering automatically",
+            );
+        }
+        Ok(resolved)
+    }
+
     /// Process included content while retaining the origin used for nested includes.
     fn process_content(
         &self,
@@ -646,9 +709,13 @@ impl<'a> Include<'a> {
     pub(crate) fn read_content_from_file(
         &self,
         file_path: &Path,
+        base_dir: &Path,
     ) -> Result<IncludedContent, Error> {
         let content = super::read_and_decode_file(file_path, self.encoding.as_deref())?;
-        let source_origin = SourceOrigin::File(file_path.to_path_buf());
+        let source_origin = SourceOrigin::File {
+            path: file_path.to_path_buf(),
+            base_dir: base_dir.to_path_buf(),
+        };
         self.process_content(
             &content,
             &source_origin,
@@ -680,7 +747,11 @@ impl<'a> Include<'a> {
         let (content, nested_leveloffset_ranges, nested_source_ranges, resolved_source) =
             match &self.target {
                 Target::Path(target) => {
-                    let SourceOrigin::File(current_file) = &self.source_origin else {
+                    let SourceOrigin::File {
+                        path: current_file,
+                        base_dir,
+                    } = &self.source_origin
+                    else {
                         tracing::error!(?target, "local include target has a URI source origin");
                         return Ok(IncludeResult::empty());
                     };
@@ -688,7 +759,7 @@ impl<'a> Include<'a> {
                         tracing::error!(?current_file, "source file has no parent directory");
                         return Ok(IncludeResult::empty());
                     };
-                    let path = parent.join(target);
+                    let path = self.resolve_file_target(parent, base_dir, target)?;
                     if !path.exists() {
                         if !self.opts.contains(&"optional".to_string()) {
                             self.warn_located(format!(
@@ -699,7 +770,7 @@ impl<'a> Include<'a> {
                         return Ok(IncludeResult::empty());
                     }
                     let (content, leveloffset_ranges, source_ranges) =
-                        self.read_content_from_file(&path)?;
+                        self.read_content_from_file(&path, base_dir)?;
                     (content, leveloffset_ranges, source_ranges, path)
                 }
                 Target::Url(url) => {
@@ -918,7 +989,10 @@ mod tests {
         line: &str,
         options: &Options<'a>,
     ) -> Result<Include<'a>, Error> {
-        let source_origin = SourceOrigin::File(path.join("source.adoc"));
+        let source_origin = SourceOrigin::File {
+            path: path.join("source.adoc"),
+            base_dir: path.to_path_buf(),
+        };
         Include::parse(
             &source_origin,
             line,

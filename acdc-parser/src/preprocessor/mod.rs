@@ -4,7 +4,7 @@ use std::{
     borrow::Cow,
     cell::RefCell,
     ops::Range,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     rc::Rc,
 };
 
@@ -76,20 +76,60 @@ impl DirectiveContext<'_> {
 ///
 /// URI origins retain their exact spelling because Asciidoctor resolves nested
 /// URI targets by literal directory-and-target concatenation rather than RFC URL
-/// joining or filesystem resolution.
+/// joining or filesystem resolution. File origins retain the entry document's
+/// directory as `base_dir`; for `/workspace/docs/main.adoc`, nested files continue
+/// to use `/workspace/docs` as their Safe/Server boundary.
 #[derive(Debug, Clone)]
 pub(super) enum SourceOrigin {
-    File(PathBuf),
+    File { path: PathBuf, base_dir: PathBuf },
     Uri(String),
 }
 
 impl SourceOrigin {
+    fn entry_file(path: &Path) -> Result<Self, Error> {
+        let absolute_path = absolute_normalized(path)?;
+        let base_dir = absolute_path
+            .parent()
+            .unwrap_or(&absolute_path)
+            .to_path_buf();
+        Ok(Self::File {
+            path: path.to_path_buf(),
+            base_dir,
+        })
+    }
+
     fn as_path(&self) -> &Path {
         match self {
-            Self::File(path) => path,
+            Self::File { path, .. } => path,
             Self::Uri(uri) => Path::new(uri),
         }
     }
+}
+
+/// Make a path absolute and collapse `.` and `..` without resolving symlinks.
+/// For example, `/workspace/docs/chapters/../shared.adoc` becomes
+/// `/workspace/docs/shared.adoc`, even if `chapters` is a symlink.
+pub(super) fn absolute_normalized(path: &Path) -> Result<PathBuf, Error> {
+    let absolute = std::path::absolute(path)?;
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            Component::RootDir => normalized.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if normalized
+                    .components()
+                    .next_back()
+                    .is_some_and(|last| matches!(last, Component::Normal(_)))
+                {
+                    normalized.pop();
+                }
+            }
+            Component::Normal(segment) => normalized.push(segment),
+        }
+    }
+    Ok(normalized)
 }
 
 /// An open block-form conditional and whether its content is active after
@@ -578,7 +618,7 @@ impl Preprocessor {
         options: &Options,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'a>, Error> {
-        let source_origin = SourceOrigin::File(file_path.to_path_buf());
+        let source_origin = SourceOrigin::entry_file(file_path)?;
         Self::new(options, warnings).process_inner(input, Some(&source_origin), options)
     }
 
@@ -592,7 +632,7 @@ impl Preprocessor {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            let source_origin = SourceOrigin::File(file_path.as_ref().to_path_buf());
+            let source_origin = SourceOrigin::entry_file(file_path.as_ref())?;
             Ok(Self::new(options, warnings)
                 .process_inner(&input, Some(&source_origin), options)?
                 .into_owned())

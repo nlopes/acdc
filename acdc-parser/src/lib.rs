@@ -37,6 +37,22 @@
 //! - Detailed error reporting with source location information.
 //! - Support for parsing from strings, files, and readers.
 //!
+//! # Local include confinement
+//!
+//! For file input, [`SafeMode::Safe`] and [`SafeMode::Server`] use the entry
+//! document's directory as the local include boundary. Given an entry document at
+//! `/workspace/docs/main.adoc`:
+//!
+//! - `../shared.adoc` becomes `/workspace/docs/shared.adoc` and emits a warning;
+//! - `/tmp/shared.adoc` becomes `/workspace/docs/tmp/shared.adoc` and emits a warning;
+//! - a nested include from `/workspace/docs/chapters/part.adoc` still uses
+//!   `/workspace/docs` as its boundary.
+//!
+//! The check does not resolve symlinks. If `/workspace/docs/linked.adoc` points to
+//! `/private/secret.adoc`, including `linked.adoc` reads `/private/secret.adoc`.
+//! These path transformations match `asciidoctor`; they are not strict symlink
+//! containment.
+//!
 //! # Remote includes
 //!
 //! HTTP(S) includes require the optional `network` feature, a safe mode below

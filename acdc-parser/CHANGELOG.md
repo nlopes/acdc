@@ -115,6 +115,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Local includes in `Safe` and `Server` mode now stay beneath the entry document's
+  directory. For an entry document at `/workspace/docs/main.adoc`,
+  `include::../shared.adoc[]` reads `/workspace/docs/shared.adoc`, and
+  `include::/tmp/shared.adoc[]` reads
+  `/workspace/docs/tmp/shared.adoc`; both transformations emit a warning. Nested
+  includes retain the `/workspace/docs` boundary, while `Unsafe` behavior is
+  unchanged. The check does not resolve symlinks, so
+  `/workspace/docs/linked.adoc` may still point to and read a file outside that
+  directory. These path transformations match `asciidoctor`.
 - Remote HTTP(S) include responses are now limited to 10 MiB after transport
   decoding. Larger responses fail with an HTTP request error. This fixed safety
   limit intentionally diverges from `asciidoctor`, which has no equivalent

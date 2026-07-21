@@ -117,6 +117,36 @@ The implementation here follows from:
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
+## Local include confinement
+
+For file input, `Safe` and `Server` modes use the entry document's directory as the
+local include boundary.
+
+For example, assume the entry document is `/workspace/docs/main.adoc`, so the
+boundary is `/workspace/docs`:
+
+| Directive location | Include target | Path opened | Result |
+| --- | --- | --- | --- |
+| `/workspace/docs/main.adoc` | `chapters/intro.adoc` | `/workspace/docs/chapters/intro.adoc` | No warning |
+| `/workspace/docs/main.adoc` | `../shared.adoc` | `/workspace/docs/shared.adoc` | The `..` that would leave the boundary is discarded, and a warning is emitted |
+| `/workspace/docs/main.adoc` | `/workspace/docs/appendix.adoc` | `/workspace/docs/appendix.adoc` | No warning because the absolute target is already inside the boundary |
+| `/workspace/docs/main.adoc` | `/tmp/shared.adoc` | `/workspace/docs/tmp/shared.adoc` | The outside absolute path is moved beneath the boundary, and a warning is emitted |
+| `/workspace/docs/chapters/part.adoc` | `../../shared.adoc` | `/workspace/docs/shared.adoc` | The first `..` reaches the boundary, the second is discarded, and a warning is emitted |
+
+Nested includes continue to use `/workspace/docs` as their boundary; they do not
+switch to the nested file's directory. With `opts=optional`, the target is transformed
+first, the recovery warning is retained, and a missing transformed file is then
+skipped without a missing-file warning.
+
+`Unsafe` mode does not apply these transformations: from
+`/workspace/docs/main.adoc`, `../shared.adoc` attempts to read
+`/workspace/shared.adoc`, and `/tmp/shared.adoc` remains `/tmp/shared.adoc`.
+
+The boundary checks the path as written but does not resolve symlinks. If
+`/workspace/docs/linked.adoc` points to `/private/secret.adoc`, including
+`linked.adoc` reads `/private/secret.adoc` without a boundary warning. These
+transformations match asciidoctor; they are not strict symlink containment.
+
 ## Remote includes
 
 HTTP(S) includes require the optional `network` feature, a safe mode below

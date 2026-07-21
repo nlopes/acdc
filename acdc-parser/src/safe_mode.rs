@@ -9,10 +9,13 @@ pub enum SafeMode {
     #[default]
     Unsafe = 0,
 
-    /// The `SAFE` safe mode level prevents access to files which reside outside of the
-    /// parent directory of the source file. Include directives (`include::[]`) are
-    /// enabled, but paths to include files must be within the parent directory. This mode
-    /// allows assets (such as the stylesheet) to be embedded in the document.
+    /// The `SAFE` safe mode level keeps local include paths beneath the entry document's
+    /// parent directory. For `/workspace/docs/main.adoc`, `../shared.adoc` becomes
+    /// `/workspace/docs/shared.adoc`, while `/tmp/shared.adoc` becomes
+    /// `/workspace/docs/tmp/shared.adoc`; both transformations emit a warning. This
+    /// check does not resolve symlinks, so `/workspace/docs/linked.adoc` may point
+    /// outside the directory. This mode allows assets (such as the stylesheet) to be
+    /// embedded in the document.
     Safe,
 
     /// The `SERVER` safe mode level disallows the document from setting attributes that
@@ -22,8 +25,9 @@ pub enum SafeMode {
     /// - setting source-highlighter, doctype, docinfo and backend
     /// - seeing docdir (as it can reveal information about the host filesystem)
     ///
-    /// It allows icons and linkcss. No includes from a url are allowed unless the
-    /// `allow-uri-read` attribute is set.
+    /// It applies the same local path transformations as [`SafeMode::Safe`]. It allows
+    /// icons and linkcss. No includes from a url are allowed unless the `allow-uri-read`
+    /// attribute is set.
     Server,
 
     /// The `SECURE` safe mode level disallows the document from attempting to read files
