@@ -115,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With the `network` feature and caller-supplied `allow-uri-read`, nested includes in
+  HTTP(S) content now remain URI-based instead of being interpreted as local files.
+  Relative, root-relative, ancestor, and filesystem-looking targets use
+  `asciidoctor`'s literal containing-directory construction, preventing remote
+  content from pivoting into local file reads. Remote content is also no longer
+  stored under predictable shared temporary filenames.
 - URI includes now require caller-supplied `allow-uri-read`; a document header can no
   longer grant itself network-read authority or revoke a hard caller grant. Caller
   string values are presence-based, so empty and textual `false` values still enable

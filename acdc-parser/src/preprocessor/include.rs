@@ -6,7 +6,7 @@ use std::{
 };
 
 #[cfg(feature = "network")]
-use std::{fs::File, io};
+use std::io::Read;
 
 use url::Url;
 
@@ -16,7 +16,10 @@ use crate::{
     model::{HEADER, LeveloffsetRange, Position, SourceRange, substitute},
 };
 
-use super::tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters};
+use super::{
+    SourceOrigin,
+    tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters},
+};
 
 /**
 The format of an include directive is the following:
@@ -38,8 +41,9 @@ not aware of the surrounding document structure.
 */
 #[derive(Debug)]
 pub(crate) struct Include<'a> {
-    file_parent: PathBuf,
+    source_origin: SourceOrigin,
     target: Target,
+    target_as_written: String,
     level_offset: Option<isize>,
     line_range: Vec<LinesRange>,
     tags: Vec<TagName>,
@@ -81,7 +85,39 @@ enum LinesRange {
 #[derive(Debug)]
 pub(crate) enum Target {
     Path(PathBuf),
-    Url(Url),
+    Url(String),
+}
+
+impl Target {
+    fn parse(target: &str, source_origin: &SourceOrigin) -> Result<Self, Error> {
+        if target.starts_with("http://") || target.starts_with("https://") {
+            Url::parse(target)?;
+            return Ok(Self::Url(target.to_string()));
+        }
+
+        if let SourceOrigin::Uri(containing_uri) = source_origin {
+            let uri = format!("{}/{target}", uri_directory(containing_uri));
+            Url::parse(&uri)?;
+            return Ok(Self::Url(uri));
+        }
+
+        Ok(Self::Path(PathBuf::from(target)))
+    }
+}
+
+/// Directory portion of a URI without normalizing its path.
+///
+/// Asciidoctor appends nested targets to this string literally, preserving
+/// doubled slashes and `..` segments in the resulting HTTP request.
+fn uri_directory(uri: &str) -> &str {
+    let path_end = uri.find(['?', '#']).unwrap_or(uri.len());
+    let uri_without_suffix = &uri[..path_end];
+    let authority_start = uri_without_suffix.find("://").map_or(0, |index| index + 3);
+    uri_without_suffix[authority_start..]
+        .rfind('/')
+        .map_or(uri_without_suffix, |index| {
+            &uri_without_suffix[..authority_start + index]
+        })
 }
 
 /// Location context for error reporting in include directives
@@ -112,7 +148,7 @@ impl<'a> LocationContext<'a> {
 /// location info for diagnostics, and a shared warnings sink. Passing them as one
 /// struct keeps each generated rule under clippy's argument-count limit.
 struct IncludeParserInputs<'a, 'b> {
-    path: &'b Path,
+    source_origin: &'b SourceOrigin,
     options: &'b Options<'a>,
     caller_allows_uri_read: bool,
     location: LocationContext<'b>,
@@ -124,16 +160,13 @@ peg::parser! {
         pub(crate) rule include() -> Result<Include<'a>, Error>
             = "include::" target:target() "[" attrs:attributes()? "]" {
                 let target_raw = substitute(&target, HEADER, &inputs.options.document_attributes);
-                let target =
-                    if target_raw.starts_with("http://") || target_raw.starts_with("https://") {
-                        Target::Url(Url::parse(&target_raw)?)
-                    } else {
-                        Target::Path(PathBuf::from(target_raw.as_ref()))
-                    };
+                let target_as_written = target_raw.into_owned();
+                let target = Target::parse(&target_as_written, inputs.source_origin)?;
 
                 let mut include = Include {
-                    file_parent: inputs.path.to_path_buf(),
+                    source_origin: inputs.source_origin.clone(),
                     target,
+                    target_as_written,
                     level_offset: None,
                     line_range: Vec::new(),
                     tags: Vec::new(),
@@ -298,7 +331,22 @@ pub(crate) struct IncludeResult {
     pub(crate) nested_source_ranges: Vec<SourceRange>,
 }
 
+type IncludedContent = (String, Vec<LeveloffsetRange>, Vec<SourceRange>);
+
 impl IncludeResult {
+    fn empty() -> Self {
+        Self {
+            lines: Vec::new(),
+            source_lines: Vec::new(),
+            column_shift: 0,
+            effective_leveloffset: None,
+            nested_leveloffset_ranges: Vec::new(),
+            file: None,
+            target: String::new(),
+            nested_source_ranges: Vec::new(),
+        }
+    }
+
     fn secure_fallback(target: &str) -> Self {
         Self {
             lines: vec![format!("link:{target}[role=include]")],
@@ -382,7 +430,7 @@ impl<'a> Include<'a> {
     }
 
     pub(crate) fn parse(
-        file_parent: &Path,
+        source_origin: &SourceOrigin,
         line: &str,
         location: LocationContext<'_>,
         options: &Options<'a>,
@@ -390,7 +438,7 @@ impl<'a> Include<'a> {
         warnings: &Rc<RefCell<Vec<crate::Warning>>>,
     ) -> Result<Self, Error> {
         let inputs = IncludeParserInputs {
-            path: file_parent,
+            source_origin,
             options,
             caller_allows_uri_read,
             location,
@@ -417,28 +465,15 @@ impl<'a> Include<'a> {
     /// The include target exactly as written in the directive (after attribute
     /// substitution), e.g. `markup.adoc` or `chapters/intro.adoc` — not resolved
     /// against the including file's directory. Feeds the ASG `file` include chain.
-    fn target_as_written(&self) -> String {
-        match &self.target {
-            Target::Path(path) => path.to_string_lossy().into_owned(),
-            Target::Url(url) => url.to_string(),
-        }
+    fn target_as_written(&self) -> &str {
+        &self.target_as_written
     }
 
-    /// Resolve the target path, handling URL downloads if needed.
-    /// Returns Ok(None) if the target is intentionally skipped (e.g., disabled URL includes).
-    /// Returns Err for actual failures (network errors, file I/O errors).
-    fn resolve_target_path(&self) -> Result<Option<PathBuf>, Error> {
-        match &self.target {
-            Target::Path(path) => Ok(Some(self.file_parent.join(path))),
-            Target::Url(url) => self.resolve_url_target(url),
-        }
-    }
-
-    /// Resolve a URL target by downloading to a temp file.
+    /// Fetch a URL target into memory without changing its source origin.
     /// Returns Ok(None) if URL includes are disabled (safe mode, missing attribute).
-    /// Returns Err for actual failures (network errors, file I/O errors).
+    /// Returns Err for actual network or response-read failures.
     #[allow(clippy::unnecessary_wraps)] // Err is used when "network" feature is enabled
-    fn resolve_url_target(&self, url: &Url) -> Result<Option<PathBuf>, Error> {
+    fn fetch_url_target(&self, url: &str) -> Result<Option<Vec<u8>>, Error> {
         if self.options.safe_mode > SafeMode::Server {
             self.warn_unlocated(
                 "URL includes are disabled by default. Run in `SERVER` mode or less to enable.",
@@ -462,21 +497,14 @@ impl<'a> Include<'a> {
 
         #[cfg(feature = "network")]
         {
-            let mut temp_path = std::env::temp_dir();
-            let Some(file_name) = url.path_segments().and_then(std::iter::Iterator::last) else {
-                tracing::error!(url=?url, "failed to extract file name from URL");
-                return Ok(None);
-            };
-            temp_path.push(file_name);
-
-            let mut response = ureq::get(url.as_str())
+            let mut response = ureq::get(url)
                 .call()
                 .map_err(|e| Error::HttpRequest(e.to_string()))?;
-            let mut file = File::create(&temp_path)?;
-            io::copy(&mut response.body_mut().as_reader(), &mut file)?;
+            let mut bytes = Vec::new();
+            response.body_mut().as_reader().read_to_end(&mut bytes)?;
 
-            tracing::debug!(?temp_path, url=?url, "downloaded file from URL");
-            Ok(Some(temp_path))
+            tracing::debug!(%url, "downloaded content from URL");
+            Ok(Some(bytes))
         }
     }
 
@@ -558,108 +586,119 @@ impl<'a> Include<'a> {
         (indented, column_shift)
     }
 
-    /// Read and process content from a file, returning the text and any nested ranges.
-    ///
-    /// For `AsciiDoc` files, this recursively processes includes and returns leveloffset
-    /// and source ranges from nested includes. For non-`AsciiDoc` files, returns just the
-    /// normalized content.
+    fn has_asciidoc_extension(path: &Path) -> bool {
+        path.extension().is_some_and(|extension| {
+            ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&extension.to_string_lossy().as_ref())
+        })
+    }
+
+    /// Process included content while retaining the origin used for nested includes.
+    fn process_content(
+        &self,
+        content: &str,
+        source_origin: &SourceOrigin,
+        is_asciidoc: bool,
+    ) -> Result<IncludedContent, Error> {
+        if !is_asciidoc {
+            return Ok((
+                Preprocessor::normalize(content).into_owned(),
+                Vec::new(),
+                Vec::new(),
+            ));
+        }
+
+        super::Preprocessor {
+            warnings: Rc::clone(&self.warnings),
+            caller_allows_uri_read: self.caller_allows_uri_read,
+        }
+        .process_inner(content, Some(source_origin), &self.options)
+        .map(|result| {
+            (
+                result.text.into_owned(),
+                result.leveloffset_ranges,
+                result.source_ranges,
+            )
+        })
+        .map_err(|error| {
+            tracing::error!(origin=?source_origin, ?error, "failed to process included content");
+            error
+        })
+    }
+
+    /// Read and process content from a local file.
     pub(crate) fn read_content_from_file(
         &self,
         file_path: &Path,
-    ) -> Result<(String, Vec<LeveloffsetRange>, Vec<SourceRange>), Error> {
-        let content =
-            crate::preprocessor::read_and_decode_file(file_path, self.encoding.as_deref())?;
-        if let Some(ext) = file_path.extension() &&
-            // If the file is recognized as an AsciiDoc file (i.e., it has one of the
-            // following extensions: .asciidoc, .adoc, .ad, .asc, or .txt) additional
-            // normalization and processing is performed. First, all trailing whitespace
-            // and endlines are removed from each line and replaced with a Unix line feed.
-            // This normalization is important to how an AsciiDoc processor works. Next,
-            // the AsciiDoc processor runs the preprocessor on the lines, looking for and
-            // interpreting the following directives:
-            //
-            // * includes
-            //
-            // * preprocessor conditionals (e.g., ifdef)
-            //
-            // Running the preprocessor on the included content allows includes to be nested, thus
-            // provides lot of flexibility in constructing radically different documents with a single
-            // primary document and a few command line attributes.
-             ["adoc", "asciidoc", "ad", "asc", "txt"].contains(&ext.to_string_lossy().as_ref())
-        {
-            // For nested AsciiDoc includes, return the text and any nested ranges.
-            // This enables proper accumulation through nested includes. The result
-            // may borrow from `content`, which is a local here, so materialize
-            // into an owned String via `into_owned` before handing it back.
-            // Use a preprocessor sharing our warnings sink so nested
-            // include warnings end up on the outer `ParseResult`.
-            return super::Preprocessor {
-                warnings: Rc::clone(&self.warnings),
-                caller_allows_uri_read: self.caller_allows_uri_read,
-            }
-            .process_inner(&content, Some(file_path), &self.options)
-            .map(|result| {
-                (
-                    result.text.into_owned(),
-                    result.leveloffset_ranges,
-                    result.source_ranges,
-                )
-            })
-            .map_err(|error| {
-                tracing::error!(path=?file_path, ?error, "failed to process file");
-                error
-            });
-        }
+    ) -> Result<IncludedContent, Error> {
+        let content = super::read_and_decode_file(file_path, self.encoding.as_deref())?;
+        let source_origin = SourceOrigin::File(file_path.to_path_buf());
+        self.process_content(
+            &content,
+            &source_origin,
+            Self::has_asciidoc_extension(file_path),
+        )
+    }
 
-        // For non-AsciiDoc files, normalize the content and return empty nested ranges.
-        Ok((
-            Preprocessor::normalize(&content).into_owned(),
-            Vec::new(),
-            Vec::new(),
-        ))
+    /// Fetch and process content from a URI without converting it to a local origin.
+    fn read_content_from_url(&self, url: &str) -> Result<Option<IncludedContent>, Error> {
+        let Some(bytes) = self.fetch_url_target(url)? else {
+            return Ok(None);
+        };
+        let content = super::decode_bytes(&bytes, self.encoding.as_deref(), url)?;
+        let parsed_url = Url::parse(url)?;
+        let source_origin = SourceOrigin::Uri(url.to_string());
+        self.process_content(
+            &content,
+            &source_origin,
+            Self::has_asciidoc_extension(Path::new(parsed_url.path())),
+        )
+        .map(Some)
     }
 
     pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
-            return Ok(IncludeResult::secure_fallback(&self.target_as_written()));
+            return Ok(IncludeResult::secure_fallback(self.target_as_written()));
         }
 
-        // Resolve target path (handles both file paths and URL downloads)
-        let Some(path) = self.resolve_target_path()? else {
-            return Ok(IncludeResult {
-                lines: Vec::new(),
-                source_lines: Vec::new(),
-                column_shift: 0,
-                effective_leveloffset: None,
-                nested_leveloffset_ranges: Vec::new(),
-                file: None,
-                target: String::new(),
-                nested_source_ranges: Vec::new(),
-            });
-        };
-
-        // If the path doesn't exist, return empty lines (never fail parsing due to include)
-        if !path.exists() {
-            if !self.opts.contains(&"optional".to_string()) {
-                self.warn_located(format!(
-                    "file is missing — include directive won't be processed: {}",
-                    path.display(),
-                ));
-            }
-            return Ok(IncludeResult {
-                lines: Vec::new(),
-                source_lines: Vec::new(),
-                column_shift: 0,
-                effective_leveloffset: None,
-                nested_leveloffset_ranges: Vec::new(),
-                file: None,
-                target: String::new(),
-                nested_source_ranges: Vec::new(),
-            });
-        }
-
-        let (content, nested_leveloffset_ranges, nested_source_ranges) =
-            self.read_content_from_file(&path)?;
+        let (content, nested_leveloffset_ranges, nested_source_ranges, resolved_source) =
+            match &self.target {
+                Target::Path(target) => {
+                    let SourceOrigin::File(current_file) = &self.source_origin else {
+                        tracing::error!(?target, "local include target has a URI source origin");
+                        return Ok(IncludeResult::empty());
+                    };
+                    let Some(parent) = current_file.parent() else {
+                        tracing::error!(?current_file, "source file has no parent directory");
+                        return Ok(IncludeResult::empty());
+                    };
+                    let path = parent.join(target);
+                    if !path.exists() {
+                        if !self.opts.contains(&"optional".to_string()) {
+                            self.warn_located(format!(
+                                "file is missing — include directive won't be processed: {}",
+                                path.display(),
+                            ));
+                        }
+                        return Ok(IncludeResult::empty());
+                    }
+                    let (content, leveloffset_ranges, source_ranges) =
+                        self.read_content_from_file(&path)?;
+                    (content, leveloffset_ranges, source_ranges, path)
+                }
+                Target::Url(url) => {
+                    let Some((content, leveloffset_ranges, source_ranges)) =
+                        self.read_content_from_url(url)?
+                    else {
+                        return Ok(IncludeResult::empty());
+                    };
+                    (
+                        content,
+                        leveloffset_ranges,
+                        source_ranges,
+                        PathBuf::from(url),
+                    )
+                }
+            };
         let effective_leveloffset = self.calculate_effective_leveloffset();
 
         let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
@@ -687,8 +726,8 @@ impl<'a> Include<'a> {
             column_shift,
             effective_leveloffset,
             nested_leveloffset_ranges,
-            file: Some(path),
-            target: self.target_as_written(),
+            file: Some(resolved_source),
+            target: self.target_as_written().to_string(),
             nested_source_ranges,
         })
     }
@@ -862,8 +901,9 @@ mod tests {
         line: &str,
         options: &Options<'a>,
     ) -> Result<Include<'a>, Error> {
+        let source_origin = SourceOrigin::File(path.join("source.adoc"));
         Include::parse(
-            path,
+            &source_origin,
             line,
             LocationContext::new(1, 0, None),
             options,

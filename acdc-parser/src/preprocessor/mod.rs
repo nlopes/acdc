@@ -63,7 +63,33 @@ impl PreprocessorResult<'_> {
 struct DirectiveContext<'a> {
     line_number: &'a mut usize,
     current_offset: usize,
-    file_parent: Option<&'a Path>,
+    source_origin: Option<&'a SourceOrigin>,
+}
+
+impl DirectiveContext<'_> {
+    fn current_file(&self) -> Option<&Path> {
+        self.source_origin.map(SourceOrigin::as_path)
+    }
+}
+
+/// Origin used to resolve includes while preprocessing a source.
+///
+/// URI origins retain their exact spelling because Asciidoctor resolves nested
+/// URI targets by literal directory-and-target concatenation rather than RFC URL
+/// joining or filesystem resolution.
+#[derive(Debug, Clone)]
+pub(super) enum SourceOrigin {
+    File(PathBuf),
+    Uri(String),
+}
+
+impl SourceOrigin {
+    fn as_path(&self) -> &Path {
+        match self {
+            Self::File(path) => path,
+            Self::Uri(uri) => Path::new(uri),
+        }
+    }
 }
 
 /// An open block-form conditional and whether its content is active after
@@ -134,7 +160,7 @@ impl OriginMapping {
 }
 
 impl<'input> PreprocessorState<'input> {
-    fn new(input: &'input str, source_file: Option<&Path>) -> Self {
+    fn new(input: &'input str, source_origin: Option<&SourceOrigin>) -> Self {
         let mut src_line_starts = vec![0];
         src_line_starts.extend(
             input
@@ -149,7 +175,7 @@ impl<'input> PreprocessorState<'input> {
             byte_offset: 0,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
-            source_file: source_file.map(Path::to_path_buf),
+            source_file: source_origin.map(|origin| origin.as_path().to_path_buf()),
             src_line_starts,
             run: None,
             run_expected_src_line: 1,
@@ -304,14 +330,22 @@ pub(crate) fn read_and_decode_file(
     encoding: Option<&str>,
 ) -> Result<String, Error> {
     let bytes = std::fs::read(file_path)?;
+    decode_bytes(&bytes, encoding, &file_path.display().to_string())
+}
 
+/// Decode source bytes using an explicit encoding, BOM detection, or UTF-8.
+pub(super) fn decode_bytes(
+    bytes: &[u8],
+    encoding: Option<&str>,
+    source: &str,
+) -> Result<String, Error> {
     // If there was an encoding specified, decode the entire file as that
     if let Some(enc_label) = encoding {
         if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {
-            let (cow, _, had_errors) = encoding.decode(&bytes);
+            let (cow, _, had_errors) = encoding.decode(bytes);
             if had_errors {
                 tracing::error!(
-                    path = ?file_path.display(),
+                    %source,
                     encoding = %enc_label,
                     "decoding encountered errors"
                 );
@@ -329,7 +363,7 @@ pub(crate) fn read_and_decode_file(
             let (cow, _, had_errors) = encoding.decode(content);
             if had_errors {
                 tracing::error!(
-                    path = ?file_path.display(),
+                    %source,
                     encoding = name,
                     "decoding encountered errors"
                 );
@@ -339,15 +373,13 @@ pub(crate) fn read_and_decode_file(
     }
 
     // If no BOM, try decoding as UTF-8 directly
-    let (cow, _, had_errors) = UTF_8.decode(&bytes);
+    let (cow, _, had_errors) = UTF_8.decode(bytes);
     if !had_errors {
         return Ok(cow.into_owned());
     }
 
     // If you get here, the file is not valid UTF-8 (and no BOM)
-    Err(Error::UnrecognizedEncodingInFile(
-        file_path.display().to_string(),
-    ))
+    Err(Error::UnrecognizedEncodingInFile(source.to_string()))
 }
 
 /// Preprocessor shared across `Include` / `Conditional` / `Tag` helpers.
@@ -546,7 +578,8 @@ impl Preprocessor {
         options: &Options,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'a>, Error> {
-        Self::new(options, warnings).process_inner(input, Some(file_path), options)
+        let source_origin = SourceOrigin::File(file_path.to_path_buf());
+        Self::new(options, warnings).process_inner(input, Some(&source_origin), options)
     }
 
     #[cfg(test)]
@@ -559,8 +592,9 @@ impl Preprocessor {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
+            let source_origin = SourceOrigin::File(file_path.as_ref().to_path_buf());
             Ok(Self::new(options, warnings)
-                .process_inner(&input, Some(file_path.as_ref()), options)?
+                .process_inner(&input, Some(&source_origin), options)?
                 .into_owned())
         } else {
             Err(Error::InvalidIncludePath(
@@ -579,24 +613,21 @@ impl Preprocessor {
         line: &str,
         line_number: usize,
         current_offset: usize,
-        file_parent: Option<&Path>,
+        source_origin: Option<&SourceOrigin>,
         options: &Options,
     ) -> Result<Option<IncludeResult>, Error> {
-        if let Some(current_file_path) = file_parent {
-            if let Some(parent_dir) = current_file_path.parent() {
-                let include = Include::parse(
-                    parent_dir,
-                    line,
-                    LocationContext::new(line_number, current_offset, Some(current_file_path)),
-                    options,
-                    self.caller_allows_uri_read,
-                    &self.warnings,
-                )?;
-                return Ok(Some(include.lines()?));
-            }
-        } else {
-            tracing::error!(%line, "file parent is missing - include directive cannot be processed");
+        if let Some(source_origin) = source_origin {
+            let include = Include::parse(
+                source_origin,
+                line,
+                LocationContext::new(line_number, current_offset, Some(source_origin.as_path())),
+                options,
+                self.caller_allows_uri_read,
+                &self.warnings,
+            )?;
+            return Ok(Some(include.lines()?));
         }
+        tracing::error!(%line, "source origin is missing - include directive cannot be processed");
         Ok(None)
     }
 
@@ -836,7 +867,7 @@ impl Preprocessor {
                 line,
                 *ctx.line_number,
                 ctx.current_offset,
-                ctx.file_parent,
+                ctx.current_file(),
             )?;
             let parent_active = stack.last().is_none_or(|frame| frame.active);
             let is_inline = conditional.has_inline_content();
@@ -846,7 +877,7 @@ impl Preprocessor {
                     &mut content,
                     *ctx.line_number,
                     ctx.current_offset,
-                    ctx.file_parent,
+                    ctx.current_file(),
                 )?;
 
             if is_inline {
@@ -869,15 +900,15 @@ impl Preprocessor {
                 line,
                 *ctx.line_number,
                 ctx.current_offset,
-                ctx.file_parent,
+                ctx.current_file(),
             )?;
             if !endif.closes(&frame.conditional) {
                 self.add_warning_at(
                     "attribute mismatch between if and endif directives",
-                    Self::create_source_location(*ctx.line_number, ctx.file_parent),
+                    Self::create_source_location(*ctx.line_number, ctx.current_file()),
                 );
                 return Err(Error::InvalidConditionalDirective(Box::new(
-                    Self::create_source_location(*ctx.line_number, ctx.file_parent),
+                    Self::create_source_location(*ctx.line_number, ctx.current_file()),
                 )));
             }
             stack.pop();
@@ -909,7 +940,7 @@ impl Preprocessor {
                 line,
                 *ctx.line_number,
                 ctx.current_offset,
-                ctx.file_parent,
+                ctx.source_origin,
                 options,
             )? {
                 Self::handle_include_result(include_result, out);
@@ -924,7 +955,7 @@ impl Preprocessor {
     fn process_inner<'a>(
         &self,
         input: &'a str,
-        file_parent: Option<&Path>,
+        source_origin: Option<&SourceOrigin>,
         options: &Options,
     ) -> Result<PreprocessorResult<'a>, Error> {
         let normalized = Preprocessor::normalize(input);
@@ -941,7 +972,7 @@ impl Preprocessor {
             });
         }
 
-        self.process_slow_path(&normalized, file_parent, options, setext)
+        self.process_slow_path(&normalized, source_origin, options, setext)
     }
 
     /// Rebuild a document that contains at least one preprocessor trigger.
@@ -953,7 +984,7 @@ impl Preprocessor {
     fn process_slow_path<'a>(
         &self,
         normalized: &Cow<'a, str>,
-        file_parent: Option<&Path>,
+        source_origin: Option<&SourceOrigin>,
         options: &Options,
         setext: bool,
     ) -> Result<PreprocessorResult<'a>, Error> {
@@ -967,7 +998,7 @@ impl Preprocessor {
         let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut current_offset = 0;
-        let mut out = PreprocessorState::new(normalized_ref, file_parent);
+        let mut out = PreprocessorState::new(normalized_ref, source_origin);
         // Tracks verbatim-block and previous-line context so adjacent line
         // comments can be dropped (matching asciidoctor's reader). See
         // `comment::CommentScanner`.
@@ -979,7 +1010,7 @@ impl Preprocessor {
                 let ctx = DirectiveContext {
                     line_number: &mut line_number,
                     current_offset,
-                    file_parent,
+                    source_origin,
                 };
                 self.process_conditional_line(
                     line,
@@ -1043,7 +1074,7 @@ impl Preprocessor {
                 let mut ctx = DirectiveContext {
                     line_number: &mut line_number,
                     current_offset,
-                    file_parent,
+                    source_origin,
                 };
                 self.process_directive_line(line, &mut ctx, &options, &mut out)?;
             } else {
