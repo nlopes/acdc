@@ -117,10 +117,24 @@ The implementation here follows from:
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
+## Remote includes
+
+HTTP(S) includes require the optional `network` feature, a safe mode below
+`Secure`, and a caller-supplied `allow-uri-read` attribute. A document cannot grant
+itself this authority. Each response is limited to 10 MiB after transport decoding;
+larger responses return an HTTP request error. The limit is fixed, applies separately
+to each response, and cannot be changed by a document attribute.
+
+This limit is an intentional security divergence from asciidoctor, which has no
+equivalent per-response limit.
+
 ## Deliberate divergences from asciidoctor
 
 acdc's references are the [AsciiDoc Language draft specification](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/) and [asciidoctor](https://asciidoctor.org). A handful of parser behaviours intentionally differ from asciidoctor where the draft spec and asciidoctor diverge, or where asciidoctor's output is an implementation artifact.
 
+* **Remote include response limit**: Each decoded HTTP(S) include response is limited
+  to 10 MiB. See [Remote includes](#remote-includes) for the authority requirements
+  and limit behavior.
 * **Symmetric escape of constrained markers**: `\*foo\*`, `\_foo\_`, `` \`foo\` ``, `\#foo\#` all emit the literal marker pair (`*foo*`, `_foo_`, etc.). asciidoctor strips only the opening backslash and leaves the trailing `\` in the output. The draft spec's backslash-escaping section (`spec/outline.adoc`) states: "a backslash in front of a reserved markup character will be removed, regardless of whether the text would have been interpreted or not" — acdc follows that rule symmetrically.
 
 ## See also

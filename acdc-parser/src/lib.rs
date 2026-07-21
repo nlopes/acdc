@@ -37,6 +37,15 @@
 //! - Detailed error reporting with source location information.
 //! - Support for parsing from strings, files, and readers.
 //!
+//! # Remote includes
+//!
+//! HTTP(S) includes require the optional `network` feature, a safe mode below
+//! [`SafeMode::Secure`], and caller-supplied `allow-uri-read` authority. A document
+//! cannot grant itself this authority. Each response is limited to 10 MiB after
+//! transport decoding; larger responses return an HTTP request error. This fixed,
+//! per-response limit is not controlled by a document attribute and intentionally
+//! diverges from `asciidoctor`.
+//!
 
 use std::{
     cell::RefCell,

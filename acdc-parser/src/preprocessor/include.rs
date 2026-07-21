@@ -21,6 +21,22 @@ use super::{
     tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters},
 };
 
+#[cfg(feature = "network")]
+const MAX_REMOTE_INCLUDE_BYTES: usize = 10 * 1024 * 1024;
+
+#[cfg(feature = "network")]
+fn read_remote_include(reader: impl Read) -> Result<Vec<u8>, Error> {
+    let read_limit = u64::try_from(MAX_REMOTE_INCLUDE_BYTES + 1)?;
+    let mut bytes = Vec::new();
+    reader.take(read_limit).read_to_end(&mut bytes)?;
+    if bytes.len() > MAX_REMOTE_INCLUDE_BYTES {
+        return Err(Error::HttpRequest(
+            "remote include response exceeds the 10 MiB limit".to_string(),
+        ));
+    }
+    Ok(bytes)
+}
+
 /**
 The format of an include directive is the following:
 
@@ -500,8 +516,9 @@ impl<'a> Include<'a> {
             let mut response = ureq::get(url)
                 .call()
                 .map_err(|e| Error::HttpRequest(e.to_string()))?;
-            let mut bytes = Vec::new();
-            response.body_mut().as_reader().read_to_end(&mut bytes)?;
+            // Apply the cap after transport decoding so compressed responses cannot
+            // expand beyond the parser's per-include memory boundary.
+            let bytes = read_remote_include(response.body_mut().as_reader())?;
 
             tracing::debug!(%url, "downloaded content from URL");
             Ok(Some(bytes))
@@ -1016,6 +1033,25 @@ mod tests {
         let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.indent, Some(4));
+        Ok(())
+    }
+
+    #[cfg(feature = "network")]
+    #[test]
+    fn remote_include_response_is_limited_to_ten_mib() -> Result<(), Box<dyn std::error::Error>> {
+        let accepted = read_remote_include(
+            std::io::repeat(b'a').take(u64::try_from(MAX_REMOTE_INCLUDE_BYTES)?),
+        )?;
+        assert_eq!(accepted.len(), MAX_REMOTE_INCLUDE_BYTES);
+        drop(accepted);
+
+        let Err(error) = read_remote_include(std::io::repeat(b'a')) else {
+            return Err("expected an oversized remote include to be rejected".into());
+        };
+        let Error::HttpRequest(message) = error else {
+            return Err(format!("expected an HTTP request error, got {error:?}").into());
+        };
+        assert_eq!(message, "remote include response exceeds the 10 MiB limit");
         Ok(())
     }
 

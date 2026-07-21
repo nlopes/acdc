@@ -115,6 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Remote HTTP(S) include responses are now limited to 10 MiB after transport
+  decoding. Larger responses fail with an HTTP request error. This fixed safety
+  limit intentionally diverges from `asciidoctor`, which has no equivalent
+  per-response limit.
 - With the `network` feature and caller-supplied `allow-uri-read`, nested includes in
   HTTP(S) content now remain URI-based instead of being interpreted as local files.
   Relative, root-relative, ancestor, and filesystem-looking targets use
