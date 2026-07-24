@@ -10,10 +10,13 @@ use std::{
 use bumpalo::Bump;
 
 use crate::{
-    CalloutRef, DocumentAttributes, Footnote, Location, Options, SourceLocation, TocEntry, Warning,
-    WarningKind,
+    AttributeName, AttributeValue, CalloutRef, DocumentAttributes, Footnote, Location, Options,
+    SourceLocation, TocEntry, Warning, WarningKind,
     grammar::LineMap,
-    model::{LeveloffsetRange, SourceRange, substitution::SubsFlags},
+    model::{
+        LeveloffsetRange, SourceRange, substitute,
+        substitution::{HEADER, SubsFlags},
+    },
 };
 
 #[derive(Debug)]
@@ -263,6 +266,31 @@ impl<'a> ParserState<'a> {
             s.push_str(p.as_ref());
         }
         s.into_bump_str()
+    }
+
+    /// Apply an attribute entry declared by document content: expand `{attr}`
+    /// references at definition time (matching `asciidoctor`), intern the result
+    /// for the parse, and store it unless the name is a trusted caller-only
+    /// attribute that content must not be able to change.
+    ///
+    /// Returns the substituted value so a caller that also builds an AST node for
+    /// the entry keeps the value the document wrote.
+    pub(crate) fn apply_document_attribute(
+        &mut self,
+        key: AttributeName<'a>,
+        value: AttributeValue<'a>,
+    ) -> AttributeValue<'a> {
+        let value = match value {
+            AttributeValue::String(s) => {
+                let substituted = substitute(&s, HEADER, &self.document_attributes);
+                AttributeValue::String(Cow::Borrowed(self.intern_str(&substituted)))
+            }
+            AttributeValue::Bool(_) | AttributeValue::None => value,
+        };
+        if !crate::constants::is_trusted_attribute(key.as_ref()) {
+            Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
+        }
+        value
     }
 
     /// Testing helper: constructs a `ParserState` backed by a leaked `Bump`.

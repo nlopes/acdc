@@ -17,7 +17,7 @@ use crate::{
 };
 
 use super::{
-    SourceOrigin,
+    IncludeContext, SourceOrigin,
     tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters},
 };
 
@@ -67,8 +67,7 @@ pub(crate) struct Include<'a> {
     encoding: Option<String>,
     opts: Vec<String>,
     options: Options<'a>,
-    /// Immutable snapshot of whether the caller supplied `allow-uri-read`.
-    caller_allows_uri_read: bool,
+    context: IncludeContext,
     // Location information for error reporting
     line_number: usize,
     current_offset: usize,
@@ -166,7 +165,7 @@ impl<'a> LocationContext<'a> {
 struct IncludeParserInputs<'a, 'b> {
     source_origin: &'b SourceOrigin,
     options: &'b Options<'a>,
-    caller_allows_uri_read: bool,
+    context: IncludeContext,
     location: LocationContext<'b>,
     warnings: &'b Rc<RefCell<Vec<crate::Warning>>>,
 }
@@ -190,7 +189,7 @@ peg::parser! {
                     encoding: None,
                     opts: Vec::new(),
                     options: inputs.options.clone(),
-                    caller_allows_uri_read: inputs.caller_allows_uri_read,
+                    context: inputs.context,
                     line_number: inputs.location.line_number,
                     current_offset: inputs.location.current_offset,
                     current_file: inputs.location.current_file.map(Path::to_path_buf),
@@ -450,13 +449,13 @@ impl<'a> Include<'a> {
         line: &str,
         location: LocationContext<'_>,
         options: &Options<'a>,
-        caller_allows_uri_read: bool,
+        include_context: IncludeContext,
         warnings: &Rc<RefCell<Vec<crate::Warning>>>,
     ) -> Result<Self, Error> {
         let inputs = IncludeParserInputs {
             source_origin,
             options,
-            caller_allows_uri_read,
+            context: include_context,
             location,
             warnings,
         };
@@ -496,7 +495,7 @@ impl<'a> Include<'a> {
             );
             return Ok(None);
         }
-        if !self.caller_allows_uri_read {
+        if !self.context.allows_uri_read {
             self.warn_unlocated(
                 "URL includes are disabled by default. Set the 'allow-uri-read' attribute to 'true' to enable.",
             );
@@ -687,11 +686,8 @@ impl<'a> Include<'a> {
             ));
         }
 
-        super::Preprocessor {
-            warnings: Rc::clone(&self.warnings),
-            caller_allows_uri_read: self.caller_allows_uri_read,
-        }
-        .process_inner(content, Some(source_origin), &self.options)
+        super::Preprocessor::nested(&self.warnings, self.context)
+            .process_inner(content, Some(source_origin), &self.options)
         .map(|result| {
             (
                 result.text.into_owned(),
@@ -1005,7 +1001,7 @@ mod tests {
             line,
             LocationContext::new(1, 0, None),
             options,
-            false,
+            IncludeContext::root(options),
             &Rc::default(),
         )
     }

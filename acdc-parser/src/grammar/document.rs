@@ -1886,22 +1886,23 @@ peg::parser! {
         {
             let AttributeEntry{key, value, set} = att;
             tracing::debug!(%set, %key, %value, "Found document attribute in the document header");
-            // Apply definition-time substitution: if value contains {attr} references,
-            // expand them using currently defined attributes (matching asciidoctor behavior)
-            let value = match value {
-                AttributeValue::String(s) => {
-                    let substituted = substitute(&s, HEADER, &state.document_attributes);
-                    AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
-                }
-                AttributeValue::Bool(_) | AttributeValue::None => value,
-            };
-            Rc::make_mut(&mut state.document_attributes).set(key.into(), value);
+            state.apply_document_attribute(key.into(), value);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
         = blocks:block(offset, parent_section_level)*
         {
-            blocks.into_iter().collect::<Result<Vec<_>, Error>>()
+            let mut blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            // A trusted attribute declared in document content is consumed as syntax
+            // but has no semantic node in asciidoctor's AST.
+            blocks.retain(|block| {
+                !matches!(
+                    block,
+                    Block::DocumentAttribute(attribute)
+                        if crate::constants::is_trusted_attribute(&attribute.name)
+                )
+            });
+            Ok(blocks)
         }
 
         /// Blocks for table cells without `AsciiDoc` style - excludes block types that require full parsing.
@@ -2090,15 +2091,7 @@ peg::parser! {
         = att:document_attribute_match()
         {
             let AttributeEntry{ key, value, .. } = att;
-            // Apply definition-time substitution (matching asciidoctor behavior)
-            let value = match value {
-                AttributeValue::String(s) => {
-                    let substituted = substitute(&s, HEADER, &state.document_attributes);
-                    AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
-                }
-                AttributeValue::Bool(_) | AttributeValue::None => value,
-            };
-            Rc::make_mut(&mut state.document_attributes).set(key.into(), value.clone());
+            let value = state.apply_document_attribute(key.into(), value);
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
                 value,
@@ -2390,15 +2383,7 @@ peg::parser! {
                     BlockMetadataLine::DocumentAttribute(key, value) => {
                         // Set the document attribute immediately so it's available for
                         // subsequent attribute references (e.g., in title lines)
-                        // Apply definition-time substitution (matching asciidoctor behavior)
-                        let value = match value {
-                            AttributeValue::String(s) => {
-                                let substituted = substitute(&s, HEADER, &state.document_attributes);
-                                AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
-                            }
-                            AttributeValue::Bool(_) | AttributeValue::None => value,
-                        };
-                        Rc::make_mut(&mut state.document_attributes).set(key, value);
+                        state.apply_document_attribute(key, value);
                     },
                     BlockMetadataLine::Title(inner) => {
                         title = inner;

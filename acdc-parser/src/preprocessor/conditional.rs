@@ -177,8 +177,8 @@ impl Conditional<'_> {
         }
 
         let result = match operation {
-            Some(Operation::Or) => attrs.iter().any(|attr| doc_attrs.contains_key(attr)),
-            _ => attrs.iter().all(|attr| doc_attrs.contains_key(attr)),
+            Some(Operation::Or) => attrs.iter().any(|attr| doc_attrs.get(attr).is_some()),
+            _ => attrs.iter().all(|attr| doc_attrs.get(attr).is_some()),
         };
 
         if negate { !result } else { result }

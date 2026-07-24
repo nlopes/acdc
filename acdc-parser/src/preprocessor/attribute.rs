@@ -27,6 +27,10 @@ peg::parser! {
 pub(crate) fn parse_line(attributes: &mut DocumentAttributes, line: &str) {
     match attribute_parser::document_attribute(line) {
         Ok((unset, name, value)) => {
+            // Only the caller sets trusted attributes; document content cannot.
+            if crate::constants::is_trusted_attribute(&name) {
+                return;
+            }
             if unset {
                 attributes.insert(name.into(), AttributeValue::Bool(false));
             } else {

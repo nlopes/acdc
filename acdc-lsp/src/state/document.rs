@@ -365,8 +365,8 @@ fn evaluate_condition(
     doc_attrs: &DocumentAttributes,
 ) -> bool {
     let result = match operation {
-        Some(ConditionalOperation::Or) => attributes.iter().any(|a| doc_attrs.contains_key(a)),
-        _ => attributes.iter().all(|a| doc_attrs.contains_key(a)),
+        Some(ConditionalOperation::Or) => attributes.iter().any(|a| doc_attrs.get(a).is_some()),
+        _ => attributes.iter().all(|a| doc_attrs.get(a).is_some()),
     };
     if is_ifndef { !result } else { result }
 }

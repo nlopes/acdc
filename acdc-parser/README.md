@@ -117,6 +117,31 @@ The implementation here follows from:
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
+## Include depth
+
+Built-in includes have a trusted `max-include-depth` attribute that defaults to `64`
+and is visible as `{max-include-depth}` in the parsed document. The fallback
+participates in attribute lookup, substitution, and conditionals without being
+reported as caller-stored by `DocumentAttributes::iter()` or `contains_key()`, and it
+is not serialized unless the caller supplied a value. Set it through the parser
+options when a different limit is needed:
+
+```rust
+let options = acdc_parser::Options::builder()
+    .with_attribute("max-include-depth", "8")
+    .build();
+```
+
+The entry document does not count toward the limit; each currently open included file
+counts as one level. A value of `0` or a negative value disables built-in include
+processing and leaves each directive as literal content without a diagnostic. String
+values use their leading signed decimal while the original value remains visible as
+the document attribute; for example, `" 8"` and `"8notes"` both set a limit of 8. At
+a positive limit, the blocked directive is likewise preserved, a located diagnostic
+is added to `ParseResult::warnings()`, and parsing continues. Leading Unicode
+whitespace is treated as whitespace, so a non-breaking space (`U+00A0`) before `8`
+also sets a limit of 8. Document content cannot change or unset this trusted value.
+
 ## Local include confinement
 
 For file input, `Safe` and `Server` modes use the entry document's directory as the
@@ -165,6 +190,15 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
 * **Remote include response limit**: Each decoded HTTP(S) include response is limited
   to 10 MiB. See [Remote includes](#remote-includes) for the authority requirements
   and limit behavior.
+* **Boolean include-depth value**: Passing boolean `true` as `max-include-depth`
+  safely disables built-in includes instead of reproducing asciidoctor's Ruby
+  `NoMethodError`. Use a decimal string for a numeric limit; see
+  [Include depth](#include-depth).
+* **Unicode whitespace in include-depth values**: acdc treats leading Unicode
+  whitespace, including a non-breaking space (`U+00A0`), as whitespace when deriving
+  the numeric limit. asciidoctor's Ruby conversion skips only ASCII whitespace, so
+  the same value is converted to `0` and disables built-in includes. See
+  [Include depth](#include-depth).
 * **Symmetric escape of constrained markers**: `\*foo\*`, `\_foo\_`, `` \`foo\` ``, `\#foo\#` all emit the literal marker pair (`*foo*`, `_foo_`, etc.). asciidoctor strips only the opening backslash and leaves the trailing `\` in the output. The draft spec's backslash-escaping section (`spec/outline.adoc`) states: "a backslash in front of a reserved markup character will be removed, regardless of whether the text would have been interpreted or not" — acdc follows that rule symmetrically.
 
 ## See also

@@ -101,6 +101,38 @@ impl<'a> AttributeMap<'a> {
             self.insert(key, value);
         }
     }
+
+    fn serialize_explicit<S>(
+        &self,
+        serializer: S,
+        include: impl Fn(&AttributeName<'_>, &AttributeValue<'_>) -> bool,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut entries: Vec<_> = self
+            .explicit
+            .iter()
+            .filter(|(key, value)| include(key, value))
+            .collect();
+        entries.sort_by_key(|(key, _)| *key);
+
+        let mut state = serializer.serialize_map(Some(entries.len()))?;
+        for (key, value) in entries {
+            match value {
+                AttributeValue::Bool(true) if key == "toc" => {
+                    state.serialize_entry(key, "")?;
+                }
+                AttributeValue::Bool(true) => {
+                    state.serialize_entry(key, &true)?;
+                }
+                AttributeValue::Bool(false) | AttributeValue::String(_) | AttributeValue::None => {
+                    state.serialize_entry(key, value)?;
+                }
+            }
+        }
+        state.end()
+    }
 }
 
 impl Serialize for AttributeMap<'_> {
@@ -108,31 +140,21 @@ impl Serialize for AttributeMap<'_> {
     where
         S: Serializer,
     {
-        // Only serialize explicitly set attributes, not defaults
-        let mut sorted_keys: Vec<_> = self.explicit.keys().collect();
-        sorted_keys.sort();
-
-        let mut state = serializer.serialize_map(Some(self.explicit.len()))?;
-        for key in sorted_keys {
-            if let Some(value) = &self.explicit.get(key) {
-                match value {
-                    AttributeValue::Bool(true) => {
-                        if key == "toc" {
-                            state.serialize_entry(key, "")?;
-                        } else {
-                            state.serialize_entry(key, &true)?;
-                        }
-                    }
-                    value @ (AttributeValue::Bool(false)
-                    | AttributeValue::String(_)
-                    | AttributeValue::None) => {
-                        state.serialize_entry(key, value)?;
-                    }
-                }
-            }
-        }
-        state.end()
+        // Only serialize explicitly set attributes, not defaults.
+        self.serialize_explicit(serializer, |_, _| true)
     }
+}
+
+/// Whether a stored value counts as set: an explicit string, or boolean `true`.
+///
+/// Values stored as `false` or no-value read as unset. Single definition of
+/// attribute truthiness for [`DocumentAttributes::is_set`], [`DocumentAttributes::get`],
+/// and serialization.
+fn is_truthy(value: &AttributeValue<'_>) -> bool {
+    matches!(
+        value,
+        AttributeValue::String(_) | AttributeValue::Bool(true)
+    )
 }
 
 /// Validate bounded attributes and emit warnings for out-of-range values.
@@ -179,26 +201,44 @@ fn validate_bounded_attribute(key: &str, value: &AttributeValue<'_>) {
 /// admonition captions, TOC settings, structural settings, etc.
 ///
 /// Use `DocumentAttributes::default()` to get a map with universal defaults applied.
-#[derive(Debug, PartialEq, Clone, Default)]
-pub struct DocumentAttributes<'a>(AttributeMap<'a>);
+#[derive(Debug, PartialEq, Clone)]
+pub struct DocumentAttributes<'a> {
+    attributes: AttributeMap<'a>,
+    defaults_enabled: bool,
+}
+
+impl Default for DocumentAttributes<'_> {
+    fn default() -> Self {
+        Self {
+            attributes: AttributeMap::default(),
+            defaults_enabled: true,
+        }
+    }
+}
 
 impl<'a> DocumentAttributes<'a> {
     /// Create an empty `DocumentAttributes` without default attributes.
     /// Used for lightweight parsing contexts (e.g., quotes-only) where
     /// document attributes aren't needed.
     pub(crate) fn empty() -> Self {
-        Self(AttributeMap::empty())
+        Self {
+            attributes: AttributeMap::empty(),
+            defaults_enabled: false,
+        }
     }
 
-    /// Iterate over all attributes.
+    /// Iterate over stored attributes.
+    ///
+    /// This does not include the `max-include-depth` fallback synthesized by
+    /// [`Self::get`].
     pub fn iter(&self) -> impl Iterator<Item = (&AttributeName<'a>, &AttributeValue<'a>)> {
-        self.0.iter()
+        self.attributes.iter()
     }
 
-    /// Check if the attribute map is empty.
+    /// Check whether no attributes have been set explicitly.
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.attributes.is_empty()
     }
 
     /// Insert a new attribute.
@@ -206,35 +246,57 @@ impl<'a> DocumentAttributes<'a> {
     /// NOTE: This will *NOT* overwrite an existing attribute with the same name.
     pub fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         validate_bounded_attribute(&name, &value);
-        self.0.insert(name, value);
+        self.attributes.insert(name, value);
     }
 
     /// Set an attribute, overwriting any existing value.
     pub fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         validate_bounded_attribute(&name, &value);
-        self.0.set(name, value);
+        self.attributes.set(name, value);
+    }
+
+    /// Whether `name` is set to a truthy value: an explicit string, or boolean
+    /// `true`. Absent attributes and those set to `false` / none are not
+    /// considered set. Reads the raw stored value, so it is not affected by the
+    /// `max-include-depth` default synthesized by [`Self::get`].
+    pub(crate) fn is_set(&self, name: &str) -> bool {
+        self.attributes.get(name).is_some_and(is_truthy)
     }
 
     /// Get an attribute value by name.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {
-        self.0.get(name)
+        let stored = self.attributes.get(name);
+        // A truthy stored value always wins, so the common lookup pays one probe
+        // and no name comparison.
+        if stored.is_some_and(is_truthy) {
+            return stored;
+        }
+        // `max-include-depth` resolves to the built-in default unless it is set
+        // to an explicit value.
+        if self.defaults_enabled && name == crate::constants::MAX_INCLUDE_DEPTH_ATTR {
+            return Some(&crate::constants::DEFAULT_MAX_INCLUDE_DEPTH_VALUE);
+        }
+        stored
     }
 
-    /// Check if an attribute exists.
+    /// Check whether an attribute is stored.
+    ///
+    /// This does not consider the `max-include-depth` fallback synthesized by
+    /// [`Self::get`].
     #[must_use]
     pub fn contains_key(&self, name: &str) -> bool {
-        self.0.contains_key(name)
+        self.attributes.contains_key(name)
     }
 
     /// Remove an attribute by name.
     pub fn remove(&mut self, name: &str) -> Option<AttributeValue<'a>> {
-        self.0.remove(name)
+        self.attributes.remove(name)
     }
 
     /// Merge another attribute map into this one.
     pub fn merge(&mut self, other: Self) {
-        self.0.merge(other.0);
+        self.attributes.merge(other.attributes);
     }
 
     /// Helper to get a string value.
@@ -262,6 +324,10 @@ impl<'a> DocumentAttributes<'a> {
     /// Consume the attributes, producing an independent `'static` copy.
     #[must_use]
     pub fn into_static(self) -> DocumentAttributes<'static> {
+        let Self {
+            attributes,
+            defaults_enabled,
+        } = self;
         let convert_map = |map: FxHashMap<AttributeName<'a>, AttributeValue<'a>>| -> FxHashMap<AttributeName<'static>, AttributeValue<'static>> {
             map.into_iter()
                 .map(|(k, v)| {
@@ -275,10 +341,13 @@ impl<'a> DocumentAttributes<'a> {
                 })
                 .collect()
         };
-        DocumentAttributes(AttributeMap {
-            all: convert_map(self.0.all),
-            explicit: convert_map(self.0.explicit),
-        })
+        DocumentAttributes {
+            attributes: AttributeMap {
+                all: convert_map(attributes.all),
+                explicit: convert_map(attributes.explicit),
+            },
+            defaults_enabled,
+        }
     }
 }
 
@@ -287,7 +356,113 @@ impl Serialize for DocumentAttributes<'_> {
     where
         S: Serializer,
     {
-        self.0.serialize(serializer)
+        self.attributes
+            .serialize_explicit(serializer, |key, value| {
+                // An unset marker stored for `max-include-depth` asks for the built-in
+                // default that `get` synthesizes, so it is not a caller-supplied value.
+                let asks_for_synthesized_default = self.defaults_enabled
+                    && key == crate::constants::MAX_INCLUDE_DEPTH_ATTR
+                    && !is_truthy(value);
+                !asks_for_synthesized_default
+            })
+    }
+}
+
+#[cfg(test)]
+mod document_attribute_tests {
+    use super::*;
+    use crate::constants::MAX_INCLUDE_DEPTH_ATTR;
+    use serde_json::json;
+
+    #[test]
+    fn max_include_depth_default_is_visible_only_through_get() -> Result<(), serde_json::Error> {
+        let attributes = DocumentAttributes::default();
+
+        assert_eq!(
+            attributes.get_string(MAX_INCLUDE_DEPTH_ATTR).as_deref(),
+            Some("64")
+        );
+        assert!(!attributes.contains_key(MAX_INCLUDE_DEPTH_ATTR));
+        assert!(
+            attributes
+                .iter()
+                .all(|(name, _)| name != MAX_INCLUDE_DEPTH_ATTR)
+        );
+        assert!(attributes.is_empty());
+        assert_eq!(serde_json::to_value(&attributes)?, json!({}));
+
+        let static_attributes = attributes.into_static();
+        assert_eq!(
+            static_attributes
+                .get_string(MAX_INCLUDE_DEPTH_ATTR)
+                .as_deref(),
+            Some("64")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn empty_document_attributes_do_not_synthesize_defaults() -> Result<(), serde_json::Error> {
+        let attributes = DocumentAttributes::empty();
+
+        assert_eq!(attributes.get(MAX_INCLUDE_DEPTH_ATTR), None);
+        assert!(!attributes.contains_key(MAX_INCLUDE_DEPTH_ATTR));
+        assert_eq!(attributes.iter().count(), 0);
+        assert!(attributes.is_empty());
+        assert_eq!(serde_json::to_value(&attributes)?, json!({}));
+
+        let static_attributes = attributes.into_static();
+        assert_eq!(static_attributes.get(MAX_INCLUDE_DEPTH_ATTR), None);
+        Ok(())
+    }
+
+    #[test]
+    fn explicit_max_include_depth_uses_normal_map_semantics() -> Result<(), serde_json::Error> {
+        let mut attributes = DocumentAttributes::default();
+        attributes.set(MAX_INCLUDE_DEPTH_ATTR.into(), "8".into());
+
+        assert_eq!(
+            attributes.get_string(MAX_INCLUDE_DEPTH_ATTR).as_deref(),
+            Some("8")
+        );
+        assert!(attributes.contains_key(MAX_INCLUDE_DEPTH_ATTR));
+        assert_eq!(
+            attributes
+                .iter()
+                .find(|(name, _)| name.as_ref() == MAX_INCLUDE_DEPTH_ATTR)
+                .map(|(_, value)| value),
+            Some(&AttributeValue::String("8".into()))
+        );
+        assert!(!attributes.is_empty());
+        assert_eq!(
+            serde_json::to_value(&attributes)?,
+            json!({ "max-include-depth": "8" })
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn unset_max_include_depth_values_are_not_serialized() -> Result<(), serde_json::Error> {
+        for value in [AttributeValue::Bool(false), AttributeValue::None] {
+            let mut attributes = DocumentAttributes::default();
+            attributes.set(MAX_INCLUDE_DEPTH_ATTR.into(), value.clone());
+
+            assert_eq!(
+                attributes.get_string(MAX_INCLUDE_DEPTH_ATTR).as_deref(),
+                Some("64")
+            );
+            assert!(attributes.contains_key(MAX_INCLUDE_DEPTH_ATTR));
+            assert_eq!(
+                attributes
+                    .iter()
+                    .find(|(name, _)| name.as_ref() == MAX_INCLUDE_DEPTH_ATTR)
+                    .map(|(_, stored)| stored),
+                Some(&value)
+            );
+            assert!(!attributes.is_empty());
+            assert_eq!(serde_json::to_value(&attributes)?, json!({}));
+        }
+        Ok(())
     }
 }
 

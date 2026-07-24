@@ -115,6 +115,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block macros whose name only starts with a conditional directive name
+  (`ifdefs::x[]`, `ifdef-foo::bar[]`) are ordinary content instead of failing the
+  parse with `Invalid conditional directive`.
+- Includes are bounded by a `max-include-depth` attribute, set through `Options` and
+  not by document content. It defaults to `64`. `0` or a negative value leaves
+  `include::` directives unprocessed silently; past a positive limit the parser warns
+  `maximum include depth of N exceeded`, keeps the directive, and continues, so
+  recursive and cyclic includes terminate. Unlike `asciidoctor`, boolean `true`
+  disables includes instead of raising, and leading Unicode whitespace in the value
+  counts as whitespace. See the README for the full value handling.
 - Local includes in `Safe` and `Server` mode now stay beneath the entry document's
   directory. For an entry document at `/workspace/docs/main.adoc`,
   `include::../shared.adoc[]` reads `/workspace/docs/shared.adoc`, and

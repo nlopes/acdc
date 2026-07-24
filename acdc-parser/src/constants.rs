@@ -11,6 +11,28 @@ use std::borrow::Cow;
 
 use crate::{AttributeName, AttributeValue};
 
+/// Default include recursion limit, as the numeric policy and as the attribute
+/// value documents see. `preprocessor::tests::max_include_depth_fallback_uses_the_canonical_default`
+/// keeps the two spellings in sync.
+pub(crate) const DEFAULT_MAX_INCLUDE_DEPTH: usize = 64;
+pub(crate) const DEFAULT_MAX_INCLUDE_DEPTH_STR: &str = "64";
+
+/// Name of the `max-include-depth` document attribute. It is a trusted,
+/// caller-only attribute — document content must not be able to change it — so
+/// the literal lives here and is referenced at every guard and default site.
+pub(crate) const MAX_INCLUDE_DEPTH_ATTR: &str = "max-include-depth";
+
+pub(crate) static DEFAULT_MAX_INCLUDE_DEPTH_VALUE: AttributeValue<'static> =
+    AttributeValue::String(Cow::Borrowed(DEFAULT_MAX_INCLUDE_DEPTH_STR));
+
+/// Whether `name` is a trusted attribute that only the caller may set through
+/// [`crate::Options`]. Document content that declares one is parsed as syntax but
+/// never stored, so the caller's value (or its built-in default) holds for the
+/// whole parse. One policy site for every guard in the grammar and preprocessor.
+pub(crate) fn is_trusted_attribute(name: &str) -> bool {
+    name == MAX_INCLUDE_DEPTH_ATTR
+}
+
 const fn str_attr(
     name: &'static str,
     value: &'static str,

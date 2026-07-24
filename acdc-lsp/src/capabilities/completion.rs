@@ -728,6 +728,22 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn max_include_depth_fallback_is_not_suggested() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), String::new(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let items = complete_attribute_references(&doc, "max-include-depth");
+
+        assert!(
+            items.iter().all(|item| item.label != "max-include-depth"),
+            "the synthesized fallback must not appear as a document-defined completion"
+        );
+        Ok(())
+    }
+
     fn setup_include_test_dir(
         suffix: &str,
     ) -> Result<(std::path::PathBuf, Uri), Box<dyn std::error::Error>> {

@@ -72,6 +72,89 @@ impl DirectiveContext<'_> {
     }
 }
 
+/// Line prefixes of the preprocessor directives that `process_inner` rewrites.
+///
+/// `try_pass_through` and `process_directive_line` must agree on what counts as a
+/// directive: if the fast path misses one the slow path would have rewritten, the
+/// directive is silently left as literal content.
+const DIRECTIVE_PREFIXES: [&str; 4] = ["include::", "ifdef::", "ifndef::", "ifeval::"];
+
+/// Whether the line is a backslash-escaped directive, which `process_inner`
+/// unescapes rather than acting on.
+fn is_escaped_directive(line: &str) -> bool {
+    line.strip_prefix('\\')
+        .is_some_and(|rest| DIRECTIVE_PREFIXES.iter().any(|p| rest.starts_with(p)))
+}
+
+/// Derive the include recursion limit from the `max-include-depth` attribute,
+/// emulating Ruby's `String#to_i`: the leading signed decimal wins, trailing text
+/// is ignored, a negative value means zero, and values beyond the platform word
+/// size saturate. The raw attribute keeps its original spelling for documents to
+/// read back.
+fn parse_max_include_depth(value: &str) -> usize {
+    let value = value.trim_start();
+    if value.starts_with('-') {
+        return 0;
+    }
+    let value = value.strip_prefix('+').unwrap_or(value);
+
+    value
+        .bytes()
+        .take_while(u8::is_ascii_digit)
+        .fold(0, |depth, digit| {
+            depth
+                .saturating_mul(10)
+                .saturating_add(usize::from(digit - b'0'))
+        })
+}
+
+/// Caller authority and recursion state shared by one include-processing chain.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct IncludeContext {
+    allows_uri_read: bool,
+    depth: usize,
+    max_depth: usize,
+}
+
+impl IncludeContext {
+    fn root(options: &Options<'_>) -> Self {
+        let max_depth = match options
+            .document_attributes
+            .get(crate::constants::MAX_INCLUDE_DEPTH_ATTR)
+        {
+            Some(AttributeValue::String(value)) => parse_max_include_depth(value),
+            // Boolean `true` carries no numeric limit: disable includes rather
+            // than reproducing asciidoctor's Ruby `NoMethodError`.
+            Some(AttributeValue::Bool(true)) => 0,
+            // Attribute maps built without defaults synthesize no fallback.
+            Some(AttributeValue::Bool(false) | AttributeValue::None) | None => {
+                crate::constants::DEFAULT_MAX_INCLUDE_DEPTH
+            }
+        };
+        Self {
+            allows_uri_read: options.document_attributes.is_set("allow-uri-read"),
+            depth: 0,
+            max_depth,
+        }
+    }
+
+    fn nested(self) -> Self {
+        Self {
+            depth: self.depth.saturating_add(1),
+            ..self
+        }
+    }
+
+    /// The limit that stops this include from being expanded, if it is blocked:
+    /// `0` when includes are disabled outright, a positive depth when the limit
+    /// was reached. `Secure` mode neutralizes includes in `Include::lines`, so the
+    /// directive is left for that path to handle.
+    fn blocked_limit(self, safe_mode: crate::SafeMode) -> Option<usize> {
+        (safe_mode != crate::SafeMode::Secure && self.depth >= self.max_depth)
+            .then_some(self.max_depth)
+    }
+}
+
 /// Origin used to resolve includes while preprocessing a source.
 ///
 /// URI origins retain their exact spelling because Asciidoctor resolves nested
@@ -438,19 +521,24 @@ pub(super) fn decode_bytes(
 #[derive(Debug)]
 pub(crate) struct Preprocessor {
     warnings: Rc<RefCell<Vec<Warning>>>,
-    /// Whether the caller supplied `allow-uri-read` before document attributes
-    /// were processed. Document content must not be able to grant this authority.
-    caller_allows_uri_read: bool,
+    include_context: IncludeContext,
 }
 
 impl Preprocessor {
     fn new(options: &Options<'_>, warnings: Rc<RefCell<Vec<Warning>>>) -> Self {
         Self {
             warnings,
-            caller_allows_uri_read: matches!(
-                options.document_attributes.get("allow-uri-read"),
-                Some(AttributeValue::String(_) | AttributeValue::Bool(true))
-            ),
+            include_context: IncludeContext::root(options),
+        }
+    }
+
+    /// Preprocessor for the content of a resolved include: one level deeper than
+    /// the include that produced it. Keeps the depth increment in one place
+    /// instead of at each site that recurses.
+    pub(super) fn nested(warnings: &Rc<RefCell<Vec<Warning>>>, context: IncludeContext) -> Self {
+        Self {
+            warnings: Rc::clone(warnings),
+            include_context: context.nested(),
         }
     }
 
@@ -546,11 +634,7 @@ impl Preprocessor {
         let mut scanner = CommentScanner::new(setext);
         for line in text.lines() {
             // `process_inner` unescapes escaped directives.
-            if line.starts_with("\\include")
-                || line.starts_with("\\ifdef")
-                || line.starts_with("\\ifndef")
-                || line.starts_with("\\ifeval")
-            {
+            if is_escaped_directive(line) {
                 return false;
             }
             // `process_inner` collapses multi-line attribute continuations.
@@ -561,10 +645,7 @@ impl Preprocessor {
             if line.ends_with(']')
                 && !line.starts_with('[')
                 && line.contains("::")
-                && (line.starts_with("include")
-                    || line.starts_with("ifdef")
-                    || line.starts_with("ifndef")
-                    || line.starts_with("ifeval"))
+                && DIRECTIVE_PREFIXES.iter().any(|p| line.starts_with(p))
             {
                 return false;
             }
@@ -662,7 +743,7 @@ impl Preprocessor {
                 line,
                 LocationContext::new(line_number, current_offset, Some(source_origin.as_path())),
                 options,
-                self.caller_allows_uri_read,
+                self.include_context,
                 &self.warnings,
             )?;
             return Ok(Some(include.lines()?));
@@ -901,7 +982,12 @@ impl Preprocessor {
             return Ok(false);
         }
 
-        if line.starts_with("ifdef") || line.starts_with("ifndef") || line.starts_with("ifeval") {
+        // The `::` is required: a similarly prefixed block macro such as
+        // `ifdefs::x[]` is ordinary content, not a malformed directive.
+        if line.starts_with("ifdef::")
+            || line.starts_with("ifndef::")
+            || line.starts_with("ifeval::")
+        {
             let mut content = String::new();
             let conditional = conditional::parse_line(
                 line,
@@ -933,7 +1019,7 @@ impl Preprocessor {
             return Ok(true);
         }
 
-        if line.starts_with("endif")
+        if line.starts_with("endif::")
             && let Some(frame) = stack.last()
         {
             let endif = conditional::parse_endif(
@@ -965,14 +1051,22 @@ impl Preprocessor {
         options: &Options,
         out: &mut PreprocessorState<'input>,
     ) -> Result<(), Error> {
-        if line.starts_with("\\include")
-            || line.starts_with("\\ifdef")
-            || line.starts_with("\\ifndef")
-            || line.starts_with("\\ifeval")
-        {
+        if is_escaped_directive(line) {
             out.note_source_line(*ctx.line_number);
             out.push_line(Cow::Borrowed(&line[1..]));
-        } else if line.starts_with("include") {
+        } else if line.starts_with("include::") {
+            // A limit of 0 disables built-in includes silently; exceeding a
+            // positive limit preserves the directive and warns.
+            if let Some(limit) = self.include_context.blocked_limit(options.safe_mode) {
+                if limit != 0 {
+                    self.add_warning_at(
+                        format!("maximum include depth of {limit} exceeded"),
+                        Self::create_source_location(*ctx.line_number, ctx.current_file()),
+                    );
+                }
+                out.push_source_line(line, *ctx.line_number);
+                return Ok(());
+            }
             // Included content carries its own source ranges; close the main-file
             // run first so it does not overlap them.
             out.flush_run();
@@ -1142,6 +1236,19 @@ mod tests {
     use crate::grammar::LineMap;
 
     #[test]
+    fn max_include_depth_fallback_uses_the_canonical_default() {
+        let options = Options {
+            document_attributes: crate::DocumentAttributes::empty(),
+            ..Options::default()
+        };
+
+        assert_eq!(
+            IncludeContext::root(&options).max_depth.to_string(),
+            crate::constants::DEFAULT_MAX_INCLUDE_DEPTH_STR
+        );
+    }
+
+    #[test]
     fn unchanged_source_lines_share_one_borrowed_output_chunk() {
         let input = "first\n\nsecond\nthird";
         let mut state = PreprocessorState::new(input, None);
@@ -1169,6 +1276,56 @@ endif::[]
 ";
         let result = Preprocessor::process(input, &options, Rc::default())?;
         assert_eq!(result.text, ":attribute: value\n\ncontent");
+        Ok(())
+    }
+
+    #[test]
+    fn include_like_block_macros_bypass_include_processing() -> Result<(), Error> {
+        let input = "ifdef::missing[]
+hidden
+endif::[]
+includes::x[]
+include-foo::bar[]
+\\includes::x[]
+\\include-foo::bar[]";
+
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+
+        assert_eq!(
+            result.text,
+            "includes::x[]\ninclude-foo::bar[]\n\\includes::x[]\n\\include-foo::bar[]"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn conditional_like_block_macros_bypass_conditional_processing() -> Result<(), Error> {
+        let input = "ifdefs::x[]
+ifdef-foo::bar[]
+ifndefs::x[]
+ifevals::x[]
+\\ifdefs::x[]";
+
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+
+        // Only an exact `ifdef::` (etc.) is a directive; a similarly prefixed block
+        // macro stays literal, and its backslash escapes nothing.
+        assert_eq!(result.text, input);
+        Ok(())
+    }
+
+    #[test]
+    fn endif_like_block_macro_inside_a_conditional_is_content() -> Result<(), Error> {
+        let input = "ifdef::missing[]
+endifs::x[]
+endif::[]
+after";
+
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+
+        // `endifs::x[]` does not close the frame, so it is skipped as inactive
+        // content rather than failing as a malformed `endif`.
+        assert_eq!(result.text, "after");
         Ok(())
     }
 
