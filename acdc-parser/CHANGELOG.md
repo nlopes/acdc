@@ -115,6 +115,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Malformed `include::` lines with an empty target or leading/trailing target
+  whitespace remain literal content instead of being removed or failing the parse.
+  A leading backslash is removed only when the complete line is a valid include
+  directive, matching asciidoctor.
 - Tables now accept at most 100 columns and 1,000 rows (100,000 cells).
   Larger `cols` multipliers, cell duplication counts, column spans, row spans,
   or delimited table dimensions return a located parse error. These are fixed

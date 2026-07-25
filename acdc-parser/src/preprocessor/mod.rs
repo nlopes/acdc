@@ -79,11 +79,41 @@ impl DirectiveContext<'_> {
 /// directive is silently left as literal content.
 const DIRECTIVE_PREFIXES: [&str; 4] = ["include::", "ifdef::", "ifndef::", "ifeval::"];
 
+/// Whether `line` has the complete outer shape of an Asciidoctor include
+/// directive.
+///
+/// Attribute-list parsing happens later. At this boundary only the target shell
+/// matters: it must be non-empty, contain no `[`, and have no leading or
+/// trailing ASCII whitespace. Internal whitespace is valid.
+fn has_include_directive_shape(line: &str) -> bool {
+    let Some(target_and_attributes) = line
+        .strip_prefix("include::")
+        .and_then(|body| body.strip_suffix(']'))
+    else {
+        return false;
+    };
+    let Some((target, _attributes)) = target_and_attributes.split_once('[') else {
+        return false;
+    };
+    let Some((first, last)) = target.as_bytes().first().zip(target.as_bytes().last()) else {
+        return false;
+    };
+
+    !first.is_ascii_whitespace() && !last.is_ascii_whitespace()
+}
+
 /// Whether the line is a backslash-escaped directive, which `process_inner`
 /// unescapes rather than acting on.
 fn is_escaped_directive(line: &str) -> bool {
-    line.strip_prefix('\\')
-        .is_some_and(|rest| DIRECTIVE_PREFIXES.iter().any(|p| rest.starts_with(p)))
+    line.strip_prefix('\\').is_some_and(|rest| {
+        if rest.starts_with("include::") {
+            has_include_directive_shape(rest)
+        } else {
+            DIRECTIVE_PREFIXES[1..]
+                .iter()
+                .any(|prefix| rest.starts_with(prefix))
+        }
+    })
 }
 
 /// Derive the include recursion limit from the `max-include-depth` attribute,
@@ -645,7 +675,10 @@ impl Preprocessor {
             if line.ends_with(']')
                 && !line.starts_with('[')
                 && line.contains("::")
-                && DIRECTIVE_PREFIXES.iter().any(|p| line.starts_with(p))
+                && (has_include_directive_shape(line)
+                    || DIRECTIVE_PREFIXES[1..]
+                        .iter()
+                        .any(|prefix| line.starts_with(prefix)))
             {
                 return false;
             }
@@ -1054,7 +1087,7 @@ impl Preprocessor {
         if is_escaped_directive(line) {
             out.note_source_line(*ctx.line_number);
             out.push_line(Cow::Borrowed(&line[1..]));
-        } else if line.starts_with("include::") {
+        } else if has_include_directive_shape(line) {
             // A limit of 0 disables built-in includes silently; exceeding a
             // positive limit preserves the directive and warns.
             if let Some(limit) = self.include_context.blocked_limit(options.safe_mode) {
@@ -1294,6 +1327,52 @@ include-foo::bar[]
         assert_eq!(
             result.text,
             "includes::x[]\ninclude-foo::bar[]\n\\includes::x[]\n\\include-foo::bar[]"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn malformed_include_directives_remain_literal() -> Result<(), Error> {
+        let input = "include::[]
+include:: target.adoc[]
+include::target.adoc []
+include::target.adoc
+include::target.adoc[] trailing";
+
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+        let file_result = Preprocessor::process_with_file(
+            input,
+            Path::new("main.adoc"),
+            &Options::default(),
+            Rc::default(),
+        )?;
+
+        assert_eq!(result.text, input);
+        assert_eq!(file_result.text, input);
+        Ok(())
+    }
+
+    #[test]
+    fn only_valid_escaped_include_directives_are_unescaped() -> Result<(), Error> {
+        let input = "\\include::[]
+\\include:: target.adoc[]
+\\include::target.adoc []
+\\include::target.adoc
+\\include::target.adoc[] trailing
+\\include::target.adoc[]
+\\include::target with spaces.adoc[]";
+
+        let result = Preprocessor::process(input, &Options::default(), Rc::default())?;
+
+        assert_eq!(
+            result.text,
+            "\\include::[]
+\\include:: target.adoc[]
+\\include::target.adoc []
+\\include::target.adoc
+\\include::target.adoc[] trailing
+include::target.adoc[]
+include::target with spaces.adoc[]"
         );
         Ok(())
     }
