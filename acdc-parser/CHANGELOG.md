@@ -124,7 +124,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `maximum include depth of N exceeded`, keeps the directive, and continues, so
   recursive and cyclic includes terminate. Unlike `asciidoctor`, boolean `true`
   disables includes instead of raising, and leading Unicode whitespace in the value
-  counts as whitespace. See the README for the full value handling.
+  counts as whitespace. Only exact `include::` directives are depth-limited; similarly
+  prefixed block macros remain literal without include diagnostics. Ignored declarations
+  in document content are not exposed as `Block::DocumentAttribute` nodes. See the
+  README for the full value handling.
+- `include::file[indent=N]` now accepts at most `4096` spaces and returns a located
+  error before reading the target when the value is larger. This fixed safety limit
+  prevents one directive from requesting an unbounded indentation prefix and
+  intentionally diverges from `asciidoctor`, which has no equivalent limit. The cap
+  is an acdc security policy, not a requirement of the AsciiDoc language.
 - Local includes in `Safe` and `Server` mode now stay beneath the entry document's
   directory. For an entry document at `/workspace/docs/main.adoc`,
   `include::../shared.adoc[]` reads `/workspace/docs/shared.adoc`, and

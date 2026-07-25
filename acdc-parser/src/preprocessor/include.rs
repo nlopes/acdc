@@ -23,6 +23,10 @@ use super::{
 
 #[cfg(feature = "network")]
 const MAX_REMOTE_INCLUDE_BYTES: usize = 10 * 1024 * 1024;
+/// Maximum number of spaces one include directive may prepend to each non-empty
+/// line. This bounds the allocation controlled by a single `indent` value; a
+/// parse-wide expansion budget remains a separate concern.
+const MAX_INCLUDE_INDENT: usize = 4 * 1024;
 
 #[cfg(feature = "network")]
 fn read_remote_include(reader: impl Read) -> Result<Vec<u8>, Error> {
@@ -407,7 +411,7 @@ impl<'a> Include<'a> {
                     self.tags.extend(value.split(DELIMITERS).map(TagName::from));
                 }
                 "indent" => {
-                    self.indent = Some(value.parse().map_err(|_| {
+                    let indent = value.parse().map_err(|_| {
                         Error::InvalidIndent(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
@@ -418,7 +422,21 @@ impl<'a> Include<'a> {
                             }),
                             value.clone(),
                         )
-                    })?);
+                    })?;
+                    if indent > MAX_INCLUDE_INDENT {
+                        return Err(Error::IncludeIndentTooLarge(
+                            Box::new(SourceLocation {
+                                file: self.current_file.clone(),
+                                location: crate::Location::point(Position::from_line_col(
+                                    self.line_number,
+                                    1,
+                                )),
+                            }),
+                            indent,
+                            MAX_INCLUDE_INDENT,
+                        ));
+                    }
+                    self.indent = Some(indent);
                 }
                 "encoding" => {
                     self.encoding = Some(value.clone());
@@ -1110,6 +1128,31 @@ mod tests {
         let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.indent, Some(4));
+        Ok(())
+    }
+
+    #[test]
+    fn include_indent_is_bounded_before_allocation() -> Result<(), Box<dyn std::error::Error>> {
+        let path = PathBuf::from("/tmp");
+        let options = Options::default();
+        let at_limit = format!("include::target.adoc[indent={MAX_INCLUDE_INDENT}]");
+        let include = parse_include(&path, &at_limit, &options)?;
+        assert_eq!(include.indent, Some(MAX_INCLUDE_INDENT));
+
+        for over_limit in [MAX_INCLUDE_INDENT + 1, usize::MAX] {
+            let directive = format!("include::target.adoc[indent={over_limit}]");
+            let Err(error) = parse_include(&path, &directive, &options) else {
+                return Err("expected an excessive include indent to be rejected".into());
+            };
+            let Error::IncludeIndentTooLarge(location, indent, limit) = error else {
+                return Err(
+                    format!("expected an include-indent limit error, got {error:?}").into(),
+                );
+            };
+            assert_eq!(indent, over_limit);
+            assert_eq!(limit, MAX_INCLUDE_INDENT);
+            assert_eq!(location.location.start, Position::new(1, 1));
+        }
         Ok(())
     }
 

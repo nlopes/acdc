@@ -38,6 +38,9 @@ pub enum Error {
     #[error("Invalid indent: {1}, position: {0}")]
     InvalidIndent(Box<SourceLocation>, String),
 
+    #[error("Include indent {1} exceeds the maximum of {2} spaces, position: {0}")]
+    IncludeIndentTooLarge(Box<SourceLocation>, usize, usize),
+
     #[error("Invalid level offset: {1}, position: {0}")]
     InvalidLevelOffset(Box<SourceLocation>, String),
 
@@ -98,6 +101,7 @@ impl Error {
             | Self::InvalidConditionalDirective(detail)
             | Self::InvalidIncludeDirective(detail, ..)
             | Self::InvalidIndent(detail, ..)
+            | Self::IncludeIndentTooLarge(detail, ..)
             | Self::InvalidLevelOffset(detail, ..)
             | Self::InvalidIfEvalDirectiveMismatchedTypes(detail)
             | Self::NonConformingManpageTitle(detail, ..) => Some(detail),
@@ -144,6 +148,9 @@ impl Error {
             Self::InvalidIndent(..) => Some(
                 "The indent attribute must be a non-negative integer specifying the number of spaces to indent included content",
             ),
+            Self::IncludeIndentTooLarge(..) => {
+                Some("Reduce the include indent to the maximum reported in the error")
+            }
             Self::InvalidLevelOffset(..) => Some(
                 "The leveloffset attribute must be a signed integer (e.g., +1, -1, 0) to adjust section levels in included content",
             ),

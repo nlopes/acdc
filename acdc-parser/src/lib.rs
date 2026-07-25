@@ -62,6 +62,15 @@
 //! per-response limit is not controlled by a document attribute and intentionally
 //! diverges from `asciidoctor`.
 //!
+//! # Include indentation
+//!
+//! The `indent` attribute on an include accepts `0..=4096`. Larger values return
+//! a located [`Error::IncludeIndentTooLarge`] before the target is read. This fixed
+//! safety limit is an intentional acdc security policy, not an AsciiDoc language
+//! requirement. It prevents one directive from requesting an unbounded indentation
+//! prefix and deliberately diverges from `asciidoctor`, which has no documented or
+//! implemented maximum.
+//!
 
 use std::{
     cell::RefCell,

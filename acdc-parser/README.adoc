@@ -136,7 +136,18 @@ A value of `0` or a negative value disables built-in include processing and leav
 String values use their leading signed decimal while the original value remains visible as the document attribute; for example, `" 8"` and `"8notes"` both set a limit of 8.
 Leading Unicode whitespace is treated as whitespace, so a non-breaking space (`U+00A0`) before `8` also sets a limit of 8.
 At a positive limit, the blocked directive is likewise preserved, a located diagnostic is added to `ParseResult::warnings()`, and parsing continues.
-Document content cannot change or unset this trusted value.
+Only an exact `include::` directive is processed; block macro names that merely begin with `include` remain ordinary content without include diagnostics.
+Declarations in document content are consumed but cannot change or unset the trusted value and do not appear as `Block::DocumentAttribute` nodes in the AST.
+
+[#include-indentation]
+== Include indentation
+
+The `indent` attribute on an include accepts a non-negative integer from `0` through `4096`.
+A larger value returns a located error before the target is read, preventing one directive from requesting an unbounded space prefix for every non-empty included line.
+Malformed and negative values remain invalid.
+
+The `4096` cap is an intentional acdc security policy, not a requirement of the AsciiDoc language.
+It deliberately creates an acceptance divergence from asciidoctor, which coerces the value using Ruby's `to_i` and does not impose a documented or implemented maximum before allocating the indentation prefix.
 
 [#local-includes]
 == Local include confinement
@@ -205,6 +216,11 @@ A handful of parser behaviours intentionally differ from asciidoctor where the d
 Remote include response limit::
 Each decoded HTTP(S) include response is limited to 10 MiB.
 See <<remote-includes,Remote includes>> for the authority requirements and limit behavior.
+
+Include indentation limit::
+As an intentional acdc security policy, `include::file[indent=N]` accepts at most `4096` spaces instead of allowing an unbounded allocation.
+AsciiDoc does not require this cap, and asciidoctor does not impose it.
+See <<include-indentation,Include indentation>>.
 
 Boolean include-depth value::
 Passing boolean `true` as `max-include-depth` safely disables built-in includes instead of reproducing asciidoctor's Ruby `NoMethodError`.
