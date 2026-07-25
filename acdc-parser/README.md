@@ -158,6 +158,18 @@ AsciiDoc language. It deliberately creates an acceptance divergence from
 asciidoctor, which coerces the value using Ruby's `to_i` and does not impose a
 documented or implemented maximum before allocating the indentation prefix.
 
+## Table limits
+
+Tables accept at most 100 logical columns and 1,000 rows, bounding an accepted table
+to 100,000 materialized cells. The column bound also applies to `cols` multipliers,
+cell duplication counts, and column spans; row spans are bounded by the row limit.
+Larger requests and oversized CSV, TSV, DSV, or PSV dimensions return a located
+parse error before unbounded expansion.
+
+These are fixed internal safety limits. They cannot be changed through parser options
+or document attributes. This intentionally diverges from asciidoctor, which has no
+equivalent table dimension cap.
+
 ## Local include confinement
 
 For file input, `Safe` and `Server` modes use the entry document's directory as the
@@ -210,6 +222,9 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
   `include::file[indent=N]` accepts at most `4096` spaces instead of allowing an
   unbounded allocation. AsciiDoc does not require this cap, and asciidoctor does not
   impose it. See [Include indentation](#include-indentation).
+* **Table dimension limits**: Tables accept at most 100 logical columns and 1,000
+  rows, with fixed internal limits that cannot be raised by parser options or
+  document attributes. See [Table limits](#table-limits).
 * **Boolean include-depth value**: Passing boolean `true` as `max-include-depth`
   safely disables built-in includes instead of reproducing asciidoctor's Ruby
   `NoMethodError`. Use a decimal string for a numeric limit; see

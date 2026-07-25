@@ -71,6 +71,17 @@
 //! prefix and deliberately diverges from `asciidoctor`, which has no documented or
 //! implemented maximum.
 //!
+//! # Table limits
+//!
+//! Tables accept at most 100 logical columns and 1,000 rows, bounding an accepted
+//! table to 100,000 materialized cells. The column bound also applies to `cols`
+//! multipliers, cell duplication counts, and column spans; row spans are bounded by
+//! the row limit. Larger requests return a located [`Error::Parse`].
+//!
+//! These fixed internal safety limits cannot be changed through [`Options`] or
+//! document attributes. They intentionally diverge from `asciidoctor`, which has no
+//! equivalent table dimension cap.
+//!
 
 use std::{
     cell::RefCell,

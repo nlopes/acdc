@@ -118,8 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tables now accept at most 100 columns and 1,000 rows (100,000 cells).
   Larger `cols` multipliers, cell duplication counts, column spans, row spans,
   or delimited table dimensions return a located parse error. These are fixed
-  safety limits and intentionally differ from asciidoctor, which has no
-  equivalent cap.
+  internal safety limits: they cannot be changed through `Options` or document
+  attributes. They intentionally differ from asciidoctor, which has no equivalent
+  cap.
 - Block macros whose name only starts with a conditional directive name
   (`ifdefs::x[]`, `ifdef-foo::bar[]`) are ordinary content instead of failing the
   parse with `Invalid conditional directive`.

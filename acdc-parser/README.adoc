@@ -149,6 +149,17 @@ Malformed and negative values remain invalid.
 The `4096` cap is an intentional acdc security policy, not a requirement of the AsciiDoc language.
 It deliberately creates an acceptance divergence from asciidoctor, which coerces the value using Ruby's `to_i` and does not impose a documented or implemented maximum before allocating the indentation prefix.
 
+[#table-limits]
+== Table limits
+
+Tables accept at most 100 logical columns and 1,000 rows, bounding an accepted table to 100,000 materialized cells.
+The column bound also applies to `cols` multipliers, cell duplication counts, and column spans; row spans are bounded by the row limit.
+Larger requests and oversized CSV, TSV, DSV, or PSV dimensions return a located parse error before unbounded expansion.
+
+These are fixed internal safety limits.
+They cannot be changed through parser options or document attributes.
+This intentionally diverges from asciidoctor, which has no equivalent table dimension cap.
+
 [#local-includes]
 == Local include confinement
 
@@ -221,6 +232,11 @@ Include indentation limit::
 As an intentional acdc security policy, `include::file[indent=N]` accepts at most `4096` spaces instead of allowing an unbounded allocation.
 AsciiDoc does not require this cap, and asciidoctor does not impose it.
 See <<include-indentation,Include indentation>>.
+
+Table dimension limits::
+Tables accept at most 100 logical columns and 1,000 rows, with fixed internal
+limits that cannot be raised by parser options or document attributes.
+See <<table-limits,Table limits>>.
 
 Boolean include-depth value::
 Passing boolean `true` as `max-include-depth` safely disables built-in includes instead of reproducing asciidoctor's Ruby `NoMethodError`.
