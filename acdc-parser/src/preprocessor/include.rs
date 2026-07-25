@@ -355,6 +355,23 @@ pub(crate) struct IncludeResult {
 
 type IncludedContent = (String, Vec<LeveloffsetRange>, Vec<SourceRange>);
 
+enum UrlReadError {
+    #[cfg(feature = "network")]
+    Retrieval(String),
+    Other(Error),
+}
+
+enum UrlIncludeOutcome {
+    Content(IncludedContent),
+    Fallback(IncludeResult),
+}
+
+impl From<Error> for UrlReadError {
+    fn from(error: Error) -> Self {
+        Self::Other(error)
+    }
+}
+
 impl IncludeResult {
     fn empty() -> Self {
         Self {
@@ -521,8 +538,11 @@ impl<'a> Include<'a> {
         &self.target_as_written
     }
 
-    /// Build Asciidoctor's visible recovery line for a failed include read.
-    fn unresolved_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
+    fn unresolved_directive_for_target(
+        &self,
+        target_as_written: &str,
+        attribute_list_as_written: &str,
+    ) -> IncludeResult {
         let source = match &self.source_origin {
             SourceOrigin::File { path, base_dir } => {
                 let absolute_path =
@@ -537,18 +557,33 @@ impl<'a> Include<'a> {
         };
         IncludeResult::unresolved_directive(
             format!(
-                "Unresolved directive in {source} - include::{}[{}]",
-                self.target_as_written, attribute_list_as_written
+                "Unresolved directive in {source} - include::{target_as_written}[{attribute_list_as_written}]"
             ),
             self.line_number,
         )
     }
 
+    /// Build Asciidoctor's visible recovery line for a failed local include read.
+    fn unresolved_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
+        self.unresolved_directive_for_target(self.target_as_written(), attribute_list_as_written)
+    }
+
+    /// Escape the URI macro in generated parser input so the unresolved directive
+    /// remains converter-visible plain text. Inline parsing removes the backslash.
+    #[cfg(feature = "network")]
+    fn unresolved_uri_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
+        self.unresolved_directive_for_target(
+            &format!(r"\{}", self.target_as_written()),
+            attribute_list_as_written,
+        )
+    }
+
     /// Fetch a URL target into memory without changing its source origin.
     /// Returns `Ok(None)` when this build has no network support.
-    /// Returns Err for actual network or response-read failures.
+    /// Request-opening failures remain distinct from response-read failures so
+    /// callers can recover without also swallowing size or body-read errors.
     #[allow(clippy::unnecessary_wraps)] // Err is used when "network" feature is enabled
-    fn fetch_url_target(url: &str) -> Result<Option<Vec<u8>>, Error> {
+    fn fetch_url_target(url: &str) -> Result<Option<Vec<u8>>, UrlReadError> {
         #[cfg(not(feature = "network"))]
         {
             let _ = url;
@@ -559,7 +594,7 @@ impl<'a> Include<'a> {
         {
             let mut response = ureq::get(url)
                 .call()
-                .map_err(|e| Error::HttpRequest(e.to_string()))?;
+                .map_err(|error| UrlReadError::Retrieval(error.to_string()))?;
             // Apply the cap after transport decoding so compressed responses cannot
             // expand beyond the parser's per-include memory boundary.
             let bytes = read_remote_include(response.body_mut().as_reader())?;
@@ -747,7 +782,7 @@ impl<'a> Include<'a> {
     }
 
     /// Fetch and process content from a URI without converting it to a local origin.
-    fn read_content_from_url(&self, url: &str) -> Result<Option<IncludedContent>, Error> {
+    fn read_content_from_url(&self, url: &str) -> Result<Option<IncludedContent>, UrlReadError> {
         #[cfg(not(feature = "network"))]
         self.warn_unlocated(format!(
             "network support is disabled, cannot fetch remote includes: {url}",
@@ -757,14 +792,43 @@ impl<'a> Include<'a> {
             return Ok(None);
         };
         let content = super::decode_bytes(&bytes, self.encoding.as_deref(), url)?;
-        let parsed_url = Url::parse(url)?;
+        let parsed_url = Url::parse(url).map_err(Error::from)?;
         let source_origin = SourceOrigin::Uri(url.to_string());
-        self.process_content(
+        Ok(Some(self.process_content(
             &content,
             &source_origin,
             Self::has_asciidoc_extension(Path::new(parsed_url.path())),
-        )
-        .map(Some)
+        )?))
+    }
+
+    fn read_url_content_or_fallback(
+        &self,
+        url: &str,
+        attribute_list_as_written: &str,
+    ) -> Result<UrlIncludeOutcome, Error> {
+        #[cfg(not(feature = "network"))]
+        let _ = attribute_list_as_written;
+
+        if !self.context.allows_uri_read {
+            return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
+                self.target_as_written(),
+                self.line_number,
+            )));
+        }
+
+        match self.read_content_from_url(url) {
+            Ok(Some(content)) => Ok(UrlIncludeOutcome::Content(content)),
+            Ok(None) => Ok(UrlIncludeOutcome::Fallback(IncludeResult::empty())),
+            #[cfg(feature = "network")]
+            Err(UrlReadError::Retrieval(detail)) => {
+                tracing::debug!(%url, %detail, "failed to retrieve remote include");
+                self.warn_located(format!("include uri not readable: {url}"));
+                Ok(UrlIncludeOutcome::Fallback(
+                    self.unresolved_uri_directive(attribute_list_as_written),
+                ))
+            }
+            Err(UrlReadError::Other(error)) => Err(error),
+        }
     }
 
     /// Read one resolved local file. `None` is the recoverable non-optional
@@ -842,17 +906,11 @@ impl<'a> Include<'a> {
                     (content, leveloffset_ranges, source_ranges, path)
                 }
                 Target::Url(url) => {
-                    if !self.context.allows_uri_read {
-                        return Ok(IncludeResult::link_fallback(
-                            self.target_as_written(),
-                            self.line_number,
-                        ));
-                    }
-                    let Some((content, leveloffset_ranges, source_ranges)) =
-                        self.read_content_from_url(url)?
-                    else {
-                        return Ok(IncludeResult::empty());
-                    };
+                    let (content, leveloffset_ranges, source_ranges) =
+                        match self.read_url_content_or_fallback(url, attribute_list_as_written)? {
+                            UrlIncludeOutcome::Content(content) => content,
+                            UrlIncludeOutcome::Fallback(result) => return Ok(result),
+                        };
                     (
                         content,
                         leveloffset_ranges,
