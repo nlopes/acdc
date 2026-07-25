@@ -1186,7 +1186,7 @@ mod tests {
             let has_missing_include = result
                 .warnings()
                 .iter()
-                .any(|w| w.kind.to_string().contains("file is missing"));
+                .any(|w| w.kind.to_string().starts_with("include file not found:"));
             assert!(
                 has_missing_include,
                 "expected missing-include warning, got: {:?}",

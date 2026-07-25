@@ -115,6 +115,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Missing non-optional local includes now emit a located warning, insert
+  `Unresolved directive in <current source> - include::<target>[<attributes>]`,
+  and continue parsing instead of silently removing the directive. The fallback
+  also applies when an existing include cannot be read, retains the include
+  attributes for converter-visible output, and is attributed to the correct
+  source in nested includes. Missing `opts=optional` includes remain silent and
+  are removed.
 - Malformed `include::` lines with an empty target or leading/trailing target
   whitespace remain literal content instead of being removed or failing the parse.
   A leading backslash is removed only when the complete line is a valid include

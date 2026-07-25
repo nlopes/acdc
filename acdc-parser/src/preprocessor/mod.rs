@@ -779,7 +779,11 @@ impl Preprocessor {
                 self.include_context,
                 &self.warnings,
             )?;
-            return Ok(Some(include.lines()?));
+            let attribute_list_as_written = line
+                .strip_suffix(']')
+                .and_then(|directive| directive.split_once('['))
+                .map_or("", |(_, attributes)| attributes);
+            return Ok(Some(include.lines(attribute_list_as_written)?));
         }
         tracing::error!(%line, "source origin is missing - include directive cannot be processed");
         Ok(None)
@@ -867,6 +871,27 @@ impl Preprocessor {
     /// to be relative to the current output position. This enables proper accumulation
     /// through arbitrarily deep include nesting.
     fn handle_include_result(include_result: IncludeResult, state: &mut PreprocessorState<'_>) {
+        if let Some(source_line) = include_result.synthetic_source_line {
+            let mut lines = include_result.lines.into_iter();
+            if let Some(line) = lines.next() {
+                state.push_chunk(line, source_line);
+            }
+            debug_assert!(
+                lines.next().is_none(),
+                "synthetic include fallback must be one line"
+            );
+            return;
+        }
+
+        Self::handle_regular_include_result(include_result, state);
+    }
+
+    /// Record and emit content read from an include, plus link fallbacks that
+    /// have no source mapping of their own.
+    fn handle_regular_include_result(
+        include_result: IncludeResult,
+        state: &mut PreprocessorState<'_>,
+    ) {
         state.flush_borrowed_run();
         let start_offset = state.byte_offset;
 

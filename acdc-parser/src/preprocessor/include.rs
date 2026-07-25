@@ -325,6 +325,9 @@ pub(crate) struct IncludedLineOrigin {
 #[derive(Debug)]
 pub(crate) struct IncludeResult {
     pub(crate) lines: Vec<String>,
+    /// Directive line to which synthesized fallback content belongs. Unlike
+    /// content read from another file, this line maps to the including source.
+    pub(crate) synthetic_source_line: Option<usize>,
     /// Origin (1-indexed line + byte offset within the included file) of each line
     /// in `lines`, parallel to it. A whole-file include is lines `1..N`; partial
     /// includes carry the selected lines' true origins.
@@ -356,6 +359,7 @@ impl IncludeResult {
     fn empty() -> Self {
         Self {
             lines: Vec::new(),
+            synthetic_source_line: None,
             source_lines: Vec::new(),
             column_shift: 0,
             effective_leveloffset: None,
@@ -369,6 +373,21 @@ impl IncludeResult {
     fn secure_fallback(target: &str) -> Self {
         Self {
             lines: vec![format!("link:{target}[role=include]")],
+            synthetic_source_line: None,
+            source_lines: Vec::new(),
+            column_shift: 0,
+            effective_leveloffset: None,
+            nested_leveloffset_ranges: Vec::new(),
+            file: None,
+            target: String::new(),
+            nested_source_ranges: Vec::new(),
+        }
+    }
+
+    fn unresolved_directive(directive: String, source_line: usize) -> Self {
+        Self {
+            lines: vec![directive],
+            synthetic_source_line: Some(source_line),
             source_lines: Vec::new(),
             column_shift: 0,
             effective_leveloffset: None,
@@ -500,6 +519,29 @@ impl<'a> Include<'a> {
     /// against the including file's directory. Feeds the ASG `file` include chain.
     fn target_as_written(&self) -> &str {
         &self.target_as_written
+    }
+
+    /// Build Asciidoctor's visible recovery line for a failed include read.
+    fn unresolved_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
+        let source = match &self.source_origin {
+            SourceOrigin::File { path, base_dir } => {
+                let absolute_path =
+                    super::absolute_normalized(path).unwrap_or_else(|_| path.clone());
+                absolute_path
+                    .strip_prefix(base_dir)
+                    .unwrap_or(&absolute_path)
+                    .display()
+                    .to_string()
+            }
+            SourceOrigin::Uri(uri) => uri.clone(),
+        };
+        IncludeResult::unresolved_directive(
+            format!(
+                "Unresolved directive in {source} - include::{}[{}]",
+                self.target_as_written, attribute_list_as_written
+            ),
+            self.line_number,
+        )
     }
 
     /// Fetch a URL target into memory without changing its source origin.
@@ -719,24 +761,6 @@ impl<'a> Include<'a> {
         })
     }
 
-    /// Read and process content from a local file.
-    pub(crate) fn read_content_from_file(
-        &self,
-        file_path: &Path,
-        base_dir: &Path,
-    ) -> Result<IncludedContent, Error> {
-        let content = super::read_and_decode_file(file_path, self.encoding.as_deref())?;
-        let source_origin = SourceOrigin::File {
-            path: file_path.to_path_buf(),
-            base_dir: base_dir.to_path_buf(),
-        };
-        self.process_content(
-            &content,
-            &source_origin,
-            Self::has_asciidoc_extension(file_path),
-        )
-    }
-
     /// Fetch and process content from a URI without converting it to a local origin.
     fn read_content_from_url(&self, url: &str) -> Result<Option<IncludedContent>, Error> {
         let Some(bytes) = self.fetch_url_target(url)? else {
@@ -753,7 +777,32 @@ impl<'a> Include<'a> {
         .map(Some)
     }
 
-    pub(crate) fn lines(&self) -> Result<IncludeResult, Error> {
+    /// Read one resolved local file. `None` is the recoverable non-optional
+    /// unreadable case; errors raised while preprocessing its content remain
+    /// distinct and propagate with their own source context.
+    fn read_existing_local_content(
+        &self,
+        path: &Path,
+        base_dir: &Path,
+        optional: bool,
+    ) -> Result<Option<IncludedContent>, Error> {
+        let decoded = match super::read_and_decode_file(path, self.encoding.as_deref()) {
+            Ok(content) => content,
+            Err(Error::Io(_)) if !optional => {
+                self.warn_located(format!("include file not readable: {}", path.display()));
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
+        let source_origin = SourceOrigin::File {
+            path: path.to_path_buf(),
+            base_dir: base_dir.to_path_buf(),
+        };
+        self.process_content(&decoded, &source_origin, Self::has_asciidoc_extension(path))
+            .map(Some)
+    }
+
+    pub(crate) fn lines(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
             return Ok(IncludeResult::secure_fallback(self.target_as_written()));
         }
@@ -774,8 +823,9 @@ impl<'a> Include<'a> {
                         return Ok(IncludeResult::empty());
                     };
                     let path = self.resolve_file_target(parent, base_dir, target)?;
-                    if !path.exists() {
-                        if self.opts.iter().any(|option| option == "optional") {
+                    let optional = self.opts.iter().any(|option| option == "optional");
+                    if !path.is_file() {
+                        if optional {
                             tracing::info!(
                                 source_file = ?self.current_file,
                                 line = self.line_number,
@@ -784,14 +834,18 @@ impl<'a> Include<'a> {
                             );
                         } else {
                             self.warn_located(format!(
-                                "file is missing — include directive won't be processed: {}",
-                                path.display(),
+                                "include file not found: {}",
+                                path.display()
                             ));
+                            return Ok(self.unresolved_directive(attribute_list_as_written));
                         }
                         return Ok(IncludeResult::empty());
                     }
-                    let (content, leveloffset_ranges, source_ranges) =
-                        self.read_content_from_file(&path, base_dir)?;
+                    let Some((content, leveloffset_ranges, source_ranges)) =
+                        self.read_existing_local_content(&path, base_dir, optional)?
+                    else {
+                        return Ok(self.unresolved_directive(attribute_list_as_written));
+                    };
                     (content, leveloffset_ranges, source_ranges, path)
                 }
                 Target::Url(url) => {
@@ -831,6 +885,7 @@ impl<'a> Include<'a> {
 
         Ok(IncludeResult {
             lines,
+            synthetic_source_line: None,
             source_lines,
             column_shift,
             effective_leveloffset,
@@ -1167,7 +1222,7 @@ mod tests {
         let options = Options::default();
         let include = parse_include(&path, "include::missing.adoc[opts=optional]", &options)?;
 
-        let result = include.lines()?;
+        let result = include.lines("opts=optional")?;
 
         assert!(result.lines.is_empty());
         assert!(include.warnings.borrow().is_empty());
