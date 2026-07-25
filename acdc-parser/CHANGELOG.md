@@ -121,12 +121,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fallback because Asciidoctor has no equivalent compile-time network setting;
   URI includes that lack caller authority continue to use the no-warning link
   fallback.
-- Authorized HTTP(S) includes that encounter a connection failure or HTTP error
-  status now emit a located `include uri not readable` warning, insert the
-  original directive as unresolved text, and continue parsing instead of
-  returning a top-level HTTP error. Response-body reads, content decoding, and
-  the remote-include size limit remain fatal pending separate compatibility and
-  resource-policy decisions.
+- Authorized HTTP(S) includes that encounter a connection failure, HTTP error
+  status, or response-body I/O error now emit a located
+  `include uri not readable` warning. We preserve the original directive as
+  unresolved text and continue parsing instead of returning a top-level transport
+  error. We don't process partial response bodies. Character-encoding errors and
+  the remote-include size limit remain fatal parser policies.
 - HTTP(S) includes without caller-supplied `allow-uri-read` now render as
   `link:<target>[role=include]`, emit no warning, and continue parsing in Unsafe,
   Safe, and Server modes instead of disappearing. The authority check happens

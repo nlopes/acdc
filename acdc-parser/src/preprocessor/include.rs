@@ -596,7 +596,16 @@ impl<'a> Include<'a> {
                 .map_err(|error| UrlReadError::Retrieval(error.to_string()))?;
             // Apply the cap after transport decoding so compressed responses cannot
             // expand beyond the parser's per-include memory boundary.
-            let bytes = read_remote_include(response.body_mut().as_reader())?;
+            let bytes = match read_remote_include(response.body_mut().as_reader()) {
+                Ok(bytes) => bytes,
+                // Let ureq validate HTTP framing and transport decoding. Any body I/O
+                // failure follows the same parser recovery as a request-opening error;
+                // partial bytes are deliberately discarded.
+                Err(Error::Io(error)) => {
+                    return Err(UrlReadError::Retrieval(error.to_string()));
+                }
+                Err(error) => return Err(UrlReadError::Other(error)),
+            };
 
             tracing::debug!(%url, "downloaded content from URL");
             Ok(bytes)

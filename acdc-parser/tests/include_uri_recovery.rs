@@ -2,8 +2,9 @@
 
 use std::{
     error::Error,
-    fs, io,
-    net::TcpListener,
+    fs,
+    io::{self, Read, Write},
+    net::{TcpListener, TcpStream},
     path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
@@ -44,28 +45,24 @@ impl Drop for TempDocument {
     }
 }
 
-struct StatusServer {
+struct ResponseServer {
     uri: String,
     stop: mpsc::Sender<()>,
     handle: Option<JoinHandle<io::Result<bool>>>,
 }
 
-impl StatusServer {
-    fn start(status: &'static str) -> io::Result<Self> {
+impl ResponseServer {
+    fn start(path: &str, response: String) -> io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
-        let uri = format!("http://{address}/missing.adoc");
+        let uri = format!("http://{address}/{path}");
         let (stop, stopped) = mpsc::channel();
         let handle = thread::spawn(move || {
             loop {
                 match listener.accept() {
                     Ok((mut stream, _)) => {
-                        use std::io::Write;
-
-                        let response = format!(
-                            "HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
-                        );
+                        read_request_headers(&mut stream)?;
                         stream.write_all(response.as_bytes())?;
                         return Ok(true);
                     }
@@ -87,6 +84,23 @@ impl StatusServer {
         })
     }
 
+    fn with_status(status: &str) -> io::Result<Self> {
+        Self::start(
+            "missing.adoc",
+            format!("HTTP/1.1 {status}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"),
+        )
+    }
+
+    fn with_truncated_body(body: &str) -> io::Result<Self> {
+        Self::start(
+            "truncated.adoc",
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len() + 1
+            ),
+        )
+    }
+
     fn finish(mut self) -> TestResult {
         let _ = self.stop.send(());
         let handle = self
@@ -101,11 +115,32 @@ impl StatusServer {
     }
 }
 
-impl Drop for StatusServer {
+impl Drop for ResponseServer {
     fn drop(&mut self) {
         let _ = self.stop.send(());
         if let Some(handle) = self.handle.take() {
             let _ = handle.join();
+        }
+    }
+}
+
+fn read_request_headers(stream: &mut TcpStream) -> io::Result<()> {
+    let mut request = Vec::new();
+    let mut buffer = [0; 1024];
+    loop {
+        let read = stream.read(&mut buffer)?;
+        if read == 0 {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "request ended before its headers",
+            ));
+        }
+        let bytes = buffer
+            .get(..read)
+            .ok_or_else(|| io::Error::other("socket read exceeded request buffer"))?;
+        request.extend_from_slice(bytes);
+        if request.windows(4).any(|window| window == b"\r\n\r\n") {
+            return Ok(());
         }
     }
 }
@@ -188,7 +223,16 @@ fn connection_failure_inserts_fallback_and_continues() -> TestResult {
 
 #[test]
 fn http_status_failure_inserts_fallback_and_continues() -> TestResult {
-    let server = StatusServer::start("404 Not Found")?;
+    let server = ResponseServer::with_status("404 Not Found")?;
+    let (document, result) = parse_authorized_uri(&server.uri)?;
+
+    assert_uri_recovery(&result, &server.uri, &document.path)?;
+    server.finish()
+}
+
+#[test]
+fn response_body_read_failure_inserts_fallback_and_continues() -> TestResult {
+    let server = ResponseServer::with_truncated_body("PARTIAL")?;
     let (document, result) = parse_authorized_uri(&server.uri)?;
 
     assert_uri_recovery(&result, &server.uri, &document.path)?;

@@ -208,6 +208,12 @@ itself this authority. Each response is limited to 10 MiB after transport decodi
 larger responses return an HTTP request error. The limit is fixed, applies separately
 to each response, and cannot be changed by a document attribute.
 
+We use `ureq` for HTTP framing, redirects, TLS, and timeouts. We don't try to
+reproduce the URI transport behavior that Asciidoctor's Ruby implementation inherits
+from OpenURI. If opening a request or reading its body fails, we emit a located
+warning, preserve the include as an unresolved directive, and continue parsing. We
+don't process partial response bodies. Character-encoding errors remain fatal.
+
 This limit is an intentional security divergence from asciidoctor, which has no
 equivalent per-response limit.
 
@@ -218,6 +224,10 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
 * **Remote include response limit**: Each decoded HTTP(S) include response is limited
   to 10 MiB. See [Remote includes](#remote-includes) for the authority requirements
   and limit behavior.
+* **Remote include transport**: We use `ureq` and don't try to reproduce the URI
+  transport behavior that Asciidoctor's Ruby implementation inherits from OpenURI.
+  Request and response-body I/O failures recover without processing partial content.
+  See [Remote includes](#remote-includes).
 * **Include indentation limit**: As an intentional acdc security policy,
   `include::file[indent=N]` accepts at most `4096` spaces instead of allowing an
   unbounded allocation. AsciiDoc does not require this cap, and asciidoctor does not
