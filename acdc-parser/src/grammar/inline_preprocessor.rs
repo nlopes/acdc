@@ -206,11 +206,11 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
         let absolute_start = self.get_offset();
         self.advance(full);
-        if reconstructed.chars().count() != full.chars().count() {
+        if reconstructed.len() != full.len() {
             self.source_map.borrow_mut().add_replacement(
                 absolute_start,
                 absolute_start + full.len(),
-                reconstructed.chars().count(),
+                reconstructed.len(),
                 ProcessedKind::Attribute,
             );
         }
@@ -245,7 +245,7 @@ pub(crate) struct ProcessedContent<'a> {
 pub(crate) struct Replacement {
     pub absolute_start: usize,
     pub absolute_end: usize,
-    pub processed_end: usize, // absolute_start + physical placeholder length
+    pub byte_len: usize,
     pub kind: ProcessedKind,
 }
 
@@ -278,66 +278,79 @@ fn to_unsigned(value: i32, context: &str) -> Result<usize, Error> {
 
 impl SourceMap {
     /// Record a substitution.
-    /// - `absolute_start`: where in the processed text the placeholder was inserted.
-    /// - `absolute_end`: where in the original text the placeholder ends
-    /// - `processed_end`: where in the processed text the placeholder ends
-    /// - `physical_length`: the length of the inserted placeholder (in char count, not bytes)
+    /// - `absolute_start`: where in the original text the replaced span begins
+    /// - `absolute_end`: where in the original text the replaced span ends
+    /// - `replacement_length`: the byte length of the inserted replacement
     pub(crate) fn add_replacement(
         &mut self,
         absolute_start: usize,
         absolute_end: usize,
-        physical_length: usize,
+        replacement_length: usize,
         kind: ProcessedKind,
     ) {
         self.replacements.push(Replacement {
             absolute_start,
             absolute_end,
-            processed_end: absolute_start + physical_length,
+            byte_len: replacement_length,
             kind,
         });
-        // Ensure replacements are sorted by where they occur in the processed text.
+        // Ensure replacements are sorted by where they occur in the original text.
         self.replacements.sort_by_key(|r| r.absolute_start);
     }
 
     /// Map a position in the processed text back to the original source.
     pub(crate) fn map_position(&self, pos: usize) -> Result<usize, Error> {
+        self.map_position_with_bias(pos, false)
+    }
+
+    /// Map an inclusive end position in the processed text back to the original source.
+    pub(crate) fn map_end_position(&self, pos: usize) -> Result<usize, Error> {
+        self.map_position_with_bias(pos, true)
+    }
+
+    fn map_position_with_bias(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {
         let signed_pos = to_signed(pos, "pos")?;
 
-        // The adjustment is the total number of characters removed/added during preprocessing.
-        // For example, if we have a passthrough like `+a+`: the original text is 3 characters,
-        // but the processed text is 7 characters (FFF0FFF). So the adjustment is 7 - 3 = 4.
+        // The adjustment is the total number of bytes removed or added during preprocessing.
         let mut adjustment: i32 = 0;
 
         for rep in &self.replacements {
             let rep_start = to_signed(rep.absolute_start, "rep.absolute_start")?;
             let rep_end = to_signed(rep.absolute_end, "rep.absolute_end")?;
-            let rep_processed_end = to_signed(rep.processed_end, "rep.processed_end")?;
+            let replacement_length = to_signed(rep.byte_len, "rep.byte_len")?;
+            let rep_processed_start = rep_start + adjustment;
+            let rep_processed_end = rep_processed_start + replacement_length;
 
             // Position is before this replacement - done adjusting
-            if signed_pos <= rep_start {
+            if signed_pos < rep_processed_start || (signed_pos == rep_processed_start && !end_bias)
+            {
                 break;
             }
 
             // Position is within this replacement
             if signed_pos < rep_processed_end {
+                if end_bias {
+                    return Ok(rep.absolute_end.saturating_sub(1));
+                }
                 return match rep.kind {
                     ProcessedKind::Attribute => {
                         // All inserted characters map to the left-most original position
                         Ok(rep.absolute_start)
                     }
-                    ProcessedKind::Passthrough if signed_pos >= rep_end => {
-                        // Position is past the original passthrough end
-                        Ok(rep.absolute_end - 1)
-                    }
                     ProcessedKind::Passthrough => {
-                        // Within passthrough - apply current adjustment
-                        to_unsigned(signed_pos - adjustment, "within_passthrough")
+                        let mapped_pos = signed_pos - adjustment;
+                        if mapped_pos >= rep_end {
+                            // The marker can be longer than the original passthrough.
+                            Ok(rep.absolute_end - 1)
+                        } else {
+                            to_unsigned(mapped_pos, "within_passthrough")
+                        }
                     }
                 };
             }
 
             // Position is past this replacement - accumulate adjustment
-            adjustment += rep_processed_end - rep_end;
+            adjustment += replacement_length - (rep_end - rep_start);
         }
 
         // Not within any replacement - apply total adjustment
@@ -455,7 +468,7 @@ parser!(
                             state.source_map.borrow_mut().add_replacement(
                                 location.absolute_start,
                                 location.absolute_end,
-                                new_content.chars().count(),
+                                new_content.len(),
                                 ProcessedKind::Passthrough,
                             );
                             state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -466,7 +479,7 @@ parser!(
                             state.source_map.borrow_mut().add_replacement(
                                 location.absolute_start,
                                 location.absolute_end,
-                                value.chars().count(),
+                                value.len(),
                                 ProcessedKind::Attribute,
                             );
                             attributes.insert(state.source_map.borrow().replacements.len(), location);
@@ -578,7 +591,7 @@ parser!(
             state.source_map.borrow_mut().add_replacement(
                 location.absolute_start,
                 location.absolute_end,
-                new_content.chars().count(),
+                new_content.len(),
                 ProcessedKind::Passthrough,
             );
             state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -605,7 +618,7 @@ parser!(
                 state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
                     location.absolute_end,
-                    new_content.chars().count(),
+                    new_content.len(),
                     ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -631,7 +644,7 @@ parser!(
                 state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
                     location.absolute_end,
-                    new_content.chars().count(),
+                    new_content.len(),
                     ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -668,7 +681,7 @@ parser!(
                 state.source_map.borrow_mut().add_replacement(
                     location.absolute_start,
                     location.absolute_end,
-                    new_content.chars().count(),
+                    new_content.len(),
                     ProcessedKind::Passthrough,
                 );
                 state.pass_found_count.set(state.pass_found_count.get() + 1);
@@ -1137,7 +1150,7 @@ mod tests {
         assert_eq!(pass.location.absolute_end, 47); // End of pass macro content including brackets
 
         assert_eq!(result.source_map.map_position(9)?, 9); // Start of pass macro
-        assert_eq!(result.source_map.map_position(24)?, 55);
+        assert_eq!(result.source_map.map_position(28)?, 47); // First byte after the marker
         Ok(())
     }
 
@@ -1177,10 +1190,10 @@ mod tests {
         assert_eq!(result.source_map.map_position(2)?, 2);
         // 5 is the 0 within FFF0FFF, which corresponds to the +2+ macro: I believe it should map to the end of the macro.
         assert_eq!(result.source_map.map_position(5)?, 4);
-        // 24 is the FFF in passthrough 2, therefore it should map to position 10
-        assert_eq!(result.source_map.map_position(24)?, 20);
-        // 48 is the n in "and", therefore it should map to position 19
-        assert_eq!(result.source_map.map_position(48)?, 44);
+        // 24 is within passthrough 2 and maps to its original content.
+        assert_eq!(result.source_map.map_position(24)?, 8);
+        // 48 is the n in "and".
+        assert_eq!(result.source_map.map_position(48)?, 20);
         Ok(())
     }
 

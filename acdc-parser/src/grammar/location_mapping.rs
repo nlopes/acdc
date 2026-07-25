@@ -1,4 +1,4 @@
-use crate::{Form, InlineNode, Location, Plain, ProcessedContent};
+use crate::{Form, InlineNode, Location, Plain, ProcessedContent, Source};
 
 use super::{
     ParserState,
@@ -137,7 +137,7 @@ pub(crate) fn create_location_mapper<'a>(
 
         // Map those through the preprocessor source map back to original source
         let mut mapped_abs_start = processed.source_map.map_position(processed_abs_start)?;
-        let mut mapped_abs_end = processed.source_map.map_position(processed_abs_end)?;
+        let mut mapped_abs_end = processed.source_map.map_end_position(processed_abs_end)?;
 
         // Clamp to input bounds - preprocessor expansion can produce positions beyond input length
         let input_len = state.input.len();
@@ -193,7 +193,7 @@ pub(crate) fn extend_attribute_location_if_needed(
         if let Some(attr_replacement) = processed.source_map.replacements.iter().find(|rep| {
             rep.kind == crate::grammar::inline_preprocessor::ProcessedKind::Attribute
                 && location.absolute_start >= rep.absolute_start
-                && location.absolute_start < rep.processed_end
+                && location.absolute_start < rep.absolute_end
         }) {
             tracing::debug!(from=?location, to=?attr_replacement,
                 "Extending collapsed location to full attribute span",
@@ -491,6 +491,15 @@ fn map_inline_macro<'a>(
         InlineMacro::Link(link) => {
             link.location = map_loc(&link.location)?;
             link.text = map_inline_locations(state, processed, &link.text, location)?;
+            if !processed.passthroughs.is_empty() {
+                let target = link.target.to_string();
+                let restored = super::passthrough_processing::replace_passthrough_placeholders(
+                    &target, processed,
+                );
+                if restored != target {
+                    link.target = Source::from_str_borrowed(state.intern_str(&restored))?;
+                }
+            }
         }
         InlineMacro::Icon(icon) => icon.location = map_loc(&icon.location)?,
         InlineMacro::Button(button) => button.location = map_loc(&button.location)?,

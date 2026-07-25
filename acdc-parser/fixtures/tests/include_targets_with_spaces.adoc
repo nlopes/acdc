@@ -1,0 +1,9 @@
+Before local.
+
+include::included chapter.txt[]
+
+After local.
+
+include::https://example.invalid/remote chapter.adoc[]
+
+After URI.

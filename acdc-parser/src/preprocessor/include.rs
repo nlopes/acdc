@@ -206,8 +206,13 @@ peg::parser! {
             }
 
         rule target() -> String
-            = t:$((!['[' | ' ' | '\t'] [_])+) {
-                t.to_string()
+            = t:$((!['['] [_])+)
+            {?
+                if t == t.trim_ascii() {
+                    Ok(t.to_string())
+                } else {
+                    Err("include target without leading or trailing whitespace")
+                }
             }
 
         rule attributes() -> Vec<(String, String)>
@@ -390,6 +395,11 @@ impl IncludeResult {
     }
 
     fn link_fallback(target: &str, source_line: usize) -> Self {
+        let target = if target.contains(' ') {
+            format!("pass:c[{target}]")
+        } else {
+            target.to_string()
+        };
         Self {
             lines: vec![format!("link:{target}[role=include]")],
             synthetic_source_line: Some(source_line),

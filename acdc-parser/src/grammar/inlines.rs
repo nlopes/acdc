@@ -2309,7 +2309,10 @@ peg::parser! {
         pub rule source() -> Source<'input>
             = source:
         (
-            u:url() {?
+            p:passthrough_placeholder() {
+                Source::Name(p)
+            }
+            / u:url() {?
                 let interned = state.intern_cow(u);
                 Source::from_str_borrowed(interned).map_err(|_| "failed to parse URL")
             }
@@ -2319,6 +2322,15 @@ peg::parser! {
             }
         )
         { source }
+
+        rule passthrough_placeholder() -> &'input str
+            = placeholder:$(
+                "\u{FFFD}\u{FFFD}\u{FFFD}"
+                digits()
+                "\u{FFFD}\u{FFFD}\u{FFFD}"
+            ) {
+                placeholder
+            }
 
         rule digits() = ['0'..='9']+
 

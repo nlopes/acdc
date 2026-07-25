@@ -115,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Include targets now accept internal spaces while leading or trailing target
+  whitespace remains invalid. Local targets with spaces are read normally, and
+  Secure or unauthorized URI includes preserve the complete target in a
+  converter-visible link fallback. Authorized HTTP(S) targets continue to use
+  `ureq`: a raw space causes the existing located `include uri not readable`
+  recovery.
 - Builds without the `network` feature now emit a located warning, preserve an
   authorized HTTP(S) include as literal unresolved text, and continue parsing
   instead of removing the directive. This is an ACDC-specific capability

@@ -55,9 +55,22 @@ struct TestServer {
 impl TestServer {
     fn start(body: &'static str) -> io::Result<Self> {
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
+        let file_name = format!("remote-{}.adoc", listener.local_addr()?.port());
+        Self::start_with_listener(listener, body, &file_name)
+    }
+
+    fn start_with_file_name(body: &'static str, file_name: &str) -> io::Result<Self> {
+        let listener = TcpListener::bind(("127.0.0.1", 0))?;
+        Self::start_with_listener(listener, body, file_name)
+    }
+
+    fn start_with_listener(
+        listener: TcpListener,
+        body: &'static str,
+        file_name: &str,
+    ) -> io::Result<Self> {
         listener.set_nonblocking(true)?;
         let address = listener.local_addr()?;
-        let file_name = format!("remote-{}.adoc", address.port());
         let uri = format!("http://{address}/{file_name}");
         let downloaded_path = std::env::temp_dir().join(file_name);
         let (stop, stopped) = mpsc::channel();
@@ -125,6 +138,26 @@ fn assert_single_paragraph(result: &ParseResult, expected: &str) -> TestResult {
     Ok(())
 }
 
+fn paragraph_source_text(block: &Block<'_>) -> Result<String, Box<dyn Error>> {
+    let Block::Paragraph(paragraph) = block else {
+        return Err(format!("expected paragraph, got {block:?}").into());
+    };
+    paragraph
+        .content
+        .iter()
+        .map(|inline| {
+            if let InlineNode::PlainText(text) = inline {
+                Ok(text.content.to_string())
+            } else if let InlineNode::Macro(InlineMacro::Autolink(link)) = inline {
+                Ok(link.url.to_string())
+            } else {
+                Err(format!("expected source-text inline, got {inline:?}").into())
+            }
+        })
+        .collect::<Result<Vec<_>, Box<dyn Error>>>()
+        .map(|parts| parts.concat())
+}
+
 fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
     let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
         return Err(format!(
@@ -176,6 +209,51 @@ fn caller_attribute_presence_grants_uri_read_authority() -> TestResult {
         assert!(result.warnings().is_empty());
         assert!(server.finish()?);
     }
+
+    Ok(())
+}
+
+#[test]
+fn authorized_uri_with_internal_spaces_uses_ureq_recovery() -> TestResult {
+    let server = TestServer::start_with_file_name("Remote content.", "remote chapter.adoc")?;
+    let document = TempDocument::new(&format!("BEFORE\n\ninclude::{}[]\n\nAFTER", server.uri))?;
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Server)
+        .with_attribute("allow-uri-read", true)
+        .build();
+
+    let result = parse_file(&document.path, &options)?;
+
+    let [before, unresolved, after] = result.document().blocks.as_slice() else {
+        return Err(format!(
+            "expected before, unresolved directive, and after, got {:?}",
+            result.document().blocks
+        )
+        .into());
+    };
+    assert_eq!(paragraph_source_text(before)?, "BEFORE");
+    assert_eq!(
+        paragraph_source_text(unresolved)?,
+        format!(
+            "Unresolved directive in main.adoc - include::\\{}[]",
+            server.uri
+        )
+    );
+    assert_eq!(paragraph_source_text(after)?, "AFTER");
+
+    let [warning] = result.warnings() else {
+        return Err(format!("expected one warning, got {:?}", result.warnings()).into());
+    };
+    assert_eq!(
+        warning.kind.to_string(),
+        format!("include uri not readable: {}", server.uri)
+    );
+    let Some(location) = warning.source_location() else {
+        return Err("expected the warning to have a source location".into());
+    };
+    assert_eq!(location.file.as_deref(), Some(document.path.as_path()));
+    assert_eq!(location.location.start.line, 3);
+    assert!(!server.finish()?);
 
     Ok(())
 }

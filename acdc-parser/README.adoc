@@ -117,6 +117,16 @@ The implementation here follows from:
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
+[#include-targets]
+== Include targets
+
+Include targets may contain internal spaces.
+Leading or trailing ASCII whitespace still makes the line invalid as an include directive, so we leave it for ordinary document parsing.
+
+Local targets with spaces resolve normally below Secure mode.
+In Secure mode, and for HTTP(S) targets without caller-supplied URI authority, we preserve the complete target in the same link fallback as Asciidoctor.
+For authorized HTTP(S) reads, the target follows `ureq`'s URI rules: a raw space takes the located unreadable-URI recovery path.
+
 [#include-depth]
 == Include depth
 
