@@ -45,7 +45,7 @@ acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
-base64 = "0.22"
+base64 = "0.23"
 chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"
