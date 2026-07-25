@@ -12,6 +12,7 @@ use crate::{
     ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw,
     Reference, Section, Source, SourceLocation, StemContent, StemNotation, Subtitle, Table,
     TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, Video,
+    blocks::table::MAX_TABLE_COLUMNS,
     grammar::{
         ParserState,
         attributes::AttributeEntry,
@@ -885,6 +886,19 @@ struct TableParseParams<'a> {
     closing: TableClosing<'a>,
 }
 
+fn table_limit_error(
+    state: &ParserState<'_>,
+    location: Location,
+    resource: &str,
+    requested: impl std::fmt::Display,
+    limit: usize,
+) -> Error {
+    Error::Parse(
+        Box::new(state.create_error_source_location(location)),
+        format!("table {resource} request of {requested} exceeds the maximum of {limit}"),
+    )
+}
+
 /// Parse a table block from pre-extracted positions and content.
 ///
 /// This helper function contains the common table parsing logic used by all
@@ -980,7 +994,13 @@ fn parse_table_block_impl<'input>(
             // Check for "N*" notation (e.g., "3*" means 3 columns with same spec)
             let (multiplier, spec_str) = if let Some(pos) = s.find('*') {
                 let mult_str = &s[..pos];
-                let mult = mult_str.parse::<usize>().unwrap_or(1);
+                let mult = mult_str.parse::<usize>().unwrap_or_else(|_| {
+                    if !mult_str.is_empty() && mult_str.bytes().all(|b| b.is_ascii_digit()) {
+                        MAX_TABLE_COLUMNS + 1
+                    } else {
+                        1
+                    }
+                });
                 (mult, &s[pos + 1..])
             } else {
                 (1, s)
@@ -1082,9 +1102,17 @@ fn parse_table_block_impl<'input>(
                 width,
                 style,
             };
-            for _ in 0..multiplier {
-                specs.push(spec.clone());
+            let column_count = specs.len().saturating_add(multiplier);
+            if column_count > MAX_TABLE_COLUMNS {
+                return Err(table_limit_error(
+                    state,
+                    table_location.clone(),
+                    "column count",
+                    column_count.to_string(),
+                    MAX_TABLE_COLUMNS,
+                ));
             }
+            specs.extend(std::iter::repeat_n(spec, multiplier));
         }
 
         (Some(specs.len()), specs)
@@ -1106,7 +1134,16 @@ fn parse_table_block_impl<'input>(
         content_start + offset,
         ncols,
         &mut dropped_span,
-    );
+    )
+    .map_err(|violation| {
+        table_limit_error(
+            state,
+            state.create_location(violation.start, violation.end),
+            violation.resource,
+            violation.requested,
+            violation.limit,
+        )
+    })?;
 
     if let Some((start, end)) = dropped_span {
         state.add_warning(crate::Warning::new(
@@ -1134,8 +1171,7 @@ fn parse_table_block_impl<'input>(
 
     for (i, row) in raw_rows.iter().enumerate() {
         // Each raw cell produces at least one `columns` entry; duplication
-        // produces more but is rare. `row.len()` is a tight lower bound and
-        // sizes the common case exactly.
+        // produces more but is bounded by the table's column limit.
         let mut columns = Vec::with_capacity(row.len());
         let mut col_idx = 0; // Track current column index for column format lookup
         for cell in row {
@@ -1190,6 +1226,15 @@ fn parse_table_block_impl<'input>(
         // Logical column count = columns occupied by rowspans + colspans of new cells
         let logical_col_count: usize =
             occupied_from_rowspans + columns.iter().map(|c| c.colspan).sum::<usize>();
+        if logical_col_count > MAX_TABLE_COLUMNS {
+            return Err(table_limit_error(
+                state,
+                row_location.clone(),
+                "column count",
+                logical_col_count.to_string(),
+                MAX_TABLE_COLUMNS,
+            ));
+        }
 
         if let Some(ncols) = ncols
             && logical_col_count != ncols

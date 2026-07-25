@@ -1,5 +1,8 @@
 use crate::{ColumnStyle, HorizontalAlignment, Table, VerticalAlignment};
 
+pub(crate) const MAX_TABLE_COLUMNS: usize = 100;
+pub(crate) const MAX_TABLE_ROWS: usize = 1_000;
+
 /// A cell part with its unescaped content and original start position.
 struct CellPart {
     /// Unescaped content (e.g., `\|` becomes `|`)
@@ -538,6 +541,33 @@ pub(crate) struct ParsedCell {
     pub duplication_count: usize,
 }
 
+#[derive(Debug)]
+pub(crate) struct TableLimitViolation {
+    pub(crate) resource: &'static str,
+    pub(crate) requested: usize,
+    pub(crate) limit: usize,
+    pub(crate) start: usize,
+    pub(crate) end: usize,
+}
+
+impl TableLimitViolation {
+    const fn new(
+        resource: &'static str,
+        requested: usize,
+        limit: usize,
+        start: usize,
+        end: usize,
+    ) -> Self {
+        Self {
+            resource,
+            requested,
+            limit,
+            start,
+            end,
+        }
+    }
+}
+
 /// Check if a blank line after the first row indicates a header.
 /// A header is indicated only if the first non-empty line after the blank
 /// contains a separator. If it's a continuation line (no separator), it's content
@@ -685,6 +715,71 @@ fn first_line_column_count(text: &str, separator: &str) -> usize {
     }
 }
 
+fn validate_cell_specifiers(cells: &[RawCell]) -> Result<(), TableLimitViolation> {
+    for cell in cells {
+        if cell.spec.colspan > MAX_TABLE_COLUMNS {
+            return Err(TableLimitViolation::new(
+                "column span",
+                cell.spec.colspan,
+                MAX_TABLE_COLUMNS,
+                cell.start,
+                cell.end,
+            ));
+        }
+        if cell.spec.rowspan > MAX_TABLE_ROWS {
+            return Err(TableLimitViolation::new(
+                "row span",
+                cell.spec.rowspan,
+                MAX_TABLE_ROWS,
+                cell.start,
+                cell.end,
+            ));
+        }
+        if cell.spec.duplication_count > MAX_TABLE_COLUMNS {
+            return Err(TableLimitViolation::new(
+                "cell duplication",
+                cell.spec.duplication_count,
+                MAX_TABLE_COLUMNS,
+                cell.start,
+                cell.end,
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_row_widths(rows: &[Vec<ParsedCell>]) -> Result<(), TableLimitViolation> {
+    if rows.len() > MAX_TABLE_ROWS {
+        let (start, end) = rows
+            .get(MAX_TABLE_ROWS)
+            .and_then(|row| row.first().zip(row.last()))
+            .map_or((0, 0), |(first, last)| (first.start, last.end));
+        return Err(TableLimitViolation::new(
+            "row count",
+            rows.len(),
+            MAX_TABLE_ROWS,
+            start,
+            end,
+        ));
+    }
+    for row in rows {
+        if row.len() > MAX_TABLE_COLUMNS {
+            let (start, end) = row
+                .first()
+                .zip(row.last())
+                .map_or((0, 0), |(first, last)| (first.start, last.end));
+            return Err(TableLimitViolation::new(
+                "column count",
+                row.len(),
+                MAX_TABLE_COLUMNS,
+                start,
+                end,
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Group a flat cell stream into rows of `ncols` columns.
 ///
 /// Placement is colspan-, duplication-, and rowspan-aware: a cell spanning
@@ -698,7 +793,7 @@ fn group_cells_into_rows(
     cells: Vec<RawCell>,
     ncols: usize,
     dropped: &mut Option<(usize, usize)>,
-) -> Vec<Vec<ParsedCell>> {
+) -> Result<Vec<Vec<ParsedCell>>, TableLimitViolation> {
     let ncols = ncols.max(1);
     let mut rows = Vec::new();
     // Columns occupied by rowspans carried down from earlier rows.
@@ -716,7 +811,7 @@ fn group_cells_into_rows(
             // Skip columns occupied by an active rowspan from a previous row.
             if let Some(&(_, _, width)) = active
                 .iter()
-                .find(|(pos, _, w)| col >= *pos && col < pos + w)
+                .find(|(pos, _, width)| col >= *pos && col < pos + width)
             {
                 col += width;
                 continue;
@@ -747,6 +842,19 @@ fn group_cells_into_rows(
             }
             break;
         }
+        if rows.len() == MAX_TABLE_ROWS {
+            let (start, end) = row
+                .first()
+                .zip(row.last())
+                .map_or((0, 0), |(first, last)| (first.start, last.end));
+            return Err(TableLimitViolation::new(
+                "row count",
+                rows.len() + 1,
+                MAX_TABLE_ROWS,
+                start,
+                end,
+            ));
+        }
         rows.push(row);
         // Age existing rowspans, then add the ones introduced by this row.
         active.retain_mut(|(_, remaining, _)| {
@@ -756,7 +864,7 @@ fn group_cells_into_rows(
         active.extend(new_spans);
     }
 
-    rows
+    Ok(rows)
 }
 
 /// Convert a raw cell into a `ParsedCell`, carrying span/alignment/style.
@@ -785,11 +893,14 @@ impl Table<'_> {
         base_offset: usize,
         ncols: Option<usize>,
         dropped: &mut Option<(usize, usize)>,
-    ) -> Vec<Vec<ParsedCell>> {
+    ) -> Result<Vec<Vec<ParsedCell>>, TableLimitViolation> {
         // CSV-style formats (CSV, TSV) need special handling for multi-line
         // quoted values.
         if let Some(delimiter) = csv_style_delimiter(separator) {
-            return Self::parse_csv_rows_with_positions(text, has_header, base_offset, delimiter);
+            let rows =
+                Self::parse_csv_rows_with_positions(text, has_header, base_offset, delimiter);
+            validate_row_widths(&rows)?;
+            return Ok(rows);
         }
 
         let lines: Vec<&str> = text.lines().collect();
@@ -811,7 +922,9 @@ impl Table<'_> {
         // model: newlines are insignificant and cells flow into rows by column
         // count. DSV (`:`), TSV (`\t`), and any custom separator are line-per-row.
         if !separator_uses_specifiers(separator) {
-            return Self::parse_delimited_rows(&lines, separator, base_offset);
+            let rows = Self::parse_delimited_rows(&lines, separator, base_offset);
+            validate_row_widths(&rows)?;
+            return Ok(rows);
         }
 
         // Column count: the `cols` attribute when given, otherwise the number of
@@ -819,10 +932,20 @@ impl Table<'_> {
         let ncols = ncols
             .filter(|&n| n > 0)
             .unwrap_or_else(|| first_line_column_count(text, separator));
+        if ncols > MAX_TABLE_COLUMNS {
+            return Err(TableLimitViolation::new(
+                "column count",
+                ncols,
+                MAX_TABLE_COLUMNS,
+                base_offset,
+                base_offset,
+            ));
+        }
 
         tracing::debug!(?has_header, ncols, "Starting table parsing");
 
         let cells = scan_cells(text, separator, base_offset);
+        validate_cell_specifiers(&cells)?;
         group_cells_into_rows(cells, ncols, dropped)
     }
 
@@ -941,6 +1064,18 @@ impl Table<'_> {
 mod tests {
     use super::*;
 
+    fn parse_rows(
+        input: &str,
+        separator: &str,
+        has_header: &mut bool,
+        ncols: Option<usize>,
+    ) -> Vec<Vec<ParsedCell>> {
+        match Table::parse_rows_with_positions(input, separator, has_header, 0, ncols, &mut None) {
+            Ok(rows) => rows,
+            Err(error) => panic!("table should parse: {error:?}"),
+        }
+    }
+
     #[test]
     fn split_escaped_psv_no_escapes() {
         let parts = split_escaped("| cell1 | cell2 |", '|');
@@ -1027,8 +1162,7 @@ mod tests {
     fn trailing_text_becomes_continuation_paragraph_of_last_cell() {
         let input = "| A | B\n\nTrailing\n";
         let mut has_header = false;
-        let rows =
-            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, None, &mut None);
+        let rows = parse_rows(input, "|", &mut has_header, None);
         let [row] = rows.as_slice() else {
             panic!("expected 1 row, got {}", rows.len());
         };
@@ -1050,8 +1184,7 @@ mod tests {
     fn a_cell_preserves_blank_line_inside_nested_table_content() {
         let input = "a|\n!===\n! Inner A ! Inner B\n\nTrailing in inner cell\n!===\n";
         let mut has_header = false;
-        let rows =
-            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(1), &mut None);
+        let rows = parse_rows(input, "|", &mut has_header, Some(1));
         let [row] = rows.as_slice() else {
             panic!("expected 1 row, got {}", rows.len());
         };
@@ -1070,8 +1203,7 @@ mod tests {
     fn multiline_cell_content_stays_in_one_cell() {
         let input = "| a | b\nstill b\n| c | d\n";
         let mut has_header = false;
-        let rows =
-            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(2), &mut None);
+        let rows = parse_rows(input, "|", &mut has_header, Some(2));
         let contents: Vec<Vec<&str>> = rows
             .iter()
             .map(|r| r.iter().map(|c| c.content.as_str()).collect())
@@ -1085,8 +1217,7 @@ mod tests {
     fn row_split_across_lines_groups_by_column_count() {
         let input = "| a\n| b\n| c\n| d\n";
         let mut has_header = false;
-        let rows =
-            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(2), &mut None);
+        let rows = parse_rows(input, "|", &mut has_header, Some(2));
         let contents: Vec<Vec<&str>> = rows
             .iter()
             .map(|r| r.iter().map(|c| c.content.as_str()).collect())
@@ -1100,8 +1231,7 @@ mod tests {
     fn rowspan_aware_grouping() {
         let input = ".2+| spans | b | c\n| e | f\n| g | h | i\n";
         let mut has_header = false;
-        let rows =
-            Table::parse_rows_with_positions(input, "|", &mut has_header, 0, Some(3), &mut None);
+        let rows = parse_rows(input, "|", &mut has_header, Some(3));
         let contents: Vec<Vec<&str>> = rows
             .iter()
             .map(|r| r.iter().map(|c| c.content.as_str()).collect())
@@ -1120,8 +1250,7 @@ mod tests {
     fn tsv_quoted_field_spans_lines() {
         let input = "a\t\"line1\nline2\"\nb\tc\n";
         let mut has_header = false;
-        let rows =
-            Table::parse_rows_with_positions(input, "\t", &mut has_header, 0, None, &mut None);
+        let rows = parse_rows(input, "\t", &mut has_header, None);
         let contents: Vec<Vec<&str>> = rows
             .iter()
             .map(|r| r.iter().map(|c| c.content.as_str()).collect())
