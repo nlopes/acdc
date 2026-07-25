@@ -115,6 +115,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- HTTP(S) includes without caller-supplied `allow-uri-read` now render as
+  `link:<target>[role=include]`, emit no warning, and continue parsing in Unsafe,
+  Safe, and Server modes instead of disappearing. The authority check happens
+  before transport selection, so the fallback is identical with and without the
+  `network` feature and shares Secure mode's source mapping.
 - Missing non-optional local includes now emit a located warning, insert
   `Unresolved directive in <current source> - include::<target>[<attributes>]`,
   and continue parsing instead of silently removing the directive. The fallback

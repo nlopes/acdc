@@ -14,7 +14,7 @@ use std::{
     time::Duration,
 };
 
-use acdc_parser::{Block, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{Block, InlineMacro, InlineNode, Options, ParseResult, SafeMode, parse_file};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -125,16 +125,36 @@ fn assert_single_paragraph(result: &ParseResult, expected: &str) -> TestResult {
     Ok(())
 }
 
+fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
+    let [Block::Paragraph(paragraph)] = result.document().blocks.as_slice() else {
+        return Err(format!(
+            "expected one fallback paragraph, got {:?}",
+            result.document().blocks
+        )
+        .into());
+    };
+    let [InlineNode::Macro(InlineMacro::Link(link))] = paragraph.content.as_slice() else {
+        return Err(format!("expected one fallback link, got {paragraph:?}").into());
+    };
+    assert_eq!(link.target.to_string(), target);
+    assert!(link.text.is_empty());
+    assert_eq!(
+        link.attributes.get_string("role").as_deref(),
+        Some("include")
+    );
+    assert!(result.warnings().is_empty());
+    Ok(())
+}
+
 #[test]
 fn document_attribute_cannot_grant_uri_read_authority() -> TestResult {
     let server = TestServer::start("Remote content.")?;
     let document = TempDocument::new(&format!(":allow-uri-read:\n\ninclude::{}[]", server.uri))?;
 
     let options = Options::builder().with_safe_mode(SafeMode::Server).build();
-    let _result = parse_file(&document.path, &options)?;
+    let result = parse_file(&document.path, &options)?;
 
-    // The denied-include fallback and diagnostic remain a separate compatibility
-    // slice; this test locks only the caller-authority boundary.
+    assert_include_fallback(&result, &server.uri)?;
     assert!(!server.finish()?);
 
     Ok(())
@@ -177,8 +197,9 @@ fn unset_caller_values_do_not_grant_uri_read_authority() -> TestResult {
         let server = TestServer::start("Remote content.")?;
         let document = TempDocument::new(&format!("include::{}[]", server.uri))?;
 
-        let _result = parse_file(&document.path, &options)?;
+        let result = parse_file(&document.path, &options)?;
 
+        assert_include_fallback(&result, &server.uri)?;
         assert!(!server.finish()?);
     }
 

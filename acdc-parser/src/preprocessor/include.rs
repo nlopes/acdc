@@ -370,10 +370,10 @@ impl IncludeResult {
         }
     }
 
-    fn secure_fallback(target: &str) -> Self {
+    fn link_fallback(target: &str, source_line: usize) -> Self {
         Self {
             lines: vec![format!("link:{target}[role=include]")],
-            synthetic_source_line: None,
+            synthetic_source_line: Some(source_line),
             source_lines: Vec::new(),
             column_shift: 0,
             effective_leveloffset: None,
@@ -545,28 +545,13 @@ impl<'a> Include<'a> {
     }
 
     /// Fetch a URL target into memory without changing its source origin.
-    /// Returns Ok(None) if URL includes are disabled (safe mode, missing attribute).
+    /// Returns `Ok(None)` when this build has no network support.
     /// Returns Err for actual network or response-read failures.
     #[allow(clippy::unnecessary_wraps)] // Err is used when "network" feature is enabled
-    fn fetch_url_target(&self, url: &str) -> Result<Option<Vec<u8>>, Error> {
-        if self.options.safe_mode > SafeMode::Server {
-            self.warn_unlocated(
-                "URL includes are disabled by default. Run in `SERVER` mode or less to enable.",
-            );
-            return Ok(None);
-        }
-        if !self.context.allows_uri_read {
-            self.warn_unlocated(
-                "URL includes are disabled by default. Set the 'allow-uri-read' attribute to 'true' to enable.",
-            );
-            return Ok(None);
-        }
-
+    fn fetch_url_target(url: &str) -> Result<Option<Vec<u8>>, Error> {
         #[cfg(not(feature = "network"))]
         {
-            self.warn_unlocated(format!(
-                "network support is disabled, cannot fetch remote includes: {url}",
-            ));
+            let _ = url;
             Ok(None)
         }
 
@@ -763,7 +748,12 @@ impl<'a> Include<'a> {
 
     /// Fetch and process content from a URI without converting it to a local origin.
     fn read_content_from_url(&self, url: &str) -> Result<Option<IncludedContent>, Error> {
-        let Some(bytes) = self.fetch_url_target(url)? else {
+        #[cfg(not(feature = "network"))]
+        self.warn_unlocated(format!(
+            "network support is disabled, cannot fetch remote includes: {url}",
+        ));
+
+        let Some(bytes) = Self::fetch_url_target(url)? else {
             return Ok(None);
         };
         let content = super::decode_bytes(&bytes, self.encoding.as_deref(), url)?;
@@ -804,7 +794,10 @@ impl<'a> Include<'a> {
 
     pub(crate) fn lines(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
-            return Ok(IncludeResult::secure_fallback(self.target_as_written()));
+            return Ok(IncludeResult::link_fallback(
+                self.target_as_written(),
+                self.line_number,
+            ));
         }
 
         let (content, nested_leveloffset_ranges, nested_source_ranges, resolved_source) =
@@ -849,6 +842,12 @@ impl<'a> Include<'a> {
                     (content, leveloffset_ranges, source_ranges, path)
                 }
                 Target::Url(url) => {
+                    if !self.context.allows_uri_read {
+                        return Ok(IncludeResult::link_fallback(
+                            self.target_as_written(),
+                            self.line_number,
+                        ));
+                    }
                     let Some((content, leveloffset_ranges, source_ranges)) =
                         self.read_content_from_url(url)?
                     else {

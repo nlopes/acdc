@@ -14,7 +14,13 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
         "https://example.invalid/secret.adoc",
     ];
     assert_eq!(result.document().blocks.len(), expected_targets.len());
-    for (block, expected_target) in result.document().blocks.iter().zip(expected_targets) {
+    for ((block, expected_target), expected_line) in result
+        .document()
+        .blocks
+        .iter()
+        .zip(expected_targets)
+        .zip([3, 5])
+    {
         let Block::Paragraph(paragraph) = block else {
             return Err(std::io::Error::other(format!(
                 "expected fallback paragraph, got {block:?}"
@@ -36,6 +42,8 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
             link.attributes.get_string("role").as_deref(),
             Some("include")
         );
+        assert_eq!(paragraph.location.start.line, expected_line);
+        assert!(paragraph.location.start.file.is_none());
     }
     assert!(result.warnings().is_empty());
 
