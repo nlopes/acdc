@@ -115,6 +115,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Builds without the `network` feature now emit a located warning, preserve an
+  authorized HTTP(S) include as literal unresolved text, and continue parsing
+  instead of removing the directive. This is an ACDC-specific capability
+  fallback because Asciidoctor has no equivalent compile-time network setting;
+  URI includes that lack caller authority continue to use the no-warning link
+  fallback.
 - Authorized HTTP(S) includes that encounter a connection failure or HTTP error
   status now emit a located `include uri not readable` warning, insert the
   original directive as unresolved text, and continue parsing instead of

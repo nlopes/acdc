@@ -356,6 +356,8 @@ pub(crate) struct IncludeResult {
 type IncludedContent = (String, Vec<LeveloffsetRange>, Vec<SourceRange>);
 
 enum UrlReadError {
+    #[cfg(not(feature = "network"))]
+    NetworkDisabled,
     #[cfg(feature = "network")]
     Retrieval(String),
     Other(Error),
@@ -570,7 +572,6 @@ impl<'a> Include<'a> {
 
     /// Escape the URI macro in generated parser input so the unresolved directive
     /// remains converter-visible plain text. Inline parsing removes the backslash.
-    #[cfg(feature = "network")]
     fn unresolved_uri_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
         self.unresolved_directive_for_target(
             &format!(r"\{}", self.target_as_written()),
@@ -579,15 +580,13 @@ impl<'a> Include<'a> {
     }
 
     /// Fetch a URL target into memory without changing its source origin.
-    /// Returns `Ok(None)` when this build has no network support.
     /// Request-opening failures remain distinct from response-read failures so
     /// callers can recover without also swallowing size or body-read errors.
-    #[allow(clippy::unnecessary_wraps)] // Err is used when "network" feature is enabled
-    fn fetch_url_target(url: &str) -> Result<Option<Vec<u8>>, UrlReadError> {
+    fn fetch_url_target(url: &str) -> Result<Vec<u8>, UrlReadError> {
         #[cfg(not(feature = "network"))]
         {
             let _ = url;
-            Ok(None)
+            Err(UrlReadError::NetworkDisabled)
         }
 
         #[cfg(feature = "network")]
@@ -600,7 +599,7 @@ impl<'a> Include<'a> {
             let bytes = read_remote_include(response.body_mut().as_reader())?;
 
             tracing::debug!(%url, "downloaded content from URL");
-            Ok(Some(bytes))
+            Ok(bytes)
         }
     }
 
@@ -782,23 +781,17 @@ impl<'a> Include<'a> {
     }
 
     /// Fetch and process content from a URI without converting it to a local origin.
-    fn read_content_from_url(&self, url: &str) -> Result<Option<IncludedContent>, UrlReadError> {
-        #[cfg(not(feature = "network"))]
-        self.warn_unlocated(format!(
-            "network support is disabled, cannot fetch remote includes: {url}",
-        ));
-
-        let Some(bytes) = Self::fetch_url_target(url)? else {
-            return Ok(None);
-        };
+    fn read_content_from_url(&self, url: &str) -> Result<IncludedContent, UrlReadError> {
+        let bytes = Self::fetch_url_target(url)?;
         let content = super::decode_bytes(&bytes, self.encoding.as_deref(), url)?;
         let parsed_url = Url::parse(url).map_err(Error::from)?;
         let source_origin = SourceOrigin::Uri(url.to_string());
-        Ok(Some(self.process_content(
+        self.process_content(
             &content,
             &source_origin,
             Self::has_asciidoc_extension(Path::new(parsed_url.path())),
-        )?))
+        )
+        .map_err(UrlReadError::from)
     }
 
     fn read_url_content_or_fallback(
@@ -806,9 +799,6 @@ impl<'a> Include<'a> {
         url: &str,
         attribute_list_as_written: &str,
     ) -> Result<UrlIncludeOutcome, Error> {
-        #[cfg(not(feature = "network"))]
-        let _ = attribute_list_as_written;
-
         if !self.context.allows_uri_read {
             return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
                 self.target_as_written(),
@@ -817,8 +807,16 @@ impl<'a> Include<'a> {
         }
 
         match self.read_content_from_url(url) {
-            Ok(Some(content)) => Ok(UrlIncludeOutcome::Content(content)),
-            Ok(None) => Ok(UrlIncludeOutcome::Fallback(IncludeResult::empty())),
+            Ok(content) => Ok(UrlIncludeOutcome::Content(content)),
+            #[cfg(not(feature = "network"))]
+            Err(UrlReadError::NetworkDisabled) => {
+                self.warn_located(format!(
+                    "network support is disabled, cannot fetch remote includes: {url}",
+                ));
+                Ok(UrlIncludeOutcome::Fallback(
+                    self.unresolved_uri_directive(attribute_list_as_written),
+                ))
+            }
             #[cfg(feature = "network")]
             Err(UrlReadError::Retrieval(detail)) => {
                 tracing::debug!(%url, %detail, "failed to retrieve remote include");
@@ -993,9 +991,9 @@ impl<'a> Include<'a> {
         self.warnings.borrow_mut().push(warning);
     }
 
-    /// Push a warning with no source location — used for configuration-
-    /// level conditions (disabled URL includes, network feature off)
-    /// that aren't tied to a specific include line beyond "this parse".
+    /// Push a warning with no source location. The remaining callers are
+    /// Safe/Server jail-recovery conditions whose location contract is tracked
+    /// separately from directive-specific read failures.
     fn warn_unlocated(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
         let warning = crate::Warning::new(crate::WarningKind::Other(message.into()), None);
         tracing::warn!("{warning}");
