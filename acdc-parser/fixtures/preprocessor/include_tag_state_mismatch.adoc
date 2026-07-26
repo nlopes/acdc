@@ -1,0 +1,10 @@
+// tag::outer[]
+OUTER.
+
+// tag::inner[]
+INNER.
+
+// end::outer[]
+STILL INNER.
+
+// end::inner[]

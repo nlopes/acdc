@@ -1,0 +1,5 @@
+MAIN BEFORE
+
+include::include_selection_before_processing_target.adoc[tag=selected]
+
+MAIN AFTER

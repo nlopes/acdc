@@ -1,0 +1,7 @@
+= Include Tag Diagnostics
+
+MAIN BEFORE
+
+include::include_tag_diagnostics_outer.adoc[]
+
+MAIN AFTER

@@ -1,0 +1,16 @@
+OUTSIDE BEFORE
+
+include::missing-outside-selection.adoc[]
+
+// tag::selected[]
+SELECTED BEFORE
+
+include::include_selection_before_processing_inner.adoc[]
+
+include::missing-inside-selection.adoc[]
+
+SELECTED AFTER.
+
+// end::selected[]
+
+OUTSIDE AFTER

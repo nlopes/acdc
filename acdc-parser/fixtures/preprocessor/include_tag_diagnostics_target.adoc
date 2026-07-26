@@ -1,0 +1,5 @@
+// tag::wanted[]
+Selected.
+
+// end::wanted[]
+// end::wanted[]

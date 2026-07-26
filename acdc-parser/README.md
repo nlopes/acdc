@@ -129,6 +129,21 @@ target in the same link fallback as Asciidoctor. For authorized HTTP(S) reads, t
 target follows `ureq`'s URI rules: a raw space takes the located unreadable-URI
 recovery path.
 
+## Partial includes
+
+The `lines`, `tag`, and `tags` attributes select content from the original target
+before that content is processed. An include or conditional outside the selected
+lines does not run and does not produce a warning.
+
+If a directive has more than one kind of selector, `lines` takes precedence over
+`tag`, and `tag` takes precedence over `tags`. For repeated attributes of the same
+kind, the last value wins. Line selections are sorted and deduplicated, and a
+negative range end means the end of the file.
+
+Tag selection supports nested tags, repeated tag names, `*` and `**`, and negated
+selectors. Missing tags and malformed selected tag boundaries produce located
+warnings and parsing continues.
+
 ## Include depth
 
 Built-in includes have a trusted `max-include-depth` attribute that defaults to `64`
@@ -228,6 +243,47 @@ don't process partial response bodies. Character-encoding errors remain fatal.
 
 This limit is an intentional security divergence from asciidoctor, which has no
 equivalent per-response limit.
+
+## Parser fixtures
+
+We use two fixture styles, and they are intentionally different.
+
+### `fixtures/tests`
+
+These are general parser and AST fixtures. Every `.adoc` file below this directory
+is discovered automatically by the fixture test in `src/lib.rs` and compared with
+the adjacent `.json` file.
+
+Regenerate the JSON with the parser example, then review the result before committing
+it:
+
+```console
+cargo run -p acdc-parser --example generate_parser_fixtures --all-features
+```
+
+### `fixtures/preprocessor`
+
+These are focused scenarios for includes, conditionals, encoding, warnings, and
+source mapping. They are not discovered automatically and usually do not have a
+JSON companion. A Rust test must open a root fixture directly; any supporting
+fixtures are then reached through ordinary `include::` directives.
+
+For example:
+
+```text
+Rust test
+  └─ main.adoc
+       └─ include::target.adoc[]
+            └─ include::inner.adoc[]
+```
+
+Adding a file to `fixtures/preprocessor` does not add test coverage by itself. Either
+reference it from a Rust test or include it from a root fixture that a test already
+opens. Use this style when the assertion needs more than a serialized AST, such as
+exact warnings, missing-file behavior, or file, line, column, and include-chain
+attribution.
+
+Run `acdc lint` over new or changed AsciiDoc fixtures before handing them off.
 
 ## Deliberate divergences from asciidoctor
 

@@ -1,114 +1,88 @@
 use std::collections::HashSet;
 
-pub(crate) const DELIMITERS: [char; 2] = [';', ','];
+use rustc_hash::FxHashMap;
 
-/// Represents a parsed tag filter from the `tag=` or `tags=` attribute.
+/// One requested tag selection from `tag=` or `tags=`.
 ///
-/// Tag filters can be:
-/// - A simple tag name: selects regions with that tag
-/// - Negated (`!tag`): excludes regions with that tag
-/// - Wildcard (`*`): selects all tagged regions
-/// - Double wildcard (`**`): selects all lines except tag directive lines
+/// `selected = true` includes the tag; `false` excludes it. The names `*` and
+/// `**` retain their Asciidoctor wildcard meanings.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Filter {
-    /// Select regions with this specific tag
-    Include(String),
-    /// Exclude regions with this specific tag
-    Exclude(String),
-    /// Select all tagged regions
-    Wildcard,
-    /// Select all lines except tag directive lines
-    DoubleWildcard,
+pub(crate) struct Filter {
+    name: String,
+    selected: bool,
 }
 
 impl Filter {
-    pub(crate) fn parse(tag: &str) -> Self {
-        let tag = tag.trim();
-        if tag == "**" {
-            Filter::DoubleWildcard
-        } else if tag == "*" {
-            Filter::Wildcard
-        } else if let Some(stripped) = tag.strip_prefix('!') {
-            if stripped == "*" {
-                // !* means select non-tagged regions (lines not in any tag)
-                Filter::Exclude("*".to_string())
-            } else {
-                Filter::Exclude(stripped.to_string())
-            }
+    pub(crate) fn parse(value: &str) -> Option<Self> {
+        let value = value.trim();
+        if value.is_empty() || value == "!" {
+            return None;
+        }
+        if let Some(name) = value.strip_prefix('!') {
+            Some(Self {
+                name: name.to_string(),
+                selected: false,
+            })
         } else {
-            Filter::Include(tag.to_string())
+            Some(Self {
+                name: value.to_string(),
+                selected: true,
+            })
         }
     }
 }
 
-#[derive(Debug, PartialEq, Hash, Eq)]
-pub(crate) struct Name(String);
-
-impl Name {
-    pub(crate) fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-}
-
-impl From<&str> for Name {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
-    }
-}
-
-impl From<String> for Name {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
-
-impl std::fmt::Display for Name {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-/// A tagged region found in the content, with start and end line indices.
-#[derive(Debug, PartialEq)]
-pub(crate) struct Region {
-    /// The tag name
-    name: Name,
-    /// Start line index (0-based, inclusive) - the line AFTER the tag directive
-    start: usize,
-    /// End line index (0-based, exclusive) - the line OF the end directive
-    end: usize,
-}
-
-/// Extracts a tag name from a line if it contains a tag directive.
+/// A recoverable problem discovered while selecting tagged lines.
 ///
-/// Returns `Some((directive_type, tag_name))` where `directive_type` is "tag" or "end",
-/// or `None` if no valid tag directive is found.
+/// These are scanner facts rather than parser diagnostics: `Include` owns the
+/// directive location and target description and converts each issue into the
+/// existing `Warning` representation.
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Issue {
+    UnexpectedEnd {
+        name: String,
+        line: usize,
+    },
+    MismatchedEnd {
+        expected: String,
+        found: String,
+        line: usize,
+    },
+    Unclosed {
+        name: String,
+        line: usize,
+    },
+    Missing {
+        names: Vec<String>,
+    },
+}
+
+/// Extract a tag marker from one source line.
 ///
-/// Tag directives must follow a word boundary (preceded by non-alphanumeric or start of string)
-/// and the tag name must consist of non-space, non-bracket characters.
-fn extract_tag_directive(line: &str) -> Option<(&'static str, Name)> {
-    // Look for "tag::" or "end::"
+/// Returns `("tag", name)` for an opening marker and `("end", name)` for a
+/// closing marker. The marker may follow a comment prefix or another
+/// non-word-boundary character.
+fn extract_tag_directive(line: &str) -> Option<(&'static str, &str)> {
     for (directive, keyword) in [("tag", "tag::"), ("end", "end::")] {
         if let Some(pos) = line.find(keyword) {
-            // Check word boundary: must be at start or preceded by non-alphanumeric
-            if pos > 0 {
-                let prev_char = line[..pos].chars().last();
-                if prev_char.is_some_and(|c| c.is_alphanumeric() || c == '_') {
-                    continue;
-                }
+            if pos > 0
+                && line[..pos]
+                    .chars()
+                    .last()
+                    .is_some_and(|c| c.is_alphanumeric() || c == '_')
+            {
+                continue;
             }
 
-            // Extract the tag name (everything after "::" until "[]")
             let after_keyword = &line[pos + keyword.len()..];
             if let Some(bracket_pos) = after_keyword.find("[]") {
                 let tag_name = &after_keyword[..bracket_pos];
-                // Tag name must not be empty and must not contain spaces or brackets
                 if !tag_name.is_empty()
                     && !tag_name
                         .chars()
                         .any(|c| c.is_whitespace() || c == '[' || c == ']')
                 {
-                    return Some((directive, Name(tag_name.to_string())));
+                    return Some((directive, tag_name));
                 }
             }
         }
@@ -116,408 +90,446 @@ fn extract_tag_directive(line: &str) -> Option<(&'static str, Name)> {
     None
 }
 
-/// Finds all tag regions in the content.
-///
-/// Tag regions are marked by `tag::name[]` and `end::name[]` directives.
-/// The directives can appear after comment markers (e.g., `// tag::name[]`).
-fn find_tag_regions(lines: &[String]) -> Vec<Region> {
-    use rustc_hash::FxHashMap;
-
-    let mut regions = Vec::new();
-    let mut open_tags: FxHashMap<Name, usize> = FxHashMap::default();
-
-    for (line_idx, line) in lines.iter().enumerate() {
-        if let Some((directive, tag_name)) = extract_tag_directive(line) {
-            match directive {
-                "tag" => {
-                    // Store the line AFTER the tag directive as the start
-                    open_tags.insert(tag_name, line_idx + 1);
-                }
-                "end" => {
-                    if let Some(start) = open_tags.remove(&tag_name) {
-                        regions.push(Region {
-                            name: tag_name,
-                            start,
-                            end: line_idx,
-                        });
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-
-    // Warn about unclosed tags
-    for (tag_name, _start_line) in open_tags {
-        tracing::warn!(tag = %tag_name, "unclosed tag region");
-    }
-
-    regions
-}
-
-/// Checks if a line contains a tag directive (start or end).
 pub(crate) fn is_tag_directive_line(line: &str) -> bool {
     extract_tag_directive(line).is_some()
 }
 
-/// Applies tag filters to select lines from content.
+/// Select source-line indices with Asciidoctor's tag-stack state machine.
 ///
-/// Returns the indices of lines that should be included.
-pub(crate) fn apply_tag_filters(lines: &[String], filters: &[Filter]) -> Vec<usize> {
-    let regions = find_tag_regions(lines);
-
-    // Check for double wildcard - it has special priority and is always applied first
-    let has_double_wildcard = filters.iter().any(|f| matches!(f, Filter::DoubleWildcard));
-
-    if has_double_wildcard {
-        // Select all lines except tag directive lines
-        return (0..lines.len())
-            .filter(|&i| lines.get(i).is_none_or(|line| !is_tag_directive_line(line)))
-            .collect();
-    }
-
-    // Collect include and exclude filters
-    let mut include_tags: Vec<&str> = Vec::new();
-    let mut exclude_tags: Vec<&str> = Vec::new();
-    let mut select_all_tagged = false;
-    let mut select_untagged = false;
-
+/// Marker lines are never selected. Recoverable malformed-boundary and
+/// missing-selection issues are reported in reference order through `report`.
+pub(crate) fn select_tagged_lines(
+    lines: &[String],
+    filters: &[Filter],
+    mut report: impl FnMut(Issue),
+) -> Vec<usize> {
+    // Ruby Hash insertion order is stable and assigning a duplicate key updates
+    // its value without moving it. Keep the order separately so missing-tag
+    // diagnostics remain deterministic while duplicate selectors are last-wins.
+    let mut order = Vec::new();
+    let mut requested: FxHashMap<&str, bool> = FxHashMap::default();
     for filter in filters {
-        match filter {
-            Filter::Include(name) => include_tags.push(name),
-            Filter::Exclude(name) => {
-                if name == "*" {
-                    select_untagged = true;
-                } else {
-                    exclude_tags.push(name);
-                }
-            }
-            Filter::Wildcard => select_all_tagged = true,
-            // DoubleWildcard is already handled above with early return, this is defensive
-            Filter::DoubleWildcard => {}
+        if !requested.contains_key(filter.name.as_str()) {
+            order.push(filter.name.as_str());
         }
+        requested.insert(filter.name.as_str(), filter.selected);
     }
 
-    // Build a set of line indices that are in each tagged region
-    let mut tagged_lines: HashSet<usize> = HashSet::new();
-    let mut selected_lines: HashSet<usize> = HashSet::new();
-
-    for region in &regions {
-        for i in region.start..region.end {
-            tagged_lines.insert(i);
-        }
-
-        // Check if this region should be included
-        let should_include = if select_all_tagged {
-            !exclude_tags.contains(&region.name.as_str())
+    let first_name = order.first().copied();
+    let (mut select, base_select, wildcard) = if let Some(double_wildcard) = requested.remove("**")
+    {
+        let wildcard = requested.remove("*").or_else(|| {
+            let first_remaining = order.iter().find_map(|name| requested.get(*name).copied());
+            (!double_wildcard && first_remaining == Some(false)).then_some(true)
+        });
+        (double_wildcard, double_wildcard, wildcard)
+    } else if let Some(wildcard) = requested.remove("*") {
+        if first_name == Some("*") {
+            (!wildcard, !wildcard, Some(wildcard))
         } else {
-            include_tags.contains(&region.name.as_str())
-                && !exclude_tags.contains(&region.name.as_str())
-        };
+            (false, false, Some(wildcard))
+        }
+    } else {
+        let base_select = !requested.values().any(|selected| *selected);
+        (base_select, base_select, None)
+    };
 
-        if should_include {
-            for i in region.start..region.end {
-                selected_lines.insert(i);
+    // (tag name, selection state established by that tag, opening line)
+    let mut tag_stack: Vec<(String, bool, usize)> = Vec::new();
+    let mut selected_tags = HashSet::new();
+    let mut selected_lines = Vec::new();
+
+    for (line_idx, line) in lines.iter().enumerate() {
+        let source_line = line_idx + 1;
+        if let Some((directive, tag_name)) = extract_tag_directive(line) {
+            if directive == "end" {
+                if tag_stack
+                    .last()
+                    .is_some_and(|(active, _, _)| active == tag_name)
+                {
+                    tag_stack.pop();
+                    select = tag_stack
+                        .last()
+                        .map_or(base_select, |(_, selected, _)| *selected);
+                } else if requested.contains_key(tag_name) {
+                    if let Some(idx) = tag_stack
+                        .iter()
+                        .rposition(|(open_name, _, _)| open_name == tag_name)
+                    {
+                        let expected = tag_stack
+                            .last()
+                            .map_or_else(String::new, |(name, _, _)| name.clone());
+                        tag_stack.remove(idx);
+                        report(Issue::MismatchedEnd {
+                            expected,
+                            found: tag_name.to_string(),
+                            line: source_line,
+                        });
+                    } else {
+                        report(Issue::UnexpectedEnd {
+                            name: tag_name.to_string(),
+                            line: source_line,
+                        });
+                    }
+                }
+            } else if let Some(tag_select) = requested.get(tag_name).copied() {
+                select = tag_select;
+                if select {
+                    selected_tags.insert(tag_name.to_string());
+                }
+                tag_stack.push((tag_name.to_string(), select, source_line));
+            } else if let Some(wildcard_select) = wildcard {
+                select = if tag_stack.last().is_some() && !select {
+                    false
+                } else {
+                    wildcard_select
+                };
+                tag_stack.push((tag_name.to_string(), select, source_line));
             }
+            continue;
+        }
+
+        if select {
+            selected_lines.push(line_idx);
         }
     }
 
-    // If select_untagged (!*), add lines that are not in any tagged region
-    if select_untagged {
-        for i in 0..lines.len() {
-            if !tagged_lines.contains(&i) {
-                selected_lines.insert(i);
-            }
-        }
+    for (name, _, line) in tag_stack {
+        report(Issue::Unclosed { name, line });
     }
 
-    // Filter out tag directive lines and sort
-    let mut result: Vec<usize> = selected_lines
+    let missing = order
         .into_iter()
-        .filter(|&i| lines.get(i).is_none_or(|line| !is_tag_directive_line(line)))
-        .collect();
-    result.sort_unstable();
-    result
+        .filter(|name| {
+            requested.get(*name).copied() == Some(true) && !selected_tags.contains(*name)
+        })
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if !missing.is_empty() {
+        report(Issue::Missing { names: missing });
+    }
+
+    selected_lines
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_tag_filter_parse_simple() {
-        assert_eq!(Filter::parse("intro"), Filter::Include("intro".to_string()));
-        assert_eq!(
-            Filter::parse("my-tag"),
-            Filter::Include("my-tag".to_string())
-        );
-        assert_eq!(
-            Filter::parse("tag_123"),
-            Filter::Include("tag_123".to_string())
-        );
+    const MIXED_SELECTOR_LINES: &[&str] = &[
+        "Untagged before.",
+        "// tag::beta[]",
+        "Beta.",
+        "// end::beta[]",
+        "// tag::alpha[]",
+        "Alpha.",
+        "// end::alpha[]",
+        "// tag::other[]",
+        "Other.",
+        "// end::other[]",
+        "Untagged after.",
+    ];
+
+    fn strings(lines: &[&str]) -> Vec<String> {
+        lines.iter().map(ToString::to_string).collect()
+    }
+
+    fn filters(values: &[&str]) -> Vec<Filter> {
+        values
+            .iter()
+            .filter_map(|value| Filter::parse(value))
+            .collect()
+    }
+
+    fn select(lines: &[&str], values: &[&str]) -> (Vec<usize>, Vec<Issue>) {
+        let lines = strings(lines);
+        let mut issues = Vec::new();
+        let selected = select_tagged_lines(&lines, &filters(values), |issue| issues.push(issue));
+        (selected, issues)
     }
 
     #[test]
-    fn test_tag_filter_parse_negated() {
+    fn parses_selected_and_excluded_filters() {
         assert_eq!(
-            Filter::parse("!intro"),
-            Filter::Exclude("intro".to_string())
+            Filter::parse("intro"),
+            Some(Filter {
+                name: "intro".to_string(),
+                selected: true,
+            })
         );
         assert_eq!(
-            Filter::parse("!my-tag"),
-            Filter::Exclude("my-tag".to_string())
+            Filter::parse(" !debug "),
+            Some(Filter {
+                name: "debug".to_string(),
+                selected: false,
+            })
         );
+        assert_eq!(
+            Filter::parse("**"),
+            Some(Filter {
+                name: "**".to_string(),
+                selected: true,
+            })
+        );
+        assert_eq!(Filter::parse("!"), None);
+        assert_eq!(Filter::parse("  "), None);
     }
 
     #[test]
-    fn test_tag_filter_parse_wildcards() {
-        assert_eq!(Filter::parse("*"), Filter::Wildcard);
-        assert_eq!(Filter::parse("**"), Filter::DoubleWildcard);
-        assert_eq!(Filter::parse("!*"), Filter::Exclude("*".to_string()));
-    }
-
-    #[test]
-    fn test_tag_filter_parse_with_whitespace() {
-        assert_eq!(
-            Filter::parse("  intro  "),
-            Filter::Include("intro".to_string())
-        );
-        assert_eq!(
-            Filter::parse("  !intro  "),
-            Filter::Exclude("intro".to_string())
-        );
-    }
-
-    #[test]
-    fn test_extract_tag_directive_simple() {
+    fn extracts_valid_tag_markers() {
         assert_eq!(
             extract_tag_directive("// tag::intro[]"),
-            Some(("tag", Name::from("intro")))
+            Some(("tag", "intro"))
         );
         assert_eq!(
-            extract_tag_directive("// end::intro[]"),
-            Some(("end", Name::from("intro")))
-        );
-    }
-
-    #[test]
-    fn test_extract_tag_directive_various_comment_styles() {
-        // C-style
-        assert_eq!(
-            extract_tag_directive("/* tag::example[] */"),
-            Some(("tag", Name::from("example")))
-        );
-        // Hash comments
-        assert_eq!(
-            extract_tag_directive("# tag::ruby[]"),
-            Some(("tag", Name::from("ruby")))
-        );
-        // XML-style
-        assert_eq!(
-            extract_tag_directive("<!-- tag::xml[] -->"),
-            Some(("tag", Name::from("xml")))
-        );
-    }
-
-    #[test]
-    fn test_extract_tag_directive_at_line_start() {
-        assert_eq!(
-            extract_tag_directive("tag::start[]"),
-            Some(("tag", Name::from("start")))
+            extract_tag_directive("# end::my-tag[]"),
+            Some(("end", "my-tag"))
         );
         assert_eq!(
-            extract_tag_directive("end::start[]"),
-            Some(("end", Name::from("start")))
+            extract_tag_directive("tag::at-start[]"),
+            Some(("tag", "at-start"))
         );
-    }
-
-    #[test]
-    fn test_extract_tag_directive_word_boundary() {
-        // Should NOT match when preceded by alphanumeric
-        assert_eq!(extract_tag_directive("atag::intro[]"), None);
-        assert_eq!(extract_tag_directive("1tag::intro[]"), None);
-        // Should match when preceded by non-alphanumeric
-        assert_eq!(
-            extract_tag_directive("-tag::intro[]"),
-            Some(("tag", Name::from("intro")))
-        );
-        assert_eq!(
-            extract_tag_directive(".tag::intro[]"),
-            Some(("tag", Name::from("intro")))
-        );
-    }
-
-    #[test]
-    fn test_extract_tag_directive_complex_names() {
-        assert_eq!(
-            extract_tag_directive("// tag::my-complex_tag.name[]"),
-            Some(("tag", Name::from("my-complex_tag.name")))
-        );
-    }
-
-    #[test]
-    fn test_extract_tag_directive_invalid() {
-        // Empty tag name
+        assert_eq!(extract_tag_directive("notatag::intro[]"), None);
+        assert_eq!(extract_tag_directive("// tag::has space[]"), None);
         assert_eq!(extract_tag_directive("// tag::[]"), None);
-        // Missing brackets
-        assert_eq!(extract_tag_directive("// tag::intro"), None);
-        // Space in tag name
-        assert_eq!(extract_tag_directive("// tag::my tag[]"), None);
     }
 
     #[test]
-    fn test_find_tag_regions_single() {
-        let lines: Vec<String> = vec![
-            "// tag::intro[]".to_string(),
-            "This is the introduction.".to_string(),
-            "// end::intro[]".to_string(),
-        ];
-        let regions = find_tag_regions(&lines);
+    fn selects_one_requested_tag() {
+        let (selected, issues) = select(
+            &[
+                "Before.",
+                "// tag::intro[]",
+                "Selected one.",
+                "Selected two.",
+                "// end::intro[]",
+                "After.",
+            ],
+            &["intro"],
+        );
+        assert_eq!(selected, [2, 3]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn selects_multiple_requested_tags() {
+        let (selected, issues) = select(
+            &[
+                "// tag::intro[]",
+                "Introduction.",
+                "// end::intro[]",
+                "// tag::main[]",
+                "Main.",
+                "// end::main[]",
+            ],
+            &["intro", "main"],
+        );
+        assert_eq!(selected, [1, 4]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn wildcard_selects_tagged_content_except_exclusions() {
+        let (selected, issues) = select(
+            &[
+                "Untagged.",
+                "// tag::intro[]",
+                "Introduction.",
+                "// end::intro[]",
+                "// tag::debug[]",
+                "Debug.",
+                "// end::debug[]",
+            ],
+            &["*", "!debug"],
+        );
+        assert_eq!(selected, [2]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn double_wildcard_selects_every_non_marker_line() {
+        let (selected, issues) = select(
+            &[
+                "Before.",
+                "// tag::intro[]",
+                "Introduction.",
+                "// end::intro[]",
+                "After.",
+            ],
+            &["**"],
+        );
+        assert_eq!(selected, [0, 2, 4]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn excluded_wildcard_selects_only_untagged_content() {
+        let (selected, issues) = select(
+            &[
+                "Before.",
+                "// tag::intro[]",
+                "Introduction.",
+                "// end::intro[]",
+                "After.",
+            ],
+            &["!*"],
+        );
+        assert_eq!(selected, [0, 4]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn negated_double_wildcard_uses_first_remaining_selector_order() {
+        let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "beta", "!alpha"]);
+        assert_eq!(selected, [2]);
+        assert!(issues.is_empty());
+
+        let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!alpha", "beta"]);
+        assert_eq!(selected, [2, 8]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn negated_double_wildcard_uses_final_value_at_first_insertion_position() {
+        let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!beta", "!alpha", "beta"]);
+        assert_eq!(selected, [2]);
+        assert!(issues.is_empty());
+
+        let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!alpha", "!beta", "beta"]);
+        assert_eq!(selected, [2, 8]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn explicit_wildcard_overrides_negated_double_wildcard_inference() {
+        let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "beta", "!alpha", "*"]);
+        assert_eq!(selected, [2, 8]);
+        assert!(issues.is_empty());
+
+        let (selected, issues) = select(MIXED_SELECTOR_LINES, &["!**", "!alpha", "beta", "!*"]);
+        assert_eq!(selected, [2]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn requested_outer_tag_keeps_unrequested_nested_content() {
+        let (selected, issues) = select(
+            &[
+                "// tag::outer[]",
+                "Outer A.",
+                "// tag::inner[]",
+                "Inner.",
+                "// end::inner[]",
+                "Outer B.",
+                "// end::outer[]",
+            ],
+            &["outer"],
+        );
+        assert_eq!(selected, [1, 3, 5]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn nested_duplicate_names_use_a_stack() {
+        let (selected, issues) = select(
+            &[
+                "// tag::same[]",
+                "Outer A.",
+                "// tag::same[]",
+                "Inner.",
+                "// end::same[]",
+                "Outer B.",
+                "// end::same[]",
+            ],
+            &["same"],
+        );
+        assert_eq!(selected, [1, 3, 5]);
+        assert!(issues.is_empty());
+    }
+
+    #[test]
+    fn mismatched_end_removes_matching_frame_and_keeps_active_tag() {
+        let (selected, issues) = select(
+            &[
+                "// tag::outer[]",
+                "Outer.",
+                "// tag::inner[]",
+                "Inner.",
+                "// end::outer[]",
+                "Still inner.",
+                "// end::inner[]",
+            ],
+            &["outer", "inner"],
+        );
+        assert_eq!(selected, [1, 3, 5]);
         assert_eq!(
-            regions,
-            vec![Region {
-                name: Name::from("intro"),
-                start: 1,
-                end: 2
+            issues,
+            [Issue::MismatchedEnd {
+                expected: "inner".to_string(),
+                found: "outer".to_string(),
+                line: 5,
             }]
         );
     }
 
     #[test]
-    fn test_find_tag_regions_multiple() {
-        let lines: Vec<String> = vec![
-            "// tag::intro[]".to_string(),
-            "Introduction content.".to_string(),
-            "// end::intro[]".to_string(),
-            String::new(),
-            "// tag::main[]".to_string(),
-            "Main content.".to_string(),
-            "// end::main[]".to_string(),
-        ];
-        let regions = find_tag_regions(&lines);
-        assert_eq!(regions.len(), 2);
-    }
-
-    #[test]
-    fn test_find_tag_regions_nested() {
-        let lines: Vec<String> = vec![
-            "// tag::outer[]".to_string(),
-            "Outer start.".to_string(),
-            "// tag::inner[]".to_string(),
-            "Inner content.".to_string(),
-            "// end::inner[]".to_string(),
-            "Outer end.".to_string(),
-            "// end::outer[]".to_string(),
-        ];
-        let regions = find_tag_regions(&lines);
-        // Inner tag should be found - use match to access safely
-        let inner_region: Vec<Region> = regions
-            .into_iter()
-            .filter(|r| r.name == Name::from("inner"))
-            .collect();
+    fn unexpected_end_is_reported() {
+        let (selected, issues) = select(
+            &[
+                "// tag::wanted[]",
+                "Selected.",
+                "// end::wanted[]",
+                "// end::wanted[]",
+            ],
+            &["wanted"],
+        );
+        assert_eq!(selected, [1]);
         assert_eq!(
-            inner_region,
-            vec![Region {
-                name: Name::from("inner"),
-                start: 3,
-                end: 4
+            issues,
+            [Issue::UnexpectedEnd {
+                name: "wanted".to_string(),
+                line: 4,
             }]
         );
     }
 
     #[test]
-    fn test_apply_tag_filters_single_tag() {
-        let lines: Vec<String> = vec![
-            "Before tag.".to_string(),
-            "// tag::intro[]".to_string(),
-            "Introduction line 1.".to_string(),
-            "Introduction line 2.".to_string(),
-            "// end::intro[]".to_string(),
-            "After tag.".to_string(),
-        ];
-        let filters = vec![Filter::Include("intro".to_string())];
-        let selected = apply_tag_filters(&lines, &filters);
-        assert_eq!(selected, vec![2, 3]); // Only content lines, not directives
+    fn unclosed_selected_tag_continues_through_end_of_file() {
+        let (selected, issues) = select(&["// tag::wanted[]", "Selected."], &["wanted"]);
+        assert_eq!(selected, [1]);
+        assert_eq!(
+            issues,
+            [Issue::Unclosed {
+                name: "wanted".to_string(),
+                line: 1,
+            }]
+        );
     }
 
     #[test]
-    fn test_apply_tag_filters_multiple_tags() {
-        let lines: Vec<String> = vec![
-            "// tag::intro[]".to_string(),
-            "Intro.".to_string(),
-            "// end::intro[]".to_string(),
-            "// tag::main[]".to_string(),
-            "Main.".to_string(),
-            "// end::main[]".to_string(),
-        ];
-        let filters = vec![
-            Filter::Include("intro".to_string()),
-            Filter::Include("main".to_string()),
-        ];
-        let selected = apply_tag_filters(&lines, &filters);
-        assert_eq!(selected, vec![1, 4]);
+    fn missing_tags_preserve_requested_order_and_deduplicate() {
+        let (selected, issues) = select(&["Plain."], &["alpha", "beta", "alpha"]);
+        assert!(selected.is_empty());
+        assert_eq!(
+            issues,
+            [Issue::Missing {
+                names: vec!["alpha".to_string(), "beta".to_string()],
+            }]
+        );
     }
 
     #[test]
-    fn test_apply_tag_filters_wildcard() {
-        let lines: Vec<String> = vec![
-            "Untagged.".to_string(),
-            "// tag::intro[]".to_string(),
-            "Intro.".to_string(),
-            "// end::intro[]".to_string(),
-            "// tag::main[]".to_string(),
-            "Main.".to_string(),
-            "// end::main[]".to_string(),
-            "More untagged.".to_string(),
-        ];
-        let filters = vec![Filter::Wildcard];
-        let selected = apply_tag_filters(&lines, &filters);
-        assert_eq!(selected, vec![2, 5]); // All tagged content, no untagged
-    }
-
-    #[test]
-    fn test_apply_tag_filters_double_wildcard() {
-        let lines: Vec<String> = vec![
-            "Untagged line.".to_string(),
-            "// tag::intro[]".to_string(),
-            "Intro.".to_string(),
-            "// end::intro[]".to_string(),
-            "Another untagged.".to_string(),
-        ];
-        let filters = vec![Filter::DoubleWildcard];
-        let selected = apply_tag_filters(&lines, &filters);
-        // Should include all lines EXCEPT tag directive lines
-        assert_eq!(selected, vec![0, 2, 4]);
-    }
-
-    #[test]
-    fn test_apply_tag_filters_negation() {
-        let lines: Vec<String> = vec![
-            "// tag::intro[]".to_string(),
-            "Intro.".to_string(),
-            "// end::intro[]".to_string(),
-            "// tag::main[]".to_string(),
-            "Main.".to_string(),
-            "// end::main[]".to_string(),
-        ];
-        // Select all tagged regions except "intro"
-        let filters = vec![Filter::Wildcard, Filter::Exclude("intro".to_string())];
-        let selected = apply_tag_filters(&lines, &filters);
-        assert_eq!(selected, vec![4]); // Only main, not intro
-    }
-
-    #[test]
-    fn test_apply_tag_filters_select_untagged() {
-        let lines: Vec<String> = vec![
-            "Untagged 1.".to_string(),
-            "// tag::intro[]".to_string(),
-            "Tagged.".to_string(),
-            "// end::intro[]".to_string(),
-            "Untagged 2.".to_string(),
-        ];
-        // !* selects non-tagged regions
-        let filters = vec![Filter::Exclude("*".to_string())];
-        let selected = apply_tag_filters(&lines, &filters);
-        assert_eq!(selected, vec![0, 4]); // Only untagged lines
+    fn duplicate_filter_values_are_last_wins() {
+        let (selected, issues) = select(
+            &[
+                "// tag::wanted[]",
+                "Selected.",
+                "// end::wanted[]",
+                "Plain.",
+            ],
+            &["wanted", "!wanted"],
+        );
+        assert_eq!(selected, [3]);
+        assert!(issues.is_empty());
     }
 }

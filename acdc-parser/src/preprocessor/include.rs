@@ -1,3 +1,86 @@
+//! Built-in include handling.
+//!
+//! The important part of this module is the order in which we do the work. An
+//! include target has to be read before we can inspect its lines, but it must not
+//! be recursively preprocessed before `lines`, `tag`, or `tags` has selected the
+//! content the caller asked for.
+//!
+//! # Processing order
+//!
+//! Keep the include pipeline in this order:
+//!
+//! 1. parse the directive and resolve one effective content selector;
+//! 2. read and decode the local or remote target;
+//! 3. select lines from the original target;
+//! 4. apply `indent` to the selected lines;
+//! 5. recursively preprocess only the selected `AsciiDoc` content;
+//! 6. merge the resulting source and `leveloffset` ranges into the parent.
+//!
+//! This is deliberately "select before preprocessing", not "select before I/O".
+//! A remote target still has to be downloaded before we can find a requested
+//! line or tag.
+//!
+//! The ordering matters because excluded content may contain includes,
+//! conditionals, or other directives. Those directives must not run and must not
+//! produce warnings. Moving recursive preprocessing above selection would make a
+//! missing include outside a selected tag observable again.
+//!
+//! # Content selection
+//!
+//! [`ContentSelection`] represents the one selector that applies after parsing
+//! the attribute list. The precedence is `lines` over `tag` over `tags`,
+//! regardless of attribute order. Repeating the same selector uses its last
+//! value. An ignored lower-precedence selector is not evaluated, so it cannot
+//! produce a missing-tag warning.
+//!
+//! Line selections refer to the original target. We deduplicate and sort their
+//! zero-based indices before copying content, and any negative range end means
+//! the end of the file.
+//!
+//! # Tag selection
+//!
+//! Tagged content is selected in one pass by
+//! [`select_tagged_lines`](super::tag::select_tagged_lines). A stack is required:
+//! a map of named regions cannot represent nested tags with the same name or
+//! recover correctly from mismatched closing markers. The stack stores the tag
+//! name, the selection state established by that tag, and its opening line.
+//!
+//! The tag scanner reports private [`TagIssue`] values for missing, unexpected,
+//! mismatched, and unclosed tags. This is not a second diagnostics system. The
+//! scanner does not know the including directive's source location or how the
+//! target should be described, so [`Include::report_tag_issue`] immediately
+//! converts each scanner fact into the existing parser [`crate::Warning`].
+//!
+//! # Mapping selected lines back to the target
+//!
+//! Selection compacts the input. If original lines 6, 8, and 10 survive, the
+//! recursive preprocessor sees them as input lines 1, 2, and 3. We cannot use
+//! those compacted line numbers for diagnostics or AST locations.
+//!
+//! Each selected line therefore carries a private [`InputLineOrigin`] containing
+//! its original line, byte offset, and any column shift introduced by `indent`.
+//! The preprocessor uses the compacted input line to read and emit content, and
+//! the original source line to report diagnostics and build source ranges.
+//!
+//! Included content returns complete source ranges. A parent include only shifts
+//! those ranges to its output offset and prepends its own target to the include
+//! chain. This keeps nested mappings composable instead of rebuilding them from
+//! several parallel fields after the fact.
+//!
+//! Non-AsciiDoc targets do not run the recursive preprocessor, but they use the
+//! same selected-line origins to build their source ranges directly.
+//!
+//! # Fallbacks and the fast path
+//!
+//! A synthesized link or unresolved-directive fallback belongs to the including
+//! directive, not to target content that was never read. [`IncludeResult`] marks
+//! that case with `synthetic` so the parent anchors the line to the directive.
+//!
+//! Finally, selected `AsciiDoc` content with no preprocessing triggers takes the
+//! mapped fast path. It keeps the text unchanged and only builds source ranges.
+//! Do not send that content through the full conditional/include/comment loop
+//! merely to preserve locations.
+
 use std::{
     cell::RefCell,
     path::{Component, Path, PathBuf},
@@ -17,8 +100,8 @@ use crate::{
 };
 
 use super::{
-    IncludeContext, SourceOrigin,
-    tag::{DELIMITERS, Filter as TagFilter, Name as TagName, apply_tag_filters},
+    IncludeContext, InputLineOrigin, SourceOrigin,
+    tag::{Filter as TagFilter, Issue as TagIssue, select_tagged_lines},
 };
 
 #[cfg(feature = "network")]
@@ -65,8 +148,7 @@ pub(crate) struct Include<'a> {
     target: Target,
     target_as_written: String,
     level_offset: Option<isize>,
-    line_range: Vec<LinesRange>,
-    tags: Vec<TagName>,
+    selection: ContentSelection,
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
@@ -82,13 +164,22 @@ pub(crate) struct Include<'a> {
     warnings: Rc<RefCell<Vec<crate::Warning>>>,
 }
 
+/// The one content selector that applies to an include after attribute
+/// precedence has been resolved (`lines` > `tag` > `tags`).
+#[derive(Debug, PartialEq, Eq)]
+enum ContentSelection {
+    All,
+    Lines(Vec<LinesRange>),
+    Tags(Vec<TagFilter>),
+}
+
 /// A line range that an include may specify.
 ///
 /// If the range contains `..` then it is a range of lines, if not, it is parsed as a
 /// single line.
 ///
 /// There can be multiple of these in an include definition.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum LinesRange {
     /// A single line
     Single(usize),
@@ -187,8 +278,7 @@ peg::parser! {
                     target,
                     target_as_written,
                     level_offset: None,
-                    line_range: Vec::new(),
-                    tags: Vec::new(),
+                    selection: ContentSelection::All,
                     indent: None,
                     encoding: None,
                     opts: Vec::new(),
@@ -313,49 +403,28 @@ impl LinesRange {
     }
 }
 
-/// Origin of a single emitted include line: its 1-indexed line number within the
-/// included file and the byte offset of the line's first byte in that file (both
-/// relative to the file's normalized content). Lets the caller record one
-/// [`SourceRange`] per run of consecutive source lines, so partial (`lines=` /
-/// `tags=`) includes map back to their true origin lines rather than to line 1.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct IncludedLineOrigin {
-    pub(crate) line: usize,
-    pub(crate) offset: usize,
-}
-
 /// Result of processing an include directive.
 ///
 /// Contains the included lines and any leveloffset that should apply to them.
 #[derive(Debug)]
 pub(crate) struct IncludeResult {
     pub(crate) lines: Vec<String>,
-    /// Directive line to which synthesized fallback content belongs. Unlike
-    /// content read from another file, this line maps to the including source.
-    pub(crate) synthetic_source_line: Option<usize>,
-    /// Origin (1-indexed line + byte offset within the included file) of each line
-    /// in `lines`, parallel to it. A whole-file include is lines `1..N`; partial
-    /// includes carry the selected lines' true origins.
-    pub(crate) source_lines: Vec<IncludedLineOrigin>,
-    /// Per-line column shift applied by `indent=N` (`N − common_indent`), uniform
-    /// across the include; `0` when no `indent` was given (content copied verbatim).
-    pub(crate) column_shift: isize,
+    /// Whether `lines` is synthesized fallback text that belongs to the include
+    /// directive rather than content read from the target.
+    pub(crate) synthetic: bool,
     /// The effective leveloffset value to apply to this included content.
     /// This is the sum of the current document's leveloffset and the include's leveloffset.
     pub(crate) effective_leveloffset: Option<isize>,
-    /// Leveloffset ranges from nested includes within this included file.
-    /// These need to be merged into the parent's ranges with adjusted byte offsets.
-    pub(crate) nested_leveloffset_ranges: Vec<LeveloffsetRange>,
-    /// The resolved file path of the included content.
-    pub(crate) file: Option<PathBuf>,
+    /// Leveloffset ranges produced while preprocessing the selected target lines.
+    pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
     /// The include target exactly as written in the directive (after attribute
     /// substitution), e.g. `markup.adoc` or `chapters/intro.adoc`. Used as the
     /// outermost element of the ASG `file` include chain. Empty when no target
     /// resolved (missing/optional include).
     pub(crate) target: String,
-    /// Source ranges from nested includes within this included file.
-    /// These need to be merged into the parent's ranges with adjusted byte offsets.
-    pub(crate) nested_source_ranges: Vec<SourceRange>,
+    /// Complete source ranges for the selected target and anything it included,
+    /// relative to the beginning of `lines`.
+    pub(crate) source_ranges: Vec<SourceRange>,
 }
 
 type IncludedContent = (String, Vec<LeveloffsetRange>, Vec<SourceRange>);
@@ -369,7 +438,7 @@ enum UrlReadError {
 }
 
 enum UrlIncludeOutcome {
-    Content(IncludedContent),
+    Content(String),
     Fallback(IncludeResult),
 }
 
@@ -383,18 +452,15 @@ impl IncludeResult {
     fn empty() -> Self {
         Self {
             lines: Vec::new(),
-            synthetic_source_line: None,
-            source_lines: Vec::new(),
-            column_shift: 0,
+            synthetic: false,
             effective_leveloffset: None,
-            nested_leveloffset_ranges: Vec::new(),
-            file: None,
+            leveloffset_ranges: Vec::new(),
             target: String::new(),
-            nested_source_ranges: Vec::new(),
+            source_ranges: Vec::new(),
         }
     }
 
-    fn link_fallback(target: &str, source_line: usize) -> Self {
+    fn link_fallback(target: &str) -> Self {
         let target = if target.contains(' ') {
             format!("pass:c[{target}]")
         } else {
@@ -402,34 +468,62 @@ impl IncludeResult {
         };
         Self {
             lines: vec![format!("link:{target}[role=include]")],
-            synthetic_source_line: Some(source_line),
-            source_lines: Vec::new(),
-            column_shift: 0,
+            synthetic: true,
             effective_leveloffset: None,
-            nested_leveloffset_ranges: Vec::new(),
-            file: None,
+            leveloffset_ranges: Vec::new(),
             target: String::new(),
-            nested_source_ranges: Vec::new(),
+            source_ranges: Vec::new(),
         }
     }
 
-    fn unresolved_directive(directive: String, source_line: usize) -> Self {
+    fn unresolved_directive(directive: String) -> Self {
         Self {
             lines: vec![directive],
-            synthetic_source_line: Some(source_line),
-            source_lines: Vec::new(),
-            column_shift: 0,
+            synthetic: true,
             effective_leveloffset: None,
-            nested_leveloffset_ranges: Vec::new(),
-            file: None,
+            leveloffset_ranges: Vec::new(),
             target: String::new(),
-            nested_source_ranges: Vec::new(),
+            source_ranges: Vec::new(),
         }
     }
 }
 
 impl<'a> Include<'a> {
+    fn resolve_content_selection(
+        line_ranges: Option<Vec<LinesRange>>,
+        tag: Option<String>,
+        tags: Option<String>,
+    ) -> ContentSelection {
+        if let Some(ranges) = line_ranges {
+            return ContentSelection::Lines(ranges);
+        }
+        if let Some(value) = tag {
+            return match TagFilter::parse(&value) {
+                Some(filter) => ContentSelection::Tags(vec![filter]),
+                None => ContentSelection::All,
+            };
+        }
+        let Some(value) = tags else {
+            return ContentSelection::All;
+        };
+
+        let delimiter = if value.contains(',') { ',' } else { ';' };
+        let filters = value
+            .split(delimiter)
+            .filter_map(TagFilter::parse)
+            .collect::<Vec<_>>();
+        if filters.is_empty() {
+            ContentSelection::All
+        } else {
+            ContentSelection::Tags(filters)
+        }
+    }
+
     fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
+        let mut line_ranges = None;
+        let mut tag = None;
+        let mut tags = None;
+
         for (key, value) in attributes {
             match key.as_ref() {
                 "leveloffset" => {
@@ -447,16 +541,16 @@ impl<'a> Include<'a> {
                     })?);
                 }
                 "lines" => {
-                    self.line_range.extend(LinesRange::parse(
+                    line_ranges = Some(LinesRange::parse(
                         &value,
                         self.line_number,
                         self.current_offset,
                         self.current_file.as_deref(),
                     )?);
                 }
-                "tag" => self.tags.push(TagName::from(value)),
+                "tag" => tag = Some(value),
                 "tags" => {
-                    self.tags.extend(value.split(DELIMITERS).map(TagName::from));
+                    tags = Some(value);
                 }
                 "indent" => {
                     let indent = value.parse().map_err(|_| {
@@ -507,6 +601,9 @@ impl<'a> Include<'a> {
                 }
             }
         }
+
+        self.selection = Self::resolve_content_selection(line_ranges, tag, tags);
+
         Ok(())
     }
 
@@ -567,12 +664,9 @@ impl<'a> Include<'a> {
             }
             SourceOrigin::Uri(uri) => uri.clone(),
         };
-        IncludeResult::unresolved_directive(
-            format!(
-                "Unresolved directive in {source} - include::{target_as_written}[{attribute_list_as_written}]"
-            ),
-            self.line_number,
-        )
+        IncludeResult::unresolved_directive(format!(
+            "Unresolved directive in {source} - include::{target_as_written}[{attribute_list_as_written}]"
+        ))
     }
 
     /// Build Asciidoctor's visible recovery line for a failed local include read.
@@ -622,48 +716,57 @@ impl<'a> Include<'a> {
         }
     }
 
-    /// Apply tag and line range filters to content lines, returning the surviving
-    /// lines together with each one's 0-indexed position in `content_lines`. The
-    /// caller maps those indices to origin line/offset so partial includes locate
-    /// their content correctly. Both vectors are parallel and equal length.
-    fn apply_content_filters(&self, content_lines: &[String]) -> (Vec<String>, Vec<usize>) {
-        let mut lines = Vec::new();
-        let mut indices = Vec::new();
-
-        if !self.tags.is_empty() {
-            let filters: Vec<TagFilter> = self
-                .tags
-                .iter()
-                .map(|t| TagFilter::parse(t.as_str()))
-                .collect();
-            let selected_indices = apply_tag_filters(content_lines, &filters);
-
-            if self.line_range.is_empty() {
-                for idx in selected_indices {
-                    if let Some(line) = content_lines.get(idx) {
-                        lines.push(line.clone());
-                        indices.push(idx);
-                    }
-                }
-            } else {
-                let line_range_indices = self.collect_line_range_indices(content_lines.len());
-                for idx in selected_indices {
-                    if line_range_indices.contains(&idx)
-                        && let Some(line) = content_lines.get(idx)
-                    {
-                        lines.push(line.clone());
-                        indices.push(idx);
-                    }
-                }
+    /// Choose original target lines before any nested preprocessing occurs.
+    fn select_content_lines(&self, content_lines: &[String], resolved_source: &Path) -> Vec<usize> {
+        match &self.selection {
+            ContentSelection::All => (0..content_lines.len()).collect(),
+            ContentSelection::Lines(ranges) => {
+                let mut selected = self
+                    .collect_line_range_indices(ranges, content_lines.len())
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                selected.sort_unstable();
+                selected
             }
-        } else if self.line_range.is_empty() {
-            lines.extend(content_lines.iter().cloned());
-            indices.extend(0..content_lines.len());
-        } else {
-            self.extend_lines_with_ranges(content_lines, &mut lines, &mut indices);
+            ContentSelection::Tags(filters) => {
+                select_tagged_lines(content_lines, filters, |issue| {
+                    self.report_tag_issue(issue, resolved_source);
+                })
+            }
         }
+    }
 
-        (lines, indices)
+    fn report_tag_issue(&self, issue: TagIssue, resolved_source: &Path) {
+        let target_type = match &self.target {
+            Target::Path(_) => "file",
+            Target::Url(_) => "uri",
+        };
+        let target = resolved_source.display();
+        let message = match issue {
+            TagIssue::UnexpectedEnd { name, line } => {
+                format!(
+                    "unexpected end tag '{name}' at line {line} of include {target_type}: {target}"
+                )
+            }
+            TagIssue::MismatchedEnd {
+                expected,
+                found,
+                line,
+            } => format!(
+                "mismatched end tag (expected '{expected}' but found '{found}') at line {line} of include {target_type}: {target}"
+            ),
+            TagIssue::Unclosed { name, line } => format!(
+                "detected unclosed tag '{name}' starting at line {line} of include {target_type}: {target}"
+            ),
+            TagIssue::Missing { names } => {
+                let noun = if names.len() == 1 { "tag" } else { "tags" };
+                format!(
+                    "{noun} '{}' not found in include {target_type}: {target}",
+                    names.join(", ")
+                )
+            }
+        };
+        self.warn_located(message);
     }
 
     /// Re-indent `lines`: strip the block's common leading whitespace, then prepend
@@ -769,48 +872,105 @@ impl<'a> Include<'a> {
         Ok(resolved)
     }
 
-    /// Process included content while retaining the origin used for nested includes.
-    fn process_content(
+    /// Select original target lines, apply `indent`, then recursively preprocess
+    /// only the selected content.
+    fn process_selected_content(
         &self,
         content: &str,
         source_origin: &SourceOrigin,
+        resolved_source: &Path,
         is_asciidoc: bool,
     ) -> Result<IncludedContent, Error> {
+        let normalized = Preprocessor::normalize(content).into_owned();
+        let content_lines = normalized.lines().map(str::to_string).collect::<Vec<_>>();
+        let selected_indices = self.select_content_lines(&content_lines, resolved_source);
+        let selected_lines = selected_indices
+            .iter()
+            .filter_map(|idx| content_lines.get(*idx).cloned())
+            .collect::<Vec<_>>();
+        let (selected_lines, column_shift) = if let Some(indent) = self.indent {
+            Self::apply_indent(&selected_lines, indent)
+        } else {
+            (selected_lines, 0)
+        };
+
+        let line_starts = Self::line_start_offsets(&content_lines);
+        let line_origins = selected_indices
+            .iter()
+            .map(|&idx| InputLineOrigin {
+                line: idx + 1,
+                offset: line_starts.get(idx).copied().unwrap_or(0),
+                column_shift,
+            })
+            .collect::<Vec<_>>();
+        let selected_content = selected_lines.join("\n");
+
         if !is_asciidoc {
-            return Ok((
-                Preprocessor::normalize(content).into_owned(),
-                Vec::new(),
-                Vec::new(),
-            ));
+            let source_ranges =
+                Self::source_ranges_for_lines(&selected_lines, &line_origins, source_origin);
+            return Ok((selected_content, Vec::new(), source_ranges));
         }
 
         super::Preprocessor::nested(&self.warnings, self.context)
-            .process_inner(content, Some(source_origin), &self.options)
-        .map(|result| {
-            (
-                result.text.into_owned(),
-                result.leveloffset_ranges,
-                result.source_ranges,
+            .process_mapped(
+                &selected_content,
+                source_origin,
+                &self.options,
+                line_origins,
             )
-        })
-        .map_err(|error| {
-            tracing::error!(origin=?source_origin, ?error, "failed to process included content");
-            error
-        })
+            .map(|result| {
+                (
+                    result.text.into_owned(),
+                    result.leveloffset_ranges,
+                    result.source_ranges,
+                )
+            })
+            .map_err(|error| {
+                tracing::error!(origin=?source_origin, ?error, "failed to process included content");
+                error
+            })
     }
 
-    /// Fetch and process content from a URI without converting it to a local origin.
-    fn read_content_from_url(&self, url: &str) -> Result<IncludedContent, UrlReadError> {
+    fn source_ranges_for_lines(
+        lines: &[String],
+        origins: &[InputLineOrigin],
+        source_origin: &SourceOrigin,
+    ) -> Vec<SourceRange> {
+        let mut ranges: Vec<SourceRange> = Vec::new();
+        let mut cursor = 0;
+        let mut expected_line = 0;
+
+        for (line, origin) in lines.iter().zip(origins) {
+            let end_offset = cursor + line.len() + 1;
+            if origin.line == expected_line
+                && ranges
+                    .last()
+                    .is_some_and(|range| range.column_shift == origin.column_shift)
+            {
+                if let Some(range) = ranges.last_mut() {
+                    range.end_offset = end_offset;
+                }
+            } else {
+                ranges.push(SourceRange {
+                    start_offset: cursor,
+                    end_offset,
+                    file: Some(source_origin.as_path().to_path_buf()),
+                    file_chain: Vec::new(),
+                    start_line: origin.line,
+                    source_start_offset: origin.offset,
+                    column_shift: origin.column_shift,
+                });
+            }
+            cursor = end_offset;
+            expected_line = origin.line + 1;
+        }
+        ranges
+    }
+
+    /// Fetch and decode content from a URI without recursively preprocessing it.
+    fn read_content_from_url(&self, url: &str) -> Result<String, UrlReadError> {
         let bytes = Self::fetch_url_target(url)?;
-        let content = super::decode_bytes(&bytes, self.encoding.as_deref(), url)?;
-        let parsed_url = Url::parse(url).map_err(Error::from)?;
-        let source_origin = SourceOrigin::Uri(url.to_string());
-        self.process_content(
-            &content,
-            &source_origin,
-            Self::has_asciidoc_extension(Path::new(parsed_url.path())),
-        )
-        .map_err(UrlReadError::from)
+        super::decode_bytes(&bytes, self.encoding.as_deref(), url).map_err(UrlReadError::from)
     }
 
     fn read_url_content_or_fallback(
@@ -821,7 +981,6 @@ impl<'a> Include<'a> {
         if !self.context.allows_uri_read {
             return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
                 self.target_as_written(),
-                self.line_number,
             )));
         }
 
@@ -848,15 +1007,12 @@ impl<'a> Include<'a> {
         }
     }
 
-    /// Read one resolved local file. `None` is the recoverable non-optional
-    /// unreadable case; errors raised while preprocessing its content remain
-    /// distinct and propagate with their own source context.
+    /// Read and decode one resolved local file without preprocessing it.
     fn read_existing_local_content(
         &self,
         path: &Path,
-        base_dir: &Path,
         optional: bool,
-    ) -> Result<Option<IncludedContent>, Error> {
+    ) -> Result<Option<String>, Error> {
         let decoded = match super::read_and_decode_file(path, self.encoding.as_deref()) {
             Ok(content) => content,
             Err(Error::Io(_)) if !optional => {
@@ -865,108 +1021,82 @@ impl<'a> Include<'a> {
             }
             Err(error) => return Err(error),
         };
-        let source_origin = SourceOrigin::File {
-            path: path.to_path_buf(),
-            base_dir: base_dir.to_path_buf(),
-        };
-        self.process_content(&decoded, &source_origin, Self::has_asciidoc_extension(path))
-            .map(Some)
+        Ok(Some(decoded))
     }
 
     pub(crate) fn lines(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
-            return Ok(IncludeResult::link_fallback(
-                self.target_as_written(),
-                self.line_number,
-            ));
+            return Ok(IncludeResult::link_fallback(self.target_as_written()));
         }
 
-        let (content, nested_leveloffset_ranges, nested_source_ranges, resolved_source) =
-            match &self.target {
-                Target::Path(target) => {
-                    let SourceOrigin::File {
-                        path: current_file,
-                        base_dir,
-                    } = &self.source_origin
-                    else {
-                        tracing::error!(?target, "local include target has a URI source origin");
-                        return Ok(IncludeResult::empty());
-                    };
-                    let Some(parent) = current_file.parent() else {
-                        tracing::error!(?current_file, "source file has no parent directory");
-                        return Ok(IncludeResult::empty());
-                    };
-                    let path = self.resolve_file_target(parent, base_dir, target)?;
-                    let optional = self.opts.iter().any(|option| option == "optional");
-                    if !path.is_file() {
-                        if optional {
-                            tracing::info!(
-                                source_file = ?self.current_file,
-                                line = self.line_number,
-                                include_path = %path.display(),
-                                "optional include dropped because include file not found",
-                            );
-                        } else {
-                            self.warn_located(format!(
-                                "include file not found: {}",
-                                path.display()
-                            ));
-                            return Ok(self.unresolved_directive(attribute_list_as_written));
-                        }
-                        return Ok(IncludeResult::empty());
-                    }
-                    let Some((content, leveloffset_ranges, source_ranges)) =
-                        self.read_existing_local_content(&path, base_dir, optional)?
-                    else {
+        let (content, source_origin, resolved_source, is_asciidoc) = match &self.target {
+            Target::Path(target) => {
+                let SourceOrigin::File {
+                    path: current_file,
+                    base_dir,
+                } = &self.source_origin
+                else {
+                    tracing::error!(?target, "local include target has a URI source origin");
+                    return Ok(IncludeResult::empty());
+                };
+                let Some(parent) = current_file.parent() else {
+                    tracing::error!(?current_file, "source file has no parent directory");
+                    return Ok(IncludeResult::empty());
+                };
+                let path = self.resolve_file_target(parent, base_dir, target)?;
+                let optional = self.opts.iter().any(|option| option == "optional");
+                if !path.is_file() {
+                    if optional {
+                        tracing::info!(
+                            source_file = ?self.current_file,
+                            line = self.line_number,
+                            include_path = %path.display(),
+                            "optional include dropped because include file not found",
+                        );
+                    } else {
+                        self.warn_located(format!("include file not found: {}", path.display()));
                         return Ok(self.unresolved_directive(attribute_list_as_written));
+                    }
+                    return Ok(IncludeResult::empty());
+                }
+                let Some(content) = self.read_existing_local_content(&path, optional)? else {
+                    return Ok(self.unresolved_directive(attribute_list_as_written));
+                };
+                let is_asciidoc = Self::has_asciidoc_extension(&path);
+                let source_origin = SourceOrigin::File {
+                    path: path.clone(),
+                    base_dir: base_dir.clone(),
+                };
+                (content, source_origin, path, is_asciidoc)
+            }
+            Target::Url(url) => {
+                let content =
+                    match self.read_url_content_or_fallback(url, attribute_list_as_written)? {
+                        UrlIncludeOutcome::Content(content) => content,
+                        UrlIncludeOutcome::Fallback(result) => return Ok(result),
                     };
-                    (content, leveloffset_ranges, source_ranges, path)
-                }
-                Target::Url(url) => {
-                    let (content, leveloffset_ranges, source_ranges) =
-                        match self.read_url_content_or_fallback(url, attribute_list_as_written)? {
-                            UrlIncludeOutcome::Content(content) => content,
-                            UrlIncludeOutcome::Fallback(result) => return Ok(result),
-                        };
-                    (
-                        content,
-                        leveloffset_ranges,
-                        source_ranges,
-                        PathBuf::from(url),
-                    )
-                }
-            };
-        let effective_leveloffset = self.calculate_effective_leveloffset();
-
-        let content_lines = content.lines().map(str::to_string).collect::<Vec<_>>();
-        let (lines, selected_indices) = self.apply_content_filters(&content_lines);
-        let (lines, column_shift) = if let Some(indent) = self.indent {
-            Self::apply_indent(&lines, indent)
-        } else {
-            (lines, 0)
+                let parsed_url = Url::parse(url)?;
+                let is_asciidoc = Self::has_asciidoc_extension(Path::new(parsed_url.path()));
+                (
+                    content,
+                    SourceOrigin::Uri(url.clone()),
+                    PathBuf::from(url),
+                    is_asciidoc,
+                )
+            }
         };
-
-        // Map each surviving line back to its origin line/offset in the included
-        // file, so the caller can split partial includes into correctly-located runs.
-        let line_starts = Self::line_start_offsets(&content_lines);
-        let source_lines = selected_indices
-            .iter()
-            .map(|&idx| IncludedLineOrigin {
-                line: idx + 1,
-                offset: line_starts.get(idx).copied().unwrap_or(0),
-            })
-            .collect();
+        let effective_leveloffset = self.calculate_effective_leveloffset();
+        let (content, leveloffset_ranges, source_ranges) =
+            self.process_selected_content(&content, &source_origin, &resolved_source, is_asciidoc)?;
+        let lines = content.lines().map(str::to_string).collect();
 
         Ok(IncludeResult {
             lines,
-            synthetic_source_line: None,
-            source_lines,
-            column_shift,
+            synthetic: false,
             effective_leveloffset,
-            nested_leveloffset_ranges,
-            file: Some(resolved_source),
+            leveloffset_ranges,
             target: self.target_as_written().to_string(),
-            nested_source_ranges,
+            source_ranges,
         })
     }
 
@@ -1021,7 +1151,7 @@ impl<'a> Include<'a> {
 
     fn resolve_end_line(end: isize, max_size: usize) -> Option<usize> {
         match end {
-            -1 => Some(max_size),
+            n if n < 0 => max_size.checked_sub(1),
             n if n > 0 => match usize::try_from(n - 1) {
                 Ok(val) => Some(val),
                 Err(e) => {
@@ -1039,10 +1169,11 @@ impl<'a> Include<'a> {
     /// Collects all line indices that would be selected by the line ranges.
     fn collect_line_range_indices(
         &self,
+        ranges: &[LinesRange],
         content_lines_count: usize,
     ) -> std::collections::HashSet<usize> {
         let mut indices = std::collections::HashSet::new();
-        for line in &self.line_range {
+        for line in ranges {
             match line {
                 LinesRange::Single(line_number) => {
                     if let Some(idx) = self.validate_line_number(*line_number) {
@@ -1071,48 +1202,6 @@ impl<'a> Include<'a> {
             }
         }
         indices
-    }
-
-    pub(crate) fn extend_lines_with_ranges(
-        &self,
-        content_lines: &[String],
-        lines: &mut Vec<String>,
-        indices: &mut Vec<usize>,
-    ) {
-        let content_lines_count = content_lines.len();
-        for line in &self.line_range {
-            match line {
-                LinesRange::Single(line_number) => {
-                    if let Some(idx) = self.validate_line_number(*line_number)
-                        && idx < content_lines_count
-                        && let Some(line) = content_lines.get(idx)
-                    {
-                        lines.push(line.clone());
-                        indices.push(idx);
-                    }
-                }
-                LinesRange::Range(start, end) => {
-                    let Some(start_idx) = self.validate_line_number(*start) else {
-                        continue;
-                    };
-                    let Some(end_idx) = Self::resolve_end_line(*end, content_lines_count) else {
-                        continue;
-                    };
-
-                    if start_idx < content_lines_count
-                        && end_idx < content_lines_count
-                        && start_idx <= end_idx
-                    {
-                        for idx in start_idx..=end_idx {
-                            if let Some(line) = content_lines.get(idx) {
-                                lines.push(line.clone());
-                                indices.push(idx);
-                            }
-                        }
-                    }
-                }
-            }
-        }
     }
 
     /// Byte offset of each line's first byte within the file's normalized content
@@ -1153,6 +1242,15 @@ mod tests {
         )
     }
 
+    fn tag_selection(values: &[&str]) -> ContentSelection {
+        ContentSelection::Tags(
+            values
+                .iter()
+                .filter_map(|value| TagFilter::parse(value))
+                .collect(),
+        )
+    }
+
     #[test]
     fn test_parse_simple_include() -> Result<(), Error> {
         let path = PathBuf::from("/tmp");
@@ -1175,8 +1273,10 @@ mod tests {
         let include = parse_include(&path, line, &options)?;
 
         assert_eq!(include.level_offset, Some(1));
-        assert_eq!(include.tags, vec![TagName::from("example")]);
-        assert!(!include.line_range.is_empty());
+        assert_eq!(
+            include.selection,
+            ContentSelection::Lines(vec![LinesRange::Range(1, 5)])
+        );
         Ok(())
     }
 
@@ -1201,7 +1301,7 @@ mod tests {
         let options = Options::default();
         let include = parse_include(&path, line, &options)?;
 
-        assert_eq!(include.tags, vec![TagName::from("example code")]);
+        assert_eq!(include.selection, tag_selection(&["example code"]));
         assert_eq!(include.encoding, Some("utf-8".to_string()));
         Ok(())
     }
@@ -1214,12 +1314,8 @@ mod tests {
         let include = parse_include(&path, line, &options)?;
 
         assert_eq!(
-            include.tags,
-            vec![
-                TagName::from("intro"),
-                TagName::from("main"),
-                TagName::from("conclusion")
-            ]
+            include.selection,
+            tag_selection(&["intro", "main", "conclusion"])
         );
         Ok(())
     }
@@ -1231,10 +1327,7 @@ mod tests {
         let options = Options::default();
         let include = parse_include(&path, line, &options)?;
 
-        assert_eq!(
-            include.tags,
-            vec![TagName::from("*"), TagName::from("!debug")]
-        );
+        assert_eq!(include.selection, tag_selection(&["*", "!debug"]));
         Ok(())
     }
 
@@ -1245,7 +1338,54 @@ mod tests {
         let options = Options::default();
         let include = parse_include(&path, line, &options)?;
 
-        assert_eq!(include.tags, vec![TagName::from("**")]);
+        assert_eq!(include.selection, tag_selection(&["**"]));
+        Ok(())
+    }
+
+    #[test]
+    fn content_selection_precedence_is_lines_then_tag_then_tags() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let options = Options::default();
+
+        for line in [
+            "include::target.adoc[tag=first,tags=second]",
+            "include::target.adoc[tags=second,tag=first]",
+        ] {
+            assert_eq!(
+                parse_include(&path, line, &options)?.selection,
+                tag_selection(&["first"])
+            );
+        }
+        for line in [
+            "include::target.adoc[tag=first,lines=5]",
+            "include::target.adoc[lines=5,tag=first]",
+        ] {
+            assert_eq!(
+                parse_include(&path, line, &options)?.selection,
+                ContentSelection::Lines(vec![LinesRange::Single(5)])
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn duplicate_selection_attributes_are_last_wins() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let options = Options::default();
+
+        assert_eq!(
+            parse_include(
+                &path,
+                "include::target.adoc[tag=first,tag=second]",
+                &options,
+            )?
+            .selection,
+            tag_selection(&["second"])
+        );
+        assert_eq!(
+            parse_include(&path, "include::target.adoc[lines=2,lines=5]", &options)?.selection,
+            ContentSelection::Lines(vec![LinesRange::Single(5)])
+        );
         Ok(())
     }
 

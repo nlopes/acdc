@@ -115,6 +115,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Partial includes now select `lines`, `tag`, or `tags` from the original target
+  before processing nested directives. Excluded includes and conditionals no
+  longer run or emit warnings. `lines` takes precedence over `tag`, which takes
+  precedence over `tags`; duplicate named selectors use their last value; selected
+  line numbers are sorted and deduplicated; and a negative range end selects
+  through the end of the file.
+- Tag selection now handles nested and repeated tag names and emits located
+  warnings for missing tags and unexpected, mismatched, or unclosed boundaries.
+  Warnings point to the including directive, name the included file and marker
+  line where relevant, and parsing continues.
+- Mixed `tags=!**;…` include filters now decide whether to select otherwise
+  unrequested tagged regions from the first remaining selector in attribute
+  order, matching `asciidoctor`; changing tag names no longer changes the result.
 - Include targets now accept internal spaces while leading or trailing target
   whitespace remains invalid. Local targets with spaces are read normally, and
   Secure or unauthorized URI includes preserve the complete target in a

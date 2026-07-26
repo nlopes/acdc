@@ -1,0 +1,9 @@
+MAIN BEFORE
+
+include::include_tag_state_mismatch.adoc[tags=outer;inner]
+
+BETWEEN
+
+include::include_tag_state_unclosed.adoc[tag=unclosed]
+
+MAIN AFTER
