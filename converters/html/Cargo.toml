@@ -26,12 +26,12 @@ tracing.workspace = true
 
 [build-dependencies]
 # Compute CSP script-src hashes for embedded inline scripts at build time.
-base64 = "0.22"
+base64.workspace = true
 sha2 = "0.11"
 
 [dev-dependencies]
 acdc-converters-dev.workspace = true
-base64 = "0.22"
+base64.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 sha2 = "0.11"
