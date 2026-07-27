@@ -87,3 +87,25 @@ fn caller_denied_uri_uses_link_fallback_and_continues_in_non_secure_modes() -> T
     }
     Ok(())
 }
+
+#[test]
+fn compat_mode_omits_include_role_from_denied_uri_fallback() -> TestResult {
+    let target = "https://example.invalid/secret.adoc";
+    let document = TempDocument::new(&format!("include::{target}[]"))?;
+    let options = Options::builder()
+        .with_attribute("compat-mode", true)
+        .build();
+
+    let result = parse_file(&document.path, &options)?;
+
+    let [Block::Paragraph(fallback)] = result.document().blocks.as_slice() else {
+        return Err(format!("unexpected blocks: {:?}", result.document().blocks).into());
+    };
+    let [InlineNode::Macro(InlineMacro::Link(link))] = fallback.content.as_slice() else {
+        return Err(format!("expected one fallback link, got {:?}", fallback.content).into());
+    };
+    assert_eq!(link.target.to_string(), target);
+    assert_eq!(link.attributes.iter().count(), 0);
+    assert!(result.warnings().is_empty());
+    Ok(())
+}

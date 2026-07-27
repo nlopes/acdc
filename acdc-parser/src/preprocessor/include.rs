@@ -460,14 +460,15 @@ impl IncludeResult {
         }
     }
 
-    fn link_fallback(target: &str) -> Self {
+    fn link_fallback(target: &str, compat_mode: bool) -> Self {
         let target = if target.contains(' ') {
             format!("pass:c[{target}]")
         } else {
             target.to_string()
         };
+        let attributes = if compat_mode { "" } else { "role=include" };
         Self {
-            lines: vec![format!("link:{target}[role=include]")],
+            lines: vec![format!("link:{target}[{attributes}]")],
             synthetic: true,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
@@ -981,6 +982,7 @@ impl<'a> Include<'a> {
         if !self.context.allows_uri_read {
             return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
                 self.target_as_written(),
+                self.options.document_attributes.is_set("compat-mode"),
             )));
         }
 
@@ -1026,7 +1028,10 @@ impl<'a> Include<'a> {
 
     pub(crate) fn lines(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
-            return Ok(IncludeResult::link_fallback(self.target_as_written()));
+            return Ok(IncludeResult::link_fallback(
+                self.target_as_written(),
+                self.options.document_attributes.is_set("compat-mode"),
+            ));
         }
 
         let (content, source_origin, resolved_source, is_asciidoc) = match &self.target {

@@ -115,6 +115,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With `compat-mode`, denied URI includes now omit `role=include` from their
+  converter-visible fallback links, matching `asciidoctor`.
 - Partial includes now select `lines`, `tag`, or `tags` from the original target
   before processing nested directives. Excluded includes and conditionals no
   longer run or emit warnings. `lines` takes precedence over `tag`, which takes

@@ -244,6 +244,9 @@ don't process partial response bodies. Character-encoding errors remain fatal.
 This limit is an intentional security divergence from asciidoctor, which has no
 equivalent per-response limit.
 
+When `compat-mode` is set, denied URI includes omit the `include` role from their
+fallback link, matching Asciidoctor.
+
 ## Parser fixtures
 
 We use two fixture styles, and they are intentionally different.
