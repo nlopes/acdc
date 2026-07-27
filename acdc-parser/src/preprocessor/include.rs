@@ -63,7 +63,13 @@
 //! If the selected `AsciiDoc` text needs no preprocessing, we only build source
 //! ranges. This keeps the text unchanged and avoids unnecessary processing.
 
+mod attributes;
 mod peg;
+
+use attributes::{
+    AttributeMissingPolicy, ParsedAttribute, parse_include_attributes,
+    substitute_include_attributes,
+};
 
 use peg::include_parser;
 
@@ -118,17 +124,20 @@ not aware of the surrounding document structure.
 pub(super) struct Include<'a> {
     source_origin: SourceOrigin,
     target: Target,
+    target_original: String,
     target_as_written: String,
+    target_missing: Vec<String>,
+    target_missing_policy: AttributeMissingPolicy,
     level_offset: Option<isize>,
     selection: ContentSelection,
     indent: Option<usize>,
     encoding: Option<String>,
     opts: Vec<String>,
+    depth: Option<usize>,
     options: Options<'a>,
     context: IncludeContext,
     // Location information for error reporting
     line_number: usize,
-    current_offset: usize,
     current_file: Option<PathBuf>,
     /// Shared warnings sink threaded from the outer `Preprocessor` so
     /// non-fatal include conditions (disabled URL includes, missing
@@ -166,6 +175,7 @@ enum LinesRange {
 /// NOTE: URLs will only be fetched if the caller supplied the `allow-uri-read` attribute.
 #[derive(Debug)]
 pub(crate) enum Target {
+    Blank,
     Path(PathBuf),
     Url(String),
     UnsupportedUri(String),
@@ -230,7 +240,7 @@ fn uri_directory(uri: &str) -> &str {
 #[derive(Debug, Clone, Copy)]
 pub(super) struct LocationContext<'a> {
     line_number: usize,
-    current_offset: usize,
+    _current_offset: usize,
     current_file: Option<&'a Path>,
 }
 
@@ -242,7 +252,7 @@ impl<'a> LocationContext<'a> {
     ) -> Self {
         Self {
             line_number,
-            current_offset,
+            _current_offset: current_offset,
             current_file,
         }
     }
@@ -296,11 +306,13 @@ impl LinesRange {
                 .ok_or_else(|| Self::create_error(line_range, location))?
                 .parse()
                 .map_err(|_| Self::create_error(line_range, location))?;
-            let end = parts
-                .next()
-                .ok_or_else(|| Self::create_error(line_range, location))?
-                .parse()
-                .map_err(|_| Self::create_error(line_range, location))?;
+            let end = match parts.next() {
+                Some("") => -1,
+                Some(value) => value
+                    .parse()
+                    .map_err(|_| Self::create_error(line_range, location))?,
+                None => return Err(Self::create_error(line_range, location)),
+            };
             if parts.next().is_some() {
                 return Err(Self::create_error(line_range, location));
             }
@@ -323,10 +335,10 @@ impl LinesRange {
     ) -> Result<Vec<Self>, Error> {
         let location = Some((line_number, current_offset, current_file));
 
-        let separator = if value.contains(';') {
-            ';'
-        } else if value.contains(',') {
+        let separator = if value.contains(',') {
             ','
+        } else if value.contains(';') {
+            ';'
         } else {
             // Single range, no separator
             return Ok(vec![Self::from_str_with_location(value, location)?]);
@@ -373,7 +385,20 @@ enum UrlReadError {
     Other(Error),
 }
 
-enum IncludeOutcome {
+type ResolvedTargetContent = (reader::Selected, SourceOrigin, PathBuf, bool);
+
+enum TargetContentOutcome {
+    Content(ResolvedTargetContent),
+    Fallback(Box<IncludeResult>),
+}
+
+enum LocalIncludeOutcome {
+    Content(reader::Selected),
+    Missing,
+    Unreadable,
+}
+
+enum UrlIncludeOutcome {
     Content(reader::Selected),
     Fallback(Box<IncludeResult>),
 }
@@ -444,7 +469,11 @@ impl<'a> Include<'a> {
         tags: Option<String>,
     ) -> ContentSelection {
         if let Some(ranges) = line_ranges {
-            return ContentSelection::Lines(ranges);
+            return if ranges.is_empty() {
+                ContentSelection::All
+            } else {
+                ContentSelection::Lines(ranges)
+            };
         }
         if let Some(value) = tag {
             return match TagFilter::parse(&value) {
@@ -468,13 +497,43 @@ impl<'a> Include<'a> {
         }
     }
 
-    fn parse_attributes(&mut self, attributes: Vec<(String, String)>) -> Result<(), Error> {
+    fn parse_attributes(&mut self, attributes: &str) -> Result<(), Error> {
+        let missing_policy =
+            AttributeMissingPolicy::from_attributes(&self.options.document_attributes);
+        let substitution = substitute_include_attributes(
+            attributes,
+            &self.options.document_attributes,
+            missing_policy,
+        );
+        match missing_policy {
+            AttributeMissingPolicy::DropLine if !substitution.missing.is_empty() => {
+                for name in &substitution.missing {
+                    tracing::info!(
+                        "dropping line containing reference to missing attribute: {name}"
+                    );
+                }
+            }
+            AttributeMissingPolicy::Warn => {
+                for name in &substitution.missing {
+                    self.warn_unlocated(format!("skipping reference to missing attribute: {name}"));
+                }
+            }
+            AttributeMissingPolicy::Drop
+            | AttributeMissingPolicy::DropLine
+            | AttributeMissingPolicy::Skip => {}
+        }
         let mut lines = None;
         let mut tag = None;
         let mut tags = None;
 
-        for (key, value) in attributes {
-            match key.as_ref() {
+        for attribute in parse_include_attributes(&substitution.value) {
+            let ParsedAttribute::Named(key, value) = attribute else {
+                if let ParsedAttribute::Option(option) = attribute {
+                    self.opts.push(option);
+                }
+                continue;
+            };
+            match key.as_str() {
                 "leveloffset" => match value.parse() {
                     Ok(offset) => self.level_offset = Some(offset),
                     Err(_) => self.warn_located(format!(
@@ -483,7 +542,9 @@ impl<'a> Include<'a> {
                 },
                 "lines" => lines = Some(value),
                 "tag" => tag = Some(value),
-                "tags" => tags = Some(value),
+                "tags" => {
+                    tags = Some(value);
+                }
                 "indent" => match value.parse::<usize>() {
                     Ok(indent) if indent <= MAX_INCLUDE_INDENT => self.indent = Some(indent),
                     Ok(_) => self.warn_located(format!(
@@ -493,11 +554,20 @@ impl<'a> Include<'a> {
                         "invalid include indent `{value}`; ignoring override"
                     )),
                 },
-                "encoding" => self.encoding = Some(value),
-                "opts" => self.opts.extend(value.split(',').map(str::to_string)),
-                unknown => self.warn_located(format!(
-                    "unknown include option `{unknown}`; ignoring option"
-                )),
+                "encoding" => {
+                    self.encoding = Some(value);
+                }
+                "depth" => {
+                    self.depth = Some(
+                        crate::document_attribute::ruby_to_isize(&value)
+                            .max(0)
+                            .unsigned_abs(),
+                    );
+                }
+                // Positional and unknown attributes are accepted by Asciidoctor's
+                // generic attribute-list parser but ignored by built-in include
+                // processing.
+                _ => {}
             }
         }
 
@@ -505,12 +575,7 @@ impl<'a> Include<'a> {
         // selection must never become a full-file include.
         let line_ranges = lines
             .map(|value| {
-                LinesRange::parse(
-                    &value,
-                    self.line_number,
-                    self.current_offset,
-                    self.current_file.as_deref(),
-                )
+                LinesRange::parse(&value, self.line_number, 0, self.current_file.as_deref())
             })
             .transpose()?;
         self.selection = Self::resolve_content_selection(line_ranges, tag, tags);
@@ -559,7 +624,14 @@ impl<'a> Include<'a> {
 
     /// Build Asciidoctor's visible recovery line for a failed include read.
     fn unresolved_directive(&self, attribute_list_as_written: &str) -> IncludeResult {
-        let target_as_written = self.target_as_written();
+        self.unresolved_directive_for_target(self.target_as_written(), attribute_list_as_written)
+    }
+
+    fn unresolved_directive_for_target(
+        &self,
+        target_as_written: &str,
+        attribute_list_as_written: &str,
+    ) -> IncludeResult {
         let source = match &self.source_origin {
             SourceOrigin::File {
                 path,
@@ -589,7 +661,7 @@ impl<'a> Include<'a> {
 
     fn report_tag_issue(&self, issue: TagIssue, resolved_source: &Path) {
         let target_type = match &self.target {
-            Target::Path(_) => "file",
+            Target::Blank | Target::Path(_) => "file",
             Target::Url(_) | Target::UnsupportedUri(_) => "uri",
         };
         let target = resolved_source.display();
@@ -791,39 +863,57 @@ impl<'a> Include<'a> {
             comment_context: None,
         };
         if is_asciidoc {
-            let preprocessed = Preprocessor::nested(&self.warnings, self.context.clone())
-                .process_mapped(
-                    take(&mut included.content),
-                    source_origin,
-                    &self.options,
-                    line_origins,
-                )
-                .inspect_err(|_| {
-                    tracing::error!("failed to process included content");
-                })?;
-            included.content = preprocessed.result.text.into_owned();
-            included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
-            included.source_ranges = preprocessed.result.source_ranges;
-            included.included_files = preprocessed.result.included_files;
-            included.conditionals = preprocessed.result.conditionals;
-            included.document_attributes = Some(preprocessed.document_attributes);
-            included.comment_context = Some(preprocessed.result.comment_context);
-            let full = match &self.selection {
-                ContentSelection::All => true,
-                ContentSelection::Lines(_) => false,
-                ContentSelection::Tags(filters) => super::tag::selects_all(filters),
-            };
-            if full
-                && !self.opts.iter().any(|option| option == "partial")
-                && let Some(name) = source_origin.include_name()
-            {
-                included.included_files.insert(name);
-            }
+            self.preprocess_selected_asciidoc(&mut included, source_origin, line_origins)?;
         } else {
             included.source_ranges =
                 Self::source_ranges_for_lines(&included.content, &line_origins, source_origin);
         }
         Ok(included)
+    }
+
+    fn preprocess_selected_asciidoc(
+        &self,
+        included: &mut IncludeResult,
+        source_origin: &SourceOrigin,
+        line_origins: Vec<SourceLineOrigin>,
+    ) -> Result<(), Error> {
+        let mut context = self.context.clone();
+        if let Some(depth) = self.depth {
+            let limit = context.depth.saturating_add(1).saturating_add(depth);
+            if limit < context.max_depth {
+                context.max_depth = limit;
+                context.local_depth_limit = Some(depth);
+            }
+        }
+        let preprocessed = Preprocessor::nested(&self.warnings, context)
+            .process_mapped(
+                take(&mut included.content),
+                source_origin,
+                &self.options,
+                line_origins,
+            )
+            .inspect_err(|_| {
+                tracing::error!("failed to process included content");
+            })?;
+        included.content = preprocessed.result.text.into_owned();
+        included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
+        included.source_ranges = preprocessed.result.source_ranges;
+        included.included_files = preprocessed.result.included_files;
+        included.conditionals = preprocessed.result.conditionals;
+        included.document_attributes = Some(preprocessed.document_attributes);
+        included.comment_context = Some(preprocessed.result.comment_context);
+        let full = match &self.selection {
+            ContentSelection::All => true,
+            ContentSelection::Lines(_) => false,
+            ContentSelection::Tags(filters) => super::tag::selects_all(filters),
+        };
+        if full
+            && !self.opts.iter().any(|option| option == "partial")
+            && let Some(name) = source_origin.include_name()
+        {
+            included.included_files.insert(name);
+        }
+        Ok(())
     }
 
     fn source_ranges_for_lines(
@@ -892,12 +982,12 @@ impl<'a> Include<'a> {
         url: &str,
         attribute_list_as_written: &str,
         source_provider: &dyn IncludeSourceProvider,
-    ) -> Result<IncludeOutcome, Error> {
+    ) -> Result<UrlIncludeOutcome, Error> {
         if !self.context.allows_uri_read {
             self.warn_located(format!(
                 "include uri not read because URI access is disabled: {url}"
             ));
-            return Ok(IncludeOutcome::Fallback(Box::new(
+            return Ok(UrlIncludeOutcome::Fallback(Box::new(
                 IncludeResult::link_fallback(
                     self.target_as_written(),
                     self.options
@@ -908,23 +998,23 @@ impl<'a> Include<'a> {
         }
 
         match self.read_content_from_url(url, source_provider) {
-            Ok(content) => Ok(IncludeOutcome::Content(content)),
+            Ok(content) => Ok(UrlIncludeOutcome::Content(content)),
             Err(UrlReadError::Unsupported(detail)) => {
                 self.warn_located(format!("{detail}, cannot fetch remote includes: {url}"));
-                Ok(IncludeOutcome::Fallback(Box::new(
+                Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
             Err(UrlReadError::Retrieval) => {
                 tracing::debug!("failed to retrieve remote include");
                 self.warn_located(format!("include uri not readable: {url}"));
-                Ok(IncludeOutcome::Fallback(Box::new(
+                Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
             Err(UrlReadError::Other(Error::UnrecognizedEncodingInFile(_))) => {
                 self.warn_located(format!("include uri not decodable: {url}"));
-                Ok(IncludeOutcome::Fallback(Box::new(
+                Ok(UrlIncludeOutcome::Fallback(Box::new(
                     self.unresolved_directive(attribute_list_as_written),
                 )))
             }
@@ -937,9 +1027,8 @@ impl<'a> Include<'a> {
         &self,
         path: &Path,
         optional: bool,
-        attribute_list_as_written: &str,
         source_provider: &dyn IncludeSourceProvider,
-    ) -> Result<IncludeOutcome, Error> {
+    ) -> Result<LocalIncludeOutcome, Error> {
         let source = match source_provider.open(&IncludeSourceTarget::File(path.to_path_buf())) {
             Ok(source) => source,
             Err(error) if error.kind() == IncludeSourceErrorKind::NotFound => {
@@ -951,11 +1040,7 @@ impl<'a> Include<'a> {
                 } else {
                     self.warn_located(format!("include file not found: {}", path.display()));
                 }
-                return Ok(IncludeOutcome::Fallback(Box::new(if optional {
-                    IncludeResult::empty()
-                } else {
-                    self.unresolved_directive(attribute_list_as_written)
-                })));
+                return Ok(LocalIncludeOutcome::Missing);
             }
             Err(error)
                 if matches!(
@@ -964,9 +1049,7 @@ impl<'a> Include<'a> {
                 ) =>
             {
                 self.warn_located(format!("include file not readable: {}", path.display()));
-                return Ok(IncludeOutcome::Fallback(Box::new(
-                    self.unresolved_directive(attribute_list_as_written),
-                )));
+                return Ok(LocalIncludeOutcome::Unreadable);
             }
             Err(error) => return Err(Error::IncludeSource(error)),
         };
@@ -981,13 +1064,65 @@ impl<'a> Include<'a> {
             Ok(content) => content,
             Err(Error::Io(_) | Error::UnrecognizedEncodingInFile(_)) => {
                 self.warn_located(format!("include file not readable: {}", path.display()));
-                return Ok(IncludeOutcome::Fallback(Box::new(
-                    self.unresolved_directive(attribute_list_as_written),
-                )));
+                return Ok(LocalIncludeOutcome::Unreadable);
             }
             Err(error) => return Err(error),
         };
-        Ok(IncludeOutcome::Content(decoded))
+        Ok(LocalIncludeOutcome::Content(decoded))
+    }
+
+    fn blank_target_result(&self, attribute_list_as_written: &str) -> IncludeResult {
+        let due_to_missing = !self.target_missing.is_empty();
+        if due_to_missing
+            && matches!(
+                self.target_missing_policy,
+                AttributeMissingPolicy::DropLine | AttributeMissingPolicy::Warn
+            )
+        {
+            for name in &self.target_missing {
+                tracing::info!("dropping line containing reference to missing attribute: {name}");
+            }
+        }
+
+        if due_to_missing && self.target_missing_policy == AttributeMissingPolicy::DropLine {
+            tracing::info!(
+                directive = %self.target_original,
+                "include dropped due to missing attribute"
+            );
+            return IncludeResult::empty();
+        }
+
+        let optional = self.opts.iter().any(|option| option == "optional");
+        let reason = if due_to_missing && self.target_missing_policy == AttributeMissingPolicy::Warn
+        {
+            "due to missing attribute"
+        } else {
+            "because resolved target is blank"
+        };
+        if optional {
+            tracing::info!(
+                directive = %self.target_original,
+                "optional include dropped {reason}"
+            );
+            return IncludeResult::empty();
+        }
+
+        self.warn_located(format!(
+            "include dropped {reason}: include::{}[{attribute_list_as_written}]",
+            self.target_original
+        ));
+        let fallback_target =
+            if due_to_missing && self.target_missing_policy == AttributeMissingPolicy::Warn {
+                &self.target_original
+            } else {
+                self.target_as_written()
+            };
+        if due_to_missing && self.target_missing_policy == AttributeMissingPolicy::Warn {
+            for name in &self.target_missing {
+                self.warn_unlocated(format!("skipping reference to missing attribute: {name}"));
+            }
+        }
+        self.unresolved_directive_for_target(fallback_target, attribute_list_as_written)
     }
 
     pub(crate) fn process(
@@ -995,67 +1130,111 @@ impl<'a> Include<'a> {
         attribute_list_as_written: &str,
         source_provider: &dyn IncludeSourceProvider,
     ) -> Result<IncludeResult, Error> {
+        let (content, source_origin, resolved_source, is_asciidoc) =
+            match self.read_target_content(attribute_list_as_written, source_provider)? {
+                TargetContentOutcome::Content(content) => content,
+                TargetContentOutcome::Fallback(result) => return Ok(*result),
+            };
+        self.process_selected_content(content, &source_origin, &resolved_source, is_asciidoc)
+    }
+
+    fn read_file_target(
+        &self,
+        target: &Path,
+        attribute_list_as_written: &str,
+        source_provider: &dyn IncludeSourceProvider,
+    ) -> Result<TargetContentOutcome, Error> {
+        let memory_base;
+        let (parent, base_dir) = match &self.source_origin {
+            SourceOrigin::File {
+                path,
+                base_dir,
+                is_entry,
+            } => {
+                let parent = if *is_entry {
+                    base_dir.as_path()
+                } else {
+                    path.parent().unwrap_or(path)
+                };
+                (parent, base_dir.as_path())
+            }
+            SourceOrigin::Memory { base_dir } => {
+                memory_base =
+                    absolute_normalized(base_dir.as_deref().unwrap_or_else(|| Path::new(".")))?;
+                (memory_base.as_path(), memory_base.as_path())
+            }
+            SourceOrigin::Uri(_) => {
+                self.warn_located(format!(
+                    "local include target has a URI source origin: {}",
+                    target.display()
+                ));
+                return Ok(TargetContentOutcome::Fallback(Box::new(
+                    IncludeResult::empty(),
+                )));
+            }
+        };
+        let path = self.resolve_file_target(parent, base_dir, target)?;
+        let optional = self.opts.iter().any(|option| option == "optional");
+        let content = match self.read_local_content(&path, optional, source_provider)? {
+            LocalIncludeOutcome::Content(content) => content,
+            LocalIncludeOutcome::Missing if optional => {
+                return Ok(TargetContentOutcome::Fallback(Box::new(
+                    IncludeResult::empty(),
+                )));
+            }
+            LocalIncludeOutcome::Missing | LocalIncludeOutcome::Unreadable => {
+                return Ok(TargetContentOutcome::Fallback(Box::new(
+                    self.unresolved_directive(attribute_list_as_written),
+                )));
+            }
+        };
+        let is_asciidoc = Self::has_asciidoc_extension(&path);
+        let source_origin = SourceOrigin::File {
+            path: path.clone(),
+            base_dir: base_dir.to_path_buf(),
+            is_entry: false,
+        };
+        Ok(TargetContentOutcome::Content((
+            content,
+            source_origin,
+            path,
+            is_asciidoc,
+        )))
+    }
+
+    fn read_target_content(
+        &self,
+        attribute_list_as_written: &str,
+        source_provider: &dyn IncludeSourceProvider,
+    ) -> Result<TargetContentOutcome, Error> {
+        if matches!(self.target, Target::Blank) {
+            return Ok(TargetContentOutcome::Fallback(Box::new(
+                self.blank_target_result(attribute_list_as_written),
+            )));
+        }
         if self.options.safe_mode == SafeMode::Secure {
             self.warn_located(format!(
                 "include not read in secure mode: {}",
                 self.target_as_written()
             ));
-            return Ok(IncludeResult::link_fallback(
-                self.target_as_written(),
-                self.options
-                    .compatibility_mode
-                    .legacy_controls_enabled(&self.options.document_attributes),
-            ));
+            return Ok(TargetContentOutcome::Fallback(Box::new(
+                IncludeResult::link_fallback(
+                    self.target_as_written(),
+                    self.options
+                        .compatibility_mode
+                        .legacy_controls_enabled(&self.options.document_attributes),
+                ),
+            )));
         }
 
-        let (content, source_origin, resolved_source, is_asciidoc) = match &self.target {
+        let content = match &self.target {
+            Target::Blank => {
+                return Ok(TargetContentOutcome::Fallback(Box::new(
+                    self.blank_target_result(attribute_list_as_written),
+                )));
+            }
             Target::Path(target) => {
-                let memory_base;
-                let (parent, base_dir) = match &self.source_origin {
-                    SourceOrigin::File {
-                        path,
-                        base_dir,
-                        is_entry,
-                    } => {
-                        let parent = if *is_entry {
-                            base_dir.as_path()
-                        } else {
-                            path.parent().unwrap_or(path)
-                        };
-                        (parent, base_dir.as_path())
-                    }
-                    SourceOrigin::Memory { base_dir } => {
-                        memory_base = absolute_normalized(
-                            base_dir.as_deref().unwrap_or_else(|| Path::new(".")),
-                        )?;
-                        (memory_base.as_path(), memory_base.as_path())
-                    }
-                    SourceOrigin::Uri(_) => {
-                        self.warn_located(format!(
-                            "local include target has a URI source origin: {}",
-                            target.display()
-                        ));
-                        return Ok(IncludeResult::empty());
-                    }
-                };
-                let path = self.resolve_file_target(parent, base_dir, target)?;
-                let optional = self.opts.iter().any(|option| option == "optional");
-                let content = match self.read_local_content(
-                    &path,
-                    optional,
-                    attribute_list_as_written,
-                    source_provider,
-                )? {
-                    IncludeOutcome::Content(content) => content,
-                    IncludeOutcome::Fallback(result) => return Ok(*result),
-                };
-                let is_asciidoc = Self::has_asciidoc_extension(&path);
-                let source_origin = SourceOrigin::File {
-                    path: path.clone(),
-                    base_dir: base_dir.to_path_buf(),
-                    is_entry: false,
-                };
-                (content, source_origin, path, is_asciidoc)
+                return self.read_file_target(target, attribute_list_as_written, source_provider);
             }
             Target::Url(url) => {
                 let content = match self.read_url_content_or_fallback(
@@ -1063,8 +1242,10 @@ impl<'a> Include<'a> {
                     attribute_list_as_written,
                     source_provider,
                 )? {
-                    IncludeOutcome::Content(content) => content,
-                    IncludeOutcome::Fallback(result) => return Ok(*result),
+                    UrlIncludeOutcome::Content(content) => content,
+                    UrlIncludeOutcome::Fallback(result) => {
+                        return Ok(TargetContentOutcome::Fallback(result));
+                    }
                 };
                 let parsed_url = Url::parse(url)?;
                 let is_asciidoc = Self::has_asciidoc_extension(Path::new(parsed_url.path()));
@@ -1080,18 +1261,22 @@ impl<'a> Include<'a> {
                     self.warn_located(format!(
                         "include uri not read because URI access is disabled: {uri}"
                     ));
-                    return Ok(IncludeResult::link_fallback(
-                        self.target_as_written(),
-                        self.options
-                            .compatibility_mode
-                            .legacy_controls_enabled(&self.options.document_attributes),
-                    ));
+                    return Ok(TargetContentOutcome::Fallback(Box::new(
+                        IncludeResult::link_fallback(
+                            self.target_as_written(),
+                            self.options
+                                .compatibility_mode
+                                .legacy_controls_enabled(&self.options.document_attributes),
+                        ),
+                    )));
                 }
                 self.warn_located(format!("include uri not readable: {uri}"));
-                return Ok(self.unresolved_directive(attribute_list_as_written));
+                return Ok(TargetContentOutcome::Fallback(Box::new(
+                    self.unresolved_directive(attribute_list_as_written),
+                )));
             }
         };
-        self.process_selected_content(content, &source_origin, &resolved_source, is_asciidoc)
+        Ok(TargetContentOutcome::Content(content))
     }
 
     /// Calculate the effective leveloffset for this include.
@@ -1136,6 +1321,16 @@ impl<'a> Include<'a> {
         self.warnings.borrow_mut().push(warning);
     }
 
+    fn warn_unlocated(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
+        let warning = Warning::new(
+            crate::WarningKind::ContentRecovery {
+                message: message.into(),
+            },
+            None,
+        );
+        warning.emit_trace();
+        self.warnings.borrow_mut().push(warning);
+    }
     #[cfg(test)]
     fn resolve_end_line(end: isize, max_size: usize) -> Option<usize> {
         match end {
@@ -1522,6 +1717,87 @@ mod tests {
                 .ok_or("unexpected indent limit")?;
         assert_eq!(text, "  def hello\n  \tputs \"Hello\"\n  end");
         assert_eq!(shift, 1);
+        Ok(())
+    }
+    #[test]
+    fn generic_attribute_syntax_is_tolerated() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let options = Options::default();
+        let include = parse_include(
+            &path,
+            r#"include::target.adoc[ ignored , lines, unknown='a,b', tag = 'example code' , options = "optional, partial" ]"#,
+            &options,
+        )?;
+
+        assert_eq!(include.selection, tag_selection(&["example code"]));
+        assert_eq!(include.opts, ["optional", "partial"]);
+        Ok(())
+    }
+
+    #[test]
+    fn quoted_attribute_values_unescape_matching_quotes() {
+        assert_eq!(
+            parse_include_attributes(r#"tag="say \"hello\", world",encoding='utf-\'8'"#),
+            [
+                ParsedAttribute::Named("tag".to_string(), r#"say "hello", world"#.to_string()),
+                ParsedAttribute::Named("encoding".to_string(), "utf-'8".to_string()),
+            ]
+        );
+    }
+
+    #[test]
+    fn ordinary_duplicate_attributes_are_last_wins() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let options = Options::default();
+        let include = parse_include(
+            &path,
+            "include::target.adoc[encoding=us-ascii,encoding=utf-8]",
+            &options,
+        )?;
+
+        assert_eq!(include.encoding.as_deref(), Some("utf-8"));
+        Ok(())
+    }
+
+    #[test]
+    fn raw_attribute_list_is_substituted_before_parsing() -> Result<(), Error> {
+        let path = PathBuf::from("/tmp");
+        let options = Options::builder()
+            .with_attribute("include-attrs", "lines=2..,options=optional")
+            .build()?;
+        let include = parse_include(&path, "include::target.adoc[{include-attrs}]", &options)?;
+
+        assert_eq!(
+            include.selection,
+            ContentSelection::Lines(vec![LinesRange::Range(2, -1)])
+        );
+        assert_eq!(include.opts, ["optional"]);
+        Ok(())
+    }
+
+    #[test]
+    fn raw_include_attributes_preserve_reference_escapes_and_literal_braces() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_attribute("name", "wrong")
+            .with_attribute("attribute-missing", "drop-line")
+            .build()?;
+        let include = parse_include(
+            Path::new("/tmp"),
+            r"include::target.adoc[opts=\{name},unknown={not an attribute}]",
+            &options,
+        )?;
+        assert_eq!(include.opts, ["{name}"]);
+        assert!(include.warnings.borrow().is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn open_line_ranges_keep_strict_numeric_validation() -> Result<(), Error> {
+        assert_eq!(
+            LinesRange::parse("12..", 1, 0, None)?,
+            [LinesRange::Range(12, -1)]
+        );
+        assert!(LinesRange::parse("2junk..4tail", 1, 0, None).is_err());
         Ok(())
     }
 }

@@ -510,3 +510,76 @@ fn default_limit_bounds_a_self_include_cycle() -> TestResult {
     assert_depth_warning(&result, 64, &tree.main, 3)?;
     Ok(())
 }
+
+#[test]
+fn per_include_zero_blocks_only_nested_directives() -> TestResult {
+    let tree = IncludeTree::new(
+        "MAIN BEFORE\n\ninclude::one.adoc[depth=0]\n\ninclude::two.adoc[]\n\nMAIN AFTER",
+        "ONE BEFORE\n\ninclude::two.adoc[]\n\nONE AFTER",
+        "TWO BODY",
+    )?;
+
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
+
+    assert_eq!(
+        paragraph_texts(&result)?,
+        [
+            "MAIN BEFORE",
+            "ONE BEFORE",
+            "include::two.adoc[]",
+            "ONE AFTER",
+            "TWO BODY",
+            "MAIN AFTER",
+        ]
+    );
+    assert_depth_warning(&result, 0, &tree.one, 3)?;
+    Ok(())
+}
+
+#[test]
+fn per_include_depth_uses_ruby_integer_coercion() -> TestResult {
+    for depth in ["1", "+1tail", "0_1", "1_0"] {
+        let tree = IncludeTree::new(
+            &format!("include::one.adoc[depth={depth}]"),
+            "ONE BEFORE\n\ninclude::two.adoc[]\n\nONE AFTER",
+            "TWO BODY",
+        )?;
+
+        let result = parse_file(
+            &tree.main,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?,
+        )?;
+
+        assert_eq!(
+            paragraph_texts(&result)?,
+            ["ONE BEFORE", "TWO BODY", "ONE AFTER"]
+        );
+        assert_eq!(result.warnings(), []);
+    }
+    Ok(())
+}
+
+#[test]
+fn per_include_depth_is_capped_by_the_global_limit() -> TestResult {
+    let tree = IncludeTree::new(
+        "include::one.adoc[depth=99]",
+        "ONE BEFORE\n\ninclude::two.adoc[]\n\nONE AFTER",
+        "TWO BODY",
+    )?;
+
+    let result = parse_file(&tree.main, &options("1")?)?;
+
+    assert_eq!(
+        paragraph_texts(&result)?,
+        ["ONE BEFORE", "include::two.adoc[]", "ONE AFTER"]
+    );
+    assert_depth_warning(&result, 1, &tree.one, 3)?;
+    Ok(())
+}

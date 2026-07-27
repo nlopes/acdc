@@ -19,6 +19,41 @@ use crate::{
     DocumentAttributes, Error, SafeMode, SourceLocation, model::RawAttributes,
 };
 
+pub(crate) fn parse_ruby_integer_magnitude(value: &str) -> usize {
+    let value = value.trim_start_matches(|ch: char| ch.is_ascii_whitespace());
+    let value = value
+        .strip_prefix('-')
+        .or_else(|| value.strip_prefix('+'))
+        .unwrap_or(value);
+    let mut digits = value.bytes().peekable();
+    let mut number = 0usize;
+    while let Some(digit) = digits.next() {
+        if !digit.is_ascii_digit() {
+            break;
+        }
+        number = number
+            .saturating_mul(10)
+            .saturating_add(usize::from(digit - b'0'));
+        if digits.peek() == Some(&b'_') {
+            digits.next();
+        }
+    }
+    number
+}
+
+/// Emulate Ruby's `String#to_i` using leading ASCII whitespace and a signed
+/// decimal prefix, including underscores between digits. Missing digits produce
+/// zero and overflow saturates.
+pub(crate) fn ruby_to_isize(value: &str) -> isize {
+    let value = value.trim_start_matches(|ch: char| ch.is_ascii_whitespace());
+    let magnitude = parse_ruby_integer_magnitude(value);
+    if value.starts_with('-') {
+        isize::try_from(magnitude).map_or(isize::MIN, isize::saturating_neg)
+    } else {
+        isize::try_from(magnitude).unwrap_or(isize::MAX)
+    }
+}
+
 pub(crate) const DEFAULT_MAX_INCLUDE_DEPTH: i128 = 64;
 pub(crate) const MAX_INCLUDE_DEPTH_ATTR: &str = "max-include-depth";
 static DEFAULT_MAX_INCLUDE_DEPTH_VALUE: DocumentAttributeValue<'static> =

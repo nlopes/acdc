@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Non-conforming manpage titles return `NonConformingManpageTitle` warnings with
   the existing fallback values. Explicit strict mode still rejects them.
 
+- Include attribute lists now accept single or double quotes, ignored unknown
+  fields, `options=`, raw attribute expansion, open-ended `lines=`, and `depth=`.
+  Missing target attributes follow the selected `attribute-missing` recovery policy.
+  Escaped references and invalid reference names remain literal, and quoted
+  attribute values can contain closing brackets.
+
 - **Breaking since 0.11:** public names now distinguish table cells, reference
   targets, quoted spans, and UI macros. Replace `TableColumn` with `TableCell`,
   `Reference` with `ReferenceTarget`, `CurvedApostrophe` / `CurvedQuotation` with
