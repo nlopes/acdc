@@ -2704,7 +2704,7 @@ fn recovered_parser_errors_obey_warning_policy_and_finish_remaining_inputs()
             fs::write(part, "Included body.")?;
             fs::write(
                 &recovered,
-                "Before.\n\ninclude::part.adoc[unknown=1]\n\nAfter.",
+                "Before.\n\ninclude::part.adoc[indent=nope]\n\nAfter.",
             )?;
             fs::write(&clean, "Clean body.")?;
             let recovered_arg = recovered.to_string_lossy();
@@ -2723,7 +2723,7 @@ fn recovered_parser_errors_obey_warning_policy_and_finish_remaining_inputs()
             }
             assert!(fs::read_to_string(clean.with_extension("html"))?.contains("Clean body."));
             assert_eq!(
-                stderr.matches("unknown include option").count(),
+                stderr.matches("invalid include indent").count(),
                 1,
                 "{stderr}"
             );

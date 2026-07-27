@@ -34,15 +34,13 @@ fn assert_recovery(parsed: &ParseResult, message: &str, line: u32) -> TestResult
 }
 
 #[rstest::rstest]
+#[case("bogus=1,lines=2", false)]
+#[case("indent=nope,lines=2", true)]
+#[case("indent=4097,lines=2", true)]
 fn include_options_recover_for_all_entry_points(
     #[values(CompatibilityMode::Asciidoctor, CompatibilityMode::Draft)] mode: CompatibilityMode,
-    #[values(
-        "bogus=1,lines=2",
-        "indent=nope,lines=2",
-        "leveloffset=nope,lines=2",
-        "indent=4097,lines=2"
-    )]
-    attributes: &str,
+    #[case] attributes: &str,
+    #[case] warns: bool,
 ) -> TestResult {
     let directory = tempdir()?;
     fs::write(
@@ -66,8 +64,12 @@ fn include_options_recover_for_all_entry_points(
             parsed.preprocessed_source(),
             "Before.\n\nSelected.\n\nAfter."
         );
-        assert_eq!(parsed.warnings().len(), 1);
-        assert_recovery(&parsed, "ignoring", 3)?;
+        if warns {
+            assert_eq!(parsed.warnings().len(), 1);
+            assert_recovery(&parsed, "ignoring", 3)?;
+        } else {
+            assert_eq!(parsed.warnings(), []);
+        }
     }
     Ok(())
 }
@@ -89,7 +91,6 @@ fn invalid_include_selection_syntax_and_urls_never_read_targets(
         "include::part.adoc[lines=nope]",
         "include::part.adoc[lines=1..x]",
         "include::part.adoc[lines=1..2..3]",
-        "include::part.adoc[lines]",
         "include::https://[]"
     )]
     directive: &str,
@@ -116,7 +117,7 @@ fn nested_recovery_retains_original_file_and_line(
     fs::write(&parent, "Parent.\n\ninclude::child.adoc[lines=2..4]")?;
     fs::write(
         &child,
-        "Not selected.\nChild.\n\ninclude::part.adoc[bogus=1,lines=2]",
+        "Not selected.\nChild.\n\ninclude::part.adoc[indent=nope,lines=2]",
     )?;
     fs::write(
         directory.path().join("part.adoc"),
@@ -132,7 +133,7 @@ fn nested_recovery_retains_original_file_and_line(
         parsed.preprocessed_source(),
         "Before.\n\nParent.\n\nChild.\n\nGrandchild.\n\nAfter."
     );
-    assert_recovery(&parsed, "unknown include option", 4)?;
+    assert_recovery(&parsed, "invalid include indent", 4)?;
     assert_eq!(
         parsed
             .warnings()

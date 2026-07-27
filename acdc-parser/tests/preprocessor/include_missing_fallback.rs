@@ -13,6 +13,49 @@ use acdc_parser::{
 
 type TestResult = Result<(), Box<dyn Error>>;
 
+#[rstest::rstest]
+fn include_targets_preserve_escaped_and_invalid_attribute_references(
+    #[values("skip", "drop", "drop-line", "warn")] policy: &str,
+    #[values((r"\{name}", "{name}"), ("{not an attribute}", "{not an attribute}"), ("{name.part}", "{name.part}"))]
+    (target, filename): (&str, &str),
+) -> TestResult {
+    let tree = IncludeTree::main_only(&format!(":name: wrong\n\ninclude::{target}.adoc[]"))?;
+    fs::write(
+        tree.directory.join(format!("{filename}.adoc")),
+        "LITERAL TARGET",
+    )?;
+    let options = Options::builder()
+        .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+        .with_attribute("attribute-missing", policy)
+        .build()?;
+    let result = parse_file(&tree.main, &options)?;
+    assert_eq!(paragraph_texts(&result)?, ["LITERAL TARGET"]);
+    assert_eq!(result.warnings(), []);
+    Ok(())
+}
+
+#[rstest::rstest]
+fn quoted_include_attributes_preserve_closing_brackets(
+    #[values(
+        "opts=\"optional,ignored]value\"",
+        "opts='optional,ignored]value'",
+        "unknown=\"a]b\",lines=1"
+    )]
+    attributes: &str,
+) -> TestResult {
+    let tree = IncludeTree::main_only(&format!("include::child.adoc[{attributes}]"))?;
+    fs::write(tree.directory.join("child.adoc"), "INCLUDED\nSECOND.")?;
+    let result = parse_file(
+        &tree.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
+    assert!(result.preprocessed_source().contains("INCLUDED"));
+    assert_eq!(result.warnings(), []);
+    Ok(())
+}
+
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 struct IncludeTree {
@@ -196,17 +239,23 @@ fn missing_nested_include_is_attributed_to_its_including_source() -> TestResult 
 
 #[test]
 fn optional_missing_include_remains_silent_and_is_removed() -> TestResult {
-    let tree = IncludeTree::main_only("BEFORE\n\ninclude::missing.adoc[opts=optional]\n\nAFTER")?;
+    for source in [
+        "BEFORE\n\ninclude::missing.adoc[opts=optional]\n\nAFTER",
+        "BEFORE\n\ninclude::missing.adoc[options=optional]\n\nAFTER",
+        ":include-options: optional\n\nBEFORE\n\ninclude::missing.adoc[opts={include-options}]\n\nAFTER",
+    ] {
+        let tree = IncludeTree::main_only(source)?;
 
-    let result = parse_file(
-        &tree.main,
-        &Options::builder()
-            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-            .build()?,
-    )?;
+        let result = parse_file(
+            &tree.main,
+            &Options::builder()
+                .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+                .build()?,
+        )?;
 
-    assert_eq!(paragraph_texts(&result)?, ["BEFORE", "AFTER"]);
-    assert_eq!(result.warnings(), []);
+        assert_eq!(paragraph_texts(&result)?, ["BEFORE", "AFTER"]);
+        assert_eq!(result.warnings(), []);
+    }
     Ok(())
 }
 
@@ -241,5 +290,110 @@ fn unreadable_filtered_include_inserts_fallback_and_continues() -> TestResult {
         &tree.main,
         3,
     )?;
+    Ok(())
+}
+
+#[test]
+fn blank_resolved_targets_use_reference_recovery() -> TestResult {
+    let required = IncludeTree::main_only("BEFORE\n\ninclude::{blank}[]\n\nAFTER")?;
+    let result = parse_file(
+        &required.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
+    assert_eq!(
+        paragraph_texts(&result)?,
+        [
+            "BEFORE",
+            "Unresolved directive in main.adoc - include::[]",
+            "AFTER",
+        ]
+    );
+    assert_missing_warning(
+        &result,
+        "include dropped because resolved target is blank: include::{blank}[]",
+        &required.main,
+        3,
+    )?;
+
+    let optional = IncludeTree::main_only("BEFORE\n\ninclude::{blank}[options=optional]\n\nAFTER")?;
+    let result = parse_file(
+        &optional.main,
+        &Options::builder()
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?,
+    )?;
+    assert_eq!(paragraph_texts(&result)?, ["BEFORE", "AFTER"]);
+    assert_eq!(result.warnings(), []);
+    Ok(())
+}
+
+#[test]
+fn missing_target_attributes_follow_attribute_missing_policy() -> TestResult {
+    for (policy, expected, warning_count) in [
+        (
+            "drop",
+            vec![
+                "BEFORE",
+                "Unresolved directive in main.adoc - include::[]",
+                "AFTER",
+            ],
+            1,
+        ),
+        ("drop-line", vec!["BEFORE", "AFTER"], 0),
+        (
+            "warn",
+            vec![
+                "BEFORE",
+                "Unresolved directive in main.adoc - include::{missing}[]",
+                "AFTER",
+            ],
+            2,
+        ),
+        (
+            "skip",
+            vec![
+                "BEFORE",
+                "Unresolved directive in main.adoc - include::{missing}[]",
+                "AFTER",
+            ],
+            1,
+        ),
+    ] {
+        let tree = IncludeTree::main_only("BEFORE\n\ninclude::{missing}[]\n\nAFTER")?;
+        let options = Options::builder()
+            .with_attribute("attribute-missing", policy)
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?;
+
+        let result = parse_file(&tree.main, &options)?;
+
+        assert_eq!(paragraph_texts(&result)?, expected, "{policy}");
+        assert_eq!(result.warnings().len(), warning_count, "{policy}");
+    }
+    Ok(())
+}
+
+#[test]
+fn missing_attributes_in_raw_attribute_list_follow_policy() -> TestResult {
+    for (policy, expected, warning_count) in [
+        ("drop", vec!["L1", "L2", "L3"], 0),
+        ("drop-line", vec!["L1", "L2", "L3"], 0),
+        ("warn", vec!["L1", "L2", "L3"], 1),
+        ("skip", vec!["L1", "L2", "L3"], 0),
+    ] {
+        let tree = IncludeTree::main_only("include::target.adoc[unknown={missing}]")?;
+        fs::write(tree.directory.join("target.adoc"), "L1\n\nL2\n\nL3")?;
+        let options = Options::builder()
+            .with_attribute("attribute-missing", policy)
+            .with_safe_mode(acdc_parser::SafeMode::Unsafe)
+            .build()?;
+
+        let result = parse_file(&tree.main, &options)?;
+
+        assert_eq!(paragraph_texts(&result)?, expected, "{policy}");
+        assert_eq!(result.warnings().len(), warning_count, "{policy}");
+    }
     Ok(())
 }

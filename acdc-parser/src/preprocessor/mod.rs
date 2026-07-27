@@ -215,6 +215,7 @@ struct IncludeContext {
     allows_uri_read: bool,
     depth: usize,
     max_depth: usize,
+    local_depth_limit: Option<usize>,
     // Clones share one counter across all sibling and nested includes.
     remaining_include_bytes: Rc<Cell<usize>>,
     block_context: comment::BlockContext,
@@ -232,6 +233,7 @@ impl IncludeContext {
             allows_uri_read: options.document_attributes.contains_key("allow-uri-read"),
             depth: 0,
             max_depth,
+            local_depth_limit: None,
             remaining_include_bytes: Rc::new(Cell::new(options.max_total_include_bytes())),
             block_context: comment::BlockContext::default(),
         }
@@ -264,7 +266,7 @@ impl IncludeContext {
     /// directive is left for that path to handle.
     fn blocked_limit(&self, safe_mode: crate::SafeMode) -> Option<usize> {
         (safe_mode != crate::SafeMode::Secure && self.depth >= self.max_depth)
-            .then_some(self.max_depth)
+            .then_some(self.local_depth_limit.unwrap_or(self.max_depth))
     }
 }
 

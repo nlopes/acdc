@@ -1144,8 +1144,8 @@ acting on recovered content. Rendering can continue with the recovered document.
 
 Recoverable document problems return a document and located warnings by default
 in both compatibility modes. Unknown include options are ignored while valid
-options still apply; acdc warns where Asciidoctor silently ignores them.
-Invalid `indent=` and `leveloffset=` overrides are ignored. Indentation over
+options still apply, matching Asciidoctor.
+Invalid `indent=` and `leveloffset=` overrides are ignored with a warning. Indentation over
 4,096 spaces is rejected before allocation and the include keeps
 its original indentation. Malformed include syntax, invalid URLs, and invalid
 `lines=` selections preserve the directive without reading the target. An invalid
@@ -1287,6 +1287,18 @@ adds a located warning to `ParseResult::warnings()`. Parsing and conversion
 continue. Asciidoctor keeps the same content but reports the condition at error
 severity.
 
+## Include attribute lists
+
+Include directives accept quoted values, whitespace around assignments, unknown
+fields, and `options=` as an alias for `opts=`. Attribute references in the raw
+list are expanded before fields are parsed. Single and double quotes protect
+commas; unknown and positional fields are ignored, matching Asciidoctor.
+
+`lines=` accepts open-ended ranges such as `12..`. A comma takes precedence
+over a semicolon as the range separator. Malformed numbers remain errors so an
+invalid selection cannot silently include the whole file. This strict validation
+differs from Asciidoctor's leading-decimal conversion.
+
 ## Include targets
 
 Include targets may contain internal spaces. Leading or trailing ASCII whitespace
@@ -1350,7 +1362,13 @@ directive is preserved, a located diagnostic is added to `ParseResult::warnings(
 and parsing continues. Only an exact `include::` directive is processed; block macro
 names that merely begin with `include` remain ordinary content without include
 diagnostics. Declarations in document content are consumed but cannot change or unset
-the trusted value and do not appear as `Block::DocumentAttribute` nodes in the AST.
+the trusted value and do not appear as document-attribute events in the AST.
+
+An include can set `depth=N` to limit nesting below its target. The target itself
+is read; `depth=0` preserves its nested directives with warnings. This limit
+cannot raise the active global or parent include limit. `depth=` accepts a leading
+signed decimal value, matching Asciidoctor, while `max-include-depth` retains the
+complete nonnegative integer validation described above.
 
 ## Include indentation
 
