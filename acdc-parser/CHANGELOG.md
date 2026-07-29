@@ -86,6 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Include targets beginning with a case-insensitive ASCII URI scheme are now
+  classified before local paths. HTTP(S) remains the supported transport; other
+  schemes use URI fallback or recovery and cannot resolve as local files. acdc keeps
+  Asciidoctor's two-character Windows-path disambiguation but intentionally treats
+  MRI Asciidoctor's non-ASCII scheme-like prefixes as paths.
 - Include decoding now ignores unknown encoding labels before BOM/UTF-8 fallback and
   recovers malformed explicitly transcoded local files as unreadable includes.
   acdc intentionally retains `encoding_rs` labels and decode-before-selection

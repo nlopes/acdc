@@ -123,11 +123,15 @@ Include targets may contain internal spaces. Leading or trailing ASCII whitespac
 still makes the line invalid as an include directive, so we leave it for ordinary
 document parsing.
 
-Local targets with spaces resolve normally below Secure mode. In Secure mode, and
-for HTTP(S) targets without caller-supplied URI authority, we preserve the complete
-target in the same link fallback as Asciidoctor. For authorized HTTP(S) reads, the
-target follows `ureq`'s URI rules: a raw space takes the located unreadable-URI
-recovery path.
+Local targets with spaces resolve normally below Secure mode. Targets beginning with
+an ASCII URI scheme are classified before local paths, so unsupported schemes never
+fall through to filesystem access. A scheme must contain at least two characters,
+preserving Asciidoctor's Windows drive-path disambiguation. Scheme names are
+case-insensitive. In Secure mode, and for URI targets without caller-supplied URI
+authority, we preserve the complete target in the same link fallback as Asciidoctor.
+For authorized HTTP(S) reads, the target follows `ureq`'s URI rules: a raw space takes
+the located unreadable-URI recovery path. Authorized targets with other schemes
+produce the same unresolved-URI recovery without a transport attempt.
 
 ## Partial includes
 
@@ -229,7 +233,8 @@ transformations match asciidoctor; they are not strict symlink containment.
 
 ## Remote includes
 
-HTTP(S) includes require the optional `network` feature, a safe mode below
+URI-looking targets are classified before local paths. Network reads are intentionally
+limited to HTTP(S), which require the optional `network` feature, a safe mode below
 `Secure`, and a caller-supplied `allow-uri-read` attribute. A document cannot grant
 itself this authority. Each response is limited to 10 MiB after transport decoding;
 larger responses return an HTTP request error. The limit is fixed, applies separately
@@ -311,6 +316,11 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
   and limit behavior.
 * **Remote include transport**: We use `ureq` and don't try to reproduce the URI
   transport behavior that Asciidoctor's Ruby implementation inherits from OpenURI.
+  URI classification uses the portable ASCII scheme syntax and Asciidoctor's
+  two-character Windows-path carve-out. MRI Asciidoctor also accepts non-ASCII
+  scheme-like prefixes as a side effect of Ruby's Unicode-aware regular expressions;
+  acdc treats those prefixes as paths. Only HTTP(S) is fetched; FTP and other ASCII
+  schemes take URI recovery and never local-file handling.
   Request and response-body I/O failures recover without processing partial content.
   See [Remote includes](#remote-includes).
 * **Include encoding labels and selection**: acdc uses the WHATWG-oriented

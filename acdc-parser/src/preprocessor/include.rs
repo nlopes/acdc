@@ -196,13 +196,17 @@ enum LinesRange {
 pub(crate) enum Target {
     Path(PathBuf),
     Url(String),
+    UnsupportedUri(String),
 }
 
 impl Target {
     fn parse(target: &str, source_origin: &SourceOrigin) -> Result<Self, Error> {
-        if target.starts_with("http://") || target.starts_with("https://") {
-            Url::parse(target)?;
-            return Ok(Self::Url(target.to_string()));
+        if let Some(scheme) = include_uri_scheme(target) {
+            if scheme.eq_ignore_ascii_case("http") || scheme.eq_ignore_ascii_case("https") {
+                Url::parse(target)?;
+                return Ok(Self::Url(target.to_string()));
+            }
+            return Ok(Self::UnsupportedUri(target.to_string()));
         }
 
         if let SourceOrigin::Uri(containing_uri) = source_origin {
@@ -213,6 +217,26 @@ impl Target {
 
         Ok(Self::Path(PathBuf::from(target)))
     }
+}
+
+/// Recognize the ASCII scheme syntax from RFC 3986, but require two scheme
+/// characters as Asciidoctor does to keep Windows drive paths such as `c:/`
+/// local. MRI Asciidoctor's Unicode-aware character classes are a historical
+/// regex-engine side effect (its Opal implementation remained ASCII), so acdc
+/// intentionally follows the portable scheme syntax instead.
+///
+/// Provenance: Claude investigated this behavior and wrote this function; this seems fine
+/// and I also looked at the asciidoctor source myself and _roughly_ matches. I'm not sure
+/// if I'm just carrying dead weight from asciidoctor though.
+fn include_uri_scheme(target: &str) -> Option<&str> {
+    let (scheme, _) = target.split_once(':')?;
+    let (first, rest) = scheme.as_bytes().split_first()?;
+    (!rest.is_empty()
+        && first.is_ascii_alphabetic()
+        && rest
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'+' | b'-')))
+    .then_some(scheme)
 }
 
 /// Directory portion of a URI without normalizing its path.
@@ -740,7 +764,7 @@ impl<'a> Include<'a> {
     fn report_tag_issue(&self, issue: TagIssue, resolved_source: &Path) {
         let target_type = match &self.target {
             Target::Path(_) => "file",
-            Target::Url(_) => "uri",
+            Target::Url(_) | Target::UnsupportedUri(_) => "uri",
         };
         let target = resolved_source.display();
         let message = match issue {
@@ -1098,6 +1122,16 @@ impl<'a> Include<'a> {
                     is_asciidoc,
                 )
             }
+            Target::UnsupportedUri(uri) => {
+                if !self.context.allows_uri_read {
+                    return Ok(IncludeResult::link_fallback(
+                        self.target_as_written(),
+                        self.options.document_attributes.is_set("compat-mode"),
+                    ));
+                }
+                self.warn_located(format!("include uri not readable: {uri}"));
+                return Ok(self.unresolved_uri_directive(attribute_list_as_written));
+            }
         };
         let effective_leveloffset = self.calculate_effective_leveloffset();
         let (content, leveloffset_ranges, source_ranges) =
@@ -1263,6 +1297,42 @@ mod tests {
                 .filter_map(|value| TagFilter::parse(value))
                 .collect(),
         )
+    }
+
+    #[test]
+    fn include_uri_scheme_uses_portable_syntax_and_windows_carveout() {
+        for (target, expected) in [
+            ("ftp://example.test/part.adoc", "ftp"),
+            ("data:text/plain,x", "data"),
+            ("git+ssh://example.test/path", "git+ssh"),
+            ("ab:/path", "ab"),
+            ("HTTP://example.test/path", "HTTP"),
+        ] {
+            assert_eq!(include_uri_scheme(target), Some(expected), "{target}");
+        }
+
+        for target in [
+            "a:/path",
+            "c:/sample.adoc",
+            r"c:\sample.adoc",
+            "foo_bar:/path",
+            "1abc:/path",
+            "éx:valeur",
+            "ab٣:valeur",
+            "ab¾:valeur",
+            "ab①:valeur",
+        ] {
+            assert_eq!(include_uri_scheme(target), None, "{target}");
+        }
+
+        let source_origin = SourceOrigin::File {
+            path: PathBuf::from("source.adoc"),
+            base_dir: PathBuf::new(),
+        };
+        assert!(matches!(
+            Target::parse("HTTP://example.test/path", &source_origin),
+            Ok(Target::Url(url)) if url == "HTTP://example.test/path"
+        ));
     }
 
     #[test]
