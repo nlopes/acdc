@@ -121,6 +121,8 @@ jobs:
         with:
           version: 0.15.2
       - uses: Swatinem/rust-cache@v2
+      - name: Rebuild Ghostty for the current runner
+        run: cargo clean -p libghostty-vt-sys
       - uses: taiki-e/install-action@nextest
       - name: Run converter tests
         run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
