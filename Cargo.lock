@@ -4966,9 +4966,9 @@ checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
 
 [[package]]
 name = "typst"
-version = "0.15.0"
+version = "0.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c8bf2a5a9d58cc542764a88dd43c8a679b683db4ae23e36267219339ab36b01"
+checksum = "d1cb79435d128de5d5443a058a983f6dcc16738760fa55ed703762bc278b1fd3"
 dependencies = [
  "arrayvec",
  "comemo",
