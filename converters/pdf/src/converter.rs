@@ -20,6 +20,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         Self {
             options,
             document_attributes,
+            references: std::collections::HashMap::new(),
             pdf_options: PdfOptions::default(),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),

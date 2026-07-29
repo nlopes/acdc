@@ -82,6 +82,8 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&para.metadata);
+
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
             para.metadata.substitutions.as_ref(),
@@ -104,6 +106,8 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&block.metadata);
+
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
             block.metadata.substitutions.as_ref(),
@@ -152,6 +156,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
         self.list_depth += 1;
         for item in &list.items {
@@ -163,6 +168,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
         self.list_depth += 1;
         for item in &list.items {
@@ -174,8 +180,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
         for item in &list.items {
+            for anchor in &item.anchors {
+                self.write_anchor_target(anchor);
+            }
             self.writer.raw("#text(weight: \"bold\")[");
             self.write_inlines(&item.term)?;
             self.writer.raw("]\n");
@@ -190,6 +200,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
         for item in &list.items {
             self.writer.raw("- ");
@@ -207,6 +218,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&admon.metadata);
         let kind = match admon.variant {
             AdmonitionVariant::Note => "note",
             AdmonitionVariant::Tip => "tip",
@@ -219,10 +231,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_image(&mut self, img: &Image<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&img.metadata);
         self.write_block_image(img)
     }
 
     fn visit_video(&mut self, video: &Video<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&video.metadata);
         self.warn_unsupported("video blocks", "rendering the video target as text");
         self.write_block_title(&video.title)?;
         let sources = video
@@ -237,6 +251,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_audio(&mut self, audio: &Audio<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&audio.metadata);
         self.warn_unsupported("audio blocks", "rendering the audio target as text");
         self.write_block_title(&audio.title)?;
         self.write_text_expr(&format!("[audio: {}]", audio.source));
@@ -244,22 +259,28 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         Ok(())
     }
 
-    fn visit_thematic_break(&mut self, _br: &ThematicBreak<'_>) -> Result<(), Self::Error> {
+    fn visit_thematic_break(&mut self, br: &ThematicBreak<'_>) -> Result<(), Self::Error> {
+        if let Some(anchor) = br.anchors.first() {
+            self.write_anchor_target(anchor);
+        }
         self.writer.raw("#hr()\n\n");
         Ok(())
     }
 
-    fn visit_page_break(&mut self, _br: &PageBreak<'_>) -> Result<(), Self::Error> {
+    fn visit_page_break(&mut self, br: &PageBreak<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&br.metadata);
         self.writer.raw("#pagebreak()\n\n");
         Ok(())
     }
 
     fn visit_table_of_contents(&mut self, toc: &TableOfContents<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&toc.metadata);
         self.render_toc(Some(toc), "macro");
         Ok(())
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader<'_>) -> Result<(), Self::Error> {
+        self.write_block_anchor(&header.metadata);
         let level = header.level.max(1);
         let _ = write!(self.writer, "#heading(level: {level}, outlined: false)[");
         self.write_title(&header.title)?;

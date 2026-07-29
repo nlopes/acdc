@@ -7,7 +7,7 @@
 #[cfg(feature = "pre-spec-subs")]
 use std::{cell::Cell, rc::Rc};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeSet, HashMap},
     fmt::Write as _,
     fs::File,
     io::Read,
@@ -22,7 +22,7 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode, ListItem,
-    SafeMode, Source, Table, TableRow,
+    Reference, SafeMode, Source, Table, TableRow,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -80,12 +80,13 @@ pub struct PdfOptions {
 pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
+    references: HashMap<&'a str, Reference<'a>>,
     pdf_options: PdfOptions,
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
-impl Processor<'_> {
+impl<'a> Processor<'a> {
     /// Override PDF-specific conversion options.
     #[must_use]
     pub fn with_pdf_options(mut self, pdf_options: PdfOptions) -> Self {
@@ -112,6 +113,33 @@ impl Processor<'_> {
 
     pub(crate) fn document_attributes(&self) -> &DocumentAttributes<'_> {
         &self.document_attributes
+    }
+
+    /// Resolve an empty cross-reference's display text from the parser's
+    /// reference catalog.
+    pub(crate) fn xref_text(&self, target: &str) -> String {
+        match self.references.get(target) {
+            Some(reference) => {
+                if let Some(label) = reference.xreflabel {
+                    label.to_string()
+                } else if let Some(title) = &reference.title {
+                    inlines_to_string(title)
+                } else {
+                    format!("[{target}]")
+                }
+            }
+            None => format!("[{target}]"),
+        }
+    }
+
+    /// Clone a target title's inline nodes so the visitor can preserve its
+    /// formatting while mutably rendering the link.
+    pub(crate) fn xref_title_inlines(&self, target: &str) -> Option<Vec<InlineNode<'a>>> {
+        self.references
+            .get(target)
+            .filter(|reference| reference.xreflabel.is_none())
+            .and_then(|reference| reference.title.as_deref())
+            .map(<[InlineNode<'a>]>::to_vec)
     }
 
     pub(crate) fn pdf_options(&self) -> &PdfOptions {
@@ -177,6 +205,7 @@ impl Processor<'_> {
         let processor = Processor {
             options: self.options.clone(),
             document_attributes: doc.attributes.clone(),
+            references: doc.references.clone(),
             pdf_options: self.pdf_options.clone(),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
@@ -932,6 +961,50 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         assert!(typst.contains("<id-612e62>"), "{typst}");
         assert!(typst.contains("<id-612f62>"), "{typst}");
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        Ok(())
+    }
+
+    #[test]
+    fn block_cross_references_emit_targets_and_resolve_reference_text()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Title\n\nSee <<table-id>>, <<listing-id>>, <<image-id>>, and <<term-id>>.\n\n[[table-id]]\n.Table *Title*\n|===\n|Cell\n|===\n\n[[listing-id,Custom Listing]]\n.Listing Title\n----\ncode\n----\n\n[[image-id]]\n.Image Title\nimage::missing.png[]\n\n[[term-id]]\nTerm:: Definition\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for id in ["table-id", "listing-id", "image-id", "term-id"] {
+            let label = encode_label(id);
+            assert!(
+                typst.contains(&format!("#metadata(none) <{label}>")),
+                "missing target for {id}: {typst}"
+            );
+            assert!(
+                typst.contains(&format!("#link(<{label}>)")),
+                "missing link for {id}: {typst}"
+            );
+        }
+        assert!(
+            typst.contains(
+                "#link(<id-7461626c652d6964>)[#text(\"Table \")#strong[#text(\"Title\")]]"
+            ),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#link(<id-6c697374696e672d6964>)[#text(\"Custom Listing\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#link(<id-7465726d2d6964>)[#text(\"[term-id]\")]"),
+            "{typst}"
+        );
+
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         Ok(())

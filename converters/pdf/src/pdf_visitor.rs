@@ -11,8 +11,8 @@ use acdc_converters_core::{
     visitor::Visitor,
 };
 use acdc_parser::{
-    Block, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Source, Table, TableOfContents,
-    Title,
+    Anchor, Block, BlockMetadata, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Source,
+    Table, TableOfContents, Title,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_typst::Writer;
@@ -119,6 +119,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("#text(");
         self.writer.string_literal(text);
         self.writer.raw(")");
+    }
+
+    pub(crate) fn write_block_anchor(&mut self, metadata: &BlockMetadata<'_>) {
+        if let Some(anchor) = metadata.id.as_ref().or_else(|| metadata.anchors.first()) {
+            self.write_anchor_target(anchor);
+        }
+    }
+
+    pub(crate) fn write_anchor_target(&mut self, anchor: &Anchor<'_>) {
+        let _ = writeln!(
+            self.writer,
+            "#metadata(none) <{}>",
+            crate::encode_label(anchor.id)
+        );
     }
 
     pub(crate) fn write_plain(&mut self, text: &str) {
@@ -351,16 +365,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             InlineMacro::CrossReference(xref) => {
                 let label = crate::encode_label(xref.target);
-                let text = if xref.text.is_empty() {
-                    self.processor
-                        .document_attributes()
-                        .get_string(xref.target)
-                        .map_or_else(|| xref.target.to_string(), Cow::into_owned)
-                } else {
-                    inlines_to_string(&xref.text)
-                };
                 let _ = write!(self.writer, "#link(<{label}>)[");
-                self.write_text_expr(&text);
+                if xref.text.is_empty() {
+                    if let Some(title) = self.processor.xref_title_inlines(xref.target) {
+                        self.write_inlines(&title)?;
+                    } else {
+                        self.write_text_expr(&self.processor.xref_text(xref.target));
+                    }
+                } else {
+                    self.write_inlines(&xref.text)?;
+                }
                 self.writer.raw("]");
             }
             InlineMacro::Pass(pass) => {

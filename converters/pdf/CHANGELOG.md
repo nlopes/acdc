@@ -27,3 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   configuration, `subs=`, images in titles, Unicode and punctuation-heavy
   cross-references, asset diagnostics, and timing counts now behave consistently with the
   rest of the converter pipeline.
+- Cross-references to IDs on tables, listings, images, lists, admonitions, media, and
+  other blocks now link to the target in the PDF. References without explicit link text
+  use the target's reference label or title, including its inline formatting, and fall
+  back to `[id]` for untitled targets.
