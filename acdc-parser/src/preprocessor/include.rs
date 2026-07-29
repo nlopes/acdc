@@ -1021,6 +1021,15 @@ impl<'a> Include<'a> {
                 self.warn_located(format!("include file not readable: {}", path.display()));
                 return Ok(None);
             }
+            Err(Error::UnrecognizedEncodingInFile(_))
+                if self.encoding.as_deref().is_some_and(|label| {
+                    encoding_rs::Encoding::for_label(label.as_bytes())
+                        .is_some_and(|encoding| encoding != encoding_rs::UTF_8)
+                }) =>
+            {
+                self.warn_located(format!("include file not readable: {}", path.display()));
+                return Ok(None);
+            }
             Err(error) => return Err(error),
         };
         Ok(Some(decoded))

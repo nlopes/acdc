@@ -175,7 +175,7 @@ impl Error {
                 "Remote includes require the 'network' feature. Rebuild with `cargo build --features network` or use local file includes instead",
             ),
             Self::UnknownEncoding(..) | Self::UnrecognizedEncodingInFile(..) => Some(
-                "We only support UTF-8 or UTF-16 encoded files. Ensure the specified encoding is correct and the file is saved with that encoding",
+                "Ensure the source bytes match the declared encoding and form valid Unicode after transcoding",
             ),
             Self::NonConformingManpageTitle(..) => Some(
                 "Manpage document titles must be in the format 'name(volume)', e.g., 'git-commit(1)'. Remove --strict flag to use fallback values.",

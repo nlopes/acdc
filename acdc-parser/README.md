@@ -247,6 +247,20 @@ equivalent per-response limit.
 When `compat-mode` is set, denied URI includes omit the `include` role from their
 fallback link, matching Asciidoctor.
 
+## Include encodings
+
+Local and remote include bytes are decoded before line or tag selection. BOM-marked
+UTF-8 and UTF-16 are detected automatically; explicit endian UTF-16 labels work
+without a BOM; and WHATWG single-byte labels and aliases supported by `encoding_rs`
+are transcoded to UTF-8. Unknown labels are ignored before BOM/UTF-8 fallback,
+matching Asciidoctor's observable behavior.
+
+Malformed UTF-16 under an explicit local encoding produces a located unreadable-file
+warning, preserves an unresolved directive, and continues. Invalid UTF-8 without
+transcoding remains fatal. Because acdc decodes the complete target before selection,
+BOM detection also works for `lines=` and `tag=`; Asciidoctor 2.0.26 instead changes
+to a line-reader path whose BOM-only UTF-16 behavior differs.
+
 ## Parser fixtures
 
 We use two fixture styles, and they are intentionally different.
@@ -299,6 +313,9 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
   transport behavior that Asciidoctor's Ruby implementation inherits from OpenURI.
   Request and response-body I/O failures recover without processing partial content.
   See [Remote includes](#remote-includes).
+* **Include encoding labels and selection**: acdc uses the WHATWG-oriented
+  `encoding_rs` label set rather than Ruby's exact aliases and decodes a complete
+  target before selecting lines or tags. See [Include encodings](#include-encodings).
 * **Include indentation limit**: As an intentional acdc security policy,
   `include::file[indent=N]` accepts at most `4096` spaces instead of allowing an
   unbounded allocation. AsciiDoc does not require this cap, and asciidoctor does not

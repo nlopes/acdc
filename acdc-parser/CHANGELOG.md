@@ -86,6 +86,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Include decoding now ignores unknown encoding labels before BOM/UTF-8 fallback and
+  recovers malformed explicitly transcoded local files as unreadable includes.
+  acdc intentionally retains `encoding_rs` labels and decode-before-selection
+  behavior rather than Ruby's exact encoding aliases and line-reader quirks.
 - **Breaking:** `TocEntry`'s `numbered` and `style` fields are replaced by a
   single `kind: SectionKind`. Appendix detection becomes `entry.kind ==
   SectionKind::Appendix`; the special-section classification it previously needed

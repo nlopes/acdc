@@ -511,7 +511,6 @@ const BOM_PATTERNS: &[(&[u8], &Encoding, usize, &str)] = &[
 /// # Errors
 /// Returns an error if:
 /// - The file cannot be read
-/// - The explicit encoding label is unknown
 /// - The file is not valid UTF-8 and has no BOM
 pub(crate) fn read_and_decode_file(
     file_path: &Path,
@@ -530,31 +529,32 @@ pub(super) fn decode_bytes(
     // If there was an encoding specified, decode the entire file as that
     if let Some(enc_label) = encoding {
         if let Some(encoding) = Encoding::for_label(enc_label.as_bytes()) {
+            if encoding == UTF_16LE
+                && enc_label.eq_ignore_ascii_case("utf-16")
+                && !bytes.starts_with(&[0xFF, 0xFE])
+                && !bytes.starts_with(&[0xFE, 0xFF])
+            {
+                return Err(Error::UnrecognizedEncodingInFile(source.to_string()));
+            }
             let (cow, _, had_errors) = encoding.decode(bytes);
             if had_errors {
-                tracing::error!(
-                    %source,
-                    encoding = %enc_label,
-                    "decoding encountered errors"
-                );
+                return Err(Error::UnrecognizedEncodingInFile(source.to_string()));
             }
             return Ok(cow.into_owned());
         }
-        return Err(Error::UnknownEncoding(enc_label.to_string()));
+        // Asciidoctor silently ignores an unknown Ruby encoding label, then
+        // falls back to BOM sniffing or UTF-8.
+        return decode_bytes(bytes, None, source);
     }
 
     // Check for BOM patterns and decode accordingly
-    for (bom, encoding, skip, name) in BOM_PATTERNS {
+    for (bom, encoding, skip, _name) in BOM_PATTERNS {
         if bytes.starts_with(bom)
             && let Some(content) = bytes.get(*skip..)
         {
             let (cow, _, had_errors) = encoding.decode(content);
             if had_errors {
-                tracing::error!(
-                    %source,
-                    encoding = name,
-                    "decoding encountered errors"
-                );
+                return Err(Error::UnrecognizedEncodingInFile(source.to_string()));
             }
             return Ok(cow.into_owned());
         }
@@ -2007,11 +2007,12 @@ endif::backend-pdf[]";
     }
 
     #[test]
-    fn test_unknown_encoding_error() {
+    fn test_unknown_encoding_label_falls_back_to_utf8() -> Result<(), Error> {
         let path = Path::new("fixtures/preprocessor/utf8_no_bom.adoc");
-        let result = read_and_decode_file(path, Some("unknown-encoding-12345"));
+        let content = read_and_decode_file(path, Some("unknown-encoding-12345"))?;
 
-        assert!(matches!(result, Err(Error::UnknownEncoding(_))));
+        assert!(content.contains("= Test Document"));
+        Ok(())
     }
 
     #[test]
