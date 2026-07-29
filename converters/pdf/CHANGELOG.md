@@ -14,8 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convenience attributes, matching Asciidoctor PDF's backend traits.
 - Initial Typst-backed PDF converter with core AsciiDoc rendering, themed page chrome,
   branding and watermark options, colour emoji, local and remote images, asset warnings
-  and strict mode, plus optional generated-Typst output for debugging. Unsupported table
-  spans, icons, audio, and video degrade with warnings or textual fallbacks.
+  and strict mode, plus optional generated-Typst output for debugging. Unsupported icons,
+  audio, and video degrade with warnings or textual fallbacks.
 
 ### Changed
 
@@ -31,3 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   other blocks now link to the target in the PDF. References without explicit link text
   use the target's reference label or title, including its inline formatting, and fall
   back to `[id]` for untitled targets.
+- PDF tables now preserve `n+|` column spans, `.n+|` row spans, and combined
+  `n.m+|` spans. Declared header rows are emitted as semantic Typst table
+  headers and repeat across page breaks.

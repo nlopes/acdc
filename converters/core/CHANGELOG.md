@@ -79,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   inline formatting (bold, italic, monospace, etc.) from being incorrectly converted
   to an em-dash.
 - Shared table grid utilities (`build_grid`, `CellKind`, `GridRow`, `determine_column_count`,
-  `table_has_spans`) for converters that lack native colspan/rowspan support.
+  `table_has_spans`) provide normalized cell placement and span tracking for converters.
 - Output file creation now creates parent directories if they don't exist, so
   `-o path/to/nonexistent/dir/file.html` works without pre-creating the directory
   tree. ([#358])

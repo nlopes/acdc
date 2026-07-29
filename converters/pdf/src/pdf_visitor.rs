@@ -6,13 +6,13 @@ use acdc_converters_core::{
     Diagnostics, InlineTextTransform, inlines_to_string,
     section::{AppendixTracker, SectionNumberTracker, SpecialSectionTracker},
     substitutions::Replacements,
-    table::{build_grid, determine_column_count, table_has_spans},
+    table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::Config as TocConfig,
     visitor::Visitor,
 };
 use acdc_parser::{
     Anchor, Block, BlockMetadata, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Source,
-    Table, TableOfContents, Title,
+    Table, TableColumn, TableOfContents, Title,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_typst::Writer;
@@ -264,39 +264,72 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_table(&mut self, table: &Table<'_>) -> Result<(), Error> {
-        if table_has_spans(table) {
-            self.warn_unsupported("table cell spans", "rendering cells without span geometry");
-        }
-
         let column_count = determine_column_count(table);
         let _ = write!(self.writer, "#table(columns: {column_count}");
-        for row in build_grid(table, column_count) {
-            for cell in row.cells {
-                match cell {
-                    acdc_converters_core::table::CellKind::Content { cell_index } => {
-                        if let Some(ast_cell) = row.ast_row.columns.get(cell_index) {
-                            self.writer.raw(", [");
-                            if row.is_header {
-                                self.writer.raw("#tableheader[");
-                            }
-                            self.write_blocks(&ast_cell.content)?;
-                            if ast_cell.content.is_empty() {
-                                self.write_text_expr("");
-                            }
-                            if row.is_header {
-                                self.writer.raw("]");
-                            }
-                            self.writer.raw("]");
-                        }
-                    }
-                    acdc_converters_core::table::CellKind::HSpan
-                    | acdc_converters_core::table::CellKind::VSpan => {
-                        self.writer.raw(", []");
-                    }
-                }
+
+        let grid = build_grid(table, column_count);
+        if let Some(header) = grid.first().filter(|row| row.is_header) {
+            self.writer.raw(", table.header(repeat: true, ");
+            self.write_table_row_cells(header, 0, "")?;
+            self.writer.raw(")");
+        }
+
+        // Typst owns the merged geometry. Emit each real cell at its logical
+        // position and omit the grid's horizontal/vertical span placeholders.
+        for (y, row) in grid.iter().enumerate().filter(|(_, row)| !row.is_header) {
+            self.write_table_row_cells(row, y, ", ")?;
+        }
+
+        self.writer.raw(")\n\n");
+        Ok(())
+    }
+
+    fn write_table_row_cells(
+        &mut self,
+        row: &GridRow<'_>,
+        y: usize,
+        first_separator: &str,
+    ) -> Result<(), Error> {
+        let mut separator = first_separator;
+        for (x, cell) in row.cells.iter().enumerate() {
+            let CellKind::Content { cell_index } = cell else {
+                continue;
+            };
+            if let Some(ast_cell) = row.ast_row.columns.get(*cell_index) {
+                self.writer.raw(separator);
+                self.write_table_cell(ast_cell, x, y, row.is_header)?;
+                separator = ", ";
             }
         }
-        self.writer.raw(")\n\n");
+        Ok(())
+    }
+
+    fn write_table_cell(
+        &mut self,
+        cell: &TableColumn<'_>,
+        x: usize,
+        y: usize,
+        is_header: bool,
+    ) -> Result<(), Error> {
+        let _ = write!(self.writer, "table.cell(x: {x}, y: {y}");
+        if cell.colspan > 1 {
+            let _ = write!(self.writer, ", colspan: {}", cell.colspan);
+        }
+        if cell.rowspan > 1 {
+            let _ = write!(self.writer, ", rowspan: {}", cell.rowspan);
+        }
+        self.writer.raw(")[");
+        if is_header {
+            self.writer.raw("#tableheader[");
+        }
+        self.write_blocks(&cell.content)?;
+        if cell.content.is_empty() {
+            self.write_text_expr("");
+        }
+        if is_header {
+            self.writer.raw("]");
+        }
+        self.writer.raw("]");
         Ok(())
     }
 

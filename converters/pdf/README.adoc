@@ -2,9 +2,8 @@
 
 `AsciiDoc`-to-PDF converter backed by the Rust https://typst.app[Typst] engine.
 
-The crate turns the acdc AST into Typst markup, resolves document assets, and
-returns PDF bytes through the shared converter interface. The command-line
-backend is optional and is not part of the default `acdc` build.
+The crate turns the acdc AST into Typst markup, resolves document assets, and returns PDF bytes through the shared converter interface.
+The command-line backend is optional and is not part of the default `acdc` build.
 
 == Usage
 
@@ -13,8 +12,8 @@ backend is optional and is not part of the default `acdc` build.
 acdc convert --backend pdf document.adoc
 ....
 
-The derived output path is `document.pdf`. PDF-specific options can add page
-chrome and branding:
+The derived output path is `document.pdf`.
+PDF-specific options can add page chrome and branding:
 
 [source,console]
 ....
@@ -31,20 +30,19 @@ acdc convert --backend pdf document.adoc \
 The backend currently renders:
 
 * document titles, authors, sections, discrete headings, and section numbering
-* automatic, preamble, and macro-placed tables of contents, including custom
-  titles and depth
+* automatic, preamble, and macro-placed tables of contents, including custom titles and depth
 * bold, italic, monospace, highlight, subscript, and superscript text
 * links, cross-references, footnotes, inline anchors, and common UI macros
 * ordered, unordered, description, checklist, and callout lists
-* basic tables, admonitions, quotes, thematic breaks, and page breaks
+* tables with semantic, repeating headers and column/row spans
+* admonitions, quotes, thematic breaks, and page breaks
 * listing and literal blocks with themed monospace presentation
 * local, remote, and `data:` URI images in block and inline positions
 * a configurable page theme, header logo, watermark, footer, and page size
 
-The backend is intentionally incomplete. Table spans are flattened with a
-warning. Inline icons, audio, video, and stem notation use escaped textual
-fallbacks. Source-language syntax highlighting and AsciiMath/LaTeX translation
-are not yet implemented.
+The backend is intentionally incomplete.
+Inline icons, audio, video, and stem notation use escaped textual fallbacks.
+Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
 
 == Options
 
@@ -65,7 +63,8 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--title`
 | `title`
-| Override the running-header title. The document title is the default.
+| Override the running-header title.
+  The document title is the default.
 
 | `--watermark`
 | `watermark`
@@ -73,7 +72,8 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--watermark-timestamp`
 | `watermark_timestamp`
-| Add a timestamp to the footer. Library callers supply the displayed string.
+| Add a timestamp to the footer.
+  Library callers supply the displayed string.
 
 | `--page`
 | `page`
@@ -101,58 +101,49 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 | Also write the generated Typst markup to a debugging path.
 |===
 
-Only directories supplied through `font_dirs` are searched. The converter does
-not discover fonts from the working directory or source tree.
+Only directories supplied through `font_dirs` are searched.
+The converter does not discover fonts from the working directory or source tree.
 
-With the default `pre-spec-subs` feature, block-level `subs=` controls PDF text
-substitutions in the same way as the other compatible converters. In
-particular, `subs=-replacements` suppresses typography replacements and
-`subs=+replacements` enables them in literal/listing content.
+With the default `pre-spec-subs` feature, block-level `subs=` controls PDF text substitutions in the same way as the other compatible converters.
+In particular, `subs=-replacements` suppresses typography replacements and `subs=+replacements` enables them in literal/listing content.
 
 == Asset access and safe mode
 
-Local document images are resolved relative to the source document. Image
-access then follows the converter safe mode:
+Local document images are resolved relative to the source document.
+Image access then follows the converter safe mode:
 
 * `unsafe` permits local and remote sources.
-* `safe` confines local paths to the source directory and permits remote
-  sources when the `network` feature is enabled.
-* `server` also confines local paths and requires `:allow-uri-read:` for remote
-  sources.
+* `safe` confines local paths to the source directory and permits remote sources when the `network` feature is enabled.
+* `server` also confines local paths and requires `:allow-uri-read:` for remote sources.
 * `secure` rejects document image sources.
 
-The header logo is an explicit application or CLI option, so safe mode does not
-block it. Failed images render fallback text unless strict mode is enabled; a
-failed logo is omitted.
+The header logo is an explicit application or CLI option, so safe mode does not block it.
+Failed images render fallback text unless strict mode is enabled; a failed logo is omitted.
 
-Fetching remote `http` or `https` images requires the off-by-default `network`
-Cargo feature. The CLI's `network` feature forwards it. Without that feature,
-remote images produce per-image warnings, or errors under `--strict`, while the
-rest of the document continues to render. Local and `data:` URI images are
-unaffected.
+Fetching remote `http` or `https` images requires the off-by-default `network` Cargo feature.
+The CLI's `network` feature forwards it.
+Without that feature, remote images produce per-image warnings, or errors under `--strict`, while the rest of the document continues to render.
+Local and `data:` URI images are unaffected.
 
 == Trust boundaries and limits
 
-Custom theme content is configuration data, not Typst source. The theme schema
-is strict, token values are validated, and emitted font names are escaped. Theme
-files are limited to 1 MiB, including when a file grows while it is being read.
+Custom theme content is configuration data, not Typst source.
+The theme schema is strict, token values are validated, and emitted font names are escaped.
+Theme files are limited to 1 MiB, including when a file grows while it is being read.
 
-Resolved images are validated and copied to private snapshots before Typst can
-read them. The image resolver bounds each input and prevents SVGs from loading
-external file references.
+Resolved images are validated and copied to private snapshots before Typst can read them.
+The image resolver bounds each input and prevents SVGs from loading external file references.
 
-Unsupported stem content is emitted through the escaped text boundary and
-cannot add Typst statements. Explicit font directories are application input,
-not document input.
+Unsupported stem content is emitted through the escaped text boundary and cannot add Typst statements.
+Explicit font directories are application input, not document input.
 
-PDF compilation still runs in-process, so safe mode is not a CPU or memory
-sandbox. Applications accepting untrusted documents should apply document,
-asset, font, CPU, memory, and concurrency quotas around conversion.
+PDF compilation still runs in-process, so safe mode is not a CPU or memory sandbox.
+Applications accepting untrusted documents should apply document, asset, font, CPU, memory, and concurrency quotas around conversion.
 
 == Architecture
 
-The converter keeps orchestration and AST emission local. Existing helper
-crates own the boundaries that need different dependencies:
+The converter keeps orchestration and AST emission local.
+Existing helper crates own the boundaries that need different dependencies:
 
 [source]
 ....
@@ -164,9 +155,8 @@ converters/pdf
      └─ render  acdc-pdf-render: font loading, Typst compilation, and PDF export
 ....
 
-Only `acdc-pdf-render` depends directly on the Typst compiler. No additional
-converter layers are intended; follow-up work should remain in these existing
-boundaries.
+Only `acdc-pdf-render` depends directly on the Typst compiler.
+No additional converter layers are intended; follow-up work should remain in these existing boundaries.
 
 == Development
 

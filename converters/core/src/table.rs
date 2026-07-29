@@ -1,10 +1,10 @@
 //! Table utilities shared between converters.
 //!
-//! The grid utilities ([`build_grid`], [`CellKind`], [`GridRow`]) are for output
-//! formats that lack native colspan/rowspan support and need to reconstruct cell
-//! positions themselves (e.g. manpage tbl, terminal). Formats with native span
-//! support (like HTML, which uses `<td colspan="N">`) iterate the AST cells
-//! directly — the grid would add unnecessary indirection.
+//! The grid utilities ([`build_grid`], [`CellKind`], [`GridRow`]) reconstruct
+//! logical cell positions for converters that need explicit placement or span
+//! placeholders (e.g. PDF, manpage tbl, terminal). Formats whose row containers
+//! provide placement directly (like HTML `<tr>`) can iterate the AST cells
+//! without building a grid.
 
 use acdc_parser::{ColumnFormat, ColumnWidth, Table, TableRow};
 
@@ -74,7 +74,7 @@ pub fn calculate_column_widths(columns: &[ColumnFormat]) -> Vec<f64> {
 
 /// What occupies a logical cell position in a table grid.
 ///
-/// Used by converters that lack native colspan/rowspan support to build a
+/// Used by converters that need explicit positions or placeholders to build a
 /// normalized grid where every row has the same number of columns.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CellKind {

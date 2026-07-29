@@ -867,9 +867,57 @@ mod tests {
             "[cols=\"1,1\",options=\"header\"]\n|===\n|Name |Value\n|one |two\n|===\n",
         )?;
         assert_eq!(header.matches("#tableheader[").count(), 2);
+        assert_eq!(header.matches("table.header(").count(), 1);
 
         let without_header = typst_source("[cols=\"1,1\"]\n|===\n|one |two\n|===\n")?;
         assert!(!without_header.contains("#tableheader["));
+        assert!(!without_header.contains("table.header("));
+        Ok(())
+    }
+
+    #[test]
+    fn preserves_table_spans_in_typst_and_pdf() -> Result<(), Box<dyn std::error::Error>> {
+        let input = r#"[cols="4*",options="header,footer"]
+|===
+2+| Header | H3 | H4
+2.2+| Combined | Top 3 | Top 4
+| Bottom 3 | Bottom 4
+4+| Full width footer
+|===
+"#;
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        assert!(
+            typst.contains(
+                "table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader["
+            ),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("table.cell(x: 0, y: 1, colspan: 2, rowspan: 2)["),
+            "{typst}"
+        );
+        assert!(typst.contains("table.cell(x: 2, y: 2)["), "{typst}");
+        assert!(
+            typst.contains("table.cell(x: 0, y: 3, colspan: 4)["),
+            "{typst}"
+        );
+        assert!(
+            diagnostics.warnings().is_empty(),
+            "{:?}",
+            diagnostics.warnings()
+        );
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(diagnostics.warnings().is_empty());
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert!(!pdf.get_pages().is_empty());
         Ok(())
     }
 
