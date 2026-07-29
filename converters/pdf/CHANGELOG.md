@@ -34,3 +34,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF tables now preserve `n+|` column spans, `.n+|` row spans, and combined
   `n.m+|` spans. Declared header rows are emitted as semantic Typst table
   headers and repeat across page breaks.
+- Named footnote references now reuse the original footnote instead of creating
+  an empty footnote.

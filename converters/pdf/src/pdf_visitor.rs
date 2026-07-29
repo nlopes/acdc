@@ -364,11 +364,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         match inline_macro {
             InlineMacro::Footnote(footnote) => {
-                self.writer.raw("#footnote[");
-                self.write_inlines(&footnote.content)?;
-                self.writer.raw("]");
-                if let Some(id) = footnote.id.filter(|_| !footnote.content.is_empty()) {
-                    let _ = write!(self.writer, " <{}>", encode_footnote_label(id));
+                if let Some(id) = footnote.id.filter(|_| footnote.content.is_empty()) {
+                    let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));
+                } else {
+                    self.writer.raw("#footnote[");
+                    self.write_inlines(&footnote.content)?;
+                    self.writer.raw("]");
+                    if let Some(id) = footnote.id {
+                        let _ = write!(self.writer, " <{}>", encode_footnote_label(id));
+                    }
                 }
             }
             InlineMacro::Icon(icon) => {

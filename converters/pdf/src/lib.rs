@@ -699,6 +699,40 @@ mod tests {
     }
 
     #[test]
+    fn named_footnote_references_reuse_the_original_definition()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "First reference.footnote:named[Named note].\n\nSecond reference.footnote:named[].\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let label = encode_footnote_label("named");
+        assert_eq!(
+            typst
+                .matches(&format!("#footnote[#text(\"Named note\")] <{label}>"))
+                .count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst.matches(&format!("#footnote(<{label}>)")).count(),
+            1,
+            "{typst}"
+        );
+        assert!(!typst.contains("#footnote[]"), "{typst}");
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn pdf_safe_modes_map_to_image_source_policy() {
         assert_eq!(
             image_source_policy(SafeMode::Unsafe, false),
