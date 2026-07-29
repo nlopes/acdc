@@ -17,7 +17,7 @@ use acdc_parser::{
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_typst::Writer;
 
-use crate::{Error, Processor};
+use crate::{Error, Processor, encode_footnote_label};
 
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) writer: Writer,
@@ -367,6 +367,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.raw("#footnote[");
                 self.write_inlines(&footnote.content)?;
                 self.writer.raw("]");
+                if let Some(id) = footnote.id.filter(|_| !footnote.content.is_empty()) {
+                    let _ = write!(self.writer, " <{}>", encode_footnote_label(id));
+                }
             }
             InlineMacro::Icon(icon) => {
                 self.warn_unsupported("inline icons", "rendering the icon name as text");

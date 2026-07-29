@@ -635,6 +635,10 @@ fn encode_label(value: &str) -> String {
     out
 }
 
+fn encode_footnote_label(value: &str) -> String {
+    encode_label(&format!("footnote:{value}"))
+}
+
 #[cfg(test)]
 mod tests {
     use acdc_converters_core::{Converter, WarningSource};
@@ -655,6 +659,43 @@ mod tests {
                 .chars()
                 .all(|character| character.is_ascii_alphanumeric() || character == '-')
         );
+    }
+
+    #[test]
+    fn named_footnote_definitions_emit_stable_namespaced_labels()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "[id=\"named\"]\nA paragraph with an anonymous footnote:[Anonymous].\n\nA named footnote:named[Named note].\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let block_label = encode_label("named");
+        let footnote_label = encode_footnote_label("named");
+        assert_eq!(footnote_label, "id-666f6f746e6f74653a6e616d6564");
+        assert_ne!(block_label, footnote_label);
+        assert!(
+            typst.contains(&format!(
+                "#footnote[#text(\"Named note\")] <{footnote_label}>"
+            )),
+            "{typst}"
+        );
+        assert!(typst.contains("#footnote[#text(\"Anonymous\")]"), "{typst}");
+        assert!(
+            !typst.contains(&format!(
+                "#footnote[#text(\"Anonymous\")] <{footnote_label}>"
+            )),
+            "{typst}"
+        );
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
     }
 
     #[test]
