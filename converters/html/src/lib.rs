@@ -1190,6 +1190,24 @@ This is a paragraph.
     }
 
     #[test]
+    fn standard_image_block_preserves_cross_reference_target() -> TestResult {
+        let html = convert(
+            "[[diagram]]\n.Default State Transitions\nimage::states.svg[]\n\nSee <<diagram>>.\n",
+            true,
+        )?;
+
+        assert!(
+            html.contains(r#"<div id="diagram" class="imageblock">"#),
+            "{html}"
+        );
+        assert!(
+            html.contains(r##"<a href="#diagram">Default State Transitions</a>"##),
+            "{html}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_section_numbering_disabled_by_default() -> TestResult {
         let content = r"= Title
 

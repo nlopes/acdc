@@ -34,7 +34,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             classes.push(role.to_string());
         }
 
-        write!(self.writer, "<div class=\"{}\">", classes.join(" "))?;
+        write!(self.writer, "<div")?;
+        crate::write_id(&mut self.writer, &img.metadata)?;
+        write!(self.writer, " class=\"{}\">", classes.join(" "))?;
         write!(self.writer, "<div class=\"content\">")?;
         // Get alt text from attribute or generate from filename
         let alt_text = img.metadata.attributes.get_string("alt").map_or_else(

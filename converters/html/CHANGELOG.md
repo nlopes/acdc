@@ -221,6 +221,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Standard HTML image blocks now preserve `[[id]]` and `[id=...]` as the wrapper
+  element's `id`, so cross-references to figures navigate to the image instead of
+  producing a link with no target.
 - An ordered list with an explicit numbering style (`[arabic]`, `[decimal]`,
   `[loweralpha]`, `[upperalpha]`, `[lowerroman]`, `[upperroman]`, `[lowergreek]`)
   now renders that style's `olist`/`<ol>` class and `<ol type>` instead of the
