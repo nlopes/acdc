@@ -66,8 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   non-ASCII punctuation boundary such as a curly quote or guillemet (e.g.
   `“*bold*”`); Unicode letters/digits still aren't boundaries.
 - `Document.references`: an `id → Reference` catalog covering every cross-reference
-  target, including sections, blocks, and inline `[[id]]` anchors, with each target's
-  reference text and source `location`, so `<<id>>` can be resolved and navigated to.
+  target, including sections, blocks, inline `[[id]]` anchors, and IDs on formatted
+  inline spans, with each target's reference text and source `location`, so `<<id>>`
+  can be resolved and navigated to.
 - An `<<id>>`/`xref:id[]` whose target is defined nowhere now reports a
   `WarningKind::UnresolvedReference`, matching `asciidoctor` (external/inter-document
   references aren't flagged as the parser only deals with one file at a time).

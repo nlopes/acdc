@@ -54,10 +54,10 @@ pub struct Document<'a> {
     pub footnotes: Vec<Footnote<'a>>,
     pub toc_entries: Vec<TocEntry<'a>>,
     /// Cross-reference targets keyed by id, for O(1) `<<id>>` resolution.
-    /// Covers both sections and titled blocks (tables, listings, …); collected
-    /// during parsing. `toc_entries` remains the ordered list used to render the
-    /// table of contents. Like `toc_entries` and `footnotes`, this is not
-    /// serialized.
+    /// Covers sections, blocks, explicit inline anchors, and IDs on formatted
+    /// inline spans; collected during parsing. `toc_entries` remains the ordered
+    /// list used to render the table of contents. Like `toc_entries` and
+    /// `footnotes`, this is not serialized.
     pub references: HashMap<&'a str, Reference<'a>>,
     pub location: Location,
 }

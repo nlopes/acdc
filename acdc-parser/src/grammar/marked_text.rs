@@ -13,8 +13,14 @@ pub(crate) trait MarkedText<'a>: Sized {
     /// The type of content this formatted node contains (typically Vec<`InlineNode`<'a>>)
     type Content: LocationMappable<'a>;
 
+    /// Get the optional cross-reference ID.
+    fn id(&self) -> Option<&'a str>;
+
     /// Get an immutable reference to the location
     fn location(&self) -> &Location;
+
+    /// Get an immutable reference to the content.
+    fn content(&self) -> &Self::Content;
 
     /// Get a mutable reference to the location
     fn location_mut(&mut self) -> &mut Location;
@@ -104,8 +110,16 @@ macro_rules! impl_marked_text {
             impl<'a> MarkedText<'a> for crate::$type<'a> {
                 type Content = Vec<InlineNode<'a>>;
 
+                fn id(&self) -> Option<&'a str> {
+                    self.id
+                }
+
                 fn location(&self) -> &Location {
                     &self.location
+                }
+
+                fn content(&self) -> &Self::Content {
+                    &self.content
                 }
 
                 fn location_mut(&mut self) -> &mut Location {

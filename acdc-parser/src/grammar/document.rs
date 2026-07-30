@@ -22,6 +22,7 @@ use crate::{
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{adjust_and_log_parse_error, process_inlines},
         manpage::{derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text},
+        marked_text::MarkedText,
         revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
         table::parse_table_cell,
     },
@@ -554,12 +555,34 @@ fn insert_reference<'a>(
     );
 }
 
+/// Catalog a formatted span's ID and recurse into its inline content.
+fn collect_formatted_references<'a, T>(
+    text: &T,
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    xrefs: &mut Vec<(&'a str, Location)>,
+) where
+    T: MarkedText<'a, Content = Vec<InlineNode<'a>>>,
+{
+    if let Some(id) = text.id() {
+        refs.insert(
+            id,
+            Reference {
+                xreflabel: None,
+                title: None,
+                location: text.location().clone(),
+            },
+        );
+    }
+    collect_inline_references(text.content(), refs, xrefs);
+}
+
 /// Walk the final document tree to (1) populate the cross-reference catalog `refs` with
-/// every anchor (block ids and inline `[[id]]` anchors) and (2) collect every `<<id>>` /
-/// `xref:id[]` into `xrefs` (target, location) for unresolved-reference checking. A block
-/// with an id but no title is still registered (reference text `None`), so an `<<id>>` to
-/// it resolves to the literal `[id]` rather than being treated as unresolved. Section ids
-/// come from `toc_entries` (seeded separately); this only recurses into their content.
+/// every anchor (block IDs, inline `[[id]]` anchors, and formatted span IDs) and (2)
+/// collect every `<<id>>` / `xref:id[]` into `xrefs` (target, location) for
+/// unresolved-reference checking. A target with no title is still registered (reference
+/// text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than being
+/// treated as unresolved. Section IDs come from `toc_entries` (seeded separately); this
+/// only recurses into their content.
 fn collect_references<'a>(
     blocks: &[Block<'a>],
     refs: &mut HashMap<&'a str, Reference<'a>>,
@@ -652,8 +675,8 @@ fn collect_delimited_references<'a>(
     }
 }
 
-/// Walk inline content for inline `[[id]]` anchors and `<<id>>` cross-references,
-/// recursing into formatted spans.
+/// Walk inline content for inline `[[id]]` anchors, formatted span IDs, and `<<id>>`
+/// cross-references, recursing into formatted spans.
 fn collect_inline_references<'a>(
     inlines: &[InlineNode<'a>],
     refs: &mut HashMap<&'a str, Reference<'a>>,
@@ -665,17 +688,17 @@ fn collect_inline_references<'a>(
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 xrefs.push((xref.target, xref.location.clone()));
             }
-            InlineNode::BoldText(t) => collect_inline_references(&t.content, refs, xrefs),
-            InlineNode::ItalicText(t) => collect_inline_references(&t.content, refs, xrefs),
-            InlineNode::MonospaceText(t) => collect_inline_references(&t.content, refs, xrefs),
-            InlineNode::HighlightText(t) => collect_inline_references(&t.content, refs, xrefs),
-            InlineNode::SubscriptText(t) => collect_inline_references(&t.content, refs, xrefs),
-            InlineNode::SuperscriptText(t) => collect_inline_references(&t.content, refs, xrefs),
+            InlineNode::BoldText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::ItalicText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::MonospaceText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::HighlightText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::SubscriptText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::SuperscriptText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::CurvedQuotationText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::CurvedApostropheText(t) => collect_formatted_references(t, refs, xrefs),
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::Macro(_)
@@ -1496,9 +1519,9 @@ peg::parser! {
 
             // Build the id -> reference catalog for O(1) `<<id>>` resolution:
             // sections (already collected as toc_entries) plus a single walk over
-            // the final tree for every other anchor (block ids and inline
-            // `[[id]]` anchors). The same walk collects every cross-reference so
-            // unresolved ones can be reported.
+            // the final tree for every other anchor (block IDs, inline `[[id]]`
+            // anchors, and formatted span IDs). The same walk collects every
+            // cross-reference so unresolved ones can be reported.
             let mut references: HashMap<&str, Reference<'_>> = state
                 .toc_entries
                 .iter()
@@ -6967,6 +6990,43 @@ References.
                 .iter()
                 .any(|w| matches!(&w.kind, crate::WarningKind::UnresolvedReference { .. })),
             "a reference to an existing inline anchor must not warn"
+        );
+        Ok(())
+    }
+
+    /// IDs attached to formatted spans are reference targets in the same way
+    /// as explicit inline anchors.
+    #[test]
+    fn test_formatted_inline_ids_resolve_cross_references() -> Result<(), Error> {
+        let input = r#"A [#bold-id]*bold*, [#italic-id]_italic_, [#mono-id]`mono`, [#mark-id]#mark#, [#sub-id]~sub~, [#super-id]^super^, [#double-id]"`double`", and [#single-id]'`single`'.
+
+See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id>>, <<double-id>>, and <<single-id>>.
+"#;
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+
+        for id in [
+            "bold-id",
+            "italic-id",
+            "mono-id",
+            "mark-id",
+            "sub-id",
+            "super-id",
+            "double-id",
+            "single-id",
+        ] {
+            assert!(
+                doc.references.contains_key(id),
+                "formatted inline ID `{id}` must be a reference target"
+            );
+        }
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|warning| matches!(
+                warning.kind,
+                crate::WarningKind::UnresolvedReference { .. }
+            )),
+            "formatted inline references should resolve: {warnings:?}"
         );
         Ok(())
     }
