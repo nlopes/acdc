@@ -733,6 +733,107 @@ mod tests {
     }
 
     #[test]
+    fn named_footnote_references_preserve_parser_assigned_numbers()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Alpha marker.footnote:alpha[Alpha note.]\n\nBeta marker.footnote:beta[Beta note.]\n\nAlpha repeat.footnote:alpha[].\n\nBeta repeat.footnote:beta[].\n",
+            &acdc_parser::Options::default(),
+        )?;
+        assert_eq!(
+            parsed
+                .document()
+                .footnotes
+                .iter()
+                .map(|footnote| footnote.number)
+                .collect::<Vec<_>>(),
+            [1, 2]
+        );
+
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        assert_eq!(
+            typst.matches("#counter(footnote).update(0)").count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst.matches("#counter(footnote).update(1)").count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst
+                .matches(&format!("#footnote(<{}>)", encode_footnote_label("alpha")))
+                .count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst
+                .matches(&format!("#footnote(<{}>)", encode_footnote_label("beta")))
+                .count(),
+            1,
+            "{typst}"
+        );
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let lines = text
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .collect::<Vec<_>>();
+
+        let alpha_marker = lines
+            .iter()
+            .position(|line| *line == "Alpha marker.")
+            .ok_or_else(|| std::io::Error::other("missing alpha marker"))?;
+        let beta_marker = lines
+            .iter()
+            .position(|line| *line == "Beta marker.")
+            .ok_or_else(|| std::io::Error::other("missing beta marker"))?;
+        let alpha_repeat = lines
+            .iter()
+            .position(|line| *line == "Alpha repeat.")
+            .ok_or_else(|| std::io::Error::other("missing alpha repeat"))?;
+        let beta_repeat = lines
+            .iter()
+            .position(|line| *line == "Beta repeat.")
+            .ok_or_else(|| std::io::Error::other("missing beta repeat"))?;
+        assert_eq!(lines.get(alpha_marker + 1), Some(&"1"), "{text}");
+        assert_eq!(lines.get(beta_marker + 1), Some(&"2"), "{text}");
+        assert_eq!(lines.get(alpha_repeat + 1), Some(&"1"), "{text}");
+        assert_eq!(lines.get(beta_repeat + 1), Some(&"2"), "{text}");
+
+        let alpha_note = lines
+            .iter()
+            .position(|line| *line == "Alpha note.")
+            .ok_or_else(|| std::io::Error::other("missing alpha footnote"))?;
+        let beta_note = lines
+            .iter()
+            .position(|line| *line == "Beta note.")
+            .ok_or_else(|| std::io::Error::other("missing beta footnote"))?;
+        assert_eq!(
+            alpha_note.checked_sub(1).and_then(|index| lines.get(index)),
+            Some(&"1"),
+            "{text}"
+        );
+        assert_eq!(
+            beta_note.checked_sub(1).and_then(|index| lines.get(index)),
+            Some(&"2"),
+            "{text}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn pdf_safe_modes_map_to_image_source_policy() {
         assert_eq!(
             image_source_policy(SafeMode::Unsafe, false),

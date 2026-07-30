@@ -365,8 +365,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         match inline_macro {
             InlineMacro::Footnote(footnote) => {
                 if let Some(id) = footnote.id.filter(|_| footnote.content.is_empty()) {
+                    // Typst label references reuse the definition's counter value
+                    // without advancing the footnote counter.
                     let _ = write!(self.writer, "#footnote(<{}>)", encode_footnote_label(id));
                 } else {
+                    let _ = write!(
+                        self.writer,
+                        "#counter(footnote).update({})",
+                        footnote.number.saturating_sub(1)
+                    );
                     self.writer.raw("#footnote[");
                     self.write_inlines(&footnote.content)?;
                     self.writer.raw("]");
