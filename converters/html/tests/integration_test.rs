@@ -170,6 +170,18 @@ fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Erro
 }
 
 #[test]
+fn id_only_highlight_renders_as_a_plain_target_span() -> Result<(), Error> {
+    let html = convert_string("[#mark-id]#marked text#\n", &[])?;
+
+    assert!(
+        html.contains("<span id=\"mark-id\">marked text</span>"),
+        "{html}"
+    );
+    assert!(!html.contains("<mark id=\"mark-id\">"), "{html}");
+    Ok(())
+}
+
+#[test]
 fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     // An explicit `[<style>]` on an ordered list sets the CSS class (and `<ol type>`
     // where applicable), overriding the depth-derived default. Matches asciidoctor.

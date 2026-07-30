@@ -221,6 +221,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Highlight syntax with an ID but no role now renders as a plain targeted
+  `<span>` instead of a highlighted `<mark>`, matching `asciidoctor`.
 - Standard HTML image blocks now preserve `[[id]]` and `[id=...]` as the wrapper
   element's `id`, so cross-references to figures navigate to the image instead of
   producing a link with no target.

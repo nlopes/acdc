@@ -579,10 +579,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
         let use_s_tag = is_semantic && h.role == Some("line-through");
-        // asciidoctor behavior: use <span> when role is present, <mark> otherwise.
+        // Asciidoctor treats an ID or role as an attributed span rather than a mark.
         let tag = if use_s_tag {
             "s"
-        } else if h.role.is_some() {
+        } else if h.id.is_some() || h.role.is_some() {
             "span"
         } else {
             "mark"
