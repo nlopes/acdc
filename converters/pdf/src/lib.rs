@@ -834,6 +834,91 @@ mod tests {
     }
 
     #[test]
+    fn covers_unnamed_and_named_footnote_reference_matrix() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = acdc_parser::parse(
+            "Unnamed marker.footnote:[Anonymous note.]\n\nSingle definition.footnote:single[Single note.]\n\nSingle reference.footnote:single[].\n\nMultiple definition.footnote:multiple[Multiple note.]\n\nMultiple reference one.footnote:multiple[].\n\nMultiple reference two.footnote:multiple[].\n",
+            &acdc_parser::Options::default(),
+        )?;
+        assert_eq!(
+            parsed
+                .document()
+                .footnotes
+                .iter()
+                .map(|footnote| footnote.id)
+                .collect::<Vec<_>>(),
+            [None, Some("single"), Some("multiple")]
+        );
+
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let single_label = encode_footnote_label("single");
+        let multiple_label = encode_footnote_label("multiple");
+
+        assert_eq!(
+            typst
+                .matches("#footnote[#text(\"Anonymous note.\")]")
+                .count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst
+                .matches(&format!(
+                    "#footnote[#text(\"Single note.\")] <{single_label}>"
+                ))
+                .count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst
+                .matches(&format!("#footnote(<{single_label}>)"))
+                .count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst
+                .matches(&format!(
+                    "#footnote[#text(\"Multiple note.\")] <{multiple_label}>"
+                ))
+                .count(),
+            1,
+            "{typst}"
+        );
+        assert_eq!(
+            typst
+                .matches(&format!("#footnote(<{multiple_label}>)"))
+                .count(),
+            2,
+            "{typst}"
+        );
+        assert!(!typst.contains("#footnote[]"), "{typst}");
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        for expected in [
+            "Anonymous note.",
+            "Single note.",
+            "Multiple note.",
+            "Single reference.",
+            "Multiple reference one.",
+            "Multiple reference two.",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn pdf_safe_modes_map_to_image_source_policy() {
         assert_eq!(
             image_source_policy(SafeMode::Unsafe, false),
