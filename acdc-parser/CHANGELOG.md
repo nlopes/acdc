@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `Options::builder().with_base_dir(path)` now controls entry include resolution
+  for string, reader, and file input. It also defines the Safe/Server local
+  boundary; otherwise string/reader input uses the current directory and file
+  input uses the entry file's parent.
 - Every AST node's `Location` now maps back to the **original source**: its
   `start`/`end` line numbers and `absolute_start`/`absolute_end` byte offsets are
   original-source coordinates, and each boundary (`Position`) carries a new `file`

@@ -114,6 +114,8 @@ The implementation here follows from:
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`
 * **Strict mode** - Stricter parsing rules
+* **Base directory** - Entry-input include resolution through
+  `Options::builder().with_base_dir(path)`
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
@@ -201,10 +203,22 @@ These are fixed internal safety limits. They cannot be changed through parser op
 or document attributes. This intentionally diverges from asciidoctor, which has no
 equivalent table dimension cap.
 
+## Include base directory
+
+String and reader input resolve relative includes from the current working directory
+by default. `Options::builder().with_base_dir(path)` overrides that directory. File
+input normally uses the entry file's parent and accepts the same override; the entry
+file itself is still read from the path passed to `parse_file`.
+
+The effective base resolves includes in the entry input. Once a file is included,
+nested relative includes resolve from the directory containing that file. In `Safe`
+and `Server` modes the effective base also remains the local-include boundary.
+
 ## Local include confinement
 
-For file input, `Safe` and `Server` modes use the entry document's directory as the
-local include boundary.
+In `Safe` and `Server` modes, the effective include base directory is the local
+include boundary. For file input it defaults to the entry document's directory; for
+string and reader input it defaults to the current working directory.
 
 For example, assume the entry document is `/workspace/docs/main.adoc`, so the
 boundary is `/workspace/docs`:
@@ -217,10 +231,10 @@ boundary is `/workspace/docs`:
 | `/workspace/docs/main.adoc` | `/tmp/shared.adoc` | `/workspace/docs/tmp/shared.adoc` | The outside absolute path is moved beneath the boundary, and a warning is emitted |
 | `/workspace/docs/chapters/part.adoc` | `../../shared.adoc` | `/workspace/docs/shared.adoc` | The first `..` reaches the boundary, the second is discarded, and a warning is emitted |
 
-Nested includes continue to use `/workspace/docs` as their boundary; they do not
-switch to the nested file's directory. With `opts=optional`, the target is transformed
-first, the recovery warning is retained, and a missing transformed file is then
-skipped without a missing-file warning.
+Nested includes resolve from the directory of the file that contains the directive,
+but continue to use `/workspace/docs` as their boundary. With `opts=optional`, the
+target is transformed first, the recovery warning is retained, and a missing
+transformed file is then skipped without a missing-file warning.
 
 `Unsafe` mode does not apply these transformations: from
 `/workspace/docs/main.adoc`, `../shared.adoc` attempts to read

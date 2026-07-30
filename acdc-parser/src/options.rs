@@ -1,4 +1,7 @@
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+};
 
 pub use crate::safe_mode::SafeMode;
 
@@ -10,6 +13,13 @@ pub struct Options<'a> {
     pub safe_mode: SafeMode,
     pub timings: bool,
     pub document_attributes: DocumentAttributes<'a>,
+    /// Directory used to resolve relative includes from the entry input.
+    ///
+    /// String and reader input default to the current working directory. File
+    /// input normally uses the entry file's parent, unless this value overrides
+    /// it. In Safe and Server modes this directory is also the local-include
+    /// boundary.
+    pub base_dir: Option<PathBuf>,
     /// Strict mode - fail on non-conformance instead of warn-and-continue.
     ///
     /// When enabled, issues that would normally result in a warning and fallback
@@ -81,6 +91,7 @@ impl<'a> Options<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
+            base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
             setext: self.setext,
@@ -110,6 +121,7 @@ pub struct OptionsBuilder<'a> {
     safe_mode: SafeMode,
     timings: bool,
     document_attributes: DocumentAttributes<'a>,
+    base_dir: Option<PathBuf>,
     strict: bool,
     #[cfg(feature = "setext")]
     setext: bool,
@@ -147,6 +159,16 @@ impl<'a> OptionsBuilder<'a> {
     #[must_use]
     pub fn with_timings(mut self) -> Self {
         self.timings = true;
+        self
+    }
+
+    /// Set the directory used to resolve relative includes from the entry input.
+    ///
+    /// For file input this overrides the entry file's parent directory. Nested
+    /// includes remain relative to the file that contains them.
+    #[must_use]
+    pub fn with_base_dir(mut self, base_dir: impl AsRef<Path>) -> Self {
+        self.base_dir = Some(base_dir.as_ref().to_path_buf());
         self
     }
 
@@ -255,6 +277,7 @@ impl<'a> OptionsBuilder<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes,
+            base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
             setext: self.setext,

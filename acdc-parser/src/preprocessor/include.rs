@@ -678,15 +678,26 @@ impl<'a> Include<'a> {
         attribute_list_as_written: &str,
     ) -> IncludeResult {
         let source = match &self.source_origin {
-            SourceOrigin::File { path, base_dir } => {
+            SourceOrigin::File {
+                path,
+                base_dir,
+                is_entry,
+                ..
+            } => {
                 let absolute_path =
                     super::absolute_normalized(path).unwrap_or_else(|_| path.clone());
-                absolute_path
-                    .strip_prefix(base_dir)
-                    .unwrap_or(&absolute_path)
-                    .display()
-                    .to_string()
+                let display_path = if *is_entry {
+                    absolute_path
+                        .file_name()
+                        .map_or(absolute_path.as_path(), Path::new)
+                } else {
+                    absolute_path
+                        .strip_prefix(base_dir)
+                        .unwrap_or(&absolute_path)
+                };
+                display_path.display().to_string()
             }
+            SourceOrigin::Memory { .. } => "<stdin>".to_string(),
             SourceOrigin::Uri(uri) => uri.clone(),
         };
         IncludeResult::unresolved_directive(format!(
@@ -979,7 +990,7 @@ impl<'a> Include<'a> {
                 ranges.push(SourceRange {
                     start_offset: cursor,
                     end_offset,
-                    file: Some(source_origin.as_path().to_path_buf()),
+                    file: source_origin.as_path().map(Path::to_path_buf),
                     file_chain: Vec::new(),
                     start_line: origin.line,
                     source_start_offset: origin.offset,
@@ -1069,17 +1080,30 @@ impl<'a> Include<'a> {
 
         let (content, source_origin, resolved_source, is_asciidoc) = match &self.target {
             Target::Path(target) => {
-                let SourceOrigin::File {
-                    path: current_file,
-                    base_dir,
-                } = &self.source_origin
-                else {
-                    tracing::error!(?target, "local include target has a URI source origin");
-                    return Ok(IncludeResult::empty());
-                };
-                let Some(parent) = current_file.parent() else {
-                    tracing::error!(?current_file, "source file has no parent directory");
-                    return Ok(IncludeResult::empty());
+                let memory_base;
+                let (parent, base_dir) = match &self.source_origin {
+                    SourceOrigin::File {
+                        path,
+                        base_dir,
+                        is_entry,
+                    } => {
+                        let parent = if *is_entry {
+                            base_dir.as_path()
+                        } else {
+                            path.parent().unwrap_or(path)
+                        };
+                        (parent, base_dir.as_path())
+                    }
+                    SourceOrigin::Memory { base_dir } => {
+                        memory_base = super::absolute_normalized(
+                            base_dir.as_deref().unwrap_or_else(|| Path::new(".")),
+                        )?;
+                        (memory_base.as_path(), memory_base.as_path())
+                    }
+                    SourceOrigin::Uri(_) => {
+                        tracing::error!(?target, "local include target has a URI source origin");
+                        return Ok(IncludeResult::empty());
+                    }
                 };
                 let path = self.resolve_file_target(parent, base_dir, target)?;
                 let optional = self.opts.iter().any(|option| option == "optional");
@@ -1103,7 +1127,8 @@ impl<'a> Include<'a> {
                 let is_asciidoc = Self::has_asciidoc_extension(&path);
                 let source_origin = SourceOrigin::File {
                     path: path.clone(),
-                    base_dir: base_dir.clone(),
+                    base_dir: base_dir.to_path_buf(),
+                    is_entry: false,
                 };
                 (content, source_origin, path, is_asciidoc)
             }
@@ -1279,6 +1304,7 @@ mod tests {
         let source_origin = SourceOrigin::File {
             path: path.join("source.adoc"),
             base_dir: path.to_path_buf(),
+            is_entry: true,
         };
         Include::parse(
             &source_origin,
@@ -1328,6 +1354,7 @@ mod tests {
         let source_origin = SourceOrigin::File {
             path: PathBuf::from("source.adoc"),
             base_dir: PathBuf::new(),
+            is_entry: true,
         };
         assert!(matches!(
             Target::parse("HTTP://example.test/path", &source_origin),

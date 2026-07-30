@@ -69,7 +69,7 @@ struct DirectiveContext<'a> {
 
 impl DirectiveContext<'_> {
     fn current_file(&self) -> Option<&Path> {
-        self.source_origin.map(SourceOrigin::as_path)
+        self.source_origin.and_then(SourceOrigin::as_path)
     }
 }
 
@@ -190,32 +190,45 @@ impl IncludeContext {
 ///
 /// URI origins retain their exact spelling because Asciidoctor resolves nested
 /// URI targets by literal directory-and-target concatenation rather than RFC URL
-/// joining or filesystem resolution. File origins retain the entry document's
-/// directory as `base_dir`; for `/workspace/docs/main.adoc`, nested files continue
-/// to use `/workspace/docs` as their Safe/Server boundary.
+/// joining or filesystem resolution. Local origins retain the entry input's
+/// `base_dir`, which resolves entry includes and remains the Safe/Server boundary;
+/// nested includes derive their resolution directory from the containing file.
 #[derive(Debug, Clone)]
 pub(super) enum SourceOrigin {
-    File { path: PathBuf, base_dir: PathBuf },
+    File {
+        path: PathBuf,
+        base_dir: PathBuf,
+        is_entry: bool,
+    },
+    Memory {
+        base_dir: Option<PathBuf>,
+    },
     Uri(String),
 }
 
 impl SourceOrigin {
-    fn entry_file(path: &Path) -> Result<Self, Error> {
+    fn entry_file(path: &Path, base_override: Option<&Path>) -> Result<Self, Error> {
         let absolute_path = absolute_normalized(path)?;
-        let base_dir = absolute_path
-            .parent()
-            .unwrap_or(&absolute_path)
-            .to_path_buf();
+        let default_base = absolute_path.parent().unwrap_or(&absolute_path);
+        let base_dir = absolute_normalized(base_override.unwrap_or(default_base))?;
         Ok(Self::File {
             path: path.to_path_buf(),
             base_dir,
+            is_entry: true,
         })
     }
 
-    pub(super) fn as_path(&self) -> &Path {
+    fn memory(base_override: Option<&Path>) -> Self {
+        Self::Memory {
+            base_dir: base_override.map(Path::to_path_buf),
+        }
+    }
+
+    pub(super) fn as_path(&self) -> Option<&Path> {
         match self {
-            Self::File { path, .. } => path,
-            Self::Uri(uri) => Path::new(uri),
+            Self::File { path, .. } => Some(path),
+            Self::Memory { .. } => None,
+            Self::Uri(uri) => Some(Path::new(uri)),
         }
     }
 }
@@ -346,7 +359,7 @@ impl<'input> PreprocessorState<'input> {
             byte_offset: 0,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
-            source_file: source_origin.map(|origin| origin.as_path().to_path_buf()),
+            source_file: source_origin.and_then(|origin| origin.as_path().map(Path::to_path_buf)),
             src_line_starts,
             line_origins,
             run: None,
@@ -744,8 +757,9 @@ impl Preprocessor {
         })?;
         // The local `input` cannot outlive this function, so materialize any
         // borrowed text into an owned result.
+        let source_origin = SourceOrigin::memory(options.base_dir.as_deref());
         Ok(Self::new(options, warnings)
-            .process_inner(&input, None, options)?
+            .process_inner(&input, Some(&source_origin), options)?
             .into_owned())
     }
 
@@ -755,7 +769,8 @@ impl Preprocessor {
         options: &Options,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'a>, Error> {
-        Self::new(options, warnings).process_inner(input, None, options)
+        let source_origin = SourceOrigin::memory(options.base_dir.as_deref());
+        Self::new(options, warnings).process_inner(input, Some(&source_origin), options)
     }
 
     /// Like `process` but lets the caller pass the file path explicitly, used
@@ -767,7 +782,7 @@ impl Preprocessor {
         options: &Options,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'a>, Error> {
-        let source_origin = SourceOrigin::entry_file(file_path)?;
+        let source_origin = SourceOrigin::entry_file(file_path, options.base_dir.as_deref())?;
         Self::new(options, warnings).process_inner(input, Some(&source_origin), options)
     }
 
@@ -781,7 +796,8 @@ impl Preprocessor {
         if file_path.as_ref().parent().is_some() {
             // Use read_and_decode_file to support UTF-8, UTF-16 LE, and UTF-16 BE with BOM
             let input = read_and_decode_file(file_path.as_ref(), None)?;
-            let source_origin = SourceOrigin::entry_file(file_path.as_ref())?;
+            let source_origin =
+                SourceOrigin::entry_file(file_path.as_ref(), options.base_dir.as_deref())?;
             Ok(Self::new(options, warnings)
                 .process_inner(&input, Some(&source_origin), options)?
                 .into_owned())
@@ -809,7 +825,7 @@ impl Preprocessor {
             let include = Include::parse(
                 source_origin,
                 line,
-                LocationContext::new(line_number, current_offset, Some(source_origin.as_path())),
+                LocationContext::new(line_number, current_offset, source_origin.as_path()),
                 options,
                 self.include_context,
                 &self.warnings,
