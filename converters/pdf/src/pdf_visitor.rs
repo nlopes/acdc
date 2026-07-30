@@ -135,6 +135,45 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
+    pub(crate) fn write_inline_span_start(
+        &mut self,
+        id: Option<&str>,
+        role: Option<&str>,
+    ) -> usize {
+        if let Some(id) = id {
+            let _ = write!(self.writer, "#metadata(none) <{}>", crate::encode_label(id));
+        }
+
+        let mut wrappers = 0;
+        for role in role.into_iter().flat_map(str::split_whitespace) {
+            let prefix = match role {
+                "line-through" => Some("#strike["),
+                "underline" => Some("#underline["),
+                "overline" => Some("#overline["),
+                "big" => Some("#text(size: 1.2em)["),
+                "small" => Some("#text(size: 0.8em)["),
+                _ => None,
+            };
+            if let Some(prefix) = prefix {
+                self.writer.raw(prefix);
+                wrappers += 1;
+            } else if let Some(colour) = asciidoctor_foreground_colour(role) {
+                let _ = write!(self.writer, "#text(fill: rgb(\"{colour}\"))[");
+                wrappers += 1;
+            } else if let Some(colour) = asciidoctor_background_colour(role) {
+                let _ = write!(self.writer, "#highlight(fill: rgb(\"{colour}\"))[");
+                wrappers += 1;
+            }
+        }
+        wrappers
+    }
+
+    pub(crate) fn write_inline_span_end(&mut self, wrappers: usize) {
+        for _ in 0..wrappers {
+            self.writer.raw("]");
+        }
+    }
+
     pub(crate) fn write_plain(&mut self, text: &str) {
         #[cfg(feature = "pre-spec-subs")]
         let text = apply_replacements(
@@ -150,13 +189,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_quoted_span(
         &mut self,
+        id: Option<&str>,
+        role: Option<&str>,
         prefix: &str,
         nodes: &[InlineNode<'_>],
         suffix: &str,
     ) -> Result<(), Error> {
+        let wrappers = self.write_inline_span_start(id, role);
         self.writer.raw(prefix);
         self.write_inlines(nodes)?;
         self.writer.raw(suffix);
+        self.write_inline_span_end(wrappers);
         Ok(())
     }
 
@@ -457,6 +500,50 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         self.writer.raw("]");
         Ok(())
+    }
+}
+
+fn asciidoctor_foreground_colour(role: &str) -> Option<&'static str> {
+    match role {
+        "aqua" => Some("#00bfbf"),
+        "black" => Some("#000000"),
+        "blue" => Some("#0000bf"),
+        "fuchsia" => Some("#bf00bf"),
+        "gray" => Some("#606060"),
+        "green" => Some("#006000"),
+        "lime" => Some("#00bf00"),
+        "maroon" => Some("#600000"),
+        "navy" => Some("#000060"),
+        "olive" => Some("#606000"),
+        "purple" => Some("#600060"),
+        "red" => Some("#bf0000"),
+        "silver" => Some("#909090"),
+        "teal" => Some("#006060"),
+        "white" => Some("#bfbfbf"),
+        "yellow" => Some("#bfbf00"),
+        _ => None,
+    }
+}
+
+fn asciidoctor_background_colour(role: &str) -> Option<&'static str> {
+    match role {
+        "aqua-background" => Some("#00fafa"),
+        "black-background" => Some("#000000"),
+        "blue-background" => Some("#0000fa"),
+        "fuchsia-background" => Some("#fa00fa"),
+        "gray-background" => Some("#7d7d7d"),
+        "green-background" => Some("#007d00"),
+        "lime-background" => Some("#00fa00"),
+        "maroon-background" => Some("#7d0000"),
+        "navy-background" => Some("#00007d"),
+        "olive-background" => Some("#7d7d00"),
+        "purple-background" => Some("#7d007d"),
+        "red-background" => Some("#fa0000"),
+        "silver-background" => Some("#bcbcbc"),
+        "teal-background" => Some("#007d7d"),
+        "white-background" => Some("#fafafa"),
+        "yellow-background" => Some("#fafa00"),
+        _ => None,
     }
 }
 

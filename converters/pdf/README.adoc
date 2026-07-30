@@ -44,6 +44,23 @@ The backend is intentionally incomplete.
 Inline icons, audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
 
+== Inline IDs and roles
+
+IDs on bold, italic, monospace, highlight, subscript, superscript, and quoted text create PDF link targets.
+For example, `[#term]*Term*` can be referenced with `<<term>>`.
+Without explicit link text, the reference renders as `[term]`.
+
+The PDF backend supports these built-in roles:
+
+* `big` and `small` change the text size.
+* `underline`, `overline`, and `line-through` decorate text.
+* `aqua`, `black`, `blue`, `fuchsia`, `gray`, `green`, `lime`, `maroon`, `navy`, `olive`, `purple`, `red`, `silver`, `teal`, `white`, and `yellow` set the foreground colour.
+* Matching `*-background` roles set the background colour.
+
+Use `[.underline]#text#` to apply a role or `[.red.underline]#text#` to combine roles.
+Unknown roles are ignored without warnings and cannot yet be styled through PDF themes.
+Highlighted text keeps its default background only when it has neither an ID nor a role.
+
 == Options
 
 The CLI flags map to fields on `PdfOptions` for library callers.

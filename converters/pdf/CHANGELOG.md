@@ -36,3 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headers and repeat across page breaks.
 - Named footnote references now reuse the original footnote and its assigned
   number instead of creating and numbering an empty footnote.
+- Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
+  text.
+- Built-in roles now control inline text size, decoration, colour, and
+  background in PDF output. Roles can be combined; unknown roles are ignored.
+  Unlike Asciidoctor PDF, acdc renders `overline` and colour roles by default.
+- Highlighted text keeps its default background only when it has neither an ID
+  nor a role, matching Asciidoctor.

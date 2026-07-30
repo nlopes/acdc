@@ -646,7 +646,13 @@ mod tests {
 
     use super::*;
 
-    const DEFAULT_THEME_YAML: &str = include_str!("../crates/theme/assets/theme/default.yaml");
+    const SIMPLE_INLINE_ROLES: [(&str, &str); 5] = [
+        ("line-through", "#strike["),
+        ("underline", "#underline["),
+        ("overline", "#overline["),
+        ("big", "#text(size: 1.2em)["),
+        ("small", "#text(size: 0.8em)["),
+    ];
 
     #[test]
     fn labels_are_typst_safe_and_collision_resistant() {
@@ -993,6 +999,139 @@ mod tests {
     }
 
     #[test]
+    fn formatted_inline_ids_emit_targets_and_resolve_cross_references()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            r#"A [#bold-id]*bold*, [#italic-id]_italic_, [#mono-id]`mono`, [#mark-id]#mark#, [#sub-id]~sub~, [#super-id]^super^, [#double-id]"`double`", and [#single-id]'`single`'.
+
+See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mark link>>, <<sub-id,sub link>>, <<super-id,super link>>, <<double-id,double link>>, and <<single-id,single link>>.
+"#,
+            &acdc_parser::Options::default(),
+        )?;
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+
+        let ids = [
+            "bold-id",
+            "italic-id",
+            "mono-id",
+            "mark-id",
+            "sub-id",
+            "super-id",
+            "double-id",
+            "single-id",
+        ];
+        for id in ids {
+            assert!(
+                parsed.document().references.contains_key(id),
+                "missing parser reference target `{id}`"
+            );
+        }
+
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        for id in ids {
+            let label = encode_label(id);
+            assert_eq!(
+                typst.matches(&format!("#metadata(none) <{label}>")).count(),
+                1,
+                "missing or duplicate target `{id}`: {typst}"
+            );
+            assert_eq!(
+                typst.matches(&format!("#link(<{label}>)[")).count(),
+                1,
+                "missing or duplicate link `{id}`: {typst}"
+            );
+        }
+        assert!(
+            typst.contains(&format!(
+                "#link(<{}>)[#text(\"[bold-id]\")]",
+                encode_label("bold-id")
+            )),
+            "{typst}"
+        );
+        let mark_label = encode_label("mark-id");
+        assert!(
+            typst.contains(&format!("#metadata(none) <{mark_label}>#text(\"mark\")")),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains(&format!("#metadata(none) <{mark_label}>#highlight[")),
+            "{typst}"
+        );
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn maps_inline_roles_and_silently_ignores_custom_css_roles()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut input = String::new();
+        for (role, _) in SIMPLE_INLINE_ROLES {
+            writeln!(input, "[.{role}]#{role}#")?;
+        }
+        input.push_str(
+            "[.gray]#gray#\n[.white]#white#\n[.black-background]#black-background#\n[.red-background]#red-background#\n[.red.underline]#combined known#\n[.custom-html]#custom role#\n[.custom-html.line-through]#mixed role#\n[.custom-html]*custom bold*\n[.custom-html.underline]_mixed italic_\n",
+        );
+
+        let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        for (role, prefix) in SIMPLE_INLINE_ROLES {
+            assert!(
+                typst.contains(&format!("{prefix}#text(\"{role}\")]")),
+                "missing `{role}` role: {typst}"
+            );
+        }
+        assert!(
+            typst.contains("#text(fill: rgb(\"#606060\"))[#text(\"gray\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#text(fill: rgb(\"#bfbfbf\"))[#text(\"white\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#highlight(fill: rgb(\"#000000\"))[#text(\"black-background\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#highlight(fill: rgb(\"#fa0000\"))[#text(\"red-background\")]"),
+            "{typst}"
+        );
+        assert!(typst.contains("#text(\"custom role\")"), "{typst}");
+        assert!(
+            !typst.contains("#highlight[#text(\"custom role\")]"),
+            "{typst}"
+        );
+        assert!(typst.contains("#strike[#text(\"mixed role\")]"), "{typst}");
+        assert!(
+            typst.contains("#text(fill: rgb(\"#bf0000\"))[#underline[#text(\"combined known\")]]"),
+            "{typst}"
+        );
+        assert!(typst.contains("#strong[#text(\"custom bold\")]"), "{typst}");
+        assert!(
+            typst.contains("#underline[#emph[#text(\"mixed italic\")]]"),
+            "{typst}"
+        );
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn pdf_safe_modes_map_to_image_source_policy() {
         assert_eq!(
             image_source_policy(SafeMode::Unsafe, false),
@@ -1044,15 +1183,9 @@ mod tests {
     }
 
     #[test]
-    fn hostile_theme_colour_is_rejected_before_emission() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn invalid_custom_theme_reports_its_path() -> Result<(), Box<dyn std::error::Error>> {
         let theme_file = NamedTempFile::new()?;
-        let yaml = DEFAULT_THEME_YAML.replacen(
-            r##"page_bg: "#ffffff""##,
-            r#"page_bg: '") #undefined_function() //'"#,
-            1,
-        );
-        std::fs::write(theme_file.path(), yaml)?;
+        std::fs::write(theme_file.path(), "palette: [")?;
         let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
             .with_pdf_options(PdfOptions {
@@ -1066,7 +1199,7 @@ mod tests {
         let Err(Error::ThemeParse { path, .. }) =
             processor.convert_to_typst_source(parsed.document(), &mut diagnostics)
         else {
-            return Err(std::io::Error::other("hostile colour unexpectedly accepted").into());
+            return Err(std::io::Error::other("invalid theme unexpectedly accepted").into());
         };
         assert_eq!(path, theme_file.path());
         Ok(())
@@ -1076,21 +1209,27 @@ mod tests {
     fn hostile_theme_font_name_remains_literal_typst_data() -> Result<(), Box<dyn std::error::Error>>
     {
         let hostile = r#"Acme"), size: 1pt)#undefined_function()//"#;
-        let fallback = format!(r#"fallback: [{hostile:?}, "IBM Plex Serif"]"#);
-        let yaml = DEFAULT_THEME_YAML.replacen(r#"fallback: ["IBM Plex Serif"]"#, &fallback, 1);
-        let theme_file = NamedTempFile::new()?;
-        std::fs::write(theme_file.path(), yaml)?;
+        let mut theme = Theme::default();
+        theme
+            .typography
+            .body_font
+            .fallback
+            .insert(0, hostile.to_owned());
         let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                theme: Some(theme_file.path().to_path_buf()),
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let assets = ImageMap::new();
+        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &theme,
+            &emit_options,
+            &mut diagnostics,
+        )?;
         assert!(
             typst.contains(r#""Acme\"), size: 1pt)#undefined_function()//", "IBM Plex Serif""#)
         );
@@ -1098,7 +1237,7 @@ mod tests {
         // If the quote in the family name closed its string, the deliberately
         // undefined function above would make compilation fail. A valid PDF is
         // therefore an end-to-end assertion that the payload remained data.
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let rendered = render_pdf(&typst, &assets, &RenderConfig::default())?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         Ok(())
     }
