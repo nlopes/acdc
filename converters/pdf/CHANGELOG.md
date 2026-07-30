@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   other blocks now link to the target in the PDF. References without explicit link text
   use the target's reference label or title, including its inline formatting, and fall
   back to `[id]` for untitled targets.
+- Anchored single-line admonitions now emit one PDF target, avoiding duplicate
+  Typst labels while preserving anchors inside compound admonitions.
 - PDF tables now preserve `n+|` column spans, `.n+|` row spans, and combined
   `n.m+|` spans. Declared header rows are emitted as semantic Typst table
   headers and repeat across page breaks.

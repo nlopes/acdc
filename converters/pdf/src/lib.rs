@@ -653,6 +653,115 @@ mod tests {
         ("big", "#text(size: 1.2em)["),
         ("small", "#text(size: 0.8em)["),
     ];
+    const BLOCK_TARGET_AUDIT_SOURCE: &str = r"= Anchor audit
+:toc: macro
+
+[[section-fallback]]
+[#section-id]
+== Section
+
+[[paragraph-id]]
+[[paragraph-secondary]]
+A paragraph.
+
+[[delimited-id]]
+[[delimited-secondary]]
+----
+listing
+----
+
+[[ordered-id]]
+[[ordered-secondary]]
+. ordered
+
+[[unordered-id]]
+[[unordered-secondary]]
+* unordered
+
+[[description-id]]
+[[description-secondary]]
+Term:: definition
+
+[[callout-id]]
+[[callout-secondary]]
+<1> callout
+
+[[admonition-id]]
+[[admonition-secondary]]
+NOTE: admonition
+
+[[compound-admonition-id]]
+[NOTE]
+====
+[[inner-paragraph-id]]
+Inner paragraph.
+====
+
+[[image-id]]
+[[image-secondary]]
+image::missing.png[]
+
+[[video-id]]
+[[video-secondary]]
+video::video.mp4[]
+
+[[audio-id]]
+[[audio-secondary]]
+audio::audio.mp3[]
+
+[[thematic-id]]
+[[thematic-secondary]]
+'''
+
+[[page-id]]
+[[page-secondary]]
+<<<
+
+[[toc-id]]
+[[toc-secondary]]
+toc::[]
+
+[[discrete-id]]
+[[discrete-secondary]]
+[discrete]
+=== Discrete
+";
+    const SELECTED_BLOCK_TARGETS: [&str; 17] = [
+        "section-id",
+        "paragraph-id",
+        "delimited-id",
+        "ordered-id",
+        "unordered-id",
+        "description-id",
+        "callout-id",
+        "admonition-id",
+        "compound-admonition-id",
+        "inner-paragraph-id",
+        "image-id",
+        "video-id",
+        "audio-id",
+        "thematic-id",
+        "page-id",
+        "toc-id",
+        "discrete-id",
+    ];
+    const UNSELECTED_BLOCK_TARGETS: [&str; 15] = [
+        "section-fallback",
+        "paragraph-secondary",
+        "delimited-secondary",
+        "ordered-secondary",
+        "unordered-secondary",
+        "description-secondary",
+        "callout-secondary",
+        "admonition-secondary",
+        "image-secondary",
+        "video-secondary",
+        "audio-secondary",
+        "thematic-secondary",
+        "page-secondary",
+        "toc-secondary",
+        "discrete-secondary",
+    ];
 
     #[test]
     fn labels_are_typst_safe_and_collision_resistant() {
@@ -1526,6 +1635,37 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
             typst.contains("#link(<id-7465726d2d6964>)[#text(\"[term-id]\")]"),
             "{typst}"
         );
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        Ok(())
+    }
+
+    #[test]
+    fn every_block_target_is_emitted_exactly_once() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed =
+            acdc_parser::parse(BLOCK_TARGET_AUDIT_SOURCE, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for id in SELECTED_BLOCK_TARGETS {
+            let target = format!("<{}>", encode_label(id));
+            assert_eq!(
+                typst.matches(&target).count(),
+                1,
+                "expected one target for {id}: {typst}"
+            );
+        }
+        for id in UNSELECTED_BLOCK_TARGETS {
+            let target = format!("<{}>", encode_label(id));
+            assert!(
+                !typst.contains(&target),
+                "unexpected unselected target for {id}: {typst}"
+            );
+        }
 
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));

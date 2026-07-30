@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{decode_numeric_char_refs, inlines_to_string, visitor::Visitor};
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
+    Admonition, AdmonitionVariant, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
     Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
@@ -227,7 +227,21 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             AdmonitionVariant::Warning => "warning",
         };
         self.write_block_title(&admon.title)?;
-        self.write_callout(kind, &admon.blocks)
+        self.writer.raw("#callout(");
+        self.writer.string_literal(kind);
+        self.writer.raw(")[\n");
+        match admon.blocks.as_slice() {
+            [Block::Paragraph(para)] if para.metadata == admon.metadata => {
+                // The parser copies a simple admonition's metadata to its
+                // synthetic paragraph. Render that paragraph's content
+                // directly so the wrapper remains the sole anchor owner.
+                self.write_inlines(&para.content)?;
+                self.writer.raw("\n\n");
+            }
+            blocks => self.write_blocks(blocks)?,
+        }
+        self.writer.raw("]\n\n");
+        Ok(())
     }
 
     fn visit_image(&mut self, img: &Image<'_>) -> Result<(), Self::Error> {

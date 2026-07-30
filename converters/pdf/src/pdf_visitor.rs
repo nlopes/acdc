@@ -261,15 +261,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_callout(&mut self, kind: &str, blocks: &[Block<'_>]) -> Result<(), Error> {
-        self.writer.raw("#callout(");
-        self.writer.string_literal(kind);
-        self.writer.raw(")[\n");
-        self.write_blocks(blocks)?;
-        self.writer.raw("]\n\n");
-        Ok(())
-    }
-
     pub(crate) fn warn_unsupported(&mut self, feature: &str, fallback: &str) {
         self.diagnostics.warn_with_advice(
             format!("{feature} is not yet supported by the PDF backend, {fallback}"),
