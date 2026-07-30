@@ -919,6 +919,80 @@ mod tests {
     }
 
     #[test]
+    fn supports_footnotes_in_formatted_text_table_cells_titles_and_list_items()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Document\n\n== Heading footnote:title[Title note.]\n\nA *formatted footnote:formatted[Formatted note.]*.\n\n|===\n|Cell footnote:cell[Cell note.]\n|===\n\n* Item footnote:list[List note.]\n\nReferences footnote:title[], footnote:formatted[], footnote:cell[], and footnote:list[].\n",
+            &acdc_parser::Options::default(),
+        )?;
+        assert_eq!(
+            parsed
+                .document()
+                .footnotes
+                .iter()
+                .map(|footnote| (footnote.id, footnote.number))
+                .collect::<Vec<_>>(),
+            [
+                (Some("title"), 1),
+                (Some("formatted"), 2),
+                (Some("cell"), 3),
+                (Some("list"), 4)
+            ]
+        );
+
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        for (id, content) in [
+            ("title", "Title note."),
+            ("formatted", "Formatted note."),
+            ("cell", "Cell note."),
+            ("list", "List note."),
+        ] {
+            let label = encode_footnote_label(id);
+            assert_eq!(
+                typst
+                    .matches(&format!("#footnote[#text(\"{content}\")] <{label}>"))
+                    .count(),
+                1,
+                "missing {id} definition: {typst}"
+            );
+            assert_eq!(
+                typst.matches(&format!("#footnote(<{label}>)")).count(),
+                1,
+                "missing {id} reference: {typst}"
+            );
+        }
+        assert!(typst.contains("#heading(level: 1)["), "{typst}");
+        assert!(typst.contains("#strong["), "{typst}");
+        assert!(typst.contains("table.cell(x: 0, y: 0)["), "{typst}");
+        assert!(typst.contains("- #text(\"Item \")"), "{typst}");
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        for expected in [
+            "Heading",
+            "formatted",
+            "Cell",
+            "Item",
+            "Title note.",
+            "Formatted note.",
+            "Cell note.",
+            "List note.",
+        ] {
+            assert!(text.contains(expected), "missing {expected}: {text}");
+        }
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn pdf_safe_modes_map_to_image_source_policy() {
         assert_eq!(
             image_source_policy(SafeMode::Unsafe, false),
