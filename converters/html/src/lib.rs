@@ -7,8 +7,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Options, WarningSource, inlines_to_string,
-    visitor::Visitor,
+    BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
 };
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
@@ -175,42 +174,6 @@ impl<'a> Processor<'a> {
     #[must_use]
     pub fn document_attributes(&self) -> &DocumentAttributes<'a> {
         &self.document_attributes
-    }
-
-    /// Resolve a cross-reference target id to its display text, matching
-    /// asciidoctor: an explicit xreflabel wins, else the target's title, else
-    /// the literal `[id]` for unknown/untitled targets.
-    #[must_use]
-    pub(crate) fn xref_text(&self, target: &str) -> String {
-        // Resolution order: explicit xreflabel > target title > literal `[id]`.
-        // A target present in the catalog but with no reflabel/title (e.g. an
-        // untitled block with an `[[id]]`) falls back to `[id]`, same as an id
-        // that is absent (an unresolved reference).
-        match self.references.get(target) {
-            Some(reference) => {
-                if let Some(label) = reference.xreflabel {
-                    label.to_string()
-                } else if let Some(title) = &reference.title {
-                    inlines_to_string(title)
-                } else {
-                    format!("[{target}]")
-                }
-            }
-            None => format!("[{target}]"),
-        }
-    }
-
-    /// Resolve a cross-reference target id to its title's inline nodes, so the
-    /// renderer can preserve the title's formatting in the link text. Returns
-    /// `None` when the target is unknown, untitled, or carries an explicit
-    /// `xreflabel` (which wins over the title and is plain text — see
-    /// [`Self::xref_text`]).
-    #[must_use]
-    pub(crate) fn xref_title_inlines(&self, target: &str) -> Option<&[InlineNode<'a>]> {
-        self.references
-            .get(target)
-            .filter(|reference| reference.xreflabel.is_none())
-            .and_then(|reference| reference.title.as_deref())
     }
 
     /// Get a reference to the collected index entries

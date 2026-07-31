@@ -53,6 +53,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Automatic cross-references now use labels and formatted target titles, follow
+  manpage section capitalization, and fall back to `[id]`. Passthrough titles
+  remain available as reference text without appearing above their blocks,
+  matching Asciidoctor.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
   superscript, subscript, and curved quotes is no longer converted to an em-dash at string
   boundaries, matching asciidoctor behavior.

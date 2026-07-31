@@ -1,0 +1,20 @@
+= Passthrough xrefs
+
+See <<titled>>, <<labeled>>, <<untitled>>, <<missing>>, and <<titled,Explicit *Text*>>.
+
+[[titled]]
+.Passthrough *Title*
+++++
+titled-body
+++++
+
+[[labeled,Custom Label]]
+.Ignored Title
+++++
+labeled-body
+++++
+
+[[untitled]]
+++++
+untitled-body
+++++

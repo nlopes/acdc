@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatic cross-reference text follows Asciidoctor's precedence: explicit
+  reference label, formatted target title, then `[id]`.
 - Converter backends can declare their Asciidoctor-compatible backend,
   base-backend, file-type, output-suffix, and HTML-syntax traits and apply the
   corresponding intrinsic and doctype convenience attributes consistently.

@@ -26,13 +26,15 @@
 //! - `.TS`/`.TE` for tables (tbl preprocessor format)
 //! - `\fB`, `\fI`, `\fP` for inline formatting
 
+#[cfg(feature = "pre-spec-subs")]
+use std::cell::Cell;
 use std::{
     borrow::Cow,
+    collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
+    rc::Rc,
 };
-#[cfg(feature = "pre-spec-subs")]
-use std::{cell::Cell, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
@@ -40,7 +42,7 @@ use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, Doctype, Options, visitor::Visitor,
 };
 
-use acdc_parser::{AttributeValue, Document, DocumentAttributes};
+use acdc_parser::{AttributeValue, Document, DocumentAttributes, Reference};
 
 mod admonition;
 mod delimited;
@@ -66,6 +68,8 @@ const BACKEND_TRAITS: BackendTraits = BackendTraits::new("manpage", "manpage", "
 pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
+    pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    pub(crate) top_level_section_ids: Rc<HashSet<&'a str>>,
     /// Substitutions active for the block currently being rendered, resolved
     /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
     /// across clones so sub-visitors inherit the outer block's effective
@@ -106,6 +110,14 @@ impl Processor<'_> {
         let processor: Processor<'doc> = Processor {
             options: self.options.clone(),
             document_attributes: attrs,
+            references: Rc::new(doc.references.clone()),
+            top_level_section_ids: Rc::new(
+                doc.toc_entries
+                    .iter()
+                    .filter(|entry| entry.level == 1)
+                    .map(|entry| entry.id)
+                    .collect(),
+            ),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
@@ -150,6 +162,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         Self {
             options,
             document_attributes,
+            references: Rc::new(HashMap::new()),
+            top_level_section_ids: Rc::new(HashSet::new()),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }

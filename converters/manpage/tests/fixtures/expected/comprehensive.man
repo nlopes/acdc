@@ -52,7 +52,7 @@ See \c
 for details.
 Also see \c
 .MTO "admin\(atexample.com" "the admin" "."
-Cross\-reference to other-section\&.
+Cross\-reference to OTHER SECTION\&.
 Man page style reference: git(1).
 .SS "Footnotes"
 .sp

@@ -11,12 +11,14 @@ use acdc_converters_core::{
     decode_numeric_char_refs,
     substitutions::Replacements,
     visitor::{Visitor, WritableVisitor},
+    xref::{XrefDisplay, resolve_xref},
 };
-use acdc_parser::{Autolink, InlineMacro, InlineNode, Link, Mailto};
+use acdc_parser::{Autolink, CrossReference, InlineMacro, InlineNode, Link, Mailto};
 
 use crate::{
     Error, ManpageVisitor,
     escape::{EscapeMode, manify},
+    manpage_visitor::TextCase,
 };
 
 /// Apply Unicode typography replacements to a `PlainText` leaf.
@@ -48,6 +50,13 @@ fn transform_plain<'a>(
     Cow::Owned(Replacements::unicode().transform(text, string_boundaries_are_space))
 }
 
+fn apply_text_case(content: Cow<'_, str>, text_case: TextCase) -> Cow<'_, str> {
+    match text_case {
+        TextCase::Preserve => content,
+        TextCase::Uppercase => Cow::Owned(content.to_uppercase()),
+    }
+}
+
 impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit an inline node.
     pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), Error> {
@@ -60,6 +69,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                     text.content
                 };
                 let content = transform_plain(content, self, !self.in_inline_span);
+                let content = apply_text_case(content, self.text_case);
                 let escaped = manify(&content, EscapeMode::Normalize);
                 let w = self.writer_mut();
                 write!(w, "{escaped}")?;
@@ -74,14 +84,16 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 } else {
                     &decoded
                 };
-                let escaped = manify(content, EscapeMode::Normalize);
+                let content = apply_text_case(Cow::Borrowed(content), self.text_case);
+                let escaped = manify(&content, EscapeMode::Normalize);
                 let w = self.writer_mut();
                 write!(w, "{escaped}")?;
             }
 
             InlineNode::VerbatimText(text) => {
                 // Verbatim text - render as-is, preserve whitespace
-                let escaped = manify(text.content, EscapeMode::Preserve);
+                let content = apply_text_case(Cow::Borrowed(text.content), self.text_case);
+                let escaped = manify(&content, EscapeMode::Preserve);
                 let w = self.writer_mut();
                 write!(w, "{escaped}")?;
             }
@@ -338,25 +350,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::CrossReference(xref) => {
-                // Cross-reference - try to render as man page reference if it looks like one
-                // e.g., git(1) -> \fBgit\fP(1)
-                if xref.text.is_empty() {
-                    // Try to format as man page reference
-                    let w = self.writer_mut();
-                    let target = &xref.target;
-                    if let Some((name, vol)) = target.rsplit_once('(') {
-                        if vol.ends_with(')') && vol.len() <= 3 {
-                            write!(w, "\\fB{name}\\fP({vol}")?;
-                        } else {
-                            write!(w, "{target}")?;
-                        }
-                    } else {
-                        write!(w, "{target}")?;
-                    }
-                } else {
-                    // Render inline nodes recursively
-                    self.visit_inline_nodes(&xref.text)?;
-                }
+                self.render_cross_reference(xref)?;
             }
 
             InlineMacro::Footnote(_)
@@ -371,6 +365,32 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             | _ => {}
         }
         Ok(())
+    }
+
+    fn render_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
+        if !xref.text.is_empty() {
+            return self.visit_inline_nodes(&xref.text);
+        }
+
+        match resolve_xref(self.processor.references.get(xref.target), xref.target) {
+            XrefDisplay::Inlines(inlines) => {
+                let text_case = if self.processor.top_level_section_ids.contains(xref.target) {
+                    TextCase::Uppercase
+                } else {
+                    TextCase::Preserve
+                };
+                let saved = self.text_case;
+                self.text_case = text_case;
+                let result = self.visit_inline_nodes(&inlines);
+                self.text_case = saved;
+                result
+            }
+            XrefDisplay::Text(text) => {
+                let text = manify(&text, EscapeMode::Normalize);
+                write!(self.writer_mut(), "{text}")?;
+                Ok(())
+            }
+        }
     }
 
     /// Render UI-element inline macros: image, icon, keyboard, button, menu, pass, stem, index-term.

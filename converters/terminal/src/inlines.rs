@@ -7,6 +7,7 @@ use acdc_converters_core::{
     decode_numeric_char_refs, inlines_to_string,
     substitutions::Replacements,
     visitor::{Visitor, WritableVisitor},
+    xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
@@ -291,6 +292,9 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
             InlineNode::SuperscriptText(_) | InlineNode::SubscriptText(_) => {
                 self.render_script_inline_node(node, &processor)?;
             }
+            InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
+                self.render_cross_reference(xref, &processor)?;
+            }
             InlineNode::Macro(m) => {
                 let w = self.writer_mut();
                 render_inline_macro_to_writer(m, w, &processor)?;
@@ -347,6 +351,31 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                 .into());
             }
         }
+        Ok(())
+    }
+
+    fn render_cross_reference(
+        &mut self,
+        xref: &CrossReference<'_>,
+        processor: &Processor<'_>,
+    ) -> Result<(), crate::Error> {
+        let display = if xref.text.is_empty() {
+            resolve_xref(processor.references.get(xref.target), xref.target)
+        } else {
+            XrefDisplay::Inlines(xref.text.clone())
+        };
+        let link_color = processor.appearance.colors.link;
+        let w = self.writer_mut();
+        w.queue(SetForegroundColor(link_color))?;
+        w.queue(SetAttribute(Attribute::Underlined))?;
+
+        match display {
+            XrefDisplay::Inlines(inlines) => self.visit_inline_nodes(&inlines)?,
+            XrefDisplay::Text(text) => write!(self.writer_mut(), "{text}")?,
+        }
+
+        let w = self.writer_mut();
+        w.queue(SetAttribute(Attribute::Reset))?;
         Ok(())
     }
 
@@ -528,7 +557,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             ))?;
         }
         InlineMacro::Button(b) => render_button(b, w, processor)?,
-        InlineMacro::CrossReference(xref) => render_cross_reference(xref, w)?,
+        InlineMacro::CrossReference(xref) => render_cross_reference_to_writer(xref, w, processor)?,
         InlineMacro::Pass(p) => {
             // Pass content through as-is
             if let Some(text) = p.text {
@@ -604,20 +633,22 @@ fn render_button<W: Write + ?Sized>(
     Ok(())
 }
 
-fn render_cross_reference<W: Write + ?Sized>(
+fn render_cross_reference_to_writer<W: Write + ?Sized>(
     xref: &CrossReference,
     w: &mut W,
+    processor: &Processor<'_>,
 ) -> Result<(), crate::Error> {
-    if xref.text.is_empty() {
-        // Render target in brackets with styling
-        w.queue(PrintStyledContent(
-            format!("[{}]", xref.target).blue().underlined(),
-        ))?;
+    let text = if xref.text.is_empty() {
+        match resolve_xref(processor.references.get(xref.target), xref.target) {
+            XrefDisplay::Inlines(inlines) => render_inline_nodes_to_string(&inlines, processor)?,
+            XrefDisplay::Text(text) => text,
+        }
     } else {
-        // Render custom text with subtle styling to indicate it's a cross-reference
-        let text = inlines_to_string(&xref.text);
-        w.queue(PrintStyledContent(text.blue().underlined()))?;
-    }
+        inlines_to_string(&xref.text)
+    };
+    w.queue(PrintStyledContent(
+        text.with(processor.appearance.colors.link).underlined(),
+    ))?;
     Ok(())
 }
 
@@ -660,6 +691,7 @@ mod tests {
             options,
             document_attributes,
             toc_entries: vec![],
+            references: std::rc::Rc::new(std::collections::HashMap::new()),
             example_counter: Rc::new(Cell::new(0)),
             appearance,
             section_number_tracker,

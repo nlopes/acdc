@@ -1,5 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
+    collections::HashMap,
     io::Write,
     path::{Path, PathBuf},
     rc::Rc,
@@ -17,7 +18,9 @@ use acdc_converters_core::{
 };
 #[cfg(feature = "emulator")]
 use acdc_parser::BlockMetadata;
-use acdc_parser::{Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, TocEntry};
+use acdc_parser::{
+    Document, DocumentAttributes, IndexTermKind, InlineMacro, InlineNode, Reference, TocEntry,
+};
 
 pub(crate) use appearance::Appearance;
 
@@ -42,6 +45,7 @@ pub struct Processor<'a> {
     pub(crate) options: Options,
     pub(crate) document_attributes: DocumentAttributes<'a>,
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Shared counter for auto-numbering example blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     pub(crate) example_counter: Rc<Cell<usize>>,
@@ -114,6 +118,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             options,
             document_attributes,
             toc_entries: vec![],
+            references: Rc::new(HashMap::new()),
             example_counter: Rc::new(Cell::new(0)),
             appearance,
             section_number_tracker,
@@ -164,6 +169,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         let processor = Processor {
             document_attributes: doc.attributes.clone(),
             toc_entries: doc.toc_entries.clone(),
+            references: Rc::new(doc.references.clone()),
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
             appearance: self.appearance.clone(),

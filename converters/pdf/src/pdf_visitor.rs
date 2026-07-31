@@ -9,6 +9,7 @@ use acdc_converters_core::{
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::Config as TocConfig,
     visitor::Visitor,
+    xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
     Anchor, Block, BlockMetadata, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Source,
@@ -448,10 +449,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 let label = crate::encode_label(xref.target);
                 let _ = write!(self.writer, "#link(<{label}>)[");
                 if xref.text.is_empty() {
-                    if let Some(title) = self.processor.xref_title_inlines(xref.target) {
-                        self.write_inlines(&title)?;
-                    } else {
-                        self.write_text_expr(&self.processor.xref_text(xref.target));
+                    match resolve_xref(self.processor.references.get(xref.target), xref.target) {
+                        XrefDisplay::Inlines(inlines) => self.write_inlines(&inlines)?,
+                        XrefDisplay::Text(text) => self.write_text_expr(&text),
                     }
                 } else {
                     self.write_inlines(&xref.text)?;

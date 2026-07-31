@@ -29,6 +29,7 @@
 //! - [`toc`] - Table of contents configuration
 //! - [`video`] - Video URL generation for `YouTube`, `Vimeo`, etc.
 //! - [`visitor`] - Visitor pattern infrastructure for AST traversal
+//! - [`xref`] - Automatic cross-reference display-text resolution
 
 use std::{
     borrow::Cow,
@@ -52,6 +53,7 @@ pub mod toc;
 pub mod video;
 pub mod visitor;
 mod warning;
+pub mod xref;
 
 pub use backend::BackendTraits;
 pub use doctype::Doctype;

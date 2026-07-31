@@ -19,8 +19,9 @@ use crate::{
 impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a delimited block.
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
-        // Handle title if present
-        if !block.title.is_empty() {
+        // Passthrough titles provide reference text but are not visible captions.
+        if !matches!(&block.inner, DelimitedBlockType::DelimitedPass(_)) && !block.title.is_empty()
+        {
             let w = self.writer_mut();
             writeln!(w, ".sp")?;
             write!(w, "\\fB")?;

@@ -16,6 +16,12 @@ use crate::escape::{EscapeMode, manify};
 
 use crate::{Error, Processor};
 
+#[derive(Clone, Copy)]
+pub(crate) enum TextCase {
+    Preserve,
+    Uppercase,
+}
+
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
 pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
@@ -32,6 +38,8 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
+    /// Text casing applied while preserving inline markup.
+    pub(crate) text_case: TextCase,
     /// Title of the first level-1 section (for NAME validation).
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
@@ -49,6 +57,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             in_name_section: false,
             strip_next_leading_space: false,
             in_inline_span: false,
+            text_case: TextCase::Preserve,
             first_section_title: None,
             second_section_title: None,
         }

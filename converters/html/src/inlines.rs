@@ -48,6 +48,7 @@ use acdc_converters_core::{
     inlines_to_string,
     substitutions::{restore_escaped_patterns, strip_backslash_escapes},
     visitor::{Visitor, WritableVisitor},
+    xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
     AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
@@ -1012,8 +1013,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-
         if xref.text.is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > target title > fallback `[id]`.
@@ -1021,21 +1020,22 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // A resolved title is rendered through the inline pipeline so its
             // formatting (`<code>`, bold, italic, ...) is preserved in the link,
             // matching asciidoctor. An xreflabel and the `[id]` fallback are plain
-            // text. Only the title path needs the inline nodes; the rest reuse the
-            // flattened `xref_text`.
-            let title_inlines = processor.xref_title_inlines(xref.target);
+            // text.
+            let display = resolve_xref(self.processor.references.get(xref.target), xref.target);
 
             let linked = !(options.inlines_basic || options.toc_mode);
             if linked {
                 write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
             }
-            if let Some(inlines) = title_inlines {
-                for inline in inlines {
-                    self.render_inline_node(inline, options, subs)?;
+            match display {
+                XrefDisplay::Inlines(inlines) => {
+                    for inline in &inlines {
+                        self.render_inline_node(inline, options, subs)?;
+                    }
                 }
-            } else {
-                let display_text = processor.xref_text(xref.target);
-                write!(self.writer_mut(), "{display_text}")?;
+                XrefDisplay::Text(text) => {
+                    write!(self.writer_mut(), "{text}")?;
+                }
             }
             if linked {
                 write!(self.writer_mut(), "</a>")?;

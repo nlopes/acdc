@@ -56,6 +56,7 @@ generate_tests!([
     (macros_with_quoted_attributes, false, requires: feature = "images"),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
+    (passthrough_xrefs, false),
     (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
     (index_section, false),
     (subs_replacements_disabled, false),
@@ -87,8 +88,9 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
 
     // Convert to Terminal output
     let mut output = Vec::new();
-    let processor =
-        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone())
+        .with_terminal_width(80)
+        .with_dark_mode(true);
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);

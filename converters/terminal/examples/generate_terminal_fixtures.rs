@@ -8,9 +8,12 @@ use acdc_converters_dev::generate_fixtures::FixtureGenerator;
 use acdc_converters_terminal::Processor;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    crossterm::style::force_color_output(true);
+
     FixtureGenerator::new("terminal", "txt").generate(|_subdir, doc, output| {
-        let processor =
-            Processor::new(Options::default(), doc.attributes.clone()).with_terminal_width(80);
+        let processor = Processor::new(Options::default(), doc.attributes.clone())
+            .with_terminal_width(80)
+            .with_dark_mode(true);
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);

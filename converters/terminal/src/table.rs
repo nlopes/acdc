@@ -664,6 +664,7 @@ mod tests {
             options,
             document_attributes,
             toc_entries: vec![],
+            references: std::rc::Rc::new(std::collections::HashMap::new()),
             example_counter: Rc::new(Cell::new(0)),
             appearance,
             section_number_tracker,

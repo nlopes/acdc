@@ -124,7 +124,6 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedPass(inlines) => {
                 // Passthrough content is rendered as-is
-                self.render_title_if_present(&block.title)?;
                 let inlines = inlines.clone();
                 self.visit_inline_nodes(&inlines)?;
                 let w = self.writer_mut();
@@ -531,6 +530,7 @@ mod tests {
             options,
             document_attributes,
             toc_entries: vec![],
+            references: std::rc::Rc::new(std::collections::HashMap::new()),
             example_counter: Rc::new(Cell::new(0)),
             appearance,
             section_number_tracker,

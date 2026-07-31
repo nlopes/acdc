@@ -86,7 +86,7 @@ pub struct Processor<'a> {
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
-impl<'a> Processor<'a> {
+impl Processor<'_> {
     /// Override PDF-specific conversion options.
     #[must_use]
     pub fn with_pdf_options(mut self, pdf_options: PdfOptions) -> Self {
@@ -113,33 +113,6 @@ impl<'a> Processor<'a> {
 
     pub(crate) fn document_attributes(&self) -> &DocumentAttributes<'_> {
         &self.document_attributes
-    }
-
-    /// Resolve an empty cross-reference's display text from the parser's
-    /// reference catalog.
-    pub(crate) fn xref_text(&self, target: &str) -> String {
-        match self.references.get(target) {
-            Some(reference) => {
-                if let Some(label) = reference.xreflabel {
-                    label.to_string()
-                } else if let Some(title) = &reference.title {
-                    inlines_to_string(title)
-                } else {
-                    format!("[{target}]")
-                }
-            }
-            None => format!("[{target}]"),
-        }
-    }
-
-    /// Clone a target title's inline nodes so the visitor can preserve its
-    /// formatting while mutably rendering the link.
-    pub(crate) fn xref_title_inlines(&self, target: &str) -> Option<Vec<InlineNode<'a>>> {
-        self.references
-            .get(target)
-            .filter(|reference| reference.xreflabel.is_none())
-            .and_then(|reference| reference.title.as_deref())
-            .map(<[InlineNode<'a>]>::to_vec)
     }
 
     pub(crate) fn pdf_options(&self) -> &PdfOptions {
