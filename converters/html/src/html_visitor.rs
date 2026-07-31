@@ -933,12 +933,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
     }
 
     fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {
-        if !br.title.is_empty() {
-            write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(&br.title)?;
-            writeln!(self.writer, "</div>")?;
+        write!(self.writer, "<hr")?;
+        if let Some(anchor) = br.anchors.first() {
+            write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
-        writeln!(self.writer, "<hr>")?;
+        writeln!(self.writer, ">")?;
         Ok(())
     }
 

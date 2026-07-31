@@ -221,6 +221,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Titled thematic breaks no longer display their title above the rule. Their IDs
+  now target the `<hr>`, so automatic cross-references retain formatted link text
+  and resolve; Asciidoctor hides the title too but leaves these links unresolved.
 - Highlight syntax with an ID but no role now renders as a plain targeted
   `<span>` instead of a highlighted `<mark>`, matching `asciidoctor`.
 - Standard HTML image blocks now preserve `[[id]]` and `[id=...]` as the wrapper
