@@ -1,0 +1,8 @@
+= Stem escaping
+
+stem:[#panic() $ x \\ path]
+
+[stem]
+++++
+#panic() $ [y] \\ path
+++++

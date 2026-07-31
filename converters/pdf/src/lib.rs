@@ -646,123 +646,6 @@ mod tests {
 
     use super::*;
 
-    const SIMPLE_INLINE_ROLES: [(&str, &str); 5] = [
-        ("line-through", "#strike["),
-        ("underline", "#underline["),
-        ("overline", "#overline["),
-        ("big", "#text(size: 1.2em)["),
-        ("small", "#text(size: 0.8em)["),
-    ];
-    const BLOCK_TARGET_AUDIT_SOURCE: &str = r"= Anchor audit
-:toc: macro
-
-[[section-fallback]]
-[#section-id]
-== Section
-
-[[paragraph-id]]
-[[paragraph-secondary]]
-A paragraph.
-
-[[delimited-id]]
-[[delimited-secondary]]
-----
-listing
-----
-
-[[ordered-id]]
-[[ordered-secondary]]
-. ordered
-
-[[unordered-id]]
-[[unordered-secondary]]
-* unordered
-
-[[description-id]]
-[[description-secondary]]
-Term:: definition
-
-[[callout-id]]
-[[callout-secondary]]
-<1> callout
-
-[[admonition-id]]
-[[admonition-secondary]]
-NOTE: admonition
-
-[[compound-admonition-id]]
-[NOTE]
-====
-[[inner-paragraph-id]]
-Inner paragraph.
-====
-
-[[image-id]]
-[[image-secondary]]
-image::missing.png[]
-
-[[video-id]]
-[[video-secondary]]
-video::video.mp4[]
-
-[[audio-id]]
-[[audio-secondary]]
-audio::audio.mp3[]
-
-[[thematic-id]]
-[[thematic-secondary]]
-'''
-
-[[page-id]]
-[[page-secondary]]
-<<<
-
-[[toc-id]]
-[[toc-secondary]]
-toc::[]
-
-[[discrete-id]]
-[[discrete-secondary]]
-[discrete]
-=== Discrete
-";
-    const SELECTED_BLOCK_TARGETS: [&str; 17] = [
-        "section-id",
-        "paragraph-id",
-        "delimited-id",
-        "ordered-id",
-        "unordered-id",
-        "description-id",
-        "callout-id",
-        "admonition-id",
-        "compound-admonition-id",
-        "inner-paragraph-id",
-        "image-id",
-        "video-id",
-        "audio-id",
-        "thematic-id",
-        "page-id",
-        "toc-id",
-        "discrete-id",
-    ];
-    const UNSELECTED_BLOCK_TARGETS: [&str; 15] = [
-        "section-fallback",
-        "paragraph-secondary",
-        "delimited-secondary",
-        "ordered-secondary",
-        "unordered-secondary",
-        "description-secondary",
-        "callout-secondary",
-        "admonition-secondary",
-        "image-secondary",
-        "video-secondary",
-        "audio-secondary",
-        "thematic-secondary",
-        "page-secondary",
-        "toc-secondary",
-        "discrete-secondary",
-    ];
-
     #[test]
     fn labels_are_typst_safe_and_collision_resistant() {
         assert_eq!(encode_label(""), "id");
@@ -774,77 +657,6 @@ toc::[]
                 .chars()
                 .all(|character| character.is_ascii_alphanumeric() || character == '-')
         );
-    }
-
-    #[test]
-    fn named_footnote_definitions_emit_stable_namespaced_labels()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "[id=\"named\"]\nA paragraph with an anonymous footnote:[Anonymous].\n\nA named footnote:named[Named note].\n",
-            &acdc_parser::Options::default(),
-        )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        let block_label = encode_label("named");
-        let footnote_label = encode_footnote_label("named");
-        assert_eq!(footnote_label, "id-666f6f746e6f74653a6e616d6564");
-        assert_ne!(block_label, footnote_label);
-        assert!(
-            typst.contains(&format!(
-                "#footnote[#text(\"Named note\")] <{footnote_label}>"
-            )),
-            "{typst}"
-        );
-        assert!(typst.contains("#footnote[#text(\"Anonymous\")]"), "{typst}");
-        assert!(
-            !typst.contains(&format!(
-                "#footnote[#text(\"Anonymous\")] <{footnote_label}>"
-            )),
-            "{typst}"
-        );
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        assert!(warnings.is_empty(), "{warnings:?}");
-        Ok(())
-    }
-
-    #[test]
-    fn named_footnote_references_reuse_the_original_definition()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "First reference.footnote:named[Named note].\n\nSecond reference.footnote:named[].\n",
-            &acdc_parser::Options::default(),
-        )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        let label = encode_footnote_label("named");
-        assert_eq!(
-            typst
-                .matches(&format!("#footnote[#text(\"Named note\")] <{label}>"))
-                .count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst.matches(&format!("#footnote(<{label}>)")).count(),
-            1,
-            "{typst}"
-        );
-        assert!(!typst.contains("#footnote[]"), "{typst}");
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        assert!(warnings.is_empty(), "{warnings:?}");
-        Ok(())
     }
 
     #[test]
@@ -868,31 +680,6 @@ toc::[]
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        assert_eq!(
-            typst.matches("#counter(footnote).update(0)").count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst.matches("#counter(footnote).update(1)").count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst
-                .matches(&format!("#footnote(<{}>)", encode_footnote_label("alpha")))
-                .count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst
-                .matches(&format!("#footnote(<{}>)", encode_footnote_label("beta")))
-                .count(),
-            1,
-            "{typst}"
-        );
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
 
         assert!(rendered.pdf.starts_with(b"%PDF-"));
@@ -969,51 +756,6 @@ toc::[]
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        let single_label = encode_footnote_label("single");
-        let multiple_label = encode_footnote_label("multiple");
-
-        assert_eq!(
-            typst
-                .matches("#footnote[#text(\"Anonymous note.\")]")
-                .count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst
-                .matches(&format!(
-                    "#footnote[#text(\"Single note.\")] <{single_label}>"
-                ))
-                .count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst
-                .matches(&format!("#footnote(<{single_label}>)"))
-                .count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst
-                .matches(&format!(
-                    "#footnote[#text(\"Multiple note.\")] <{multiple_label}>"
-                ))
-                .count(),
-            1,
-            "{typst}"
-        );
-        assert_eq!(
-            typst
-                .matches(&format!("#footnote(<{multiple_label}>)"))
-                .count(),
-            2,
-            "{typst}"
-        );
-        assert!(!typst.contains("#footnote[]"), "{typst}");
-
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
@@ -1059,33 +801,6 @@ toc::[]
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-
-        for (id, content) in [
-            ("title", "Title note."),
-            ("formatted", "Formatted note."),
-            ("cell", "Cell note."),
-            ("list", "List note."),
-        ] {
-            let label = encode_footnote_label(id);
-            assert_eq!(
-                typst
-                    .matches(&format!("#footnote[#text(\"{content}\")] <{label}>"))
-                    .count(),
-                1,
-                "missing {id} definition: {typst}"
-            );
-            assert_eq!(
-                typst.matches(&format!("#footnote(<{label}>)")).count(),
-                1,
-                "missing {id} reference: {typst}"
-            );
-        }
-        assert!(typst.contains("#heading(level: 1)["), "{typst}");
-        assert!(typst.contains("#strong["), "{typst}");
-        assert!(typst.contains("table.cell(x: 0, y: 0)["), "{typst}");
-        assert!(typst.contains("- #text(\"Item \")"), "{typst}");
-
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
@@ -1103,139 +818,6 @@ toc::[]
         ] {
             assert!(text.contains(expected), "missing {expected}: {text}");
         }
-        assert!(warnings.is_empty(), "{warnings:?}");
-        Ok(())
-    }
-
-    #[test]
-    fn formatted_inline_ids_emit_targets_and_resolve_cross_references()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            r#"A [#bold-id]*bold*, [#italic-id]_italic_, [#mono-id]`mono`, [#mark-id]#mark#, [#sub-id]~sub~, [#super-id]^super^, [#double-id]"`double`", and [#single-id]'`single`'.
-
-See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mark link>>, <<sub-id,sub link>>, <<super-id,super link>>, <<double-id,double link>>, and <<single-id,single link>>.
-"#,
-            &acdc_parser::Options::default(),
-        )?;
-        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
-
-        let ids = [
-            "bold-id",
-            "italic-id",
-            "mono-id",
-            "mark-id",
-            "sub-id",
-            "super-id",
-            "double-id",
-            "single-id",
-        ];
-        for id in ids {
-            assert!(
-                parsed.document().references.contains_key(id),
-                "missing parser reference target `{id}`"
-            );
-        }
-
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-
-        for id in ids {
-            let label = encode_label(id);
-            assert_eq!(
-                typst.matches(&format!("#metadata(none) <{label}>")).count(),
-                1,
-                "missing or duplicate target `{id}`: {typst}"
-            );
-            assert_eq!(
-                typst.matches(&format!("#link(<{label}>)[")).count(),
-                1,
-                "missing or duplicate link `{id}`: {typst}"
-            );
-        }
-        assert!(
-            typst.contains(&format!(
-                "#link(<{}>)[#text(\"[bold-id]\")]",
-                encode_label("bold-id")
-            )),
-            "{typst}"
-        );
-        let mark_label = encode_label("mark-id");
-        assert!(
-            typst.contains(&format!("#metadata(none) <{mark_label}>#text(\"mark\")")),
-            "{typst}"
-        );
-        assert!(
-            !typst.contains(&format!("#metadata(none) <{mark_label}>#highlight[")),
-            "{typst}"
-        );
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        assert!(warnings.is_empty(), "{warnings:?}");
-        Ok(())
-    }
-
-    #[test]
-    fn maps_inline_roles_and_silently_ignores_custom_css_roles()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let mut input = String::new();
-        for (role, _) in SIMPLE_INLINE_ROLES {
-            writeln!(input, "[.{role}]#{role}#")?;
-        }
-        input.push_str(
-            "[.gray]#gray#\n[.white]#white#\n[.black-background]#black-background#\n[.red-background]#red-background#\n[.red.underline]#combined known#\n[.custom-html]#custom role#\n[.custom-html.line-through]#mixed role#\n[.custom-html]*custom bold*\n[.custom-html.underline]_mixed italic_\n",
-        );
-
-        let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-
-        for (role, prefix) in SIMPLE_INLINE_ROLES {
-            assert!(
-                typst.contains(&format!("{prefix}#text(\"{role}\")]")),
-                "missing `{role}` role: {typst}"
-            );
-        }
-        assert!(
-            typst.contains("#text(fill: rgb(\"#606060\"))[#text(\"gray\")]"),
-            "{typst}"
-        );
-        assert!(
-            typst.contains("#text(fill: rgb(\"#bfbfbf\"))[#text(\"white\")]"),
-            "{typst}"
-        );
-        assert!(
-            typst.contains("#highlight(fill: rgb(\"#000000\"))[#text(\"black-background\")]"),
-            "{typst}"
-        );
-        assert!(
-            typst.contains("#highlight(fill: rgb(\"#fa0000\"))[#text(\"red-background\")]"),
-            "{typst}"
-        );
-        assert!(typst.contains("#text(\"custom role\")"), "{typst}");
-        assert!(
-            !typst.contains("#highlight[#text(\"custom role\")]"),
-            "{typst}"
-        );
-        assert!(typst.contains("#strike[#text(\"mixed role\")]"), "{typst}");
-        assert!(
-            typst.contains("#text(fill: rgb(\"#bf0000\"))[#underline[#text(\"combined known\")]]"),
-            "{typst}"
-        );
-        assert!(typst.contains("#strong[#text(\"custom bold\")]"), "{typst}");
-        assert!(
-            typst.contains("#underline[#emph[#text(\"mixed italic\")]]"),
-            "{typst}"
-        );
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
         assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }
@@ -1352,25 +934,6 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
     }
 
     #[test]
-    fn converts_simple_document_to_typst_source() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "= Title\n\n== Section\n\nA *bold* link:https://example.com[link].\n",
-            &acdc_parser::Options::default(),
-        )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-
-        assert!(typst.contains("#set page("));
-        assert!(typst.contains("#heading(level: 1)"));
-        assert!(typst.contains("#strong["));
-        assert!(typst.contains("#link(\"https://example.com\")"));
-        Ok(())
-    }
-
-    #[test]
     fn stem_content_is_escaped_literal_text_with_warnings() -> Result<(), Box<dyn std::error::Error>>
     {
         let input =
@@ -1381,19 +944,9 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(
-            typst.contains(r##"#text("#panic() $ x \\ path")"##),
-            "{typst}"
-        );
-        assert!(
-            typst.contains(r##"#text("#panic() $ [y] \\\\ path")"##),
-            "{typst}"
-        );
-        assert!(!typst.contains("$ #panic()"));
         assert!(rendered.pdf.starts_with(b"%PDF-"));
-        assert_eq!(warnings.len(), 4);
+        assert_eq!(warnings.len(), 2);
         assert!(
             warnings
                 .iter()
@@ -1424,87 +977,6 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
     }
 
     #[test]
-    fn substitutions_control_typography_in_paragraphs_and_verbatim_blocks()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let none = typst_source("[subs=none]\n(C) ... -> -- *bold*\n")?;
-        assert!(none.contains(r#"#text("(C) ... -> -- *bold*")"#));
-
-        let subtractive = typst_source("[subs=-replacements]\n(C) ... -> -- *bold*\n")?;
-        assert!(subtractive.contains(r#"#text("(C) ... -> -- ")#strong["#));
-
-        let default_listing = typst_source("....\n(C) ... -> -- *bold*\n....\n")?;
-        assert!(default_listing.contains(r#"#raw(block: true, "(C) ... -> -- *bold*")"#));
-
-        let additive_listing =
-            typst_source("[subs=+replacements]\n....\n(C) ... -> -- *bold*\n....\n")?;
-        assert!(additive_listing.contains('©'));
-        assert!(additive_listing.contains('…'));
-        assert!(additive_listing.contains('→'));
-        assert!(additive_listing.contains("*bold*"));
-        Ok(())
-    }
-
-    #[test]
-    fn styles_only_declared_table_headers() -> Result<(), Box<dyn std::error::Error>> {
-        let header = typst_source(
-            "[cols=\"1,1\",options=\"header\"]\n|===\n|Name |Value\n|one |two\n|===\n",
-        )?;
-        assert_eq!(header.matches("#tableheader[").count(), 2);
-        assert_eq!(header.matches("table.header(").count(), 1);
-
-        let without_header = typst_source("[cols=\"1,1\"]\n|===\n|one |two\n|===\n")?;
-        assert!(!without_header.contains("#tableheader["));
-        assert!(!without_header.contains("table.header("));
-        Ok(())
-    }
-
-    #[test]
-    fn preserves_table_spans_in_typst_and_pdf() -> Result<(), Box<dyn std::error::Error>> {
-        let input = r#"[cols="4*",options="header,footer"]
-|===
-2+| Header | H3 | H4
-2.2+| Combined | Top 3 | Top 4
-| Bottom 3 | Bottom 4
-4+| Full width footer
-|===
-"#;
-        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        assert!(
-            typst.contains(
-                "table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader["
-            ),
-            "{typst}"
-        );
-        assert!(
-            typst.contains("table.cell(x: 0, y: 1, colspan: 2, rowspan: 2)["),
-            "{typst}"
-        );
-        assert!(typst.contains("table.cell(x: 2, y: 2)["), "{typst}");
-        assert!(
-            typst.contains("table.cell(x: 0, y: 3, colspan: 4)["),
-            "{typst}"
-        );
-        assert!(
-            diagnostics.warnings().is_empty(),
-            "{:?}",
-            diagnostics.warnings()
-        );
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        assert!(diagnostics.warnings().is_empty());
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
-        assert!(!pdf.get_pages().is_empty());
-        Ok(())
-    }
-
-    #[test]
     fn renders_simple_pdf_bytes() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
             "= Title\n\n== Section\n\nA paragraph.\n",
@@ -1519,172 +991,6 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
         assert!(!pdf.get_pages().is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn toc_configuration_controls_outline_placement_title_and_depth()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let automatic = typst_source(
-            "= Title\n:toc:\n:toc-title: Contents\n:toclevels: 1\n\nIntro.\n\n== Section\n\n=== Child\n",
-        )?;
-        let title_position = automatic
-            .find("#align(center)")
-            .ok_or_else(|| std::io::Error::other("missing document title"))?;
-        let toc_position = automatic
-            .find("#outline(title: \"Contents\", depth: 1)")
-            .ok_or_else(|| std::io::Error::other("missing configured outline"))?;
-        let intro_position = automatic
-            .find("#text(\"Intro.\")")
-            .ok_or_else(|| std::io::Error::other("missing preamble"))?;
-        assert!(title_position < toc_position && toc_position < intro_position);
-
-        let macro_toc =
-            typst_source("= Title\n:toc: macro\n\nIntro.\n\ntoc::[]\n\ntoc::[]\n\n== Section\n")?;
-        let macro_position = macro_toc
-            .find("#outline(")
-            .ok_or_else(|| std::io::Error::other("missing macro outline"))?;
-        let macro_intro_position = macro_toc
-            .find("#text(\"Intro.\")")
-            .ok_or_else(|| std::io::Error::other("missing macro preamble"))?;
-        assert!(macro_intro_position < macro_position);
-        assert_eq!(macro_toc.matches("#outline(").count(), 1);
-
-        let missing_macro = typst_source("= Title\n:toc: macro\n\n== Section\n")?;
-        assert!(!missing_macro.contains("#outline("));
-
-        let preamble =
-            typst_source("= Title\n:toc: preamble\n\nIntro.\n\n== Section\n\nA paragraph.\n")?;
-        let preamble_toc = preamble
-            .find("#outline(")
-            .ok_or_else(|| std::io::Error::other("missing preamble outline"))?;
-        let preamble_intro = preamble
-            .find("#text(\"Intro.\")")
-            .ok_or_else(|| std::io::Error::other("missing preamble content"))?;
-        let preamble_section = preamble
-            .find("#heading(level: 1)")
-            .ok_or_else(|| std::io::Error::other("missing section"))?;
-        assert!(preamble_intro < preamble_toc && preamble_toc < preamble_section);
-
-        let no_sections = typst_source("= Title\n:toc:\n\nA paragraph.\n")?;
-        assert!(!no_sections.contains("#outline("));
-
-        let blank_title = typst_source("= Title\n:toc:\n:toc-title:\n\n== Section\n")?;
-        assert!(
-            blank_title.contains("#outline(title: none, depth: 2)"),
-            "{blank_title}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn label_encoding_keeps_distinct_cross_references_compilable()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "= Title\n\n[id=\"a.b\"]\n== Dot\n\nSee xref:a.b[].\n\n[id=\"a/b\"]\n== Slash\n\nSee xref:a/b[].\n",
-            &acdc_parser::Options::default(),
-        )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        assert!(typst.contains("<id-612e62>"), "{typst}");
-        assert!(typst.contains("<id-612f62>"), "{typst}");
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        Ok(())
-    }
-
-    #[test]
-    fn block_cross_references_emit_targets_and_resolve_reference_text()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "= Title\n\nSee <<table-id>>, <<listing-id>>, <<image-id>>, and <<term-id>>.\n\n[[table-id]]\n.Table *Title*\n|===\n|Cell\n|===\n\n[[listing-id,Custom Listing]]\n.Listing Title\n----\ncode\n----\n\n[[image-id]]\n.Image Title\nimage::missing.png[]\n\n[[term-id]]\nTerm:: Definition\n",
-            &acdc_parser::Options::default(),
-        )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        for id in ["table-id", "listing-id", "image-id", "term-id"] {
-            let label = encode_label(id);
-            assert!(
-                typst.contains(&format!("#metadata(none) <{label}>")),
-                "missing target for {id}: {typst}"
-            );
-            assert!(
-                typst.contains(&format!("#link(<{label}>)")),
-                "missing link for {id}: {typst}"
-            );
-        }
-        assert!(
-            typst.contains(
-                "#link(<id-7461626c652d6964>)[#text(\"Table \")#strong[#text(\"Title\")]]"
-            ),
-            "{typst}"
-        );
-        assert!(
-            typst.contains("#link(<id-6c697374696e672d6964>)[#text(\"Custom Listing\")]"),
-            "{typst}"
-        );
-        assert!(
-            typst.contains("#link(<id-7465726d2d6964>)[#text(\"[term-id]\")]"),
-            "{typst}"
-        );
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        Ok(())
-    }
-
-    #[test]
-    fn every_block_target_is_emitted_exactly_once() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed =
-            acdc_parser::parse(BLOCK_TARGET_AUDIT_SOURCE, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
-        for id in SELECTED_BLOCK_TARGETS {
-            let target = format!("<{}>", encode_label(id));
-            assert_eq!(
-                typst.matches(&target).count(),
-                1,
-                "expected one target for {id}: {typst}"
-            );
-        }
-        for id in UNSELECTED_BLOCK_TARGETS {
-            let target = format!("<{}>", encode_label(id));
-            assert!(
-                !typst.contains(&target),
-                "unexpected unselected target for {id}: {typst}"
-            );
-        }
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
-        Ok(())
-    }
-
-    #[test]
-    fn renders_configured_toc_pdf() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "= Title\n:toc:\n:toc-title: Contents\n:toclevels: 1\n\nIntro.\n\n== Section\n\n=== Child\n",
-            &acdc_parser::Options::default(),
-        )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-
-        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        assert!(rendered.pdf.starts_with(b"%PDF-"));
         Ok(())
     }
 
@@ -1760,14 +1066,5 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
         std::fs::set_permissions(&fonts, std::fs::Permissions::from_mode(0o755))?;
         assert!(result?.pdf.starts_with(b"%PDF-"));
         Ok(())
-    }
-
-    fn typst_source(input: &str) -> Result<String, Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
-        let source = WarningSource::new("pdf");
-        let mut warnings = Vec::new();
-        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
-        Ok(processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?)
     }
 }

@@ -1,0 +1,33 @@
+= Inline IDs and roles
+
+A [#bold-id]*bold*, [#italic-id]_italic_, [#mono-id]`mono`, [#mark-id]#mark#, [#sub-id]~sub~, [#super-id]^super^, [#double-id]"`double`", and [#single-id]'`single`'.
+
+See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mark link>>, <<sub-id,sub link>>, <<super-id,super link>>, <<double-id,double link>>, and <<single-id,single link>>.
+
+[.line-through]#line-through#
+
+[.underline]#underline#
+
+[.overline]#overline#
+
+[.big]#big#
+
+[.small]#small#
+
+[.gray]#gray#
+
+[.white]#white#
+
+[.black-background]#black-background#
+
+[.red-background]#red-background#
+
+[.red.underline]#combined known#
+
+[.custom-html]#custom role#
+
+[.custom-html.line-through]#mixed role#
+
+[.custom-html]*custom bold*
+
+[.custom-html.underline]_mixed italic_

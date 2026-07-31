@@ -1,0 +1,10 @@
+= Title
+:toc:
+:toc-title: Contents
+:toclevels: 1
+
+Intro.
+
+== Section
+
+=== Child

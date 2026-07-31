@@ -1,0 +1,62 @@
+= Block anchor coverage
+:toc: macro
+
+[[section-fallback]]
+[#section-id]
+== Section
+
+[[paragraph-id]]
+A paragraph.
+
+[[delimited-id]]
+----
+listing
+----
+
+[[ordered-id]]
+. ordered
+
+[[unordered-id]]
+* unordered
+
+[[description-id]]
+Term:: definition
+
+----
+code <1>
+----
+
+[[callout-id]]
+<1> callout
+
+[[admonition-id]]
+NOTE: admonition
+
+[[compound-admonition-id]]
+[NOTE]
+====
+[[inner-paragraph-id]]
+Inner paragraph.
+====
+
+[[image-id]]
+image::missing.png[Missing image]
+
+[[video-id]]
+video::video.mp4[]
+
+[[audio-id]]
+audio::audio.mp3[]
+
+[[thematic-id]]
+'''
+
+[[page-id]]
+<<<
+
+[[toc-id]]
+toc::[]
+
+[[discrete-id]]
+[discrete]
+=== Discrete

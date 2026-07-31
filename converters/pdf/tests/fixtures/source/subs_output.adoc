@@ -1,0 +1,16 @@
+= Substitution coverage
+
+[subs=none]
+(C) ... -> -- *bold*
+
+[subs=-replacements]
+(C) ... -> -- *bold*
+
+....
+(C) ... -> -- *bold*
+....
+
+[subs=+replacements]
+....
+(C) ... -> -- *bold*
+....

@@ -1,0 +1,4 @@
+= Title
+:toc:
+
+A paragraph.

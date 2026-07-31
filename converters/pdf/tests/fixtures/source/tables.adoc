@@ -1,0 +1,23 @@
+= Table coverage
+
+.Declared header
+[cols="1,1",options="header"]
+|===
+|Name |Value
+|one |two
+|===
+
+.Body only
+[cols="1,1"]
+|===
+|one |two
+|===
+
+.Spans
+[cols="4*",options="header,footer"]
+|===
+2+| Header | H3 | H4
+2.2+| Combined | Top 3 | Top 4
+| Bottom 3 | Bottom 4
+4+| Full width footer
+|===

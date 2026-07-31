@@ -182,4 +182,5 @@ No additional converter layers are intended; follow-up work should remain in the
 cargo nextest run -p acdc-converters-pdf --all-features
 cargo clippy -p acdc-converters-pdf --all-targets --all-features -- --deny clippy::pedantic
 cargo test --doc -p acdc-converters-pdf --all-features
+cargo run -p acdc-converters-pdf --example generate_typst_fixtures --all-features
 ....

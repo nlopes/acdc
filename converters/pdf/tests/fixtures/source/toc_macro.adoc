@@ -1,0 +1,12 @@
+= Title
+:toc: macro
+
+Intro.
+
+toc::[]
+
+//-
+
+toc::[]
+
+== Section

@@ -1,0 +1,25 @@
+= Footnote coverage
+
+An unnamed marker.footnote:[Anonymous note.]
+
+A single definition.footnote:single[Single note.]
+
+A single reference.footnote:single[]
+
+A multiple definition.footnote:multiple[Multiple note.]
+
+Multiple reference one.footnote:multiple[]
+
+Multiple reference two.footnote:multiple[]
+
+== Heading footnote:title[Title note.]
+
+A *formatted footnote:formatted[Formatted note.]*.
+
+|===
+|Cell footnote:cell[Cell note.]
+|===
+
+* Item footnote:list[List note.]
+
+References footnote:title[], footnote:formatted[], footnote:cell[], and footnote:list[].

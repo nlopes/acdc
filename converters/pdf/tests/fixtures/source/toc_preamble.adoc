@@ -1,0 +1,8 @@
+= Title
+:toc: preamble
+
+Intro.
+
+== Section
+
+A paragraph.

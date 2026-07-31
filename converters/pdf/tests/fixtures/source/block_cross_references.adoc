@@ -1,0 +1,145 @@
+= Cross-reference coverage
+
+See <<section-id>>, <<paragraph-id>>, <<listing-id>>, <<literal-id>>, <<source-id>>, <<example-id>>, <<open-id>>, <<sidebar-id>>, <<quote-id>>, <<verse-id>>, <<passthrough-id>>, <<stem-id>>, <<table-id>>, <<ordered-id>>, <<unordered-id>>, <<description-id>>, <<callout-id>>, <<admonition-id>>, <<image-id>>, <<video-id>>, <<audio-id>>, <<thematic-id>>, <<page-id>>, and <<discrete-id>>.
+
+See also <<custom-listing-id>> and <<term-id>>.
+
+[[section-id]]
+== Section Title
+
+[[paragraph-id]]
+.Paragraph Title
+Paragraph body.
+
+[[listing-id]]
+.Listing Title
+----
+listing
+----
+
+[[custom-listing-id,Custom Listing]]
+.Ignored Listing Title
+----
+custom listing
+----
+
+[[source-id]]
+.Source Title
+[source,rust]
+----
+fn main() {}
+----
+
+[[literal-id]]
+.Literal Title
+....
+literal
+....
+
+[[example-id]]
+.Example Title
+====
+Example body.
+====
+
+[[open-id]]
+.Open Title
+--
+Open body.
+--
+
+[[sidebar-id]]
+.Sidebar Title
+****
+Sidebar body.
+****
+
+[[quote-id]]
+.Quote Title
+[quote]
+____
+Quote body.
+____
+
+[[verse-id]]
+.Verse Title
+[verse]
+____
+Verse line.
+____
+
+[[passthrough-id]]
+.Passthrough Title
+++++
+passthrough
+++++
+
+[[stem-id]]
+.Stem Title
+[stem]
+++++
+x = 1
+++++
+
+[[table-id]]
+.Table *Title*
+|===
+|Cell
+|===
+
+[[ordered-id]]
+.Ordered List Title
+. ordered
+
+[[unordered-id]]
+.Unordered List Title
+* unordered
+
+[[description-id]]
+.Description List Title
+Term:: definition
+
+----
+code <1>
+----
+
+[[callout-id]]
+.Callout List Title
+<1> callout
+
+[[admonition-id]]
+.Admonition *Title*
+NOTE: note
+
+[[image-id]]
+.Image Title
+image::missing.png[Missing image]
+
+[[video-id]]
+.Video Title
+video::video.mp4[]
+
+[[audio-id]]
+.Audio Title
+audio::audio.mp3[]
+
+[[thematic-id]]
+.Thematic Title
+'''
+
+[[page-id]]
+.Page Title
+<<<
+
+[[discrete-id]]
+[discrete]
+=== Discrete Title
+
+[[term-id]]
+Term:: Definition
+
+Paragraph with [[inline-first,Inline First]]one anchor and [[inline-second,Inline Second]]a second anchor.
+
+* List item with [[inline-list,Inline List]]an anchor.
+
+See <<inline-first>>, <<inline-second>>, and <<inline-list>>.
