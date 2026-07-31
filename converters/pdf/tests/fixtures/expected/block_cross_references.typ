@@ -93,7 +93,6 @@
 #raw(block: true, "Verse line.")
 
 #metadata(none) <id-706173737468726f7567682d6964>
-#text(weight: "bold")[#text("Passthrough Title")]
 #raw(block: true, "passthrough")
 
 #metadata(none) <id-7374656d2d6964>

@@ -45,3 +45,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Unlike Asciidoctor PDF, acdc renders `overline` and colour roles by default.
 - Highlighted text keeps its default background only when it has neither an ID
   nor a role, matching Asciidoctor.
+- Passthrough block titles remain available as automatic cross-reference text
+  without being displayed above the block, matching Asciidoctor PDF.

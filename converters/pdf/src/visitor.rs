@@ -121,7 +121,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         ));
 
         let result = (|| {
-            self.write_block_title(&block.title)?;
+            if !matches!(&block.inner, DelimitedBlockType::DelimitedPass(_)) {
+                self.write_block_title(&block.title)?;
+            }
             match &block.inner {
                 DelimitedBlockType::DelimitedExample(blocks)
                 | DelimitedBlockType::DelimitedOpen(blocks)
