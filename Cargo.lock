@@ -101,12 +101,15 @@ name = "acdc-converters-pdf"
 version = "0.1.0"
 dependencies = [
  "acdc-converters-core",
+ "acdc-converters-dev",
  "acdc-parser",
  "acdc-pdf-images",
  "acdc-pdf-render",
  "acdc-pdf-theme",
  "acdc-pdf-typst",
  "lopdf",
+ "pretty_assertions",
+ "rstest",
  "tempfile",
  "thiserror",
 ]

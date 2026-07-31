@@ -598,7 +598,12 @@ fn collect_references<'a>(
         match block {
             Block::Section(s) => collect_references(&s.content, refs, xrefs),
             Block::Paragraph(p) => collect_inline_references(&p.content, refs, xrefs),
-            Block::Admonition(a) => collect_references(&a.blocks, refs, xrefs),
+            Block::Admonition(a) => match a.blocks.as_slice() {
+                [Block::Paragraph(paragraph)] if paragraph.metadata == a.metadata => {
+                    collect_inline_references(&paragraph.content, refs, xrefs);
+                }
+                blocks => collect_references(blocks, refs, xrefs),
+            },
             Block::UnorderedList(l) => {
                 for item in &l.items {
                     collect_inline_references(&item.principal, refs, xrefs);
@@ -7070,6 +7075,41 @@ See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id
         );
         // The location points at the anchor on line 1 (for LSP navigation).
         assert_eq!(entry.location.start.line, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn test_titled_single_line_admonition_keeps_reference_title() -> Result<(), Error> {
+        let input = "[[notice]]\n.Admonition *Title*\nNOTE: note\n\nSee <<notice>>.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let entry = doc
+            .references
+            .get("notice")
+            .expect("titled admonition should be a reference target");
+        let title = entry
+            .title
+            .as_ref()
+            .expect("titled admonition should keep its reference text");
+
+        assert!(
+            matches!(
+                &title[..],
+                [InlineNode::PlainText(prefix), InlineNode::BoldText(bold)]
+                    if prefix.content == "Admonition "
+                        && matches!(
+                            &bold.content[..],
+                            [InlineNode::PlainText(text)] if text.content == "Title"
+                        )
+            ),
+            "{title:?}"
+        );
+        assert!(
+            !state.warnings.borrow().iter().any(|warning| matches!(
+                warning.kind,
+                crate::WarningKind::UnresolvedReference { .. }
+            ))
+        );
         Ok(())
     }
 

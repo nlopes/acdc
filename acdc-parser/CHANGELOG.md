@@ -129,6 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic cross-references to titled single-line admonitions now use the
+  formatted title instead of `[id]`, matching `asciidoctor`.
 - With `compat-mode`, denied URI includes now omit `role=include` from their
   converter-visible fallback links, matching `asciidoctor`.
 - Partial includes now select `lines`, `tag`, or `tags` from the original target
