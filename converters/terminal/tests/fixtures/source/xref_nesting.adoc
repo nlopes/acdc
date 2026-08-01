@@ -1,0 +1,30 @@
+= Cross-reference nesting
+
+[[target]]
+.Target *Title*
+====
+body
+====
+
+[[labelled,A `code` label]]
+====
+body
+====
+
+
+A reference keeps the style of the span around it:
+
+*bold before <<target>> bold after*
+
+#highlight before <<target>> highlight after#
+
+`mono before <<target>> mono after`
+
+A label renders its own formatting: <<labelled>>.
+
+A reference inside reference text falls back to its id: <<recursive>>.
+
+[[recursive]]
+== See <<recursive>> again
+
+Section body.

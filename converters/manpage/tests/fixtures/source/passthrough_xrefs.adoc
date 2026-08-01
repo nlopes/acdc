@@ -30,3 +30,27 @@ labeled-body
 ++++
 untitled-body
 ++++
+
+[[labelled-markup,A `code` label]]
+++++
+labelled-markup-body
+++++
+
+A label keeps its own formatting: <<labelled-markup>>.
+
+// The `.SH` line for a title holding a link keeps only its plain text; the
+// reference below is what this fixture covers.
+A reference to a level-1 section reads as its heading, link text included:
+<<_see_also_with_a_link>>.
+
+A reference inside reference text falls back to its id: <<recursive>>.
+
+[[recursive]]
+== See <<recursive>> again
+
+Section body.
+
+[[_see_also_with_a_link]]
+== See also with https://example.com[a link]
+
+Body.

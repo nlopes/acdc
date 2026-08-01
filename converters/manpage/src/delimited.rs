@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    inlines_to_string,
+    inlines_to_string, shows_block_title,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
@@ -19,9 +19,7 @@ use crate::{
 impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a delimited block.
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
-        // Passthrough titles provide reference text but are not visible captions.
-        if !matches!(&block.inner, DelimitedBlockType::DelimitedPass(_)) && !block.title.is_empty()
-        {
+        if shows_block_title(&block.inner) && !block.title.is_empty() {
             let w = self.writer_mut();
             writeln!(w, ".sp")?;
             write!(w, "\\fB")?;

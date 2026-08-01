@@ -182,6 +182,48 @@ fn id_only_highlight_renders_as_a_plain_target_span() -> Result<(), Error> {
 }
 
 #[test]
+fn reference_label_is_rendered_through_the_inline_pipeline() -> Result<(), Error> {
+    // A label is inline content: its markup renders and its characters are
+    // escaped, exactly as asciidoctor does.
+    let html = convert_string(
+        "Some [[bold,*Bold* label]]text.\n\n\
+         Some [[unsafe,<script>alert(1)</script>]]text.\n\n\
+         Some [[chars,A & B <tag> \"q\"]]text.\n\n\
+         Refs: <<bold>>, <<unsafe>>, <<chars>>.\n",
+        &[],
+    )?;
+
+    assert!(
+        html.contains("<a href=\"#bold\"><strong>Bold</strong> label</a>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<a href=\"#unsafe\">&lt;script&gt;alert(1)&lt;/script&gt;</a>"),
+        "{html}"
+    );
+    assert!(
+        html.contains("<a href=\"#chars\">A &amp; B &lt;tag&gt; \"q\"</a>"),
+        "{html}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cross_reference_inside_reference_text_is_not_a_nested_link() -> Result<(), Error> {
+    // An `<a>` cannot nest, and the resolution must terminate.
+    let html = convert_string(
+        "[[a]]\n.See <<a>> again\n====\nbody\n====\n\nRef: <<a>>.\n",
+        &[],
+    )?;
+
+    assert!(
+        html.contains("Ref: <a href=\"#a\">See [a] again</a>."),
+        "{html}"
+    );
+    Ok(())
+}
+
+#[test]
 fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     // An explicit `[<style>]` on an ordered list sets the CSS class (and `<ol type>`
     // where applicable), overriding the depth-derived default. Matches asciidoctor.

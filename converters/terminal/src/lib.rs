@@ -15,6 +15,7 @@ use acdc_converters_core::{
         last_section_has_style,
     },
     visitor::Visitor,
+    xref::XrefGuard,
 };
 #[cfg(feature = "emulator")]
 use acdc_parser::BlockMetadata;
@@ -46,6 +47,8 @@ pub struct Processor<'a> {
     pub(crate) document_attributes: DocumentAttributes<'a>,
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    /// Keeps a cross-reference inside a resolved target's text from recursing.
+    pub(crate) xref_guard: XrefGuard,
     /// Shared counter for auto-numbering example blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     pub(crate) example_counter: Rc<Cell<usize>>,
@@ -86,6 +89,47 @@ pub struct Processor<'a> {
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
 }
 
+/// Build a `Processor` for tests with default document attributes.
+#[cfg(test)]
+pub(crate) fn create_test_processor() -> Processor<'static> {
+    create_test_processor_with(DocumentAttributes::default())
+}
+
+/// Build a `Processor` for tests from the given document attributes.
+///
+/// Every test in the crate goes through here, so a new `Processor` field is
+/// filled in once rather than in each test module.
+#[cfg(test)]
+pub(crate) fn create_test_processor_with(
+    document_attributes: DocumentAttributes<'_>,
+) -> Processor<'_> {
+    let appearance = Appearance::detect();
+    let section_number_tracker = SectionNumberTracker::new(&document_attributes);
+    let part_number_tracker =
+        PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+    let appendix_tracker =
+        AppendixTracker::new(&document_attributes, section_number_tracker.clone());
+    Processor {
+        options: Options::default(),
+        document_attributes,
+        toc_entries: vec![],
+        references: Rc::new(HashMap::new()),
+        xref_guard: XrefGuard::default(),
+        example_counter: Rc::new(Cell::new(0)),
+        appearance,
+        section_number_tracker,
+        part_number_tracker,
+        appendix_tracker,
+        special_section_tracker: SpecialSectionTracker::new(),
+        terminal_width: FALLBACK_TERMINAL_WIDTH,
+        index_entries: Rc::new(RefCell::new(Vec::new())),
+        has_valid_index_section: false,
+        list_indent: Rc::new(Cell::new(0)),
+        #[cfg(feature = "pre-spec-subs")]
+        current_subs: Rc::new(Cell::new(SubsFlags::all())),
+    }
+}
+
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
@@ -119,6 +163,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes,
             toc_entries: vec![],
             references: Rc::new(HashMap::new()),
+            xref_guard: XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
             appearance,
             section_number_tracker,
@@ -170,6 +215,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes: doc.attributes.clone(),
             toc_entries: doc.toc_entries.clone(),
             references: Rc::new(doc.references.clone()),
+            xref_guard: XrefGuard::default(),
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
             appearance: self.appearance.clone(),

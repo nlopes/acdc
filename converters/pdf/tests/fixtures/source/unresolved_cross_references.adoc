@@ -1,0 +1,29 @@
+= Unresolved cross-reference coverage
+
+Typst fails a whole compilation on a link to a label no element defines, so an
+unresolved target renders as text alone.
+
+See <<no-such-id>> and <<no-such-id,explicit text>>.
+
+A reference whose target's reference text holds a reference of its own resolves
+one level, then falls back to `[id]`.
+
+[[self-reference]]
+.See <<self-reference>> again
+====
+body
+====
+
+[[mutual-first]]
+.First title with <<mutual-second>>
+====
+body
+====
+
+[[mutual-second]]
+.Second title with <<mutual-first>>
+====
+body
+====
+
+See <<self-reference>>, <<mutual-first>>, and <<mutual-second>>.

@@ -13,7 +13,7 @@ use acdc_parser::{
 };
 use crossterm::{
     QueueableCommand,
-    style::{PrintStyledContent, Stylize},
+    style::{Color, PrintStyledContent, SetBackgroundColor, SetForegroundColor, Stylize},
 };
 
 use crate::Processor;
@@ -27,7 +27,18 @@ pub struct TerminalVisitor<'a, 'd, W: Write> {
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
+    /// Colours of the inline spans currently open, innermost last. A span
+    /// restores the colours of the span around it on exit instead of resetting
+    /// the terminal, so text after a nested span keeps the outer colour.
+    colors: Vec<SpanColors>,
+    /// Colours already written to the writer, so only a channel that changes
+    /// produces an escape sequence.
+    applied_colors: SpanColors,
 }
+
+/// Foreground and background colour of an inline span. `None` means the span
+/// leaves that channel to the span around it.
+type SpanColors = (Option<Color>, Option<Color>);
 
 impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
@@ -36,7 +47,52 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             processor,
             diagnostics,
             in_inline_span: false,
+            colors: Vec::new(),
+            applied_colors: (None, None),
         }
+    }
+
+    /// Open an inline span that sets colours.
+    ///
+    /// Pair every call with [`Self::pop_colors`].
+    pub(crate) fn push_colors(
+        &mut self,
+        fg: Option<Color>,
+        bg: Option<Color>,
+    ) -> Result<(), crate::Error> {
+        let outer = self.current_colors();
+        let colors = (fg.or(outer.0), bg.or(outer.1));
+        self.colors.push(colors);
+        self.apply_colors(colors)
+    }
+
+    /// Close the span opened by [`Self::push_colors`], restoring the colours of
+    /// the span around it.
+    pub(crate) fn pop_colors(&mut self) -> Result<(), crate::Error> {
+        self.colors.pop();
+        let colors = self.current_colors();
+        self.apply_colors(colors)
+    }
+
+    fn current_colors(&self) -> SpanColors {
+        self.colors.last().copied().unwrap_or((None, None))
+    }
+
+    /// Write the channels that change, using the terminal default for a channel
+    /// no open span sets. `Color::Reset` addresses one channel only (`SGR 39` /
+    /// `SGR 49`), unlike a full reset, so bold and italic survive.
+    fn apply_colors(&mut self, colors: SpanColors) -> Result<(), crate::Error> {
+        let (fg, bg) = colors;
+        let applied = self.applied_colors;
+        self.applied_colors = colors;
+        let w = self.writer_mut();
+        if fg != applied.0 {
+            w.queue(SetForegroundColor(fg.unwrap_or(Color::Reset)))?;
+        }
+        if bg != applied.1 {
+            w.queue(SetBackgroundColor(bg.unwrap_or(Color::Reset)))?;
+        }
+        Ok(())
     }
 
     /// Consume the visitor and return the writer

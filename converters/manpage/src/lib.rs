@@ -39,7 +39,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Doctype, Options, visitor::Visitor,
+    BackendTraits, Converter, Diagnostics, Doctype, Options, visitor::Visitor, xref::XrefGuard,
 };
 
 use acdc_parser::{AttributeValue, Document, DocumentAttributes, Reference};
@@ -69,6 +69,8 @@ pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    /// Keeps a cross-reference inside a resolved target's text from recursing.
+    pub(crate) xref_guard: XrefGuard,
     pub(crate) top_level_section_ids: Rc<HashSet<&'a str>>,
     /// Substitutions active for the block currently being rendered, resolved
     /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
@@ -111,6 +113,7 @@ impl Processor<'_> {
             options: self.options.clone(),
             document_attributes: attrs,
             references: Rc::new(doc.references.clone()),
+            xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
                 doc.toc_entries
                     .iter()
@@ -163,6 +166,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             options,
             document_attributes,
             references: Rc::new(HashMap::new()),
+            xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(HashSet::new()),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),

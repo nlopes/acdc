@@ -539,16 +539,66 @@ fn reprocess_quote_attribution<'input>(
     }
 }
 
+/// Parse an anchor's cross-reference label (`[[id,label]]`) into inline nodes.
+///
+/// A displayed label takes the reference-text substitutions asciidoctor
+/// documents — specialchars, quotes, and replacements — so `[[id,*Bold* label]]`
+/// renders bold while a macro stays literal: a label cannot become a link, and
+/// therefore cannot nest one inside the reference it labels. Only quotes are a
+/// parse-time concern; converters apply specialchars and replacements to the
+/// resulting text nodes. Attribute references were already substituted when the
+/// anchor was parsed.
+fn parse_reference_label<'a>(
+    state: &mut ParserState<'a>,
+    label: Option<&'a str>,
+    location: &Location,
+) -> Option<Vec<InlineNode<'a>>> {
+    let label = label?;
+    if label.trim().is_empty() {
+        return None;
+    }
+    let block_metadata = BlockParsingMetadata {
+        subs_flags: SubsFlags::QUOTES,
+        ..BlockParsingMetadata::default()
+    };
+    match process_inlines(
+        state,
+        &block_metadata,
+        location.absolute_start,
+        location.absolute_end,
+        0,
+        label,
+    ) {
+        Ok(inlines) if !inlines.is_empty() => Some(inlines),
+        // A label that does not parse as inline content still reads as its
+        // literal text.
+        _ => Some(vec![InlineNode::PlainText(Plain {
+            content: label,
+            location: location.clone(),
+            escaped: false,
+        })]),
+    }
+}
+
 /// Insert an anchor into the cross-reference catalog with optional reference text.
+///
+/// The first registration of an id wins, matching asciidoctor: when two elements
+/// claim the same id, `<<id>>` uses the reference text of the one that claimed it
+/// first.
 fn insert_reference<'a>(
+    state: &mut ParserState<'a>,
     refs: &mut HashMap<&'a str, Reference<'a>>,
     anchor: &Anchor<'a>,
     title: Option<Title<'a>>,
 ) {
+    if refs.contains_key(anchor.id) {
+        return;
+    }
+    let xreflabel = parse_reference_label(state, anchor.xreflabel, &anchor.location);
     refs.insert(
         anchor.id,
         Reference {
-            xreflabel: anchor.xreflabel,
+            xreflabel,
             title,
             location: anchor.location.clone(),
         },
@@ -557,6 +607,7 @@ fn insert_reference<'a>(
 
 /// Catalog a formatted span's ID and recurse into its inline content.
 fn collect_formatted_references<'a, T>(
+    state: &mut ParserState<'a>,
     text: &T,
     refs: &mut HashMap<&'a str, Reference<'a>>,
     xrefs: &mut Vec<(&'a str, Location)>,
@@ -564,16 +615,13 @@ fn collect_formatted_references<'a, T>(
     T: MarkedText<'a, Content = Vec<InlineNode<'a>>>,
 {
     if let Some(id) = text.id() {
-        refs.insert(
-            id,
-            Reference {
-                xreflabel: None,
-                title: None,
-                location: text.location().clone(),
-            },
-        );
+        refs.entry(id).or_insert_with(|| Reference {
+            xreflabel: None,
+            title: None,
+            location: text.location().clone(),
+        });
     }
-    collect_inline_references(text.content(), refs, xrefs);
+    collect_inline_references(state, text.content(), refs, xrefs);
 }
 
 /// Walk the final document tree to (1) populate the cross-reference catalog `refs` with
@@ -584,6 +632,7 @@ fn collect_formatted_references<'a, T>(
 /// treated as unresolved. Section IDs come from `toc_entries` (seeded separately); this
 /// only recurses into their content.
 fn collect_references<'a>(
+    state: &mut ParserState<'a>,
     blocks: &[Block<'a>],
     refs: &mut HashMap<&'a str, Reference<'a>>,
     xrefs: &mut Vec<(&'a str, Location)>,
@@ -592,47 +641,45 @@ fn collect_references<'a>(
         if !matches!(block, Block::Section(_))
             && let Some(anchor) = block.anchor()
         {
-            insert_reference(refs, anchor, block.title().cloned());
+            insert_reference(state, refs, anchor, block.title().cloned());
         }
 
         match block {
-            Block::Section(s) => collect_references(&s.content, refs, xrefs),
-            Block::Paragraph(p) => collect_inline_references(&p.content, refs, xrefs),
-            Block::Admonition(a) => match a.blocks.as_slice() {
-                [Block::Paragraph(paragraph)] if paragraph.metadata == a.metadata => {
-                    collect_inline_references(&paragraph.content, refs, xrefs);
-                }
-                blocks => collect_references(blocks, refs, xrefs),
-            },
+            Block::Section(s) => collect_references(state, &s.content, refs, xrefs),
+            Block::Paragraph(p) => collect_inline_references(state, &p.content, refs, xrefs),
+            // A simple admonition's content is a synthetic paragraph that shares
+            // the admonition's anchor; the admonition registered it first, so its
+            // reference text stands.
+            Block::Admonition(a) => collect_references(state, &a.blocks, refs, xrefs),
             Block::UnorderedList(l) => {
                 for item in &l.items {
-                    collect_inline_references(&item.principal, refs, xrefs);
-                    collect_references(&item.blocks, refs, xrefs);
+                    collect_inline_references(state, &item.principal, refs, xrefs);
+                    collect_references(state, &item.blocks, refs, xrefs);
                 }
             }
             Block::OrderedList(l) => {
                 for item in &l.items {
-                    collect_inline_references(&item.principal, refs, xrefs);
-                    collect_references(&item.blocks, refs, xrefs);
+                    collect_inline_references(state, &item.principal, refs, xrefs);
+                    collect_references(state, &item.blocks, refs, xrefs);
                 }
             }
             Block::CalloutList(l) => {
                 for item in &l.items {
-                    collect_inline_references(&item.principal, refs, xrefs);
-                    collect_references(&item.blocks, refs, xrefs);
+                    collect_inline_references(state, &item.principal, refs, xrefs);
+                    collect_references(state, &item.blocks, refs, xrefs);
                 }
             }
             Block::DescriptionList(l) => {
                 for item in &l.items {
                     for anchor in &item.anchors {
-                        insert_reference(refs, anchor, None);
+                        insert_reference(state, refs, anchor, None);
                     }
-                    collect_inline_references(&item.term, refs, xrefs);
-                    collect_inline_references(&item.principal_text, refs, xrefs);
-                    collect_references(&item.description, refs, xrefs);
+                    collect_inline_references(state, &item.term, refs, xrefs);
+                    collect_inline_references(state, &item.principal_text, refs, xrefs);
+                    collect_references(state, &item.description, refs, xrefs);
                 }
             }
-            Block::DelimitedBlock(d) => collect_delimited_references(&d.inner, refs, xrefs),
+            Block::DelimitedBlock(d) => collect_delimited_references(state, &d.inner, refs, xrefs),
             Block::DiscreteHeader(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
@@ -648,6 +695,7 @@ fn collect_references<'a>(
 
 /// Walk the content of a delimited block for anchors and cross-references.
 fn collect_delimited_references<'a>(
+    state: &mut ParserState<'a>,
     inner: &DelimitedBlockType<'a>,
     refs: &mut HashMap<&'a str, Reference<'a>>,
     xrefs: &mut Vec<(&'a str, Location)>,
@@ -656,13 +704,15 @@ fn collect_delimited_references<'a>(
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
         | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => collect_references(blocks, refs, xrefs),
+        | DelimitedBlockType::DelimitedQuote(blocks) => {
+            collect_references(state, blocks, refs, xrefs);
+        }
         DelimitedBlockType::DelimitedListing(inlines)
         | DelimitedBlockType::DelimitedLiteral(inlines)
         | DelimitedBlockType::DelimitedPass(inlines)
         | DelimitedBlockType::DelimitedVerse(inlines)
         | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_references(inlines, refs, xrefs);
+            collect_inline_references(state, inlines, refs, xrefs);
         }
         DelimitedBlockType::DelimitedTable(table) => {
             for row in table
@@ -672,7 +722,7 @@ fn collect_delimited_references<'a>(
                 .chain(table.rows.iter())
             {
                 for column in &row.columns {
-                    collect_references(&column.content, refs, xrefs);
+                    collect_references(state, &column.content, refs, xrefs);
                 }
             }
         }
@@ -683,24 +733,29 @@ fn collect_delimited_references<'a>(
 /// Walk inline content for inline `[[id]]` anchors, formatted span IDs, and `<<id>>`
 /// cross-references, recursing into formatted spans.
 fn collect_inline_references<'a>(
+    state: &mut ParserState<'a>,
     inlines: &[InlineNode<'a>],
     refs: &mut HashMap<&'a str, Reference<'a>>,
     xrefs: &mut Vec<(&'a str, Location)>,
 ) {
     for inline in inlines {
         match inline {
-            InlineNode::InlineAnchor(anchor) => insert_reference(refs, anchor, None),
+            InlineNode::InlineAnchor(anchor) => insert_reference(state, refs, anchor, None),
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 xrefs.push((xref.target, xref.location.clone()));
             }
-            InlineNode::BoldText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::ItalicText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::MonospaceText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::HighlightText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::SubscriptText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::SuperscriptText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::CurvedQuotationText(t) => collect_formatted_references(t, refs, xrefs),
-            InlineNode::CurvedApostropheText(t) => collect_formatted_references(t, refs, xrefs),
+            InlineNode::BoldText(t) => collect_formatted_references(state, t, refs, xrefs),
+            InlineNode::ItalicText(t) => collect_formatted_references(state, t, refs, xrefs),
+            InlineNode::MonospaceText(t) => collect_formatted_references(state, t, refs, xrefs),
+            InlineNode::HighlightText(t) => collect_formatted_references(state, t, refs, xrefs),
+            InlineNode::SubscriptText(t) => collect_formatted_references(state, t, refs, xrefs),
+            InlineNode::SuperscriptText(t) => collect_formatted_references(state, t, refs, xrefs),
+            InlineNode::CurvedQuotationText(t) => {
+                collect_formatted_references(state, t, refs, xrefs);
+            }
+            InlineNode::CurvedApostropheText(t) => {
+                collect_formatted_references(state, t, refs, xrefs);
+            }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
@@ -1527,22 +1582,22 @@ peg::parser! {
             // the final tree for every other anchor (block IDs, inline `[[id]]`
             // anchors, and formatted span IDs). The same walk collects every
             // cross-reference so unresolved ones can be reported.
-            let mut references: HashMap<&str, Reference<'_>> = state
-                .toc_entries
-                .iter()
-                .map(|entry| {
-                    (
-                        entry.id,
-                        Reference {
-                            xreflabel: entry.xreflabel,
-                            title: Some(entry.title.clone()),
-                            location: entry.location.clone(),
-                        },
-                    )
-                })
-                .collect();
+            let toc_entries = state.toc_entries.clone();
+            let mut references: HashMap<&str, Reference<'_>> =
+                HashMap::with_capacity(toc_entries.len());
+            for entry in &toc_entries {
+                let xreflabel = parse_reference_label(state, entry.xreflabel, &entry.location);
+                references.insert(
+                    entry.id,
+                    Reference {
+                        xreflabel,
+                        title: Some(entry.title.clone()),
+                        location: entry.location.clone(),
+                    },
+                );
+            }
             let mut xrefs: Vec<(&str, Location)> = Vec::new();
-            collect_references(&blocks, &mut references, &mut xrefs);
+            collect_references(state, &blocks, &mut references, &mut xrefs);
 
             // An internal `<<id>>` whose target is absent from the catalog is an
             // unresolved (broken) reference. Inter-document/external targets
@@ -1577,7 +1632,7 @@ peg::parser! {
                 attributes: DocumentAttributes::clone(&state.document_attributes),
                 blocks,
                 footnotes: state.footnote_tracker.borrow().footnotes.clone(),
-                toc_entries: state.toc_entries.clone(),
+                toc_entries,
                 references,
             })
         }
@@ -7128,6 +7183,62 @@ See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id
         assert!(
             entry.title.is_none(),
             "untitled block has no reference text"
+        );
+        Ok(())
+    }
+
+    /// The first element to claim an id owns its reference text, matching
+    /// asciidoctor: a later element with the same id (here a formatted span,
+    /// which carries no title) does not take the text away from the titled
+    /// block that registered first.
+    #[test]
+    fn test_duplicate_id_keeps_first_reference_text() -> Result<(), Error> {
+        let input = "[[dup]]\n.Titled Block\n====\nbody\n====\n\nA [#dup]*bold* span.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let entry = doc
+            .references
+            .get("dup")
+            .expect("the id is a reference target");
+        let title = entry
+            .title
+            .as_ref()
+            .expect("the first registration keeps its reference text");
+        assert!(
+            matches!(
+                &title[..],
+                [InlineNode::PlainText(text)] if text.content == "Titled Block"
+            ),
+            "{title:?}"
+        );
+        Ok(())
+    }
+
+    /// A reference label is inline content, so `[[id,*Bold* label]]` reaches
+    /// converters as parsed inline nodes rather than literal asterisks.
+    #[test]
+    fn test_reference_label_is_parsed_as_inlines() -> Result<(), Error> {
+        let input = "Some [[labelled,*Bold* label]]text.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let label = doc
+            .references
+            .get("labelled")
+            .expect("the id is a reference target")
+            .xreflabel
+            .as_ref()
+            .expect("the anchor has a label");
+        assert!(
+            matches!(
+                &label[..],
+                [InlineNode::BoldText(bold), InlineNode::PlainText(rest)]
+                    if rest.content == " label"
+                        && matches!(
+                            &bold.content[..],
+                            [InlineNode::PlainText(text)] if text.content == "Bold"
+                        )
+            ),
+            "{label:?}"
         );
         Ok(())
     }

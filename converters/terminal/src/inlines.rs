@@ -12,10 +12,7 @@ use acdc_converters_core::{
 use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
 use crossterm::{
     QueueableCommand,
-    style::{
-        Attribute, Color, Print, PrintStyledContent, ResetColor, SetAttribute, SetBackgroundColor,
-        SetForegroundColor, Stylize,
-    },
+    style::{Attribute, Color, Print, PrintStyledContent, SetAttribute, Stylize},
 };
 
 use crate::{Error, Processor};
@@ -167,13 +164,26 @@ fn render_inline_nodes_to_string(
     nodes: &[InlineNode],
     processor: &Processor<'_>,
 ) -> Result<String, Error> {
+    Ok(render_inline_nodes_to_owned(nodes, processor)?
+        .trim()
+        .to_string())
+}
+
+/// Render inline nodes to a string, keeping surrounding whitespace.
+///
+/// Reference text is rendered with this variant: the space in `.A title` or
+/// around a formatted span belongs to the text.
+fn render_inline_nodes_to_owned(
+    nodes: &[InlineNode],
+    processor: &Processor<'_>,
+) -> Result<String, Error> {
     let mut buffer = std::io::BufWriter::new(Vec::new());
     for node in nodes {
         render_inline_node_to_writer(node, &mut buffer, processor)?;
     }
     buffer.flush()?;
     // SAFETY: We only write valid UTF-8 through write! macros and plain text from parser
-    Ok(String::from_utf8(buffer.into_inner()?)?.trim().to_string())
+    Ok(String::from_utf8(buffer.into_inner()?)?)
 }
 
 /// Helper to render a single inline node directly to a writer.
@@ -359,24 +369,48 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
         xref: &CrossReference<'_>,
         processor: &Processor<'_>,
     ) -> Result<(), crate::Error> {
-        let display = if xref.text.is_empty() {
-            resolve_xref(processor.references.get(xref.target), xref.target)
-        } else {
-            XrefDisplay::Inlines(xref.text.clone())
-        };
-        let link_color = processor.appearance.colors.link;
-        let w = self.writer_mut();
-        w.queue(SetForegroundColor(link_color))?;
-        w.queue(SetAttribute(Attribute::Underlined))?;
-
-        match display {
-            XrefDisplay::Inlines(inlines) => self.visit_inline_nodes(&inlines)?,
-            XrefDisplay::Text(text) => write!(self.writer_mut(), "{text}")?,
+        if !xref.text.is_empty() {
+            return self
+                .write_link_styled(processor, |visitor| visitor.visit_inline_nodes(&xref.text));
         }
 
-        let w = self.writer_mut();
-        w.queue(SetAttribute(Attribute::Reset))?;
-        Ok(())
+        match resolve_xref(
+            processor.references.get(xref.target),
+            xref.target,
+            &processor.xref_guard,
+        ) {
+            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
+                self.write_link_styled(processor, |visitor| visitor.visit_inline_nodes(inlines))
+            }
+            XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
+                self.write_link_styled(processor, |visitor| {
+                    write!(visitor.writer_mut(), "{text}")?;
+                    Ok(())
+                })
+            }
+            // Already inside a reference's styling: plain text, so the outer
+            // reference keeps its colour and underline.
+            XrefDisplay::Nested(text) => {
+                write!(self.writer_mut(), "{text}")?;
+                Ok(())
+            }
+        }
+    }
+
+    /// Write reference text in the link colour, underlined.
+    fn write_link_styled(
+        &mut self,
+        processor: &Processor<'_>,
+        text: impl FnOnce(&mut Self) -> Result<(), crate::Error>,
+    ) -> Result<(), crate::Error> {
+        self.push_colors(Some(processor.appearance.colors.link), None)?;
+        self.writer_mut()
+            .queue(SetAttribute(Attribute::Underlined))?;
+        let result = text(self);
+        self.writer_mut()
+            .queue(SetAttribute(Attribute::NoUnderline))?;
+        self.pop_colors()?;
+        result
     }
 
     /// Render bold, italic, highlight, or monospace inline nodes with crossterm styling.
@@ -408,22 +442,15 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NoUnderline))?;
                 } else {
-                    let w = self.writer_mut();
-                    w.queue(SetForegroundColor(Color::Black))?;
-                    w.queue(SetBackgroundColor(Color::Yellow))?;
+                    self.push_colors(Some(Color::Black), Some(Color::Yellow))?;
                     self.visit_inline_nodes(&h.content)?;
-                    let w = self.writer_mut();
-                    w.queue(ResetColor)?;
+                    self.pop_colors()?;
                 }
             }
             InlineNode::MonospaceText(m) => {
-                let w = self.writer_mut();
-                w.queue(SetForegroundColor(
-                    processor.appearance.colors.inline_monospace,
-                ))?;
+                self.push_colors(Some(processor.appearance.colors.inline_monospace), None)?;
                 self.visit_inline_nodes(&m.content)?;
-                let w = self.writer_mut();
-                w.queue(ResetColor)?;
+                self.pop_colors()?;
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -633,15 +660,29 @@ fn render_button<W: Write + ?Sized>(
     Ok(())
 }
 
+/// Render a cross-reference into a buffer.
+///
+/// The buffered path exists because crossterm needs the full text of a styled
+/// span upfront (table cells, super/subscript). Like every node rendered this
+/// way, the reference text arrives without its own styling; the resolution
+/// itself is the same as the visitor's.
 fn render_cross_reference_to_writer<W: Write + ?Sized>(
     xref: &CrossReference,
     w: &mut W,
     processor: &Processor<'_>,
 ) -> Result<(), crate::Error> {
     let text = if xref.text.is_empty() {
-        match resolve_xref(processor.references.get(xref.target), xref.target) {
-            XrefDisplay::Inlines(inlines) => render_inline_nodes_to_string(&inlines, processor)?,
-            XrefDisplay::Text(text) => text,
+        match resolve_xref(
+            processor.references.get(xref.target),
+            xref.target,
+            &processor.xref_guard,
+        ) {
+            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
+                render_inline_nodes_to_owned(inlines, processor)?
+            }
+            XrefDisplay::Fallback(text)
+            | XrefDisplay::Unresolved(text)
+            | XrefDisplay::Nested(text) => text,
         }
     } else {
         inlines_to_string(&xref.text)
@@ -655,12 +696,13 @@ fn render_cross_reference_to_writer<W: Write + ?Sized>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Options, TerminalVisitor};
+    use crate::TerminalVisitor;
+    use crate::create_test_processor;
     use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{
-        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, DocumentAttributes, Form,
-        Highlight, Image, InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace,
-        Paragraph, Plain, Source, StandaloneCurvedApostrophe, Subscript, Superscript,
+        Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight, Image,
+        InlineMacro, Italic, Keyboard, LineBreak, Link, Location, Monospace, Paragraph, Plain,
+        Source, StandaloneCurvedApostrophe, Subscript, Superscript,
     };
 
     /// Create simple plain text inline node for testing
@@ -670,43 +712,6 @@ mod tests {
             location: Location::default(),
             escaped: false,
         })
-    }
-
-    /// Create test processor with default options
-    fn create_test_processor() -> Processor<'static> {
-        use crate::Appearance;
-        use acdc_converters_core::section::{
-            AppendixTracker, PartNumberTracker, SectionNumberTracker,
-        };
-        use std::{cell::Cell, rc::Rc};
-        let options = Options::default();
-        let document_attributes = DocumentAttributes::default();
-        let appearance = Appearance::detect();
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        Processor {
-            options,
-            document_attributes,
-            toc_entries: vec![],
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
-            example_counter: Rc::new(Cell::new(0)),
-            appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
-            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
-            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: std::rc::Rc::new(std::cell::Cell::new(
-                acdc_converters_core::substitutions::SubsFlags::all(),
-            )),
-        }
     }
 
     /// Helper to render a paragraph with inline nodes and return the output

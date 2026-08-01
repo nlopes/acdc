@@ -1056,6 +1056,7 @@ mod tests {
             document_attributes,
             toc_entries: Vec::new(),
             references: std::collections::HashMap::new(),
+            xref_guard: acdc_converters_core::xref::XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
             figure_counter: Rc::new(Cell::new(0)),

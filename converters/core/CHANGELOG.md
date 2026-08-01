@@ -15,8 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Automatic cross-reference text follows Asciidoctor's precedence: explicit
-  reference label, formatted target title, then `[id]`.
+- `xref::resolve_xref` resolves an automatic cross-reference's display content
+  with Asciidoctor's precedence — explicit reference label, target title, then
+  `[id]` — and tells a backend apart the three `[id]` cases it has to render
+  differently: an untitled target, a target that is absent from the catalog (no
+  anchor to link to), and a reference nested inside another one's text. Its
+  `xref::XrefGuard` keeps a target whose reference text holds a reference of its
+  own from recursing. Asciidoctor falls back to `[refid]` at the same point,
+  except where it reuses a target's cached converted title, which can carry one
+  already-resolved level and makes its result depend on document order.
+- `shows_block_title` answers whether a delimited block shows its title as a
+  visible caption, so every backend applies the passthrough rule (title is
+  reference text only) the same way.
 - Converter backends can declare their Asciidoctor-compatible backend,
   base-backend, file-type, output-suffix, and HTML-syntax traits and apply the
   corresponding intrinsic and doctype convenience attributes consistently.

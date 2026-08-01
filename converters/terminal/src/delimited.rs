@@ -489,9 +489,10 @@ fn extract_inline_text(nodes: &[InlineNode]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Options, TerminalVisitor};
+    use crate::TerminalVisitor;
+    use crate::create_test_processor;
     use acdc_converters_core::visitor::Visitor;
-    use acdc_parser::{DocumentAttributes, Location, Paragraph, Plain, Title};
+    use acdc_parser::{Location, Paragraph, Plain, Title};
 
     /// Create simple plain text inline nodes for testing
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
@@ -509,43 +510,6 @@ mod tests {
             location: Location::default(),
             escaped: false,
         })])
-    }
-
-    /// Create test processor with default options
-    fn create_test_processor() -> crate::Processor<'static> {
-        use crate::Appearance;
-        use acdc_converters_core::section::{
-            AppendixTracker, PartNumberTracker, SectionNumberTracker,
-        };
-        use std::{cell::Cell, rc::Rc};
-        let options = Options::default();
-        let document_attributes = DocumentAttributes::default();
-        let appearance = Appearance::detect();
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        crate::Processor {
-            options,
-            document_attributes,
-            toc_entries: vec![],
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
-            example_counter: Rc::new(Cell::new(0)),
-            appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
-            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
-            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: std::rc::Rc::new(std::cell::Cell::new(
-                acdc_converters_core::substitutions::SubsFlags::all(),
-            )),
-        }
     }
 
     #[test]

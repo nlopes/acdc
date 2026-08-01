@@ -57,6 +57,7 @@ generate_tests!([
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
     (passthrough_xrefs, false),
+    (xref_nesting, false),
     (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
     (index_section, false),
     (subs_replacements_disabled, false),

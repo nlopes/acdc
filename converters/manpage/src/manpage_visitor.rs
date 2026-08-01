@@ -63,6 +63,37 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         }
     }
 
+    /// Render `content` with the given casing, restoring the previous casing
+    /// afterwards.
+    pub(crate) fn with_text_case(
+        &mut self,
+        text_case: TextCase,
+        content: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let previous = self.text_case;
+        self.text_case = text_case;
+        let result = content(self);
+        self.text_case = previous;
+        result
+    }
+
+    /// Create a visitor that renders into `writer` with this visitor's inline
+    /// context.
+    ///
+    /// Roff macros such as `.URL` and `.MTO` take their label as a quoted
+    /// argument, so that text is rendered into a buffer first. It still belongs
+    /// to the surrounding context: text inside a level-1 section reference
+    /// upper-cases, label included.
+    pub(crate) fn nested_visitor<'w, W2: Write>(
+        &mut self,
+        writer: &'w mut W2,
+    ) -> ManpageVisitor<'a, '_, &'w mut W2> {
+        let processor = self.processor.clone();
+        let mut visitor = ManpageVisitor::new(writer, processor, self.diagnostics.reborrow());
+        visitor.text_case = self.text_case;
+        visitor
+    }
+
     /// Record a level-1 section title for validation.
     pub(crate) fn record_section_title(&mut self, title: &str) {
         if self.first_section_title.is_none() {

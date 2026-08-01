@@ -1,0 +1,18 @@
+[1m[4mCross-reference nesting[0m
+[38;5;14m┌─ Example 1. Target Title ────────────────────────────────────────────────────┐[39m
+[38;5;14m│ [39mbody                                                                        [38;5;14m │[39m
+[38;5;14m└──────────────────────────────────────────────────────────────────────────────┘[39m
+[38;5;14m┌─ Example ────────────────────────────────────────────────────────────────────┐[39m
+[38;5;14m│ [39mbody                                                                        [38;5;14m │[39m
+[38;5;14m└──────────────────────────────────────────────────────────────────────────────┘[39m
+A reference keeps the style of the span around it:
+[1mbold before [38;5;12m[4mTarget [1mTitle[22m[24m[39m bold after[22m
+[38;5;0m[48;5;11mhighlight before [38;5;12m[4mTarget [1mTitle[22m[24m[38;5;0m highlight after[39m[49m
+[38;5;14mmono before [38;5;12m[4mTarget [1mTitle[22m[24m[38;5;14m mono after[39m
+A label renders its own formatting: [38;5;12m[4mA [38;5;14mcode[38;5;12m label[24m[39m.
+A reference inside reference text falls back to its id: [38;5;12m[4mSee [recursive] again[24m[39m.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mSee recursive again[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+Section body.

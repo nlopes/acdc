@@ -34,7 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   example, etc) resolves to the target's title (untitled -> literal `[id]`), matching
   `asciidoctor`. The auto-generated link text preserves the title's inline formatting
   (e.g. `` `code` ``, bold, italic) rather than flattening it to plain text; an explicit
-  `<<id,text>>` label or a reference text from `[[id,Custom Text]]` still wins.
+  `<<id,text>>` label or a reference text from `[[id,Custom Text]]` still wins. A
+  `[[id,Custom Text]]` label takes the reference-text substitutions
+  (specialchars, quotes, replacements): its formatting renders, its characters
+  are escaped, and a macro in it stays literal.
+- A titled thematic break renders its ID on the `<hr>` and keeps its title out
+  of the output, so an automatic cross-reference to it resolves with formatted
+  link text. `asciidoctor` hides the title too but leaves such links unresolved.
+- A cross-reference inside a target's own reference text renders as `[id]` and
+  is not itself a link, since an `<a>` cannot nest and the resolution has to
+  terminate. `asciidoctor` falls back at the same point, except where it reuses
+  a target's cached converted title, which can carry one already-resolved level.
 - Table sizing and alignment classes follow `asciidoctor`: a `width=100%` table (or the
   default full-width table) uses the `stretch` class with no inline style, any other
   explicit `width` emits an inline `style="width: N;"` with no `stretch` class,
@@ -221,9 +231,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Titled thematic breaks no longer display their title above the rule. Their IDs
-  now target the `<hr>`, so automatic cross-references retain formatted link text
-  and resolve; Asciidoctor hides the title too but leaves these links unresolved.
 - Highlight syntax with an ID but no role now renders as a plain targeted
   `<span>` instead of a highlighted `<mark>`, matching `asciidoctor`.
 - Standard HTML image blocks now preserve `[[id]]` and `[id=...]` as the wrapper

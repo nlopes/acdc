@@ -29,6 +29,19 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 
+- A `<<id>>` with no text reads as the target's reference text: an explicit
+  `[[id,label]]` label, otherwise the target's title, otherwise the literal
+  `[id]`. Both a label and a title keep their inline formatting (`` `code` ``
+  becomes `\f(CR`, bold becomes `\fB`). A reference to a level-1 section
+  upper-cases its heading the way the `.SH` line does, link and mailto text
+  included; a label keeps the case it was written in. A passthrough block's
+  title serves only as reference text and never appears above the block,
+  matching `asciidoctor`.
+- A cross-reference inside a target's own reference text renders as `[id]`
+  rather than resolving again, so a title that references itself terminates.
+  `asciidoctor` falls back at the same point, except where it reuses a target's
+  cached converted title, which can carry one already-resolved level.
+
 - **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
   symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as proper roff escapes
   via the shared `apply_replacements()` pipeline feeding into `manify()`.
@@ -53,10 +66,6 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
-- Automatic cross-references now use labels and formatted target titles, follow
-  manpage section capitalization, and fall back to `[id]`. Passthrough titles
-  remain available as reference text without appearing above their blocks,
-  matching Asciidoctor.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
   superscript, subscript, and curved quotes is no longer converted to an em-dash at string
   boundaries, matching asciidoctor behavior.

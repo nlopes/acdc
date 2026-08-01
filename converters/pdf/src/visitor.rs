@@ -1,6 +1,10 @@
 use std::fmt::Write as _;
 
-use acdc_converters_core::{decode_numeric_char_refs, inlines_to_string, visitor::Visitor};
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::effective_subs_flags;
+use acdc_converters_core::{
+    decode_numeric_char_refs, inlines_to_string, shows_block_title, visitor::Visitor,
+};
 use acdc_parser::{
     Admonition, AdmonitionVariant, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
@@ -100,7 +104,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         ));
 
         let result = (|| {
-            if !matches!(&block.inner, DelimitedBlockType::DelimitedPass(_)) {
+            if shows_block_title(&block.inner) {
                 self.write_block_title(&block.title)?;
             }
             match &block.inner {

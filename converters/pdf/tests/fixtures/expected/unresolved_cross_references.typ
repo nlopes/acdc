@@ -1,0 +1,65 @@
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Unresolved cross-reference coverage]], footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
+#set par(leading: 0.65em, justify: false)
+#set smartquote(enabled: false)
+#show heading: set text(font: ("IBM Plex Serif", "Noto Color Emoji"), weight: 700, fill: rgb("#000000"))
+#show heading.where(level: 1): set text(size: 24pt)
+#show heading.where(level: 2): set text(size: 18pt)
+#show heading.where(level: 3): set text(size: 14pt)
+#show heading.where(level: 4): set text(size: 12pt)
+#show heading.where(level: 5): set text(size: 11pt)
+#show heading.where(level: 6): set text(size: 10pt)
+#show link: set text(fill: rgb("#2563eb"))
+#show strong: set text(fill: rgb("#000000"), weight: 700)
+#show raw: set text(font: ("IBM Plex Mono", "Noto Color Emoji"))
+#set raw(theme: "/assets/highlight.tmTheme")
+#show raw.where(block: false): set text(fill: rgb("#000000"))
+#show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let blockquote(body) = block(inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
+#let _cbadge(body) = box(circle(radius: 0.6em, fill: rgb("#111111"), inset: 0pt, align(center + horizon, body)))
+#let _cico(glyph) = _cbadge(text(fill: white, weight: 700, size: 0.82em)[#glyph])
+#let _ccheck = _cbadge(box(width: 0.62em, height: 0.62em, place(curve(stroke: (paint: white, thickness: 1.5pt, cap: "round", join: "round"), curve.move((0em, 0.34em)), curve.line((0.21em, 0.55em)), curve.line((0.58em, 0.08em))))))
+#let _cicon(kind) = ("note": _cico("i"), "tip": _cico("i"), "important": _cico("!"), "warning": _cico("!"), "caution": _cico("!"), "success": _ccheck).at(kind, default: _cico("i"))
+#let callout(kind, body) = pad(left: 0pt, block(width: 100%, fill: rgb("#f3f4f6"), radius: 4pt, inset: (x: 12pt, y: 10pt), grid(columns: (auto, 1fr), column-gutter: 9.600000000000001pt, align: top, _cicon(kind), body)))
+#let checkbox(checked) = box(height: 0.85em, width: 0.85em, baseline: 0.15em, radius: 2pt, stroke: 0.75pt + rgb("#9ca3af"), fill: if checked { rgb("#374151") } else { white })
+#let hr() = block(above: 1.2em, below: 1.2em, line(length: 100%, stroke: 0.75pt + rgb("#e5e7eb")))
+#let docimage(path) = block(radius: 4pt, clip: true, image(path, width: 100%))
+#set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
+#set enum(numbering: (..n) => text(fill: rgb("#9ca3af"))[#numbering("1.", ..n.pos())])
+#set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
+#let tableheader(body) = text(weight: 700, body)
+
+#align(center)[
+#text(size: 22pt, weight: "bold")[#text("Unresolved cross-reference coverage")]
+]
+#v(1em)
+
+#text("Typst fails a whole compilation on a link to a label no element defines, so an\nunresolved target renders as text alone.")
+
+#text("See ")#text("[no-such-id]")#text(" and ")#text("explicit text")#text(".")
+
+#text("A reference whose target’s reference text holds a reference of its own resolves\none level, then falls back to ")#raw("[id]")#text(".")
+
+#metadata(none) <id-73656c662d7265666572656e6365>
+#text(weight: "bold")[#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]
+#block(fill: luma(248), inset: 8pt, width: 100%)[
+#text("body")
+
+]
+
+#metadata(none) <id-6d757475616c2d6669727374>
+#text(weight: "bold")[#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]
+#block(fill: luma(248), inset: 8pt, width: 100%)[
+#text("body")
+
+]
+
+#metadata(none) <id-6d757475616c2d7365636f6e64>
+#text(weight: "bold")[#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]
+#block(fill: luma(248), inset: 8pt, width: 100%)[
+#text("body")
+
+]
+
+#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(", ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]#text(", and ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]#text(".")
+

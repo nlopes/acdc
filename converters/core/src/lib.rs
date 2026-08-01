@@ -37,7 +37,7 @@ use std::{
     time::Instant,
 };
 
-use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode};
+use acdc_parser::{AttributeValue, DelimitedBlockType, DocumentAttributes, SafeMode};
 
 mod backend;
 /// Source code syntax highlighting and callouts support.
@@ -59,6 +59,26 @@ pub use backend::BackendTraits;
 pub use doctype::Doctype;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
+
+/// Whether a delimited block shows its title as a visible caption.
+///
+/// A passthrough block's title serves only as cross-reference text: asciidoctor
+/// never prints it, because the block's whole purpose is to emit its content
+/// untouched. Every other delimited block shows its title.
+///
+/// # Examples
+///
+/// ```
+/// use acdc_converters_core::shows_block_title;
+/// use acdc_parser::DelimitedBlockType;
+///
+/// assert!(!shows_block_title(&DelimitedBlockType::DelimitedPass(Vec::new())));
+/// assert!(shows_block_title(&DelimitedBlockType::DelimitedExample(Vec::new())));
+/// ```
+#[must_use]
+pub fn shows_block_title(inner: &DelimitedBlockType<'_>) -> bool {
+    !matches!(inner, DelimitedBlockType::DelimitedPass(_))
+}
 
 /// Decode HTML numeric character references (`&#NNN;` and `&#xHH;`) to Unicode characters.
 ///

@@ -5,13 +5,14 @@
 //! the shared `acdc-pdf-*` crates.
 
 #[cfg(feature = "pre-spec-subs")]
-use std::{cell::Cell, rc::Rc};
+use std::cell::Cell;
 use std::{
     collections::{BTreeSet, HashMap},
     fmt::Write as _,
     fs::File,
     io::Read,
     path::{Path, PathBuf},
+    rc::Rc,
     time::{Duration, Instant},
 };
 
@@ -19,6 +20,7 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendTraits, Diagnostics, Options, PrettyDuration, inlines_to_string, visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode, ListItem,
@@ -80,7 +82,12 @@ pub struct PdfOptions {
 pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
-    references: HashMap<&'a str, Reference<'a>>,
+    /// Cross-reference targets keyed by id, cloned from `Document::references`.
+    /// Shared so a resolved target's reference text can be borrowed while the
+    /// visitor renders it.
+    references: Rc<HashMap<&'a str, Reference<'a>>>,
+    /// Keeps a cross-reference inside a resolved target's text from recursing.
+    pub(crate) xref_guard: XrefGuard,
     pdf_options: PdfOptions,
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
@@ -178,7 +185,8 @@ impl Processor<'_> {
         let processor = Processor {
             options: self.options.clone(),
             document_attributes: doc.attributes.clone(),
-            references: doc.references.clone(),
+            references: Rc::new(doc.references.clone()),
+            xref_guard: XrefGuard::default(),
             pdf_options: self.pdf_options.clone(),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),

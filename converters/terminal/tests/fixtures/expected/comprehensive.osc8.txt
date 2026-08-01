@@ -34,15 +34,15 @@ Breaks
 Appendix section
 Glossary
 
-This is the preamble paragraph with [1mbold[22m, [3mitalic[23m, [38;5;14mmonospace[0m, [38;5;0m[48;5;11mhighlight[0m, [2msuper[22m, [2msub[22m, and [4munderlined[24m text.
+This is the preamble paragraph with [1mbold[22m, [3mitalic[23m, [38;5;14mmonospace[39m, [38;5;0m[48;5;11mhighlight[39m[49m, [2msuper[22m, [2msub[22m, and [4munderlined[24m text.
 Curved quotes: “quoted text” and curved apostrophes: ‘it’ and it’s a contraction.
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1m1. Inline formatting[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 This paragraph has [1mbold text[22m and [3mitalic text[23m mixed together.
-Here is some [38;5;14mmonospace code[0m in a paragraph.
-Text with [38;5;0m[48;5;11mhighlighted content[0m for emphasis.
+Here is some [38;5;14mmonospace code[39m in a paragraph.
+Text with [38;5;0m[48;5;11mhighlighted content[39m[49m for emphasis.
 Superscript: E = mc² and subscript: H₂O.
 Nested: [1mbold with [3mitalic inside[23m[22m and [3mitalic with *bold inside*[23m.
 
@@ -52,7 +52,7 @@ Nested: [1mbold with [3mitalic inside[23m[22m and [3mitalic with *bold insi
 A link: [38;5;12m]8;;https://example.com\Example Website]8;;\[39m.
 A mailto: [38;5;12m]8;;mailto:user@example.com\Send Email]8;;\[39m.
 An autolink: [38;5;12m]8;;https://rust-lang.org\https://rust-lang.org]8;;\[39m.
-A cross-reference: [38;5;12m[4msee Inline Formatting[0m.
+A cross-reference: [38;5;12m[4msee Inline Formatting[24m[39m.
 A footnote reference.[38;5;14m[1m[1][0m
 A keyboard shortcut: [Ctrl+C].
 A button: [38;5;15m[1m[OK][0m.

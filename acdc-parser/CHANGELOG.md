@@ -68,7 +68,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Document.references`: an `id → Reference` catalog covering every cross-reference
   target, including sections, blocks, inline `[[id]]` anchors, and IDs on formatted
   inline spans, with each target's reference text and source `location`, so `<<id>>`
-  can be resolved and navigated to.
+  can be resolved and navigated to. A target's reference text is its explicit
+  `[[id,label]]` label when it has one, otherwise its title; a titled single-line
+  admonition keeps its title. Both arrive as inline nodes: a label takes the
+  reference-text substitutions (specialchars, quotes, replacements), so
+  `[[id,*Bold* label]]` renders bold while a macro in a label stays literal,
+  matching `asciidoctor`. When two elements claim the same id, the first one to
+  claim it keeps the reference text, also matching `asciidoctor`.
 - An `<<id>>`/`xref:id[]` whose target is defined nowhere now reports a
   `WarningKind::UnresolvedReference`, matching `asciidoctor` (external/inter-document
   references aren't flagged as the parser only deals with one file at a time).
@@ -129,8 +135,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Automatic cross-references to titled single-line admonitions now use the
-  formatted title instead of `[id]`, matching `asciidoctor`.
 - With `compat-mode`, denied URI includes now omit `role=include` from their
   converter-visible fallback links, matching `asciidoctor`.
 - Partial includes now select `lines`, `tag`, or `tags` from the original target

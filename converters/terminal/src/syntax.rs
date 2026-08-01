@@ -124,50 +124,14 @@ fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
 #[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
-    use acdc_converters_core::Options;
-    use acdc_parser::{DocumentAttributes, Location, Verbatim};
-    use std::{cell::Cell, rc::Rc};
+    use crate::create_test_processor;
+    use acdc_parser::{Location, Verbatim};
 
     fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::VerbatimText(Verbatim {
             content,
             location: Location::default(),
         })]
-    }
-
-    fn create_test_processor() -> Processor<'static> {
-        use crate::Appearance;
-        use acdc_converters_core::section::{
-            AppendixTracker, PartNumberTracker, SectionNumberTracker,
-        };
-        let options = Options::default();
-        let document_attributes = DocumentAttributes::default();
-        let appearance = Appearance::detect();
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        Processor {
-            options,
-            document_attributes,
-            toc_entries: vec![],
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
-            example_counter: Rc::new(Cell::new(0)),
-            appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
-            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
-            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: std::rc::Rc::new(std::cell::Cell::new(
-                acdc_converters_core::substitutions::SubsFlags::all(),
-            )),
-        }
     }
 
     #[test]

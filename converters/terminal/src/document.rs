@@ -108,46 +108,15 @@ fn visit_author<W: Write + ?Sized>(author: &Author, w: &mut W) -> Result<(), io:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Options, Processor};
+    use crate::create_test_processor_with;
     use acdc_parser::{
         Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section, Title,
     };
 
     #[test]
     fn test_render_document() -> Result<(), Error> {
-        use crate::Appearance;
-        use acdc_converters_core::section::{
-            AppendixTracker, PartNumberTracker, SectionNumberTracker,
-        };
-        use std::{cell::Cell, rc::Rc};
         let doc = Document::default();
-        let options = Options::default();
-        let appearance = Appearance::detect();
-        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
-        let appendix_tracker =
-            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
-        let processor = Processor {
-            options,
-            document_attributes: doc.attributes.clone(),
-            toc_entries: vec![],
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
-            example_counter: Rc::new(Cell::new(0)),
-            appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
-            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
-            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: std::rc::Rc::new(std::cell::Cell::new(
-                acdc_converters_core::substitutions::SubsFlags::all(),
-            )),
-        };
+        let processor = create_test_processor_with(doc.attributes.clone());
         let buffer = Vec::new();
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
@@ -161,7 +130,6 @@ mod tests {
 
     #[test]
     fn test_render_document_with_header() -> Result<(), Error> {
-        use crate::Appearance;
         let mut doc = Document::default();
         let title = Title::new(vec![InlineNode::PlainText(Plain {
             content: "Title",
@@ -173,38 +141,7 @@ mod tests {
         ]));
         doc.blocks = vec![];
         let buffer = Vec::new();
-        let options = Options::default();
-        let appearance = Appearance::detect();
-        let section_number_tracker =
-            acdc_converters_core::section::SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker = acdc_converters_core::section::PartNumberTracker::new(
-            &doc.attributes,
-            section_number_tracker.clone(),
-        );
-        let appendix_tracker = acdc_converters_core::section::AppendixTracker::new(
-            &doc.attributes,
-            section_number_tracker.clone(),
-        );
-        let processor = Processor {
-            options,
-            document_attributes: doc.attributes.clone(),
-            toc_entries: vec![],
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
-            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
-            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
-            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: std::rc::Rc::new(std::cell::Cell::new(
-                acdc_converters_core::substitutions::SubsFlags::all(),
-            )),
-        };
+        let processor = create_test_processor_with(doc.attributes.clone());
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
@@ -217,7 +154,6 @@ mod tests {
 
     #[test]
     fn test_render_document_with_blocks() -> Result<(), Error> {
-        use crate::Appearance;
         let mut doc = Document::default();
         doc.blocks = vec![
             Block::Paragraph(Paragraph::new(
@@ -247,38 +183,7 @@ mod tests {
             )),
         ];
         let buffer = Vec::new();
-        let options = Options::default();
-        let appearance = Appearance::detect();
-        let section_number_tracker =
-            acdc_converters_core::section::SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker = acdc_converters_core::section::PartNumberTracker::new(
-            &doc.attributes,
-            section_number_tracker.clone(),
-        );
-        let appendix_tracker = acdc_converters_core::section::AppendixTracker::new(
-            &doc.attributes,
-            section_number_tracker.clone(),
-        );
-        let processor = Processor {
-            options,
-            document_attributes: doc.attributes.clone(),
-            toc_entries: vec![],
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
-            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
-            terminal_width: crate::FALLBACK_TERMINAL_WIDTH,
-            index_entries: std::rc::Rc::new(std::cell::RefCell::new(Vec::new())),
-            has_valid_index_section: false,
-            list_indent: std::rc::Rc::new(std::cell::Cell::new(0)),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: std::rc::Rc::new(std::cell::Cell::new(
-                acdc_converters_core::substitutions::SubsFlags::all(),
-            )),
-        };
+        let processor = create_test_processor_with(doc.attributes.clone());
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);

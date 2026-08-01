@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write as _};
+use std::{borrow::Cow, fmt::Write as _, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
@@ -12,8 +12,8 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, Block, BlockMetadata, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph,
-    Source, Table, TableColumn, TableOfContents, Title,
+    Anchor, Block, BlockMetadata, CrossReference, Image, IndexTermKind, InlineMacro, InlineNode,
+    ListItem, Paragraph, Source, Table, TableColumn, TableOfContents, Title,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_typst::Writer;
@@ -478,19 +478,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 let target = autolink.url.to_string();
                 self.write_link_text(&target, &[])?;
             }
-            InlineMacro::CrossReference(xref) => {
-                let label = crate::encode_label(xref.target);
-                let _ = write!(self.writer, "#link(<{label}>)[");
-                if xref.text.is_empty() {
-                    match resolve_xref(self.processor.references.get(xref.target), xref.target) {
-                        XrefDisplay::Inlines(inlines) => self.write_inlines(&inlines)?,
-                        XrefDisplay::Text(text) => self.write_text_expr(&text),
-                    }
-                } else {
-                    self.write_inlines(&xref.text)?;
-                }
-                self.writer.raw("]");
-            }
+            InlineMacro::CrossReference(xref) => self.write_cross_reference(xref)?,
             InlineMacro::Pass(pass) => {
                 if let Some(text) = pass.text {
                     self.write_text_expr(text);
@@ -506,6 +494,58 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             _ => {}
         }
+        Ok(())
+    }
+
+    /// Write a cross-reference as a Typst link to the target's label.
+    ///
+    /// Typst fails the whole compilation on a link to a label that no element
+    /// defines, so a target that is absent from the reference catalog — or a
+    /// reference nested inside another one's text — renders as `[id]` text
+    /// alone. Every catalogued target gets a label from `write_block_anchor`,
+    /// `write_anchor_target` or the section heading.
+    fn write_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
+        // Clone the handles so the borrowed reference text and the resolution
+        // guard both outlive the `&mut self` render calls.
+        let references = Rc::clone(&self.processor.references);
+        let guard = self.processor.xref_guard.clone();
+
+        if !xref.text.is_empty() {
+            if references.contains_key(xref.target) {
+                self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(&xref.text))?;
+            } else {
+                self.write_inlines(&xref.text)?;
+            }
+            return Ok(());
+        }
+
+        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
+                self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(inlines))?;
+            }
+            XrefDisplay::Fallback(text) => {
+                self.write_labelled_link(xref.target, |visitor| {
+                    visitor.write_text_expr(&text);
+                    Ok(())
+                })?;
+            }
+            XrefDisplay::Unresolved(text) | XrefDisplay::Nested(text) => {
+                self.write_text_expr(&text);
+            }
+        }
+        Ok(())
+    }
+
+    /// Write `content` inside a Typst link to `target`'s label.
+    fn write_labelled_link(
+        &mut self,
+        target: &str,
+        content: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let label = crate::encode_label(target);
+        let _ = write!(self.writer, "#link(<{label}>)[");
+        content(self)?;
+        self.writer.raw("]");
         Ok(())
     }
 

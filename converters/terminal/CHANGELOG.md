@@ -38,6 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 
+- A `<<id>>` with no text reads as the target's reference text: an explicit
+  `[[id,label]]` label, otherwise the target's title, otherwise the literal
+  `[id]`. Both keep their inline formatting inside the link styling. A
+  passthrough block's title serves only as reference text and never appears
+  above the block, matching `asciidoctor`.
+- A cross-reference inside a target's own reference text renders as `[id]`
+  rather than resolving again, so a title that references itself terminates.
+  `asciidoctor` falls back at the same point, except where it reuses a target's
+  cached converted title, which can carry one already-resolved level.
+- An inline span that sets a colour (monospace, highlight, a cross-reference)
+  restores the colour of the span around it when it ends, instead of resetting
+  the terminal. Bold, italic and background colour survive a nested span, so
+  `*bold before <<id>> bold after*` stays bold throughout.
+
 - **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
   symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as Unicode characters.
 - **Table colspan/rowspan support** — cells with `colspan` and `rowspan` now render correctly
@@ -65,9 +79,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Automatic cross-references now use labels and formatted target titles before
-  falling back to `[id]`. Passthrough titles remain available as reference text
-  without appearing above their blocks.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
   superscript, subscript, and curved quotes is no longer converted to an em-dash at string
   boundaries, matching asciidoctor behavior.

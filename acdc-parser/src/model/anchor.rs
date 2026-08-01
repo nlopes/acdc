@@ -5,6 +5,7 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
+use super::inlines::InlineNode;
 use super::location::Location;
 use super::section::SectionKind;
 use super::title::Title;
@@ -105,9 +106,11 @@ impl Serialize for TocEntry<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
-    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax). When
-    /// set, it is the reference text; otherwise `title` is used.
-    pub xreflabel: Option<&'a str>,
+    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax), parsed
+    /// as inline content: a label carries formatting, so `[[id,*Bold* label]]`
+    /// renders bold. When set, it is the reference text; otherwise `title` is
+    /// used.
+    pub xreflabel: Option<Vec<InlineNode<'a>>>,
     /// The target's title (section or block title), when it has one. `None` for
     /// a referenceable element with no title (e.g. an untitled block with an
     /// `[[id]]`): such a reference exists but has no reference text, so an

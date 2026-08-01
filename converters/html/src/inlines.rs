@@ -42,7 +42,10 @@
 //! This is inherently safe. When custom ID support is added, asciidoctor does NOT escape
 //! IDs, trusting the document author to provide safe values.
 
-use std::io::{self, Write};
+use std::{
+    io::{self, Write},
+    rc::Rc,
+};
 
 use acdc_converters_core::{
     inlines_to_string,
@@ -95,6 +98,17 @@ use crate::{
 /// Escape `&` to `&amp;` in URL strings for use in `href` attributes.
 pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
+}
+
+/// Escape literal text for HTML character data.
+///
+/// Only text that bypasses the inline pipeline needs this — anything the
+/// pipeline renders is escaped there. Quotes are left alone, matching
+/// asciidoctor's PCDATA encoding.
+fn escape_pcdata(text: &str) -> String {
+    text.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
 }
 
 /// Strip the URI scheme (e.g., `https://`, `http://`, `ftp://`) from a URL string.
@@ -1017,24 +1031,40 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > target title > fallback `[id]`.
             //
-            // A resolved title is rendered through the inline pipeline so its
-            // formatting (`<code>`, bold, italic, ...) is preserved in the link,
-            // matching asciidoctor. An xreflabel and the `[id]` fallback are plain
-            // text.
-            let display = resolve_xref(self.processor.references.get(xref.target), xref.target);
+            // Reference text — a title or an xreflabel — goes through the inline
+            // pipeline, so its formatting (`<code>`, bold, italic, ...) survives
+            // inside the link and its characters are escaped, matching
+            // asciidoctor. The `[id]` fallback is literal text, so it is escaped
+            // here.
+            //
+            // The processor handle is cloned so the borrowed reference text and
+            // the resolution guard both outlive the `&mut self` render calls.
+            let processor = Rc::clone(&self.processor);
+            let display = resolve_xref(
+                processor.references.get(xref.target),
+                xref.target,
+                &processor.xref_guard,
+            );
 
-            let linked = !(options.inlines_basic || options.toc_mode);
+            // A cross-reference inside another one's text cannot be a link: an
+            // `<a>` does not nest. Everything else links, including an
+            // unresolved target, matching asciidoctor.
+            let linked = !(options.inlines_basic
+                || options.toc_mode
+                || matches!(display, XrefDisplay::Nested(_)));
             if linked {
                 write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
             }
             match display {
-                XrefDisplay::Inlines(inlines) => {
-                    for inline in &inlines {
+                XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
+                    for inline in inlines {
                         self.render_inline_node(inline, options, subs)?;
                     }
                 }
-                XrefDisplay::Text(text) => {
-                    write!(self.writer_mut(), "{text}")?;
+                XrefDisplay::Fallback(text)
+                | XrefDisplay::Unresolved(text)
+                | XrefDisplay::Nested(text) => {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
                 }
             }
             if linked {

@@ -8,6 +8,7 @@ use std::{
 
 use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
+    xref::XrefGuard,
 };
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
@@ -133,6 +134,8 @@ pub struct Processor<'a> {
     /// from `Document::references`, for O(1) `<<id>>` resolution. `toc_entries`
     /// is kept separately for rendering the (ordered) table of contents.
     references: HashMap<&'a str, Reference<'a>>,
+    /// Keeps a cross-reference inside a resolved target's text from recursing.
+    xref_guard: XrefGuard,
     /// Shared counter for auto-numbering example blocks.
     /// Uses Rc<Cell<>> so all clones share the same counter.
     example_counter: Rc<Cell<usize>>,
@@ -315,6 +318,7 @@ impl<'a> Processor<'a> {
         let processor: Processor<'doc> = Processor {
             toc_entries: doc.toc_entries.clone(),
             references: doc.references.clone(),
+            xref_guard: XrefGuard::default(),
             document_attributes: doc.attributes.clone(),
             generate_index: index_generation_enabled(&doc.attributes)
                 && last_section_has_style(&doc.blocks, "index"),
@@ -601,6 +605,7 @@ impl<'a> Processor<'a> {
             document_attributes,
             toc_entries: vec![],
             references: HashMap::new(),
+            xref_guard: XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
             figure_counter: Rc::new(Cell::new(0)),

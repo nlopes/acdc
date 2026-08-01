@@ -1,5 +1,5 @@
 [1m[4mPassthrough xrefs[0m
-See [38;5;12m[4mPassthrough [1mTitle[22m[0m, [38;5;12m[4mCustom Label[0m, [38;5;12m[4m[untitled][0m, [38;5;12m[4m[missing][0m, and [38;5;12m[4mExplicit [1mText[22m[0m.
+See [38;5;12m[4mPassthrough [1mTitle[22m[24m[39m, [38;5;12m[4mCustom Label[24m[39m, [38;5;12m[4m[untitled][24m[39m, [38;5;12m[4m[missing][24m[39m, and [38;5;12m[4mExplicit [1mText[22m[24m[39m.
 titled-body
 labeled-body
 untitled-body

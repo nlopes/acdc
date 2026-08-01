@@ -2,8 +2,7 @@
 //!
 //! Handles bold, italic, monospace, links, and other inline formatting.
 
-use std::borrow::Cow;
-use std::io::Write;
+use std::{borrow::Cow, io::Write, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::apply_replacements;
@@ -17,7 +16,7 @@ use acdc_parser::{Autolink, CrossReference, InlineMacro, InlineNode, Link, Mailt
 
 use crate::{
     Error, ManpageVisitor,
-    escape::{EscapeMode, manify},
+    escape::{EscapeMode, manify, uppercase_title},
     manpage_visitor::TextCase,
 };
 
@@ -50,10 +49,14 @@ fn transform_plain<'a>(
     Cow::Owned(Replacements::unicode().transform(text, string_boundaries_are_space))
 }
 
+/// Apply the casing the surrounding context asks for, keeping inline markup.
+///
+/// The uppercase rule is the one in [`uppercase_title`], which `.SH` lines use:
+/// a reference to a level-1 section reads as that section's heading.
 fn apply_text_case(content: Cow<'_, str>, text_case: TextCase) -> Cow<'_, str> {
     match text_case {
         TextCase::Preserve => content,
-        TextCase::Uppercase => Cow::Owned(content.to_uppercase()),
+        TextCase::Uppercase => Cow::Owned(uppercase_title(&content)),
     }
 }
 
@@ -194,9 +197,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             String::new()
         } else {
             let mut buf = Vec::new();
-            let processor = self.processor.clone();
-            let mut text_visitor =
-                ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
+            let mut text_visitor = self.nested_visitor(&mut buf);
             text_visitor.visit_inline_nodes(&link.text)?;
             String::from_utf8_lossy(&buf).trim().to_string()
         };
@@ -231,9 +232,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             String::new()
         } else {
             let mut buf = Vec::new();
-            let processor = self.processor.clone();
-            let mut text_visitor =
-                ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
+            let mut text_visitor = self.nested_visitor(&mut buf);
             text_visitor.visit_inline_nodes(&mailto.text)?;
             String::from_utf8_lossy(&buf).trim().to_string()
         };
@@ -326,9 +325,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 } else {
                     // Render text to a buffer for the .URL macro
                     let mut buf = Vec::new();
-                    let processor = self.processor.clone();
-                    let mut text_visitor =
-                        ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
+                    let mut text_visitor = self.nested_visitor(&mut buf);
                     text_visitor.visit_inline_nodes(&url.text)?;
                     let display_text = String::from_utf8_lossy(&buf).trim().to_string();
                     let w = self.writer_mut();
@@ -372,20 +369,26 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             return self.visit_inline_nodes(&xref.text);
         }
 
-        match resolve_xref(self.processor.references.get(xref.target), xref.target) {
-            XrefDisplay::Inlines(inlines) => {
+        // Clone the handles so the borrowed reference text and the resolution
+        // guard both outlive the `&mut self` render calls.
+        let references = Rc::clone(&self.processor.references);
+        let guard = self.processor.xref_guard.clone();
+        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+            // A reference to a level-1 section reads as that section's `.SH`
+            // heading, which manpages upper-case. An explicit label reads as
+            // written.
+            XrefDisplay::Title(inlines, _scope) => {
                 let text_case = if self.processor.top_level_section_ids.contains(xref.target) {
                     TextCase::Uppercase
                 } else {
                     TextCase::Preserve
                 };
-                let saved = self.text_case;
-                self.text_case = text_case;
-                let result = self.visit_inline_nodes(&inlines);
-                self.text_case = saved;
-                result
+                self.with_text_case(text_case, |visitor| visitor.visit_inline_nodes(inlines))
             }
-            XrefDisplay::Text(text) => {
+            XrefDisplay::Label(inlines, _scope) => self.visit_inline_nodes(inlines),
+            XrefDisplay::Fallback(text)
+            | XrefDisplay::Unresolved(text)
+            | XrefDisplay::Nested(text) => {
                 let text = manify(&text, EscapeMode::Normalize);
                 write!(self.writer_mut(), "{text}")?;
                 Ok(())

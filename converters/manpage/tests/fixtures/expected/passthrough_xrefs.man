@@ -38,3 +38,19 @@ See Passthrough \fBTitle\fP, Custom Label, [untitled], [missing], and Explicit \
 titled-body
 labeled-body
 untitled-body
+labelled-markup-body
+.sp
+A label keeps its own formatting: A \f(CRcode\fP label\&.
+.sp
+A reference to a level\-1 section reads as its heading, link text included:
+SEE ALSO WITH \c
+.URL "https://example.com" "A LINK" ""
+\&.
+.sp
+A reference inside reference text falls back to its id: SEE [recursive] AGAIN\&.
+.SH "SEE  AGAIN"
+.sp
+Section body.
+.SH "SEE ALSO WITH "
+.sp
+Body.
