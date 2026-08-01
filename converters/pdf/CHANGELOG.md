@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back to `[id]` for untitled targets.
 - Anchored single-line admonitions now emit one PDF target, avoiding duplicate
   Typst labels while preserving anchors inside compound admonitions.
+- `[subs="…"]` on a single-line admonition now applies to its content.
 - PDF tables now preserve `n+|` column spans, `.n+|` row spans, and combined
   `n.m+|` spans. Declared header rows are emitted as semantic Typst table
   headers and repeat across page breaks.

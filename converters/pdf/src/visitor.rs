@@ -1,7 +1,5 @@
 use std::fmt::Write as _;
 
-#[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{decode_numeric_char_refs, inlines_to_string, visitor::Visitor};
 use acdc_parser::{
     Admonition, AdmonitionVariant, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType,
@@ -83,26 +81,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_paragraph(&mut self, para: &Paragraph<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&para.metadata);
-
-        #[cfg(feature = "pre-spec-subs")]
-        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
-            para.metadata.substitutions.as_ref(),
-            matches!(
-                para.metadata.style,
-                Some("verse" | "literal" | "listing" | "source")
-            ),
-        ));
-
-        let result = (|| {
-            self.write_block_title(&para.title)?;
-            self.write_inlines(&para.content)?;
-            self.writer.raw("\n\n");
-            Ok(())
-        })();
-
-        #[cfg(feature = "pre-spec-subs")]
-        self.processor.current_subs.set(previous_subs);
-        result
+        self.write_paragraph_content(para, true)
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock<'_>) -> Result<(), Self::Error> {
@@ -235,10 +214,10 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         match admon.blocks.as_slice() {
             [Block::Paragraph(para)] if para.metadata == admon.metadata => {
                 // The parser copies a simple admonition's metadata to its
-                // synthetic paragraph. Render that paragraph's content
-                // directly so the wrapper remains the sole anchor owner.
-                self.write_inlines(&para.content)?;
-                self.writer.raw("\n\n");
+                // synthetic paragraph. Render that paragraph without its anchor
+                // and title, which the admonition wrapper already wrote, but
+                // through the same content path so `[subs=…]` still applies.
+                self.write_paragraph_content(para, false)?;
             }
             blocks => self.write_blocks(blocks)?,
         }

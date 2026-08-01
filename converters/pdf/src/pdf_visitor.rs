@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Write as _};
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::apply_replacements;
+use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, inlines_to_string,
     section::{AppendixTracker, SectionNumberTracker, SpecialSectionTracker},
@@ -12,8 +12,8 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, Block, BlockMetadata, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Source,
-    Table, TableColumn, TableOfContents, Title,
+    Anchor, Block, BlockMetadata, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph,
+    Source, Table, TableColumn, TableOfContents, Title,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_typst::Writer;
@@ -212,6 +212,39 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_title(title)?;
         self.writer.raw("]\n");
         Ok(())
+    }
+
+    /// Write a paragraph's title and content under the paragraph's effective
+    /// substitutions.
+    ///
+    /// `write_title` is false for the synthetic paragraph inside a simple
+    /// admonition, whose title the admonition wrapper already wrote.
+    pub(crate) fn write_paragraph_content(
+        &mut self,
+        para: &Paragraph<'_>,
+        write_title: bool,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+            para.metadata.substitutions.as_ref(),
+            matches!(
+                para.metadata.style,
+                Some("verse" | "literal" | "listing" | "source")
+            ),
+        ));
+
+        let result = (|| {
+            if write_title {
+                self.write_block_title(&para.title)?;
+            }
+            self.write_inlines(&para.content)?;
+            self.writer.raw("\n\n");
+            Ok(())
+        })();
+
+        #[cfg(feature = "pre-spec-subs")]
+        self.processor.current_subs.set(previous_subs);
+        result
     }
 
     pub(crate) fn write_verbatim_block(&mut self, nodes: &[InlineNode<'_>]) {

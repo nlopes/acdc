@@ -14,3 +14,10 @@
 ....
 (C) ... -> -- *bold*
 ....
+
+[subs=-replacements]
+NOTE: (C) ... -> -- *bold*
+
+[subs=-replacements]
+.Titled admonition
+NOTE: (C) ... -> -- *bold*

@@ -42,3 +42,14 @@
 
 #raw(block: true, "© … → — *bold*")
 
+#callout("note")[
+#text("(C) ... -> -- ")#strong[#text("bold")]
+
+]
+
+#text(weight: "bold")[#text("Titled admonition")]
+#callout("note")[
+#text("(C) ... -> -- ")#strong[#text("bold")]
+
+]
+
