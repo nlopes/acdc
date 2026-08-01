@@ -181,6 +181,38 @@ fn ordered_list_with_arabic_style_does_not_warn() -> Result<(), Error> {
 }
 
 #[test]
+fn cross_references_render_as_links_to_the_target_anchor() -> Result<(), Error> {
+    let (output, _warnings) = convert_str(
+        "[[titled]]\n.A *title*\n====\nbody\n====\n\n\
+         Some [[labelled,A label]]text.\n\n\
+         [[untitled]]\n====\nbody\n====\n\n\
+         See <<titled>>, <<labelled>>, <<untitled>>, <<missing>>, and <<titled,own text>>.\n",
+    )?;
+
+    assert!(
+        output.contains(
+            "See [A **title**](#titled), [A label](#labelled), [[untitled]](#untitled), \
+             [[missing]](#missing), and [own text](#titled)."
+        ),
+        "output was: {output}"
+    );
+    Ok(())
+}
+
+#[test]
+fn a_cross_reference_inside_reference_text_is_not_a_nested_link() -> Result<(), Error> {
+    // Markdown links do not nest, and the resolution must terminate.
+    let (output, _warnings) =
+        convert_str("[[a]]\n.See <<a>> again\n====\nbody\n====\n\nRef: <<a>>.\n")?;
+
+    assert!(
+        output.contains("Ref: [See [a] again](#a)."),
+        "output was: {output}"
+    );
+    Ok(())
+}
+
+#[test]
 fn unsupported_block_warning_is_returned_in_conversion_result() -> Result<(), Error> {
     let parser_options =
         ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());

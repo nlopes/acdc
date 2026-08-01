@@ -28,6 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Description list fallback rendering** — description lists now render as unordered
   lists with bold terms and indented descriptions, instead of only emitting a warning
   comment.
+- **Cross-references** — `<<id>>` and `xref:id[]` render as a link to the `#id`
+  fragment. Its text is the reference's own text when it has one, otherwise the
+  target's reference text (an explicit `[[id,label]]` label or its title),
+  falling back to `[id]` as `asciidoctor` does. A reference inside another one's
+  text renders as `[id]` text alone, since Markdown links do not nest.
 - **Ordered list numbering-style warning** — ordered lists with an explicit
   non-numeric numbering style (`upperalpha`, `loweralpha`, `lowerroman`,
   `upperroman`, `lowergreek`, ...) now emit a warning that Markdown cannot

@@ -1,17 +1,19 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::io::Write;
+use std::{io::Write, rc::Rc};
 
 use acdc_converters_core::{
     Diagnostics,
     code::detect_language,
     list::OrderedListNumbering,
     visitor::{Visitor, WritableVisitor},
+    xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Admonition, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType, DescriptionList,
-    DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
-    PageBreak, Paragraph, Section, Table, TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, Block, CalloutList, CrossReference, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem,
+    OrderedList, PageBreak, Paragraph, Section, Table, TableOfContents, ThematicBreak,
+    UnorderedList, Video,
 };
 
 use crate::{Error, MarkdownVariant, Processor};
@@ -680,16 +682,68 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 let target = autolink.url.to_string();
                 write!(self.writer, "{target}")?;
             }
-            InlineMacro::CrossReference(_)
-            | InlineMacro::Pass(_)
-            | InlineMacro::Stem(_)
-            | InlineMacro::IndexTerm(_)
-            | _ => {
+            InlineMacro::CrossReference(xref) => self.visit_cross_reference(xref)?,
+            InlineMacro::Pass(_) | InlineMacro::Stem(_) | InlineMacro::IndexTerm(_) | _ => {
                 self.diagnostics.warn(format!(
                     "unsupported inline macro in Markdown, skipping macro: {mac:?}"
                 ));
             }
         }
+        Ok(())
+    }
+
+    /// Render a cross-reference as a link to the target's anchor.
+    ///
+    /// Markdown has no cross-reference syntax, so this is a plain link to the
+    /// `#id` fragment. Its text is the reference's own text when it has one,
+    /// otherwise the target's reference text (an explicit label or its title),
+    /// falling back to `[id]` as asciidoctor does.
+    fn visit_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
+        if !xref.text.is_empty() {
+            return self.write_anchor_link(xref.target, |visitor| {
+                for node in &xref.text {
+                    visitor.visit_inline_node(node)?;
+                }
+                Ok(())
+            });
+        }
+
+        // Clone the handles so the borrowed reference text and the resolution
+        // guard both outlive the `&mut self` render calls.
+        let references = Rc::clone(&self.processor.references);
+        let guard = self.processor.xref_guard.clone();
+        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
+                .write_anchor_link(xref.target, |visitor| {
+                    for node in inlines {
+                        visitor.visit_inline_node(node)?;
+                    }
+                    Ok(())
+                }),
+            XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
+                self.write_anchor_link(xref.target, |visitor| {
+                    write!(visitor.writer, "{text}")?;
+                    Ok(())
+                })
+            }
+            // Markdown links do not nest, so a reference inside another one's
+            // text is text alone.
+            XrefDisplay::Nested(text) => {
+                write!(self.writer, "{text}")?;
+                Ok(())
+            }
+        }
+    }
+
+    /// Write `text` as a link to an `#id` fragment.
+    fn write_anchor_link(
+        &mut self,
+        target: &str,
+        text: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        write!(self.writer, "[")?;
+        text(self)?;
+        write!(self.writer, "](#{target})")?;
         Ok(())
     }
 

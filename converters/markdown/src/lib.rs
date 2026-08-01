@@ -52,14 +52,17 @@
 //! - Preserve content as appropriate (e.g., raw text, URL/path)
 
 use std::{
+    collections::HashMap,
     io::Write,
     path::{Path, PathBuf},
+    rc::Rc,
 };
 
 use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
+    xref::XrefGuard,
 };
-use acdc_parser::{Document, DocumentAttributes};
+use acdc_parser::{Document, DocumentAttributes, Reference};
 
 mod error;
 mod markdown_visitor;
@@ -120,6 +123,11 @@ impl std::fmt::Display for MarkdownVariant {
 pub struct Processor<'a> {
     options: Options,
     document_attributes: DocumentAttributes<'a>,
+    /// Cross-reference targets keyed by id, cloned from `Document::references`,
+    /// so `<<id>>` resolves to its target's reference text.
+    pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
+    /// Keeps a cross-reference inside a resolved target's text from recursing.
+    pub(crate) xref_guard: XrefGuard,
     variant: MarkdownVariant,
 }
 
@@ -147,6 +155,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         Self {
             options,
             document_attributes,
+            references: Rc::new(HashMap::new()),
+            xref_guard: XrefGuard::default(),
             variant: MarkdownVariant::default(),
         }
     }
@@ -184,6 +194,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         let processor = Processor {
             options: self.options.clone(),
             document_attributes: doc.attributes.clone(),
+            references: Rc::new(doc.references.clone()),
+            xref_guard: XrefGuard::default(),
             variant: self.variant,
         };
         let mut visitor = MarkdownVisitor::new(writer, processor, diagnostics.reborrow());
