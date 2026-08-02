@@ -11,8 +11,12 @@ A reference keeps the style of the span around it:
 [38;5;14mmono before [38;5;12m[4mTarget [1mTitle[22m[24m[38;5;14m mono after[39m
 A label renders its own formatting: [38;5;12m[4mA [38;5;14mcode[38;5;12m label[24m[39m.
 A reference inside reference text falls back to its id: [38;5;12m[4mSee [recursive] again[24m[39m.
+[38;5;14m┌─ Example 2. Caption with Target Title and a link ────────────────────────────┐[39m
+[38;5;14m│ [39mA caption carries the text of what it holds, even where it cannot carry     [38;5;14m │[39m
+[38;5;14m│ [39mmarkup.                                                                     [38;5;14m │[39m
+[38;5;14m└──────────────────────────────────────────────────────────────────────────────┘[39m
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
-[38;2;215;0;135m[1mSee recursive again[0m
+[38;2;215;0;135m[1mSee See [recursive] again again[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 Section body.

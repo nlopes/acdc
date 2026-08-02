@@ -51,6 +51,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   restores the colour of the span around it when it ends, instead of resetting
   the terminal. Bold, italic and background colour survive a nested span, so
   `*bold before <<id>> bold after*` stays bold throughout.
+- A section heading and a block caption keep the text of what their title holds.
+  A link contributes its link text, and a cross-reference contributes its
+  target's reference text rather than its bare id.
 
 - **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
   symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as Unicode characters.

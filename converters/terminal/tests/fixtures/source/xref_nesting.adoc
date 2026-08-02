@@ -24,6 +24,11 @@ A label renders its own formatting: <<labelled>>.
 
 A reference inside reference text falls back to its id: <<recursive>>.
 
+.Caption with <<target>> and https://example.com[a link]
+====
+A caption carries the text of what it holds, even where it cannot carry markup.
+====
+
 [[recursive]]
 == See <<recursive>> again
 

@@ -268,7 +268,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             let count = processor.example_counter.get() + 1;
             processor.example_counter.set(count);
 
-            let title_text = extract_inline_text(title);
+            let title_text = crate::extract_heading_text(title, &processor.references);
             format!("{caption} {count}. {title_text}")
         };
 
@@ -357,7 +357,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let label = if title.is_empty() {
             String::new()
         } else {
-            extract_inline_text(title)
+            crate::extract_heading_text(title, &processor.references)
         };
 
         // Render content to buffer
@@ -461,31 +461,6 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 }
 
 /// Extract plain text from inline nodes (for labels/titles).
-fn extract_inline_text(nodes: &[InlineNode]) -> String {
-    nodes
-        .iter()
-        .map(|node| match node {
-            InlineNode::PlainText(p) => p.content.to_string(),
-            InlineNode::BoldText(b) => extract_inline_text(&b.content),
-            InlineNode::ItalicText(i) => extract_inline_text(&i.content),
-            InlineNode::MonospaceText(m) => extract_inline_text(&m.content),
-            InlineNode::HighlightText(h) => extract_inline_text(&h.content),
-            InlineNode::SuperscriptText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::VerbatimText(_)
-            | InlineNode::RawText(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | InlineNode::CalloutRef(_)
-            | _ => String::new(),
-        })
-        .collect::<String>()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

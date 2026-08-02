@@ -1,6 +1,5 @@
 use std::io::Write;
 
-use acdc_converters_core::decode_numeric_char_refs;
 use acdc_parser::InlineNode;
 
 use crate::{Error, Processor};
@@ -81,44 +80,13 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
 /// Extract text content from inline nodes.
 ///
 /// This handles `VerbatimText` (from literal/listing blocks) and `PlainText` nodes.
+/// Source text for the highlighter.
+///
+/// Code blocks hold verbatim text, so this is the shared extraction with
+/// newlines for hard line breaks; a callout marker keeps its `<N>` source form
+/// for the caller to locate.
 fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
-    let mut result = String::new();
-
-    for node in inlines {
-        match node {
-            InlineNode::VerbatimText(verbatim) => {
-                result.push_str(verbatim.content);
-            }
-            InlineNode::RawText(raw) => {
-                result.push_str(&decode_numeric_char_refs(raw.content));
-            }
-            InlineNode::PlainText(plain) => {
-                result.push_str(plain.content);
-            }
-            InlineNode::LineBreak(_) => {
-                result.push('\n');
-            }
-            InlineNode::CalloutRef(callout) => {
-                use std::fmt::Write;
-                let _ = write!(result, "<{}>", callout.number);
-            }
-            InlineNode::BoldText(_)
-            | InlineNode::ItalicText(_)
-            | InlineNode::MonospaceText(_)
-            | InlineNode::HighlightText(_)
-            | InlineNode::SubscriptText(_)
-            | InlineNode::SuperscriptText(_)
-            | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)
-            | InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::InlineAnchor(_)
-            | _ => {
-                // For other node types, recurse or ignore
-                // In practice, code blocks should only contain verbatim/plain text
-            }
-        }
-    }
-    result
+    crate::extract_inline_text(inlines, "\n")
 }
 
 #[cfg(all(test, feature = "highlighting"))]

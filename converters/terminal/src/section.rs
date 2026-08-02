@@ -48,7 +48,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             String::new()
         };
 
-        let raw_title = extract_title_text(&section.title);
+        let raw_title = extract_title_text(&section.title, &processor.references);
         let title = format!("{prefix}{raw_title}");
 
         let tw = processor.terminal_width;
@@ -114,7 +114,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let processor = self.processor.clone();
         let w = self.writer_mut();
         // Discrete headers render similar to level 4 sections (bold only)
-        let styled = extract_title_text(&header.title)
+        let styled = extract_title_text(&header.title, &processor.references)
             .bold()
             .with(processor.appearance.colors.section_h4);
         QueueableCommand::queue(w, PrintStyledContent(styled))?;
@@ -124,8 +124,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     }
 }
 
-fn extract_title_text(title: &[InlineNode]) -> String {
-    crate::extract_inline_text(title, " ")
+/// Plain text for a section or header title, which terminal output renders as a
+/// styled single line rather than through the inline pipeline.
+fn extract_title_text(
+    title: &[InlineNode],
+    references: &std::collections::HashMap<&str, acdc_parser::Reference<'_>>,
+) -> String {
+    crate::extract_heading_text(title, references)
 }
 
 #[cfg(test)]
@@ -161,16 +166,25 @@ mod tests {
         })
     }
 
+    /// A catalog is only consulted for a cross-reference with no text of its
+    /// own; these cases hold none.
+    fn no_references() -> std::collections::HashMap<&'static str, acdc_parser::Reference<'static>> {
+        std::collections::HashMap::new()
+    }
+
     #[test]
     fn extract_bold_wrapping_plain_text() {
         let title = [bold(vec![plain("bold title")])];
-        assert_eq!(extract_title_text(&title), "bold title");
+        assert_eq!(extract_title_text(&title, &no_references()), "bold title");
     }
 
     #[test]
     fn extract_verbatim_text_in_title() {
         let title = [plain("Title with "), verbatim("code"), plain(" text")];
-        assert_eq!(extract_title_text(&title), "Title with code text");
+        assert_eq!(
+            extract_title_text(&title, &no_references()),
+            "Title with code text"
+        );
     }
 
     #[test]
@@ -180,7 +194,7 @@ mod tests {
                 .with_text(vec![plain("Example")]),
         ));
         let title = [plain("See "), link];
-        assert_eq!(extract_title_text(&title), "See Example");
+        assert_eq!(extract_title_text(&title, &no_references()), "See Example");
     }
 
     #[test]
@@ -190,13 +204,19 @@ mod tests {
             Location::default(),
         )));
         let title = [link];
-        assert_eq!(extract_title_text(&title), "https://example.com");
+        assert_eq!(
+            extract_title_text(&title, &no_references()),
+            "https://example.com"
+        );
     }
 
     #[test]
     fn extract_mixed_content() {
         let title = [bold(vec![plain("bold")]), plain(" and "), verbatim("code")];
-        assert_eq!(extract_title_text(&title), "bold and code");
+        assert_eq!(
+            extract_title_text(&title, &no_references()),
+            "bold and code"
+        );
     }
 
     #[test]
@@ -209,7 +229,7 @@ mod tests {
                 location: Location::default(),
             }),
         ];
-        assert_eq!(extract_title_text(&title), "Code <1>");
+        assert_eq!(extract_title_text(&title, &no_references()), "Code <1>");
     }
 
     #[test]
@@ -221,6 +241,6 @@ mod tests {
             }),
             plain("s"),
         ];
-        assert_eq!(extract_title_text(&title), "it\u{2019}s");
+        assert_eq!(extract_title_text(&title, &no_references()), "it\u{2019}s");
     }
 }

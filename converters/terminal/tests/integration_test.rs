@@ -58,6 +58,7 @@ generate_tests!([
     (styled_paragraphs, false),
     (passthrough_xrefs, false),
     (xref_nesting, false),
+    (inline_text_extraction, false, requires: feature = "highlighting"),
     (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
     (index_section, false),
     (subs_replacements_disabled, false),

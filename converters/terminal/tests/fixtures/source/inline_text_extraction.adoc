@@ -1,0 +1,81 @@
+= Inline text extraction
+:experimental:
+:icons: font
+:stem: latexmath
+
+[[target]]
+.Target *Title*
+====
+Target body.
+====
+
+[[labelled,A `code` label]]
+.Ignored title
+====
+Labelled body.
+====
+
+[[untitled]]
+====
+Untitled body.
+====
+
+Before the recursive section: <<recursive>>.
+
+== Formatting *bold* _italic_ `mono` #highlight# ^super^ ~sub~ "`quote`" '`apostrophe`'
+
+Formatting body.
+
+== References <<target>> | <<labelled>> | <<untitled>> | <<missing>> | <<target,Own *text*>>
+
+Reference body.
+
+[discrete]
+=== Discrete <<target>> and https://example.com[a link]
+
+.Caption <<target>> and https://example.com[a link]
+====
+Caption body.
+====
+
+.Sidebar <<target>> and menu:File[Open > Recent]
+****
+Sidebar body.
+****
+
+== Link https://example.com[Site] and https://bare.example
+
+Link body.
+
+== Macro text mailto:user@example.com[Email] pass:[raw] ((visible term))
+
+Macro body.
+
+== UI kbd:[Ctrl+C] btn:[OK] menu:File[Open > Recent]
+
+UI body.
+
+== Image image:pic.png[Alt text] icon:heart[] footnote:[A note] stem:[x + y]
+
+Image body.
+
+== External xref:other.adoc[] and xref:other.adoc#part[] and xref:other.adoc#part[Other part]
+
+External reference body.
+
+== Characters it's {apos} &#39; &#x2019;
+
+Character body.
+
+[[recursive]]
+== See <<recursive>> again
+
+Recursive body.
+
+[source,rust]
+----
+let value = 1; <1>
+let other = 2; <2>
+----
+<1> stores the value.
+<2> stores the other value.
