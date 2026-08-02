@@ -1,0 +1,104 @@
+'\" t
+.\"     Title: inline-text
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-02
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "INLINE\-TEXT" "1" "2026-08-02" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+inline\-text \- verify plain inline text extraction
+.SH "SYNOPSIS"
+.sp
+\fBinline\-text\fP
+.SH "DESCRIPTION"
+.sp
+\fBTarget \fBTitle\fP\fP
+.RS 4
+.sp
+Target body.
+.RE
+.sp
+\fBIgnored title\fP
+.RS 4
+.sp
+Labelled body.
+.RE
+.RS 4
+.sp
+Untitled body.
+.RE
+.sp
+Before the recursive section: SEE [recursive] AGAIN\&.
+.sp
+\fBCaption with Target \fBTitle\fP and \c
+.URL "https://example.com" "a link" ""
+\fP
+.RS 4
+.sp
+Caption body.
+.RE
+.SH "FORMATTING BOLD ITALIC MONO HIGHLIGHT SUPER SUB QUOTE APOSTROPHE"
+.sp
+Formatting body.
+.SH "REFERENCES TARGET TITLE | A CODE LABEL | [UNTITLED] | [MISSING] | OWN TEXT"
+.sp
+Reference body.
+.SH "LINK SITE AND HTTPS://BARE.EXAMPLE"
+.sp
+Link body.
+.SH "MACRO TEXT EMAIL RAW VISIBLE TERM"
+.sp
+Macro body.
+.SH "UI CTRL+C OK FILE > OPEN > RECENT"
+.sp
+UI body.
+.SH "IMAGE [ALT TEXT] [HEART] [1] X + Y"
+.sp
+Image body.
+.SH "EXTERNAL [OTHER] AND [OTHER#PART] AND OTHER PART"
+.sp
+External reference body.
+.SH "CHARACTERS IT'S ' &#39; &#x2019;"
+.sp
+Character body.
+.SH "SEE SEE [RECURSIVE] AGAIN AGAIN"
+.sp
+Recursive body.
+.EX
+echo hi <1>
+echo bye <2>
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+prints a greeting.
+.IP \fB(2)\fP 4
+prints a farewell.
+.RE
+RAW ' ’ {apos} <<target>> <tag>
+.sp
+See Hidden [target] title\&.
+.SH "NOTES"
+.IP [1] 4
+A note

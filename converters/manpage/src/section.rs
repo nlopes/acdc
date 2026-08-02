@@ -9,14 +9,14 @@ use acdc_parser::Section;
 
 use crate::{
     Error, ManpageVisitor,
-    document::extract_plain_text,
+    document::extract_heading_text,
     escape::{escape_quoted, uppercase_title},
 };
 
 impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a section and its content.
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
-        let title_text = extract_plain_text(&section.title);
+        let title_text = extract_heading_text(&section.title, &self.processor.references);
 
         // Track level-1 section titles for convention validation
         if section.level == 1 {

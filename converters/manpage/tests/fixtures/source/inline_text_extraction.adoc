@@ -1,0 +1,93 @@
+= *inline-text*(1)
+:doctype: manpage
+:experimental:
+:icons: font
+:stem: latexmath
+:revdate: 2026-08-02
+
+== Name
+
+inline-text - verify plain inline text extraction
+
+== Synopsis
+
+*inline-text*
+
+== Description
+
+[[target]]
+.Target *Title*
+====
+Target body.
+====
+
+[[labelled,A `code` label]]
+.Ignored title
+====
+Labelled body.
+====
+
+[[untitled]]
+====
+Untitled body.
+====
+
+Before the recursive section: <<recursive>>.
+
+.Caption with <<target>> and https://example.com[a link]
+====
+Caption body.
+====
+
+== Formatting *bold* _italic_ `mono` #highlight# ^super^ ~sub~ "`quote`" '`apostrophe`'
+
+Formatting body.
+
+== References <<target>> | <<labelled>> | <<untitled>> | <<missing>> | <<target,Own *text*>>
+
+Reference body.
+
+== Link https://example.com[Site] and https://bare.example
+
+Link body.
+
+== Macro text mailto:user@example.com[Email] pass:[raw] ((visible term))
+
+Macro body.
+
+== UI kbd:[Ctrl+C] btn:[OK] menu:File[Open > Recent]
+
+UI body.
+
+== Image image:pic.png[Alt text] icon:heart[] footnote:[A note] stem:[x + y]
+
+Image body.
+
+== External xref:other.adoc[] and xref:other.adoc#part[] and xref:other.adoc#part[Other part]
+
+External reference body.
+
+== Characters it's {apos} &#39; &#x2019;
+
+Character body.
+
+[[recursive]]
+== See <<recursive>> again
+
+Recursive body.
+
+[source]
+----
+echo hi <1>
+echo bye <2>
+----
+<1> prints a greeting.
+<2> prints a farewell.
+
+[[pass]]
+.Hidden <<target>> title
+++++
+RAW &#39; &#x2019; {apos} <<target>> <tag>
+++++
+
+See <<pass>>.

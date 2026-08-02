@@ -38,8 +38,6 @@ labelled-markup-body
 
 A label keeps its own formatting: <<labelled-markup>>.
 
-// The `.SH` line for a title holding a link keeps only its plain text; the
-// reference below is what this fixture covers.
 A reference to a level-1 section reads as its heading, link text included:
 <<_see_also_with_a_link>>.
 

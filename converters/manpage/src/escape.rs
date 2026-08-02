@@ -258,9 +258,25 @@ pub(crate) fn escape_quoted(text: &str) -> Cow<'_, str> {
 /// Convert text to uppercase for section titles.
 ///
 /// Manpage convention is to uppercase level-1 section titles (NAME, SYNOPSIS, etc.).
+/// A numeric character reference is markup rather than prose, so `&#x2019;`
+/// keeps its lowercase `x`, matching asciidoctor's PCDATA upper-casing.
 #[must_use]
 pub(crate) fn uppercase_title(text: &str) -> String {
-    text.to_uppercase()
+    let mut result = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(start) = rest.find("&#") {
+        let (before, reference) = rest.split_at(start);
+        result.push_str(&before.to_uppercase());
+        let Some(end) = reference.find(';') else {
+            // Not a character reference after all: upper-case it with the rest.
+            rest = reference;
+            break;
+        };
+        result.push_str(&reference[..=end]);
+        rest = &reference[end + 1..];
+    }
+    result.push_str(&rest.to_uppercase());
+    result
 }
 
 #[cfg(test)]
@@ -321,6 +337,12 @@ mod tests {
     fn test_uppercase_title() {
         assert_eq!(uppercase_title("description"), "DESCRIPTION");
         assert_eq!(uppercase_title("See Also"), "SEE ALSO");
+        assert_eq!(
+            uppercase_title("chars &#39; and &#x2019; here"),
+            "CHARS &#39; AND &#x2019; HERE"
+        );
+        assert_eq!(uppercase_title("a & b"), "A & B");
+        assert_eq!(uppercase_title("bare &# marker"), "BARE &# MARKER");
     }
 
     #[test]

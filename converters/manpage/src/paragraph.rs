@@ -14,7 +14,7 @@ use acdc_parser::Paragraph;
 
 use crate::{
     Error, ManpageVisitor,
-    document::extract_plain_text,
+    document::extract_verbatim_text,
     escape::{EscapeMode, manify},
 };
 
@@ -145,7 +145,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".nf")?;
 
         // Extract and write content preserving whitespace
-        let content = extract_plain_text(&para.content);
+        let content = extract_verbatim_text(&para.content);
         let escaped = manify(&content, EscapeMode::Preserve);
         for line in escaped.lines() {
             writeln!(w, "{line}")?;
@@ -181,7 +181,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".fam C")?;
 
         // Extract and write content preserving whitespace
-        let content = extract_plain_text(&para.content);
+        let content = extract_verbatim_text(&para.content);
         let escaped = manify(&content, EscapeMode::Preserve);
         for line in escaped.lines() {
             writeln!(w, "{line}")?;

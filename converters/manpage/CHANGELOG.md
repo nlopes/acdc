@@ -41,6 +41,15 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
   rather than resolving again, so a title that references itself terminates.
   `asciidoctor` falls back at the same point, except where it reuses a target's
   cached converted title, which can carry one already-resolved level.
+- A `.SH`/`.SS` heading, the `.TH` title comment, and a block caption keep the
+  text of what their title holds. A link contributes its link text and a
+  cross-reference its target's reference text, matching `asciidoctor`. Unlike
+  `asciidoctor`, acdc writes the link's text rather than a `.URL` macro inside
+  the quoted `.SH` argument, where a nested macro produces malformed roff.
+- A callout marker in a listing or literal block is kept in the rendered
+  content, reading as `<N>`, its source form. `asciidoctor` renders a bold `(N)`.
+- Upper-casing a level-1 section title leaves a numeric character reference
+  alone, so `&#x2019;` keeps its lowercase `x`, matching `asciidoctor`.
 
 - **Typography replacements** — em-dashes (`--`), arrows (`->`, `<-`, `=>`), ellipsis (`...`),
   symbols (`(C)`, `(R)`, `(TM)`), and smart apostrophes now render as proper roff escapes

@@ -12,7 +12,7 @@ use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
 
 use crate::{
     Error, ManpageVisitor,
-    document::extract_plain_text,
+    document::extract_verbatim_text,
     escape::{EscapeMode, manify},
 };
 
@@ -30,11 +30,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
         match &block.inner {
             DelimitedBlockType::DelimitedListing(inlines) => {
-                let content = extract_plain_text(inlines);
+                let content = extract_verbatim_text(inlines);
                 self.render_listing_block(&content)
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
-                let content = extract_plain_text(inlines);
+                let content = extract_verbatim_text(inlines);
                 self.render_literal_block(&content)
             }
             DelimitedBlockType::DelimitedExample(blocks)
@@ -55,7 +55,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedPass(inlines) => {
                 let w = self.writer_mut();
-                let content = extract_plain_text(inlines);
+                let content = extract_verbatim_text(inlines);
                 writeln!(w, "{content}")?;
                 Ok(())
             }
@@ -141,7 +141,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let w = self.writer_mut();
         writeln!(w, ".nf")?;
-        let content = extract_plain_text(inlines);
+        let content = extract_verbatim_text(inlines);
         let escaped = manify(&content, EscapeMode::Preserve);
         for line in escaped.lines() {
             writeln!(w, "{line}")?;

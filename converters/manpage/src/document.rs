@@ -2,10 +2,10 @@
 //!
 //! Handles the `.TH` title header macro and document preamble.
 
-use std::{borrow::Cow, io::Write};
+use std::{borrow::Cow, collections::HashMap, io::Write, rc::Rc};
 
-use acdc_converters_core::{decode_numeric_char_refs, visitor::WritableVisitor};
-use acdc_parser::{AttributeValue, Author, Document, InlineNode};
+use acdc_converters_core::{InlineTextTransform, visitor::WritableVisitor};
+use acdc_parser::{AttributeValue, Author, Document, InlineNode, Reference};
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};
 
@@ -68,39 +68,30 @@ fn write_url_macros<W: Write + ?Sized>(w: &mut W, linkstyle: &str) -> std::io::R
     Ok(())
 }
 
-/// Extract plain text from inline nodes (for code blocks, title parsing, etc.).
-pub(crate) fn extract_plain_text(nodes: &[InlineNode]) -> String {
-    let mut result = String::new();
-    for node in nodes {
-        match node {
-            InlineNode::PlainText(text) => result.push_str(text.content),
-            InlineNode::RawText(text) => result.push_str(&decode_numeric_char_refs(text.content)),
-            InlineNode::VerbatimText(text) => result.push_str(text.content),
-            InlineNode::BoldText(bold) => result.push_str(&extract_plain_text(&bold.content)),
-            InlineNode::ItalicText(italic) => result.push_str(&extract_plain_text(&italic.content)),
-            InlineNode::MonospaceText(mono) => result.push_str(&extract_plain_text(&mono.content)),
-            InlineNode::HighlightText(highlight) => {
-                result.push_str(&extract_plain_text(&highlight.content));
-            }
-            InlineNode::SubscriptText(sub) => result.push_str(&extract_plain_text(&sub.content)),
-            InlineNode::SuperscriptText(sup) => result.push_str(&extract_plain_text(&sup.content)),
-            InlineNode::CurvedQuotationText(quoted) => {
-                result.push_str(&extract_plain_text(&quoted.content));
-            }
-            InlineNode::CurvedApostropheText(quoted) => {
-                result.push_str(&extract_plain_text(&quoted.content));
-            }
-            // These nodes don't contribute plain text (and future variants via wildcard)
-            // InlineNode is #[non_exhaustive], so wildcard arm handles future variants
-            #[allow(clippy::match_same_arms, clippy::wildcard_enum_match_arm)]
-            InlineNode::StandaloneCurvedApostrophe(_)
-            | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | _ => {}
-        }
-    }
-    result
+/// Plain text for verbatim block content.
+///
+/// Hard line breaks are newlines, and numeric character references decode to
+/// characters because roff output carries no HTML entities.
+pub(crate) fn extract_verbatim_text(nodes: &[InlineNode]) -> String {
+    InlineTextTransform::default()
+        .line_break("\n")
+        .decode_char_refs(true)
+        .to_string(nodes)
+}
+
+/// Plain text for a roff line that cannot carry markup, such as `.SH` or `.TH`.
+///
+/// Every node contributes its text: a link contributes its link text, and a
+/// cross-reference contributes its target's reference text, matching
+/// `asciidoctor`.
+pub(crate) fn extract_heading_text(
+    nodes: &[InlineNode],
+    references: &HashMap<&str, Reference<'_>>,
+) -> String {
+    InlineTextTransform::default()
+        .decode_char_refs(true)
+        .references(references)
+        .to_string(nodes)
 }
 
 impl<W: Write> ManpageVisitor<'_, '_, W> {
@@ -190,13 +181,14 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         mansource: &str,
         manmanual: &str,
     ) -> Result<(), Error> {
+        let references = Rc::clone(&self.processor.references);
         let w = self.writer_mut();
         writeln!(w, r#"'\" t"#)?;
 
         let title_for_comment = doc.header.as_ref().map_or_else(
             || mantitle.to_string(),
             |h| {
-                let full_title = extract_plain_text(&h.title);
+                let full_title = extract_heading_text(&h.title, &references);
                 full_title
                     .rsplit_once('(')
                     .filter(|(_, vol)| vol.ends_with(')') && vol.len() <= 3)

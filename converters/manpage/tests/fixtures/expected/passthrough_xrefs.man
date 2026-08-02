@@ -48,9 +48,9 @@ SEE ALSO WITH \c
 \&.
 .sp
 A reference inside reference text falls back to its id: SEE [recursive] AGAIN\&.
-.SH "SEE  AGAIN"
+.SH "SEE SEE [RECURSIVE] AGAIN AGAIN"
 .sp
 Section body.
-.SH "SEE ALSO WITH "
+.SH "SEE ALSO WITH A LINK"
 .sp
 Body.
