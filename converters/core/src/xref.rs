@@ -72,6 +72,19 @@ impl Drop for XrefScope<'_> {
     }
 }
 
+/// The inline nodes a target's reference text is made of, if it has any.
+///
+/// The precedence is [`resolve_xref`]'s, without the distinctions a rendering
+/// backend needs: plain-text extraction treats a label and a title alike.
+#[must_use]
+pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [InlineNode<'a>]> {
+    match (&reference.xreflabel, &reference.title) {
+        (Some(label), _) => Some(label),
+        (None, Some(title)) => Some(title.as_ref()),
+        (None, None) => None,
+    }
+}
+
 /// Resolve an empty cross-reference's display content.
 ///
 /// Explicit reference labels take precedence over target titles. Unknown and

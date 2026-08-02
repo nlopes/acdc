@@ -27,6 +27,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `shows_block_title` answers whether a delimited block shows its title as a
   visible caption, so every backend applies the passthrough rule (title is
   reference text only) the same way.
+- `inline_text::InlineTextTransform` now carries the text of every inline node,
+  so a heading or caption loses nothing it cannot render as markup: a link
+  contributes its link text, an image its alt text, an icon its target, a
+  footnote its marker, and a stem its content; asciidoctor brackets the last
+  four, and so does this. A reference to an unknown target reads as its stylized
+  id, which drops a file extension so `other.adoc#part` reads as `[other#part]`. Two options extend it — `decode_char_refs` turns
+  `&#39;` into a character for non-HTML backends, and `references` resolves a
+  cross-reference with no text of its own to its target's reference text,
+  falling back to `[id]` for an unknown target or for a reference inside another
+  target's reference text. `xref::reference_text` exposes that precedence on its
+  own. A standalone curved apostrophe extracts as the typographic character
+  rather than an ASCII quote.
 - Converter backends can declare their Asciidoctor-compatible backend,
   base-backend, file-type, output-suffix, and HTML-syntax traits and apply the
   corresponding intrinsic and doctype convenience attributes consistently.
