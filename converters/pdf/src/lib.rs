@@ -4,9 +4,8 @@
 //! preamble generation, asset resolution, font loading, and PDF compilation to
 //! the shared `acdc-pdf-*` crates.
 
-#[cfg(feature = "pre-spec-subs")]
-use std::cell::Cell;
 use std::{
+    cell::Cell,
     collections::{BTreeSet, HashMap},
     fmt::Write as _,
     fs::File,
@@ -88,6 +87,8 @@ pub struct Processor<'a> {
     references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
+    /// Shared counter for numbering example captions.
+    pub(crate) example_counter: Rc<Cell<usize>>,
     pdf_options: PdfOptions,
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
@@ -187,6 +188,7 @@ impl Processor<'_> {
             document_attributes: doc.attributes.clone(),
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
+            example_counter: Rc::new(Cell::new(0)),
             pdf_options: self.pdf_options.clone(),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),

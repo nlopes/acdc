@@ -204,13 +204,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    /// Write a block's title above the block.
+    ///
+    /// The title is its own layout block, so the content that follows starts on
+    /// a new line, and sits close to it rather than a paragraph apart.
     pub(crate) fn write_block_title(&mut self, title: &Title<'_>) -> Result<(), Error> {
         if title.is_empty() {
             return Ok(());
         }
-        self.writer.raw("#text(weight: \"bold\")[");
+        self.writer
+            .raw("#block(below: 0.5em)[#text(weight: \"bold\")[");
         self.write_title(title)?;
-        self.writer.raw("]\n");
+        self.writer.raw("]]\n");
         Ok(())
     }
 
@@ -237,14 +242,128 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if write_title {
                 self.write_block_title(&para.title)?;
             }
-            self.write_inlines(&para.content)?;
-            self.writer.raw("\n\n");
-            Ok(())
+            self.write_paragraph_body(para)
         })();
 
         #[cfg(feature = "pre-spec-subs")]
         self.processor.current_subs.set(previous_subs);
         result
+    }
+
+    /// Write the attribution line a quote or verse carries, if any.
+    ///
+    /// Both the author and the cited work keep their inline formatting, and
+    /// both are optional: `[quote, Ada Lovelace]` has no citation.
+    pub(crate) fn write_attribution(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
+        let attribution = metadata.attribution.as_ref();
+        let citetitle = metadata.citetitle.as_ref();
+        if attribution.is_none() && citetitle.is_none() {
+            return Ok(());
+        }
+        self.writer.raw("#attribution[");
+        if let Some(attribution) = attribution {
+            self.write_inlines(attribution)?;
+        }
+        if let Some(citetitle) = citetitle {
+            if attribution.is_some() {
+                self.write_text_expr(", ");
+            }
+            self.write_inlines(citetitle)?;
+        }
+        self.writer.raw("]\n\n");
+        Ok(())
+    }
+
+    /// Write verse content, which keeps its line breaks and stays proportional.
+    pub(crate) fn write_verse_block(
+        &mut self,
+        nodes: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
+        let text = InlineTextTransform::default()
+            .line_break("\n")
+            .to_string(nodes);
+        self.writer.raw("#verse[");
+        self.write_text_expr(&text);
+        self.writer.raw("]\n\n");
+        self.write_attribution(metadata)
+    }
+
+    /// Write a paragraph's content in the shape its style asks for.
+    ///
+    /// A `[quote]`, `[verse]`, `[literal]`, `[listing]`, `[source]`, or
+    /// `[example]` paragraph reads as its delimited counterpart, matching
+    /// `asciidoctor`.
+    fn write_paragraph_body(&mut self, para: &Paragraph<'_>) -> Result<(), Error> {
+        match para.metadata.style {
+            Some("quote") => {
+                self.writer.raw("#blockquote[\n");
+                self.write_inlines(&para.content)?;
+                self.writer.raw("\n]\n\n");
+                self.write_attribution(&para.metadata)
+            }
+            Some("verse") => self.write_verse_block(&para.content, &para.metadata),
+            Some("literal" | "listing" | "source") => {
+                self.write_verbatim_block(&para.content);
+                Ok(())
+            }
+            Some("example") => {
+                self.writer.raw("#examplebox[\n");
+                self.write_inlines(&para.content)?;
+                self.writer.raw("\n]\n\n");
+                Ok(())
+            }
+            _ => {
+                self.write_inlines(&para.content)?;
+                self.writer.raw("\n\n");
+                Ok(())
+            }
+        }
+    }
+
+    /// Write an example block under its numbered caption.
+    ///
+    /// A titled example reads as `Example 1. Title`, using the
+    /// `example-caption` attribute, the same numbering the other backends
+    /// apply. An untitled example takes no caption.
+    pub(crate) fn write_example(
+        &mut self,
+        title: &Title<'_>,
+        blocks: &[Block<'_>],
+    ) -> Result<(), Error> {
+        if !title.is_empty() {
+            let caption = self
+                .processor
+                .document_attributes()
+                .get("example-caption")
+                .map_or_else(|| "Example".to_string(), ToString::to_string);
+            let number = self.processor.example_counter.get() + 1;
+            self.processor.example_counter.set(number);
+            self.writer
+                .raw("#block(below: 0.5em)[#text(weight: \"bold\")[");
+            self.write_text_expr(&format!("{caption} {number}. "));
+            self.write_title(title)?;
+            self.writer.raw("]]\n");
+        }
+        self.write_framed_blocks(Some("examplebox"), None, blocks)
+    }
+
+    /// Write a sidebar, which centres its title inside the shaded box rather
+    /// than setting it above, matching Asciidoctor PDF.
+    pub(crate) fn write_sidebar(
+        &mut self,
+        title: &Title<'_>,
+        blocks: &[Block<'_>],
+    ) -> Result<(), Error> {
+        self.writer.raw("#sidebarbox[\n");
+        if !title.is_empty() {
+            self.writer.raw("#sidebartitle[");
+            self.write_title(title)?;
+            self.writer.raw("]\n");
+        }
+        self.write_blocks(blocks)?;
+        self.writer.raw("]\n\n");
+        Ok(())
     }
 
     pub(crate) fn write_verbatim_block(&mut self, nodes: &[InlineNode<'_>]) {
@@ -278,20 +397,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
+    /// Write blocks inside the frame named by `frame`, or unframed when `None`.
+    ///
+    /// Example, sidebar, and open blocks each read differently in print, so they
+    /// do not share one frame: an open block is a transparent container and
+    /// takes none.
     pub(crate) fn write_framed_blocks(
         &mut self,
+        frame: Option<&str>,
         label: Option<&str>,
         blocks: &[Block<'_>],
     ) -> Result<(), Error> {
-        self.writer
-            .raw("#block(fill: luma(248), inset: 8pt, width: 100%)[\n");
+        if let Some(frame) = frame {
+            let _ = write!(self.writer, "#{frame}[\n");
+        }
         if let Some(label) = label {
             self.writer.raw("#text(weight: \"bold\")[");
             self.write_text_expr(label);
             self.writer.raw("]#linebreak()\n");
         }
         self.write_blocks(blocks)?;
-        self.writer.raw("]\n\n");
+        if frame.is_some() {
+            self.writer.raw("]\n\n");
+        }
         Ok(())
     }
 

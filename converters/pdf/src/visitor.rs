@@ -104,25 +104,51 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         ));
 
         let result = (|| {
-            if shows_block_title(&block.inner) {
+            // A sidebar sets its own title inside its box and an example sets
+            // its own numbered caption; every other block that shows a title
+            // takes it above.
+            let writes_own_title = matches!(
+                block.inner,
+                DelimitedBlockType::DelimitedSidebar(_) | DelimitedBlockType::DelimitedExample(_)
+            );
+            if shows_block_title(&block.inner) && !writes_own_title {
                 self.write_block_title(&block.title)?;
             }
             match &block.inner {
-                DelimitedBlockType::DelimitedExample(blocks)
-                | DelimitedBlockType::DelimitedOpen(blocks)
-                | DelimitedBlockType::DelimitedSidebar(blocks) => {
-                    self.write_framed_blocks(None, blocks)
+                // Each container reads differently in print: an example takes a
+                // light frame, a sidebar a shaded box, and an open block is a
+                // transparent container that takes neither.
+                DelimitedBlockType::DelimitedExample(blocks) => {
+                    self.write_example(&block.title, blocks)
                 }
-                DelimitedBlockType::DelimitedQuote(blocks) => {
+                DelimitedBlockType::DelimitedSidebar(blocks) => {
+                    self.write_sidebar(&block.title, blocks)
+                }
+                // An `[abstract]` open block reads as a quote, matching the HTML
+                // backend. Asciidoctor PDF drops it; acdc keeps the content.
+                DelimitedBlockType::DelimitedOpen(blocks)
+                    if block.metadata.style == Some("abstract") =>
+                {
                     self.writer.raw("#blockquote[\n");
                     self.write_blocks(blocks)?;
                     self.writer.raw("]\n\n");
                     Ok(())
                 }
+                DelimitedBlockType::DelimitedOpen(blocks) => {
+                    self.write_framed_blocks(None, None, blocks)
+                }
+                DelimitedBlockType::DelimitedQuote(blocks) => {
+                    self.writer.raw("#blockquote[\n");
+                    self.write_blocks(blocks)?;
+                    self.writer.raw("]\n\n");
+                    self.write_attribution(&block.metadata)
+                }
+                DelimitedBlockType::DelimitedVerse(nodes) => {
+                    self.write_verse_block(nodes, &block.metadata)
+                }
                 DelimitedBlockType::DelimitedListing(nodes)
                 | DelimitedBlockType::DelimitedLiteral(nodes)
-                | DelimitedBlockType::DelimitedPass(nodes)
-                | DelimitedBlockType::DelimitedVerse(nodes) => {
+                | DelimitedBlockType::DelimitedPass(nodes) => {
                     self.write_verbatim_block(nodes);
                     Ok(())
                 }

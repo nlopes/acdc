@@ -45,6 +45,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text.
 - A passthrough block's title serves only as cross-reference text and never
   appears above the block, matching `asciidoctor`.
+- A quote or verse block keeps its attribution and cited work, set under the
+  block after an em dash. A `[quote]`, `[verse]`, `[literal]`, `[listing]`,
+  `[source]`, or `[example]` paragraph now reads as its delimited counterpart
+  rather than as an ordinary paragraph.
+- Verse renders as verse: proportional text with the line breaks the source
+  gives it, rather than as monospace code.
+- Example, sidebar, and open blocks each take their own treatment: a light
+  frame, a shaded box with a centred title, and no frame at all. A titled
+  example takes a numbered caption (`Example 1. Title`, using
+  `example-caption`), matching the other backends.
+- An `[abstract]` open block reads as a quote, as it does in HTML. Asciidoctor
+  PDF drops such a block; acdc keeps its content.
+- A block title sits on its own line above its block instead of running into
+  the content that follows it.
 - Built-in roles now control inline text size, decoration, colour, and
   background in PDF output. Roles can be combined; unknown roles are ignored.
   Unlike Asciidoctor PDF, acdc renders `overline` and colour roles by default.

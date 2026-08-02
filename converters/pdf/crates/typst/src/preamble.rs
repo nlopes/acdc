@@ -135,9 +135,9 @@ fn write_code(out: &mut String, theme: &Theme, options: &EmitOptions) {
 }
 
 /// The `#let` helpers and list/table styling.
-fn write_helpers(out: &mut String, theme: &Theme) {
+/// The `#let` helpers for quotes, verse, and the container blocks.
+fn write_block_helpers(out: &mut String, theme: &Theme) {
     let palette = &theme.palette;
-    let typography = &theme.typography;
     let spacing = &theme.spacing;
 
     let _ = writeln!(
@@ -148,6 +148,56 @@ fn write_helpers(out: &mut String, theme: &Theme) {
         color(&palette.quote_rule),
         color(&palette.quote_text),
     );
+    // Example, sidebar, and open blocks each get their own treatment so a reader
+    // can tell them apart: a light frame, a shaded box with a centred title, and
+    // no frame at all.
+    let _ = writeln!(
+        out,
+        "#let examplebox(body) = block(width: 100%, fill: {bg}, radius: {radius}pt, inset: (x: {px}pt, y: {py}pt), body)",
+        bg = color(&palette.callout_bg),
+        radius = spacing.callout_radius_pt,
+        px = spacing.callout_pad_x_pt,
+        py = spacing.callout_pad_y_pt,
+    );
+    let _ = writeln!(
+        out,
+        "#let sidebarbox(body) = block(width: 100%, fill: {bg}, stroke: {border}pt + {rule}, radius: {radius}pt, inset: (x: {px}pt, y: {py}pt), body)",
+        bg = color(&palette.callout_bg),
+        border = spacing.border_pt,
+        rule = color(&palette.border),
+        radius = spacing.callout_radius_pt,
+        px = spacing.callout_pad_x_pt,
+        py = spacing.callout_pad_y_pt,
+    );
+    let _ = writeln!(
+        out,
+        "#let sidebartitle(body) = align(center, text(weight: \"bold\", body))",
+    );
+    // Verse keeps the poet's line breaks and stays proportional, so it reads as
+    // verse rather than as code. It takes the quote indent, without the rule.
+    let _ = writeln!(
+        out,
+        "#let verse(body) = block(inset: (left: {}pt), text(fill: {}, body))",
+        spacing.quote_indent_pt,
+        color(&palette.quote_text),
+    );
+    // The attribution under a quote or verse: an em dash, the author, and the
+    // cited work, set quieter than the body.
+    let _ = writeln!(
+        out,
+        "#let attribution(body) = block(inset: (left: {}pt), above: 0.6em, text(size: 0.9em, fill: {})[\u{2014} #body])",
+        spacing.quote_indent_pt,
+        color(&palette.quote_text),
+    );
+}
+
+/// The `#let` helpers and list/table styling.
+fn write_helpers(out: &mut String, theme: &Theme) {
+    let palette = &theme.palette;
+    let typography = &theme.typography;
+    let spacing = &theme.spacing;
+
+    write_block_helpers(out, theme);
     // Callouts are drawn as an icon badge beside the body, laid out in two
     // columns so the content is indented past the icon. Each kind gets a glyph
     // in the accent colour; `success` draws a check, the rest use a letter.

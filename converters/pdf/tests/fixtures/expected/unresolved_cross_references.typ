@@ -16,6 +16,11 @@
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let blockquote(body) = block(inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
+#let examplebox(body) = block(width: 100%, fill: rgb("#f3f4f6"), radius: 4pt, inset: (x: 12pt, y: 10pt), body)
+#let sidebarbox(body) = block(width: 100%, fill: rgb("#f3f4f6"), stroke: 0.75pt + rgb("#e5e7eb"), radius: 4pt, inset: (x: 12pt, y: 10pt), body)
+#let sidebartitle(body) = align(center, text(weight: "bold", body))
+#let verse(body) = block(inset: (left: 12pt), text(fill: rgb("#4b5563"), body))
+#let attribution(body) = block(inset: (left: 12pt), above: 0.6em, text(size: 0.9em, fill: rgb("#4b5563"))[— #body])
 #let _cbadge(body) = box(circle(radius: 0.6em, fill: rgb("#111111"), inset: 0pt, align(center + horizon, body)))
 #let _cico(glyph) = _cbadge(text(fill: white, weight: 700, size: 0.82em)[#glyph])
 #let _ccheck = _cbadge(box(width: 0.62em, height: 0.62em, place(curve(stroke: (paint: white, thickness: 1.5pt, cap: "round", join: "round"), curve.move((0em, 0.34em)), curve.line((0.21em, 0.55em)), curve.line((0.58em, 0.08em))))))
@@ -41,22 +46,22 @@
 #text("A reference whose target’s reference text holds a reference of its own resolves\none level, then falls back to ")#raw("[id]")#text(".")
 
 #metadata(none) <id-73656c662d7265666572656e6365>
-#text(weight: "bold")[#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]
-#block(fill: luma(248), inset: 8pt, width: 100%)[
+#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]]
+#examplebox[
 #text("body")
 
 ]
 
 #metadata(none) <id-6d757475616c2d6669727374>
-#text(weight: "bold")[#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]
-#block(fill: luma(248), inset: 8pt, width: 100%)[
+#block(below: 0.5em)[#text(weight: "bold")[#text("Example 2. ")#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]]
+#examplebox[
 #text("body")
 
 ]
 
 #metadata(none) <id-6d757475616c2d7365636f6e64>
-#text(weight: "bold")[#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]
-#block(fill: luma(248), inset: 8pt, width: 100%)[
+#block(below: 0.5em)[#text(weight: "bold")[#text("Example 3. ")#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]]
+#examplebox[
 #text("body")
 
 ]

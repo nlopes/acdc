@@ -1,4 +1,4 @@
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Table coverage]], footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Styled block coverage]], footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -35,46 +35,67 @@
 #let tableheader(body) = text(weight: 700, body)
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Table coverage")]
+#text(size: 22pt, weight: "bold")[#text("Styled block coverage")]
 ]
 #v(1em)
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Declared header")]]
-#table(columns: 2, table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
+#blockquote[
+#text("A quote paragraph.")
+]
 
-]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
+#attribution[#text("Ada *Lovelace*")#text(", ")#text("Notes on the `Analytical Engine`")]
 
-]]), table.cell(x: 0, y: 1)[#text("one")
+#verse[#text("Verse paragraph line one\n  indented line two")]
 
-], table.cell(x: 1, y: 1)[#text("two")
+#attribution[#text("Emily Dickinson")#text(", ")#text("Poem 1")]
 
-])
+#raw(block: true, "literal paragraph")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Body only")]]
-#table(columns: 2, table.cell(x: 0, y: 0)[#text("one")
+#raw(block: true, "listing paragraph")
 
-], table.cell(x: 1, y: 0)[#text("two")
+#raw(block: true, "let paragraph = 1;")
 
-])
+#examplebox[
+#text("An example paragraph.")
+]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Spans")]]
-#table(columns: 4, table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
+#blockquote[
+#text("A quote block with an author and no citation.")
 
-]], table.cell(x: 2, y: 0)[#tableheader[#text("H3")
+]
 
-]], table.cell(x: 3, y: 0)[#tableheader[#text("H4")
+#attribution[#text("Ada Lovelace")]
 
-]]), table.cell(x: 0, y: 1, colspan: 2, rowspan: 2)[#text("Combined")
+#verse[#text("A verse block with no attribution.")]
 
-], table.cell(x: 2, y: 1)[#text("Top 3")
+#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("Example one")]]
+#examplebox[
+#text("First example.")
 
-], table.cell(x: 3, y: 1)[#text("Top 4")
+]
 
-], table.cell(x: 2, y: 2)[#text("Bottom 3")
+#block(below: 0.5em)[#text(weight: "bold")[#text("Example 2. ")#text("Example two")]]
+#examplebox[
+#text("Second example.")
 
-], table.cell(x: 3, y: 2)[#text("Bottom 4")
+]
 
-], table.cell(x: 0, y: 3, colspan: 4)[#text("Full width footer")
+#examplebox[
+#text("An untitled example takes no caption.")
 
-])
+]
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Open title")]]
+#text("Open blocks take no frame.")
+
+#sidebarbox[
+#sidebartitle[#text("Sidebar title")]
+#text("A sidebar centres its title.")
+
+]
+
+#blockquote[
+#text("An abstract open block reads as a quote.")
+
+]
 

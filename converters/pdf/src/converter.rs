@@ -22,6 +22,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes,
             references: std::rc::Rc::new(std::collections::HashMap::new()),
             xref_guard: acdc_converters_core::xref::XrefGuard::default(),
+            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             pdf_options: PdfOptions::default(),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),

@@ -1,0 +1,59 @@
+= Styled block coverage
+
+[quote, Ada *Lovelace*, Notes on the `Analytical Engine`]
+A quote paragraph.
+
+[verse, Emily Dickinson, Poem 1]
+Verse paragraph line one
+  indented line two
+
+[literal]
+literal paragraph
+
+[listing]
+listing paragraph
+
+[source,rust]
+let paragraph = 1;
+
+[example]
+An example paragraph.
+
+[quote, Ada Lovelace]
+____
+A quote block with an author and no citation.
+____
+
+[verse]
+____
+A verse block with no attribution.
+____
+
+.Example one
+====
+First example.
+====
+
+.Example two
+====
+Second example.
+====
+
+====
+An untitled example takes no caption.
+====
+
+.Open title
+--
+Open blocks take no frame.
+--
+
+.Sidebar title
+****
+A sidebar centres its title.
+****
+
+[abstract]
+--
+An abstract open block reads as a quote.
+--
