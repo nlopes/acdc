@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Title-page revision numbers use `version-label`; an empty or unset label
+  removes the prefix.
 - Author details no longer appear below a normal article title. A title page,
   including the default book title page, shows author names but omits email
   addresses, matching Asciidoctor PDF's default output. Running headers start

@@ -1,0 +1,6 @@
+= Unset Version Label
+:title-page:
+:revnumber: 2.0
+:version-label!:
+
+Unset version label body.

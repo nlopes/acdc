@@ -1,0 +1,7 @@
+= Custom Version Label
+:title-page:
+:revnumber: 2.0
+:revdate: 2026-01-15
+:version-label: Release
+
+Custom version label body.

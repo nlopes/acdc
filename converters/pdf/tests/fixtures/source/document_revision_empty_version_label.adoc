@@ -1,0 +1,6 @@
+= Empty Version Label
+:title-page:
+:revnumber: 2.0
+:version-label:
+
+Empty version label body.

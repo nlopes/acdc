@@ -23,7 +23,12 @@ fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<Str
 
     let mut revision = String::new();
     if let Some(revnumber) = revnumber {
-        revision.push_str("Version ");
+        if let Some(label) = attributes.get_string("version-label")
+            && !label.is_empty()
+        {
+            revision.push_str(&label);
+            revision.push(' ');
+        }
         revision.push_str(&revnumber);
     }
     if let Some(revdate) = revdate {
