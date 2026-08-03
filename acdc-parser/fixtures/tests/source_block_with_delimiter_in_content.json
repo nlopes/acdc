@@ -9,7 +9,8 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "console": null
+          "console": null,
+          "language": "console"
         },
         "style": "source"
       },

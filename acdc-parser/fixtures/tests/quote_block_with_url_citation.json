@@ -11,30 +11,9 @@
         "style": "quote",
         "attribution": [
           {
-            "name": "ref",
-            "type": "inline",
-            "variant": "link",
-            "target": {
-              "type": "url",
-              "value": "https://example.com/docs"
-            },
-            "inlines": [
-              {
-                "name": "text",
-                "type": "string",
-                "value": "Example Docs",
-                "location": [
-                  {
-                    "line": 1,
-                    "col": 34
-                  },
-                  {
-                    "line": 1,
-                    "col": 45
-                  }
-                ]
-              }
-            ],
+            "name": "text",
+            "type": "string",
+            "value": "https://example.com/docs[Example Docs]",
             "location": [
               {
                 "line": 1,
@@ -42,10 +21,9 @@
               },
               {
                 "line": 1,
-                "col": 46
+                "col": 47
               }
-            ],
-            "attributes": {}
+            ]
           }
         ]
       },

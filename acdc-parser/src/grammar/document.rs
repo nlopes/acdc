@@ -27,7 +27,8 @@ use crate::{
         table::parse_table_cell,
     },
     model::{
-        LeveloffsetRange, ListLevel, Locateable, SectionKind, SectionLevel, strip_quotes,
+        LeveloffsetRange, ListLevel, Locateable, PositionalAttribute, SectionKind, SectionLevel,
+        Substitution, strip_quotes, substitute,
         substitution::{HEADER, SubsFlags},
     },
 };
@@ -36,10 +37,10 @@ use crate::{
 use crate::model::substitution::parse_subs_attribute;
 
 use super::helpers::{
-    AttributeProcessingMode, BlockMetadataLine, BlockParsingMetadata, HeaderMetadataLine,
-    PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
-    RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, Shorthand,
-    process_attribute_list, strip_url_backslash_escapes, title_looks_like_description_list,
+    BlockMetadataLine, BlockParsingMetadata, HeaderMetadataLine, PositionWithOffset,
+    RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE,
+    RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values, strip_url_backslash_escapes,
+    title_looks_like_description_list,
 };
 use super::setext;
 
@@ -159,20 +160,6 @@ fn parse_block_content<'input>(
             Ok(Vec::new())
         })
     }
-}
-
-/// Whether a quote block's attribution/citetitle text looks like it contains
-/// inline markup worth re-parsing through the inline pipeline (#373).
-fn quote_needs_inline_processing(content: &str) -> bool {
-    content.contains("://")
-        || content.contains('[')
-        || content.contains('{')
-        || content.contains('*')
-        || content.contains('_')
-        || content.contains('`')
-        || content.contains("<<")
-        || content.contains("link:")
-        || content.contains("mailto:")
 }
 
 /// A matched delimited-block open/content/optional-close, ready for construction.
@@ -338,9 +325,17 @@ fn verbatim_inner<'input>(
     // A Markdown fence language becomes a positional `source` style so language
     // detection works like `[source,lang]` (never set for `....`/`----`).
     if let Some(language) = p.lang {
-        metadata.positional_attributes.insert(0, language);
+        metadata.positional_attributes.insert(
+            0,
+            PositionalAttribute {
+                value: language,
+                substitutions: false,
+                location: None,
+            },
+        );
         metadata.style = Some("source");
     }
+    extract_source_attributes(metadata);
     metadata.move_positional_attributes_to_attributes();
     let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
     let (inlines, callouts) = resolve_verbatim_callouts(
@@ -414,20 +409,29 @@ fn pass_inner<'input>(
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
 ) -> DelimitedBlockType<'input> {
-    metadata.move_positional_attributes_to_attributes();
     if metadata.style == Some("stem") {
-        let notation = match state.document_attributes.get("stem") {
-            Some(AttributeValue::String(s)) => {
-                s.parse::<StemNotation>().unwrap_or(StemNotation::Latexmath)
-            }
-            _ => StemNotation::Latexmath,
-        };
+        let notation = drain_positional_slots(metadata, 1)
+            .first()
+            .filter(|value| !value.is_empty())
+            .and_then(|value| value.parse::<StemNotation>().ok())
+            .or_else(|| {
+                state
+                    .document_attributes
+                    .get("stem")
+                    .and_then(|value| match value {
+                        AttributeValue::String(value) => value.parse::<StemNotation>().ok(),
+                        AttributeValue::Bool(_) | AttributeValue::None => None,
+                    })
+            })
+            .unwrap_or(StemNotation::Latexmath);
+        metadata.move_positional_attributes_to_attributes();
         metadata.style = None;
         DelimitedBlockType::DelimitedStem(StemContent {
             content: p.content,
             notation,
         })
     } else {
+        metadata.move_positional_attributes_to_attributes();
         let content_location =
             state.create_block_location(p.content_start, p.content_end, p.offset);
         DelimitedBlockType::DelimitedPass(vec![InlineNode::RawText(Raw {
@@ -438,8 +442,7 @@ fn pass_inner<'input>(
     }
 }
 
-/// `____` quote block (or `[verse]`): re-parses attribution/citetitle markup, then
-/// parses the body as nested blocks (verse keeps the raw text).
+/// Parse a `____` quote block body as nested blocks, or preserve verse text.
 fn quote_inner<'input>(
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
@@ -447,7 +450,6 @@ fn quote_inner<'input>(
     p: &DelimitedParams<'input>,
 ) -> Result<DelimitedBlockType<'input>, Error> {
     metadata.move_positional_attributes_to_attributes();
-    reprocess_quote_attribution(state, block_metadata, metadata, p.offset);
 
     if metadata.style == Some("verse") {
         let content_location =
@@ -491,52 +493,517 @@ fn quote_inner<'input>(
     }
 }
 
-/// Re-parse a quote block's attribution and citetitle through the inline pipeline
-/// so URLs, macros, and formatting resolve (#373). Each is collected before
-/// reassigning to release the borrow on `metadata`.
-fn reprocess_quote_attribution<'input>(
-    state: &mut ParserState<'input>,
-    block_metadata: &BlockParsingMetadata<'input>,
-    metadata: &mut BlockMetadata<'input>,
-    offset: usize,
-) {
-    let attribution = if let Some(ref attr) = metadata.attribution
-        && let Some(InlineNode::PlainText(plain)) = attr.first()
-        && quote_needs_inline_processing(plain.content)
-    {
-        Some((
-            plain.content,
-            plain.location.absolute_start.saturating_sub(offset),
-            plain.location.absolute_end.saturating_sub(offset),
-        ))
-    } else {
-        None
-    };
-    if let Some((content, start, end)) = attribution
-        && let Ok(inlines) = process_inlines(state, block_metadata, start, end, offset, content)
-        && !inlines.is_empty()
-    {
-        metadata.attribution = Some(Attribution::new(inlines));
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AttributeQuote {
+    Unquoted,
+    Single,
+    Double,
+}
+
+#[derive(Debug)]
+struct ScannedAttribute {
+    name: Option<String>,
+    value: String,
+    quote: AttributeQuote,
+    value_start: usize,
+    value_end: usize,
+}
+
+#[derive(Clone, Copy)]
+enum BlockAttributeMode {
+    Block,
+    Macro,
+}
+
+fn is_attribute_name_start(character: char) -> bool {
+    character == '_' || character.is_alphanumeric()
+}
+
+fn is_attribute_name_continue(character: char) -> bool {
+    is_attribute_name_start(character) || matches!(character, '-' | '.')
+}
+
+fn named_attribute_parts(value: &str) -> Option<(&str, usize)> {
+    let mut characters = value.char_indices();
+    let (_, first) = characters.next()?;
+    if !is_attribute_name_start(first) {
+        return None;
     }
 
-    let citetitle = if let Some(ref cite) = metadata.citetitle
-        && let Some(InlineNode::PlainText(plain)) = cite.first()
-        && quote_needs_inline_processing(plain.content)
+    let mut name_end = first.len_utf8();
+    for (index, character) in characters {
+        if !is_attribute_name_continue(character) {
+            break;
+        }
+        name_end = index + character.len_utf8();
+    }
+
+    let remainder = &value[name_end..];
+    let equals_offset = remainder.len() - remainder.trim_start_matches([' ', '\t']).len();
+    remainder
+        .get(equals_offset..)
+        .is_some_and(|remainder| remainder.starts_with('='))
+        .then_some((&value[..name_end], name_end + equals_offset + 1))
+}
+
+fn closing_quote(value: &str, quote: char) -> Option<usize> {
+    let mut escaped = false;
+    for (index, character) in value.char_indices().skip(1) {
+        if character == quote && !escaped {
+            return Some(index);
+        }
+        escaped = character == '\\' && !escaped;
+        if character != '\\' {
+            escaped = false;
+        }
+    }
+    None
+}
+
+fn unescape_attribute_quote(value: &str, quote: char) -> String {
+    let escaped_quote = format!("\\{quote}");
+    value.replace(&escaped_quote, &quote.to_string())
+}
+
+fn scan_attribute_list(source: &str) -> Vec<ScannedAttribute> {
+    let mut attributes = Vec::new();
+    let mut cursor = 0;
+
+    loop {
+        let slot_start = cursor;
+        let remaining = &source[slot_start..];
+        let leading = remaining.len() - remaining.trim_start_matches([' ', '\t']).len();
+        let trimmed_start = slot_start + leading;
+        let candidate = &source[trimmed_start..];
+        let named = named_attribute_parts(candidate);
+        let raw_value_start = named.map_or(trimmed_start, |(_, start)| trimmed_start + start);
+        let value_leading = source[raw_value_start..].len()
+            - source[raw_value_start..]
+                .trim_start_matches([' ', '\t'])
+                .len();
+        let value_start = raw_value_start + value_leading;
+        let first = source[value_start..].chars().next();
+
+        if let Some(quote @ ('\'' | '"')) = first {
+            let quoted = &source[value_start..];
+            if let Some(close) = closing_quote(quoted, quote) {
+                let after_close = value_start + close + quote.len_utf8();
+                attributes.push(ScannedAttribute {
+                    name: named.map(|(name, _)| name.to_string()),
+                    value: unescape_attribute_quote(&quoted[quote.len_utf8()..close], quote),
+                    quote: if quote == '\'' {
+                        AttributeQuote::Single
+                    } else {
+                        AttributeQuote::Double
+                    },
+                    value_start: value_start + quote.len_utf8(),
+                    value_end: value_start + close,
+                });
+
+                let trailing = &source[after_close..];
+                let whitespace = trailing.len() - trailing.trim_start_matches([' ', '\t']).len();
+                cursor = after_close + whitespace;
+                if cursor == source.len() {
+                    break;
+                }
+                if source[cursor..].starts_with(',') {
+                    cursor += 1;
+                    if cursor == source.len() {
+                        attributes.push(ScannedAttribute {
+                            name: None,
+                            value: String::new(),
+                            quote: AttributeQuote::Unquoted,
+                            value_start: cursor,
+                            value_end: cursor,
+                        });
+                        break;
+                    }
+                }
+                continue;
+            }
+        }
+
+        let comma = source[value_start..]
+            .find(',')
+            .map(|index| value_start + index);
+        let end = comma.unwrap_or(source.len());
+        let trimmed = source[value_start..end].trim_end();
+
+        attributes.push(ScannedAttribute {
+            name: named.map(|(name, _)| name.to_string()),
+            value: trimmed.to_string(),
+            quote: AttributeQuote::Unquoted,
+            value_start,
+            value_end: value_start + trimmed.len(),
+        });
+
+        let Some(comma) = comma else {
+            break;
+        };
+        cursor = comma + 1;
+        if cursor == source.len() {
+            attributes.push(ScannedAttribute {
+                name: None,
+                value: String::new(),
+                quote: AttributeQuote::Unquoted,
+                value_start: cursor,
+                value_end: cursor,
+            });
+            break;
+        }
+    }
+
+    attributes
+}
+
+fn apply_block_style<'input>(
+    state: &ParserState<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    value: &'input str,
+    location: Option<&Location>,
+) -> bool {
+    if value.is_empty() {
+        return false;
+    }
+    if value.chars().any(char::is_whitespace)
+        || !value
+            .chars()
+            .any(|character| matches!(character, '#' | '.' | '%'))
     {
-        Some((
-            plain.content,
-            plain.location.absolute_start.saturating_sub(offset),
-            plain.location.absolute_end.saturating_sub(offset),
-        ))
+        metadata.style = Some(value);
+        return matches!(value, "discrete" | "float");
+    }
+
+    let mut kind = None;
+    let mut start = 0;
+    for (index, character) in value.char_indices() {
+        let next_kind = match character {
+            '#' => Some(StylePartKind::Id),
+            '.' => Some(StylePartKind::Role),
+            '%' => Some(StylePartKind::Option),
+            _ => continue,
+        };
+        apply_style_part(
+            state,
+            metadata,
+            kind,
+            &value[start..index],
+            start,
+            index,
+            location,
+        );
+        kind = next_kind;
+        start = index + character.len_utf8();
+    }
+    apply_style_part(
+        state,
+        metadata,
+        kind,
+        &value[start..],
+        start,
+        value.len(),
+        location,
+    );
+    matches!(metadata.style, Some("discrete" | "float"))
+}
+
+#[derive(Clone, Copy)]
+enum StylePartKind {
+    Id,
+    Role,
+    Option,
+}
+
+fn apply_style_part<'input>(
+    state: &ParserState<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    kind: Option<StylePartKind>,
+    value: &'input str,
+    start: usize,
+    end: usize,
+    location: Option<&Location>,
+) {
+    if value.is_empty() {
+        return;
+    }
+    match kind {
+        None => metadata.style = Some(value),
+        Some(StylePartKind::Id) => {
+            let location = location.map_or_else(Location::default, |location| {
+                state.create_location(
+                    location.absolute_start + start,
+                    location.absolute_start + end,
+                )
+            });
+            metadata.id = Some(Anchor {
+                id: value,
+                xreflabel: None,
+                location,
+            });
+        }
+        Some(StylePartKind::Role) => metadata.roles.push(value),
+        Some(StylePartKind::Option) => metadata.options.push(value),
+    }
+}
+
+fn ensure_positional_slot(metadata: &mut BlockMetadata<'_>, slot: usize) {
+    metadata
+        .positional_attributes
+        .resize(slot, PositionalAttribute::default());
+}
+
+fn drain_positional_slots<'input>(
+    metadata: &mut BlockMetadata<'input>,
+    count: usize,
+) -> Vec<&'input str> {
+    let drain = metadata.positional_attributes.len().min(count);
+    metadata
+        .positional_attributes
+        .drain(..drain)
+        .map(|attribute| attribute.value)
+        .collect()
+}
+
+fn extract_source_attributes(metadata: &mut BlockMetadata<'_>) {
+    if metadata.style != Some("source") {
+        return;
+    }
+
+    if let Some(language) = metadata
+        .positional_attributes
+        .first()
+        .map(|attribute| attribute.value)
+        .filter(|value| !value.is_empty())
+    {
+        metadata.attributes.set(
+            "language".into(),
+            AttributeValue::String(Cow::Borrowed(language)),
+        );
+    }
+    if let Some(linenums) = metadata
+        .positional_attributes
+        .get(1)
+        .map(|attribute| attribute.value)
+        .filter(|value| !value.is_empty())
+    {
+        metadata.attributes.set(
+            "linenums".into(),
+            AttributeValue::String(Cow::Borrowed(linenums)),
+        );
+    }
+}
+
+fn store_named_block_attribute<'input>(
+    state: &mut ParserState<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    name: &'input str,
+    value: &'input str,
+    quote: AttributeQuote,
+    location: Option<Location>,
+) -> Option<(usize, usize)> {
+    if quote == AttributeQuote::Unquoted && value == "None" {
+        return None;
+    }
+    let title_position = if name == "title" {
+        location
+            .as_ref()
+            .map(|location| (location.absolute_start, location.absolute_end))
     } else {
         None
     };
-    if let Some((content, start, end)) = citetitle
-        && let Ok(inlines) = process_inlines(state, block_metadata, start, end, offset, content)
-        && !inlines.is_empty()
+    match name {
+        RESERVED_NAMED_ATTRIBUTE_ID if metadata.id.is_none() => {
+            metadata.id = Some(Anchor {
+                id: value,
+                xreflabel: None,
+                location: location.clone().unwrap_or_default(),
+            });
+        }
+        RESERVED_NAMED_ATTRIBUTE_ROLE | "roles" => {
+            metadata
+                .roles
+                .extend(value.split_whitespace().filter(|role| !role.is_empty()));
+        }
+        RESERVED_NAMED_ATTRIBUTE_OPTIONS | "options" => {
+            metadata
+                .options
+                .extend(parse_comma_separated_values(state, value));
+        }
+        RESERVED_NAMED_ATTRIBUTE_SUBS => {
+            #[cfg(feature = "pre-spec-subs")]
+            {
+                state.add_generic_warning_at(
+                    "The subs= attribute may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string(),
+                    location.clone().unwrap_or_default(),
+                );
+                metadata.substitutions = Some(parse_subs_attribute(value));
+            }
+            #[cfg(not(feature = "pre-spec-subs"))]
+            state.add_generic_warning_at(
+                "The subs= attribute is not honoured in this build (the `pre-spec-subs` feature is disabled). The draft AsciiDoc spec drops the substitution model in favour of an inline parsing grammar; this attribute will be silently ignored.".to_string(),
+                location.clone().unwrap_or_default(),
+            );
+        }
+        "attribution" => {
+            metadata.attribution = Some(Attribution::new(plain_attribute_value(value, location)));
+            metadata.attribution_substitutions = quote == AttributeQuote::Single;
+        }
+        "citetitle" => {
+            metadata.citetitle = Some(CiteTitle::new(plain_attribute_value(value, location)));
+            metadata.citetitle_substitutions = quote == AttributeQuote::Single;
+        }
+        _ => {
+            metadata.attributes.insert(
+                Cow::Borrowed(name),
+                AttributeValue::String(Cow::Borrowed(value)),
+            );
+        }
+    }
+    title_position
+}
+
+fn parse_block_attribute_list<'input>(
+    state: &mut ParserState<'input>,
+    source: &'input str,
+    content_start: usize,
+    fallback_end: usize,
+    mode: BlockAttributeMode,
+) -> (bool, BlockMetadata<'input>, Option<(usize, usize)>) {
+    let substituted = substitute(
+        source,
+        &[Substitution::Attributes],
+        &state.document_attributes,
+    );
+    let positions_exact = matches!(substituted, Cow::Borrowed(_));
+    let attributes = scan_attribute_list(&substituted);
+    let mut metadata = BlockMetadata::default();
+    let mut discrete = false;
+    let mut title_position = None;
+
+    for (slot, attribute) in attributes.into_iter().enumerate() {
+        let value = state.intern_str(&attribute.value);
+        let name = attribute.name.as_deref().map(|name| state.intern_str(name));
+        let location = positions_exact.then(|| {
+            state.create_location(
+                content_start + attribute.value_start,
+                content_start + attribute.value_end,
+            )
+        });
+
+        if let Some(name) = name {
+            if slot > 0 {
+                ensure_positional_slot(&mut metadata, slot);
+            }
+            title_position = store_named_block_attribute(
+                state,
+                &mut metadata,
+                name,
+                value,
+                attribute.quote,
+                location,
+            )
+            .or(title_position);
+        } else if slot == 0 {
+            match mode {
+                BlockAttributeMode::Block => {
+                    discrete = apply_block_style(state, &mut metadata, value, location.as_ref());
+                }
+                BlockAttributeMode::Macro if !value.is_empty() => metadata.style = Some(value),
+                BlockAttributeMode::Macro => {}
+            }
+        } else {
+            ensure_positional_slot(&mut metadata, slot);
+            if let Some(positional) = metadata.positional_attributes.get_mut(slot - 1) {
+                *positional = PositionalAttribute {
+                    value,
+                    substitutions: attribute.quote == AttributeQuote::Single,
+                    location,
+                };
+            }
+        }
+    }
+
+    if title_position.is_none() && metadata.attributes.get("title").is_some() {
+        title_position = Some((content_start, fallback_end));
+    }
+    (discrete, metadata, title_position)
+}
+
+fn plain_attribute_value(value: &str, location: Option<Location>) -> Vec<InlineNode<'_>> {
+    vec![InlineNode::PlainText(Plain {
+        content: value,
+        location: location.unwrap_or_default(),
+        escaped: false,
+    })]
+}
+
+fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>) {
+    if !matches!(metadata.style, Some("quote" | "verse")) {
+        return;
+    }
+
+    let named_attribution = metadata.attribution.take();
+    let named_citetitle = metadata.citetitle.take();
+    let positional_attribution = metadata.positional_attributes.first().cloned();
+    let positional_citetitle = metadata.positional_attributes.get(1).cloned();
+
+    if let Some(attribute) = positional_attribution.filter(|value| !value.value.is_empty()) {
+        metadata.attribution = Some(Attribution::new(plain_attribute_value(
+            attribute.value,
+            attribute.location,
+        )));
+        metadata.attribution_substitutions = attribute.substitutions;
+    } else {
+        metadata.attribution = named_attribution;
+    }
+
+    if let Some(attribute) = positional_citetitle.filter(|value| !value.value.is_empty()) {
+        metadata.citetitle = Some(CiteTitle::new(plain_attribute_value(
+            attribute.value,
+            attribute.location,
+        )));
+        metadata.citetitle_substitutions = attribute.substitutions;
+    } else {
+        metadata.citetitle = named_citetitle;
+    }
+
+    let _ = drain_positional_slots(metadata, 2);
+}
+
+fn apply_quote_attribute_substitutions<'input>(
+    state: &mut ParserState<'input>,
+    metadata: &mut BlockMetadata<'input>,
+    offset: usize,
+    subs_flags: SubsFlags,
+) -> Result<(), Error> {
+    let block_metadata = BlockParsingMetadata {
+        subs_flags,
+        ..BlockParsingMetadata::default()
+    };
+
+    if metadata.attribution_substitutions
+        && let Some(InlineNode::PlainText(plain)) = metadata
+            .attribution
+            .as_deref()
+            .and_then(|value| value.first())
     {
+        let start = plain.location.absolute_start.saturating_sub(offset);
+        let end = plain.location.absolute_end.saturating_sub(offset);
+        let inlines = process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
+        metadata.attribution = Some(Attribution::new(inlines));
+    }
+    if metadata.citetitle_substitutions
+        && let Some(InlineNode::PlainText(plain)) = metadata
+            .citetitle
+            .as_deref()
+            .and_then(|value| value.first())
+    {
+        let start = plain.location.absolute_start.saturating_sub(offset);
+        let end = plain.location.absolute_end.saturating_sub(offset);
+        let inlines = process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
         metadata.citetitle = Some(CiteTitle::new(inlines));
     }
+    Ok(())
 }
 
 /// Parse an anchor's cross-reference label (`[[id,label]]`) into inline nodes.
@@ -1464,7 +1931,7 @@ fn find_dlist_marker(bytes: &[u8], pos: usize, scan_across_eol: bool, allow_eoi:
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState<'input>) for str {
         use std::str::FromStr;
-        use crate::model::{substitute, Substitution};
+        use crate::model::substitute;
         use crate::grammar::inlines::inline_parser;
 
         // Injected span endpoints — `span_start`/`span_end` are bound in every
@@ -2494,18 +2961,28 @@ peg::parser! {
                         metadata.roles.extend(attr_metadata.roles);
                         metadata.options.extend(attr_metadata.options);
                         for (k, v) in attr_metadata.attributes.iter() {
-                            metadata.attributes.insert(k.clone(), v.clone());
+                            metadata.attributes.set(k.clone(), v.clone());
                         }
-                        metadata.positional_attributes.extend(attr_metadata.positional_attributes);
+                        metadata.overlay_positional_attributes(
+                            &attr_metadata.positional_attributes,
+                        );
                         #[cfg(feature = "pre-spec-subs")]
                         if attr_metadata.substitutions.is_some() {
                             metadata.substitutions = attr_metadata.substitutions;
                         }
                         if attr_metadata.attribution.is_some() {
                             metadata.attribution = attr_metadata.attribution;
+                            metadata.attribution_substitutions =
+                                attr_metadata.attribution_substitutions;
+                        } else if attr_metadata.attribution_substitutions {
+                            metadata.attribution_substitutions = true;
                         }
                         if attr_metadata.citetitle.is_some() {
                             metadata.citetitle = attr_metadata.citetitle;
+                            metadata.citetitle_substitutions =
+                                attr_metadata.citetitle_substitutions;
+                        } else if attr_metadata.citetitle_substitutions {
+                            metadata.citetitle_substitutions = true;
                         }
                     },
                     BlockMetadataLine::DocumentAttribute(key, value) => {
@@ -2531,6 +3008,9 @@ peg::parser! {
             });
             #[cfg(not(feature = "pre-spec-subs"))]
             let subs_flags = SubsFlags::all();
+            extract_source_attributes(&mut metadata);
+            extract_quote_attributes(&mut metadata);
+            apply_quote_attribute_substitutions(state, &mut metadata, offset, subs_flags)?;
             Ok(BlockParsingMetadata {
                 metadata,
                 title,
@@ -2986,13 +3466,22 @@ peg::parser! {
             metadata.merge(&metadata_from_attributes);
             if let Some(style) = metadata.style {
                 metadata.style = None; // Clear style to avoid confusion
-                metadata.attributes.insert("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
+                metadata
+                    .attributes
+                    .set("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
             }
-            if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1))));
+            let slots = drain_positional_slots(&mut metadata, 2);
+            if let Some(width) = slots.first().filter(|value| !value.is_empty()) {
+                metadata.attributes.set(
+                    "width".into(),
+                    AttributeValue::String(Cow::Borrowed(width)),
+                );
             }
-            if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0))));
+            if let Some(height) = slots.get(1).filter(|value| !value.is_empty()) {
+                metadata.attributes.set(
+                    "height".into(),
+                    AttributeValue::String(Cow::Borrowed(height)),
+                );
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
@@ -3038,18 +3527,30 @@ peg::parser! {
                 metadata.style = None;
                 if style == "youtube" || style == "vimeo" {
                     tracing::debug!(?metadata, "transforming video metadata style into attribute");
-                    metadata.attributes.insert(Cow::Borrowed(style), AttributeValue::Bool(true));
+                    metadata
+                        .attributes
+                        .set(Cow::Borrowed(style), AttributeValue::Bool(true));
                 } else {
                     // assume poster
                     tracing::debug!(?metadata, "transforming video metadata style into attribute, assuming poster");
-                    metadata.attributes.insert("poster".into(), AttributeValue::String(Cow::Borrowed(style)));
+                    metadata.attributes.set(
+                        "poster".into(),
+                        AttributeValue::String(Cow::Borrowed(style)),
+                    );
                 }
             }
-            if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1))));
+            let slots = drain_positional_slots(&mut metadata, 2);
+            if let Some(width) = slots.first().filter(|value| !value.is_empty()) {
+                metadata.attributes.set(
+                    "width".into(),
+                    AttributeValue::String(Cow::Borrowed(width)),
+                );
             }
-            if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0))));
+            if let Some(height) = slots.get(1).filter(|value| !value.is_empty()) {
+                metadata.attributes.set(
+                    "height".into(),
+                    AttributeValue::String(Cow::Borrowed(height)),
+                );
             }
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
@@ -4482,7 +4983,9 @@ peg::parser! {
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = admonition:admonition()?
         content_start:position!()
-        content:$((!(
+        content:$((
+            "[[" (!eol() [_])*
+            / !(
             eol()*<2,>
             / eol()* ![_]
             / eol() &attributes_line()
@@ -4499,7 +5002,8 @@ peg::parser! {
             / eol() list(start, offset, block_metadata)
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
             / eol()* &((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
-        ) [_])+)
+            ) [_]
+        )+)
         {
             // Reset the verbatim flag since paragraph is not a verbatim block
             state.last_block_was_verbatim = false;
@@ -4700,138 +5204,18 @@ peg::parser! {
             = whitespace()* "[" whitespace()* "]" whitespace()* eol() eol()
 
         pub(crate) rule attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
-            = open_square_bracket() content:(
-                // The case in which we keep the style empty
-                attributes:(comma() att:attribute() { att })+ {
-                    tracing::debug!(?attributes, "Found empty style with attributes");
-                    (true, None, attributes)
-                } /
-                // The case in which there is a block style and other attributes
-                style:block_style() attributes:(comma() att:attribute() { att })+ {
-                    tracing::debug!(?style, ?attributes, "Found block style with attributes");
-                    (false, Some(style), attributes)
-                } /
-                // The case in which there is a block style and no other attributes
-                style:block_style() {
-                    tracing::debug!(?style, "Found block style");
-                    (false, Some(style), vec![])
-                } /
-                // The case in which there are only attributes
-                attributes:(att:attribute() comma()? { att })* {
-                    tracing::debug!(?attributes, "Found attributes");
-                    (false, None, attributes)
-                })
-            close_square_bracket() {
-                let mut discrete = false;
-                let (_empty, maybe_style, attributes) = content;
-                let mut metadata = BlockMetadata::default();
-
-                // Process block style (shorthands like .role, #id, %option)
-                if let Some((maybe_style_name, id, roles, options)) = maybe_style {
-                    if let Some(style_name) = maybe_style_name {
-                        // `discrete`/`float` as the block style marks a discrete
-                        // heading; the style is kept so it renders as the heading's
-                        // class (matching asciidoctor's `class="discrete"`/`"float"`).
-                        if style_name == "discrete" || style_name == "float" {
-                            discrete = true;
-                            metadata.style = Some(state.intern_cow(style_name));
-                        } else if metadata.style.is_none() {
-                            metadata.style = Some(state.intern_cow(style_name));
-                        } else {
-                            metadata.attributes.insert(style_name, AttributeValue::None);
-                        }
-                    }
-                    metadata.id = id;
-                    metadata.roles.extend(roles.into_iter().map(|r| state.intern_cow(r)));
-                    metadata.options.extend(options.into_iter().map(|o| state.intern_cow(o)));
-                }
-
-                // Process attribute list using shared helper
-                let title_position = process_attribute_list(
-                    attributes.iter().cloned(),
-                    &mut metadata,
+            = !double_open_square_bracket()
+              open_square_bracket()
+              content_start:position!()
+              content:attribute_list_content()
+            {
+                parse_block_attribute_list(
                     state,
-                    span_start,
+                    content,
+                    content_start,
                     span_end,
-                    AttributeProcessingMode::BLOCK,
-                );
-
-                // Handle subs= attribute (block-specific, feature-gated). Both
-                // branches emit a warning so the user always knows we noticed
-                // the attribute — the message differs by build configuration.
-                #[cfg(feature = "pre-spec-subs")]
-                for (k, v, pos) in attributes.iter().flatten() {
-                    if *k == RESERVED_NAMED_ATTRIBUTE_SUBS && let AttributeValue::String(v) = v {
-                        let location = pos.map_or_else(
-                            || state.create_location(span_start, span_end),
-                            |(s, e)| state.create_location(s, e),
-                        );
-                        state.add_generic_warning_at(
-                            "The subs= attribute may change when the AsciiDoc specification is finalized. See: https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/-/issues/16".to_string(),
-                            location,
-                        );
-                        metadata.substitutions = Some(parse_subs_attribute(v));
-                    }
-                }
-                // When `pre-spec-subs` is disabled, surface a warning so users
-                // notice that their `[subs="…"]` is silently dropped — the draft
-                // AsciiDoc spec is moving away from substitutions, and this build
-                // takes the spec direction by default.
-                #[cfg(not(feature = "pre-spec-subs"))]
-                for (k, _v, pos) in attributes.iter().flatten() {
-                    if *k == RESERVED_NAMED_ATTRIBUTE_SUBS {
-                        let location = pos.map_or_else(
-                            || state.create_location(span_start, span_end),
-                            |(s, e)| state.create_location(s, e),
-                        );
-                        state.add_generic_warning_at(
-                            "The subs= attribute is not honoured in this build (the `pre-spec-subs` feature is disabled). The draft AsciiDoc spec drops the substitution model in favour of an inline parsing grammar; this attribute will be silently ignored.".to_string(),
-                            location,
-                        );
-                    }
-                }
-
-                // Extract attribution/citetitle for quote/verse styles using positions
-                // from the original attributes vec (before positional_attributes is consumed)
-                if metadata.style == Some("quote") || metadata.style == Some("verse") {
-                    let positional_positions: Vec<Option<(usize, usize)>> = attributes.iter()
-                        .flatten()
-                        .filter(|(_, v, _)| *v == AttributeValue::None)
-                        .map(|(_, _, pos)| *pos)
-                        .collect();
-
-                    if metadata.positional_attributes.len() >= 2 {
-                        let cite = metadata.positional_attributes.remove(1).trim().to_string();
-                        if !cite.is_empty() {
-                            let loc = positional_positions.get(1).copied().flatten()
-                                .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
-                            metadata.citetitle = Some(CiteTitle::new(vec![InlineNode::PlainText(Plain {
-                                content: state.intern_str(&cite),
-                                location: loc,
-                                escaped: false,
-                            })]));
-                        }
-                    }
-                    if !metadata.positional_attributes.is_empty() {
-                        let attr = metadata.positional_attributes.remove(0).trim().to_string();
-                        if !attr.is_empty() {
-                            let loc = positional_positions.first().copied().flatten()
-                                .map_or_else(Location::default, |(s, e)| state.create_location(s, e));
-                            metadata.attribution = Some(Attribution::new(vec![InlineNode::PlainText(Plain {
-                                content: state.intern_str(&attr),
-                                location: loc,
-                                escaped: false,
-                            })]));
-                        }
-                    }
-                }
-
-                // Only the block *style* (`[discrete]`/`[float]`) makes a heading
-                // discrete. A bare `discrete`/`float` positional attribute (e.g.
-                // `[#id,discrete]`) is ignored by asciidoctor — the block stays an
-                // ordinary section — so it does not set the discrete flag here.
-
-                (discrete, metadata, title_position)
+                    BlockAttributeMode::Block,
+                )
             }
 
         /// Macro attribute parsing - simpler than block attributes.
@@ -4844,187 +5228,28 @@ peg::parser! {
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
         pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
             = open_square_bracket()
-              attrs:(att:macro_attribute() comma()? { att })*
-              close_square_bracket()
-        {
-            let mut metadata = BlockMetadata::default();
-            let title_position = process_attribute_list(
-                attrs,
-                &mut metadata,
-                state,
-                span_start,
-                span_end,
-                AttributeProcessingMode::MACRO,
-            );
-            // macro_attributes never sets discrete flag (that's block-level only)
-            (false, metadata, title_position)
-        }
-
-        /// Positional value in macro attributes - allows . # % as literal characters
-        /// This is the key difference from block attributes.
-        rule macro_positional_value() -> Option<String>
-            = quoted:inner_attribute_value() {
-                let trimmed = strip_quotes(&quoted);
-                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
-            }
-            / s:$([^('"' | ',' | ']' | '=')]+) {
-                let trimmed = s.trim();
-                if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
-            }
-
-        /// Named attribute or additional positional in macro context
-        rule macro_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = whitespace()* att:named_attribute() { att }
-            / val:macro_positional_value() {
-                val.map(|v| (Cow::Owned(v), AttributeValue::None, None))
+              content_start:position!()
+              content:attribute_list_content()
+            {
+                parse_block_attribute_list(
+                    state,
+                    content,
+                    content_start,
+                    span_end,
+                    BlockAttributeMode::Macro,
+                )
             }
 
         rule open_square_bracket() = "["
         rule close_square_bracket() = "]"
+        rule attribute_list_content() -> &'input str
+            = content:$((!last_close_square_bracket() [^'\n' | '\r'])*) close_square_bracket() { content }
+        rule last_close_square_bracket()
+            = &("]" [^']' | '\n' | '\r']* (eol() / ![_]))
         rule double_open_square_bracket() = "[["
         rule double_close_square_bracket() = "]]"
         rule comma() = ","
         rule period() = "."
-        rule empty_style() = ""
-        rule role() -> &'input str = $([^(',' | ']' | '#' | '.' | '%')]+)
-
-        /// Parse a single attribute shorthand: .role, #id, or %option
-        /// Used by block_style() for block-level attributes
-        rule shorthand() -> Shorthand<'input>
-        = "#" id:block_style_id() { Shorthand::Id(Cow::Borrowed(id)) }
-        / "." role:role() { Shorthand::Role(Cow::Borrowed(role)) }
-        / "%" option:option() { Shorthand::Option(Cow::Borrowed(option)) }
-
-        // The option rule is used to parse options in the form of "option=value" or
-        // "%option" (we don't capture the % here).
-        //
-        // The option can be a single word or a quoted string. If it is a quoted string,
-        // it can contain commas, which we then look for and extract the options in the
-        // `attributes()` rule.
-        rule option() -> &'input str =
-        $(("\"" [^('"' | ']' | '#' | '.' | '%')]+ "\"") / ([^('"' | ',' | ']' | '#' | '.' | '%')]+))
-
-        rule attribute_name() -> &'input str = $((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+)
-
-        pub(crate) rule attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = whitespace()* att:named_attribute() { att }
-              / whitespace()* start:position!() att:positional_attribute_value() end:position!() {
-                  let substituted = substitute(&att, &[Substitution::Attributes], &state.document_attributes).into_owned();
-                  Some((Cow::Owned(substituted), AttributeValue::None, Some((start, end))))
-              }
-
-        // Add a simple ID rule
-        rule id() -> String
-            = id:$((['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_'])+) { id.to_string() }
-
-        // TODO(nlopes): this should instead return an enum
-        rule named_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
-            = "id" "=" start:position!() id:id() end:position!()
-                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_ID), AttributeValue::String(Cow::Owned(id)), Some((start, end)))) }
-              / ("role" / "roles") "=" value:named_attribute_value()
-                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_ROLE), AttributeValue::String(Cow::Owned(value)), None)) }
-              / ("options" / "opts") "=" value:named_attribute_value()
-                { Some((Cow::Borrowed(RESERVED_NAMED_ATTRIBUTE_OPTIONS), AttributeValue::String(Cow::Owned(value)), None)) }
-              / name:attribute_name() "=" start:position!() value:named_attribute_value() end:position!()
-                {
-                    let substituted_value = substitute(&value, &[Substitution::Attributes], &state.document_attributes).into_owned();
-                    Some((Cow::Borrowed(name), AttributeValue::String(Cow::Owned(substituted_value)), Some((start, end))))
-                }
-
-        // The block style is a positional attribute that is used to set the style of a block element.
-        //
-        // It has an optional "style", followed by the attribute shorthands.
-        //
-        // # - ID
-        // . - role
-        // % - option
-        //
-        // Each shorthand entry is placed directly adjacent to previous one, starting
-        // immediately after the optional block style. The order of the entries does not
-        // matter, except for the style, which must come first.
-        pub(crate) rule block_style() -> (Option<Cow<'input, str>>, Option<Anchor<'input>>, Vec<Cow<'input, str>>, Vec<Cow<'input, str>>)
-            = content:(
-                style:positional_attribute_value() shorthands:(
-                    "#" id_start:position!() id:block_style_id() id_end:position!() {
-                        (Shorthand::Id(Cow::Owned(id.to_string())), Some((id_start, id_end)))
-                    }
-                    / s:shorthand() { (s, None) }
-                )+ {
-                    (Some(Cow::Owned(style)), shorthands)
-                } /
-                style:positional_attribute_value() !"=" {
-                    tracing::debug!(%style, "Found block style without shorthands");
-                    (Some(Cow::Owned(style)), Vec::new())
-                } /
-                shorthands:(
-                    "#" id_start:position!() id:block_style_id() id_end:position!() {
-                        (Shorthand::Id(Cow::Owned(id.to_string())), Some((id_start, id_end)))
-                    }
-                    / s:shorthand() { (s, None) }
-                )+ {
-                    (None, shorthands)
-               }
-            )
-            {
-                let (style, shorthands) = content;
-                let mut maybe_anchor = None;
-                let mut roles = Vec::new();
-                let mut options = Vec::new();
-                for (shorthand, pos) in shorthands {
-                    match shorthand {
-                        Shorthand::Id(id) => {
-                            let (id_start, id_end) = pos.unwrap_or((span_start, span_end));
-                            maybe_anchor = Some(Anchor {
-                                id: state.intern_cow(id),
-                                xreflabel: None,
-                                location: state.create_location(id_start, id_end)
-                            });
-                        },
-                        Shorthand::Role(role) => roles.push(role),
-                        Shorthand::Option(option) => options.push(option),
-                    }
-                }
-                (style, maybe_anchor, roles, options)
-            }
-
-        rule id_start_char() = ['A'..='Z' | 'a'..='z' | '_']
-
-        rule block_style_id() -> &'input str = $(id_start_char() block_style_id_subsequent_char()*)
-
-        rule block_style_id_subsequent_char() =
-            ['A'..='Z' | 'a'..='z' | '0'..='9' | '_' | '-']
-
-        rule named_attribute_value() -> String
-        = &("\"" / "'") inner:inner_attribute_value()
-        {
-            // Strip surrounding quotes from quoted values
-            let trimmed = strip_quotes(&inner);
-            tracing::debug!(%inner, %trimmed, "Found named attribute value (inner)");
-            trimmed.to_string()
-        }
-        / s:$([^(',' | '"' | '\'' | ']')]+)
-        {
-            tracing::debug!(%s, "Found named attribute value");
-            s.to_string()
-        }
-
-        rule positional_attribute_value() -> String
-        = quoted:inner_attribute_value() {
-            let trimmed = strip_quotes(&quoted);
-            tracing::debug!(%quoted, %trimmed, "Found quoted positional attribute value");
-            trimmed.to_string()
-        }
-        / s:$([^('"' | ',' | ']' | '#' | '.' | '%')] [^(',' | ']' | '#' | '.' | '%' | '=')]*)
-        {
-            let trimmed = s.trim();
-            tracing::debug!(%s, %trimmed, "Found unquoted positional attribute value");
-            trimmed.to_string()
-        }
-
-        rule inner_attribute_value() -> String
-        = s:$("\"" [^'"']* "\"") { s.to_string() }
-        / s:$("'" [^'\'']* "'") { s.to_string() }
-
         /// URL rule matches both web URLs (proto://) and mailto: URLs
         pub rule url() -> String =
         proto:$("https" / "http" / "ftp" / "irc") "://" path:url_path() { format!("{proto}://{path}") }
@@ -6681,22 +6906,28 @@ References.
         Ok(())
     }
 
-    /// Block macros with trailing content after the attribute list should parse
-    /// successfully and emit a warning rather than failing.
-    /// Regression test for #337.
     #[test]
     #[tracing_test::traced_test]
-    fn test_block_macro_trailing_content_emits_warning() -> Result<(), Error> {
-        // image macro with trailing content followed by an attributed paragraph
+    fn test_block_macro_uses_last_closing_bracket() -> Result<(), Error> {
         let input = "image::foo.svg[role=inline][100,100]\n\n[.lead]\nHello\n";
         let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
 
-        // Should have parsed an image block and a paragraph
-        assert!(
-            result.blocks.iter().any(|b| matches!(b, Block::Image(_))),
-            "document should contain an image block"
-        );
+        let image = result.blocks.iter().find_map(|block| {
+            if let Block::Image(image) = block {
+                Some(image)
+            } else {
+                None
+            }
+        });
+        assert!(image.is_some(), "document should contain an image block");
+        if let Some(image) = image {
+            assert_eq!(image.metadata.roles, ["inline][100"]);
+            assert_eq!(
+                image.metadata.attributes.get("width"),
+                Some(&AttributeValue::String("100".into()))
+            );
+        }
         assert!(
             result
                 .blocks
@@ -6704,23 +6935,7 @@ References.
                 .any(|b| matches!(b, Block::Paragraph(_))),
             "document should contain a paragraph block"
         );
-
-        // Should have emitted a warning about the trailing content. With
-        // no current_file set the location has `file: None`, but the
-        // positioning still points at the trailing `[100,100]` span.
-        let warnings = state.warnings.borrow();
-        let warning = warnings
-            .iter()
-            .find(|w| {
-                let kind_msg = w.kind.to_string();
-                kind_msg.contains("unexpected content after image macro")
-                    && kind_msg.contains("[100,100]")
-            })
-            .expect("expected trailing-content warning");
-        let loc = warning
-            .source_location()
-            .expect("trailing-content warning should carry a location");
-        assert!(loc.file.is_none(), "expected no file for test input");
+        assert!(state.warnings.borrow().is_empty());
         Ok(())
     }
 

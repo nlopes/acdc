@@ -1,0 +1,291 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Block Attribute Styles",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 24
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 24
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "roles": [
+          "lead"
+        ],
+        "options": [
+          "fragment"
+        ],
+        "style": "quote",
+        "id": {
+          "id": "styled-quote",
+          "location": [
+            {
+              "line": 3,
+              "col": 8
+            },
+            {
+              "line": 3,
+              "col": 20
+            }
+          ]
+        },
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Ada",
+            "location": [
+              {
+                "line": 3,
+                "col": 36
+              },
+              {
+                "line": 3,
+                "col": 39
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Adjacent shorthand is parsed.",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Spaces disable shorthand parsing.",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "Ada": null
+        },
+        "style": "quote #not-an-id"
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Brackets remain part of an unknown style.",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "Ada": null
+        },
+        "style": "quote[x]"
+      },
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[[not an anchor]]\nDouble-bracket anchor syntax with spaces remains text.",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A shorthand-only style defines metadata.",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "roles": [
+          "lead"
+        ],
+        "options": [
+          "fragment"
+        ],
+        "id": {
+          "id": "only-id",
+          "location": [
+            {
+              "line": 17,
+              "col": 3
+            },
+            {
+              "line": 17,
+              "col": 10
+            }
+          ]
+        }
+      },
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 40
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 18,
+      "col": 40
+    }
+  ]
+}

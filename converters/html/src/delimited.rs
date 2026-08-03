@@ -1135,7 +1135,7 @@ mod tests {
         use acdc_parser::{AttributeValue, ElementAttributes};
 
         let mut attributes = ElementAttributes::default();
-        attributes.insert("bash".into(), AttributeValue::None);
+        attributes.insert("language".into(), AttributeValue::String("bash".into()));
 
         let metadata = BlockMetadata::new()
             .with_style(Some("source"))

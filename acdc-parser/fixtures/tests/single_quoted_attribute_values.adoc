@@ -1,6 +1,6 @@
 = Single-Quoted Attribute Values
 
-Test that single-quoted attribute values are parsed identically to double-quoted ones.
+Test single-quoted macro values and block metadata.
 
 == Block Macros
 

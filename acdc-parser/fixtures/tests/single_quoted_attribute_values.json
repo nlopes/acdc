@@ -39,7 +39,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Test that single-quoted attribute values are parsed identically to double-quoted ones.",
+          "value": "Test single-quoted macro values and block metadata.",
           "location": [
             {
               "line": 3,
@@ -47,7 +47,7 @@
             },
             {
               "line": 3,
-              "col": 86
+              "col": 51
             }
           ]
         }
@@ -59,7 +59,7 @@
         },
         {
           "line": 3,
-          "col": 86
+          "col": 51
         }
       ]
     },
@@ -516,11 +516,11 @@
                 "location": [
                   {
                     "line": 27,
-                    "col": 8
+                    "col": 9
                   },
                   {
                     "line": 27,
-                    "col": 20
+                    "col": 18
                   }
                 ]
               }
@@ -533,11 +533,11 @@
                 "location": [
                   {
                     "line": 27,
-                    "col": 21
+                    "col": 22
                   },
                   {
                     "line": 27,
-                    "col": 53
+                    "col": 51
                   }
                 ]
               }
@@ -636,11 +636,11 @@
                 "location": [
                   {
                     "line": 34,
-                    "col": 8
+                    "col": 9
                   },
                   {
                     "line": 34,
-                    "col": 23
+                    "col": 21
                   }
                 ]
               }
@@ -653,11 +653,11 @@
                 "location": [
                   {
                     "line": 34,
-                    "col": 24
+                    "col": 25
                   },
                   {
                     "line": 34,
-                    "col": 29
+                    "col": 27
                   }
                 ]
               }
@@ -732,6 +732,7 @@
           "delimiter": "----",
           "metadata": {
             "attributes": {
+              "language": "ruby",
               "ruby": null
             },
             "style": "source"
@@ -1227,7 +1228,8 @@
           "delimiter": "----",
           "metadata": {
             "attributes": {
-              "javascript": null
+              "javascript": null,
+              "language": "javascript"
             },
             "roles": [
               "primary"

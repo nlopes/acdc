@@ -1,0 +1,34 @@
+= Block Attribute Context Slots
+
+[source,rust,linenums]
+----
+fn main() {}
+----
+
+[source,custom=value,rust]
+----
+slot three is not a language
+----
+
+[source,,linenums]
+----
+an empty language slot
+----
+
+[source,ruby]
+puts "styled source paragraph"
+
+[stem,asciimath]
+++++
+sqrt(4) = 2
+++++
+
+image::photo.png[A [x] B,100,200]
+
+image::photo.png["Alt, With Comma",300,400]
+
+image::photo.png[alt=Named,,500]
+
+image::photo.png[role=inline][100,100]
+
+video::movie.mp4[poster[x],640,360]

@@ -1,0 +1,18 @@
+= Block Attribute Styles
+
+[quote#styled-quote.lead%fragment, Ada]
+____
+Adjacent shorthand is parsed.
+____
+
+[quote #not-an-id, Ada]
+Spaces disable shorthand parsing.
+
+[quote[x], Ada]
+Brackets remain part of an unknown style.
+
+[[not an anchor]]
+Double-bracket anchor syntax with spaces remains text.
+
+[#only-id.lead%fragment]
+A shorthand-only style defines metadata.

@@ -1,0 +1,52 @@
+= Block Attribute Slots
+:byline: Ada Lovelace, Notes
+
+[quote, , Empty-slot citation]
+____
+An empty slot remains empty.
+____
+
+[quote, custom=value, Named-slot citation]
+____
+A named attribute consumes its slot.
+____
+
+[quote, attribution=Named Author, Positional Citation]
+____
+Named attribution with positional citation.
+____
+
+[quote, Positional Author, citetitle=Named Citation]
+____
+Positional attribution with named citation.
+____
+
+[quote, attribution=Named Author, citetitle=Named Citation]
+____
+Both quote fields are named.
+____
+
+[quote, attribution=None, citetitle=Literal Value]
+____
+An unquoted named value of None is unset.
+____
+
+[quote, attribution="None", citetitle=Quoted Literal]
+____
+A quoted named value of None stays literal.
+____
+
+[quote, None, Positional Literal]
+____
+A positional value of None stays literal.
+____
+
+[quote, attribution = "Comma, Author", citetitle = Work]
+____
+Named attributes allow spaces around the equals sign.
+____
+
+[quote, {byline}]
+____
+Attribute references expand before the list is split.
+____

@@ -1,0 +1,47 @@
+= Block Attribute Substitutions
+
+[quote, Ada *Lovelace*, `Notes`]
+____
+Unquoted values are literal.
+____
+
+[quote, "Grace *Hopper*", "`Compiler`"]
+____
+Double-quoted values are literal.
+____
+
+[quote, 'Margaret *Hamilton*', '`Apollo`']
+____
+Single-quoted values use normal substitutions.
+____
+
+[quote, 'A\'B', Notes]
+____
+An escaped quote remains part of a single-quoted value.
+____
+
+[quote, https://example.com[Literal Author], https://example.org[Literal Work]]
+____
+Unquoted macros are literal.
+____
+
+[quote, 'https://example.com[Linked Author]', 'https://example.org[Linked Work]']
+____
+Single-quoted macros are processed.
+____
+
+[quote, attribution='Named *Author*', citetitle='`Named Work`']
+____
+Named single-quoted values are processed.
+____
+
+[quote, 'Paragraph *Author*', '`Paragraph Work`']
+A styled quote paragraph uses the same substitutions.
+
+[verse, 'Paragraph *Poet*', '`Paragraph Poem`']
+A styled verse paragraph uses the same substitutions.
+
+[verse, 'Block *Poet*', '`Block Poem`']
+____
+A delimited verse block uses the same substitutions.
+____

@@ -135,6 +135,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Brackets in block attribute values no longer break the metadata line. Quoted
+  commas, empty and named slots, attribute references, and stacked lists now
+  follow `asciidoctor`.
+- Source language and line-number slots, stem notation, image alt text and
+  dimensions, and video posters and dimensions now use their correct positions.
+- Quote and verse attribution stays literal unless single-quoted, when inline
+  formatting and macros are processed.
 - With `compat-mode`, denied URI includes now omit `role=include` from their
   converter-visible fallback links, matching `asciidoctor`.
 - Partial includes now select `lines`, `tag`, or `tags` from the original target

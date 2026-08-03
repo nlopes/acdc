@@ -12,7 +12,8 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "javascript": null
+          "javascript": null,
+          "language": "javascript"
         },
         "style": "source"
       },

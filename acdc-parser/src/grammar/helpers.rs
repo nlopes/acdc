@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, Title, grammar::ParserState, model::SectionLevel,
-    model::substitution::SubsFlags,
+    Anchor, AttributeValue, BlockMetadata, Title,
+    grammar::ParserState,
+    model::{PositionalAttribute, SectionLevel, substitution::SubsFlags},
 };
 
 #[derive(Debug)]
@@ -42,13 +43,11 @@ pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) discrete: bool,
 }
 
-/// Attribute shorthand syntax: .role, #id, %option
-/// Used for both block-level attributes and inline formatting attributes
+/// Attribute shorthand syntax for inline formatting attributes.
 #[derive(Debug)]
 pub(crate) enum Shorthand<'input> {
     Id(Cow<'input, str>),
     Role(Cow<'input, str>),
-    Option(Cow<'input, str>),
 }
 
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
@@ -84,26 +83,6 @@ pub(crate) fn strip_url_backslash_escapes(text: &str) -> Cow<'_, str> {
     )
 }
 
-/// Configuration for attribute list processing
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct AttributeProcessingMode {
-    /// If true, first positional attribute becomes `style` (used by macro attributes)
-    /// If false, positional attributes are added to `positional_attributes` list
-    pub(crate) first_positional_is_style: bool,
-}
-
-impl AttributeProcessingMode {
-    /// Configuration for block-level attributes
-    pub(crate) const BLOCK: Self = Self {
-        first_positional_is_style: false,
-    };
-
-    /// Configuration for macro attributes (image, audio, video, icon)
-    pub(crate) const MACRO: Self = Self {
-        first_positional_is_style: true,
-    };
-}
-
 /// Parse a comma-separated list of values, interning each into the state's arena.
 ///
 /// Used for `role=` and `options=` attributes which can be either:
@@ -124,10 +103,7 @@ pub(crate) fn parse_comma_separated_values<'a>(
         .collect()
 }
 
-/// Process a list of parsed attributes into `BlockMetadata`.
-///
-/// This is the shared logic between `attributes()` (block-level) and
-/// `macro_attributes()` (for image, audio, video, icon macros).
+/// Store parsed inline macro attributes in `BlockMetadata`.
 ///
 /// Returns the title position if a `title=` attribute was found.
 pub(crate) fn process_attribute_list<'input>(
@@ -142,7 +118,6 @@ pub(crate) fn process_attribute_list<'input>(
     state: &ParserState<'input>,
     fallback_start: usize,
     fallback_end: usize,
-    mode: AttributeProcessingMode,
 ) -> Option<(usize, usize)> {
     let mut title_position = None;
     let mut first_positional = true;
@@ -202,11 +177,15 @@ pub(crate) fn process_attribute_list<'input>(
                 } else if value == AttributeValue::None {
                     // Positional attribute
                     let key_str: &'input str = state.intern_cow(key);
-                    if mode.first_positional_is_style && first_positional {
+                    if first_positional {
                         metadata.style = Some(key_str);
                         first_positional = false;
                     } else {
-                        metadata.positional_attributes.push(key_str);
+                        metadata.positional_attributes.push(PositionalAttribute {
+                            value: key_str,
+                            substitutions: false,
+                            location: None,
+                        });
                     }
                 }
             }

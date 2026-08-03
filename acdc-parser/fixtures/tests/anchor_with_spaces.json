@@ -39,7 +39,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "IDs with spaces are not valid per HTML5 spec.\nThe anchor syntax should not match, treating the text as literal content.",
+          "value": "Double-bracket anchor syntax with spaces stays literal. A shorthand-looking\nvalue with spaces is a block style, not an ID.",
           "location": [
             {
               "line": 3,
@@ -47,7 +47,7 @@
             },
             {
               "line": 4,
-              "col": 73
+              "col": 46
             }
           ]
         }
@@ -59,7 +59,7 @@
         },
         {
           "line": 4,
-          "col": 73
+          "col": 46
         }
       ]
     },
@@ -123,15 +123,15 @@
             {
               "name": "text",
               "type": "string",
-              "value": "This section's anchor has spaces, so it should NOT be parsed as an anchor.\nInstead, the [[...]] should become literal text in the preamble.",
+              "value": "The invalid double-bracket anchor above stays literal.",
               "location": [
                 {
                   "line": 9,
                   "col": 1
                 },
                 {
-                  "line": 10,
-                  "col": 64
+                  "line": 9,
+                  "col": 54
                 }
               ]
             }
@@ -142,39 +142,8 @@
               "col": 1
             },
             {
-              "line": 10,
-              "col": 64
-            }
-          ]
-        },
-        {
-          "name": "paragraph",
-          "type": "block",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "[#another space id]",
-              "location": [
-                {
-                  "line": 12,
-                  "col": 1
-                },
-                {
-                  "line": 12,
-                  "col": 19
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 12,
-              "col": 1
-            },
-            {
-              "line": 12,
-              "col": 19
+              "line": 9,
+              "col": 54
             }
           ]
         }
@@ -185,8 +154,8 @@
           "col": 1
         },
         {
-          "line": 12,
-          "col": 19
+          "line": 9,
+          "col": 54
         }
       ]
     },
@@ -200,17 +169,20 @@
           "value": "Section with Space in Shorthand",
           "location": [
             {
-              "line": 13,
+              "line": 12,
               "col": 4
             },
             {
-              "line": 13,
+              "line": 12,
               "col": 34
             }
           ]
         }
       ],
       "level": 1,
+      "metadata": {
+        "style": "#another space id"
+      },
       "blocks": [
         {
           "name": "paragraph",
@@ -219,39 +191,39 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Same behavior for shorthand syntax with spaces.",
+              "value": "The shorthand-looking value above is a style, not an ID.",
               "location": [
                 {
-                  "line": 15,
+                  "line": 14,
                   "col": 1
                 },
                 {
-                  "line": 15,
-                  "col": 47
+                  "line": 14,
+                  "col": 56
                 }
               ]
             }
           ],
           "location": [
             {
-              "line": 15,
+              "line": 14,
               "col": 1
             },
             {
-              "line": 15,
-              "col": 47
+              "line": 14,
+              "col": 56
             }
           ]
         }
       ],
       "location": [
         {
-          "line": 13,
+          "line": 11,
           "col": 1
         },
         {
-          "line": 15,
-          "col": 47
+          "line": 14,
+          "col": 56
         }
       ]
     },
@@ -265,11 +237,11 @@
           "value": "Valid ID Section",
           "location": [
             {
-              "line": 18,
+              "line": 17,
               "col": 4
             },
             {
-              "line": 18,
+              "line": 17,
               "col": 19
             }
           ]
@@ -282,11 +254,11 @@
             "id": "valid-id",
             "location": [
               {
-                "line": 17,
+                "line": 16,
                 "col": 1
               },
               {
-                "line": 17,
+                "line": 16,
                 "col": 13
               }
             ]
@@ -304,11 +276,11 @@
               "value": "This section has a valid ID without spaces.",
               "location": [
                 {
-                  "line": 20,
+                  "line": 19,
                   "col": 1
                 },
                 {
-                  "line": 20,
+                  "line": 19,
                   "col": 43
                 }
               ]
@@ -316,11 +288,11 @@
           ],
           "location": [
             {
-              "line": 20,
+              "line": 19,
               "col": 1
             },
             {
-              "line": 20,
+              "line": 19,
               "col": 43
             }
           ]
@@ -328,11 +300,11 @@
       ],
       "location": [
         {
-          "line": 17,
+          "line": 16,
           "col": 1
         },
         {
-          "line": 20,
+          "line": 19,
           "col": 43
         }
       ]
@@ -344,7 +316,7 @@
       "col": 1
     },
     {
-      "line": 20,
+      "line": 19,
       "col": 43
     }
   ]

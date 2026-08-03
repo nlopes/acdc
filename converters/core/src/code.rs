@@ -4,7 +4,7 @@ use acdc_parser::BlockMetadata;
 ///
 /// Returns the language if:
 /// - The block has `style="source"`
-/// - The metadata contains a language attribute (the first attribute key)
+/// - The metadata contains a `language` attribute
 ///
 /// Any language string is returned, not just known ones. This ensures
 /// `[source,text]` and other arbitrary languages get proper `<code>` wrappers.
@@ -15,12 +15,13 @@ pub fn detect_language<'a, 'b: 'a>(metadata: &'a BlockMetadata<'b>) -> Option<&'
         return None;
     }
 
-    // Return the first attribute key as the language
-    metadata
-        .attributes
-        .iter()
-        .next()
-        .map(|(key, _)| key.as_ref())
+    metadata.attributes.get("language").and_then(|value| {
+        if let acdc_parser::AttributeValue::String(value) = value {
+            Some(value.as_ref())
+        } else {
+            None
+        }
+    })
 }
 
 /// Get the default line comment prefix for a programming language.

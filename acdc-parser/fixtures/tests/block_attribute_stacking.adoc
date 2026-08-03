@@ -1,0 +1,28 @@
+= Block Attribute Stacking
+
+[quote, Original Author]
+[citetitle=Named Citation]
+____
+A named-only line preserves earlier positional slots.
+____
+
+[quote, Original Author, Original Citation]
+[, Replacement Author]
+____
+A later list replaces the positional slots it supplies.
+____
+
+[quote, Original Author, Original Citation]
+[verse, Replacement Poet, Replacement Poem]
+____
+A later style and its positions replace the earlier list.
+____
+
+[quote, custom=one]
+[custom=two]
+____
+A later named value replaces an earlier value with the same name.
+____
+
+[alt=Outer,width=111]
+image::photo.png[Inner,222,333]

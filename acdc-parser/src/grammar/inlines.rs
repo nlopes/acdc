@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::helpers::{
-    AttributeProcessingMode, BlockParsingMetadata, PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID,
+    BlockParsingMetadata, PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID,
     RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand,
     process_attribute_list, strip_url_backslash_escapes,
 };
@@ -1023,10 +1023,10 @@ peg::parser! {
                 })]);
             }
             if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1))));
+                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1).value)));
             }
             if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0))));
+                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0).value)));
             }
             metadata.move_positional_attributes_to_attributes();
             // For inline images, if there's no first positional (no alt text in title field),
@@ -1989,11 +1989,6 @@ peg::parser! {
                         // If multiple IDs are specified, last one wins
                         id = Some(state.intern_cow(i));
                     }
-                    Shorthand::Option(o) => {
-                        // Options are not parsed by inline_shorthand, this branch should not occur
-                        // Defensive: log and continue rather than panic
-                        tracing::error!(option=?o, "inline_shorthand() unexpectedly produced Option variant");
-                    }
                 }
             }
 
@@ -2042,7 +2037,6 @@ peg::parser! {
                 state,
                 span_start,
                 span_end,
-                AttributeProcessingMode::MACRO,
             );
             // macro_attributes never sets discrete flag (that's block-level only)
             (false, metadata, title_position)

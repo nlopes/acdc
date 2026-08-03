@@ -37,6 +37,7 @@
               "delimiter": "----",
               "metadata": {
                 "attributes": {
+                  "language": "rust",
                   "rust": null
                 },
                 "style": "source"

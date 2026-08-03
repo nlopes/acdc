@@ -1,0 +1,355 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Block Attribute Context Slots",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 31
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 31
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "linenums": "linenums",
+          "rust": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "fn main() {}",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "custom": "value",
+          "linenums": "rust",
+          "rust": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "slot three is not a language",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "linenums": "linenums"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "an empty language slot",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "puts \"styled source paragraph\"",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "ruby",
+          "ruby": null
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "++++",
+      "content": "sqrt(4) = 2",
+      "notation": "asciimath",
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "A [x] B",
+          "height": "200",
+          "width": "100"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Alt, With Comma",
+          "height": "400",
+          "width": "300"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 43
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Named",
+          "height": "500"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "width": "100"
+        },
+        "roles": [
+          "inline][100"
+        ]
+      },
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 38
+        }
+      ]
+    },
+    {
+      "name": "video",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "height": "360",
+          "poster": "poster[x]",
+          "width": "640"
+        }
+      },
+      "sources": [
+        {
+          "type": "path",
+          "value": "movie.mp4"
+        }
+      ],
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 35
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 34,
+      "col": 35
+    }
+  ]
+}

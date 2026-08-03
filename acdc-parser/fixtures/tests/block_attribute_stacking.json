@@ -1,0 +1,369 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Block Attribute Stacking",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 26
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 26
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Original Author",
+            "location": [
+              {
+                "line": 3,
+                "col": 9
+              },
+              {
+                "line": 3,
+                "col": 24
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Named Citation",
+            "location": [
+              {
+                "line": 4,
+                "col": 12
+              },
+              {
+                "line": 4,
+                "col": 26
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A named-only line preserves earlier positional slots.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Replacement Author",
+            "location": [
+              {
+                "line": 10,
+                "col": 4
+              },
+              {
+                "line": 10,
+                "col": 22
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Original Citation",
+            "location": [
+              {
+                "line": 9,
+                "col": 26
+              },
+              {
+                "line": 9,
+                "col": 43
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A later list replaces the positional slots it supplies.",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "verse",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "verse",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Replacement Poet",
+            "location": [
+              {
+                "line": 16,
+                "col": 9
+              },
+              {
+                "line": 16,
+                "col": 25
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Replacement Poem",
+            "location": [
+              {
+                "line": 16,
+                "col": 27
+              },
+              {
+                "line": 16,
+                "col": 43
+              }
+            ]
+          }
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "A later style and its positions replace the earlier list.",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 57
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "attributes": {
+          "custom": "two"
+        },
+        "style": "quote"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A later named value replaces an earlier value with the same name.",
+              "location": [
+                {
+                  "line": 24,
+                  "col": 1
+                },
+                {
+                  "line": 24,
+                  "col": 65
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 65
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Inner",
+          "height": "333",
+          "width": "222"
+        }
+      },
+      "source": {
+        "type": "path",
+        "value": "photo.png"
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 31
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 28,
+      "col": 31
+    }
+  ]
+}

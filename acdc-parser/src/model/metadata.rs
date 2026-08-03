@@ -11,6 +11,13 @@ use super::substitution::SubstitutionSpec;
 
 pub type Role<'a> = &'a str;
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct PositionalAttribute<'a> {
+    pub(crate) value: &'a str,
+    pub(crate) substitutions: bool,
+    pub(crate) location: Option<Location>,
+}
+
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
@@ -18,11 +25,10 @@ pub struct BlockMetadata<'a> {
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
     /// Parser intermediate state: positional attrs from `[foo,bar,baz]` that
-    /// haven't yet been routed to named slots (style/width/height/…) or
-    /// merged into `attributes`. Grammar rules drain this before the block
-    /// is finalised; external consumers never see non-empty values.
+    /// have not yet been routed to context-specific slots or merged into
+    /// `attributes`. Grammar rules drain these before finalising the block.
     #[serde(default, skip_serializing)]
-    pub(crate) positional_attributes: Vec<&'a str>,
+    pub(crate) positional_attributes: Vec<PositionalAttribute<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -49,6 +55,10 @@ pub struct BlockMetadata<'a> {
     pub attribution: Option<Attribution<'a>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub citetitle: Option<CiteTitle<'a>>,
+    #[serde(default, skip_serializing)]
+    pub(crate) attribution_substitutions: bool,
+    #[serde(default, skip_serializing)]
+    pub(crate) citetitle_substitutions: bool,
     #[serde(skip)]
     pub location: Option<Location>,
 }
@@ -103,10 +113,24 @@ impl<'a> BlockMetadata<'a> {
 
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
         for positional_attribute in self.positional_attributes.drain(..) {
-            self.attributes.insert(
-                std::borrow::Cow::Borrowed(positional_attribute),
-                AttributeValue::None,
-            );
+            if !positional_attribute.value.is_empty() {
+                self.attributes.insert(
+                    std::borrow::Cow::Borrowed(positional_attribute.value),
+                    AttributeValue::None,
+                );
+            }
+        }
+    }
+
+    pub(crate) fn overlay_positional_attributes(&mut self, other: &[PositionalAttribute<'a>]) {
+        if self.positional_attributes.len() < other.len() {
+            self.positional_attributes
+                .resize(other.len(), PositionalAttribute::default());
+        }
+        for (slot, attribute) in other.iter().enumerate() {
+            if let Some(destination) = self.positional_attributes.get_mut(slot) {
+                destination.clone_from(attribute);
+            }
         }
     }
 
@@ -130,27 +154,34 @@ impl<'a> BlockMetadata<'a> {
 
     #[tracing::instrument(level = "debug")]
     pub(crate) fn merge(&mut self, other: &BlockMetadata<'a>) {
-        self.attributes.merge(other.attributes.clone());
-        self.positional_attributes
-            .extend(other.positional_attributes.clone());
-        self.roles.extend(other.roles.clone());
-        self.options.extend(other.options.clone());
-        if self.style.is_none() {
+        for (name, value) in other.attributes.iter() {
+            self.attributes.set(name.clone(), value.clone());
+        }
+        self.overlay_positional_attributes(&other.positional_attributes);
+        if !other.roles.is_empty() {
+            self.roles.clone_from(&other.roles);
+        }
+        if !other.options.is_empty() {
+            self.options.clone_from(&other.options);
+        }
+        if other.style.is_some() {
             self.style.clone_from(&other.style);
         }
-        if self.id.is_none() {
+        if other.id.is_some() {
             self.id.clone_from(&other.id);
         }
         self.anchors.extend(other.anchors.clone());
         #[cfg(feature = "pre-spec-subs")]
-        if self.substitutions.is_none() {
+        if other.substitutions.is_some() {
             self.substitutions.clone_from(&other.substitutions);
         }
-        if self.attribution.is_none() {
+        if other.attribution.is_some() {
             self.attribution.clone_from(&other.attribution);
+            self.attribution_substitutions = other.attribution_substitutions;
         }
-        if self.citetitle.is_none() {
+        if other.citetitle.is_some() {
             self.citetitle.clone_from(&other.citetitle);
+            self.citetitle_substitutions = other.citetitle_substitutions;
         }
     }
 }

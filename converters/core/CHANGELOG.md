@@ -119,11 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lifetime. Stored attributes still use `'a`; the per-call doc lifetime is
   independent, so a `Converter<'static>` can convert short-lived parsed
   documents without leaking or `to_static`-ing them.
-- **`detect_language()` now returns any source block language** — instead of matching against
-  a hardcoded list of known languages, the function returns the first positional attribute
-  for any `[source,LANG]` block. This means `[source,text]` and other unlisted languages
-  now correctly produce `<code class="language-text">` wrappers. Removed the `LANGUAGES`
-  constant.
+- Source blocks accept any language name from position 2. Empty or named slots
+  no longer cause a later value to be treated as the language.
 - **BREAKING**: Renamed crate from `acdc-converters-common` to `acdc-converters-core`
 - **BREAKING**: `Options` struct now uses builder pattern with private fields -
   use `Options::builder().doctype(...).build()` instead of struct construction

@@ -1,0 +1,36 @@
+= Block Attribute Delimiters
+
+[quote, A [x] B, Notes]
+____
+Balanced brackets are ordinary text.
+____
+
+[quote, A [x, Notes]
+____
+An unmatched opening bracket is ordinary text.
+____
+
+[quote, A ] B, Notes]
+____
+An extra closing bracket is ordinary text.
+____
+
+[quote, https://example.com[Someone, Part 1], Final]
+____
+An unquoted comma still separates slots inside bracket-like text.
+____
+
+[quote, "https://example.com[Someone, Part 1]", Final]
+____
+Quoting protects the comma.
+____
+
+[quote, "Quoted author"Adjacent citation, Fourth slot]
+____
+A closing quote can end a slot without a comma.
+____
+
+[quote, source=A [x [y] z] B]
+____
+Named values can contain brackets.
+____

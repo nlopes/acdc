@@ -1,0 +1,860 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Block Attribute Slots",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 23
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 28
+      }
+    ]
+  },
+  "attributes": {
+    "byline": "Ada Lovelace, Notes"
+  },
+  "blocks": [
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Empty-slot citation",
+            "location": [
+              {
+                "line": 4,
+                "col": 11
+              },
+              {
+                "line": 4,
+                "col": 30
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An empty slot remains empty.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "attributes": {
+          "custom": "value"
+        },
+        "style": "quote",
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Named-slot citation",
+            "location": [
+              {
+                "line": 9,
+                "col": 23
+              },
+              {
+                "line": 9,
+                "col": 42
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A named attribute consumes its slot.",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Named Author",
+            "location": [
+              {
+                "line": 14,
+                "col": 21
+              },
+              {
+                "line": 14,
+                "col": 33
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional Citation",
+            "location": [
+              {
+                "line": 14,
+                "col": 35
+              },
+              {
+                "line": 14,
+                "col": 54
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named attribution with positional citation.",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 16,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional Author",
+            "location": [
+              {
+                "line": 19,
+                "col": 9
+              },
+              {
+                "line": 19,
+                "col": 26
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Named Citation",
+            "location": [
+              {
+                "line": 19,
+                "col": 38
+              },
+              {
+                "line": 19,
+                "col": 52
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Positional attribution with named citation.",
+              "location": [
+                {
+                  "line": 21,
+                  "col": 1
+                },
+                {
+                  "line": 21,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Named Author",
+            "location": [
+              {
+                "line": 24,
+                "col": 21
+              },
+              {
+                "line": 24,
+                "col": 33
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Named Citation",
+            "location": [
+              {
+                "line": 24,
+                "col": 45
+              },
+              {
+                "line": 24,
+                "col": 59
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Both quote fields are named.",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Literal Value",
+            "location": [
+              {
+                "line": 29,
+                "col": 37
+              },
+              {
+                "line": 29,
+                "col": 50
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An unquoted named value of None is unset.",
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "None",
+            "location": [
+              {
+                "line": 34,
+                "col": 22
+              },
+              {
+                "line": 34,
+                "col": 26
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Quoted Literal",
+            "location": [
+              {
+                "line": 34,
+                "col": 39
+              },
+              {
+                "line": 34,
+                "col": 53
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A quoted named value of None stays literal.",
+              "location": [
+                {
+                  "line": 36,
+                  "col": 1
+                },
+                {
+                  "line": 36,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 37,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "None",
+            "location": [
+              {
+                "line": 39,
+                "col": 9
+              },
+              {
+                "line": 39,
+                "col": 13
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Positional Literal",
+            "location": [
+              {
+                "line": 39,
+                "col": 15
+              },
+              {
+                "line": 39,
+                "col": 33
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A positional value of None stays literal.",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 1
+                },
+                {
+                  "line": 41,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 39,
+          "col": 1
+        },
+        {
+          "line": 42,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Comma, Author",
+            "location": [
+              {
+                "line": 44,
+                "col": 24
+              },
+              {
+                "line": 44,
+                "col": 37
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Work",
+            "location": [
+              {
+                "line": 44,
+                "col": 52
+              },
+              {
+                "line": 44,
+                "col": 56
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named attributes allow spaces around the equals sign.",
+              "location": [
+                {
+                  "line": 46,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 46,
+              "col": 1
+            },
+            {
+              "line": 46,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 44,
+          "col": 1
+        },
+        {
+          "line": 47,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "quote",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "____",
+      "metadata": {
+        "style": "quote",
+        "attribution": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Ada Lovelace",
+            "location": [
+              {
+                "line": 0,
+                "col": 0
+              },
+              {
+                "line": 0,
+                "col": 0
+              }
+            ]
+          }
+        ],
+        "citetitle": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Notes",
+            "location": [
+              {
+                "line": 0,
+                "col": 0
+              },
+              {
+                "line": 0,
+                "col": 0
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Attribute references expand before the list is split.",
+              "location": [
+                {
+                  "line": 51,
+                  "col": 1
+                },
+                {
+                  "line": 51,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 51,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 53
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 49,
+          "col": 1
+        },
+        {
+          "line": 52,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 52,
+      "col": 4
+    }
+  ]
+}
