@@ -1,0 +1,331 @@
+'\" t
+.\"     Title: block_attribute_parity
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-02
+.\"    Manual: Test Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "BLOCK_ATTRIBUTE_PARITY" "1" "2026-08-02" "acdc" "Test Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+block_attribute_parity \- verify block attribute parsing
+.SH "DESCRIPTION"
+.RS 4
+.sp
+Balanced brackets.
+.RE
+.RS 5
+.ll -.10i
+Notes \(em A [x] B
+.RE
+.ll
+.RS 4
+.sp
+Unmatched opening bracket.
+.RE
+.RS 5
+.ll -.10i
+Notes \(em A [x
+.RE
+.ll
+.RS 4
+.sp
+Extra closing bracket.
+.RE
+.RS 5
+.ll -.10i
+Notes \(em A ] B
+.RE
+.ll
+.RS 4
+.sp
+Unquoted comma.
+.RE
+.RS 5
+.ll -.10i
+Part 1] \(em https://example.com[Someone
+.RE
+.ll
+.RS 4
+.sp
+Quoted comma.
+.RE
+.RS 5
+.ll -.10i
+Final \(em https://example.com[Someone, Part 1]
+.RE
+.ll
+.RS 4
+.sp
+Quote\-delimited slot.
+.RE
+.RS 5
+.ll -.10i
+Adjacent citation \(em Quoted author
+.RE
+.ll
+.RS 4
+.sp
+Empty slot.
+.RE
+.RS 4
+.sp
+Named slot.
+.RE
+.RS 4
+.sp
+Named author.
+.RE
+.RS 5
+.ll -.10i
+Positional Citation \(em Named Author
+.RE
+.ll
+.RS 4
+.sp
+Named citation.
+.RE
+.RS 5
+.ll -.10i
+Named Citation \(em Positional Author
+.RE
+.ll
+.RS 4
+.sp
+Both fields named.
+.RE
+.RS 5
+.ll -.10i
+Named Citation \(em Named Author
+.RE
+.ll
+.RS 4
+.sp
+Unset None value.
+.RE
+.RS 4
+.sp
+Quoted None value.
+.RE
+.RS 5
+.ll -.10i
+Quoted Literal \(em None
+.RE
+.ll
+.RS 4
+.sp
+Positional None value.
+.RE
+.RS 5
+.ll -.10i
+Positional Literal \(em None
+.RE
+.ll
+.RS 4
+.sp
+Spaced equals signs.
+.RE
+.RS 5
+.ll -.10i
+Work \(em Comma, Author
+.RE
+.ll
+.RS 4
+.sp
+Expanded slots.
+.RE
+.RS 5
+.ll -.10i
+Notes \(em Ada Lovelace
+.RE
+.ll
+.SS "Stacked lists"
+.RS 4
+.sp
+Named\-only stack.
+.RE
+.RS 5
+.ll -.10i
+Named Citation \(em Original Author
+.RE
+.ll
+.RS 4
+.sp
+Positional overlay stack.
+.RE
+.RS 5
+.ll -.10i
+Original Citation \(em Replacement Author
+.RE
+.ll
+.nf
+Style replacement stack.
+.fi
+.br
+.in +.5i
+.ll -.5i
+Replacement Poem \(em Replacement Poet
+.in
+.ll
+.RS 4
+.sp
+Unquoted values.
+.RE
+.RS 5
+.ll -.10i
+`Notes` \(em Ada *Lovelace*
+.RE
+.ll
+.RS 4
+.sp
+Double\-quoted values.
+.RE
+.RS 5
+.ll -.10i
+`Compiler` \(em Grace *Hopper*
+.RE
+.ll
+.RS 4
+.sp
+Single\-quoted formatting.
+.RE
+.RS 5
+.ll -.10i
+\f(CRApollo\fP \(em Margaret \fBHamilton\fP
+.RE
+.ll
+.RS 4
+.sp
+Escaped single quote.
+.RE
+.RS 5
+.ll -.10i
+Notes \(em A\(cqB
+.RE
+.ll
+.RS 4
+.sp
+Unquoted macros.
+.RE
+.RS 5
+.ll -.10i
+https://example.org[Literal Work] \(em https://example.com[Literal Author]
+.RE
+.ll
+.RS 4
+.sp
+Single\-quoted macros.
+.RE
+.RS 5
+.ll -.10i
+\c
+.URL "https://example.org" "Linked Work" ""
+ \(em \c
+.URL "https://example.com" "Linked Author" ""
+
+.RE
+.ll
+.RS 4
+.sp
+Named substitutions.
+.RE
+.RS 5
+.ll -.10i
+\f(CRNamed Work\fP \(em Named \fBAuthor\fP
+.RE
+.ll
+.RS 3
+.ll -.6i
+.sp
+Styled quote paragraph.
+.br
+.RE
+.ll
+.RS 5
+.ll -.10i
+\f(CRParagraph Work\fP \(em Paragraph \fBAuthor\fP
+.RE
+.ll
+.RS 3
+.ll -.6i
+.sp
+Citation\-only quote paragraph.
+.br
+.RE
+.ll
+.sp
+.nf
+Styled verse paragraph.
+.fi
+.br
+.in +.5i
+.ll -.5i
+\f(CRParagraph Poem\fP \(em Paragraph \fBPoet\fP
+.in
+.ll
+.nf
+Delimited verse block.
+.fi
+.br
+.in +.5i
+.ll -.5i
+\f(CRBlock Poem\fP \(em Block \fBPoet\fP
+.in
+.ll
+.RS 4
+.sp
+Adjacent shorthand.
+.RE
+.RS 5
+.ll -.10i
+\(em Ada
+.RE
+.ll
+.sp
+Spaces disable shorthand.
+.sp
+Bracketed unknown style.
+.sp
+[[not an anchor]]
+Double\-bracket anchor syntax with spaces remains text.
+.sp
+Shorthand\-only metadata.
+.EX
+fn main() {}
+.EE
+.EX
+slot three is not a language
+.EE
+.EX
+empty language slot
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+puts "styled source paragraph"
+.fam
+.fi
+.if n .RE
+.sp
+sqrt(4) = 2

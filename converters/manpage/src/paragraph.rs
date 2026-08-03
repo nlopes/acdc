@@ -6,11 +6,8 @@ use std::io::Write;
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
-use acdc_converters_core::{
-    inlines_to_string,
-    visitor::{Visitor, WritableVisitor},
-};
-use acdc_parser::Paragraph;
+use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_parser::{BlockMetadata, Paragraph};
 
 use crate::{
     Error, ManpageVisitor,
@@ -116,7 +113,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".ll")?;
 
         // Render attribution if present
-        self.render_para_attribution(para, &[".RS 5", ".ll -.10i"], &[".RE", ".ll"])?;
+        self.render_attribution(&para.metadata, &[".RS 5", ".ll -.10i"], &[".RE", ".ll"])?;
 
         Ok(())
     }
@@ -154,7 +151,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".fi")?;
 
         // Render attribution if present
-        self.render_para_attribution(para, &[".br", ".in +.5i", ".ll -.5i"], &[".in", ".ll"])?;
+        self.render_attribution(
+            &para.metadata,
+            &[".br", ".in +.5i", ".ll -.5i"],
+            &[".in", ".ll"],
+        )?;
 
         Ok(())
     }
@@ -197,48 +198,32 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Render attribution with configurable roff preamble/postamble.
     ///
     /// Format: preamble lines, then `Citation \(em Author`, then postamble lines.
-    fn render_para_attribution(
+    pub(crate) fn render_attribution(
         &mut self,
-        para: &Paragraph,
+        metadata: &BlockMetadata<'_>,
         preamble: &[&str],
         postamble: &[&str],
     ) -> Result<(), Error> {
-        let attribution = para
-            .metadata
-            .attribution
-            .as_ref()
-            .map(|a| inlines_to_string(a));
-        let citation = para
-            .metadata
-            .citetitle
-            .as_ref()
-            .map(|c| inlines_to_string(c));
+        let Some(attribution) = metadata.attribution.as_ref() else {
+            return Ok(());
+        };
 
-        if attribution.is_some() || citation.is_some() {
-            let w = self.writer_mut();
+        let w = self.writer_mut();
+        for line in preamble {
+            writeln!(w, "{line}")?;
+        }
 
-            for line in preamble {
-                writeln!(w, "{line}")?;
-            }
+        if let Some(citation) = metadata.citetitle.as_ref() {
+            self.visit_inline_nodes(citation)?;
+            write!(self.writer_mut(), " ")?;
+        }
+        write!(self.writer_mut(), "\\(em ")?;
+        self.visit_inline_nodes(attribution)?;
+        writeln!(self.writer_mut())?;
 
-            // Format: "Citation \(em Author" or just "\(em Author" or just "Citation"
-            if let Some(cite) = citation {
-                let escaped = manify(&cite, EscapeMode::Normalize);
-                write!(w, "{escaped}")?;
-                if attribution.is_some() {
-                    write!(w, " ")?;
-                }
-            }
-
-            if let Some(author) = attribution {
-                let escaped = manify(&author, EscapeMode::Normalize);
-                write!(w, "\\(em {escaped}")?;
-            }
-
-            writeln!(w)?;
-            for line in postamble {
-                writeln!(w, "{line}")?;
-            }
+        let w = self.writer_mut();
+        for line in postamble {
+            writeln!(w, "{line}")?;
         }
 
         Ok(())

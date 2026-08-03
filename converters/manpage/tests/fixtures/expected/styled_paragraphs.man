@@ -42,7 +42,7 @@ Everything should be made as simple as possible, but not simpler.
 .ll
 .RS 5
 .ll -.10i
-\(em Albert Einstein
+Notes \(em A [x] B
 .RE
 .ll
 .RS 3

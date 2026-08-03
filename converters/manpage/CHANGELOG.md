@@ -75,6 +75,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Quote and verse attribution stays literal unless single-quoted, when
+  formatting and links render. A citation without an attribution is hidden,
+  matching the `asciidoctor` manpage backend.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,
   superscript, subscript, and curved quotes is no longer converted to an em-dash at string
   boundaries, matching asciidoctor behavior.

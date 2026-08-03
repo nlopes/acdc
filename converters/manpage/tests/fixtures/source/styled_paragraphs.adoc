@@ -14,7 +14,7 @@ styled_paragraphs - test styled paragraph rendering
 
 == Quote Style
 
-[quote, Albert Einstein]
+[quote, A [x] B, Notes]
 Everything should be made as simple as possible, but not simpler.
 
 [quote, Abraham Lincoln, Gettysburg Address]

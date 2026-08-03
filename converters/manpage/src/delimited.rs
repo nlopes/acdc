@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    inlines_to_string, shows_block_title,
+    shows_block_title,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType};
@@ -99,38 +99,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         let w = self.writer_mut();
         writeln!(w, ".RE")?;
 
-        let attribution = block
-            .metadata
-            .attribution
-            .as_ref()
-            .map(|a| inlines_to_string(a));
-        let citation = block
-            .metadata
-            .citetitle
-            .as_ref()
-            .map(|c| inlines_to_string(c));
-
-        if attribution.is_some() || citation.is_some() {
-            let w = self.writer_mut();
-            writeln!(w, ".RS 5")?;
-            writeln!(w, ".ll -.10i")?;
-            if let Some(cite) = citation {
-                let escaped = manify(&cite, EscapeMode::Normalize);
-                write!(w, "{escaped}")?;
-                if attribution.is_some() {
-                    write!(w, " ")?;
-                }
-            }
-            if let Some(author) = attribution {
-                let escaped = manify(&author, EscapeMode::Normalize);
-                write!(w, "\\(em {escaped}")?;
-            }
-            writeln!(w)?;
-            writeln!(w, ".RE")?;
-            writeln!(w, ".ll")?;
-        }
-
-        Ok(())
+        self.render_attribution(&block.metadata, &[".RS 5", ".ll -.10i"], &[".RE", ".ll"])
     }
 
     /// Render a verse delimited block with optional attribution.
@@ -148,39 +117,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         }
         writeln!(w, ".fi")?;
 
-        let attribution = block
-            .metadata
-            .attribution
-            .as_ref()
-            .map(|a| inlines_to_string(a));
-        let citation = block
-            .metadata
-            .citetitle
-            .as_ref()
-            .map(|c| inlines_to_string(c));
-
-        if attribution.is_some() || citation.is_some() {
-            let w = self.writer_mut();
-            writeln!(w, ".br")?;
-            writeln!(w, ".in +.5i")?;
-            writeln!(w, ".ll -.5i")?;
-            if let Some(cite) = citation {
-                let escaped = manify(&cite, EscapeMode::Normalize);
-                write!(w, "{escaped}")?;
-                if attribution.is_some() {
-                    write!(w, " ")?;
-                }
-            }
-            if let Some(author) = attribution {
-                let escaped = manify(&author, EscapeMode::Normalize);
-                write!(w, "\\(em {escaped}")?;
-            }
-            writeln!(w)?;
-            writeln!(w, ".in")?;
-            writeln!(w, ".ll")?;
-        }
-
-        Ok(())
+        self.render_attribution(
+            &block.metadata,
+            &[".br", ".in +.5i", ".ll -.5i"],
+            &[".in", ".ll"],
+        )
     }
 
     /// Render a listing (code) block.
