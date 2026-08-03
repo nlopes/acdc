@@ -2214,7 +2214,7 @@ peg::parser! {
             tracing::debug!(?title, "Processing ATX document title");
             let block_metadata = BlockParsingMetadata::default();
 
-            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(':') {
+            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(": ") {
                 let subtitle_raw = &title[colon_pos + 1..];
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {
@@ -2288,7 +2288,7 @@ peg::parser! {
             tracing::debug!(?title_text, "Processing setext document title");
             let block_metadata = BlockParsingMetadata::default();
 
-            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(':') {
+            let (title_inlines, subtitle) = if let Some(colon_pos) = title.rfind(": ") {
                 let subtitle_raw = &title[colon_pos + 1..];
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {

@@ -56,7 +56,7 @@
       {
         "name": "text",
         "type": "string",
-        "value": " Subtitle",
+        "value": " ",
         "location": [
           {
             "line": 1,
@@ -64,9 +64,94 @@
           },
           {
             "line": 1,
-            "col": 29
+            "col": 21
           }
         ]
+      },
+      {
+        "name": "span",
+        "type": "inline",
+        "variant": "code",
+        "form": "constrained",
+        "inlines": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Monospace",
+            "location": [
+              {
+                "line": 1,
+                "col": 23
+              },
+              {
+                "line": 1,
+                "col": 31
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 1,
+            "col": 22
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      },
+      {
+        "name": "text",
+        "type": "string",
+        "value": " ",
+        "location": [
+          {
+            "line": 1,
+            "col": 33
+          },
+          {
+            "line": 1,
+            "col": 33
+          }
+        ]
+      },
+      {
+        "name": "ref",
+        "type": "inline",
+        "variant": "link",
+        "target": {
+          "type": "url",
+          "value": "https://example.com"
+        },
+        "inlines": [
+          {
+            "name": "text",
+            "type": "string",
+            "value": "Subtitle",
+            "location": [
+              {
+                "line": 1,
+                "col": 54
+              },
+              {
+                "line": 1,
+                "col": 61
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 1,
+            "col": 34
+          },
+          {
+            "line": 1,
+            "col": 62
+          }
+        ],
+        "attributes": {}
       }
     ],
     "location": [
@@ -76,7 +161,7 @@
       },
       {
         "line": 1,
-        "col": 29
+        "col": 62
       }
     ]
   },

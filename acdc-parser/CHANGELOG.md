@@ -135,6 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document subtitles now split only at a colon followed by a space, so URL
+  macros in a subtitle remain intact.
 - Brackets in block attribute values no longer break the metadata line. Quoted
   commas, empty and named slots, attribute references, and stacked lists now
   follow `asciidoctor`.
