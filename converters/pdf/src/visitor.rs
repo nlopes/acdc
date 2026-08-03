@@ -14,6 +14,31 @@ use acdc_parser::{
 
 use crate::{Error, PdfVisitor, encode_label};
 
+fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
+    let revnumber = attributes.get_string("revnumber");
+    let revdate = attributes.get_string("revdate");
+    if revnumber.is_none() && revdate.is_none() {
+        return None;
+    }
+
+    let mut revision = String::new();
+    if let Some(revnumber) = revnumber {
+        revision.push_str("Version ");
+        revision.push_str(&revnumber);
+    }
+    if let Some(revdate) = revdate {
+        if !revision.is_empty() {
+            revision.push_str(", ");
+        }
+        revision.push_str(&revdate);
+    }
+    if let Some(revremark) = attributes.get_string("revremark") {
+        revision.push_str(": ");
+        revision.push_str(&revremark);
+    }
+    Some(revision)
+}
+
 impl Visitor for PdfVisitor<'_, '_, '_> {
     type Error = Error;
 
@@ -75,6 +100,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 .join(", ");
             self.write_text_expr(&authors);
             self.writer.raw("\n");
+        }
+        if title_page && let Some(revision) = revision_text(self.processor.document_attributes()) {
+            self.writer.raw("#v(0.4em)\n#text(size: 9pt)[");
+            self.write_text_expr(&revision);
+            self.writer.raw("]\n");
         }
         self.writer.raw("]\n");
         if title_page {

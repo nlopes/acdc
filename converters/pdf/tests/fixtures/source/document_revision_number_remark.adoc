@@ -1,0 +1,6 @@
+= Revision Number and Remark
+:title-page:
+:revnumber: 2.0
+:revremark: Fall incarnation
+
+Revision number and remark body.

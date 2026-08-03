@@ -1,0 +1,8 @@
+= Book Revision
+Ada Lovelace <ada@example.com>; Grace Hopper
+:doctype: book
+:revnumber: 2.0
+:revdate: 2026-01-15
+:revremark: Fall incarnation
+
+Book revision body.

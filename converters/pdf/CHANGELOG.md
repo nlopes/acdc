@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Document subtitles render below the title with inline formatting and links.
+- Title pages show the document revision number, date, and remark below the
+  authors. Normal article headers continue to omit revision details.
 - PDF conversion attributes now include `backend=pdf`, `basebackend=html`,
   `filetype=pdf`, `outfilesuffix=.pdf`, `htmlsyntax=html`, and their conditional
   convenience attributes, matching Asciidoctor PDF's backend traits.

@@ -1,0 +1,5 @@
+= Article Revision
+Ada Lovelace <ada@example.com>
+v2.0, 2026-01-15: Fall incarnation
+
+Article revision body.
