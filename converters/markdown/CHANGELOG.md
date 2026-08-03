@@ -41,5 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Brackets in block attribute values no longer make the attribute line leak
+  into Markdown output.
 - **Inline markup in `link:` text** — link text with nested formatting is now rendered
   through the full inline pipeline instead of emitted verbatim.

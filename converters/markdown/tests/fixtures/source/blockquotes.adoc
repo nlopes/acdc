@@ -2,7 +2,7 @@
 
 == Simple Quote
 
-[quote, Attribution, Source Title]
+[quote, https://example.com[Someone], Source Title]
 ____
 This is a quote block with attribution.
 It can span multiple lines.
