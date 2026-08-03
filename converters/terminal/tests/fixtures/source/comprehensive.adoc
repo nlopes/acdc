@@ -196,7 +196,7 @@ Sidebars contain supplementary content.
 
 === Quote block
 
-[quote, Albert Einstein]
+[quote, A [x] B, Notes]
 ____
 Imagination is more important than knowledge.
 ____

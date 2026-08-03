@@ -56,6 +56,7 @@ generate_tests!([
     (macros_with_quoted_attributes, false, requires: feature = "images"),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
+    (block_attribute_parity, false),
     (passthrough_xrefs, false),
     (xref_nesting, false),
     (inline_text_extraction, false, requires: feature = "highlighting"),
