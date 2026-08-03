@@ -3,6 +3,11 @@
 [quote, Ada *Lovelace*, Notes on the `Analytical Engine`]
 A quote paragraph.
 
+[quote, https://example.com[Someone], Notes on the `Analytical Engine`]
+____
+A quote block with literal attribution metadata.
+____
+
 [verse, Emily Dickinson, Poem 1]
 Verse paragraph line one
   indented line two

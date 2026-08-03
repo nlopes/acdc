@@ -45,6 +45,13 @@
 
 #attribution[#text("Ada *Lovelace*")#text(", ")#text("Notes on the `Analytical Engine`")]
 
+#blockquote[
+#text("A quote block with literal attribution metadata.")
+
+]
+
+#attribution[#text("https://example.com[Someone]")#text(", ")#text("Notes on the `Analytical Engine`")]
+
 #verse[#text("Verse paragraph line one\n  indented line two")]
 
 #attribution[#text("Emily Dickinson")#text(", ")#text("Poem 1")]

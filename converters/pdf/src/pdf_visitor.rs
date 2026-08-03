@@ -252,22 +252,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     /// Write the attribution line a quote or verse carries, if any.
     ///
-    /// Both the author and the cited work keep their inline formatting, and
-    /// both are optional: `[quote, Ada Lovelace]` has no citation.
+    /// The cited work is only displayed when an author is present, matching
+    /// asciidoctor-pdf. Both values keep their inline formatting.
     pub(crate) fn write_attribution(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
-        let attribution = metadata.attribution.as_ref();
-        let citetitle = metadata.citetitle.as_ref();
-        if attribution.is_none() && citetitle.is_none() {
+        let Some(attribution) = metadata.attribution.as_ref() else {
             return Ok(());
-        }
+        };
+        let citetitle = metadata.citetitle.as_ref();
         self.writer.raw("#attribution[");
-        if let Some(attribution) = attribution {
-            self.write_inlines(attribution)?;
-        }
+        self.write_inlines(attribution)?;
         if let Some(citetitle) = citetitle {
-            if attribution.is_some() {
-                self.write_text_expr(", ");
-            }
+            self.write_text_expr(", ");
             self.write_inlines(citetitle)?;
         }
         self.writer.raw("]\n\n");
