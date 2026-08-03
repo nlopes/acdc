@@ -1,4 +1,4 @@
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Block anchor coverage]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Book Authors]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -34,66 +34,15 @@
 #set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
 #let tableheader(body) = text(weight: 700, body)
 
+#page(header: none, footer: none)[
+#v(30%)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Block anchor coverage")]
+#text(size: 22pt, weight: "bold")[#text("Book Authors")]
+#v(0.4em)
+#text("Ada Lovelace, Grace Hopper, Alan Turing")
 ]
-#v(1em)
-
-#heading(level: 1)[#text("Section")] <id-73656374696f6e2d6964>
-
-#metadata(none) <id-7061726167726170682d6964>
-#text("A paragraph.")
-
-#metadata(none) <id-64656c696d697465642d6964>
-#raw(block: true, "listing")
-
-#metadata(none) <id-6f7264657265642d6964>
-  + #text("ordered")
-
-#metadata(none) <id-756e6f7264657265642d6964>
-  - #text("unordered")
-
-#metadata(none) <id-6465736372697074696f6e2d6964>
-#text(weight: "bold")[#text("Term")]
-#text("definition")
-
-#raw(block: true, "code <1>")
-
-#metadata(none) <id-63616c6c6f75742d6964>
-- #text("(1) ")#text("callout")
-
-#metadata(none) <id-61646d6f6e6974696f6e2d6964>
-#callout("note")[
-#text("admonition")
-
+#counter(page).update(0)
 ]
 
-#metadata(none) <id-636f6d706f756e642d61646d6f6e6974696f6e2d6964>
-#callout("note")[
-#metadata(none) <id-696e6e65722d7061726167726170682d6964>
-#text("Inner paragraph.")
-
-]
-
-#metadata(none) <id-696d6167652d6964>
-#text("Missing image")
-
-#metadata(none) <id-766964656f2d6964>
-#text("[video: video.mp4]")
-
-#metadata(none) <id-617564696f2d6964>
-#text("[audio: audio.mp3]")
-
-#metadata(none) <id-7468656d617469632d6964>
-#hr()
-
-#metadata(none) <id-706167652d6964>
-#pagebreak()
-
-#metadata(none) <id-746f632d6964>
-#outline(title: "Table of Contents", depth: 2)
-#pagebreak()
-
-#metadata(none) <id-64697363726574652d6964>
-#heading(level: 2, outlined: false)[#text("Discrete")]
+#text("Book body.")
 

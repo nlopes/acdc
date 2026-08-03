@@ -1,0 +1,5 @@
+= Book Authors
+Ada Lovelace <ada+docs@example.com>; Grace Hopper; Alan Turing <alan@example.org>
+:doctype: book
+
+Book body.

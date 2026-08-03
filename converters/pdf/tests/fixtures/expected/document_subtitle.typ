@@ -1,4 +1,4 @@
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Main Title]], footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Main Title]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -34,12 +34,15 @@
 #set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
 #let tableheader(body) = text(weight: 700, body)
 
+#page(header: none, footer: none)[
+#v(30%)
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("Main Title")]
 #v(0.2em)
 #text(size: 14pt, weight: "bold", style: "italic")[#text("A ")#strong[#text("bold")]#text(" and ")#raw("monospace")#text(" ")#link("https://example.com")[#text("subtitle")]]
 ]
-#v(1em)
+#counter(page).update(0)
+]
 
 #text("Subtitle comparison body.")
 

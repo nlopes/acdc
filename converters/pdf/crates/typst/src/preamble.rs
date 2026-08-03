@@ -275,9 +275,9 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     );
 }
 
-/// Build the running-header content: the logo (if supplied) and/or the title,
-/// left-aligned in the accent colour. Returns `None` when there is nothing to
-/// show, so no header is set.
+/// Builds a running header from the configured logo and title.
+///
+/// The header starts after page 1 so it does not repeat the document title.
 fn header_content(options: &EmitOptions, palette: &Palette) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     if let Some(logo) = &options.logo {
@@ -300,7 +300,7 @@ fn header_content(options: &EmitOptions, palette: &Palette) -> Option<String> {
         return None;
     }
     Some(format!(
-        "align(left + horizon)[{}]",
+        "context if counter(page).get().first() > 1 {{ align(left + horizon)[{}] }}",
         parts.join(" #h(0.6em) ")
     ))
 }

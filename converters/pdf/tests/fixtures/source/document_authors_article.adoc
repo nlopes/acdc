@@ -1,0 +1,4 @@
+= Article Authors
+Ada Lovelace <ada+docs@example.com>; Grace Hopper; Alan Turing <alan@example.org>
+
+Article body.

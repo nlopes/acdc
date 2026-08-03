@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Running headers start after the first numbered page, so the document title is
+  not repeated at the top of its opening page.
 - The crate now lives under `converters/pdf/crates` as a non-publishable implementation
   component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
 - `EmitOptions` now contains only preamble configuration; converters place tables of

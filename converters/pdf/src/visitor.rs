@@ -6,9 +6,10 @@ use acdc_converters_core::{
     decode_numeric_char_refs, inlines_to_string, shows_block_title, visitor::Visitor,
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
-    Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem,
+    OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList,
+    Video,
 };
 
 use crate::{Error, PdfVisitor, encode_label};
@@ -30,6 +31,24 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_header(&mut self, header: &Header<'_>) -> Result<(), Self::Error> {
+        let title_page = self
+            .processor
+            .document_attributes()
+            .get("title-page")
+            .is_some_and(|value| {
+                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
+            })
+            || self
+                .processor
+                .document_attributes()
+                .get_string("doctype")
+                .as_deref()
+                == Some("book");
+
+        if title_page {
+            self.writer
+                .raw("#page(header: none, footer: none)[\n#v(30%)\n");
+        }
         self.writer.raw("#align(center)[\n");
         self.writer.raw("#text(size: 22pt, weight: \"bold\")[");
         self.write_title(&header.title)?;
@@ -41,7 +60,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             self.write_title(subtitle)?;
             self.writer.raw("]\n");
         }
-        if !header.authors.is_empty() {
+        if title_page && !header.authors.is_empty() {
             self.writer.raw("#v(0.4em)\n");
             let authors = header
                 .authors
@@ -57,7 +76,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             self.write_text_expr(&authors);
             self.writer.raw("\n");
         }
-        self.writer.raw("]\n#v(1em)\n\n");
+        self.writer.raw("]\n");
+        if title_page {
+            self.writer.raw("#counter(page).update(0)\n]\n\n");
+        } else {
+            self.writer.raw("#v(1em)\n\n");
+        }
         Ok(())
     }
 

@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Author details no longer appear below a normal article title. A title page,
+  including the default book title page, shows author names but omits email
+  addresses, matching Asciidoctor PDF's default output. Running headers start
+  after the first numbered page so they do not repeat the document title.
 - Quote and verse attribution stays literal unless single-quoted, when
   formatting and links render. A citation without an attribution is hidden,
   matching Asciidoctor PDF.
