@@ -21,7 +21,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             && style == "literal"
         {
             let class = build_class("literalblock", &para.metadata.roles);
-            writeln!(self.writer, "<div class=\"{class}\">")?;
+            write!(self.writer, "<div")?;
+            write_id(&mut self.writer, &para.metadata)?;
+            writeln!(self.writer, " class=\"{class}\">")?;
             self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
             writeln!(self.writer, "<div class=\"content\">")?;
             write!(self.writer, "<pre>")?;
@@ -64,7 +66,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // Check if this paragraph should be rendered as a quote block
             if style == "quote" {
                 let class = build_class("quoteblock", &para.metadata.roles);
-                writeln!(self.writer, "<div class=\"{class}\">")?;
+                write!(self.writer, "<div")?;
+                write_id(&mut self.writer, &para.metadata)?;
+                writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
                 writeln!(self.writer, "<blockquote>")?;
                 self.visit_inline_nodes(&para.content)?;
@@ -78,10 +82,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // Check if this paragraph should be rendered as a verse block
             if style == "verse" {
                 let class = build_class("verseblock", &para.metadata.roles);
-                writeln!(self.writer, "<div class=\"{class}\">")?;
+                write!(self.writer, "<div")?;
+                write_id(&mut self.writer, &para.metadata)?;
+                writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
                 write!(self.writer, "<pre class=\"content\">")?;
                 self.visit_inline_nodes(&para.content)?;
+                writeln!(self.writer, "</pre>")?;
                 write_attribution(self, &para.metadata)?;
                 writeln!(self.writer, "</div>")?;
                 return Ok(());
@@ -132,7 +139,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
         } else {
             let class = build_class("paragraph", &para.metadata.roles);
-            writeln!(self.writer, "<div class=\"{class}\">")?;
+            write!(self.writer, "<div")?;
+            write_id(&mut self.writer, &para.metadata)?;
+            writeln!(self.writer, " class=\"{class}\">")?;
             self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
             write!(self.writer, "<p>")?;
             self.visit_inline_nodes(&para.content)?;

@@ -1,0 +1,248 @@
+<section class="doc-section level-1">
+<h2 id="_delimiters">Delimiters</h2>
+<div class="quote-block">
+<blockquote>
+<p>Balanced brackets.</p>
+<footer>&#8212; A [x] B<br><cite>Notes</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Unmatched opening bracket.</p>
+<footer>&#8212; A [x<br><cite>Notes</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Extra closing bracket.</p>
+<footer>&#8212; A ] B<br><cite>Notes</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Unquoted comma.</p>
+<footer>&#8212; https://example.com[Someone<br><cite>Part 1]</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Quoted comma.</p>
+<footer>&#8212; https://example.com[Someone, Part 1]<br><cite>Final</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Quote-delimited slot.</p>
+<footer>&#8212; Quoted author<br><cite>Adjacent citation</cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_slots">Slots</h2>
+<div class="quote-block">
+<blockquote>
+<p>Empty slot.</p>
+<footer><cite>Empty-slot citation</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Named slot.</p>
+<footer><cite>Named-slot citation</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Named author.</p>
+<footer>&#8212; Named Author<br><cite>Positional Citation</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Named citation.</p>
+<footer>&#8212; Positional Author<br><cite>Named Citation</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Both fields named.</p>
+<footer>&#8212; Named Author<br><cite>Named Citation</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Unset None value.</p>
+<footer><cite>Literal Value</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Quoted None value.</p>
+<footer>&#8212; None<br><cite>Quoted Literal</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Positional None value.</p>
+<footer>&#8212; None<br><cite>Positional Literal</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Spaced equals signs.</p>
+<footer>&#8212; Comma, Author<br><cite>Work</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Expanded slots.</p>
+<footer>&#8212; Ada Lovelace<br><cite>Notes</cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_stacked_lists">Stacked lists</h2>
+<div class="quote-block">
+<blockquote>
+<p>Named-only stack.</p>
+<footer>&#8212; Original Author<br><cite>Named Citation</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Positional overlay stack.</p>
+<footer>&#8212; Replacement Author<br><cite>Original Citation</cite></footer>
+</blockquote>
+</div>
+<div class="verse-block">
+<blockquote class="verse">
+<pre class="verse">Style replacement stack.</pre>
+<footer>&#8212; Replacement Poet<br><cite>Replacement Poem</cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_substitutions">Substitutions</h2>
+<div class="quote-block">
+<blockquote>
+<p>Unquoted values.</p>
+<footer>&#8212; Ada *Lovelace*<br><cite>`Notes`</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Double-quoted values.</p>
+<footer>&#8212; Grace *Hopper*<br><cite>`Compiler`</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Single-quoted formatting.</p>
+<footer>&#8212; Margaret <strong>Hamilton</strong><br><cite><code>Apollo</code></cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Escaped single quote.</p>
+<footer>&#8212; A&#8217;B<br><cite>Notes</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Unquoted macros.</p>
+<footer>&#8212; https://example.com[Literal Author]<br><cite>https://example.org[Literal Work]</cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Single-quoted macros.</p>
+<footer>&#8212; <a href="https://example.com">Linked Author</a><br><cite><a href="https://example.org">Linked Work</a></cite></footer>
+</blockquote>
+</div>
+<div class="quote-block">
+<blockquote>
+<p>Named substitutions.</p>
+<footer>&#8212; Named <strong>Author</strong><br><cite><code>Named Work</code></cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_quote_and_verse_forms">Quote and verse forms</h2>
+<div class="quoteblock">
+<blockquote>
+Styled quote paragraph.
+</blockquote>
+<div class="attribution">
+&#8212; Paragraph <strong>Author</strong><br>
+<cite><code>Paragraph Work</code></cite>
+</div>
+</div>
+<div class="quoteblock">
+<blockquote>
+Citation-only quote paragraph.
+</blockquote>
+<div class="attribution">
+<cite>Paragraph citation only</cite>
+</div>
+</div>
+<div class="verseblock">
+<pre class="content">Styled verse paragraph.</pre>
+<div class="attribution">
+&#8212; Paragraph <strong>Poet</strong><br>
+<cite><code>Paragraph Poem</code></cite>
+</div>
+</div>
+<div class="verse-block">
+<blockquote class="verse">
+<pre class="verse">Delimited verse block.</pre>
+<footer>&#8212; Block <strong>Poet</strong><br><cite><code>Block Poem</code></cite></footer>
+</blockquote>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_styles">Styles</h2>
+<div class="quote-block lead" id="styled-quote">
+<blockquote>
+<p>Adjacent shorthand.</p>
+<footer>&#8212; Ada</footer>
+</blockquote>
+</div>
+<p>Spaces disable shorthand.</p>
+<p>Bracketed unknown style.</p>
+<p>[[not an anchor]]
+Double-bracket anchor syntax with spaces remains text.</p>
+<p class="lead" id="only-id">Shorthand-only metadata.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_context_slots">Context slots</h2>
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">fn main() {}</code></pre>
+</div>
+<div class="listing-block">
+<pre>slot three is not a language</pre>
+</div>
+<div class="listing-block">
+<pre>empty language slot</pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-ruby" data-lang="ruby">puts "styled source paragraph"</code></pre>
+</div>
+<div class="stem-block">
+<div class="math" data-lang="asciimath">\$sqrt(4) = 2\$</div>
+</div>
+<div class="image-block">
+<img src="photo.png" alt="A [x] B" width="100" height="200"></div>
+<div class="image-block">
+<img src="photo.png" alt="Alt, With Comma" width="300" height="400"></div>
+<div class="image-block">
+<img src="photo.png" alt="Named" height="500"></div>
+<div class="image-block inline][100">
+<img src="photo.png" alt="photo" width="100"></div>
+<div class="video-block">
+<video src="movie.mp4" width="640" height="360" poster="poster[x]" controls>
+Your browser does not support the video tag.
+</video>
+</div>
+<div class="image-block">
+<img src="photo.png" alt="Inner" width="222" height="333"></div>
+</section>

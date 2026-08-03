@@ -1008,8 +1008,7 @@ pub(crate) fn write_attribution<
     Ok(())
 }
 
-/// Write semantic attribution as `<footer>` inside a `<blockquote>` for html5s mode.
-/// Format: `<footer>&#8212; <cite>Author, Citation</cite></footer>`
+/// Write quote or verse attribution in a semantic `<footer>`.
 pub(crate) fn write_semantic_attribution<
     V: acdc_converters_core::visitor::WritableVisitor<Error = Error>,
 >(
@@ -1021,21 +1020,30 @@ pub(crate) fn write_semantic_attribution<
 
     if attribution.is_some() || citetitle.is_some() {
         let w = visitor.writer_mut();
-        write!(w, "<footer>&#8212; <cite>")?;
-        let _ = w;
-        if let Some(attr) = attribution {
+        write!(w, "<footer>")?;
+        if let (Some(attr), Some(cite)) = (attribution, citetitle) {
+            write!(w, "&#8212; ")?;
+            let _ = w;
             visitor.visit_inline_nodes(attr)?;
-            if citetitle.is_some() {
-                let w = visitor.writer_mut();
-                write!(w, ", ")?;
-                let _ = w;
-            }
-        }
-        if let Some(cite) = citetitle {
+            let w = visitor.writer_mut();
+            write!(w, "<br><cite>")?;
+            let _ = w;
             visitor.visit_inline_nodes(cite)?;
+            let w = visitor.writer_mut();
+            write!(w, "</cite>")?;
+        } else if let Some(attr) = attribution {
+            write!(w, "&#8212; ")?;
+            let _ = w;
+            visitor.visit_inline_nodes(attr)?;
+        } else if let Some(cite) = citetitle {
+            write!(w, "<cite>")?;
+            let _ = w;
+            visitor.visit_inline_nodes(cite)?;
+            let w = visitor.writer_mut();
+            write!(w, "</cite>")?;
         }
         let w = visitor.writer_mut();
-        writeln!(w, "</cite></footer>")?;
+        writeln!(w, "</footer>")?;
     }
     Ok(())
 }

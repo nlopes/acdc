@@ -1,0 +1,215 @@
+:byline: Ada Lovelace, Notes
+
+== Delimiters
+
+[quote, A [x] B, Notes]
+____
+Balanced brackets.
+____
+
+[quote, A [x, Notes]
+____
+Unmatched opening bracket.
+____
+
+[quote, A ] B, Notes]
+____
+Extra closing bracket.
+____
+
+[quote, https://example.com[Someone, Part 1], Final]
+____
+Unquoted comma.
+____
+
+[quote, "https://example.com[Someone, Part 1]", Final]
+____
+Quoted comma.
+____
+
+[quote, "Quoted author"Adjacent citation, Fourth slot]
+____
+Quote-delimited slot.
+____
+
+== Slots
+
+[quote, , Empty-slot citation]
+____
+Empty slot.
+____
+
+[quote, custom=value, Named-slot citation]
+____
+Named slot.
+____
+
+[quote, attribution=Named Author, Positional Citation]
+____
+Named author.
+____
+
+[quote, Positional Author, citetitle=Named Citation]
+____
+Named citation.
+____
+
+[quote, attribution=Named Author, citetitle=Named Citation]
+____
+Both fields named.
+____
+
+[quote, attribution=None, citetitle=Literal Value]
+____
+Unset None value.
+____
+
+[quote, attribution="None", citetitle=Quoted Literal]
+____
+Quoted None value.
+____
+
+[quote, None, Positional Literal]
+____
+Positional None value.
+____
+
+[quote, attribution = "Comma, Author", citetitle = Work]
+____
+Spaced equals signs.
+____
+
+[quote, {byline}]
+____
+Expanded slots.
+____
+
+== Stacked lists
+
+[quote, Original Author]
+[citetitle=Named Citation]
+____
+Named-only stack.
+____
+
+[quote, Original Author, Original Citation]
+[, Replacement Author]
+____
+Positional overlay stack.
+____
+
+[quote, Original Author, Original Citation]
+[verse, Replacement Poet, Replacement Poem]
+____
+Style replacement stack.
+____
+
+== Substitutions
+
+[quote, Ada *Lovelace*, `Notes`]
+____
+Unquoted values.
+____
+
+[quote, "Grace *Hopper*", "`Compiler`"]
+____
+Double-quoted values.
+____
+
+[quote, 'Margaret *Hamilton*', '`Apollo`']
+____
+Single-quoted formatting.
+____
+
+[quote, 'A\'B', Notes]
+____
+Escaped single quote.
+____
+
+[quote, https://example.com[Literal Author], https://example.org[Literal Work]]
+____
+Unquoted macros.
+____
+
+[quote, 'https://example.com[Linked Author]', 'https://example.org[Linked Work]']
+____
+Single-quoted macros.
+____
+
+[quote, attribution='Named *Author*', citetitle='`Named Work`']
+____
+Named substitutions.
+____
+
+== Quote and verse forms
+
+[quote, 'Paragraph *Author*', '`Paragraph Work`']
+Styled quote paragraph.
+
+[quote, , Paragraph citation only]
+Citation-only quote paragraph.
+
+[verse, 'Paragraph *Poet*', '`Paragraph Poem`']
+Styled verse paragraph.
+
+[verse, 'Block *Poet*', '`Block Poem`']
+____
+Delimited verse block.
+____
+
+== Styles
+
+[quote#styled-quote.lead%fragment, Ada]
+____
+Adjacent shorthand.
+____
+
+[quote #not-an-id, Ada]
+Spaces disable shorthand.
+
+[quote[x], Ada]
+Bracketed unknown style.
+
+[[not an anchor]]
+Double-bracket anchor syntax with spaces remains text.
+
+[#only-id.lead%fragment]
+Shorthand-only metadata.
+
+== Context slots
+
+[source,rust,linenums]
+----
+fn main() {}
+----
+
+[source,custom=value,rust]
+----
+slot three is not a language
+----
+
+[source,,linenums]
+----
+empty language slot
+----
+
+[source,ruby]
+puts "styled source paragraph"
+
+[stem,asciimath]
+++++
+sqrt(4) = 2
+++++
+
+image::photo.png[A [x] B,100,200]
+
+image::photo.png["Alt, With Comma",300,400]
+
+image::photo.png[alt=Named,,500]
+
+image::photo.png[role=inline][100,100]
+
+video::movie.mp4[poster[x],640,360]
+
+[alt=Outer,width=111]
+image::photo.png[Inner,222,333]

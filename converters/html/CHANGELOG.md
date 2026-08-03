@@ -231,6 +231,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Quote and verse attribution stays literal unless single-quoted, when
+  formatting and links render. Semantic HTML now also distinguishes an author
+  from a cited work, matching `asciidoctor`.
+- IDs on untitled paragraphs are retained, and verse paragraph attribution no
+  longer appears inside its `<pre>` element.
 - Highlight syntax with an ID but no role now renders as a plain targeted
   `<span>` instead of a highlighted `<mark>`, matching `asciidoctor`.
 - Standard HTML image blocks now preserve `[[id]]` and `[id=...]` as the wrapper
