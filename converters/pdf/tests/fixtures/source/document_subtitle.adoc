@@ -1,0 +1,4 @@
+= Main Title: A *bold* and `monospace` https://example.com[subtitle]
+:title-page:
+
+Subtitle comparison body.

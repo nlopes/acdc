@@ -29,7 +29,7 @@ acdc convert --backend pdf document.adoc \
 
 The backend currently renders:
 
-* document titles, authors, sections, discrete headings, and section numbering
+* document titles, subtitles, authors, sections, discrete headings, and section numbering
 * automatic, preamble, and macro-placed tables of contents, including custom titles and depth
 * bold, italic, monospace, highlight, subscript, and superscript text
 * links, cross-references, footnotes, inline anchors, and common UI macros

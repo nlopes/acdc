@@ -458,6 +458,9 @@ fn collect_image_urls(doc: &Document<'_>) -> Vec<String> {
     let mut urls = BTreeSet::new();
     if let Some(header) = &doc.header {
         collect_inline_images(header.title.as_ref(), &mut urls);
+        if let Some(subtitle) = &header.subtitle {
+            collect_inline_images(subtitle.as_ref(), &mut urls);
+        }
     }
     collect_block_images(&doc.blocks, &mut urls);
     urls.into_iter().collect()
@@ -942,7 +945,7 @@ mod tests {
     fn image_collection_matches_rendered_titles_and_skips_verbatim_content()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            "= image:header.png[] Header\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
+            "= Header: image:subtitle.png[] Subtitle\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
             &acdc_parser::Options::default(),
         )?;
 
@@ -954,6 +957,7 @@ mod tests {
                 "list-title.png",
                 "paragraph-title.png",
                 "section.png",
+                "subtitle.png",
             ]
         );
         Ok(())

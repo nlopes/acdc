@@ -231,6 +231,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- URL macros in document subtitles remain intact and render as links.
 - Quote and verse attribution stays literal unless single-quoted, when
   formatting and links render. Semantic HTML now also distinguishes an author
   from a cited work, matching `asciidoctor`.

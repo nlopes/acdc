@@ -34,6 +34,13 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         self.writer.raw("#text(size: 22pt, weight: \"bold\")[");
         self.write_title(&header.title)?;
         self.writer.raw("]\n");
+        if let Some(subtitle) = &header.subtitle {
+            self.writer.raw("#v(0.2em)\n");
+            self.writer
+                .raw("#text(size: 14pt, weight: \"bold\", style: \"italic\")[");
+            self.write_title(subtitle)?;
+            self.writer.raw("]\n");
+        }
         if !header.authors.is_empty() {
             self.writer.raw("#v(0.4em)\n");
             let authors = header
