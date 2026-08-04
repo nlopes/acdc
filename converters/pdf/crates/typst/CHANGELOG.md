@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Generated documents can include title, author, description, and keyword
+  metadata.
 - Initial shared Typst writer, escaping, page preamble, header/footer,
   watermark, image, callout, list, table, and source-code styling helpers for
   PDF converters. Every font stack ends with the bundled colour emoji face, so

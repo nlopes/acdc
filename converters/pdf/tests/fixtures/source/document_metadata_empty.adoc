@@ -1,0 +1,6 @@
+= Empty Metadata
+Ada Lovelace
+:subject:
+:keywords:
+
+Empty metadata body.

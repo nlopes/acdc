@@ -1,0 +1,6 @@
+= Main *Metadata*: Subtitle _Details_
+Ada Lovelace <ada@example.com>; Grace B. Hopper <grace@example.com>
+:subject: A *literal* subject
+:keywords: alpha; beta, gamma
+
+Full metadata body.

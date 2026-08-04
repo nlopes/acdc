@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- PDFs include the document title, subtitle, authors, subject, and keywords in
+  their file metadata when these values are set.
 - Document subtitles render below the title with inline formatting and links.
 - Title pages show the document revision number, date, and remark below the
   authors. Normal article headers continue to omit revision details.

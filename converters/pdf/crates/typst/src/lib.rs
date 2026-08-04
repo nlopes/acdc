@@ -13,9 +13,33 @@ mod writer;
 
 pub use writer::Writer;
 
+/// Metadata embedded in the generated document.
+#[derive(Debug, Clone, Default)]
+pub struct DocumentMetadata {
+    /// Full plain-text document title.
+    pub title: Option<String>,
+    /// Plain-text author names.
+    pub authors: Vec<String>,
+    /// Plain-text document description. PDF export writes this as the subject.
+    pub description: Option<String>,
+    /// Document keywords, kept as one source-defined string.
+    pub keywords: Option<String>,
+}
+
+impl DocumentMetadata {
+    fn is_empty(&self) -> bool {
+        self.title.is_none()
+            && self.authors.is_empty()
+            && self.description.is_none()
+            && self.keywords.is_none()
+    }
+}
+
 /// Document-level options that shape the generated markup.
 #[derive(Debug, Clone)]
 pub struct EmitOptions {
+    /// Metadata embedded in the generated document.
+    pub metadata: DocumentMetadata,
     pub page: PageSize,
     /// Strip branding chrome (page background, header, footer).
     pub plain: bool,
@@ -37,6 +61,7 @@ pub struct EmitOptions {
 impl Default for EmitOptions {
     fn default() -> Self {
         EmitOptions {
+            metadata: DocumentMetadata::default(),
             page: PageSize::A4,
             plain: false,
             brand_fonts: false,

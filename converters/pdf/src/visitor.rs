@@ -12,7 +12,7 @@ use acdc_parser::{
     Video,
 };
 
-use crate::{Error, PdfVisitor, encode_label};
+use crate::{Error, PdfVisitor, author_name, encode_label};
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
     let revnumber = attributes.get_string("revnumber");
@@ -95,12 +95,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             let authors = header
                 .authors
                 .iter()
-                .map(|author| {
-                    let middle = author
-                        .middle_name
-                        .map_or_else(String::new, |middle| format!(" {middle}"));
-                    format!("{}{} {}", author.first_name, middle, author.last_name)
-                })
+                .map(author_name)
                 .collect::<Vec<_>>()
                 .join(", ");
             self.write_text_expr(&authors);

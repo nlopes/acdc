@@ -1,0 +1,5 @@
+:author: Ada Lovelace
+:subject: Subject without title
+:keywords: one, two
+
+Metadata without a document header.

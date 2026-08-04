@@ -5,18 +5,62 @@ use std::fmt::Write as _;
 
 use acdc_pdf_theme::{EMOJI_FONT_FAMILY, FontStack, Palette, Theme};
 
-use crate::{EmitOptions, PageSize, escape::escape_markup, writer::Writer};
+use crate::{
+    DocumentMetadata, EmitOptions, PageSize,
+    escape::{escape_markup, escape_string},
+    writer::Writer,
+};
 
 /// Write the whole preamble (page setup, text/heading rules, and the `#let`
 /// helpers) into `writer`.
 pub fn write(writer: &mut Writer, theme: &Theme, options: &EmitOptions) {
     let mut out = String::new();
+    write_document(&mut out, &options.metadata);
     write_page(&mut out, theme, options);
     write_text(&mut out, theme, options);
     write_code(&mut out, theme, options);
     write_helpers(&mut out, theme);
     out.push('\n');
     writer.raw(&out);
+}
+
+/// `#set document(...)`: metadata embedded in the PDF without rendering it.
+fn write_document(out: &mut String, metadata: &DocumentMetadata) {
+    if metadata.is_empty() {
+        return;
+    }
+
+    out.push_str("#set document(\n");
+    if let Some(title) = &metadata.title {
+        out.push_str("  title: ");
+        write_string_literal(out, title);
+        out.push_str(",\n");
+    }
+    if !metadata.authors.is_empty() {
+        out.push_str("  author: (");
+        for author in &metadata.authors {
+            write_string_literal(out, author);
+            out.push_str(", ");
+        }
+        out.push_str("),\n");
+    }
+    if let Some(description) = &metadata.description {
+        out.push_str("  description: ");
+        write_string_literal(out, description);
+        out.push_str(",\n");
+    }
+    if let Some(keywords) = &metadata.keywords {
+        out.push_str("  keywords: ");
+        write_string_literal(out, keywords);
+        out.push_str(",\n");
+    }
+    out.push_str(")\n");
+}
+
+fn write_string_literal(out: &mut String, value: &str) {
+    out.push('"');
+    escape_string(out, value);
+    out.push('"');
 }
 
 /// `#set page(...)`: geometry, plus (when branded) background, header, footer,
@@ -425,6 +469,31 @@ mod tests {
             brand: brand.map(str::to_owned),
             fallback: fallback.iter().map(|s| (*s).to_owned()).collect(),
         }
+    }
+
+    #[test]
+    fn document_metadata_is_emitted_as_escaped_string_literals() {
+        let metadata = DocumentMetadata {
+            title: Some("A \"quoted\" title".to_owned()),
+            authors: vec!["Ada Lovelace".to_owned(), "Grace\\Hopper".to_owned()],
+            description: Some("First line\nSecond line".to_owned()),
+            keywords: Some("alpha, beta".to_owned()),
+        };
+        let mut out = String::new();
+
+        write_document(&mut out, &metadata);
+
+        assert_eq!(
+            out,
+            concat!(
+                "#set document(\n",
+                "  title: \"A \\\"quoted\\\" title\",\n",
+                "  author: (\"Ada Lovelace\", \"Grace\\\\Hopper\", ),\n",
+                "  description: \"First line\\nSecond line\",\n",
+                "  keywords: \"alpha, beta\",\n",
+                ")\n",
+            )
+        );
     }
 
     #[test]

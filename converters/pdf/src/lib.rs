@@ -18,19 +18,19 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Diagnostics, Options, PrettyDuration, inlines_to_string, visitor::Visitor,
-    xref::XrefGuard,
+    BackendTraits, Diagnostics, InlineTextTransform, Options, PrettyDuration, inlines_to_string,
+    visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode, ListItem,
-    Reference, SafeMode, Source, Table, TableRow,
+    Author, Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode,
+    ListItem, Reference, SafeMode, Source, Table, TableRow,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
 };
 use acdc_pdf_render::{RenderConfig, render_pdf};
 use acdc_pdf_theme::Theme;
-use acdc_pdf_typst::{EmitOptions, preamble};
+use acdc_pdf_typst::{DocumentMetadata, EmitOptions, preamble};
 
 mod converter;
 mod error;
@@ -223,6 +223,7 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> EmitOptions {
         EmitOptions {
+            metadata: document_metadata(doc),
             page: self.page_size(doc, diagnostics),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
@@ -452,6 +453,74 @@ fn base_dir_for_source(source_file: Option<&Path>) -> PathBuf {
 fn document_title(doc: &Document<'_>) -> Option<String> {
     let title = inlines_to_string(doc.header.as_ref()?.title.as_ref());
     (!title.is_empty()).then_some(title)
+}
+
+fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
+    let title = doc
+        .header
+        .as_ref()
+        .and_then(|header| {
+            let transform = InlineTextTransform::default().decode_char_refs(true);
+            let mut title = transform.to_string(header.title.as_ref());
+            if let Some(subtitle) = &header.subtitle {
+                let subtitle = transform.to_string(subtitle.as_ref());
+                if !subtitle.is_empty() {
+                    title.push_str(": ");
+                    title.push_str(&subtitle);
+                }
+            }
+            (!title.is_empty()).then_some(title)
+        })
+        .or_else(|| {
+            doc.attributes
+                .get_string("untitled-label")
+                .map(std::borrow::Cow::into_owned)
+        });
+    let mut authors = doc
+        .header
+        .iter()
+        .flat_map(|header| &header.authors)
+        .map(author_name)
+        .collect::<Vec<_>>();
+    if authors.is_empty()
+        && let Some(author) = ["authors", "author"]
+            .into_iter()
+            .find_map(|name| doc.attributes.get_string(name))
+    {
+        authors.push(author.into_owned());
+    }
+
+    DocumentMetadata {
+        title,
+        authors,
+        description: metadata_attribute(&doc.attributes, "subject"),
+        keywords: metadata_attribute(&doc.attributes, "keywords"),
+    }
+}
+
+fn metadata_attribute(attributes: &DocumentAttributes<'_>, name: &str) -> Option<String> {
+    attributes.get_string(name).map_or_else(
+        || {
+            attributes
+                .get(name)
+                .is_some_and(|value| matches!(value, acdc_parser::AttributeValue::Bool(true)))
+                .then(String::new)
+        },
+        |value| Some(value.into_owned()),
+    )
+}
+
+fn author_name(author: &Author<'_>) -> String {
+    [
+        Some(author.first_name),
+        author.middle_name,
+        Some(author.last_name),
+    ]
+    .into_iter()
+    .flatten()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<_>>()
+    .join(" ")
 }
 
 fn collect_image_urls(doc: &Document<'_>) -> Vec<String> {
