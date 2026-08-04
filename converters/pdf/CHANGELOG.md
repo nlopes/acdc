@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PDF paragraphs collapse repeated source spaces and ordinary newlines.
+  Paragraph `hardbreaks` options and document `hardbreaks` attributes preserve
+  newlines, while empty ` +` lines and `{empty} +` insert blank or leading
+  lines, matching Asciidoctor PDF.
 - PDF text uses the document `lang` value, including an optional region suffix.
   Unlike Asciidoctor PDF, values Typst cannot represent fall back to English
   with a warning.

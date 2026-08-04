@@ -185,6 +185,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
         #[cfg(not(feature = "pre-spec-subs"))]
         let text = Cow::Owned(Replacements::unicode().transform(text, false));
+        let text = collapse_source_whitespace(&text);
         self.write_text_expr(&text);
     }
 
@@ -688,6 +689,32 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("]");
         Ok(())
     }
+}
+
+pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
+    let bytes = text.as_bytes();
+    let needs_collapsing = bytes
+        .iter()
+        .any(|byte| matches!(byte, b'\t' | b'\n' | b'\r'))
+        || bytes.windows(2).any(|pair| pair == b"  ");
+    if !needs_collapsing {
+        return Cow::Borrowed(text);
+    }
+
+    let mut collapsed = String::with_capacity(text.len());
+    let mut previous_was_whitespace = false;
+    for character in text.chars() {
+        if matches!(character, ' ' | '\t' | '\n' | '\r') {
+            if !previous_was_whitespace {
+                collapsed.push(' ');
+                previous_was_whitespace = true;
+            }
+        } else {
+            collapsed.push(character);
+            previous_was_whitespace = false;
+        }
+    }
+    Cow::Owned(collapsed)
 }
 
 fn asciidoctor_foreground_colour(role: &str) -> Option<&'static str> {

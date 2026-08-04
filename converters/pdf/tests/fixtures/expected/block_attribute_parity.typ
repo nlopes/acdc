@@ -255,7 +255,7 @@
 
 #text("Bracketed unknown style.")
 
-#text("[[not an anchor]]\nDouble-bracket anchor syntax with spaces remains text.")
+#text("[[not an anchor]] Double-bracket anchor syntax with spaces remains text.")
 
 #metadata(none) <id-6f6e6c792d6964>
 #text("Shorthand-only metadata.")

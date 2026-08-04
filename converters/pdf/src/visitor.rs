@@ -12,7 +12,9 @@ use acdc_parser::{
     Video,
 };
 
-use crate::{Error, PdfVisitor, author_name, encode_label};
+use crate::{
+    Error, PdfVisitor, author_name, encode_label, pdf_visitor::collapse_source_whitespace,
+};
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
     let revnumber = attributes.get_string("revnumber");
@@ -390,6 +392,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             InlineNode::MonospaceText(mono) => {
                 let wrappers = self.write_inline_span_start(mono.id, mono.role);
                 let text = inlines_to_string(&mono.content);
+                let text = collapse_source_whitespace(&text);
                 self.writer.raw("#raw(");
                 self.writer.string_literal(&text);
                 self.writer.raw(")");

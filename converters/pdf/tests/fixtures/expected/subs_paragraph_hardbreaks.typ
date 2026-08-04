@@ -1,7 +1,7 @@
 #set document(
-  title: "Unresolved cross-reference coverage",
+  title: "Hard Break Substitutions",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Unresolved cross-reference coverage]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Hard Break Substitutions]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -38,36 +38,18 @@
 #let tableheader(body) = text(weight: 700, body)
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Unresolved cross-reference coverage")]
+#text(size: 22pt, weight: "bold")[#text("Hard Break Substitutions")]
 ]
 #v(1em)
 
-#text("Typst fails a whole compilation on a link to a label no element defines, so an unresolved target renders as text alone.")
+#block(below: 0.5em)[#text(weight: "bold")[#text("No substitutions")]]
+#text("No subs first No subs second")
 
-#text("See ")#text("[no-such-id]")#text(" and ")#text("explicit text")#text(".")
+#block(below: 0.5em)[#text(weight: "bold")[#text("No post replacements")]]
+#text("No post first No post second")
 
-#text("A reference whose target’s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
+#block(below: 0.5em)[#text(weight: "bold")[#text("Local option without substitutions")]]
+#text("Local no subs first Local no subs second")
 
-#metadata(none) <id-73656c662d7265666572656e6365>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]]
-#examplebox[
-#text("body")
-
-]
-
-#metadata(none) <id-6d757475616c2d6669727374>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 2. ")#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]]
-#examplebox[
-#text("body")
-
-]
-
-#metadata(none) <id-6d757475616c2d7365636f6e64>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 3. ")#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]]
-#examplebox[
-#text("body")
-
-]
-
-#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(", ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]#text(", and ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]#text(".")
-
+#block(below: 0.5em)[#text(weight: "bold")[#text("Explicit break without post replacements")]]
+#text("Explicit first + Explicit second")

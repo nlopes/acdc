@@ -1,0 +1,147 @@
+= Paragraph Hard Breaks
+:hardbreaks-option:
+
+.Header document attribute
+Header first
+Header second
+
+:hardbreaks-option!:
+
+.Default paragraph
+Default first
+Default second
+
+.Repeated normal spaces
+Repeated   normal   spaces
+
+.Shorthand option
+[%hardbreaks]
+Shorthand first
+Shorthand second
+
+.Named options
+[options=hardbreaks]
+Options first
+Options second
+
+.Named opts
+[opts=hardbreaks]
+Opts first
+Opts second
+
+.Explicit break
+Explicit first +
+Explicit second
+
+.Formatted content
+[%hardbreaks]
+Formatted *bold first
+bold second* and _italic first
+italic second_.
+
+.Role does not enable hard breaks
+[.hardbreaks]
+Role first
+Role second
+
+.Style does not enable hard breaks
+[hardbreaks]
+Style first
+Style second
+
+.Empty middle line
+Middle first +
+ +
+Middle third
+
+.Leading empty line
+{empty} +
+Leading second
+
+.Repeated empty lines
+{empty} +
+Repeated second +
+{empty} +
+Repeated fourth
+
+.Literal paragraph
+[literal]
+Literal   paragraph first
+Literal paragraph second
+
+.Literal block
+....
+Literal   block first
+Literal block second
+....
+
+.Listing paragraph
+[listing]
+Listing   paragraph first
+Listing paragraph second
+
+.Listing block
+----
+Listing   block first
+Listing block second
+----
+
+.Source paragraph
+[source,ruby]
+puts "source   paragraph first"
+puts "source paragraph second"
+
+.Source block
+[source,ruby]
+----
+puts "source   block first"
+puts "source block second"
+----
+
+.Verse paragraph
+[verse]
+Verse   paragraph first
+Verse paragraph second
+
+.Verse block
+[verse]
+____
+Verse   block first
+Verse block second
+____
+
+:hardbreaks-option:
+
+.Canonical document attribute
+Canonical first
+Canonical second
+
+[quote]
+____
+Nested first
+Nested second
+____
+
+* List first
+List second
+
+:hardbreaks-option!:
+
+.Canonical attribute unset
+Canonical unset first
+Canonical unset second
+
+:hardbreaks: false
+
+.Alias with a value
+Alias value first
+Alias value second
+
+:hardbreaks!:
+
+.Compound option does not propagate
+[quote%hardbreaks]
+____
+Compound first
+Compound second
+____
