@@ -1,0 +1,13 @@
+:hardbreaks-option:
+
+[subs=none]
+No subs first
+No subs second
+
+[subs=-post_replacements]
+No post first
+No post second
+
+[%hardbreaks,subs=none]
+Local no subs first
+Local no subs second

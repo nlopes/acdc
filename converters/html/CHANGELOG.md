@@ -94,9 +94,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as listing blocks (`<div class="listingblock">`)
   instead of regular paragraphs, matching asciidoctor behavior.
-- **`[%hardbreaks]` paragraph option** — paragraphs with the `[%hardbreaks]` option or
-  the document-level `hardbreaks` attribute now convert newlines to `<br>`, matching
-  asciidoctor behavior.
+- Paragraph `hardbreaks` options and the document attributes `hardbreaks` and
+  `hardbreaks-option` now preserve source newlines. Empty ` +` lines and
+  `{empty} +` insert blank or leading lines. Unsetting the attributes or
+  disabling post replacements disables hard breaks, matching Asciidoctor.
 - **html5s semantic video and audio blocks** — video and audio blocks now render with semantic
   HTML in html5s mode: `<figure class="video-block">` / `<figure class="audio-block">` with
   `<figcaption>` for titled blocks, `<div>` wrapper for untitled blocks. No inner

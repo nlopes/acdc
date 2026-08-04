@@ -846,22 +846,9 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         let new_subs = baseline_subs(is_verbatim);
         let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
 
-        // Set hardbreaks if the paragraph option or document attribute is present
-        let original_hardbreaks = self.render_options.hardbreaks;
-        if para.metadata.options.contains(&"hardbreaks")
-            || self
-                .processor
-                .document_attributes()
-                .contains_key("hardbreaks")
-        {
-            self.render_options.hardbreaks = true;
-        }
-
         let result = self.render_paragraph(para);
 
-        // Restore state
         self.current_subs = original_subs;
-        self.render_options.hardbreaks = original_hardbreaks;
 
         result
     }

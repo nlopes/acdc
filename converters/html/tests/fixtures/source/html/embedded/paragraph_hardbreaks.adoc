@@ -1,3 +1,11 @@
+:hardbreaks-option:
+
+.Header document attribute
+Header first
+Header second
+
+:hardbreaks-option!:
+
 [%hardbreaks]
 First line
 Second line
@@ -6,7 +14,99 @@ Third line
 Normal paragraph
 without hardbreaks.
 
+Repeated   normal   spaces.
+
 [%hardbreaks]
 Line with *bold
 text* across lines
 and _italic_ here
+
+:hardbreaks-option:
+
+Document first
+Document second
+
+:hardbreaks-option!:
+
+Unset first
+Unset second
+
+:hardbreaks: false
+
+Alias value first
+Alias value second
+
+:hardbreaks!:
+
+[.hardbreaks]
+Role first
+Role second
+
+[hardbreaks]
+Style first
+Style second
+
+.Explicit break
+Explicit first +
+Explicit second
+
+.Empty middle line
+Middle first +
+ +
+Middle third
+
+.Leading empty line
+{empty} +
+Leading second
+
+.Repeated empty lines
+{empty} +
+Repeated second +
+{empty} +
+Repeated fourth
+
+.Literal paragraph
+[literal]
+Literal   paragraph first
+Literal paragraph second
+
+.Literal block
+....
+Literal   block first
+Literal block second
+....
+
+.Listing paragraph
+[listing]
+Listing   paragraph first
+Listing paragraph second
+
+.Listing block
+----
+Listing   block first
+Listing block second
+----
+
+.Source paragraph
+[source,ruby]
+puts "source   paragraph first"
+puts "source paragraph second"
+
+.Source block
+[source,ruby]
+----
+puts "source   block first"
+puts "source block second"
+----
+
+.Verse paragraph
+[verse]
+Verse   paragraph first
+Verse paragraph second
+
+.Verse block
+[verse]
+____
+Verse   block first
+Verse block second
+____
