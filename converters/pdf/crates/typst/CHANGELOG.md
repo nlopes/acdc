@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Running-header text is configured independently from embedded document title
+  metadata.
 - Running headers start after the first numbered page, so the document title is
   not repeated at the top of its opening page.
 - The crate now lives under `converters/pdf/crates` as a non-publishable implementation

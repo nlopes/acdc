@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Running headers use the full document title, including its subtitle. An
+  explicit `--title` value still overrides the running-header text.
 - Title-page revision numbers use `version-label`; an empty or unset label
   removes the prefix.
 - Author details no longer appear below a normal article title. A title page,

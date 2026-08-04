@@ -81,7 +81,7 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 | `--title`
 | `title`
 | Override the running-header title.
-  The document title is the default.
+  The full document title, including its subtitle, is the default.
 
 | `--watermark`
 | `watermark`

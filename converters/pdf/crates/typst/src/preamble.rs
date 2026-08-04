@@ -332,7 +332,7 @@ fn header_content(options: &EmitOptions, palette: &Palette) -> Option<String> {
         path.push('"');
         parts.push(format!("#box(baseline: 30%, image({path}, height: 22pt))"));
     }
-    if let Some(title) = &options.title {
+    if let Some(title) = &options.running_header_title {
         let mut escaped = String::new();
         escape_markup(&mut escaped, title, true);
         parts.push(format!(

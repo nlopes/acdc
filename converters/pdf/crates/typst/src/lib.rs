@@ -47,8 +47,8 @@ pub struct EmitOptions {
     /// family is named first in each font stack; otherwise only the bundled
     /// fallbacks are named (so Typst is never asked for an absent font).
     pub brand_fonts: bool,
-    /// Document title, shown in the branded header when set.
-    pub title: Option<String>,
+    /// Text shown in the branded running header when set.
+    pub running_header_title: Option<String>,
     /// Virtual path of the header logo (registered with the renderer), if any.
     pub logo: Option<String>,
     /// Diagonal gray watermark text stamped on every page, if set. Shown
@@ -65,7 +65,7 @@ impl Default for EmitOptions {
             page: PageSize::A4,
             plain: false,
             brand_fonts: false,
-            title: None,
+            running_header_title: None,
             logo: None,
             watermark: None,
             watermark_timestamp: None,

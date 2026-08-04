@@ -18,8 +18,8 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Diagnostics, InlineTextTransform, Options, PrettyDuration, inlines_to_string,
-    visitor::Visitor, xref::XrefGuard,
+    BackendTraits, Diagnostics, InlineTextTransform, Options, PrettyDuration, visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     Author, Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode,
@@ -222,16 +222,18 @@ impl Processor<'_> {
         font_dirs: &[PathBuf],
         diagnostics: &mut Diagnostics<'_>,
     ) -> EmitOptions {
+        let metadata = document_metadata(doc);
+        let running_header_title = self
+            .pdf_options
+            .title
+            .clone()
+            .or_else(|| metadata.title.clone());
         EmitOptions {
-            metadata: document_metadata(doc),
+            metadata,
             page: self.page_size(doc, diagnostics),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
-            title: self
-                .pdf_options
-                .title
-                .clone()
-                .or_else(|| document_title(doc)),
+            running_header_title,
             logo,
             watermark: self.pdf_options.watermark.clone(),
             watermark_timestamp: self.pdf_options.watermark_timestamp.clone(),
@@ -448,11 +450,6 @@ fn base_dir_for_source(source_file: Option<&Path>) -> PathBuf {
             || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
             Path::to_path_buf,
         )
-}
-
-fn document_title(doc: &Document<'_>) -> Option<String> {
-    let title = inlines_to_string(doc.header.as_ref()?.title.as_ref());
-    (!title.is_empty()).then_some(title)
 }
 
 fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
@@ -712,6 +709,36 @@ mod tests {
                 .chars()
                 .all(|character| character.is_ascii_alphanumeric() || character == '-')
         );
+    }
+
+    #[test]
+    fn explicit_running_header_title_does_not_replace_document_metadata()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Main *Title*: Subtitle _Part_\n\nBody.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                title: Some("Explicit Header".to_owned()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+
+        assert_eq!(
+            options.running_header_title.as_deref(),
+            Some("Explicit Header")
+        );
+        assert_eq!(
+            options.metadata.title.as_deref(),
+            Some("Main Title: Subtitle Part")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
     }
 
     #[test]
