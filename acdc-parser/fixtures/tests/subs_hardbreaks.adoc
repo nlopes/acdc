@@ -1,0 +1,21 @@
+:hardbreaks-option:
+
+.No substitutions
+[subs=none]
+No subs first
+No subs second
+
+.No post replacements
+[subs=-post_replacements]
+No post first
+No post second
+
+.Local option without substitutions
+[%hardbreaks,subs=none]
+Local no subs first
+Local no subs second
+
+.Explicit break without post replacements
+[subs=-post_replacements]
+Explicit first +
+Explicit second

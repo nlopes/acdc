@@ -448,6 +448,7 @@ fn parse_input(
         let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
+        state.initialize_hardbreaks();
         state.current_file = file_path.map(std::sync::Arc::new);
         state.leveloffset_ranges = leveloffset_ranges;
         state.source_ranges = source_ranges;
@@ -513,6 +514,8 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
+        state.initialize_hardbreaks();
+        state.inline_ctx.hardbreaks = state.hardbreaks;
         state.warnings = warnings_for_state;
         let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
             Ok(mut inlines) => {
@@ -557,6 +560,49 @@ mod tests {
             |e| tracing::warn!(?path, ?test_file_path, error = %e, "test file not found"),
         )?;
         Ok(file_contents)
+    }
+
+    #[test]
+    fn caller_hardbreak_attributes_create_line_break_nodes() {
+        for name in ["hardbreaks", "hardbreaks-option"] {
+            let mut attributes = DocumentAttributes::default();
+            attributes.set(name.into(), AttributeValue::String("false".into()));
+            let options = Options::with_attributes(attributes);
+            let parsed = parse("First line\nSecond line\n", &options)
+                .expect("parse paragraph with caller hard breaks");
+            let paragraph = parsed
+                .document()
+                .blocks
+                .first()
+                .and_then(|block| {
+                    if let Block::Paragraph(paragraph) = block {
+                        Some(paragraph)
+                    } else {
+                        None
+                    }
+                })
+                .expect("paragraph");
+
+            assert!(matches!(
+                paragraph.content.as_slice(),
+                [
+                    InlineNode::PlainText(_),
+                    InlineNode::LineBreak(_),
+                    InlineNode::PlainText(_)
+                ]
+            ));
+
+            let parsed_inline = parse_inline("First line\nSecond line", &options)
+                .expect("parse inline content with caller hard breaks");
+            assert!(matches!(
+                parsed_inline.inlines(),
+                [
+                    InlineNode::PlainText(_),
+                    InlineNode::LineBreak(_),
+                    InlineNode::PlainText(_)
+                ]
+            ));
+        }
     }
 
     #[test]

@@ -20,8 +20,16 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[allow(
+    clippy::struct_excessive_bools,
+    reason = "independent parser conditions do not form one state machine"
+)]
 pub(crate) struct ParserState<'a> {
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
+    /// Tracks document hard-break changes that apply only to following blocks.
+    pub(crate) hardbreaks: bool,
+    /// Processed-text offsets where an empty attribute reference was removed.
+    pub(crate) empty_attribute_offsets: Vec<usize>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
     /// `for_inline_parsing` sub-state is cheap to construct — the old
@@ -123,6 +131,7 @@ pub(crate) struct InlineContext {
     pub(crate) offset: usize,
     /// Per-block substitution toggles propagated from `[subs="…"]`.
     pub(crate) subs_flags: SubsFlags,
+    pub(crate) hardbreaks: bool,
     /// Whether bare autolinks (URLs/emails without macro syntax) are matched.
     /// Independent of `subs_flags`: this is suppressed inside link/url/xref
     /// macro contents to avoid nested-autolink mis-parses.
@@ -140,6 +149,7 @@ impl Default for InlineContext {
         Self {
             offset: 0,
             subs_flags: SubsFlags::default(),
+            hardbreaks: false,
             allow_autolinks: true,
             block_level: false,
         }
@@ -279,7 +289,11 @@ impl<'a> ParserState<'a> {
         &mut self,
         key: AttributeName<'a>,
         value: AttributeValue<'a>,
+        set: bool,
     ) -> AttributeValue<'a> {
+        if matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option") {
+            self.hardbreaks = set;
+        }
         let value = match value {
             AttributeValue::String(s) => {
                 let substituted = substitute(&s, HEADER, &self.document_attributes);
@@ -291,6 +305,17 @@ impl<'a> ParserState<'a> {
             Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
         }
         value
+    }
+
+    /// Initialize hard-break state from attributes supplied by the parser API.
+    pub(crate) fn initialize_hardbreaks(&mut self) {
+        self.hardbreaks = self
+            .document_attributes
+            .get("hardbreaks-option")
+            .or_else(|| self.document_attributes.get("hardbreaks"))
+            .is_some_and(|value| {
+                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
+            });
     }
 
     /// Testing helper: constructs a `ParserState` backed by a leaked `Bump`.
@@ -308,6 +333,8 @@ impl<'a> ParserState<'a> {
         Self {
             options: Rc::new(Options::default()),
             document_attributes: Rc::new(DocumentAttributes::default()),
+            hardbreaks: false,
+            empty_attribute_offsets: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -339,6 +366,8 @@ impl<'a> ParserState<'a> {
         Self {
             options: Rc::new(EMPTY_OPTIONS.clone()),
             document_attributes: Rc::new(DocumentAttributes::empty()),
+            hardbreaks: false,
+            empty_attribute_offsets: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -364,6 +393,8 @@ impl<'a> ParserState<'a> {
         Self {
             options: parent.options.clone(),
             document_attributes: Rc::clone(&parent.document_attributes),
+            hardbreaks: parent.hardbreaks,
+            empty_attribute_offsets: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena: parent.arena,

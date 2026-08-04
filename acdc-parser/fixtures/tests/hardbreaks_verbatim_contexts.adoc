@@ -1,0 +1,45 @@
+.Literal paragraph
+[literal]
+Literal   paragraph first
+Literal paragraph second
+
+.Literal block
+....
+Literal   block first
+Literal block second
+....
+
+.Listing paragraph
+[listing]
+Listing   paragraph first
+Listing paragraph second
+
+.Listing block
+----
+Listing   block first
+Listing block second
+----
+
+.Source paragraph
+[source,ruby]
+puts "source   paragraph first"
+puts "source paragraph second"
+
+.Source block
+[source,ruby]
+----
+puts "source   block first"
+puts "source block second"
+----
+
+.Verse paragraph
+[verse]
+Verse   paragraph first
+Verse paragraph second
+
+.Verse block
+[verse]
+____
+Verse   block first
+Verse block second
+____

@@ -1,0 +1,230 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "hardbreaks-option": true
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No substitutions",
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 3,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No subs first\nNo subs second",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": []
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No post replacements",
+          "location": [
+            {
+              "line": 8,
+              "col": 2
+            },
+            {
+              "line": 8,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No post first\nNo post second",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-post_replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local option without substitutions",
+          "location": [
+            {
+              "line": 13,
+              "col": 2
+            },
+            {
+              "line": 13,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Local no subs first\nLocal no subs second",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "options": [
+          "hardbreaks"
+        ],
+        "substitutions": []
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicit break without post replacements",
+          "location": [
+            {
+              "line": 18,
+              "col": 2
+            },
+            {
+              "line": 18,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Explicit first +\nExplicit second",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-post_replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 21,
+      "col": 15
+    }
+  ]
+}

@@ -19,7 +19,7 @@ pub(crate) enum BlockMetadataLine<'input> {
     Anchor(Anchor<'input>),
     Attributes((bool, Box<BlockMetadata<'input>>)),
     Title(Title<'input>),
-    DocumentAttribute(Cow<'input, str>, AttributeValue<'input>),
+    DocumentAttribute(Cow<'input, str>, AttributeValue<'input>, bool),
 }
 
 // Used purely in the grammar to break down header metadata lines (anchors and attributes
@@ -37,6 +37,7 @@ pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) title: Title<'input>,
     pub(crate) parent_section_level: Option<SectionLevel>,
     pub(crate) subs_flags: SubsFlags,
+    pub(crate) hardbreaks: bool,
     /// Set when the attribute line marks the block as a discrete heading,
     /// either via the `discrete`/`float` block style (`[discrete]`) or as a
     /// bare positional attribute (`[#id,discrete]`).

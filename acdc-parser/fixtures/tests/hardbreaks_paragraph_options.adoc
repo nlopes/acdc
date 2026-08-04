@@ -1,0 +1,66 @@
+.Default paragraph
+Default first
+Default second
+
+.Repeated spaces
+Repeated   spaces   collapse
+
+.Shorthand option
+[%hardbreaks]
+Shorthand first
+Shorthand second
+
+.Named options
+[options=hardbreaks]
+Options first
+Options second
+
+.Named opts
+[opts=hardbreaks]
+Opts first
+Opts second
+
+.Role shorthand
+[.hardbreaks]
+Role first
+Role second
+
+.Named role
+[role=hardbreaks]
+Named role first
+Named role second
+
+.Style
+[hardbreaks]
+Style first
+Style second
+
+.Formatted content
+[%hardbreaks]
+Formatted *bold first
+bold second* and _italic first
+italic second_.
+
+.Styled quote paragraph
+[quote%hardbreaks]
+Quote first
+Quote second
+
+.Explicit break
+Explicit first +
+Explicit second
+
+.Empty middle line
+Middle first +
+ +
+Middle third
+
+.Leading empty line
+{empty} +
+Leading second
+
+.Repeated empty lines
+{empty} +
+Repeated second +
+{empty} +
+Repeated fourth

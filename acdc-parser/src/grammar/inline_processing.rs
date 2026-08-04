@@ -180,8 +180,13 @@ pub(crate) fn parse_inlines<'a>(
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let text: &'a str = processed_text_as_outer(processed, state);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
+    inline_peg_state.empty_attribute_offsets = processed
+        .source_map
+        .empty_attribute_offsets(location.absolute_start);
     inline_peg_state.inline_ctx.offset = 0;
     inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
+    inline_peg_state.inline_ctx.hardbreaks =
+        block_metadata.hardbreaks || state.inline_ctx.hardbreaks;
     inline_peg_state.inline_ctx.allow_autolinks = true;
     // Block-level only when the caller is a top-level block parse, not a nested
     // span re-parse from inside an inline rule (those run on an inline sub-state).
@@ -217,8 +222,13 @@ pub(crate) fn parse_inlines_no_autolinks<'a>(
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let text: &'a str = processed_text_as_outer(processed, state);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
+    inline_peg_state.empty_attribute_offsets = processed
+        .source_map
+        .empty_attribute_offsets(location.absolute_start);
     inline_peg_state.inline_ctx.offset = 0;
     inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
+    inline_peg_state.inline_ctx.hardbreaks =
+        block_metadata.hardbreaks || state.inline_ctx.hardbreaks;
     inline_peg_state.inline_ctx.allow_autolinks = false;
     // `*_no_autolinks` is only reached from inside link/url/xref macro rules, so
     // this is always a nested span re-parse, never block-level.

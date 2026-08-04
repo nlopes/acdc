@@ -308,6 +308,33 @@ impl SourceMap {
         self.map_position_with_bias(pos, true)
     }
 
+    /// Find processed-text offsets where attributes expanded to an empty string.
+    pub(crate) fn empty_attribute_offsets(&self, original_start: usize) -> Vec<usize> {
+        // Track the same point in the original and processed coordinate spaces.
+        let mut original_cursor = original_start;
+        let mut processed_cursor = 0;
+        let mut offsets = Vec::new();
+
+        for replacement in &self.replacements {
+            // Ignore replacements before the processed substring.
+            if replacement.absolute_start < original_cursor {
+                continue;
+            }
+
+            // Unchanged source bytes have the same length in both texts.
+            processed_cursor += replacement.absolute_start - original_cursor;
+            if replacement.kind == ProcessedKind::Attribute && replacement.byte_len == 0 {
+                // A removed attribute occupies this zero-width processed position.
+                offsets.push(processed_cursor);
+            }
+            // Resume after the replacement in each coordinate space.
+            processed_cursor += replacement.byte_len;
+            original_cursor = replacement.absolute_end;
+        }
+
+        offsets
+    }
+
     fn map_position_with_bias(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {
         let signed_pos = to_signed(pos, "pos")?;
 

@@ -135,6 +135,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Paragraph `hardbreaks` options and the document attributes `hardbreaks` and
+  `hardbreaks-option` now preserve source newlines. Empty ` +` lines and
+  `{empty} +` insert blank or leading lines. Attribute changes affect only
+  following content, and disabling post replacements disables hard breaks.
+
 - Document subtitles now split only at a colon followed by a space, so URL
   macros in a subtitle remain intact.
 - Brackets in block attribute values no longer break the metadata line. Quoted

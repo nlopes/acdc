@@ -77,6 +77,21 @@ fn has_at_sign_ahead(state: &ParserState, pos: usize) -> bool {
     first_at.is_some_and(|at| at < pos + EMAIL_LOCAL_PART_MAX)
 }
 
+fn has_inline_line_break_prefix(state: &ParserState<'_>, span_start: usize) -> bool {
+    let absolute_pos = span_start + state.inline_ctx.offset;
+    let preceded_by_content_or_line_end = absolute_pos > 0
+        && state
+            .input
+            .as_bytes()
+            .get(absolute_pos.saturating_sub(1))
+            .is_some_and(|&byte| !byte.is_ascii_whitespace() || matches!(byte, b'\n' | b'\r'));
+    preceded_by_content_or_line_end
+        || state
+            .empty_attribute_offsets
+            .binary_search(&span_start)
+            .is_ok()
+}
+
 pub(crate) fn match_constrained_boundary(b: u8) -> bool {
     matches!(
         b,
@@ -286,6 +301,7 @@ peg::parser! {
             / check_macros() &['['] inline_anchor:inline_anchor() { inline_anchor }
             / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
             / check_macros() &['x'] cross_reference_macro:cross_reference_macro() { cross_reference_macro }
+            / check_hardbreaks() &['\n' | '\r'] automatic_line_break:automatic_line_break() { automatic_line_break }
             / check_post_replacements() &[' '] hard_wrap:hard_wrap() { hard_wrap }
             / check_macros() &"footnote:" footnote:footnote() { footnote }
             / check_macros() &['s' | 'a' | 'l'] stem:inline_stem() { stem }
@@ -836,6 +852,9 @@ peg::parser! {
         rule check_post_replacements() -> ()
         = {? if state.inline_ctx.subs_flags.contains(SubsFlags::POST_REPLACEMENTS) { Ok(()) } else { Err("post_replacements disabled") } }
 
+        rule check_hardbreaks() -> ()
+        = {? if state.inline_ctx.hardbreaks { Ok(()) } else { Err("hard breaks disabled") } }
+
         rule check_quotes() -> ()
         = {? if state.inline_ctx.subs_flags.contains(SubsFlags::QUOTES) { Ok(()) } else { Err("quotes disabled") } }
 
@@ -879,23 +898,10 @@ peg::parser! {
         rule inline_line_break() -> InlineNode<'input>
         = " +" end:position!() inline_line_break_end()
         {?
-            // Hard line break requires `text +` where text is actual content (non-whitespace)
-            // When `+` appears indented at the start of a line (after newline + whitespace),
-            // it should be treated as literal text, not a hard break.
-            // See: https://github.com/nlopes/acdc/issues/234
-            //
             // `end` captures position before the trailing eol so the line break's
             // location doesn't include the newline.
-            let absolute_pos = span_start + state.inline_ctx.offset;
-            let valid = absolute_pos > 0 && {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| {
-                    !b.is_ascii_whitespace()
-                })
-            };
-
-            if !valid {
-                return Err("hard line break requires preceding non-whitespace");
+            if !has_inline_line_break_prefix(state, span_start) {
+                return Err("hard line break requires preceding content or an empty attribute");
             }
 
             tracing::debug!("Found inline line break");
@@ -908,14 +914,19 @@ peg::parser! {
         rule inline_line_break_match()
         = " +" inline_line_break_end()
         {?
-            let absolute_pos = span_start + state.inline_ctx.offset;
-            let valid = absolute_pos > 0 && {
-                let prev_byte_pos = absolute_pos.saturating_sub(1);
-                state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| {
-                    !b.is_ascii_whitespace()
-                })
-            };
-            if valid { Ok(()) } else { Err("hard line break requires preceding non-whitespace") }
+            if has_inline_line_break_prefix(state, span_start) {
+                Ok(())
+            } else {
+                Err("hard line break requires preceding content or an empty attribute")
+            }
+        }
+
+        rule automatic_line_break() -> InlineNode<'input>
+        = eol()
+        {
+            InlineNode::LineBreak(LineBreak {
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+            })
         }
 
         rule hard_wrap() -> InlineNode<'input>
@@ -1947,6 +1958,7 @@ peg::parser! {
             / (
                 !(
                     eol()*<2,>
+                    / check_hardbreaks() eol()
                     / ![_]
                     / &['\\'] escaped_syntax_match()
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())

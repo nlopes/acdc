@@ -1,0 +1,44 @@
+:hardbreaks-option:
+
+.Canonical attribute
+Canonical first
+Canonical second
+
+:hardbreaks-option!:
+
+.Canonical unset
+Canonical unset first
+Canonical unset second
+
+:hardbreaks: false
+
+.Alias with a value
+Alias value first
+Alias value second
+
+:!hardbreaks:
+
+.Alias unset
+Alias unset first
+Alias unset second
+
+:hardbreaks:
+
+.Nested paragraph
+[quote]
+____
+Nested first
+Nested second
+____
+
+* List first
+List second
+
+:hardbreaks!:
+
+.Compound option does not propagate
+[quote%hardbreaks]
+____
+Compound first
+Compound second
+____

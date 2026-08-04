@@ -2481,7 +2481,7 @@ peg::parser! {
         {
             let AttributeEntry{key, value, set} = att;
             tracing::debug!(%set, %key, %value, "Found document attribute in the document header");
-            state.apply_document_attribute(key.into(), value);
+            state.apply_document_attribute(key.into(), value, set);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
@@ -2685,8 +2685,8 @@ peg::parser! {
         pub(crate) rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
         = att:document_attribute_match()
         {
-            let AttributeEntry{ key, value, .. } = att;
-            let value = state.apply_document_attribute(key.into(), value);
+            let AttributeEntry{ key, value, set } = att;
+            let value = state.apply_document_attribute(key.into(), value, set);
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
                 value,
@@ -2933,7 +2933,7 @@ peg::parser! {
         = meta_start:position!() lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
-            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(Cow::Borrowed(doc_attr.key), doc_attr.value)) }
+            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(Cow::Borrowed(doc_attr.key), doc_attr.value, doc_attr.set)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )* meta_end:position!()
         {
@@ -2985,10 +2985,10 @@ peg::parser! {
                             metadata.citetitle_substitutions = true;
                         }
                     },
-                    BlockMetadataLine::DocumentAttribute(key, value) => {
+                    BlockMetadataLine::DocumentAttribute(key, value, set) => {
                         // Set the document attribute immediately so it's available for
                         // subsequent attribute references (e.g., in title lines)
-                        state.apply_document_attribute(key, value);
+                        state.apply_document_attribute(key, value, set);
                     },
                     BlockMetadataLine::Title(inner) => {
                         title = inner;
@@ -3008,6 +3008,8 @@ peg::parser! {
             });
             #[cfg(not(feature = "pre-spec-subs"))]
             let subs_flags = SubsFlags::all();
+            let hardbreaks = subs_flags.contains(SubsFlags::POST_REPLACEMENTS)
+                && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
             extract_source_attributes(&mut metadata);
             extract_quote_attributes(&mut metadata);
             apply_quote_attribute_substitutions(state, &mut metadata, offset, subs_flags)?;
@@ -3016,6 +3018,7 @@ peg::parser! {
                 title,
                 parent_section_level,
                 subs_flags,
+                hardbreaks,
                 discrete,
             })
         }
