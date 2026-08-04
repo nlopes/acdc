@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generated documents can set the language and optional region of their text.
 - Running-header text is configured independently from embedded document title
   metadata.
 - Running headers start after the first numbered page, so the document title is

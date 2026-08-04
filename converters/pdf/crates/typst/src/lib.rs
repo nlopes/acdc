@@ -13,6 +13,23 @@ mod writer;
 
 pub use writer::Writer;
 
+/// An invalid Typst-generation option.
+#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+pub enum Error {
+    /// The language is not a two- or three-letter ISO 639 code.
+    #[error("invalid language code `{value}`: expected two or three ASCII letters")]
+    InvalidLanguage {
+        /// Rejected language code.
+        value: String,
+    },
+    /// The region is not a two-letter ISO 3166-1 alpha-2 code.
+    #[error("invalid region code `{value}`: expected two ASCII letters")]
+    InvalidRegion {
+        /// Rejected region code.
+        value: String,
+    },
+}
+
 /// Metadata embedded in the generated document.
 #[derive(Debug, Clone, Default)]
 pub struct DocumentMetadata {
@@ -35,11 +52,62 @@ impl DocumentMetadata {
     }
 }
 
+/// A Typst-compatible document language and optional region.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DocumentLocale {
+    language: String,
+    region: Option<String>,
+}
+
+impl DocumentLocale {
+    /// Build a locale from an ISO 639 language code and an optional ISO 3166-1
+    /// alpha-2 region code.
+    ///
+    /// Language codes become lowercase and region codes become uppercase.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::InvalidLanguage`] or [`Error::InvalidRegion`] when a
+    /// code has an unsupported length or contains non-ASCII letters.
+    pub fn try_from_codes(language: &str, region: Option<&str>) -> Result<Self, Error> {
+        if !matches!(language.len(), 2..=3)
+            || !language.bytes().all(|byte| byte.is_ascii_alphabetic())
+        {
+            return Err(Error::InvalidLanguage {
+                value: language.to_owned(),
+            });
+        }
+        if let Some(region) = region
+            && (region.len() != 2 || !region.bytes().all(|byte| byte.is_ascii_alphabetic()))
+        {
+            return Err(Error::InvalidRegion {
+                value: region.to_owned(),
+            });
+        }
+
+        Ok(Self {
+            language: language.to_ascii_lowercase(),
+            region: region.map(str::to_ascii_uppercase),
+        })
+    }
+}
+
+impl Default for DocumentLocale {
+    fn default() -> Self {
+        Self {
+            language: "en".to_owned(),
+            region: None,
+        }
+    }
+}
+
 /// Document-level options that shape the generated markup.
 #[derive(Debug, Clone)]
 pub struct EmitOptions {
     /// Metadata embedded in the generated document.
     pub metadata: DocumentMetadata,
+    /// Language and optional region applied to document text.
+    pub locale: DocumentLocale,
     pub page: PageSize,
     /// Strip branding chrome (page background, header, footer).
     pub plain: bool,
@@ -62,6 +130,7 @@ impl Default for EmitOptions {
     fn default() -> Self {
         EmitOptions {
             metadata: DocumentMetadata::default(),
+            locale: DocumentLocale::default(),
             page: PageSize::A4,
             plain: false,
             brand_fonts: false,
@@ -78,4 +147,47 @@ impl Default for EmitOptions {
 pub enum PageSize {
     A4,
     Letter,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DocumentLocale, Error};
+
+    #[test]
+    fn document_locale_normalizes_supported_codes() {
+        assert_eq!(
+            DocumentLocale::try_from_codes("PT", Some("br")),
+            Ok(DocumentLocale {
+                language: "pt".to_owned(),
+                region: Some("BR".to_owned()),
+            })
+        );
+        assert_eq!(
+            DocumentLocale::try_from_codes("ENG", None),
+            Ok(DocumentLocale {
+                language: "eng".to_owned(),
+                region: None,
+            })
+        );
+    }
+
+    #[test]
+    fn document_locale_rejects_codes_typst_cannot_represent() {
+        for language in ["e", "english", "en1"] {
+            assert_eq!(
+                DocumentLocale::try_from_codes(language, None),
+                Err(Error::InvalidLanguage {
+                    value: language.to_owned(),
+                }),
+            );
+        }
+        for region in ["B", "BRA", "01"] {
+            assert_eq!(
+                DocumentLocale::try_from_codes("en", Some(region)),
+                Err(Error::InvalidRegion {
+                    value: region.to_owned(),
+                }),
+            );
+        }
+    }
 }

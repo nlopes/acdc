@@ -8,6 +8,7 @@ publish = false
 
 [dependencies]
 acdc-pdf-theme = { path = "../theme" }
+thiserror.workspace = true
 
 [lints]
 workspace = true

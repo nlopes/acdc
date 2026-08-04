@@ -250,6 +250,7 @@ name = "acdc-pdf-typst"
 version = "0.1.0"
 dependencies = [
  "acdc-pdf-theme",
+ "thiserror",
 ]
 
 [[package]]

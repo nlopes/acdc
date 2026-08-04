@@ -106,15 +106,20 @@ fn write_text(out: &mut String, theme: &Theme, options: &EmitOptions) {
     let palette = &theme.palette;
     let typography = &theme.typography;
 
-    let _ = writeln!(
+    let _ = write!(
         out,
-        "#set text(font: {}, size: {}pt, weight: {}, fill: {}, tracking: {}em, lang: \"en\")",
+        "#set text(font: {}, size: {}pt, weight: {}, fill: {}, tracking: {}em, lang: {}",
         font_tuple(&typography.body_font, options.brand_fonts),
         typography.body_size_pt,
         typography.body_weight,
         color(&palette.body_text),
         typography.tracking_em,
+        string_literal(&options.locale.language),
     );
+    if let Some(region) = &options.locale.region {
+        let _ = write!(out, ", region: {}", string_literal(region));
+    }
+    out.push_str(")\n");
     let _ = writeln!(
         out,
         "#set par(leading: {}em, justify: false)",
