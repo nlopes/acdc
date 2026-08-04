@@ -1,0 +1,36 @@
+[1m[4mDialogue substitution parity[0m
+Documented conflict — Come here! — I said. + — What is it? — replied Lance.
+Documented workaround — Come here! — I said.
+ — What is it? — replied Lance.
+No substitutions-- First line. +
+-- Second line.
+No post replacements — First line. + — Second line.
+No replacements-- First line.
+-- Second line.
+No attributes in the workaround — First line.
+{empty} — Second line.
+No replacements in the workaround-- First line.
+
+-- Second line.
+No post replacements in the workaround — First line.
+ — Second line.
+Replacements before post replacements — First line. + — Second line.
+Post replacements before replacements — First line.
+ — Second line.
+Replacements moved after post replacements — First line.
+ — Second line.
+Paragraph boundaries — alpha
+alpha — 
+Internal boundariesalpha — beta
+alpha—​beta
+alpha --beta
+alpha-- beta
+Formatting boundaries[1m-- alpha[22m
+[1malpha --[22m
+[1malpha — beta[22m
+lead --[1mBold[22m
+[1mLead[22m-- tail
+ — [1mBold[22m
+[1mBold[22m — 
+[3m-- italic[23m [38;5;14m-- monospace[39m [38;5;0m[48;5;11m-- highlight[39m[49m [38;5;0m[48;5;11m-- role[39m[49m
+Multiple surrounding spacesalpha  —  beta

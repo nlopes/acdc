@@ -90,6 +90,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Spaced em dashes now consume one adjacent space or newline on each side,
+  preserve the rest of a whitespace run, ignore tabs, and distinguish true
+  paragraph boundaries from inline formatting boundaries.
 - `--no-default-features` builds no longer re-enable parser default features
   through the shared parser dependency.
 - Video URL generation now reports missing video sources with a dedicated error.

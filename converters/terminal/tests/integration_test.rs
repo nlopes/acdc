@@ -64,6 +64,7 @@ generate_tests!([
     (index_section, false),
     (subs_replacements_disabled, false),
     (subs_replacements_explicit, false),
+    (subs_hardbreak_dialogue, false),
 ]);
 
 /// Helper function to run a single integration test.

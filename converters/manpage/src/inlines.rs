@@ -8,7 +8,7 @@ use std::{borrow::Cow, io::Write, rc::Rc};
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     decode_numeric_char_refs,
-    substitutions::Replacements,
+    substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
@@ -20,7 +20,14 @@ use crate::{
     manpage_visitor::TextCase,
 };
 
-/// Apply Unicode typography replacements to a `PlainText` leaf.
+fn replacements() -> Replacements<'static> {
+    let mut replacements = Replacements::unicode();
+    replacements.em_dash_spaced = " \u{2014} ";
+    replacements.em_dash_word_bounded = "\u{2014}";
+    replacements
+}
+
+/// Apply manpage typography replacements to a `PlainText` leaf.
 ///
 /// When `pre-spec-subs` is enabled, defers to
 /// [`apply_replacements`](acdc_converters_core::substitutions::apply_replacements)
@@ -30,13 +37,13 @@ use crate::{
 fn transform_plain<'a>(
     text: &'a str,
     visitor: &ManpageVisitor<'_, '_, impl Write>,
-    string_boundaries_are_space: bool,
+    text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
     apply_replacements(
         text,
         visitor.processor.current_subs.get(),
-        &Replacements::unicode(),
-        string_boundaries_are_space,
+        &replacements(),
+        text_boundaries,
     )
 }
 
@@ -44,9 +51,9 @@ fn transform_plain<'a>(
 fn transform_plain<'a>(
     text: &'a str,
     _visitor: &ManpageVisitor<'_, '_, impl Write>,
-    string_boundaries_are_space: bool,
+    text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
-    Cow::Owned(Replacements::unicode().transform(text, string_boundaries_are_space))
+    Cow::Owned(replacements().transform(text, text_boundaries))
 }
 
 /// Apply the casing the surrounding context asks for, keeping inline markup.
@@ -60,23 +67,55 @@ fn apply_text_case(content: Cow<'_, str>, text_case: TextCase) -> Cow<'_, str> {
     }
 }
 
+fn restore_em_dash_line_prefixes(content: &str, escaped: &str) -> Option<String> {
+    // `manify` removes indentation after a newline. Preserve the source space
+    // that separates a line-leading em dash from the following word in roff.
+    if !content
+        .split('\n')
+        .any(|line| line.starts_with(" \u{2014}"))
+    {
+        return None;
+    }
+
+    let mut restored = String::with_capacity(escaped.len() + 1);
+    for (index, (content_line, escaped_line)) in
+        content.split('\n').zip(escaped.split('\n')).enumerate()
+    {
+        if index > 0 {
+            restored.push('\n');
+        }
+        if content_line.starts_with(" \u{2014}") && !escaped_line.starts_with(' ') {
+            restored.push(' ');
+        }
+        restored.push_str(escaped_line);
+    }
+    Some(restored)
+}
+
 impl<W: Write> ManpageVisitor<'_, '_, W> {
+    fn render_plain_text(&mut self, text: &str) -> Result<(), Error> {
+        let content = if self.strip_next_leading_space {
+            self.strip_next_leading_space = false;
+            text.trim_start()
+        } else {
+            text
+        };
+        let content = transform_plain(content, self, self.text_boundaries);
+        let content = apply_text_case(content, self.text_case);
+        let escaped = manify(&content, EscapeMode::Normalize);
+        let w = self.writer_mut();
+        if let Some(restored) = restore_em_dash_line_prefixes(&content, &escaped) {
+            write!(w, "{restored}")?;
+        } else {
+            write!(w, "{escaped}")?;
+        }
+        Ok(())
+    }
+
     /// Visit an inline node.
     pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), Error> {
         match node {
-            InlineNode::PlainText(text) => {
-                let content = if self.strip_next_leading_space {
-                    self.strip_next_leading_space = false;
-                    text.content.trim_start()
-                } else {
-                    text.content
-                };
-                let content = transform_plain(content, self, !self.in_inline_span);
-                let content = apply_text_case(content, self.text_case);
-                let escaped = manify(&content, EscapeMode::Normalize);
-                let w = self.writer_mut();
-                write!(w, "{escaped}")?;
-            }
+            InlineNode::PlainText(text) => self.render_plain_text(text.content)?,
 
             InlineNode::RawText(text) => {
                 // Raw text - decode numeric char refs for non-HTML output, then escape

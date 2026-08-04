@@ -4,6 +4,7 @@ use std::io::Write;
 
 use acdc_converters_core::{
     Diagnostics,
+    substitutions::TextBoundaries,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
@@ -27,6 +28,7 @@ pub struct TerminalVisitor<'a, 'd, W: Write> {
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
+    pub(crate) text_boundaries: TextBoundaries,
     /// Colours of the inline spans currently open, innermost last. A span
     /// restores the colours of the span around it on exit instead of resetting
     /// the terminal, so text after a nested span keeps the outer colour.
@@ -47,6 +49,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             processor,
             diagnostics,
             in_inline_span: false,
+            text_boundaries: TextBoundaries::BOTH,
             colors: Vec::new(),
             applied_colors: (None, None),
         }
@@ -238,10 +241,35 @@ impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
             self.in_inline_span = true;
         }
 
-        let in_span = self.in_inline_span;
-        let result = self.render_inline_node(node, in_span);
+        let result = self.render_inline_node(node);
 
         self.in_inline_span = saved;
+        result
+    }
+
+    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+        let previous_boundaries = self.text_boundaries;
+        let last = nodes.len().saturating_sub(1);
+        let result = (|| {
+            for (index, node) in nodes.iter().enumerate() {
+                let follows_break =
+                    index > 0 && matches!(nodes.get(index - 1), Some(InlineNode::LineBreak(_)));
+                let precedes_break = matches!(nodes.get(index + 1), Some(InlineNode::LineBreak(_)));
+                self.text_boundaries = TextBoundaries::new(
+                    follows_break
+                        || (!self.in_inline_span
+                            && previous_boundaries.at_paragraph_start()
+                            && index == 0),
+                    precedes_break
+                        || (!self.in_inline_span
+                            && previous_boundaries.at_paragraph_end()
+                            && index == last),
+                );
+                self.visit_inline_node(node)?;
+            }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
         result
     }
 

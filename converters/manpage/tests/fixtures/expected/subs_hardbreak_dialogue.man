@@ -1,0 +1,126 @@
+'\" t
+.\"     Title: dialogue
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-04
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "DIALOGUE" "1" "2026-08-04" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+dialogue \- substitution parity
+.SH "DESCRIPTION"
+.sp
+\fBDocumented conflict\fP
+.br
+ \(em Come here! \(em I said. + \(em What is it? \(em replied Lance.
+.sp
+\fBDocumented workaround\fP
+.br
+ \(em Come here! \(em I said.
+.br
+ \(em What is it? \(em replied Lance.
+.sp
+\fBNo substitutions\fP
+.br
+\-\- First line. +
+\-\- Second line.
+.sp
+\fBNo post replacements\fP
+.br
+ \(em First line. + \(em Second line.
+.sp
+\fBNo replacements\fP
+.br
+\-\- First line.
+.br
+\-\- Second line.
+.sp
+\fBNo attributes in the workaround\fP
+.br
+ \(em First line.
+.br
+{empty} \(em Second line.
+.sp
+\fBNo replacements in the workaround\fP
+.br
+\-\- First line.
+.br
+
+.br
+\-\- Second line.
+.sp
+\fBNo post replacements in the workaround\fP
+.br
+ \(em First line.
+ \(em Second line.
+.sp
+\fBReplacements before post replacements\fP
+.br
+ \(em First line. + \(em Second line.
+.sp
+\fBPost replacements before replacements\fP
+.br
+ \(em First line.
+.br
+ \(em Second line.
+.sp
+\fBReplacements moved after post replacements\fP
+.br
+ \(em First line.
+.br
+ \(em Second line.
+.sp
+\fBParagraph boundaries\fP
+.br
+ \(em alpha
+.sp
+alpha \(em
+.sp
+\fBInternal boundaries\fP
+.br
+alpha \(em beta
+.sp
+alpha\(embeta
+.sp
+alpha \-\-beta
+.sp
+alpha\-\- beta
+.sp
+\fBFormatting boundaries\fP
+.br
+\fB\-\- alpha\fP
+.sp
+\fBalpha \-\-\fP
+.sp
+\fBalpha \(em beta\fP
+.sp
+lead \-\-\fBBold\fP
+.sp
+\fBLead\fP\-\- tail
+.sp
+ \(em \fBBold\fP
+.sp
+\fBBold\fP \(em
+.sp
+\fI\-\- italic\fP \f(CR\-\- monospace\fP \fB\-\- role\fP

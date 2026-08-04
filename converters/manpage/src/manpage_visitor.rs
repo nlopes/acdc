@@ -4,6 +4,7 @@ use std::io::Write;
 
 use acdc_converters_core::{
     Diagnostics,
+    substitutions::TextBoundaries,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
@@ -38,6 +39,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
+    pub(crate) text_boundaries: TextBoundaries,
     /// Text casing applied while preserving inline markup.
     pub(crate) text_case: TextCase,
     /// Title of the first level-1 section (for NAME validation).
@@ -57,6 +59,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             in_name_section: false,
             strip_next_leading_space: false,
             in_inline_span: false,
+            text_boundaries: TextBoundaries::BOTH,
             text_case: TextCase::Preserve,
             first_section_title: None,
             second_section_title: None,
@@ -370,76 +373,99 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     }
 
     fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
-        let mut i = 0;
-        while i < nodes.len() {
-            let Some(node) = nodes.get(i) else {
-                break;
-            };
+        let previous_boundaries = self.text_boundaries;
+        let last = nodes.len().saturating_sub(1);
+        let result = (|| {
+            let mut i = 0;
+            while i < nodes.len() {
+                let follows_break =
+                    i > 0 && matches!(nodes.get(i - 1), Some(InlineNode::LineBreak(_)));
+                let precedes_break = matches!(nodes.get(i + 1), Some(InlineNode::LineBreak(_)));
+                self.text_boundaries = TextBoundaries::new(
+                    follows_break
+                        || (!self.in_inline_span
+                            && previous_boundaries.at_paragraph_start()
+                            && i == 0),
+                    precedes_break
+                        || (!self.in_inline_span
+                            && previous_boundaries.at_paragraph_end()
+                            && i == last),
+                );
+                let Some(node) = nodes.get(i) else {
+                    break;
+                };
 
-            // Check if this is a mailto autolink - collect all trailing non-whitespace
-            if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
-                && al.url.to_string().starts_with("mailto:")
-            {
-                let (trailing, skip_count, partial_bytes) =
-                    self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
-
-                self.write_autolink_with_trailing(al, &trailing)?;
-                i += 1 + skip_count;
-
-                // If a PlainText node was partially consumed, render only the remainder
-                if partial_bytes > 0
-                    && let Some(InlineNode::PlainText(text)) = nodes.get(i)
+                // Check if this is a mailto autolink - collect all trailing non-whitespace
+                if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
+                    && al.url.to_string().starts_with("mailto:")
                 {
-                    let remaining = &text.content[partial_bytes..];
-                    let content = if self.strip_next_leading_space {
-                        self.strip_next_leading_space = false;
-                        remaining.trim_start()
-                    } else {
-                        remaining
-                    };
-                    if !content.is_empty() {
-                        let escaped =
-                            crate::escape::manify(content, crate::escape::EscapeMode::Normalize);
-                        write!(self.writer_mut(), "{escaped}")?;
+                    let (trailing, skip_count, partial_bytes) =
+                        self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
+
+                    self.write_autolink_with_trailing(al, &trailing)?;
+                    i += 1 + skip_count;
+
+                    // If a PlainText node was partially consumed, render only the remainder
+                    if partial_bytes > 0
+                        && let Some(InlineNode::PlainText(text)) = nodes.get(i)
+                    {
+                        let remaining = &text.content[partial_bytes..];
+                        let content = if self.strip_next_leading_space {
+                            self.strip_next_leading_space = false;
+                            remaining.trim_start()
+                        } else {
+                            remaining
+                        };
+                        if !content.is_empty() {
+                            let escaped = crate::escape::manify(
+                                content,
+                                crate::escape::EscapeMode::Normalize,
+                            );
+                            write!(self.writer_mut(), "{escaped}")?;
+                        }
+                        i += 1;
                     }
-                    i += 1;
+                    continue;
                 }
-                continue;
-            }
 
-            // Check if this is an explicit mailto macro - collect trailing non-whitespace
-            if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
-                let (trailing, skip_count, partial_bytes) =
-                    self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
+                // Check if this is an explicit mailto macro - collect trailing non-whitespace
+                if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
+                    let (trailing, skip_count, partial_bytes) =
+                        self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
 
-                self.write_mailto_with_trailing(mailto, &trailing)?;
-                i += 1 + skip_count;
+                    self.write_mailto_with_trailing(mailto, &trailing)?;
+                    i += 1 + skip_count;
 
-                // If a PlainText node was partially consumed, render only the remainder
-                if partial_bytes > 0
-                    && let Some(InlineNode::PlainText(text)) = nodes.get(i)
-                {
-                    let remaining = &text.content[partial_bytes..];
-                    let content = if self.strip_next_leading_space {
-                        self.strip_next_leading_space = false;
-                        remaining.trim_start()
-                    } else {
-                        remaining
-                    };
-                    if !content.is_empty() {
-                        let escaped =
-                            crate::escape::manify(content, crate::escape::EscapeMode::Normalize);
-                        write!(self.writer_mut(), "{escaped}")?;
+                    // If a PlainText node was partially consumed, render only the remainder
+                    if partial_bytes > 0
+                        && let Some(InlineNode::PlainText(text)) = nodes.get(i)
+                    {
+                        let remaining = &text.content[partial_bytes..];
+                        let content = if self.strip_next_leading_space {
+                            self.strip_next_leading_space = false;
+                            remaining.trim_start()
+                        } else {
+                            remaining
+                        };
+                        if !content.is_empty() {
+                            let escaped = crate::escape::manify(
+                                content,
+                                crate::escape::EscapeMode::Normalize,
+                            );
+                            write!(self.writer_mut(), "{escaped}")?;
+                        }
+                        i += 1;
                     }
-                    i += 1;
+                    continue;
                 }
-                continue;
-            }
 
-            self.visit_inline_node(node)?;
-            i += 1;
-        }
-        Ok(())
+                self.visit_inline_node(node)?;
+                i += 1;
+            }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
+        result
     }
 
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {

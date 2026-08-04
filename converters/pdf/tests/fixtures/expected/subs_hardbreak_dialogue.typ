@@ -1,7 +1,7 @@
 #set document(
-  title: "Hard Break Substitutions",
+  title: "Dialogue substitution parity",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Hard Break Substitutions]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Dialogue substitution parity]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -38,19 +38,74 @@
 #let tableheader(body) = text(weight: 700, body)
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Hard Break Substitutions")]
+#text(size: 22pt, weight: "bold")[#text("Dialogue substitution parity")]
 ]
 #v(1em)
 
+#block(below: 0.5em)[#text(weight: "bold")[#text("Documented conflict")]]
+#text(" — Come here! — I said. + — What is it? — replied Lance.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Documented workaround")]]
+#text(" — Come here! — I said.")#linebreak()#text(" — What is it? — replied Lance.")
+
 #block(below: 0.5em)[#text(weight: "bold")[#text("No substitutions")]]
-#text("No subs first No subs second")
+#text("-- First line. + -- Second line.")
 
 #block(below: 0.5em)[#text(weight: "bold")[#text("No post replacements")]]
-#text("No post first No post second")
+#text(" — First line. + — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Local option without substitutions")]]
-#text("Local no subs first Local no subs second")
+#block(below: 0.5em)[#text(weight: "bold")[#text("No replacements")]]
+#text("-- First line.")#linebreak()#text("-- Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Explicit break without post replacements")]]
-#text("Explicit first + Explicit second")
+#block(below: 0.5em)[#text(weight: "bold")[#text("No attributes in the workaround")]]
+#text(" — First line.")#linebreak()#text("{empty} — Second line.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("No replacements in the workaround")]]
+#text("-- First line.")#linebreak()#linebreak()#text("-- Second line.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("No post replacements in the workaround")]]
+#text(" — First line.  — Second line.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Replacements before post replacements")]]
+#text(" — First line. + — Second line.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Post replacements before replacements")]]
+#text(" — First line.")#linebreak()#text(" — Second line.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Replacements moved after post replacements")]]
+#text(" — First line.")#linebreak()#text(" — Second line.")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Paragraph boundaries")]]
+#text(" — alpha")
+
+#text("alpha — ")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Internal boundaries")]]
+#text("alpha — beta")
+
+#text("alpha—​beta")
+
+#text("alpha --beta")
+
+#text("alpha-- beta")
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Formatting boundaries")]]
+#strong[#text("-- alpha")]
+
+#strong[#text("alpha --")]
+
+#strong[#text("alpha — beta")]
+
+#text("lead --")#strong[#text("Bold")]
+
+#strong[#text("Lead")]#text("-- tail")
+
+#text(" — ")#strong[#text("Bold")]
+
+#strong[#text("Bold")]#text(" — ")
+
+#emph[#text("-- italic")]#text(" ")#raw("-- monospace")#text(" ")#highlight[#text("-- highlight")]#text(" ")#text(fill: rgb("#bf0000"))[#text("-- role")]
+
+#block(below: 0.5em)[#text(weight: "bold")[#text("Multiple surrounding spaces")]]
+#text("alpha  —  beta")
 

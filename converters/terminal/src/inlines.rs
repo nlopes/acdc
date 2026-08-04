@@ -5,7 +5,7 @@ use std::io::Write;
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     decode_numeric_char_refs, inlines_to_string,
-    substitutions::Replacements,
+    substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
@@ -28,13 +28,13 @@ use crate::{Error, Processor};
 fn transform_plain<'a>(
     text: &'a str,
     processor: &Processor<'_>,
-    string_boundaries_are_space: bool,
+    text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
     apply_replacements(
         text,
         processor.current_subs.get(),
         &Replacements::unicode(),
-        string_boundaries_are_space,
+        text_boundaries,
     )
 }
 
@@ -42,9 +42,9 @@ fn transform_plain<'a>(
 fn transform_plain<'a>(
     text: &'a str,
     _processor: &Processor<'_>,
-    string_boundaries_are_space: bool,
+    text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
-    Cow::Owned(Replacements::unicode().transform(text, string_boundaries_are_space))
+    Cow::Owned(Replacements::unicode().transform(text, text_boundaries))
 }
 
 /// Try to convert a character to its Unicode superscript equivalent.
@@ -195,7 +195,7 @@ fn render_inline_node_to_writer<W: Write>(
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
-            let text = transform_plain(p.content, processor, false);
+            let text = transform_plain(p.content, processor, TextBoundaries::NONE);
             write!(w, "{text}")?;
         }
         InlineNode::RawText(r) => {
@@ -281,15 +281,11 @@ fn render_inline_node_to_writer<W: Write>(
 
 impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     /// Internal implementation for visiting inline nodes
-    pub(crate) fn render_inline_node(
-        &mut self,
-        node: &InlineNode,
-        in_inline_span: bool,
-    ) -> Result<(), crate::Error> {
+    pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), crate::Error> {
         let processor = self.processor.clone();
         match node {
             InlineNode::PlainText(p) => {
-                let text = transform_plain(p.content, &processor, !in_inline_span);
+                let text = transform_plain(p.content, &processor, self.text_boundaries);
                 let w = self.writer_mut();
                 write!(w, "{text}")?;
             }

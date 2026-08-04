@@ -49,7 +49,9 @@ use std::{
 
 use acdc_converters_core::{
     inlines_to_string,
-    substitutions::{restore_escaped_patterns, strip_backslash_escapes},
+    substitutions::{
+        Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
+    },
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
@@ -94,6 +96,22 @@ use crate::{
     icon::write_icon,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
+
+fn replacements() -> Replacements<'static> {
+    let mut replacements = Replacements::unicode();
+    replacements.em_dash_spaced = "&thinsp;&mdash;&thinsp;";
+    replacements.em_dash_word_bounded = "&#8212;&#8203;";
+    replacements.double_arrow_right = "&#8658;";
+    replacements.double_arrow_left = "&#8656;";
+    replacements.arrow_right = "&#8594;";
+    replacements.arrow_left = "&#8592;";
+    replacements.copyright = "&#169;";
+    replacements.registered = "&#174;";
+    replacements.trademark = "&#8482;";
+    replacements.ellipsis = "&#8230;&#8203;";
+    replacements.apostrophe = "&#8217;";
+    replacements
+}
 
 /// Escape `&` to `&amp;` in URL strings for use in `href` attributes.
 pub(crate) fn escape_href(url: &str) -> String {
@@ -411,7 +429,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         // No quotes: output with escaping and typography only.
-        let text = substitution_text(content, effective_subs, options);
+        let text = substitution_text(content, effective_subs, options, self.text_boundaries());
         let w = self.writer_mut();
         if options.hardbreaks {
             write!(w, "{}", text.replace('\n', "<br>"))?;
@@ -431,11 +449,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // explicitly skipped) by the preprocessor. Do NOT apply block subs.
         let content = &r.content;
         let text = if options.inlines_verbatim {
-            substitution_text(content, subs, options)
+            substitution_text(content, subs, options, self.text_boundaries())
         } else if r.subs.is_empty() {
             content.to_string()
         } else {
-            substitution_text(content, &r.subs, options)
+            substitution_text(content, &r.subs, options, self.text_boundaries())
         };
         write!(self.writer_mut(), "{text}")?;
         Ok(())
@@ -471,7 +489,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 self.render_inline_node(node, &verbatim_options, subs)?;
             }
         } else {
-            let text = substitution_text(&content, subs, &verbatim_options);
+            let text = substitution_text(&content, subs, &verbatim_options, self.text_boundaries());
             write!(self.writer_mut(), "{text}")?;
         }
         Ok(())
@@ -855,14 +873,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let Some(text) = p.text else { return Ok(()) };
-        let w = self.writer_mut();
         // Only escape when SpecialChars substitution is enabled (pass:c[]).
         // Otherwise output raw HTML (pass:[], +++...+++).
         if p.substitutions.contains(&Substitution::SpecialChars) {
-            let text = substitution_text(text, subs, options);
-            write!(w, "{text}")?;
+            let text = substitution_text(text, subs, options, self.text_boundaries());
+            write!(self.writer_mut(), "{text}")?;
         } else {
-            write!(w, "{text}")?;
+            write!(self.writer_mut(), "{text}")?;
         }
         Ok(())
     }
@@ -1204,14 +1221,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Flow terms (visible): also output the term text.
         // Concealed terms: no visible text.
         if it.is_visible() {
-            let text = substitution_text(it.term(), subs, options);
+            let text = substitution_text(it.term(), subs, options, self.text_boundaries());
             write!(self.writer_mut(), "{text}")?;
         }
         Ok(())
     }
 }
 
-fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions) -> String {
+fn substitution_text(
+    text: &str,
+    subs: &[Substitution],
+    options: &RenderOptions,
+    text_boundaries: TextBoundaries,
+) -> String {
     debug_assert!(
         !text.is_empty(),
         "substitution_text called with empty text - caller should filter empty content"
@@ -1247,8 +1269,7 @@ fn substitution_text(text: &str, subs: &[Substitution], options: &RenderOptions)
     // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
     // This must happen after & escaping (replacements produce & entities) and before <> escaping
     let text = if should_apply_replacements {
-        acdc_converters_core::substitutions::Replacements::html()
-            .apply(&text, !options.in_inline_span)
+        replacements().apply(&text, text_boundaries)
     } else {
         text
     };

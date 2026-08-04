@@ -82,6 +82,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Dialogue hard breaks and em dashes now use paragraph boundaries: leading and
+  trailing `--` are replaced, while dashes beside or at the edge of inline
+  formatting stay literal.
 - Brackets in block attribute values no longer make the attribute line leak
   into terminal output.
 - **Em-dash inside inline formatting** — `--` inside bold, italic, monospace, highlight,

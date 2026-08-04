@@ -5,7 +5,7 @@ use acdc_converters_core::substitutions::{apply_replacements, effective_subs_fla
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, inlines_to_string,
     section::{AppendixTracker, SectionNumberTracker, SpecialSectionTracker},
-    substitutions::Replacements,
+    substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::Config as TocConfig,
     visitor::Visitor,
@@ -29,6 +29,8 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) appendix_tracker: AppendixTracker,
     pub(crate) special_section_tracker: SpecialSectionTracker,
     pub(crate) list_depth: usize,
+    pub(crate) in_inline_span: bool,
+    text_boundaries: TextBoundaries,
     has_toc_entries: bool,
     toc_written: bool,
 }
@@ -54,6 +56,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             appendix_tracker,
             special_section_tracker: SpecialSectionTracker::new(),
             list_depth: 0,
+            in_inline_span: false,
+            text_boundaries: TextBoundaries::BOTH,
             has_toc_entries,
             toc_written: false,
         }
@@ -110,10 +114,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_inlines(&mut self, nodes: &[InlineNode<'_>]) -> Result<(), Error> {
-        for node in nodes {
-            self.visit_inline_node(node)?;
-        }
-        Ok(())
+        let previous_boundaries = self.text_boundaries;
+        let last = nodes.len().saturating_sub(1);
+        let result = (|| {
+            for (index, node) in nodes.iter().enumerate() {
+                let follows_break =
+                    index > 0 && matches!(nodes.get(index - 1), Some(InlineNode::LineBreak(_)));
+                let precedes_break = matches!(nodes.get(index + 1), Some(InlineNode::LineBreak(_)));
+                self.text_boundaries = TextBoundaries::new(
+                    follows_break
+                        || (!self.in_inline_span
+                            && previous_boundaries.at_paragraph_start()
+                            && index == 0),
+                    precedes_break
+                        || (!self.in_inline_span
+                            && previous_boundaries.at_paragraph_end()
+                            && index == last),
+                );
+                self.visit_inline_node(node)?;
+            }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
+        result
     }
 
     pub(crate) fn write_text_expr(&mut self, text: &str) {
@@ -181,10 +204,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             text,
             self.processor.current_subs.get(),
             &Replacements::unicode(),
-            false,
+            self.text_boundaries,
         );
         #[cfg(not(feature = "pre-spec-subs"))]
-        let text = Cow::Owned(Replacements::unicode().transform(text, false));
+        let text = Cow::Owned(Replacements::unicode().transform(text, self.text_boundaries));
         let text = collapse_source_whitespace(&text);
         self.write_text_expr(&text);
     }
@@ -373,7 +396,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 &text,
                 self.processor.current_subs.get(),
                 &Replacements::unicode(),
-                true,
+                TextBoundaries::BOTH,
             );
             self.writer.string_literal(&text);
         }

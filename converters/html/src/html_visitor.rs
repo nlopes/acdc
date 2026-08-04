@@ -4,6 +4,7 @@ use std::{io::Write, rc::Rc, string::ToString};
 
 use acdc_converters_core::{
     Diagnostics, inlines_to_string,
+    substitutions::TextBoundaries,
     visitor::{Visitor, WritableVisitor},
 };
 
@@ -146,6 +147,7 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     pub(crate) current_section_title: Option<String>,
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
+    text_boundaries: TextBoundaries,
 }
 
 impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
@@ -175,12 +177,17 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             section_style: None,
             current_section_title: None,
             docinfo,
+            text_boundaries: TextBoundaries::BOTH,
         }
     }
 
     /// Consume the visitor and return the writer
     pub fn into_writer(self) -> W {
         self.writer
+    }
+
+    pub(crate) const fn text_boundaries(&self) -> TextBoundaries {
+        self.text_boundaries
     }
 
     /// Check if dark mode is enabled via the `:dark-mode:` document attribute.
@@ -955,6 +962,32 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         let result = self.render_inline_node(node, &options, &subs);
 
         self.render_options.in_inline_span = saved;
+        result
+    }
+
+    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+        let previous_boundaries = self.text_boundaries;
+        let last = nodes.len().saturating_sub(1);
+        let result = (|| {
+            for (index, node) in nodes.iter().enumerate() {
+                let follows_break =
+                    index > 0 && matches!(nodes.get(index - 1), Some(InlineNode::LineBreak(_)));
+                let precedes_break = matches!(nodes.get(index + 1), Some(InlineNode::LineBreak(_)));
+                self.text_boundaries = TextBoundaries::new(
+                    follows_break
+                        || (!self.render_options.in_inline_span
+                            && previous_boundaries.at_paragraph_start()
+                            && index == 0),
+                    precedes_break
+                        || (!self.render_options.in_inline_span
+                            && previous_boundaries.at_paragraph_end()
+                            && index == last),
+                );
+                self.visit_inline_node(node)?;
+            }
+            Ok(())
+        })();
+        self.text_boundaries = previous_boundaries;
         result
     }
 

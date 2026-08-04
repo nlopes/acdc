@@ -377,73 +377,83 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_inline_node(&mut self, node: &InlineNode<'_>) -> Result<(), Self::Error> {
-        match node {
-            InlineNode::PlainText(plain) => self.write_plain(plain.content),
-            InlineNode::RawText(raw) => {
-                self.write_text_expr(&decode_numeric_char_refs(raw.content));
-            }
-            InlineNode::VerbatimText(verbatim) => self.write_text_expr(verbatim.content),
-            InlineNode::BoldText(bold) => {
-                self.write_quoted_span(bold.id, bold.role, "#strong[", &bold.content, "]")?;
-            }
-            InlineNode::ItalicText(italic) => {
-                self.write_quoted_span(italic.id, italic.role, "#emph[", &italic.content, "]")?;
-            }
-            InlineNode::MonospaceText(mono) => {
-                let wrappers = self.write_inline_span_start(mono.id, mono.role);
-                let text = inlines_to_string(&mono.content);
-                let text = collapse_source_whitespace(&text);
-                self.writer.raw("#raw(");
-                self.writer.string_literal(&text);
-                self.writer.raw(")");
-                self.write_inline_span_end(wrappers);
-            }
-            InlineNode::HighlightText(highlight) => {
-                let (prefix, suffix) = if highlight.id.is_some() || highlight.role.is_some() {
-                    ("", "")
-                } else {
-                    ("#highlight[", "]")
-                };
-                self.write_quoted_span(
-                    highlight.id,
-                    highlight.role,
-                    prefix,
-                    &highlight.content,
-                    suffix,
-                )?;
-            }
-            InlineNode::SubscriptText(sub) => {
-                self.write_quoted_span(sub.id, sub.role, "#sub[", &sub.content, "]")?;
-            }
-            InlineNode::SuperscriptText(sup) => {
-                self.write_quoted_span(sup.id, sup.role, "#super[", &sup.content, "]")?;
-            }
-            InlineNode::CurvedQuotationText(quoted) => {
-                let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
-                self.write_text_expr("\u{201C}");
-                self.write_inlines(&quoted.content)?;
-                self.write_text_expr("\u{201D}");
-                self.write_inline_span_end(wrappers);
-            }
-            InlineNode::CurvedApostropheText(quoted) => {
-                let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
-                self.write_text_expr("\u{2018}");
-                self.write_inlines(&quoted.content)?;
-                self.write_text_expr("\u{2019}");
-                self.write_inline_span_end(wrappers);
-            }
-            InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
-            InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),
-            InlineNode::InlineAnchor(anchor) => {
-                let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
-            }
-            InlineNode::Macro(inline_macro) => self.write_inline_macro(inline_macro)?,
-            InlineNode::CalloutRef(callout) => {
-                self.write_text_expr(&format!("({})", callout.number));
-            }
-            _ => {}
+        let previous_inline_span = self.in_inline_span;
+        if acdc_converters_core::visitor::is_formatting_span(node) {
+            self.in_inline_span = true;
         }
-        Ok(())
+
+        let result = (|| {
+            match node {
+                InlineNode::PlainText(plain) => self.write_plain(plain.content),
+                InlineNode::RawText(raw) => {
+                    self.write_text_expr(&decode_numeric_char_refs(raw.content));
+                }
+                InlineNode::VerbatimText(verbatim) => self.write_text_expr(verbatim.content),
+                InlineNode::BoldText(bold) => {
+                    self.write_quoted_span(bold.id, bold.role, "#strong[", &bold.content, "]")?;
+                }
+                InlineNode::ItalicText(italic) => {
+                    self.write_quoted_span(italic.id, italic.role, "#emph[", &italic.content, "]")?;
+                }
+                InlineNode::MonospaceText(mono) => {
+                    let wrappers = self.write_inline_span_start(mono.id, mono.role);
+                    let text = inlines_to_string(&mono.content);
+                    let text = collapse_source_whitespace(&text);
+                    self.writer.raw("#raw(");
+                    self.writer.string_literal(&text);
+                    self.writer.raw(")");
+                    self.write_inline_span_end(wrappers);
+                }
+                InlineNode::HighlightText(highlight) => {
+                    let (prefix, suffix) = if highlight.id.is_some() || highlight.role.is_some() {
+                        ("", "")
+                    } else {
+                        ("#highlight[", "]")
+                    };
+                    self.write_quoted_span(
+                        highlight.id,
+                        highlight.role,
+                        prefix,
+                        &highlight.content,
+                        suffix,
+                    )?;
+                }
+                InlineNode::SubscriptText(sub) => {
+                    self.write_quoted_span(sub.id, sub.role, "#sub[", &sub.content, "]")?;
+                }
+                InlineNode::SuperscriptText(sup) => {
+                    self.write_quoted_span(sup.id, sup.role, "#super[", &sup.content, "]")?;
+                }
+                InlineNode::CurvedQuotationText(quoted) => {
+                    let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
+                    self.write_text_expr("\u{201C}");
+                    self.write_inlines(&quoted.content)?;
+                    self.write_text_expr("\u{201D}");
+                    self.write_inline_span_end(wrappers);
+                }
+                InlineNode::CurvedApostropheText(quoted) => {
+                    let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
+                    self.write_text_expr("\u{2018}");
+                    self.write_inlines(&quoted.content)?;
+                    self.write_text_expr("\u{2019}");
+                    self.write_inline_span_end(wrappers);
+                }
+                InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
+                InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),
+                InlineNode::InlineAnchor(anchor) => {
+                    let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
+                }
+                InlineNode::Macro(inline_macro) => self.write_inline_macro(inline_macro)?,
+                InlineNode::CalloutRef(callout) => {
+                    self.write_text_expr(&format!("({})", callout.number));
+                }
+                _ => {}
+            }
+            Ok(())
+        })();
+
+        self.in_inline_span = previous_inline_span;
+        result
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {

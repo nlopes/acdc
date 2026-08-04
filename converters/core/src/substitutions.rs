@@ -148,12 +148,50 @@ pub fn effective_subs_flags(spec: Option<&SubstitutionSpec>, is_verbatim: bool) 
     SubsFlags::from_resolved(&effective_subs(spec, is_verbatim))
 }
 
+/// The paragraph boundaries represented by one text fragment.
+///
+/// A fragment can touch only one end of its paragraph when inline nodes split
+/// the source. Em-dash replacement must not treat an internal node boundary as
+/// whitespace.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TextBoundaries {
+    at_paragraph_start: bool,
+    at_paragraph_end: bool,
+}
+
+impl TextBoundaries {
+    /// Both fragment ends are paragraph boundaries.
+    pub const BOTH: Self = Self::new(true, true);
+    /// Neither fragment end is a paragraph boundary.
+    pub const NONE: Self = Self::new(false, false);
+
+    /// Record whether each fragment end is a paragraph boundary.
+    #[must_use]
+    pub const fn new(at_paragraph_start: bool, at_paragraph_end: bool) -> Self {
+        Self {
+            at_paragraph_start,
+            at_paragraph_end,
+        }
+    }
+
+    /// Whether the fragment starts at a paragraph boundary.
+    #[must_use]
+    pub const fn at_paragraph_start(self) -> bool {
+        self.at_paragraph_start
+    }
+
+    /// Whether the fragment ends at a paragraph boundary.
+    #[must_use]
+    pub const fn at_paragraph_end(self) -> bool {
+        self.at_paragraph_end
+    }
+}
+
 /// Apply typography [`Replacements`] to `text` only when `subs` includes
 /// [`SubsFlags::REPLACEMENTS`]; otherwise borrow `text` unchanged.
 ///
-/// `string_boundaries_are_space` mirrors the
-/// [`Replacements::transform`] flag — pass `true` when rendering at the outer
-/// boundary of a string, `false` inside a styled span.
+/// `text_boundaries` records which ends of the fragment touch the surrounding
+/// paragraph boundaries.
 ///
 /// Used by the non-HTML converters (terminal, manpage) where typography is
 /// applied at deeply-nested `PlainText` leaves. HTML applies typography at
@@ -168,10 +206,10 @@ pub fn apply_replacements<'a>(
     text: &'a str,
     subs: SubsFlags,
     replacements: &Replacements<'_>,
-    string_boundaries_are_space: bool,
+    text_boundaries: TextBoundaries,
 ) -> Cow<'a, str> {
     if subs.contains(SubsFlags::REPLACEMENTS) {
-        Cow::Owned(replacements.transform(text, string_boundaries_are_space))
+        Cow::Owned(replacements.transform(text, text_boundaries))
     } else {
         Cow::Borrowed(text)
     }
@@ -382,7 +420,7 @@ pub struct Replacements<'a> {
 }
 
 impl Replacements<'static> {
-    /// Unicode replacements for terminal, manpage, and other non-HTML converters.
+    /// Format-neutral Unicode replacements.
     #[must_use]
     pub const fn unicode() -> Self {
         Self {
@@ -399,32 +437,14 @@ impl Replacements<'static> {
             apostrophe: "\u{2019}",
         }
     }
-
-    /// HTML entity replacements for the HTML converter.
-    #[must_use]
-    pub const fn html() -> Self {
-        Self {
-            em_dash_spaced: "&thinsp;&mdash;&thinsp;",
-            em_dash_word_bounded: "&#8212;&#8203;",
-            double_arrow_right: "&#8658;",
-            double_arrow_left: "&#8656;",
-            arrow_right: "&#8594;",
-            arrow_left: "&#8592;",
-            copyright: "&#169;",
-            registered: "&#174;",
-            trademark: "&#8482;",
-            ellipsis: "&#8230;&#8203;",
-            apostrophe: "&#8217;",
-        }
-    }
 }
 
 impl Replacements<'_> {
     /// Full typography pipeline: strip escapes, apply replacements, restore escaped patterns.
     #[must_use]
-    pub fn transform(&self, text: &str, string_boundaries_are_space: bool) -> String {
+    pub fn transform(&self, text: &str, text_boundaries: TextBoundaries) -> String {
         let text = strip_backslash_escapes(text);
-        let text = self.apply(&text, string_boundaries_are_space);
+        let text = self.apply(&text, text_boundaries);
         restore_escaped_patterns(&text)
     }
 
@@ -444,16 +464,16 @@ impl Replacements<'_> {
     ///
     /// ```
     /// use acdc_converters_core::substitutions::{
-    ///     strip_backslash_escapes, restore_escaped_patterns, Replacements,
+    ///     strip_backslash_escapes, restore_escaped_patterns, Replacements, TextBoundaries,
     /// };
     ///
     /// let text = strip_backslash_escapes("Hello -- world");
-    /// let text = Replacements::unicode().apply(&text, true);
+    /// let text = Replacements::unicode().apply(&text, TextBoundaries::BOTH);
     /// let text = restore_escaped_patterns(&text);
     /// assert_eq!(text, "Hello\u{2009}\u{2014}\u{2009}world");
     /// ```
     #[must_use]
-    pub fn apply(&self, text: &str, string_boundaries_are_space: bool) -> String {
+    pub fn apply(&self, text: &str, text_boundaries: TextBoundaries) -> String {
         // Fast path: if none of the trigger bytes appear in the text, no
         // substitution can possibly match. `replace_em_dashes` and
         // `replace_apostrophes` still do char-by-char scans in their slow
@@ -468,7 +488,7 @@ impl Replacements<'_> {
             text,
             self.em_dash_spaced,
             self.em_dash_word_bounded,
-            string_boundaries_are_space,
+            text_boundaries,
         );
 
         // 2-4. Arrows, symbols, ellipsis — only allocate when the pattern
@@ -505,7 +525,8 @@ fn needs_substitution(text: &str) -> bool {
 /// Replace em-dash patterns in text.
 ///
 /// Matches asciidoctor's two em-dash patterns:
-/// - **Spaced**: `\s--\s` (or at start/end of string) → `spaced` replacement
+/// - **Spaced**: a space or newline around `--` (or a paragraph boundary) →
+///   `spaced` replacement
 /// - **Word-bounded**: `\w--\w` → `word_bounded` replacement
 ///
 /// Does NOT match: `word --word`, `word-- word`, `test--`, `--test`, `---`
@@ -513,22 +534,22 @@ fn needs_substitution(text: &str) -> bool {
 /// # Examples
 ///
 /// ```
-/// use acdc_converters_core::substitutions::replace_em_dashes;
+/// use acdc_converters_core::substitutions::{TextBoundaries, replace_em_dashes};
 ///
-/// // With string_boundaries_are_space=true (paragraph-level text):
-/// assert_eq!(replace_em_dashes("a -- b", "S", "W", true), "aSb");
-/// assert_eq!(replace_em_dashes("a--b", "S", "W", true), "aWb");
-/// assert_eq!(replace_em_dashes("a --b", "S", "W", true), "a --b");
-/// // With string_boundaries_are_space=false (inside inline spans):
-/// assert_eq!(replace_em_dashes("--", "S", "W", false), "--");
-/// assert_eq!(replace_em_dashes("-- word", "S", "W", false), "-- word");
+/// // At both paragraph boundaries:
+/// assert_eq!(replace_em_dashes("a -- b", "S", "W", TextBoundaries::BOTH), "aSb");
+/// assert_eq!(replace_em_dashes("a--b", "S", "W", TextBoundaries::BOTH), "aWb");
+/// assert_eq!(replace_em_dashes("a --b", "S", "W", TextBoundaries::BOTH), "a --b");
+/// // Inside inline spans:
+/// assert_eq!(replace_em_dashes("--", "S", "W", TextBoundaries::NONE), "--");
+/// assert_eq!(replace_em_dashes("-- word", "S", "W", TextBoundaries::NONE), "-- word");
 /// ```
 #[must_use]
 pub fn replace_em_dashes(
     text: &str,
     spaced: &str,
     word_bounded: &str,
-    string_boundaries_are_space: bool,
+    text_boundaries: TextBoundaries,
 ) -> String {
     let chars: Vec<char> = text.chars().collect();
     let len = chars.len();
@@ -551,20 +572,20 @@ pub fn replace_em_dashes(
             };
             let next = chars.get(i + 2).copied();
 
-            let prev_is_space = (string_boundaries_are_space && prev.is_none())
-                || prev.is_some_and(char::is_whitespace);
-            let next_is_space = (string_boundaries_are_space && next.is_none())
-                || next.is_some_and(char::is_whitespace);
+            let prev_is_space = (text_boundaries.at_paragraph_start && prev.is_none())
+                || prev.is_some_and(|c| matches!(c, ' ' | '\n'));
+            let next_is_space = (text_boundaries.at_paragraph_end && next.is_none())
+                || next.is_some_and(|c| matches!(c, ' ' | '\n'));
 
             if prev_is_space && next_is_space {
-                // Spaced em-dash: consume surrounding whitespace
-                let trimmed_len = result.trim_end_matches(char::is_whitespace).len();
-                result.truncate(trimmed_len);
+                // The reference regex consumes one source space or newline on
+                // each side, not the complete whitespace run.
+                if prev.is_some() {
+                    result.pop();
+                }
                 result.push_str(spaced);
-                // Skip the two dashes
                 i += 2;
-                // Skip following whitespace
-                while chars.get(i).is_some_and(|c| c.is_whitespace()) {
+                if next.is_some() {
                     i += 1;
                 }
                 continue;
@@ -749,153 +770,201 @@ mod tests {
 
     #[test]
     fn test_em_dash_spaced() {
-        assert_eq!(UNICODE.apply("a -- b", true), "a\u{2009}\u{2014}\u{2009}b");
+        assert_eq!(
+            UNICODE.apply("a -- b", TextBoundaries::BOTH),
+            "a\u{2009}\u{2014}\u{2009}b"
+        );
     }
 
     #[test]
     fn test_em_dash_at_start() {
-        assert_eq!(UNICODE.apply("-- b", true), "\u{2009}\u{2014}\u{2009}b");
+        assert_eq!(
+            UNICODE.apply("-- b", TextBoundaries::BOTH),
+            "\u{2009}\u{2014}\u{2009}b"
+        );
     }
 
     #[test]
     fn test_em_dash_at_end() {
-        assert_eq!(UNICODE.apply("a --", true), "a\u{2009}\u{2014}\u{2009}");
+        assert_eq!(
+            UNICODE.apply("a --", TextBoundaries::BOTH),
+            "a\u{2009}\u{2014}\u{2009}"
+        );
     }
 
     #[test]
     fn test_em_dash_word_bounded() {
         assert_eq!(
-            UNICODE.apply("word--word", true),
+            UNICODE.apply("word--word", TextBoundaries::BOTH),
             "word\u{2014}\u{200B}word"
         );
     }
 
     #[test]
     fn test_em_dash_digit_bounded() {
-        assert_eq!(UNICODE.apply("1--2", true), "1\u{2014}\u{200B}2");
+        assert_eq!(
+            UNICODE.apply("1--2", TextBoundaries::BOTH),
+            "1\u{2014}\u{200B}2"
+        );
     }
 
     #[test]
     fn test_em_dash_no_match_left_space() {
         // space before, word after: no match
-        assert_eq!(UNICODE.apply("word --word", true), "word --word");
+        assert_eq!(
+            UNICODE.apply("word --word", TextBoundaries::BOTH),
+            "word --word"
+        );
     }
 
     #[test]
     fn test_em_dash_no_match_right_space() {
         // word before, space after: no match
-        assert_eq!(UNICODE.apply("word-- word", true), "word-- word");
+        assert_eq!(
+            UNICODE.apply("word-- word", TextBoundaries::BOTH),
+            "word-- word"
+        );
     }
 
     #[test]
     fn test_em_dash_no_match_trailing() {
         // word before, end of string: no match
-        assert_eq!(UNICODE.apply("test--", true), "test--");
+        assert_eq!(UNICODE.apply("test--", TextBoundaries::BOTH), "test--");
     }
 
     #[test]
     fn test_em_dash_no_match_leading() {
         // start of string, word after: no match
-        assert_eq!(UNICODE.apply("--test", true), "--test");
+        assert_eq!(UNICODE.apply("--test", TextBoundaries::BOTH), "--test");
     }
 
     #[test]
     fn test_em_dash_triple_dash_no_match() {
-        assert_eq!(UNICODE.apply("---", true), "---");
+        assert_eq!(UNICODE.apply("---", TextBoundaries::BOTH), "---");
     }
 
     #[test]
     fn test_double_arrow_right() {
-        assert_eq!(UNICODE.apply("a => b", true), "a \u{21D2} b");
+        assert_eq!(
+            UNICODE.apply("a => b", TextBoundaries::BOTH),
+            "a \u{21D2} b"
+        );
     }
 
     #[test]
     fn test_double_arrow_left() {
-        assert_eq!(UNICODE.apply("a <= b", true), "a \u{21D0} b");
+        assert_eq!(
+            UNICODE.apply("a <= b", TextBoundaries::BOTH),
+            "a \u{21D0} b"
+        );
     }
 
     #[test]
     fn test_arrow_right() {
-        assert_eq!(UNICODE.apply("a -> b", true), "a \u{2192} b");
+        assert_eq!(
+            UNICODE.apply("a -> b", TextBoundaries::BOTH),
+            "a \u{2192} b"
+        );
     }
 
     #[test]
     fn test_arrow_left() {
-        assert_eq!(UNICODE.apply("a <- b", true), "a \u{2190} b");
+        assert_eq!(
+            UNICODE.apply("a <- b", TextBoundaries::BOTH),
+            "a \u{2190} b"
+        );
     }
 
     #[test]
     fn test_double_arrow_before_single() {
         // => must be matched before -> to avoid partial match
         assert_eq!(
-            UNICODE.apply("a => b -> c", true),
+            UNICODE.apply("a => b -> c", TextBoundaries::BOTH),
             "a \u{21D2} b \u{2192} c"
         );
     }
 
     #[test]
     fn test_copyright() {
-        assert_eq!(UNICODE.apply("(C) 2024", true), "\u{00A9} 2024");
+        assert_eq!(
+            UNICODE.apply("(C) 2024", TextBoundaries::BOTH),
+            "\u{00A9} 2024"
+        );
     }
 
     #[test]
     fn test_registered() {
-        assert_eq!(UNICODE.apply("Foo(R)", true), "Foo\u{00AE}");
+        assert_eq!(UNICODE.apply("Foo(R)", TextBoundaries::BOTH), "Foo\u{00AE}");
     }
 
     #[test]
     fn test_trademark() {
-        assert_eq!(UNICODE.apply("Foo(TM)", true), "Foo\u{2122}");
+        assert_eq!(
+            UNICODE.apply("Foo(TM)", TextBoundaries::BOTH),
+            "Foo\u{2122}"
+        );
     }
 
     #[test]
     fn test_ellipsis() {
-        assert_eq!(UNICODE.apply("wait...", true), "wait\u{2026}");
+        assert_eq!(
+            UNICODE.apply("wait...", TextBoundaries::BOTH),
+            "wait\u{2026}"
+        );
     }
 
     #[test]
     fn test_apostrophe_contraction() {
-        assert_eq!(UNICODE.apply("it's great", true), "it\u{2019}s great");
+        assert_eq!(
+            UNICODE.apply("it's great", TextBoundaries::BOTH),
+            "it\u{2019}s great"
+        );
     }
 
     #[test]
     fn test_apostrophe_digit_after_not_converted() {
-        assert_eq!(UNICODE.apply("3'4\"", true), "3'4\"");
+        assert_eq!(UNICODE.apply("3'4\"", TextBoundaries::BOTH), "3'4\"");
     }
 
     #[test]
     fn test_apostrophe_quotes_not_converted() {
-        assert_eq!(UNICODE.apply("'word'", true), "'word'");
+        assert_eq!(UNICODE.apply("'word'", TextBoundaries::BOTH), "'word'");
     }
 
     #[test]
     fn test_apostrophe_escaped() {
-        assert_eq!(UNICODE.apply("Olaf\\'s", true), "Olaf's");
+        assert_eq!(UNICODE.apply("Olaf\\'s", TextBoundaries::BOTH), "Olaf's");
     }
 
     #[test]
     fn test_apostrophe_decade() {
-        assert_eq!(UNICODE.apply("1990's", true), "1990\u{2019}s");
+        assert_eq!(
+            UNICODE.apply("1990's", TextBoundaries::BOTH),
+            "1990\u{2019}s"
+        );
     }
 
     #[test]
     fn test_all_replacements_combined() {
         assert_eq!(
-            UNICODE.apply("(C) 2024 -- it's cool...", true),
+            UNICODE.apply("(C) 2024 -- it's cool...", TextBoundaries::BOTH),
             "\u{00A9} 2024\u{2009}\u{2014}\u{2009}it\u{2019}s cool\u{2026}"
         );
     }
 
     #[test]
     fn test_no_replacements() {
-        assert_eq!(UNICODE.apply("plain text", true), "plain text");
+        assert_eq!(
+            UNICODE.apply("plain text", TextBoundaries::BOTH),
+            "plain text"
+        );
     }
 
     #[test]
     fn test_full_pipeline_with_escapes() {
         let input = r"Hello \-- world -- done";
         let text = strip_backslash_escapes(input);
-        let text = UNICODE.apply(&text, true);
+        let text = UNICODE.apply(&text, TextBoundaries::BOTH);
         let text = restore_escaped_patterns(&text);
         assert_eq!(text, "Hello -- world\u{2009}\u{2014}\u{2009}done");
     }
@@ -905,26 +974,26 @@ mod tests {
     #[test]
     fn test_em_dash_inline_span_standalone() {
         // Inside inline spans, bare "--" should NOT become em-dash
-        assert_eq!(UNICODE.apply("--", false), "--");
+        assert_eq!(UNICODE.apply("--", TextBoundaries::NONE), "--");
     }
 
     #[test]
     fn test_em_dash_inline_span_leading() {
         // "-- word" at start of inline span: no em-dash
-        assert_eq!(UNICODE.apply("-- word", false), "-- word");
+        assert_eq!(UNICODE.apply("-- word", TextBoundaries::NONE), "-- word");
     }
 
     #[test]
     fn test_em_dash_inline_span_trailing() {
         // "word --" at end of inline span: no em-dash
-        assert_eq!(UNICODE.apply("word --", false), "word --");
+        assert_eq!(UNICODE.apply("word --", TextBoundaries::NONE), "word --");
     }
 
     #[test]
     fn test_em_dash_inline_span_spaced_middle() {
         // "word -- word" still works (actual space chars on both sides)
         assert_eq!(
-            UNICODE.apply("word -- word", false),
+            UNICODE.apply("word -- word", TextBoundaries::NONE),
             "word\u{2009}\u{2014}\u{2009}word"
         );
     }
@@ -933,8 +1002,48 @@ mod tests {
     fn test_em_dash_inline_span_word_bounded() {
         // "word--word" still works (unaffected by boundary flag)
         assert_eq!(
-            UNICODE.apply("word--word", false),
+            UNICODE.apply("word--word", TextBoundaries::NONE),
             "word\u{2014}\u{200B}word"
+        );
+    }
+
+    #[test]
+    fn test_em_dash_fragment_at_paragraph_start_only() {
+        assert_eq!(
+            UNICODE.apply("-- word --", TextBoundaries::new(true, false)),
+            "\u{2009}\u{2014}\u{2009}word --"
+        );
+    }
+
+    #[test]
+    fn test_em_dash_fragment_at_paragraph_end_only() {
+        assert_eq!(
+            UNICODE.apply("-- word --", TextBoundaries::new(false, true)),
+            "-- word\u{2009}\u{2014}\u{2009}"
+        );
+    }
+
+    #[test]
+    fn test_spaced_em_dash_consumes_one_space_on_each_side() {
+        assert_eq!(
+            UNICODE.apply("word  --  word", TextBoundaries::BOTH),
+            "word \u{2009}\u{2014}\u{2009} word"
+        );
+    }
+
+    #[test]
+    fn test_spaced_em_dash_consumes_one_newline_on_each_side() {
+        assert_eq!(
+            UNICODE.apply("word\n\n--\n\nword", TextBoundaries::BOTH),
+            "word\n\u{2009}\u{2014}\u{2009}\nword"
+        );
+    }
+
+    #[test]
+    fn test_tab_does_not_bound_spaced_em_dash() {
+        assert_eq!(
+            UNICODE.apply("word\t--\tword", TextBoundaries::BOTH),
+            "word\t--\tword"
         );
     }
 }

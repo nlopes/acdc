@@ -75,6 +75,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Dialogue hard breaks and em dashes now match the `asciidoctor` manpage
+  backend: paragraph-leading and trailing `--` are replaced, while dashes
+  beside or at the edge of inline formatting stay literal. Spaced em dashes
+  use normal roff word spacing instead of thin-space escapes.
 - Quote and verse attribution stays literal unless single-quoted, when
   formatting and links render. A citation without an attribution is hidden,
   matching the `asciidoctor` manpage backend.

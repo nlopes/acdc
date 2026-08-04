@@ -1,2 +1,2 @@
 .sp
-This has\|\(em\|dashes, \(co, \(rg, \(tm, and \(-> arrows.
+This has \(em dashes, \(co, \(rg, \(tm, and \(-> arrows.
