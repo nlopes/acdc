@@ -1,0 +1,4 @@
+= Portuguese Document
+:lang: pt
+
+Um parágrafo em português.

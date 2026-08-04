@@ -30,7 +30,9 @@ use acdc_pdf_images::{
 };
 use acdc_pdf_render::{RenderConfig, render_pdf};
 use acdc_pdf_theme::Theme;
-use acdc_pdf_typst::{DocumentMetadata, EmitOptions, preamble};
+use acdc_pdf_typst::{
+    DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, preamble,
+};
 
 mod converter;
 mod error;
@@ -230,6 +232,7 @@ impl Processor<'_> {
             .or_else(|| metadata.title.clone());
         EmitOptions {
             metadata,
+            locale: document_locale(doc, diagnostics),
             page: self.page_size(doc, diagnostics),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
@@ -495,6 +498,32 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
     }
 }
 
+fn document_locale(doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> DocumentLocale {
+    let Some(value) = doc.attributes.get_string("lang") else {
+        return DocumentLocale::default();
+    };
+    if value.is_empty() {
+        return DocumentLocale::default();
+    }
+    let error = match parse_document_locale(&value) {
+        Ok(locale) => return locale,
+        Err(error) => error,
+    };
+
+    diagnostics.warn_with_advice(
+        format!("{error}; using English for PDF text"),
+        "Set `:lang:` to a two- or three-letter language code, optionally followed by `-` or `_` and a two-letter region, for example `pt-BR`.",
+    );
+    DocumentLocale::default()
+}
+
+fn parse_document_locale(value: &str) -> Result<DocumentLocale, TypstError> {
+    let (language, region) = value
+        .split_once(['-', '_'])
+        .map_or((value, None), |(language, region)| (language, Some(region)));
+    DocumentLocale::try_from_codes(language, region)
+}
+
 fn metadata_attribute(attributes: &DocumentAttributes<'_>, name: &str) -> Option<String> {
     attributes.get_string(name).map_or_else(
         || {
@@ -738,6 +767,72 @@ mod tests {
             Some("Main Title: Subtitle Part")
         );
         assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn document_language_maps_to_typst_language_and_region() {
+        for (value, language, region) in [
+            ("pt", "pt", None),
+            ("PT-br", "pt", Some("BR")),
+            ("pt_BR", "pt", Some("BR")),
+            ("eng-US", "eng", Some("US")),
+        ] {
+            assert_eq!(
+                parse_document_locale(value),
+                DocumentLocale::try_from_codes(language, region),
+            );
+        }
+
+        assert_eq!(
+            parse_document_locale("english"),
+            Err(TypstError::InvalidLanguage {
+                value: "english".to_owned(),
+            }),
+        );
+        for (value, region) in [
+            ("pt-BRA", "BRA"),
+            ("pt-BR-extra", "BR-extra"),
+            ("pt_BR-extra", "BR-extra"),
+        ] {
+            assert_eq!(
+                parse_document_locale(value),
+                Err(TypstError::InvalidRegion {
+                    value: region.to_owned(),
+                }),
+            );
+        }
+    }
+
+    #[test]
+    fn unsupported_document_language_warns_and_uses_english()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Invalid Language\n:lang: english\n\nBody.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+
+        assert_eq!(options.locale, DocumentLocale::default());
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing document language warning"))?;
+        assert_eq!(
+            warning.message,
+            "invalid language code `english`: expected two or three ASCII letters; using English for PDF text",
+        );
+        assert_eq!(
+            warning.advice(),
+            Some(
+                "Set `:lang:` to a two- or three-letter language code, optionally followed by `-` or `_` and a two-letter region, for example `pt-BR`."
+            )
+        );
         Ok(())
     }
 

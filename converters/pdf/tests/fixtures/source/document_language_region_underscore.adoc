@@ -1,0 +1,4 @@
+= Underscore Language Region
+:lang: pt_BR
+
+Um parágrafo em português do Brasil.

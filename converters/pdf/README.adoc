@@ -44,6 +44,16 @@ The backend is intentionally incomplete.
 Inline icons, audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
 
+== Document language
+
+The document `:lang:` attribute sets the Typst text language.
+Use a two- or three-letter language code, such as `pt` or `eng`.
+An optional two-letter region can follow `-` or `_`; for example, both `pt-BR` and `pt_BR` become Typst `lang: "pt", region: "BR"`.
+
+Missing or empty values use English.
+Values that Typst cannot represent also use English and produce a converter warning.
+Asciidoctor PDF accepts arbitrary `lang` values, but Typst requires separate, valid language and region codes.
+
 == Inline IDs and roles
 
 IDs on bold, italic, monospace, highlight, subscript, superscript, and quoted text create PDF link targets.

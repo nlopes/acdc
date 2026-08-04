@@ -1,0 +1,4 @@
+= Unsupported Language
+:lang: english
+
+This document uses the English fallback.

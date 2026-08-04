@@ -1,0 +1,4 @@
+= Brazilian Portuguese Document
+:lang: pt-BR
+
+Um parágrafo em português do Brasil.
