@@ -428,7 +428,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         blocks: &[Block<'_>],
     ) -> Result<(), Error> {
         if let Some(frame) = frame {
-            let _ = write!(self.writer, "#{frame}[\n");
+            let _ = writeln!(self.writer, "#{frame}[");
         }
         if let Some(label) = label {
             self.writer.raw("#text(weight: \"bold\")[");
