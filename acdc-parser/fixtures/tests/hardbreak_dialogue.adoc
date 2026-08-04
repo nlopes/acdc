@@ -1,0 +1,69 @@
+= Dialogue hard-break behavior
+
+.Documented conflict
+-- Come here! -- I said. +
+-- What is it? -- replied Lance.
+
+.Documented workaround
+[%hardbreaks]
+-- Come here! -- I said.
+{empty}
+-- What is it? -- replied Lance.
+
+.Explicit break before a leading dash
+First line. +
+-- Second line.
+
+.Hardbreaks with adjacent dialogue lines
+[%hardbreaks]
+-- First line.
+-- Second line.
+
+.Unicode dashes do not consume the break
+— First line. +
+— Second line.
+
+.Paragraph start
+-- alpha
+
+.Paragraph end
+alpha --
+
+.Internal spaced dashes
+alpha -- beta
+
+.Word-bounded dashes
+alpha--beta
+
+.Left half-bound dashes
+alpha --beta
+
+.Right half-bound dashes
+alpha-- beta
+
+.Leading dashes inside a span
+*-- alpha*
+
+.Trailing dashes inside a span
+*alpha --*
+
+.Internal dashes inside a span
+*alpha -- beta*
+
+.Dashes before a span
+lead --*Bold*
+
+.Dashes after a span
+*Lead*-- tail
+
+.Paragraph start before a span
+-- *Bold*
+
+.Paragraph end after a span
+*Bold* --
+
+.Other span boundaries
+_-- italic_ `-- monospace` #-- highlight# [.red]#-- role#
+
+.Multiple surrounding spaces
+alpha  --  beta

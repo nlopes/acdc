@@ -29,7 +29,7 @@ use crate::{
     model::{
         LeveloffsetRange, ListLevel, Locateable, PositionalAttribute, SectionKind, SectionLevel,
         Substitution, strip_quotes, substitute,
-        substitution::{HEADER, SubsFlags},
+        substitution::{HEADER, NORMAL, SubsFlags},
     },
 };
 
@@ -3004,6 +3004,26 @@ peg::parser! {
                 for (flag, sub) in SubsFlags::FLAG_SUBSTITUTIONS {
                     flags.set(*flag, !spec.is_disabled(sub));
                 }
+                let resolved = spec.resolve(NORMAL);
+                let replacements = resolved
+                    .iter()
+                    .position(|sub| sub == &Substitution::Replacements);
+                let post_replacements = resolved
+                    .iter()
+                    .position(|sub| sub == &Substitution::PostReplacements);
+                flags.set(SubsFlags::REPLACEMENTS, replacements.is_some());
+                flags.set(
+                    SubsFlags::POST_REPLACEMENTS,
+                    post_replacements.is_some(),
+                );
+                flags.set(
+                    SubsFlags::REPLACEMENTS_BEFORE_POST_REPLACEMENTS,
+                    matches!(
+                        (replacements, post_replacements),
+                        (Some(replacements), Some(post_replacements))
+                            if replacements < post_replacements
+                    ),
+                );
                 flags
             });
             #[cfg(not(feature = "pre-spec-subs"))]

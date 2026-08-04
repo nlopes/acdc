@@ -135,6 +135,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Dialogue lines that start with `--` now follow the effective replacement
+  order. The documented trailing-`+` conflict stays on one line, while the
+  `{empty}` hardbreaks workaround produces one line break. Disabling post
+  replacements now makes `%hardbreaks` inert instead of causing a parse error.
 - Paragraph `hardbreaks` options and the document attributes `hardbreaks` and
   `hardbreaks-option` now preserve source newlines. Empty ` +` lines and
   `{empty} +` insert blank or leading lines. Attribute changes affect only

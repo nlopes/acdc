@@ -852,6 +852,11 @@ peg::parser! {
         rule check_post_replacements() -> ()
         = {? if state.inline_ctx.subs_flags.contains(SubsFlags::POST_REPLACEMENTS) { Ok(()) } else { Err("post_replacements disabled") } }
 
+        rule check_replacements_before_post_replacements() -> ()
+        = {? if state.inline_ctx.subs_flags.contains(
+            SubsFlags::REPLACEMENTS | SubsFlags::REPLACEMENTS_BEFORE_POST_REPLACEMENTS,
+        ) { Ok(()) } else { Err("replacements do not precede post_replacements") } }
+
         rule check_hardbreaks() -> ()
         = {? if state.inline_ctx.hardbreaks { Ok(()) } else { Err("hard breaks disabled") } }
 
@@ -886,13 +891,19 @@ peg::parser! {
         / bare_url()
         / email_at_sign_ahead() email_address()
 
+        rule replacement_consumes_eol()
+        = check_replacements_before_post_replacements() eol() "--" (" " / eol() / ![_])
+
+        rule line_break_eol()
+        = !replacement_consumes_eol() eol()
+
         /// End of a hard line break: either a newline, or — only in a top-level
         /// block-content parse — end of input. The block-level gate keeps a
         /// nested span ending in ` +` (e.g. `` `code +` ``, a footnote/link)
         /// literal, since `process_inlines` re-parses that inner content and
         /// would otherwise see its trailing ` +` as ending the input.
         rule inline_line_break_end()
-        = eol()
+        = line_break_eol()
         / ![_] {? if state.inline_ctx.block_level { Ok(()) } else { Err("hard line break at EOI requires block level") } }
 
         rule inline_line_break() -> InlineNode<'input>
@@ -922,7 +933,7 @@ peg::parser! {
         }
 
         rule automatic_line_break() -> InlineNode<'input>
-        = eol()
+        = line_break_eol()
         {
             InlineNode::LineBreak(LineBreak {
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
@@ -1957,8 +1968,10 @@ peg::parser! {
             // skip groups of rules whose starting character doesn't match.
             / (
                 !(
-                    eol()*<2,>
-                    / check_hardbreaks() eol()
+                    // Attribute expansion can create an internal empty line. Let
+                    // plain text absorb it when post replacements cannot handle it.
+                    check_post_replacements() eol()*<2,>
+                    / check_hardbreaks() line_break_eol()
                     / ![_]
                     / &['\\'] escaped_syntax_match()
                     / check_post_replacements() &[' '] (hard_wrap_match() / inline_line_break_match())

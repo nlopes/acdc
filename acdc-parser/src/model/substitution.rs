@@ -81,6 +81,10 @@ bitflags! {
         /// Callout markers (`<1>`, `<.>`) in verbatim content produce
         /// `CalloutRef` nodes.
         const CALLOUTS = 1 << 4;
+        /// Typography replacements are enabled for this block.
+        const REPLACEMENTS = 1 << 5;
+        /// Replacements run before post replacements in the effective order.
+        const REPLACEMENTS_BEFORE_POST_REPLACEMENTS = 1 << 6;
     }
 }
 
@@ -102,6 +106,7 @@ impl SubsFlags {
         (SubsFlags::POST_REPLACEMENTS, Substitution::PostReplacements),
         (SubsFlags::QUOTES, Substitution::Quotes),
         (SubsFlags::CALLOUTS, Substitution::Callouts),
+        (SubsFlags::REPLACEMENTS, Substitution::Replacements),
     ];
 }
 

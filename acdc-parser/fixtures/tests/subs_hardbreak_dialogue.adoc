@@ -1,0 +1,49 @@
+= Dialogue substitution behavior
+
+.No substitutions
+[subs=none]
+-- First line. +
+-- Second line.
+
+.No post replacements
+[subs=-post_replacements]
+-- First line. +
+-- Second line.
+
+.No replacements
+[subs=-replacements]
+-- First line. +
+-- Second line.
+
+.No attributes in the workaround
+[%hardbreaks,subs=-attributes]
+-- First line.
+{empty}
+-- Second line.
+
+.No replacements in the workaround
+[%hardbreaks,subs=-replacements]
+-- First line.
+{empty}
+-- Second line.
+
+.No post replacements in the workaround
+[%hardbreaks,subs=-post_replacements]
+-- First line.
+{empty}
+-- Second line.
+
+.Replacements before post replacements
+[subs="specialchars,replacements,post_replacements"]
+-- First line. +
+-- Second line.
+
+.Post replacements before replacements
+[subs="specialchars,post_replacements,replacements"]
+-- First line. +
+-- Second line.
+
+.Replacements moved after post replacements
+[subs="-replacements,+replacements"]
+-- First line. +
+-- Second line.

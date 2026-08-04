@@ -1,0 +1,694 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Dialogue substitution behavior",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 32
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No substitutions",
+          "location": [
+            {
+              "line": 3,
+              "col": 2
+            },
+            {
+              "line": 3,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line. +\n-- Second line.",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": []
+      },
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No post replacements",
+          "location": [
+            {
+              "line": 8,
+              "col": 2
+            },
+            {
+              "line": 8,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line. +\n-- Second line.",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-post_replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No replacements",
+          "location": [
+            {
+              "line": 13,
+              "col": 2
+            },
+            {
+              "line": 13,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line.",
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 15,
+              "col": 15
+            },
+            {
+              "line": 15,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- Second line.",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No attributes in the workaround",
+          "location": [
+            {
+              "line": 18,
+              "col": 2
+            },
+            {
+              "line": 18,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line.",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 20,
+              "col": 15
+            },
+            {
+              "line": 21,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "{empty}\n-- Second line.",
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "options": [
+          "hardbreaks"
+        ],
+        "substitutions": [
+          "-attributes"
+        ]
+      },
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No replacements in the workaround",
+          "location": [
+            {
+              "line": 24,
+              "col": 2
+            },
+            {
+              "line": 24,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line.",
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 26,
+              "col": 15
+            },
+            {
+              "line": 27,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- Second line.",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "options": [
+          "hardbreaks"
+        ],
+        "substitutions": [
+          "-replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "No post replacements in the workaround",
+          "location": [
+            {
+              "line": 30,
+              "col": 2
+            },
+            {
+              "line": 30,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line.\n\n-- Second line.",
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "options": [
+          "hardbreaks"
+        ],
+        "substitutions": [
+          "-post_replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Replacements before post replacements",
+          "location": [
+            {
+              "line": 36,
+              "col": 2
+            },
+            {
+              "line": 36,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line. +\n-- Second line.",
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "special_chars",
+          "replacements",
+          "post_replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 36,
+          "col": 1
+        },
+        {
+          "line": 39,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Post replacements before replacements",
+          "location": [
+            {
+              "line": 41,
+              "col": 2
+            },
+            {
+              "line": 41,
+              "col": 38
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line.",
+          "location": [
+            {
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 43,
+              "col": 15
+            },
+            {
+              "line": 43,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- Second line.",
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "special_chars",
+          "post_replacements",
+          "replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 41,
+          "col": 1
+        },
+        {
+          "line": 44,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Replacements moved after post replacements",
+          "location": [
+            {
+              "line": 46,
+              "col": 2
+            },
+            {
+              "line": 46,
+              "col": 43
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- First line.",
+          "location": [
+            {
+              "line": 48,
+              "col": 1
+            },
+            {
+              "line": 48,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 48,
+              "col": 15
+            },
+            {
+              "line": 48,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-- Second line.",
+          "location": [
+            {
+              "line": 49,
+              "col": 1
+            },
+            {
+              "line": 49,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "substitutions": [
+          "-replacements",
+          "+replacements"
+        ]
+      },
+      "location": [
+        {
+          "line": 46,
+          "col": 1
+        },
+        {
+          "line": 49,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 49,
+      "col": 15
+    }
+  ]
+}
