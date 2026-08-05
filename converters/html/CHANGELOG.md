@@ -232,6 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- In a book, `:partnums: false` now enables Roman part numbers because the
+  attribute is set. Use `:partnums!:` to disable them, matching Asciidoctor.
 - Numbered book chapters continue across parts instead of restarting at each
   part, matching `asciidoctor`.
 - Dialogue hard breaks and em dashes now match `asciidoctor`: paragraph-leading

@@ -149,7 +149,7 @@
     {
       "name": "hardbreaks",
       "type": "attribute",
-      "value": false,
+      "value": "false",
       "location": [
         {
           "line": 13,

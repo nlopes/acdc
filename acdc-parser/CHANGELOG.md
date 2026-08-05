@@ -97,6 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A document attribute assigned the literal value `false` now remains set to
+  that text. Use `:name!:` or `:!name:` to unset it, matching Asciidoctor.
 - Include targets beginning with a case-insensitive ASCII URI scheme are now
   classified before local paths. HTTP(S) remains the supported transport; other
   schemes use URI fallback or recovery and cannot resolve as local files. acdc keeps

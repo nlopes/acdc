@@ -1,0 +1,9 @@
+= False and Unset Attributes
+:literal-false: false
+:unset-attribute!:
+
+The value is {literal-false}.
+
+ifdef::literal-false[]
+The literal false attribute is set.
+endif::[]

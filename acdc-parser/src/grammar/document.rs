@@ -5501,7 +5501,6 @@ peg::parser! {
                 let trimmed = v.trim();
                 match trimmed {
                     "true" => AttributeValue::Bool(true),
-                    "false" => AttributeValue::Bool(false),
                     _ => AttributeValue::String(Cow::Owned(v)),
                 }
             } else {

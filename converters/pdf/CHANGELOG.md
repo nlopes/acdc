@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- In a book, `:partnums: false` now enables Roman part numbers because the
+  attribute is set. Use `:partnums!:` to disable them, matching
+  `asciidoctor-pdf`.
 - Book parts and chapters now start on new pages by default, matching
   `asciidoctor-pdf`. Themes can let either heading follow preceding content or
   avoid a forced break before a part's first chapter.

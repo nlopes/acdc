@@ -601,6 +601,15 @@ mod tests {
     }
 
     #[test]
+    fn test_part_tracker_enabled_when_value_is_literal_false() {
+        let mut attrs = attrs_with_partnums();
+        attrs.set("partnums".into(), AttributeValue::String("false".into()));
+        let tracker = PartNumberTracker::new(&attrs);
+        assert!(tracker.is_enabled());
+        assert_eq!(tracker.enter_part(), Some("I: ".to_string()));
+    }
+
+    #[test]
     fn test_part_tracker_with_signifier() {
         let mut attrs = attrs_with_partnums();
         attrs.insert(
