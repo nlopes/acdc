@@ -30,37 +30,102 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
 /// Default maximum section level for numbering.
 pub const DEFAULT_SECTION_LEVEL: u8 = 3;
 
+/// Returns the rendered level for a section.
+///
+/// Converters present a source level-zero special section at the chapter tier
+/// without changing its document-root placement.
+#[must_use]
+pub fn effective_section_level(level: u8, kind: SectionKind) -> u8 {
+    if level == 0 && kind.is_special() {
+        1
+    } else {
+        level
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SpecialSectionPolicy {
+    book_abstracts_are_chapters: bool,
+    number_all: bool,
+}
+
+impl SpecialSectionPolicy {
+    pub(crate) fn from_attributes(attributes: &DocumentAttributes<'_>) -> Self {
+        let sectnums = attributes
+            .get("sectnums")
+            .or_else(|| attributes.get("numbered"));
+        Self {
+            book_abstracts_are_chapters: attributes.get_string("doctype").as_deref()
+                == Some("book"),
+            number_all: matches!(sectnums, Some(AttributeValue::String(value)) if value == "all"),
+        }
+    }
+
+    const fn participates(self, kind: SectionKind) -> bool {
+        if matches!(kind, SectionKind::Normal) {
+            return true;
+        }
+        if matches!(kind, SectionKind::Appendix) {
+            return false;
+        }
+        if matches!(kind, SectionKind::Abstract) && self.book_abstracts_are_chapters {
+            return true;
+        }
+
+        self.number_all
+            && matches!(
+                kind,
+                SectionKind::Preface
+                    | SectionKind::Abstract
+                    | SectionKind::Dedication
+                    | SectionKind::Colophon
+                    | SectionKind::Glossary
+                    | SectionKind::Bibliography
+                    | SectionKind::Index
+            )
+    }
+}
+
 /// Decides which sections take part in `:sectnums:` numbering, accounting for
 /// `AsciiDoc` special sections.
 ///
-/// A special section (`[preface]`, `[glossary]`, …) is not numbered, and neither
-/// are the subsections nested under it. `[appendix]` is special too, but it
-/// begins its own (letter-based) numbered sequence, so it does *not* suppress
-/// numbering for its descendants.
+/// By default, a special section (`[preface]`, `[glossary]`, …) is not numbered,
+/// and neither are the subsections nested under it. A book `[abstract]` is a
+/// numbered chapter, and `:sectnums: all` includes other special sections.
+/// `[appendix]` begins its own letter-based sequence and does not suppress its
+/// descendants.
 ///
 /// Feed every section to [`enter`](Self::enter) once, in document (pre-order)
 /// order — the same order both the body walk and the flat TOC list visit
 /// sections — so every converter applies the rule identically. State is shared
 /// across clones (like the other trackers here) so a cloned `Processor` keeps a
 /// single walk.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct SpecialSectionTracker {
     /// Levels at which a still-open suppressing ancestor section started.
     suppress_levels: Rc<RefCell<Vec<u8>>>,
+    policy: SpecialSectionPolicy,
 }
 
 impl SpecialSectionTracker {
-    /// Create a new tracker.
+    /// Creates a tracker from document numbering attributes.
     #[must_use]
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(attributes: &DocumentAttributes<'_>) -> Self {
+        Self::with_policy(SpecialSectionPolicy::from_attributes(attributes))
+    }
+
+    pub(crate) fn with_policy(policy: SpecialSectionPolicy) -> Self {
+        Self {
+            suppress_levels: Rc::new(RefCell::new(Vec::new())),
+            policy,
+        }
     }
 
     /// Record entering a section (in document order) and return whether it
     /// participates in `:sectnums:` numbering.
     ///
-    /// Returns `false` for a special section and for any section nested under a
-    /// non-appendix special section.
+    /// Returns `false` for a section excluded by the active numbering policy or
+    /// nested under an excluded special section.
     #[must_use]
     pub fn enter(&self, level: u8, kind: SectionKind) -> bool {
         let mut stack = self.suppress_levels.borrow_mut();
@@ -69,12 +134,11 @@ impl SpecialSectionTracker {
             stack.pop();
         }
         let inside_special = !stack.is_empty();
-        // Special sections suppress their descendants — except appendix, whose
-        // subsections continue its letter numbering.
-        if kind.is_special() && kind != SectionKind::Appendix {
+        let participates = self.policy.participates(kind);
+        if kind.is_special() && kind != SectionKind::Appendix && !participates {
             stack.push(level);
         }
-        !(inside_special || kind.is_special())
+        !inside_special && participates
     }
 }
 
@@ -106,14 +170,14 @@ impl SectionNumberTracker {
     }
 
     /// Begin an appendix subtree: record the appendix's letter numeral and zero
-    /// the section counters so its subsections number as `A.1`, `A.1.1`, ….
+    /// its subsection counters so descendants number as `A.1`, `A.1.1`, ….
     ///
     /// Called instead of [`reset`](Self::reset) when entering an `[appendix]` so
     /// the caption letter (`Appendix A:`) and the subsection numbers (`A.1`)
     /// agree on the same letter.
     pub fn enter_appendix_subtree(&self, letter: char) {
         let mut counters = self.counters.borrow_mut();
-        for c in counters.iter_mut() {
+        for c in counters.iter_mut().skip(1) {
             *c = 0;
         }
         self.appendix_letter.set(Some(letter));
@@ -323,7 +387,7 @@ pub struct AppendixTracker {
 impl AppendixTracker {
     /// Create a new appendix tracker from document attributes.
     /// `section_tracker` should be a clone of the processor's `SectionNumberTracker`
-    /// so they share state — entering an appendix resets section counters.
+    /// so they share the appendix letter and subsection counters.
     #[must_use]
     pub fn new(
         document_attributes: &DocumentAttributes,
@@ -371,7 +435,7 @@ mod tests {
 
     #[test]
     fn special_tracker_numbers_normal_sections() {
-        let tracker = SpecialSectionTracker::new();
+        let tracker = SpecialSectionTracker::new(&DocumentAttributes::default());
         assert!(tracker.enter(1, SectionKind::Normal));
         assert!(tracker.enter(2, SectionKind::Normal));
         assert!(tracker.enter(1, SectionKind::Normal));
@@ -379,7 +443,7 @@ mod tests {
 
     #[test]
     fn special_tracker_suppresses_preface_subtree() {
-        let tracker = SpecialSectionTracker::new();
+        let tracker = SpecialSectionTracker::new(&DocumentAttributes::default());
         // [preface] == Introduction
         assert!(!tracker.enter(1, SectionKind::Preface));
         // === Features (nested) — unnumbered by inheritance
@@ -393,7 +457,7 @@ mod tests {
 
     #[test]
     fn special_tracker_appendix_does_not_suppress_descendants() {
-        let tracker = SpecialSectionTracker::new();
+        let tracker = SpecialSectionTracker::new(&DocumentAttributes::default());
         // [appendix] == App — special, so not part of the normal numbered run
         assert!(!tracker.enter(1, SectionKind::Appendix));
         // === App Sub — appendix begins its own sequence, so the subsection is
@@ -403,13 +467,44 @@ mod tests {
 
     #[test]
     fn special_tracker_handles_special_within_special() {
-        let tracker = SpecialSectionTracker::new();
+        let tracker = SpecialSectionTracker::new(&DocumentAttributes::default());
         assert!(!tracker.enter(1, SectionKind::Preface));
         // A nested special section is itself unnumbered, and so is its subtree.
         assert!(!tracker.enter(2, SectionKind::Abstract));
         assert!(!tracker.enter(3, SectionKind::Normal));
         // Back out to a normal top-level section.
         assert!(tracker.enter(1, SectionKind::Normal));
+    }
+
+    #[test]
+    fn special_tracker_numbers_book_abstract_as_chapter() {
+        let mut attrs = DocumentAttributes::default();
+        attrs.insert("doctype".into(), AttributeValue::String("book".into()));
+        let tracker = SpecialSectionTracker::new(&attrs);
+
+        assert!(tracker.enter(1, SectionKind::Abstract));
+        assert!(tracker.enter(2, SectionKind::Normal));
+        assert!(tracker.enter(1, SectionKind::Normal));
+    }
+
+    #[test]
+    fn special_tracker_suppresses_article_abstract_subtree() {
+        let tracker = SpecialSectionTracker::new(&DocumentAttributes::default());
+
+        assert!(!tracker.enter(1, SectionKind::Abstract));
+        assert!(!tracker.enter(2, SectionKind::Normal));
+        assert!(tracker.enter(1, SectionKind::Normal));
+    }
+
+    #[test]
+    fn special_tracker_numbers_special_sections_when_all_is_selected() {
+        let mut attrs = DocumentAttributes::default();
+        attrs.insert("sectnums".into(), AttributeValue::String("all".into()));
+        let tracker = SpecialSectionTracker::new(&attrs);
+
+        assert!(tracker.enter(1, SectionKind::Preface));
+        assert!(tracker.enter(2, SectionKind::Normal));
+        assert!(tracker.enter(1, SectionKind::Index));
     }
 
     fn attrs_with_sectnums() -> DocumentAttributes<'static> {
@@ -721,13 +816,13 @@ mod tests {
     }
 
     #[test]
-    fn test_appendix_tracker_resets_section_counters() {
+    fn test_appendix_tracker_preserves_chapter_counter() {
         let attrs = attrs_with_sectnums();
         let section_tracker = SectionNumberTracker::new(&attrs);
         let appendix_tracker = AppendixTracker::new(&attrs, section_tracker.clone());
         assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
-        assert_eq!(section_tracker.enter_section(1), Some("2. ".to_string()));
         let _ = appendix_tracker.enter_appendix();
-        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
+        assert_eq!(section_tracker.enter_section(2), Some("A.1. ".to_string()));
+        assert_eq!(section_tracker.enter_section(1), Some("2. ".to_string()));
     }
 }

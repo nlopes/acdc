@@ -232,6 +232,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Book abstracts now take chapter numbers, `sectnums=all` includes special
+  sections, and ordinary section numbering continues after an appendix,
+  matching Asciidoctor.
 - Numbered book table-of-contents entries now keep chapter numbers continuous
   across parts, matching Asciidoctor.
 - In a book, `:partnums: false` now enables Roman part numbers because the

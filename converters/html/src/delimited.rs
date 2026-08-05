@@ -1050,6 +1050,8 @@ mod tests {
         let part_number_tracker = PartNumberTracker::new(&document_attributes);
         let appendix_tracker =
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
+        let special_section_tracker =
+            acdc_converters_core::section::SpecialSectionTracker::new(&document_attributes);
         Processor {
             options,
             document_attributes,
@@ -1066,7 +1068,7 @@ mod tests {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
-            special_section_tracker: acdc_converters_core::section::SpecialSectionTracker::new(),
+            special_section_tracker,
             variant: crate::HtmlVariant::Standard,
         }
     }

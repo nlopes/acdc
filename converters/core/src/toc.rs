@@ -16,7 +16,10 @@ use acdc_parser::{
     TableOfContents, TocEntry,
 };
 
-use crate::section::{DEFAULT_SECTION_LEVEL, SpecialSectionTracker, to_upper_roman};
+use crate::section::{
+    DEFAULT_SECTION_LEVEL, SpecialSectionPolicy, SpecialSectionTracker, effective_section_level,
+    to_upper_roman,
+};
 
 /// Section-number settings used while rendering a table of contents.
 #[derive(Debug, Clone, Copy)]
@@ -26,6 +29,7 @@ pub struct NumberingConfig<'a> {
     partnums_enabled: bool,
     part_signifier: Option<&'a str>,
     appendix_caption: Option<&'a str>,
+    special_section_policy: SpecialSectionPolicy,
 }
 
 impl<'a> NumberingConfig<'a> {
@@ -56,6 +60,7 @@ impl<'a> NumberingConfig<'a> {
             partnums_enabled,
             part_signifier,
             appendix_caption,
+            special_section_policy: SpecialSectionPolicy::from_attributes(attributes),
         }
     }
 }
@@ -65,13 +70,13 @@ impl<'a> NumberingConfig<'a> {
 pub fn has_real_parts(entries: &[TocEntry<'_>]) -> bool {
     entries
         .iter()
-        .any(|entry| entry.level == 0 && entry.kind != SectionKind::Appendix)
+        .any(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
 }
 
-/// Returns the TOC level after applying book appendix placement rules.
+/// Returns the TOC level after applying book special-section placement rules.
 #[must_use]
 pub fn effective_level(entry: &TocEntry<'_>, has_real_parts: bool) -> u8 {
-    if entry.level == 0 && entry.kind == SectionKind::Appendix && !has_real_parts {
+    if entry.level == 0 && entry.kind.is_special() && !has_real_parts {
         1
     } else {
         entry.level
@@ -96,14 +101,16 @@ pub fn section_numbers(
     let mut appendix_counter = 0;
     let mut appendix_letter = None;
     let mut numbers = Vec::with_capacity(entries.len());
-    let special_sections = SpecialSectionTracker::new();
+    let special_sections = SpecialSectionTracker::with_policy(config.special_section_policy);
 
     for entry in entries {
-        let level = entry.level;
+        let level = effective_section_level(entry.level, entry.kind);
         let numbered = special_sections.enter(level, entry.kind);
 
         if entry.kind == SectionKind::Appendix {
-            counters.fill(0);
+            for counter in counters.iter_mut().skip(1) {
+                *counter = 0;
+            }
             let letter = char::from(b'A' + u8::try_from(appendix_counter).unwrap_or(25).min(25));
             appendix_counter += 1;
             appendix_letter = Some(letter);
@@ -118,7 +125,7 @@ pub fn section_numbers(
             appendix_letter = None;
         }
 
-        if level == 0 {
+        if entry.level == 0 && entry.kind == SectionKind::Normal {
             if config.partnums_enabled {
                 part_counter += 1;
                 let roman = to_upper_roman(part_counter);

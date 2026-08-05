@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::WritableVisitor;
+use acdc_converters_core::{section::effective_section_level, visitor::WritableVisitor};
 use acdc_parser::{DiscreteHeader, InlineNode, Section, SectionKind};
 use crossterm::{
     QueueableCommand,
@@ -15,26 +15,18 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let w = self.writer_mut();
         writeln!(w)?;
 
-        // Special sections (and every subsection nested under one) are excluded
-        // from `:sectnums:` numbering. Fed every section in document order.
+        let effective_level = effective_section_level(section.level, section.kind);
         let skip_numbering = !processor
             .special_section_tracker
-            .enter(section.level, section.kind);
+            .enter(effective_level, section.kind);
 
-        // Check for appendix
         let is_appendix = section.kind == SectionKind::Appendix;
-
-        // For appendix at level 0, treat as level 1
-        let effective_level = if is_appendix && section.level == 0 {
-            1
-        } else {
-            section.level
-        };
+        let is_part = section.level == 0 && section.kind == SectionKind::Normal;
 
         // Build title prefix (section number, part number, or appendix label)
         let prefix = if is_appendix {
             processor.appendix_tracker.enter_appendix()
-        } else if section.level == 0 && !skip_numbering {
+        } else if is_part && !skip_numbering {
             processor
                 .part_number_tracker
                 .enter_part()

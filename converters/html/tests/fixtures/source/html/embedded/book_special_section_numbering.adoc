@@ -1,0 +1,45 @@
+= Book Special Section Numbering
+:doctype: book
+:toc:
+:toclevels: 3
+:sectnums:
+
+[preface]
+== Preface
+
+=== Preface Topic
+
+[abstract]
+== Abstract
+
+=== Abstract Topic
+
+[dedication]
+== Dedication
+
+[colophon]
+== Colophon
+
+== First Chapter
+
+=== First Topic
+
+[glossary]
+== Glossary
+
+[bibliography]
+== Bibliography
+
+[appendix]
+== Appendix Material
+
+=== Appendix Topic
+
+== Second Chapter
+
+=== Second Topic
+
+A concealed index term (((alpha))).
+
+[index]
+== Index

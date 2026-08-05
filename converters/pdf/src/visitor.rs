@@ -3,7 +3,8 @@ use std::fmt::Write as _;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    decode_numeric_char_refs, inlines_to_string, shows_block_title, visitor::Visitor,
+    decode_numeric_char_refs, inlines_to_string, section::effective_section_level,
+    shows_block_title, visitor::Visitor,
 };
 use acdc_parser::{
     Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, DelimitedBlock,
@@ -120,20 +121,22 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             self.writer.raw("#pagebreak(weak: true)\n\n");
         }
 
-        let participates = self
-            .special_section_tracker
-            .enter(section.level, section.kind);
+        let level = effective_section_level(section.level, section.kind);
+        let participates = self.special_section_tracker.enter(level, section.kind);
         let mut prefix = String::new();
         if section.kind == acdc_parser::SectionKind::Appendix {
             prefix.push_str(&self.appendix_tracker.enter_appendix());
-        } else if section.level == 0 && participates {
+        } else if section.level == 0
+            && section.kind == acdc_parser::SectionKind::Normal
+            && participates
+        {
             if let Some(number) = self.part_number_tracker.enter_part() {
                 prefix.push_str(&number);
             }
         } else if participates
-            && let Some(number) = self.section_number_tracker.enter_section(section.level)
+            && let Some(number) = self.section_number_tracker.enter_section(level)
         {
-            if section.level == 1
+            if level == 1
                 && let Some(signifier) = &self.chapter_signifier
             {
                 prefix.push_str(signifier);
@@ -142,8 +145,8 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             prefix.push_str(&number);
         }
 
-        let level = section.level.max(1);
-        let _ = write!(self.writer, "#heading(level: {level})[");
+        let heading_level = level.max(1);
+        let _ = write!(self.writer, "#heading(level: {heading_level})[");
         if !prefix.is_empty() {
             self.write_text_expr(&prefix);
         }

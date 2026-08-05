@@ -55,10 +55,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text, shared by the terminal and manpage backends.
 - `section::SpecialSectionTracker` — shared, reusable tracker that decides which
   sections take part in `:sectnums:` numbering. Fed each section (by `SectionKind`)
-  in document order, it returns `false` for special sections and their
-  subsections, with `[appendix]` excepted (it begins its own numbered sequence).
-  Used by the HTML body, HTML TOC, and terminal renderers so the rule lives in one
-  place.
+  in document order, it accounts for book abstracts, `sectnums=all`, unnumbered
+  special-section subtrees, and lettered appendices. Used by each numbered
+  converter and its table of contents so the rule lives in one place.
 - `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
   per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
   Previously lived in the HTML converter; promoted so terminal, manpage, and
@@ -90,6 +89,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Special-section numbering now treats book abstracts as chapters, honors
+  `sectnums=all`, and keeps the ordinary section sequence across appendices.
 - Book table-of-contents numbering now keeps chapter numbers continuous across
   part boundaries.
 - Book chapter numbers continue across part boundaries instead of restarting,

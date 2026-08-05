@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    section::effective_section_level,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{DiscreteHeader, Section, SectionKind};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
@@ -42,24 +45,17 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn render_section_header(&mut self, section: &Section) -> Result<(), Error> {
         let processor = self.processor.clone();
         let id = Section::generate_id_string(&section.metadata, &section.title);
+        let effective_level = effective_section_level(section.level, section.kind);
 
-        // Special sections (and every subsection nested under one) are excluded
-        // from `:sectnums:` numbering. The tracker is fed every section in
-        // document order, so it must be consulted once here for each section.
         let skip_numbering = !processor
             .special_section_tracker()
-            .enter(section.level, section.kind);
+            .enter(effective_level, section.kind);
 
-        // Appendix sections at level 0 are demoted to level 1
         let is_appendix = section.kind == SectionKind::Appendix;
-        let effective_level = if is_appendix && section.level == 0 {
-            1
-        } else {
-            section.level
-        };
+        let is_part = section.level == 0 && section.kind == SectionKind::Normal;
         let heading_level = effective_level + 1; // Level 1 = h2
 
-        if section.level == 0 && !is_appendix {
+        if is_part {
             // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
             let class = crate::build_class("sect0", &section.metadata.roles);
             write!(
@@ -118,16 +114,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Call this after walking the section's nested blocks.
     fn render_section_footer(&mut self, section: &Section) -> Result<(), Error> {
         let processor = self.processor.clone();
-        // Appendix sections at level 0 are demoted to level 1
-        let is_appendix = section.kind == SectionKind::Appendix;
-        let effective_level = if is_appendix && section.level == 0 {
-            1
-        } else {
-            section.level
-        };
+        let effective_level = effective_section_level(section.level, section.kind);
+        let is_part = section.level == 0 && section.kind == SectionKind::Normal;
 
-        // Parts (level 0, non-appendix) have no wrapper div to close
-        if section.level == 0 && !is_appendix {
+        // Normal level-0 parts have no wrapper element to close.
+        if is_part {
             return Ok(());
         }
 

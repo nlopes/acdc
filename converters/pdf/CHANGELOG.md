@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Book abstracts now take chapter numbers, `sectnums=all` includes special
+  sections, and ordinary chapter numbering continues after an appendix,
+  matching `asciidoctor-pdf`.
 - Book table-of-contents entries now omit part and chapter signifiers, nest
   chapters under their parts, and keep chapter numbering continuous, matching
   `asciidoctor-pdf`.

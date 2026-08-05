@@ -312,6 +312,7 @@ impl<'a> Processor<'a> {
         let part_number_tracker = PartNumberTracker::new(&doc.attributes);
         let appendix_tracker =
             AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
+        let special_section_tracker = SpecialSectionTracker::new(&doc.attributes);
         // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
         // independent of `self`'s stored-attribute lifetime.
         let processor: Processor<'doc> = Processor {
@@ -324,7 +325,7 @@ impl<'a> Processor<'a> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
-            special_section_tracker: SpecialSectionTracker::new(),
+            special_section_tracker,
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
             table_counter: self.table_counter.clone(),
@@ -597,6 +598,7 @@ impl<'a> Processor<'a> {
         let part_number_tracker = PartNumberTracker::new(&document_attributes);
         let appendix_tracker =
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
+        let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
 
         Self {
             options,
@@ -614,7 +616,7 @@ impl<'a> Processor<'a> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
-            special_section_tracker: SpecialSectionTracker::new(),
+            special_section_tracker,
             variant,
         }
     }

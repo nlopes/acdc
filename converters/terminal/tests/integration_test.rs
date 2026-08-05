@@ -38,6 +38,8 @@ macro_rules! generate_tests {
 generate_tests!([
     (document, false),
     (book_parts_literal_false, false),
+    (book_special_section_numbering, false),
+    (book_special_section_numbering_all, false),
     (nested_sections, false),
     (ordered_list, false),
     (unordered_list, false),

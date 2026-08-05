@@ -12,8 +12,8 @@ struct TocRenderConfig<'a> {
     max_level: u8,
     section_numbers: &'a [Option<String>],
     semantic: bool,
-    /// Whether the document has real parts (level-0 non-appendix sections).
-    /// Controls where a level-0 appendix is placed; see [`effective_level`].
+    /// Whether the document has normal level-0 parts.
+    /// Controls where level-0 special sections are placed; see [`effective_level`].
     has_real_parts: bool,
 }
 
@@ -40,11 +40,11 @@ fn render_entries<W: Write>(
     // level-1 entries. Only include level-1 entries that appear before the
     // first level-0 entry (pre-part sections); level-1 entries after a part
     // are children of that part.
-    // Only true parts count here — a level-0 appendix is not a part.
+    // Only normal level-0 sections are parts.
     let first_real_part_idx = if parts_at_current_level {
         entries
             .iter()
-            .position(|e| e.level == 0 && e.kind != SectionKind::Appendix)
+            .position(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
     } else {
         None
     };
@@ -62,7 +62,7 @@ fn render_entries<W: Write>(
                     true
                 }
             } else {
-                // Include level-0 entries (non-appendix) at the level-1 tier
+                // Merge level-0 parts into the level-1 tier when required.
                 parts_at_current_level && entry.level == 0 && eff_level == 0
             }
         })
@@ -110,13 +110,9 @@ fn render_entries<W: Write>(
             entries.len() // End of all entries
         };
 
-        // Detect direct children using the entry's effective level:
-        // - For level-0 entries (parts): children are at level 1
-        // - For a level-0 appendix: its first subsection is a level-2 (`===`)
-        //   section, skipping the absent chapter tier — so children are at level 2
-        //   regardless of whether it sits at sectlevel0 (multi-part) or sectlevel1.
-        // - For level-N entries: children are at level N+1
-        let child_level = if entry.level == 0 && entry.kind == SectionKind::Appendix {
+        // A source level-0 special section is presented at the chapter tier, so
+        // its valid children start at source level 2.
+        let child_level = if entry.level == 0 && entry.kind.is_special() {
             2
         } else {
             effective_level(entry, config.has_real_parts) + 1
@@ -219,8 +215,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
 
             // Determine starting level: use the first entry's effective level.
-            // Only true parts (level-0 non-appendix sections) count as parts; a
-            // level-0 appendix sits at the part tier but does not establish one.
+            // Only normal level-0 sections count as parts. A level-0 special
+            // section can sit at that tier without establishing a part.
             // When pre-part sections (level 1) appear before the first part (level 0),
             // the outer list starts at sectlevel1 and parts are merged into that tier.
             let has_real_parts = has_real_parts(&self.processor.toc_entries);

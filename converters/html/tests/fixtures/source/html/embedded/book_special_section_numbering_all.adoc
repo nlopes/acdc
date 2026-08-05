@@ -1,0 +1,42 @@
+= All Book Special Sections Numbered
+:doctype: book
+:toc:
+:toclevels: 3
+:partnums:
+:sectnums: all
+
+[preface]
+= Preface
+
+=== Preface Topic
+
+[abstract]
+= Abstract
+
+=== Abstract Topic
+
+[dedication]
+= Dedication
+
+[colophon]
+= Colophon
+
+[glossary]
+= Glossary
+
+[bibliography]
+= Bibliography
+
+[appendix]
+= Appendix Material
+
+=== Appendix Topic
+
+= A Real Part
+
+== A Chapter
+
+A concealed index term (((alpha))).
+
+[index]
+= Index

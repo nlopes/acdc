@@ -4,7 +4,10 @@ use std::{borrow::Cow, fmt::Write as _, rc::Rc};
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, inlines_to_string,
-    section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker},
+    section::{
+        AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
+        effective_section_level,
+    },
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
@@ -46,6 +49,13 @@ enum BookPageBreakState {
     Disabled,
     Enabled,
     AfterPart,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TocRoot {
+    None,
+    Part,
+    Special,
 }
 
 #[derive(Clone, Copy)]
@@ -92,6 +102,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             processor.document_attributes(),
             section_number_tracker.clone(),
         );
+        let special_section_tracker = SpecialSectionTracker::new(processor.document_attributes());
         let is_book = processor
             .document_attributes()
             .get_string("doctype")
@@ -122,7 +133,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
-            special_section_tracker: SpecialSectionTracker::new(),
+            special_section_tracker,
             chapter_signifier,
             list_depth: 0,
             in_inline_span: false,
@@ -143,7 +154,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return self.heading.part.break_before == PageBreakBefore::Always;
         }
 
-        if section.level == 1 {
+        if effective_section_level(section.level, section.kind) == 1 {
             let first_chapter_of_part = self.book_page_break_state == BookPageBreakState::AfterPart;
             self.book_page_break_state = BookPageBreakState::Enabled;
             return if first_chapter_of_part {
@@ -214,17 +225,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             ),
         );
         let has_parts = has_real_parts(&entries);
-        let mut seen_part = false;
+        let mut root = TocRoot::None;
         for (entry, number) in entries.iter().zip(numbers) {
             if entry.level > config.levels() {
                 continue;
             }
             let depth = match entry.level {
                 0 => {
-                    seen_part |= entry.kind != SectionKind::Appendix;
+                    root = if entry.kind == SectionKind::Normal {
+                        TocRoot::Part
+                    } else {
+                        TocRoot::Special
+                    };
                     0
                 }
-                _ if !has_parts || !seen_part => {
+                _ if !has_parts || root != TocRoot::Part => {
                     effective_level(entry, has_parts).saturating_sub(1)
                 }
                 level => level,
