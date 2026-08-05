@@ -42,6 +42,8 @@
 ]
 #v(1em)
 
+#text("The part signifier remains ")#raw("{part-signifier}")#text(".")
+
 #heading(level: 1)[#text("1. ")#text("Opening")] <id-5f6f70656e696e67>
 
 #heading(level: 2)[#text("1.1. ")#text("Background")] <id-5f6261636b67726f756e64>

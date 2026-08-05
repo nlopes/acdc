@@ -13,9 +13,10 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, Block, BlockMetadata, CrossReference, Image, IndexTermKind, InlineMacro, InlineNode,
-    ListItem, Paragraph, Source, Table, TableColumn, TableOfContents, Title,
+    ListItem, Paragraph, Section, SectionKind, Source, Table, TableColumn, TableOfContents, Title,
 };
 use acdc_pdf_images::ImageMap;
+use acdc_pdf_theme::{Heading, PageBreakBefore, PartBreakAfter};
 use acdc_pdf_typst::Writer;
 
 use crate::{Error, Processor, encode_footnote_label};
@@ -25,15 +26,24 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) processor: Processor<'a>,
     assets: &'m ImageMap,
     diagnostics: Diagnostics<'d>,
+    pub(crate) heading: Heading,
     pub(crate) section_number_tracker: SectionNumberTracker,
     pub(crate) part_number_tracker: PartNumberTracker,
     pub(crate) appendix_tracker: AppendixTracker,
     pub(crate) special_section_tracker: SpecialSectionTracker,
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
+    book_page_break_state: BookPageBreakState,
     text_boundaries: TextBoundaries,
     has_toc_entries: bool,
     toc_written: bool,
+}
+
+#[derive(PartialEq, Eq)]
+enum BookPageBreakState {
+    Disabled,
+    Enabled,
+    AfterPart,
 }
 
 #[derive(Clone, Copy)]
@@ -69,30 +79,76 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn new(
         processor: Processor<'a>,
         assets: &'m ImageMap,
+        heading: Heading,
         has_toc_entries: bool,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         let section_number_tracker = SectionNumberTracker::new(processor.document_attributes());
-        let part_number_tracker = PartNumberTracker::new(processor.document_attributes());
+        let part_number_tracker =
+            PartNumberTracker::with_default_signifier(processor.document_attributes(), "Part");
         let appendix_tracker = AppendixTracker::new(
             processor.document_attributes(),
             section_number_tracker.clone(),
         );
+        let book_page_break_state = if processor
+            .document_attributes()
+            .get_string("doctype")
+            .as_deref()
+            == Some("book")
+        {
+            BookPageBreakState::Enabled
+        } else {
+            BookPageBreakState::Disabled
+        };
         Self {
             writer: Writer::new(),
             processor,
             assets,
             diagnostics,
+            heading,
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
             special_section_tracker: SpecialSectionTracker::new(),
             list_depth: 0,
             in_inline_span: false,
+            book_page_break_state,
             text_boundaries: TextBoundaries::BOTH,
             has_toc_entries,
             toc_written: false,
         }
+    }
+
+    pub(crate) fn section_break_before(&mut self, section: &Section<'_>) -> bool {
+        if self.book_page_break_state == BookPageBreakState::Disabled {
+            return false;
+        }
+
+        if section.level == 0 && section.kind == SectionKind::Normal {
+            self.book_page_break_state = BookPageBreakState::AfterPart;
+            return self.heading.part.break_before == PageBreakBefore::Always;
+        }
+
+        if section.level == 1 {
+            let first_chapter_of_part = self.book_page_break_state == BookPageBreakState::AfterPart;
+            self.book_page_break_state = BookPageBreakState::Enabled;
+            return if first_chapter_of_part {
+                match self.heading.part.break_after {
+                    PartBreakAfter::Always => true,
+                    PartBreakAfter::Avoid => false,
+                    PartBreakAfter::Auto => {
+                        self.heading.chapter.break_before == PageBreakBefore::Always
+                    }
+                }
+            } else {
+                self.heading.chapter.break_before == PageBreakBefore::Always
+            };
+        }
+
+        if section.level == 0 {
+            self.book_page_break_state = BookPageBreakState::Enabled;
+        }
+        false
     }
 
     pub(crate) fn render_toc(&mut self, toc_macro: Option<&TableOfContents<'_>>, placement: &str) {

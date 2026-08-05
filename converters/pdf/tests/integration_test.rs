@@ -6,6 +6,17 @@ use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
+fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<PathBuf> {
+    doc.attributes
+        .get_string("acdc-pdf-test-theme")
+        .map(|name| {
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("tests/fixtures/themes")
+                .join(name.as_ref())
+                .with_extension("yaml")
+        })
+}
+
 fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let file_name = path
         .file_stem()
@@ -34,6 +45,7 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     )
     .with_pdf_options(PdfOptions {
         emit_typst: Some(typst_path.clone()),
+        theme: fixture_theme(parsed.document()),
         ..PdfOptions::default()
     });
     let mut pdf = Vec::new();

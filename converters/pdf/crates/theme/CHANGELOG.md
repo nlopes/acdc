@@ -14,4 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can control page breaks before book parts and chapters and can avoid a
+  forced break before a part's first chapter.
 - This crate - the starting code.

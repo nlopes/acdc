@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Book parts and chapters now start on new pages by default, matching
+  `asciidoctor-pdf`. Themes can let either heading follow preceding content or
+  avoid a forced break before a part's first chapter.
 - PDF paragraphs now support `text-left`, `text-center`, `text-right`, and
   `text-justify` for prose content. Literal, listing, and source paragraphs
   continue to ignore alignment roles, matching Asciidoctor PDF.

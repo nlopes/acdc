@@ -8,15 +8,16 @@ This is an internal workspace crate. It is not published to crates.io and has no
 
 [source]
 ....
-acdc-pdf-theme  ──▶  acdc-pdf-typst   (preamble reads the tokens)
-              └──▶  acdc-pdf-render  (loads the bundled fonts + syntax theme)
+acdc-pdf-theme  ──▶  acdc-converters-pdf  (section layout)
+              ├──▶  acdc-pdf-typst       (preamble tokens)
+              └──▶  acdc-pdf-render      (fonts and syntax theme)
 ....
 
-The crate is *Typst-free*: it carries only data and bundled assets. The tokens drive the preamble that `acdc-pdf-typst` generates; the fonts and syntax theme are loaded by `acdc-pdf-render`.
+The crate is *Typst-free*: it carries only data and bundled assets. The tokens control PDF layout and the preamble that `acdc-pdf-typst` generates; the fonts and syntax theme are loaded by `acdc-pdf-render`.
 
 == What it provides
 
-- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, and `heading`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -26,6 +27,27 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens d
 == Customising
 
 Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserialises into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colours, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
+
+=== Book heading page breaks
+
+The `heading` tokens apply to book parts and chapters. By default, each part and chapter starts on a new page, as in `asciidoctor-pdf`.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Values
+
+|`heading.part.break_before`
+|`always`
+|`always` starts each part on a new page; `auto` lets it follow the preceding content.
+
+|`heading.part.break_after`
+|`auto`
+|`auto` follows the chapter policy; `always` starts the first chapter on a new page; `avoid` does not force a page break before it.
+
+|`heading.chapter.break_before`
+|`always`
+|`always` starts each chapter on a new page; `auto` lets it follow the preceding content.
+|===
 
 == Bundled asset policy
 

@@ -45,13 +45,23 @@
 #counter(page).update(0)
 ]
 
+#text("The part signifier remains ")#raw("{part-signifier}")#text(".")
+
+#pagebreak(weak: true)
+
 #heading(level: 1)[#text("Part I: ")#text("Foundations")] <id-5f666f756e646174696f6e73>
+
+#pagebreak(weak: true)
 
 #heading(level: 1)[#text("1. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
 
 #text("First chapter body.")
 
+#pagebreak(weak: true)
+
 #heading(level: 1)[#text("Part II: ")#text("Applications")] <id-5f6170706c69636174696f6e73>
+
+#pagebreak(weak: true)
 
 #heading(level: 1)[#text("2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
 

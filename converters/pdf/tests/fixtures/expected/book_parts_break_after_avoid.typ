@@ -1,7 +1,7 @@
 #set document(
-  title: "Custom Part Signifier",
+  title: "Part and Chapter Breaks",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Custom Part Signifier]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Part and Chapter Breaks]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -40,14 +40,32 @@
 #page(header: none, footer: none)[
 #v(30%)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Custom Part Signifier")]
+#text(size: 22pt, weight: "bold")[#text("Part and Chapter Breaks")]
 ]
 #counter(page).update(0)
 ]
 
 #pagebreak(weak: true)
 
-#heading(level: 1)[#text("Volume I: ")#text("Foundations")] <id-5f666f756e646174696f6e73>
+#heading(level: 1)[#text("Part I: ")#text("Foundations")] <id-5f666f756e646174696f6e73>
 
-#text("Part body.")
+#text("Part introduction.")
+
+#heading(level: 1)[#text("1. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
+
+#text("First chapter body.")
+
+#pagebreak(weak: true)
+
+#heading(level: 1)[#text("2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
+
+#text("Second chapter body.")
+
+#pagebreak(weak: true)
+
+#heading(level: 1)[#text("Part II: ")#text("Applications")] <id-5f6170706c69636174696f6e73>
+
+#heading(level: 1)[#text("3. ")#text("Third Chapter")] <id-5f74686972645f63686170746572>
+
+#text("Third chapter body.")
 

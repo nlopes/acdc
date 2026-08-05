@@ -118,6 +118,10 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_section(&mut self, section: &Section<'_>) -> Result<(), Self::Error> {
+        if self.section_break_before(section) {
+            self.writer.raw("#pagebreak(weak: true)\n\n");
+        }
+
         let participates = self
             .special_section_tracker
             .enter(section.level, section.kind);

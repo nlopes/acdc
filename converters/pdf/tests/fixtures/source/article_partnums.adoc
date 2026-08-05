@@ -2,6 +2,12 @@
 :partnums:
 :sectnums:
 
+The part signifier remains `{part-signifier}`.
+
+ifdef::part-signifier[]
+This conditional must not render.
+endif::[]
+
 == Opening
 
 === Background

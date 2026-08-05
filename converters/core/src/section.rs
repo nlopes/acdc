@@ -239,6 +239,24 @@ impl PartNumberTracker {
     /// Create a new part number tracker from document attributes.
     #[must_use]
     pub fn new(document_attributes: &DocumentAttributes) -> Self {
+        Self::with_optional_default_signifier(document_attributes, None)
+    }
+
+    /// Create a tracker with a fallback signifier for presentation.
+    ///
+    /// An explicit `part-signifier` value or unset marker takes precedence.
+    #[must_use]
+    pub fn with_default_signifier(
+        document_attributes: &DocumentAttributes,
+        default_signifier: &str,
+    ) -> Self {
+        Self::with_optional_default_signifier(document_attributes, Some(default_signifier))
+    }
+
+    fn with_optional_default_signifier(
+        document_attributes: &DocumentAttributes,
+        default_signifier: Option<&str>,
+    ) -> Self {
         let is_book = document_attributes
             .get("doctype")
             .is_some_and(|v| v.to_string() == "book");
@@ -247,12 +265,11 @@ impl PartNumberTracker {
                 !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
             });
 
-        let signifier = document_attributes
-            .get("part-signifier")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.clone().into_owned()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            });
+        let signifier = match document_attributes.get("part-signifier") {
+            Some(AttributeValue::String(signifier)) => Some(signifier.clone().into_owned()),
+            Some(_) => None,
+            None => default_signifier.map(str::to_owned),
+        };
 
         Self {
             counter: Rc::new(Cell::new(0)),
@@ -594,6 +611,23 @@ mod tests {
         assert_eq!(tracker.signifier(), Some("Part"));
         assert_eq!(tracker.enter_part(), Some("Part I: ".to_string()));
         assert_eq!(tracker.enter_part(), Some("Part II: ".to_string()));
+    }
+
+    #[test]
+    fn test_part_tracker_with_default_signifier() {
+        let attrs = attrs_with_partnums();
+        let tracker = PartNumberTracker::with_default_signifier(&attrs, "Part");
+        assert_eq!(tracker.signifier(), Some("Part"));
+        assert_eq!(tracker.enter_part(), Some("Part I: ".to_string()));
+    }
+
+    #[test]
+    fn test_unset_part_signifier_overrides_default() {
+        let mut attrs = attrs_with_partnums();
+        attrs.set("part-signifier".into(), AttributeValue::Bool(false));
+        let tracker = PartNumberTracker::with_default_signifier(&attrs, "Part");
+        assert!(tracker.signifier().is_none());
+        assert_eq!(tracker.enter_part(), Some("I: ".to_string()));
     }
 
     #[test]

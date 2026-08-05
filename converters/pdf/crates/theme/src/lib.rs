@@ -4,6 +4,7 @@
 mod color;
 mod error;
 mod fonts;
+mod heading;
 mod spacing;
 mod syntax;
 mod typography;
@@ -15,6 +16,7 @@ use serde::Deserialize;
 pub use color::Palette;
 pub use error::Error;
 pub use fonts::{EMOJI_FONT_FAMILY, embedded_fonts};
+pub use heading::{ChapterHeading, Heading, PageBreakBefore, PartBreakAfter, PartHeading};
 pub use spacing::Spacing;
 pub use syntax::{HIGHLIGHT_THEME_PATH, highlight_theme};
 pub use typography::{FontStack, Typography};
@@ -28,6 +30,8 @@ pub struct Theme {
     pub palette: Palette,
     pub typography: Typography,
     pub spacing: Spacing,
+    #[serde(default)]
+    pub heading: Heading,
 }
 
 impl Theme {
@@ -77,6 +81,7 @@ mod tests {
         let theme = Theme::from_yaml_str(DEFAULT_THEME_YAML)?;
         assert_eq!(theme.palette.page_bg, "#ffffff");
         assert_eq!(theme.typography.body_font.fallback, ["IBM Plex Serif"]);
+        assert_eq!(theme.heading, Heading::default());
         assert_eq!(Theme::default(), theme);
         Ok(())
     }
@@ -100,6 +105,33 @@ mod tests {
     #[test]
     fn rejects_unknown_fields() {
         assert!(Theme::from_yaml_str(&format!("{DEFAULT_THEME_YAML}\nunknown: true")).is_err());
+    }
+
+    #[test]
+    fn accepts_heading_page_break_overrides() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML
+            .replace("break_after: auto", "break_after: avoid")
+            .replace(
+                "chapter:\n    break_before: always",
+                "chapter:\n    break_before: auto",
+            );
+        let theme = Theme::from_yaml_str(&yaml)?;
+
+        assert_eq!(theme.heading.part.break_after, PartBreakAfter::Avoid);
+        assert_eq!(theme.heading.chapter.break_before, PageBreakBefore::Auto);
+        Ok(())
+    }
+
+    #[test]
+    fn defaults_heading_page_breaks_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML.replace(
+            "heading:\n  part:\n    break_before: always\n    break_after: auto\n  chapter:\n    break_before: always\n",
+            "",
+        );
+        let theme = Theme::from_yaml_str(&yaml)?;
+
+        assert_eq!(theme.heading, Heading::default());
+        Ok(())
     }
 
     #[test]

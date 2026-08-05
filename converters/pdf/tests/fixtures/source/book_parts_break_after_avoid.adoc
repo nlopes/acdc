@@ -1,0 +1,23 @@
+= Part and Chapter Breaks
+:doctype: book
+:partnums:
+:sectnums:
+:acdc-pdf-test-theme: book_parts_break_after_avoid
+
+= Foundations
+
+Part introduction.
+
+== First Chapter
+
+First chapter body.
+
+== Second Chapter
+
+Second chapter body.
+
+= Applications
+
+== Third Chapter
+
+Third chapter body.
