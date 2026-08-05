@@ -1382,22 +1382,18 @@ fn apply_leveloffset(
 /// Expected `parent_section_level` (one-based, i.e. own level + 1) for a
 /// section's nested content.
 ///
-/// A level-0 `[appendix]` in a book is rendered at level 1, so its first
-/// subsection must be a level-2 (`===`) section: the expected child level is 2,
-/// not 1. A level-2 child is therefore in sequence (no "out of sequence"
-/// warning), while a level-1 (`==`) heading closes the appendix instead of
-/// nesting under it. Every other section expects children one level deeper than
-/// itself.
-///
-/// The asciidoctor "Appendix section syntax" docs
-/// (<https://docs.asciidoctor.org/asciidoc/latest/sections/appendix/>) state:
-/// "For books, the appendix must be defined as a level 1 section (`==`) if you
-/// want the appendix to be a adjacent to the chapters. In a multi-part book, if
-/// you want the appendix to be adjacent to other parts, the appendix must be
-/// defined as a level 0 section (`=`)." and "In either case, the first
-/// subsection of the appendix must be a level 2 section (`===`)."
+/// A nestable level-0 special section in a book is rendered at level 1, so its
+/// first subsection must be level 2 (`===`). A level-1 (`==`) heading closes the
+/// special section instead of nesting under it. Every other section expects
+/// children one level deeper than itself.
 fn expected_child_level(level: SectionLevel, kind: SectionKind, is_book: bool) -> SectionLevel {
-    if level == 0 && kind == SectionKind::Appendix && is_book {
+    if level == 0
+        && is_book
+        && matches!(
+            kind,
+            SectionKind::Preface | SectionKind::Abstract | SectionKind::Appendix
+        )
+    {
         2
     } else {
         level + 1
@@ -7081,6 +7077,23 @@ References.
                 crate::WarningKind::SectionLevelOutOfSequence { .. },
             )),
             "level-2 subsection of a level-0 appendix is in sequence, got: {warnings:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_level0_preface_level2_subsection_no_warning() -> Result<(), Error> {
+        let input =
+            "= Book\n:doctype: book\n\n[preface]\n= Preface\n\nintro\n\n=== Background\n\nbody\n";
+        let mut state = ParserState::new_for_test(input);
+        let _ = document_parser::document(input, &mut state)??;
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|warning| matches!(
+                &warning.kind,
+                crate::WarningKind::SectionLevelOutOfSequence { .. },
+            )),
+            "level-2 subsection of a level-0 preface is in sequence, got: {warnings:?}"
         );
         Ok(())
     }
