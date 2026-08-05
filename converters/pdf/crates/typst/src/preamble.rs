@@ -183,15 +183,14 @@ fn write_code(out: &mut String, theme: &Theme, options: &EmitOptions) {
     );
 }
 
-/// The `#let` helpers and list/table styling.
-/// The `#let` helpers for quotes, verse, and the container blocks.
+/// Write the Typst helpers for quotes, verse, and block containers.
 fn write_block_helpers(out: &mut String, theme: &Theme) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
 
     let _ = writeln!(
         out,
-        "#let blockquote(body) = block(inset: (left: {}pt), stroke: (left: {}pt + {}), text(style: \"italic\", fill: {}, body))",
+        "#let blockquote(body) = block(width: 100%, inset: (left: {}pt), stroke: (left: {}pt + {}), text(style: \"italic\", fill: {}, body))",
         spacing.quote_indent_pt,
         spacing.quote_rule_pt,
         color(&palette.quote_rule),

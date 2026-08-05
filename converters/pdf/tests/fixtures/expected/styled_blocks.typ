@@ -18,7 +18,7 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
-#let blockquote(body) = block(inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
+#let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
 #let examplebox(body) = block(width: 100%, fill: rgb("#f3f4f6"), radius: 4pt, inset: (x: 12pt, y: 10pt), body)
 #let sidebarbox(body) = block(width: 100%, fill: rgb("#f3f4f6"), stroke: 0.75pt + rgb("#e5e7eb"), radius: 4pt, inset: (x: 12pt, y: 10pt), body)
 #let sidebartitle(body) = align(center, text(weight: "bold", body))
@@ -44,16 +44,21 @@
 
 #blockquote[
 #text("A quote paragraph.")
-]
-
+#text(style: "normal")[
 #attribution[#text("Ada *Lovelace*")#text(", ")#text("Notes on the `Analytical Engine`")]
+
+]
+]
 
 #blockquote[
 #text("A quote block with literal attribution metadata.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("https://example.com[Someone]")#text(", ")#text("Notes on the `Analytical Engine`")]
+
+]
+]
 
 #verse[#text("Verse paragraph line one\n  indented line two")]
 
@@ -72,9 +77,12 @@
 #blockquote[
 #text("A quote block with an author and no citation.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Ada Lovelace")]
+
+]
+]
 
 #verse[#text("A verse block with no attribution.")]
 

@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PDF paragraphs now support `text-left`, `text-center`, `text-right`, and
+  `text-justify` for prose content. Literal, listing, and source paragraphs
+  continue to ignore alignment roles, matching Asciidoctor PDF.
+- Quote rules now span the content width and include the attribution, while
+  paragraph alignment roles apply only to the quote body.
 - Dialogue hard breaks and em dashes now match Asciidoctor PDF:
   paragraph-leading and trailing `--` are replaced, while dashes beside or at
   the edge of inline formatting stay literal.

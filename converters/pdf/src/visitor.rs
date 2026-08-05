@@ -192,19 +192,13 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 DelimitedBlockType::DelimitedOpen(blocks)
                     if block.metadata.style == Some("abstract") =>
                 {
-                    self.writer.raw("#blockquote[\n");
-                    self.write_blocks(blocks)?;
-                    self.writer.raw("]\n\n");
-                    Ok(())
+                    self.write_quote_block(&block.metadata, |visitor| visitor.write_blocks(blocks))
                 }
                 DelimitedBlockType::DelimitedOpen(blocks) => {
                     self.write_framed_blocks(None, None, blocks)
                 }
                 DelimitedBlockType::DelimitedQuote(blocks) => {
-                    self.writer.raw("#blockquote[\n");
-                    self.write_blocks(blocks)?;
-                    self.writer.raw("]\n\n");
-                    self.write_attribution(&block.metadata)
+                    self.write_quote_block(&block.metadata, |visitor| visitor.write_blocks(blocks))
                 }
                 DelimitedBlockType::DelimitedVerse(nodes) => {
                     self.write_verse_block(nodes, &block.metadata)

@@ -35,6 +35,35 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     toc_written: bool,
 }
 
+#[derive(Clone, Copy)]
+enum ParagraphAlignment {
+    Left,
+    Center,
+    Right,
+    Justify,
+}
+
+impl ParagraphAlignment {
+    fn from_metadata(metadata: &BlockMetadata<'_>) -> Option<Self> {
+        metadata.roles.iter().rev().find_map(|role| match *role {
+            "text-left" => Some(Self::Left),
+            "text-center" => Some(Self::Center),
+            "text-right" => Some(Self::Right),
+            "text-justify" => Some(Self::Justify),
+            _ => None,
+        })
+    }
+
+    const fn typst_prefix(self) -> &'static str {
+        match self {
+            Self::Left => "#align(left)[\n",
+            Self::Center => "#align(center)[\n",
+            Self::Right => "#align(right)[\n",
+            Self::Justify => "#par(justify: true)[\n",
+        }
+    }
+}
+
 impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn new(
         processor: Processor<'a>,
@@ -293,18 +322,65 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    fn write_paragraph_alignment(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let alignment = ParagraphAlignment::from_metadata(metadata);
+        if let Some(alignment) = alignment {
+            self.writer.raw(alignment.typst_prefix());
+        }
+        write_body(self)?;
+        if alignment.is_some() {
+            self.writer.raw("\n]");
+        }
+        Ok(())
+    }
+
+    fn write_aligned_paragraph_body(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.write_paragraph_alignment(metadata, write_body)?;
+        self.writer.raw("\n\n");
+        Ok(())
+    }
+
+    pub(crate) fn write_quote_block(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.writer.raw("#blockquote[\n");
+        write_body(self)?;
+        if metadata.attribution.is_some() {
+            self.writer.raw("\n#text(style: \"normal\")[\n");
+            self.write_attribution(metadata)?;
+            self.writer.raw("]\n");
+        }
+        self.writer.raw("]\n\n");
+        Ok(())
+    }
+
+    fn write_verse_content(&mut self, nodes: &[InlineNode<'_>]) {
+        let text = InlineTextTransform::default()
+            .line_break("\n")
+            .to_string(nodes);
+        self.writer.raw("#verse[");
+        self.write_text_expr(&text);
+        self.writer.raw("]");
+    }
+
     /// Write verse content, which keeps its line breaks and stays proportional.
     pub(crate) fn write_verse_block(
         &mut self,
         nodes: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
-        let text = InlineTextTransform::default()
-            .line_break("\n")
-            .to_string(nodes);
-        self.writer.raw("#verse[");
-        self.write_text_expr(&text);
-        self.writer.raw("]\n\n");
+        self.write_verse_content(nodes);
+        self.writer.raw("\n\n");
         self.write_attribution(metadata)
     }
 
@@ -315,28 +391,31 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     /// `asciidoctor`.
     fn write_paragraph_body(&mut self, para: &Paragraph<'_>) -> Result<(), Error> {
         match para.metadata.style {
-            Some("quote") => {
-                self.writer.raw("#blockquote[\n");
-                self.write_inlines(&para.content)?;
-                self.writer.raw("\n]\n\n");
+            Some("quote") => self.write_quote_block(&para.metadata, |visitor| {
+                visitor.write_paragraph_alignment(&para.metadata, |visitor| {
+                    visitor.write_inlines(&para.content)
+                })
+            }),
+            Some("verse") => {
+                self.write_aligned_paragraph_body(&para.metadata, |visitor| {
+                    visitor.write_verse_content(&para.content);
+                    Ok(())
+                })?;
                 self.write_attribution(&para.metadata)
             }
-            Some("verse") => self.write_verse_block(&para.content, &para.metadata),
             Some("literal" | "listing" | "source") => {
                 self.write_verbatim_block(&para.content);
                 Ok(())
             }
-            Some("example") => {
-                self.writer.raw("#examplebox[\n");
-                self.write_inlines(&para.content)?;
-                self.writer.raw("\n]\n\n");
+            Some("example") => self.write_aligned_paragraph_body(&para.metadata, |visitor| {
+                visitor.writer.raw("#examplebox[\n");
+                visitor.write_inlines(&para.content)?;
+                visitor.writer.raw("\n]");
                 Ok(())
-            }
-            _ => {
-                self.write_inlines(&para.content)?;
-                self.writer.raw("\n\n");
-                Ok(())
-            }
+            }),
+            _ => self.write_aligned_paragraph_body(&para.metadata, |visitor| {
+                visitor.write_inlines(&para.content)
+            }),
         }
     }
 

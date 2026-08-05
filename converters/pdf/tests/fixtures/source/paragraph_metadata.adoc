@@ -1,0 +1,48 @@
+= Paragraph metadata
+
+See <<normal-right>>, <<normal-center>>, <<normal-justify>>, <<normal-left>>, <<quote>>, <<verse>>, <<literal>>, <<listing>>, <<source>>, <<example>>, and <<abstract>>.
+
+[#normal-right.text-left.text-right]
+.Normal *right* title
+The last applicable role aligns this paragraph to the right.
+
+[#normal-center.text-center]
+.Normal *center* title
+This paragraph is centred.
+
+[#normal-justify.text-justify]
+.Normal *justified* title
+This is a long paragraph with enough words to wrap onto more than one line so the explicit justify role has a visible effect in the generated PDF output.
+
+[#normal-left.text-left]
+.Normal *left* title
+This paragraph is explicitly aligned to the left.
+
+[quote#quote.text-right, Ada Lovelace, Notes]
+.Quote *title*
+The quote body is aligned to the right while its attribution keeps the default alignment.
+
+[verse#verse.text-right, Emily Dickinson, Poem 1]
+.Verse *title*
+The verse body is aligned to the right
+across both of its lines.
+
+[literal#literal.text-right]
+.Literal *title*
+literal paragraph ignores alignment roles
+
+[listing#listing.text-right]
+.Listing *title*
+listing paragraph ignores alignment roles
+
+[source#source.text-right,rust]
+.Source *title*
+let alignment = "ignored";
+
+[example#example.text-right]
+.Example *title*
+The example body is aligned to the right.
+
+[abstract#abstract.text-right]
+.Abstract *title*
+The abstract body is aligned to the right.

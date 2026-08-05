@@ -18,7 +18,7 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
-#let blockquote(body) = block(inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
+#let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
 #let examplebox(body) = block(width: 100%, fill: rgb("#f3f4f6"), radius: 4pt, inset: (x: 12pt, y: 10pt), body)
 #let sidebarbox(body) = block(width: 100%, fill: rgb("#f3f4f6"), stroke: 0.75pt + rgb("#e5e7eb"), radius: 4pt, inset: (x: 12pt, y: 10pt), body)
 #let sidebartitle(body) = align(center, text(weight: "bold", body))
@@ -47,44 +47,62 @@
 #blockquote[
 #text("Balanced brackets.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("A [x] B")#text(", ")#text("Notes")]
+
+]
+]
 
 #blockquote[
 #text("Unmatched opening bracket.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("A [x")#text(", ")#text("Notes")]
+
+]
+]
 
 #blockquote[
 #text("Extra closing bracket.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("A ] B")#text(", ")#text("Notes")]
+
+]
+]
 
 #blockquote[
 #text("Unquoted comma.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("https://example.com[Someone")#text(", ")#text("Part 1]")]
+
+]
+]
 
 #blockquote[
 #text("Quoted comma.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("https://example.com[Someone, Part 1]")#text(", ")#text("Final")]
+
+]
+]
 
 #blockquote[
 #text("Quote-delimited slot.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Quoted author")#text(", ")#text("Adjacent citation")]
+
+]
+]
 
 #blockquote[
 #text("Empty slot.")
@@ -99,23 +117,32 @@
 #blockquote[
 #text("Named author.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Named Author")#text(", ")#text("Positional Citation")]
+
+]
+]
 
 #blockquote[
 #text("Named citation.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Positional Author")#text(", ")#text("Named Citation")]
+
+]
+]
 
 #blockquote[
 #text("Both fields named.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Named Author")#text(", ")#text("Named Citation")]
+
+]
+]
 
 #blockquote[
 #text("Unset None value.")
@@ -125,46 +152,64 @@
 #blockquote[
 #text("Quoted None value.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("None")#text(", ")#text("Quoted Literal")]
+
+]
+]
 
 #blockquote[
 #text("Positional None value.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("None")#text(", ")#text("Positional Literal")]
+
+]
+]
 
 #blockquote[
 #text("Spaced equals signs.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Comma, Author")#text(", ")#text("Work")]
+
+]
+]
 
 #blockquote[
 #text("Expanded slots.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Ada Lovelace")#text(", ")#text("Notes")]
+
+]
+]
 
 #heading(level: 1)[#text("Stacked lists")] <id-5f737461636b65645f6c69737473>
 
 #blockquote[
 #text("Named-only stack.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Original Author")#text(", ")#text("Named Citation")]
+
+]
+]
 
 #blockquote[
 #text("Positional overlay stack.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Replacement Author")#text(", ")#text("Original Citation")]
+
+]
+]
 
 #verse[#text("Style replacement stack.")]
 
@@ -175,63 +220,85 @@
 #blockquote[
 #text("Unquoted values.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Ada *Lovelace*")#text(", ")#text("`Notes`")]
+
+]
+]
 
 #blockquote[
 #text("Double-quoted values.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Grace *Hopper*")#text(", ")#text("`Compiler`")]
+
+]
+]
 
 #blockquote[
 #text("Single-quoted formatting.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Margaret ")#strong[#text("Hamilton")]#text(", ")#raw("Apollo")]
+
+]
+]
 
 #blockquote[
 #text("Escaped single quote.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("A’B")#text(", ")#text("Notes")]
+
+]
+]
 
 #blockquote[
 #text("Unquoted macros.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("https://example.com[Literal Author]")#text(", ")#text("https://example.org[Literal Work]")]
+
+]
+]
 
 #blockquote[
 #text("Single-quoted macros.")
 
-]
 
+#text(style: "normal")[
 #attribution[#link("https://example.com")[#text("Linked Author")]#text(", ")#link("https://example.org")[#text("Linked Work")]]
+
+]
+]
 
 #blockquote[
 #text("Named substitutions.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Named ")#strong[#text("Author")]#text(", ")#raw("Named Work")]
+
+]
+]
 
 #heading(level: 1)[#text("Quote and verse forms")] <id-5f71756f74655f616e645f76657273655f666f726d73>
 
 #blockquote[
 #text("Styled quote paragraph.")
-]
-
+#text(style: "normal")[
 #attribution[#text("Paragraph ")#strong[#text("Author")]#text(", ")#raw("Paragraph Work")]
 
-#blockquote[
-#text("Citation-only quote paragraph.")
 ]
+]
+
+#blockquote[
+#text("Citation-only quote paragraph.")]
 
 #verse[#text("Styled verse paragraph.")]
 
@@ -247,9 +314,12 @@
 #blockquote[
 #text("Adjacent shorthand.")
 
-]
 
+#text(style: "normal")[
 #attribution[#text("Ada")]
+
+]
+]
 
 #text("Spaces disable shorthand.")
 
