@@ -7,14 +7,14 @@ use acdc_converters_core::{
     section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker},
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
-    toc::Config as TocConfig,
+    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::Visitor,
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
     Anchor, AttributeValue, Block, BlockMetadata, CrossReference, Image, IndexTermKind,
     InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source, Table, TableColumn,
-    TableOfContents, Title,
+    TableOfContents, Title, TocEntry,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{Heading, PageBreakBefore, PartBreakAfter};
@@ -37,7 +37,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) in_inline_span: bool,
     book_page_break_state: BookPageBreakState,
     text_boundaries: TextBoundaries,
-    has_toc_entries: bool,
+    toc_entries: Vec<TocEntry<'a>>,
     toc_written: bool,
 }
 
@@ -82,7 +82,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         processor: Processor<'a>,
         assets: &'m ImageMap,
         heading: Heading,
-        has_toc_entries: bool,
+        toc_entries: Vec<TocEntry<'a>>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         let section_number_tracker = SectionNumberTracker::new(processor.document_attributes());
@@ -128,7 +128,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             in_inline_span: false,
             book_page_break_state,
             text_boundaries: TextBoundaries::BOTH,
-            has_toc_entries,
+            toc_entries,
             toc_written: false,
         }
     }
@@ -165,9 +165,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         false
     }
 
-    pub(crate) fn render_toc(&mut self, toc_macro: Option<&TableOfContents<'_>>, placement: &str) {
-        if self.toc_written || !self.has_toc_entries {
-            return;
+    pub(crate) fn render_toc(
+        &mut self,
+        toc_macro: Option<&TableOfContents<'_>>,
+        placement: &str,
+    ) -> Result<(), Error> {
+        if self.toc_written || self.toc_entries.is_empty() {
+            return Ok(());
         }
 
         let config = TocConfig::from_attributes(toc_macro, self.processor.document_attributes());
@@ -185,20 +189,59 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             other => configured_placement == other,
         };
         if !should_render {
-            return;
+            return Ok(());
         }
 
         self.toc_written = true;
-        self.writer.raw("#outline(title: ");
-        match config.title() {
-            Some("") | None => self.writer.raw("none"),
-            Some(title) => self.writer.string_literal(title),
+        if let Some(title) = config.title().filter(|title| !title.is_empty()) {
+            self.writer
+                .raw("#heading(outlined: false, bookmarked: false)[");
+            self.write_text_expr(title);
+            self.writer.raw("]\n");
         }
-        let _ = write!(
-            self.writer,
-            ", depth: {})\n#pagebreak()\n\n",
-            config.levels()
+
+        self.writer.raw(
+            "#let _acdc_toc_entry(target, depth, body) = context {\n  link(\n    target,\n    pad(\n      left: depth * 1.25em,\n      grid(\n        columns: (auto, 1fr, auto),\n        column-gutter: 0.5em,\n        body,\n        repeat[.],\n        str(counter(page).at(target).first()),\n      ),\n    ),\n  )\n}\n",
         );
+
+        let entries = self.toc_entries.clone();
+        let numbers = section_numbers(
+            &entries,
+            &NumberingConfig::new(
+                self.processor.document_attributes(),
+                self.part_number_tracker.is_enabled(),
+                None,
+            ),
+        );
+        let has_parts = has_real_parts(&entries);
+        let mut seen_part = false;
+        for (entry, number) in entries.iter().zip(numbers) {
+            if entry.level > config.levels() {
+                continue;
+            }
+            let depth = match entry.level {
+                0 => {
+                    seen_part |= entry.kind != SectionKind::Appendix;
+                    0
+                }
+                _ if !has_parts || !seen_part => {
+                    effective_level(entry, has_parts).saturating_sub(1)
+                }
+                level => level,
+            };
+            let _ = write!(
+                self.writer,
+                "#_acdc_toc_entry(<{}>, {depth}, [",
+                crate::encode_label(entry.id)
+            );
+            if let Some(number) = number {
+                self.write_text_expr(&number);
+            }
+            self.write_title(&entry.title)?;
+            self.writer.raw("])\n");
+        }
+        self.writer.raw("#pagebreak()\n\n");
+        Ok(())
     }
 
     pub(crate) fn write_blocks(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {

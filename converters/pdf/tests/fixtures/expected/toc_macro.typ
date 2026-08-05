@@ -44,7 +44,23 @@
 
 #text("Intro.")
 
-#outline(title: "Table of Contents", depth: 2)
+#heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
+#let _acdc_toc_entry(target, depth, body) = context {
+  link(
+    target,
+    pad(
+      left: depth * 1.25em,
+      grid(
+        columns: (auto, 1fr, auto),
+        column-gutter: 0.5em,
+        body,
+        repeat[.],
+        str(counter(page).at(target).first()),
+      ),
+    ),
+  )
+}
+#_acdc_toc_entry(<id-5f73656374696f6e>, 0, [#text("Section")])
 #pagebreak()
 
 #heading(level: 1)[#text("Section")] <id-5f73656374696f6e>

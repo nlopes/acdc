@@ -90,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Book table-of-contents numbering now keeps chapter numbers continuous across
+  part boundaries.
 - Book chapter numbers continue across part boundaries instead of restarting,
   matching Asciidoctor.
 - Spaced em dashes now consume one adjacent space or newline on each side,

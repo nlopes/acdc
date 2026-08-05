@@ -192,7 +192,7 @@ impl Processor<'_> {
             processor,
             assets,
             theme.heading,
-            !doc.toc_entries.is_empty(),
+            doc.toc_entries.clone(),
             diagnostics.reborrow(),
         );
         preamble::write(&mut visitor.writer, theme, emit_options);

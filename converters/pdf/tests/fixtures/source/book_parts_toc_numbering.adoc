@@ -1,0 +1,23 @@
+= Book TOC Numbering
+:doctype: book
+:toc:
+:partnums:
+:sectnums:
+:part-signifier: Volume
+:chapter-signifier: Unit
+
+= Foundations
+
+== First Chapter
+
+=== First Topic
+
+First chapter body.
+
+= Applications
+
+== Second Chapter
+
+=== Second Topic
+
+Second chapter body.

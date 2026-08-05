@@ -1,5 +1,6 @@
 = Book Title
 :doctype: book
+:toc:
 :partnums:
 :sectnums:
 

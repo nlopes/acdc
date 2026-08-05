@@ -53,13 +53,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         &mut self,
         _doc: &acdc_parser::Document<'_>,
     ) -> Result<(), Self::Error> {
-        self.render_toc(None, "auto");
-        Ok(())
+        self.render_toc(None, "auto")
     }
 
     fn visit_preamble_end(&mut self, _doc: &acdc_parser::Document<'_>) -> Result<(), Self::Error> {
-        self.render_toc(None, "preamble");
-        Ok(())
+        self.render_toc(None, "preamble")
     }
 
     fn visit_header(&mut self, header: &Header<'_>) -> Result<(), Self::Error> {
@@ -371,8 +369,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_table_of_contents(&mut self, toc: &TableOfContents<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&toc.metadata);
-        self.render_toc(Some(toc), "macro");
-        Ok(())
+        self.render_toc(Some(toc), "macro")
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader<'_>) -> Result<(), Self::Error> {

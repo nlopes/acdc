@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Book table-of-contents entries now omit part and chapter signifiers, nest
+  chapters under their parts, and keep chapter numbering continuous, matching
+  `asciidoctor-pdf`.
 - Numbered book chapter headings now use the default `Chapter` signifier and
   honor custom, empty, or unset `chapter-signifier`, matching
   `asciidoctor-pdf`.
