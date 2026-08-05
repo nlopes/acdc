@@ -18,8 +18,8 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Diagnostics, InlineTextTransform, Options, PrettyDuration, visitor::Visitor,
-    xref::XrefGuard,
+    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
+    visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
     Author, Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode,
@@ -185,16 +185,9 @@ impl Processor<'_> {
         emit_options: &EmitOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
-        let processor = Processor {
-            options: self.options.clone(),
-            document_attributes: doc.attributes.clone(),
-            references: Rc::new(doc.references.clone()),
-            xref_guard: XrefGuard::default(),
-            example_counter: Rc::new(Cell::new(0)),
-            pdf_options: self.pdf_options.clone(),
-            #[cfg(feature = "pre-spec-subs")]
-            current_subs: Rc::new(Cell::new(SubsFlags::all())),
-        };
+        let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
+            .with_pdf_options(self.pdf_options.clone());
+        processor.references = Rc::new(doc.references.clone());
         let mut visitor = PdfVisitor::new(
             processor,
             assets,

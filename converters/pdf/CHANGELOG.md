@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Book documents with `:partnums:` number level-zero parts with Roman numerals.
+  Part headings use `Part` by default and honor a custom or unset
+  `part-signifier`; chapter numbers continue across parts, matching
+  `asciidoctor-pdf`.
 - PDFs include the document title, subtitle, authors, subject, and keywords in
   their file metadata when these values are set.
 - Document subtitles render below the title with inline formatting and links.

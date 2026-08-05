@@ -96,12 +96,11 @@ pub struct SectionNumberTracker {
 }
 
 impl SectionNumberTracker {
-    /// Reset all section counters to zero.
-    /// Used when entering a new part boundary to restart chapter numbering.
+    /// Reset all section counters to zero and leave any appendix subtree.
     pub fn reset(&self) {
         let mut counters = self.counters.borrow_mut();
-        for c in counters.iter_mut() {
-            *c = 0;
+        for counter in counters.iter_mut() {
+            *counter = 0;
         }
         self.appendix_letter.set(None);
     }
@@ -225,33 +224,29 @@ pub fn to_upper_roman(mut n: usize) -> String {
     result
 }
 
-/// Tracks part numbers for `:partnums:` attribute support in book doctype.
-/// Formats part headings as "Part I. ", "Part II. ", etc.
+/// Tracks upper-Roman part numbers for `:partnums:` in book documents.
+///
+/// Part numbering is independent of section numbering, so entering a part does
+/// not change section counters.
 #[derive(Clone, Debug)]
 pub struct PartNumberTracker {
     counter: Rc<Cell<usize>>,
     enabled: bool,
     signifier: Option<String>,
-    section_tracker: SectionNumberTracker,
 }
 
 impl PartNumberTracker {
     /// Create a new part number tracker from document attributes.
-    /// `section_tracker` should be a clone of the processor's `SectionNumberTracker`
-    /// so they share state — entering a part resets section counters.
     #[must_use]
-    pub fn new(
-        document_attributes: &DocumentAttributes,
-        section_tracker: SectionNumberTracker,
-    ) -> Self {
+    pub fn new(document_attributes: &DocumentAttributes) -> Self {
         let is_book = document_attributes
             .get("doctype")
             .is_some_and(|v| v.to_string() == "book");
-        let enabled = is_book && document_attributes.contains_key("partnums");
+        let enabled = is_book
+            && document_attributes.get("partnums").is_some_and(|value| {
+                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
+            });
 
-        // :part-signifier: defaults to None (no prefix text before the Roman numeral)
-        // If set, e.g. :part-signifier: Part, produces "Part I. "
-        // If negated (:!part-signifier:), also None
         let signifier = document_attributes
             .get("part-signifier")
             .and_then(|v| match v {
@@ -263,13 +258,12 @@ impl PartNumberTracker {
             counter: Rc::new(Cell::new(0)),
             enabled,
             signifier,
-            section_tracker,
         }
     }
 
-    /// Enter a part boundary. Returns the formatted part label (e.g. "Part I. ")
-    /// if part numbering is enabled, or `None` otherwise.
-    /// Also resets section counters for the new part.
+    /// Enter a part and return its label, such as `I: ` or `Part I: `.
+    ///
+    /// Returns `None` when part numbering is disabled.
     #[must_use]
     pub fn enter_part(&self) -> Option<String> {
         if !self.enabled {
@@ -277,7 +271,6 @@ impl PartNumberTracker {
         }
         let count = self.counter.get() + 1;
         self.counter.set(count);
-        self.section_tracker.reset();
 
         let roman = to_upper_roman(count);
         if let Some(ref sig) = self.signifier {
@@ -287,7 +280,7 @@ impl PartNumberTracker {
         }
     }
 
-    /// Whether part numbering is enabled (`:partnums:` is set).
+    /// Whether `:partnums:` enables numbering for this book document.
     #[must_use]
     pub fn is_enabled(&self) -> bool {
         self.enabled
@@ -565,8 +558,16 @@ mod tests {
     #[test]
     fn test_part_tracker_disabled_without_partnums() {
         let attrs = DocumentAttributes::default();
-        let section_tracker = SectionNumberTracker::new(&attrs);
-        let tracker = PartNumberTracker::new(&attrs, section_tracker);
+        let tracker = PartNumberTracker::new(&attrs);
+        assert!(!tracker.is_enabled());
+        assert!(tracker.enter_part().is_none());
+    }
+
+    #[test]
+    fn test_part_tracker_disabled_when_partnums_is_unset() {
+        let mut attrs = attrs_with_partnums();
+        attrs.set("partnums".into(), AttributeValue::Bool(false));
+        let tracker = PartNumberTracker::new(&attrs);
         assert!(!tracker.is_enabled());
         assert!(tracker.enter_part().is_none());
     }
@@ -574,8 +575,7 @@ mod tests {
     #[test]
     fn test_part_tracker_enabled_no_signifier() {
         let attrs = attrs_with_partnums();
-        let section_tracker = SectionNumberTracker::new(&attrs);
-        let tracker = PartNumberTracker::new(&attrs, section_tracker);
+        let tracker = PartNumberTracker::new(&attrs);
         assert!(tracker.is_enabled());
         assert!(tracker.signifier().is_none());
         assert_eq!(tracker.enter_part(), Some("I: ".to_string()));
@@ -590,23 +590,10 @@ mod tests {
             "part-signifier".into(),
             AttributeValue::String("Part".into()),
         );
-        let section_tracker = SectionNumberTracker::new(&attrs);
-        let tracker = PartNumberTracker::new(&attrs, section_tracker);
+        let tracker = PartNumberTracker::new(&attrs);
         assert_eq!(tracker.signifier(), Some("Part"));
         assert_eq!(tracker.enter_part(), Some("Part I: ".to_string()));
         assert_eq!(tracker.enter_part(), Some("Part II: ".to_string()));
-    }
-
-    #[test]
-    fn test_part_tracker_resets_section_counters() {
-        let attrs = attrs_with_partnums();
-        let section_tracker = SectionNumberTracker::new(&attrs);
-        let part_tracker = PartNumberTracker::new(&attrs, section_tracker.clone());
-        let _ = part_tracker.enter_part();
-        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
-        assert_eq!(section_tracker.enter_section(1), Some("2. ".to_string()));
-        let _ = part_tracker.enter_part();
-        assert_eq!(section_tracker.enter_section(1), Some("1. ".to_string()));
     }
 
     #[test]

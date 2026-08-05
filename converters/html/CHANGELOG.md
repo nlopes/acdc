@@ -232,6 +232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numbered book chapters continue across parts instead of restarting at each
+  part, matching `asciidoctor`.
 - Dialogue hard breaks and em dashes now match `asciidoctor`: paragraph-leading
   and trailing `--` are replaced, while dashes beside or at the edge of inline
   formatting stay literal.

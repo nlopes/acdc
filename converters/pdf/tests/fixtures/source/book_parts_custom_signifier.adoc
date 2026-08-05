@@ -1,0 +1,8 @@
+= Custom Part Signifier
+:doctype: book
+:partnums:
+:part-signifier: Volume
+
+= Foundations
+
+Part body.

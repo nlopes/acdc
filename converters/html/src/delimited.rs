@@ -1047,8 +1047,7 @@ mod tests {
             .build();
         let document_attributes = DocumentAttributes::default();
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let part_number_tracker = PartNumberTracker::new(&document_attributes);
         let appendix_tracker =
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
         Processor {

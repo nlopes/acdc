@@ -1,0 +1,16 @@
+= Numbered Book Parts
+:doctype: book
+:partnums:
+:sectnums:
+
+= Foundations
+
+== First Chapter
+
+First chapter body.
+
+= Applications
+
+== Second Chapter
+
+Second chapter body.

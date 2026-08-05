@@ -309,8 +309,7 @@ impl<'a> Processor<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
         let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
+        let part_number_tracker = PartNumberTracker::new(&doc.attributes);
         let appendix_tracker =
             AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
         // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
@@ -595,8 +594,7 @@ impl<'a> Processor<'a> {
             .apply(&mut document_attributes, options.doctype());
 
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let part_number_tracker = PartNumberTracker::new(&document_attributes);
         let appendix_tracker =
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
 

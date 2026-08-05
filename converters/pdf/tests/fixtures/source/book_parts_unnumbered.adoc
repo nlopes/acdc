@@ -1,0 +1,7 @@
+= Unnumbered Book Parts
+:doctype: book
+:partnums!:
+
+= Foundations
+
+Part body.

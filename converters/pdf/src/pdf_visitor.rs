@@ -4,7 +4,7 @@ use std::{borrow::Cow, fmt::Write as _, rc::Rc};
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, inlines_to_string,
-    section::{AppendixTracker, SectionNumberTracker, SpecialSectionTracker},
+    section::{AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker},
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::Config as TocConfig,
@@ -26,6 +26,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     assets: &'m ImageMap,
     diagnostics: Diagnostics<'d>,
     pub(crate) section_number_tracker: SectionNumberTracker,
+    pub(crate) part_number_tracker: PartNumberTracker,
     pub(crate) appendix_tracker: AppendixTracker,
     pub(crate) special_section_tracker: SpecialSectionTracker,
     pub(crate) list_depth: usize,
@@ -72,6 +73,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         let section_number_tracker = SectionNumberTracker::new(processor.document_attributes());
+        let part_number_tracker = PartNumberTracker::new(processor.document_attributes());
         let appendix_tracker = AppendixTracker::new(
             processor.document_attributes(),
             section_number_tracker.clone(),
@@ -82,6 +84,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             assets,
             diagnostics,
             section_number_tracker,
+            part_number_tracker,
             appendix_tracker,
             special_section_tracker: SpecialSectionTracker::new(),
             list_depth: 0,

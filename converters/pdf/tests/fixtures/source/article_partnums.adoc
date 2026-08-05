@@ -1,0 +1,9 @@
+= Article Part Number Attribute
+:partnums:
+:sectnums:
+
+== Opening
+
+=== Background
+
+Article body.

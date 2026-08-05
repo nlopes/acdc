@@ -15,7 +15,18 @@ use crate::{BACKEND_TRAITS, Error, PdfOptions, Processor};
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
+    fn document_attributes_defaults() -> DocumentAttributes<'static> {
+        let mut attributes = DocumentAttributes::default();
+        attributes.insert("part-signifier".into(), "Part".into());
+        attributes
+    }
+
     fn new(options: Options, mut document_attributes: DocumentAttributes<'a>) -> Self {
+        for (name, value) in Self::document_attributes_defaults().iter() {
+            if !document_attributes.contains_key(name.as_ref()) {
+                document_attributes.insert(name.clone(), value.clone());
+            }
+        }
         BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
         Self {
             options,
@@ -99,5 +110,12 @@ mod tests {
             Some("html")
         );
         assert!(processor.document_attributes().contains_key("backend-pdf"));
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("part-signifier")
+                .as_deref(),
+            Some("Part")
+        );
     }
 }

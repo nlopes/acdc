@@ -1,0 +1,8 @@
+= Unset Part Signifier
+:doctype: book
+:partnums:
+:part-signifier!:
+
+= Foundations
+
+Part body.

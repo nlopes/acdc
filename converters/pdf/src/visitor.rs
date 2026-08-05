@@ -124,6 +124,10 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         let mut prefix = String::new();
         if section.kind == acdc_parser::SectionKind::Appendix {
             prefix.push_str(&self.appendix_tracker.enter_appendix());
+        } else if section.level == 0 && participates {
+            if let Some(number) = self.part_number_tracker.enter_part() {
+                prefix.push_str(&number);
+            }
         } else if participates
             && let Some(number) = self.section_number_tracker.enter_section(section.level)
         {

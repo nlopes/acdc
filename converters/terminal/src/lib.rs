@@ -103,8 +103,7 @@ pub(crate) fn create_test_processor_with(
 ) -> Processor<'_> {
     let appearance = Appearance::detect();
     let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-    let part_number_tracker =
-        PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+    let part_number_tracker = PartNumberTracker::new(&document_attributes);
     let appendix_tracker =
         AppendixTracker::new(&document_attributes, section_number_tracker.clone());
     Processor {
@@ -147,8 +146,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         let appearance = Appearance::detect();
 
         let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&document_attributes, section_number_tracker.clone());
+        let part_number_tracker = PartNumberTracker::new(&document_attributes);
         let appendix_tracker =
             AppendixTracker::new(&document_attributes, section_number_tracker.clone());
 
@@ -203,8 +201,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
         let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker =
-            PartNumberTracker::new(&doc.attributes, section_number_tracker.clone());
+        let part_number_tracker = PartNumberTracker::new(&doc.attributes);
         let appendix_tracker =
             AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
 
