@@ -2,6 +2,7 @@
 :doctype: manpage
 :manmanual: Test Manual
 :mansource: acdc
+:revdate: 2026-08-02
 :byline: Ada Lovelace, Notes
 
 == NAME
