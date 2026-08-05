@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Numbered book chapter headings now use the default `Chapter` signifier and
+  honor custom, empty, or unset `chapter-signifier`, matching
+  `asciidoctor-pdf`.
 - In a book, `:partnums: false` now enables Roman part numbers because the
   attribute is set. Use `:partnums!:` to disable them, matching
   `asciidoctor-pdf`.

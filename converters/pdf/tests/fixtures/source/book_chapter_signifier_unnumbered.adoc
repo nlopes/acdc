@@ -1,0 +1,7 @@
+= Unnumbered Chapter Signifier
+:doctype: book
+:chapter-signifier: Volume
+
+== First Chapter
+
+Chapter body.

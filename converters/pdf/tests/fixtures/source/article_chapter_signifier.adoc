@@ -1,0 +1,7 @@
+= Article Chapter Signifier
+:sectnums:
+:chapter-signifier: Volume
+
+== First Section
+
+Section body.

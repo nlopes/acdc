@@ -51,13 +51,13 @@
 
 #text("Part introduction.")
 
-#heading(level: 1)[#text("1. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
+#heading(level: 1)[#text("Chapter 1. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
 
 #text("First chapter body.")
 
 #pagebreak(weak: true)
 
-#heading(level: 1)[#text("2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
+#heading(level: 1)[#text("Chapter 2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
 
 #text("Second chapter body.")
 
@@ -65,7 +65,7 @@
 
 #heading(level: 1)[#text("Part II: ")#text("Applications")] <id-5f6170706c69636174696f6e73>
 
-#heading(level: 1)[#text("3. ")#text("Third Chapter")] <id-5f74686972645f63686170746572>
+#heading(level: 1)[#text("Chapter 3. ")#text("Third Chapter")] <id-5f74686972645f63686170746572>
 
 #text("Third chapter body.")
 

@@ -1,0 +1,8 @@
+= Unset Chapter Signifier
+:doctype: book
+:sectnums:
+:chapter-signifier!:
+
+== First Chapter
+
+Chapter body.

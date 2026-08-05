@@ -53,7 +53,7 @@
 
 #pagebreak(weak: true)
 
-#heading(level: 1)[#text("1. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
+#heading(level: 1)[#text("Chapter 1. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
 
 #text("First chapter body.")
 
@@ -63,7 +63,7 @@
 
 #pagebreak(weak: true)
 
-#heading(level: 1)[#text("2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
+#heading(level: 1)[#text("Chapter 2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
 
 #text("Second chapter body.")
 

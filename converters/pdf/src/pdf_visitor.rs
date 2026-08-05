@@ -12,8 +12,9 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, Block, BlockMetadata, CrossReference, Image, IndexTermKind, InlineMacro, InlineNode,
-    ListItem, Paragraph, Section, SectionKind, Source, Table, TableColumn, TableOfContents, Title,
+    Anchor, AttributeValue, Block, BlockMetadata, CrossReference, Image, IndexTermKind,
+    InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source, Table, TableColumn,
+    TableOfContents, Title,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{Heading, PageBreakBefore, PartBreakAfter};
@@ -31,6 +32,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) part_number_tracker: PartNumberTracker,
     pub(crate) appendix_tracker: AppendixTracker,
     pub(crate) special_section_tracker: SpecialSectionTracker,
+    pub(crate) chapter_signifier: Option<String>,
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
     book_page_break_state: BookPageBreakState,
@@ -90,12 +92,23 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             processor.document_attributes(),
             section_number_tracker.clone(),
         );
-        let book_page_break_state = if processor
+        let is_book = processor
             .document_attributes()
             .get_string("doctype")
             .as_deref()
-            == Some("book")
-        {
+            == Some("book");
+        let chapter_signifier = if is_book {
+            match processor.document_attributes().get("chapter-signifier") {
+                Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
+                    Some(signifier.clone().into_owned())
+                }
+                Some(_) => None,
+                None => Some("Chapter".to_string()),
+            }
+        } else {
+            None
+        };
+        let book_page_break_state = if is_book {
             BookPageBreakState::Enabled
         } else {
             BookPageBreakState::Disabled
@@ -110,6 +123,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             part_number_tracker,
             appendix_tracker,
             special_section_tracker: SpecialSectionTracker::new(),
+            chapter_signifier,
             list_depth: 0,
             in_inline_span: false,
             book_page_break_state,

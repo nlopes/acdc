@@ -135,6 +135,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         } else if participates
             && let Some(number) = self.section_number_tracker.enter_section(section.level)
         {
+            if section.level == 1
+                && let Some(signifier) = &self.chapter_signifier
+            {
+                prefix.push_str(signifier);
+                prefix.push(' ');
+            }
             prefix.push_str(&number);
         }
 

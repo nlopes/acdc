@@ -1,0 +1,8 @@
+= Custom Chapter Signifier
+:doctype: book
+:sectnums:
+:chapter-signifier: Volume
+
+== First Chapter
+
+Chapter body.
