@@ -37,6 +37,8 @@ macro_rules! generate_tests {
 // List of test fixtures: (fixture_name, uses_osc8_links [, requires: <cfg>])
 generate_tests!([
     (document, false),
+    (article_special_section_numbering, false),
+    (article_special_section_numbering_all, false),
     (book_parts_literal_false, false),
     (book_special_section_numbering, false),
     (book_special_section_numbering_all, false),

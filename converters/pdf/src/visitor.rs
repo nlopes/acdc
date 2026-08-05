@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    decode_numeric_char_refs, inlines_to_string, section::effective_section_level,
+    Doctype, decode_numeric_char_refs, inlines_to_string, section::effective_section_level,
     shows_block_title, visitor::Visitor,
 };
 use acdc_parser::{
@@ -146,14 +146,43 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         }
 
         let heading_level = level.max(1);
-        let _ = write!(self.writer, "#heading(level: {heading_level})[");
+        let id =
+            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
+
+        if self.doctype == Doctype::Article && section.kind == acdc_parser::SectionKind::Abstract {
+            self.writer
+                .raw("#align(center)[#text(size: 1.25em)[#strong[");
+            self.write_title(&section.title)?;
+            self.writer.raw("]]]");
+            if !id.is_empty() {
+                let _ = write!(self.writer, " <{}>", encode_label(&id));
+            }
+            self.writer
+                .raw("\n\n#text(size: 1.2em, style: \"italic\")[\n");
+            let previous = self.in_article_abstract;
+            self.in_article_abstract = true;
+            let result = self.write_blocks(&section.content);
+            self.in_article_abstract = previous;
+            self.writer.raw("]\n\n");
+            return result;
+        }
+
+        let _ = write!(self.writer, "#heading(level: {heading_level}");
+        if self.in_article_abstract {
+            self.writer.raw(", outlined: false, bookmarked: false");
+        }
+        self.writer.raw(")[");
+        if self.in_article_abstract {
+            self.writer.raw("#text(style: \"normal\")[");
+        }
         if !prefix.is_empty() {
             self.write_text_expr(&prefix);
         }
         self.write_title(&section.title)?;
+        if self.in_article_abstract {
+            self.writer.raw("]");
+        }
         self.writer.raw("]");
-        let id =
-            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
         if !id.is_empty() {
             let _ = write!(self.writer, " <{}>", encode_label(&id));
         }

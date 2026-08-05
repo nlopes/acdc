@@ -1,0 +1,47 @@
+= Article Special Section Numbering
+:doctype: article
+:toc:
+:toclevels: 3
+:sectnums:
+
+[abstract]
+== Abstract
+
+Abstract body.
+
+=== Abstract Topic
+
+Abstract topic body.
+
+== First Section
+
+First body.
+
+=== First Topic
+
+First topic body.
+
+[appendix]
+== Appendix Material
+
+=== Appendix Topic
+
+Appendix topic body.
+
+== Second Section
+
+Second body with a concealed index term (((alpha))).
+
+[bibliography]
+== Bibliography
+
+- [[[ref]]] Reference
+
+[glossary]
+== Glossary
+
+Term:: Definition.
+
+[index]
+== Index
+

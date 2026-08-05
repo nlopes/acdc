@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Article abstract sections now stay out of the PDF table of contents and
+  document outline, use centered titles and italic text, and keep their heading
+  number hidden while preserving the `sectnums=all` sequence, matching
+  `asciidoctor-pdf`.
 - Book abstracts now take chapter numbers, `sectnums=all` includes special
   sections, and ordinary chapter numbering continues after an appendix,
   matching `asciidoctor-pdf`.

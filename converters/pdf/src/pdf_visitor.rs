@@ -3,7 +3,7 @@ use std::{borrow::Cow, fmt::Write as _, rc::Rc};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
-    Diagnostics, InlineTextTransform, inlines_to_string,
+    Diagnostics, Doctype, InlineTextTransform, inlines_to_string,
     section::{
         AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
         effective_section_level,
@@ -38,6 +38,8 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) chapter_signifier: Option<String>,
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
+    pub(crate) in_article_abstract: bool,
+    pub(crate) doctype: Doctype,
     book_page_break_state: BookPageBreakState,
     text_boundaries: TextBoundaries,
     toc_entries: Vec<TocEntry<'a>>,
@@ -103,11 +105,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             section_number_tracker.clone(),
         );
         let special_section_tracker = SpecialSectionTracker::new(processor.document_attributes());
-        let is_book = processor
+        let doctype = processor
             .document_attributes()
             .get_string("doctype")
-            .as_deref()
-            == Some("book");
+            .and_then(|value| value.parse().ok())
+            .unwrap_or_else(|| processor.options().doctype());
+        let is_book = doctype == Doctype::Book;
         let chapter_signifier = if is_book {
             match processor.document_attributes().get("chapter-signifier") {
                 Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
@@ -137,6 +140,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             chapter_signifier,
             list_depth: 0,
             in_inline_span: false,
+            in_article_abstract: false,
+            doctype,
             book_page_break_state,
             text_boundaries: TextBoundaries::BOTH,
             toc_entries,
@@ -226,7 +231,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
         let has_parts = has_real_parts(&entries);
         let mut root = TocRoot::None;
+        let mut hidden_article_abstract_level = None;
         for (entry, number) in entries.iter().zip(numbers) {
+            if let Some(abstract_level) = hidden_article_abstract_level {
+                if entry.level > abstract_level {
+                    continue;
+                }
+                hidden_article_abstract_level = None;
+            }
+            if self.doctype == Doctype::Article && entry.kind == SectionKind::Abstract {
+                hidden_article_abstract_level = Some(entry.level);
+                continue;
+            }
             if entry.level > config.levels() {
                 continue;
             }
