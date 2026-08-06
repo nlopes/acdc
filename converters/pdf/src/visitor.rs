@@ -150,15 +150,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
 
         if self.doctype == Doctype::Article && section.kind == acdc_parser::SectionKind::Abstract {
-            self.writer
-                .raw("#align(center)[#text(size: 1.25em)[#strong[");
-            self.write_title(&section.title)?;
-            self.writer.raw("]]]");
+            self.write_abstract_title(&section.title)?;
             if !id.is_empty() {
                 let _ = write!(self.writer, " <{}>", encode_label(&id));
             }
-            self.writer
-                .raw("\n\n#text(size: 1.2em, style: \"italic\")[\n");
+            self.writer.raw("\n#abstract[\n");
             let previous = self.in_article_abstract;
             self.in_article_abstract = true;
             let result = self.write_blocks(&section.content);
@@ -217,7 +213,8 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             let writes_own_title = matches!(
                 block.inner,
                 DelimitedBlockType::DelimitedSidebar(_) | DelimitedBlockType::DelimitedExample(_)
-            );
+            ) || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
+                && block.metadata.style == Some("abstract");
             if shows_block_title(&block.inner) && !writes_own_title {
                 self.write_block_title(&block.title)?;
             }
@@ -231,12 +228,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 DelimitedBlockType::DelimitedSidebar(blocks) => {
                     self.write_sidebar(&block.title, blocks)
                 }
-                // An `[abstract]` open block reads as a quote, matching the HTML
-                // backend. Asciidoctor PDF drops it; acdc keeps the content.
                 DelimitedBlockType::DelimitedOpen(blocks)
                     if block.metadata.style == Some("abstract") =>
                 {
-                    self.write_quote_block(&block.metadata, |visitor| visitor.write_blocks(blocks))
+                    self.write_abstract(Some(&block.title), &block.metadata, |visitor| {
+                        visitor.write_blocks(blocks)
+                    })
                 }
                 DelimitedBlockType::DelimitedOpen(blocks) => {
                     self.write_framed_blocks(None, None, blocks)

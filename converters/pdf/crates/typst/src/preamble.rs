@@ -187,6 +187,24 @@ fn write_code(out: &mut String, theme: &Theme, options: &EmitOptions) {
 fn write_block_helpers(out: &mut String, theme: &Theme) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
+    let typography = &theme.typography;
+
+    // Asciidoctor PDF derives abstract body text from its lead size and the
+    // abstract title from its fourth heading size.
+    let abstract_body_size = typography.body_size_pt * 1.25;
+    let abstract_title_size = typography.heading_pt[3];
+
+    let _ = writeln!(
+        out,
+        "#let abstract(body) = block(width: 100%, text(size: {abstract_body_size}pt, style: \"italic\", fill: {}, body))",
+        color(&palette.quote_text),
+    );
+    let _ = writeln!(
+        out,
+        "#let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: {abstract_title_size}pt, weight: {}, fill: {}, body)))",
+        typography.heading_weight,
+        color(&palette.heading),
+    );
 
     let _ = writeln!(
         out,

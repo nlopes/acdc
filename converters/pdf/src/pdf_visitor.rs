@@ -439,6 +439,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         ));
 
         let result = (|| {
+            if para.metadata.style == Some("abstract") {
+                let title = write_title.then_some(&para.title);
+                return self.write_abstract(title, &para.metadata, |visitor| {
+                    visitor.write_inlines(&para.content)
+                });
+            }
             if write_title {
                 self.write_block_title(&para.title)?;
             }
@@ -448,6 +454,32 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         #[cfg(feature = "pre-spec-subs")]
         self.processor.current_subs.set(previous_subs);
         result
+    }
+
+    pub(crate) fn write_abstract_title(&mut self, title: &Title<'_>) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        self.writer.raw("#abstracttitle[");
+        self.write_title(title)?;
+        self.writer.raw("]");
+        Ok(())
+    }
+
+    pub(crate) fn write_abstract(
+        &mut self,
+        title: Option<&Title<'_>>,
+        metadata: &BlockMetadata<'_>,
+        write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        if let Some(title) = title {
+            self.write_abstract_title(title)?;
+            self.writer.raw("\n");
+        }
+        self.writer.raw("#abstract[\n");
+        self.write_paragraph_alignment(metadata, write_body)?;
+        self.writer.raw("\n]\n\n");
+        Ok(())
     }
 
     /// Write the attribution line a quote or verse carries, if any.

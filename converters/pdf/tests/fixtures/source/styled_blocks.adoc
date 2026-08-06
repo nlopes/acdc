@@ -59,6 +59,9 @@ A sidebar centres its title.
 ****
 
 [abstract]
+An abstract paragraph uses *abstract* styling.
+
+[abstract]
 --
-An abstract open block reads as a quote.
+An abstract open block uses abstract styling.
 --
