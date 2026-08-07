@@ -1,0 +1,21 @@
+= tool(1)
+:doctype: manpage
+:backend: manpage
+:revdate: 2026-08-07
+
+// Metadata before the first section does not displace the manpage header.
+[[command-name]]
+:program-name: tool
+[.name-section]
+== COMMAND NAME
+
+{program-name}, toolalias - performs
+ useful work
+
+== SYNOPSIS
+
+*tool*
+
+== DESCRIPTION
+
+Uses {manname}.

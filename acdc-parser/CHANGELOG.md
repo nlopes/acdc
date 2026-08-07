@@ -137,6 +137,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Manpage name attributes come only from the required first level-1 section and
+  are available to substitutions throughout the body. A preamble, a wrong-level
+  section, or a non-conforming first section now uses the `docname` or `command`
+  fallback instead of deriving attributes from a later `NAME` section, matching
+  `asciidoctor`.
 - Dialogue lines that start with `--` now follow the effective replacement
   order. The documented trailing-`+` conflict stays on one line, while the
   `{empty}` hardbreaks workaround produces one line break. Disabling post

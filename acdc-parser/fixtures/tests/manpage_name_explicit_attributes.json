@@ -1,0 +1,186 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "tool(1)",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 9
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 5,
+        "col": 29
+      }
+    ]
+  },
+  "attributes": {
+    "backend": "manpage",
+    "docname": "explicit-tool",
+    "doctype": "manpage",
+    "manname": "explicit-tool",
+    "manname-title": "Name",
+    "manpurpose": "explicit purpose",
+    "mantitle": "tool",
+    "manvolnum": "1",
+    "outfilesuffix": ".1"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "OVERVIEW",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 11
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This section is not manpage front matter.",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 41
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 41
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "DESCRIPTION",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Uses explicit-tool.",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 15
+    }
+  ]
+}

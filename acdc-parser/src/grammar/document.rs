@@ -21,7 +21,7 @@ use crate::{
         inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
         inline_processing::{adjust_and_log_parse_error, process_inlines},
-        manpage::{derive_manpage_header_attrs, derive_name_section_attrs, extract_plain_text},
+        manpage::{NameSectionAttributes, derive_manpage_header_attrs, derive_name_section_attrs},
         marked_text::MarkedText,
         revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
         table::parse_table_cell,
@@ -43,6 +43,83 @@ use super::helpers::{
     title_looks_like_description_list,
 };
 use super::setext;
+
+struct ManpageNameSection<'input> {
+    title: &'input str,
+    attributes: NameSectionAttributes,
+    metadata_attributes: Vec<AttributeEntry<'input>>,
+}
+
+fn prepare_manpage_name_attributes<'input>(
+    state: &mut ParserState<'input>,
+    section: Option<ManpageNameSection<'input>>,
+) {
+    if !is_manpage_doctype(&state.document_attributes) {
+        return;
+    }
+
+    if let (Some(name), Some(purpose)) = (
+        state.document_attributes.get_string("manname"),
+        state.document_attributes.get_string("manpurpose"),
+    ) {
+        let name = state.intern_str(&name);
+        let purpose = state.intern_str(&purpose);
+        set_manpage_name_attributes(state, name, Some(purpose), Some("Name"));
+        return;
+    }
+
+    if let Some(section) = section {
+        let mut attributes = DocumentAttributes::clone(&state.document_attributes);
+        for AttributeEntry { key, value, .. } in section.metadata_attributes {
+            if !crate::constants::is_trusted_attribute(key) {
+                let value = match value {
+                    AttributeValue::String(value) => {
+                        let substituted = substitute(&value, HEADER, &attributes);
+                        AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
+                    }
+                    AttributeValue::Bool(_) | AttributeValue::None => value,
+                };
+                attributes.set(key.into(), value);
+            }
+        }
+
+        let name = substitute(&section.attributes.name, HEADER, &attributes);
+        let name = name.split(',').next().unwrap_or_default().trim();
+        let name = state.intern_str(name);
+        let purpose = substitute(&section.attributes.purpose, HEADER, &attributes);
+        let purpose = state.intern_str(&purpose);
+        let title = substitute(section.title, HEADER, &attributes);
+        let title = state.intern_str(&title);
+        set_manpage_name_attributes(state, name, Some(purpose), Some(title));
+        return;
+    }
+
+    let fallback = state
+        .document_attributes
+        .get_string("docname")
+        .unwrap_or(Cow::Borrowed("command"));
+    let fallback = state.intern_str(&fallback);
+    set_manpage_name_attributes(state, fallback, None, None);
+}
+
+fn set_manpage_name_attributes<'input>(
+    state: &mut ParserState<'input>,
+    name: &'input str,
+    purpose: Option<&'input str>,
+    title: Option<&'input str>,
+) {
+    let attributes = Rc::make_mut(&mut state.document_attributes);
+    attributes.set("manname".into(), AttributeValue::String(name.into()));
+    if let Some(purpose) = purpose {
+        attributes.set("manpurpose".into(), AttributeValue::String(purpose.into()));
+    }
+    if let Some(title) = title {
+        attributes.insert("manname-title".into(), AttributeValue::String(title.into()));
+    }
+    if attributes.get_string("backend").as_deref() == Some("manpage") {
+        attributes.set("docname".into(), AttributeValue::String(name.into()));
+    }
+}
 
 /// Helper to check delimiter matching and return error if mismatched
 fn check_delimiters(
@@ -1948,7 +2025,7 @@ peg::parser! {
         // it stands in our current model, it makes no sense to have comments in the
         // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document<'input>, Error>
-        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() blocks:blocks(0, None) end:position!() (eol()* / ![_]) {
+        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() blocks:blocks(0, None) end:position!() (eol()* / ![_]) {
             let header = header_result?;
             let blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
@@ -2099,6 +2176,82 @@ peg::parser! {
                 references,
             })
         }
+
+        rule prepare_manpage_front_matter()
+        = manpage_name_section_required() section:&manpage_name_section() {
+            prepare_manpage_name_attributes(state, Some(section));
+        }
+        / {
+            prepare_manpage_name_attributes(state, None);
+        }
+
+        rule manpage_name_section_required()
+        = {?
+            if is_manpage_doctype(&state.document_attributes)
+                && !(state.document_attributes.get_string("manname").is_some()
+                    && state.document_attributes.get_string("manpurpose").is_some())
+            {
+                Ok(())
+            } else {
+                Err("manpage name section is not required")
+            }
+        }
+
+        // The first manpage section supplies header attributes. Inspect it without
+        // consuming it so the regular block grammar still builds the AST.
+        rule manpage_name_section() -> ManpageNameSection<'input>
+        = eol()*
+          metadata_attributes:(attribute:manpage_name_metadata() eol()* { attribute })*
+          title:manpage_level_one_title()
+          eol()*
+          lines:manpage_name_body_line()+
+        {?
+            derive_name_section_attrs(lines)
+                .map(|attributes| ManpageNameSection {
+                    title,
+                    attributes,
+                    metadata_attributes: metadata_attributes.into_iter().flatten().collect(),
+                })
+                .ok_or("non-conforming manpage name section body")
+        }
+
+        rule manpage_level_one_title() -> &'input str
+        = level:section_level(0, None) whitespace()+ title:$([^'\n']+) (eol() / ![_]) {?
+            (level.1 == 1)
+                .then_some(title.trim())
+                .ok_or("not a level-one manpage name section")
+        }
+        / title:$([^'\n']+) eol()
+          level:setext_section_level(title.trim().chars().count(), None) {?
+            (level == 1 && !title_looks_like_description_list(title))
+                .then_some(title.trim())
+                .ok_or("not a level-one Setext manpage name section")
+        }
+
+        rule manpage_name_metadata() -> Option<AttributeEntry<'input>>
+        = manpage_comment_block() { None }
+        / "//" !"/" [^'\n']* (eol() / ![_]) { None }
+        / "[[" (!"]]" [^'\n'])+ "]]" (eol() / ![_]) { None }
+        / !empty_list_separator() !double_open_square_bracket()
+          open_square_bracket() attribute_list_content() (eol() / ![_]) { None }
+        / "." ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']* (eol() / ![_]) { None }
+        / attribute:document_attribute_match() (eol() / ![_]) { Some(attribute) }
+
+        rule manpage_comment_block()
+        = delimiter:$(['/']*<4,>) eol()
+          (!manpage_comment_delimiter(delimiter) [^'\n']* eol())*
+          manpage_comment_delimiter(delimiter)
+
+        rule manpage_comment_delimiter(delimiter: &str)
+        = candidate:$(['/']*<4,>) (eol() / ![_]) {?
+            (candidate == delimiter)
+                .then_some(())
+                .ok_or("not the matching comment delimiter")
+        }
+
+        rule manpage_name_body_line() -> Option<&'input str>
+        = "//" !"/" [^'\n']* (eol() / ![_]) { None }
+        / line:$([^'\n']+) (eol() / ![_]) { Some(line) }
 
         pub(crate) rule header() -> Result<Option<Header<'input>>, Error>
             = start:position!()
@@ -2764,22 +2917,6 @@ peg::parser! {
             let level = section_level.1;
             let location = state.create_block_location(span_start, span_end, offset);
 
-            // Derive manname/manpurpose from NAME section in manpage documents
-            //
-            // This must happen before subsequent sections are parsed so {manname} works
-            // in SYNOPSIS, DESCRIPTION, etc.
-            if level == 1 && is_manpage_doctype(&state.document_attributes) {
-                let title_text = extract_plain_text(&title);
-                if title_text.eq_ignore_ascii_case("NAME")
-                    && let Some(Ok(ref blocks)) = content
-                    && let Some(Block::Paragraph(para)) = blocks.first()
-                {
-                    let para_text_owned = extract_plain_text(&para.content);
-                    let para_text: &'input str = state.intern_str(&para_text_owned);
-                    derive_name_section_attrs(para_text, Rc::make_mut(&mut state.document_attributes));
-                }
-            }
-
             // Classify the section by its style (preface, appendix, …). The
             // numbering implication of being special — including suppression of
             // subsection numbering — is decided later, by the converters.
@@ -2898,19 +3035,6 @@ peg::parser! {
         {
             let (title, _section_id) = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
-
-            // Derive manname/manpurpose from NAME section in manpage documents
-            if setext_level == 1 && is_manpage_doctype(&state.document_attributes) {
-                let title_text = extract_plain_text(&title);
-                if title_text.eq_ignore_ascii_case("NAME")
-                    && let Some(Ok(ref blocks)) = content
-                    && let Some(Block::Paragraph(para)) = blocks.first()
-                {
-                    let para_text_owned = extract_plain_text(&para.content);
-                    let para_text: &'input str = state.intern_str(&para_text_owned);
-                    derive_name_section_attrs(para_text, Rc::make_mut(&mut state.document_attributes));
-                }
-            }
 
             // Classify the section by its style (see the ATX section rule).
             let kind = SectionKind::from_style(block_metadata.metadata.style);
