@@ -23,10 +23,15 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             self.record_section_title(&title_text);
         }
 
-        // Check if this is the NAME section (which has special formatting rules)
-        let is_name_section = title_text.eq_ignore_ascii_case("name");
+        let name_section_title = self
+            .processor
+            .document_attributes
+            .get_string("manname-title")
+            .unwrap_or_else(|| "Name".into());
+        let is_name_section =
+            section.level == 1 && title_text.eq_ignore_ascii_case(name_section_title.as_ref());
 
-        // In embedded mode, skip the NAME section entirely (matches asciidoctor --embedded)
+        // In embedded mode, skip the name section (matches asciidoctor --embedded).
         if self.processor.options.embedded() && is_name_section {
             return Ok(());
         }
@@ -54,7 +59,6 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             writeln!(w, "\\fP")?;
         }
 
-        // Set NAME section flag for content rendering
         if is_name_section {
             self.in_name_section = true;
         }
@@ -64,7 +68,6 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             self.visit_block(block)?;
         }
 
-        // Reset NAME section flag
         if is_name_section {
             self.in_name_section = false;
         }

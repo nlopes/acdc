@@ -75,6 +75,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- A custom title on the first manpage name section now gets the same special
+  spacing, embedded-output handling, and section-order validation as `NAME`,
+  matching `asciidoctor`.
 - Dialogue hard breaks and em dashes now match the `asciidoctor` manpage
   backend: paragraph-leading and trailing `--` are replaced, while dashes
   beside or at the edge of inline formatting stay literal. Spaced em dashes

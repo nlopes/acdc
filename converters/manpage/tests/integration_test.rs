@@ -98,8 +98,25 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
         warning.source.converter == "manpage"
             && warning
                 .message
-                .contains("NAME should be the first section, got `OVERVIEW`")
+                .contains("name section should be first, got `OVERVIEW`")
     }));
+    Ok(())
+}
+
+#[test]
+fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
+    let source_path = Path::new("tests/fixtures/source/manpage_name_front_matter.adoc");
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse_file(source_path, &parser_options)?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let output_path = temp_output_path("manpage-custom-name-section", "1");
+
+    let result = processor.convert_to_file(doc, Some(source_path), &output_path)?;
+    let _ = std::fs::remove_file(&output_path);
+
+    assert!(result.warnings().is_empty(), "{:?}", result.warnings());
     Ok(())
 }
 

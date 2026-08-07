@@ -31,7 +31,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
-    /// Whether we're currently in the NAME section (which shouldn't have .sp before content).
+    /// Whether the current section supplies the manpage name metadata.
     pub(crate) in_name_section: bool,
     /// Whether the next text node should have leading whitespace stripped.
     /// Set after `.URL`/`.MTO` macros which end with a newline.
@@ -42,7 +42,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) text_boundaries: TextBoundaries,
     /// Text casing applied while preserving inline markup.
     pub(crate) text_case: TextCase,
-    /// Title of the first level-1 section (for NAME validation).
+    /// Title of the first level-1 section for name-section validation.
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
     second_section_title: Option<String>,
@@ -244,13 +244,18 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
         // Validate manpage section order conventions
         const SECTION_ORDER_ADVICE: &str =
-            "Manpage output conventionally starts with NAME followed by SYNOPSIS.";
+            "Manpage output conventionally starts with the name section followed by SYNOPSIS.";
 
+        let name_section_title = self
+            .processor
+            .document_attributes
+            .get_string("manname-title")
+            .unwrap_or_else(|| "Name".into());
         if let Some(ref first) = self.first_section_title
-            && !first.eq_ignore_ascii_case("NAME")
+            && !first.eq_ignore_ascii_case(name_section_title.as_ref())
         {
             self.diagnostics.warn_with_advice(
-                format!("manpage convention: NAME should be the first section, got `{first}`"),
+                format!("manpage convention: name section should be first, got `{first}`"),
                 SECTION_ORDER_ADVICE,
             );
         }

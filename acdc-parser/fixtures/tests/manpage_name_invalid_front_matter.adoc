@@ -1,0 +1,11 @@
+= tool(1)
+:doctype: manpage
+:backend: manpage
+
+=== NAME
+
+tool - performs useful work
+
+== DESCRIPTION
+
+Uses {manname}.
