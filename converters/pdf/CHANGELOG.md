@@ -111,6 +111,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `example-caption`), matching the other backends.
 - Abstract paragraphs and open blocks now use a centered optional title and
   larger italic body text instead of ordinary paragraph or quote styling.
+- Titled example blocks and `[example]` paragraphs now share `example-caption`
+  numbering; titled listing blocks, `[listing]` and `[source]` paragraphs share
+  `listing-caption`. The same styles on an open or literal block are captioned
+  too, though their content renders as before.
+- Caption numbering now follows the document: a caption attribute changed
+  part-way through applies from that point on, a nested block is numbered before
+  the one containing it, and blank, disabled, and custom captions are honoured,
+  matching `asciidoctor-pdf`. A title added after parsing still takes a caption,
+  numbered after every parsed one.
 - A block title sits on its own line above its block instead of running into
   the content that follows it.
 - Built-in roles now control inline text size, decoration, colour, and

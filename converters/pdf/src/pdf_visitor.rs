@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write as _, rc::Rc};
+use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
@@ -15,9 +15,9 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Block, BlockMetadata, CrossReference, Image, IndexTermKind,
-    InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source, Table, TableColumn,
-    TableOfContents, Title, TocEntry,
+    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, CrossReference, Image,
+    IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source,
+    Table, TableColumn, TableOfContents, Title, TocEntry,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{Heading, PageBreakBefore, PartBreakAfter};
@@ -446,7 +446,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 });
             }
             if write_title {
-                self.write_block_title(&para.title)?;
+                // An `[example]`, `[listing]` or `[source]` paragraph takes a caption; every
+                // other paragraph takes an ordinary title. A paragraph built through the API
+                // carries no resolved caption, so its style is classified here instead.
+                let fallback = CaptionKind::for_style(para.metadata.style);
+                if para.metadata.caption.is_some() || fallback.is_some() {
+                    self.write_captioned_title(&para.title, &para.metadata, fallback)?;
+                } else {
+                    self.write_block_title(&para.title)?;
+                }
             }
             self.write_paragraph_body(para)
         })();
@@ -598,30 +606,91 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
-    /// Write an example block under its numbered caption.
+    /// Write a title as its block's caption, e.g. `Example 2. Title`.
     ///
-    /// A titled example reads as `Example 1. Title`, using the
-    /// `example-caption` attribute, the same numbering the other backends
-    /// apply. An untitled example takes no caption.
-    pub(crate) fn write_example(
+    /// A caption with no prefix — an unset or disabled label — still takes the caption style,
+    /// matching asciidoctor's captioned title.
+    pub(crate) fn write_captioned_title(
         &mut self,
         title: &Title<'_>,
-        blocks: &[Block<'_>],
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        if !title.is_empty() {
-            let caption = self
-                .processor
-                .document_attributes()
-                .get("example-caption")
-                .map_or_else(|| "Example".to_string(), ToString::to_string);
-            let number = self.processor.example_counter.get() + 1;
-            self.processor.example_counter.set(number);
-            self.writer
-                .raw("#block(below: 0.5em)[#text(weight: \"bold\")[");
-            self.write_text_expr(&format!("{caption} {number}. "));
-            self.write_title(title)?;
-            self.writer.raw("]]\n");
+        if title.is_empty() {
+            return Ok(());
         }
+        let prefix = self.caption_prefix(metadata, fallback);
+        self.writer
+            .raw("#block(below: 0.5em)[#text(weight: \"bold\")[");
+        if let Some(prefix) = prefix {
+            self.write_text_expr(&prefix);
+        }
+        self.write_title(title)?;
+        self.writer.raw("]]\n");
+        Ok(())
+    }
+
+    /// The caption prefix for a titled block, e.g. `Example 2. `, or `None` when the caption
+    /// carries no prefix.
+    ///
+    /// The parser resolves the label from the document attributes in effect at the block's
+    /// source position and assigns the ordinal, so a caption change part-way through a document
+    /// applies from that point on, and nested blocks number inner-first.
+    fn caption_prefix(
+        &self,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<String> {
+        // Caller-built metadata never had a source position, so it falls back to the document's
+        // final attributes. `Caption::resolve_owned` keeps the precedence chain in the parser
+        // rather than duplicating it here.
+        let resolved = match (&metadata.caption, fallback) {
+            (Some(caption), _) => caption.clone(),
+            (None, Some(kind)) => {
+                Caption::resolve_owned(metadata, self.processor.document_attributes(), kind)
+            }
+            (None, None) => return None,
+        };
+        match resolved {
+            Caption::Numbered {
+                label,
+                number,
+                kind,
+            } => Some(Self::numbered_caption_prefix(
+                &label,
+                // A block the parser numbered keeps that ordinal. One it could not — a
+                // caller-built block, or a parsed block that gained its title afterwards —
+                // draws from this converter's counter, which starts past every parsed ordinal.
+                number.map_or_else(|| self.next_caption_number(kind), NonZeroU32::get),
+            )),
+            Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::Unnumbered | _ => None,
+        }
+    }
+
+    fn next_caption_number(&self, kind: CaptionKind) -> u32 {
+        let counter = match kind {
+            CaptionKind::Listing => &self.processor.listing_counter,
+            // Figure and table captions are not rendered yet, so they share the example
+            // counter rather than carrying two more of their own.
+            CaptionKind::Example | CaptionKind::Figure | CaptionKind::Table | _ => {
+                &self.processor.example_counter
+            }
+        };
+        let number = counter.get() + 1;
+        counter.set(number);
+        number
+    }
+
+    /// Asciidoctor formats a caption as `"{label} {number}. "`, so a label set with no value
+    /// leaves a leading space.
+    fn numbered_caption_prefix(label: &str, number: u32) -> String {
+        format!("{label} {number}. ")
+    }
+
+    /// Write an example block inside its light frame. Its title is written by the caller, as
+    /// every captioned block's is.
+    pub(crate) fn write_example(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {
         self.write_framed_blocks(Some("examplebox"), None, blocks)
     }
 

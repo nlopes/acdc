@@ -103,7 +103,7 @@
 #raw(block: true, "let alignment = \"ignored\";")
 
 #metadata(none) <id-6578616d706c65>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example ")#strong[#text("title")]]]
+#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("Example ")#strong[#text("title")]]]
 #align(right)[
 #examplebox[
 #text("The example body is aligned to the right.")

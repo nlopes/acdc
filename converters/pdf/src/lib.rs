@@ -22,8 +22,8 @@ use acdc_converters_core::{
     visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode,
-    ListItem, Reference, SafeMode, Source, Table, TableRow,
+    Author, Block, CaptionKind, DelimitedBlockType, Document, DocumentAttributes, InlineMacro,
+    InlineNode, ListItem, Reference, SafeMode, Source, Table, TableRow,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -89,8 +89,10 @@ pub struct Processor<'a> {
     references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
-    /// Shared counter for numbering example captions.
-    pub(crate) example_counter: Rc<Cell<usize>>,
+    /// Fallback counter for example captions the parser did not number.
+    pub(crate) example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for listing and source captions the parser did not number.
+    pub(crate) listing_counter: Rc<Cell<u32>>,
     pdf_options: PdfOptions,
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
@@ -188,6 +190,16 @@ impl Processor<'_> {
         let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
             .with_pdf_options(self.pdf_options.clone());
         processor.references = Rc::new(doc.references.clone());
+        // The parser numbers every caption it resolved. These counters only number a title it
+        // could not — one on a caller-built block, or added after parsing — so they start past
+        // every assigned ordinal instead of colliding with one. Assigning rather than raising
+        // keeps a repeated render deterministic.
+        processor
+            .example_counter
+            .set(doc.highest_caption_number(CaptionKind::Example));
+        processor
+            .listing_counter
+            .set(doc.highest_caption_number(CaptionKind::Listing));
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
@@ -717,9 +729,100 @@ fn encode_footnote_label(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_converters_core::{Converter, WarningSource};
+    use acdc_parser::{DelimitedBlock, Location, Paragraph, Plain, Title};
     use tempfile::NamedTempFile;
 
     use super::*;
+
+    fn title(content: &'static str) -> Title<'static> {
+        Title::new(vec![InlineNode::PlainText(Plain {
+            content,
+            location: Location::default(),
+            escaped: false,
+        })])
+    }
+
+    #[test]
+    fn caller_supplied_example_titles_keep_the_default_caption()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let caller_built = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(Vec::new()),
+            "====",
+            Location::default(),
+        )
+        .with_title(title("Caller-built"));
+
+        let parsed = acdc_parser::parse(
+            "[example]\n====\nContent.\n====\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let Some(Block::DelimitedBlock(mut title_added)) =
+            parsed.document().blocks.first().cloned()
+        else {
+            return Err(std::io::Error::other("expected a delimited example").into());
+        };
+        title_added.title = title("Added later");
+
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = vec![
+            Block::DelimitedBlock(caller_built),
+            Block::DelimitedBlock(title_added),
+        ];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Example 1. Caller-built"), "{text}");
+        assert!(text.contains("Example 2. Added later"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn caller_built_listing_and_styled_paragraph_titles_take_captions()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // A block built through the API carries no resolved caption, so the converter
+        // classifies it with the parser's own rules rather than dropping its caption.
+        let listing = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(Vec::new()),
+            "----",
+            Location::default(),
+        )
+        .with_title(title("Built listing"));
+        let mut styled_paragraph = Paragraph::new(Vec::new(), Location::default());
+        styled_paragraph.title = title("Built source paragraph");
+        styled_paragraph.metadata.style = Some("source");
+
+        let mut document = Document::default();
+        document
+            .attributes
+            .set("listing-caption".into(), "Listing".into());
+        document.blocks = vec![
+            Block::DelimitedBlock(listing),
+            Block::Paragraph(styled_paragraph),
+        ];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Listing 1. Built listing"), "{text}");
+        assert!(text.contains("Listing 2. Built source paragraph"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
 
     #[test]
     fn labels_are_typst_safe_and_collision_resistant() {

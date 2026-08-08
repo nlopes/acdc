@@ -7,10 +7,10 @@ use acdc_converters_core::{
     shows_block_title, visitor::Visitor,
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem,
-    OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList,
-    Video,
+    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, CaptionKind,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Header, Image, InlineNode,
+    ListItem, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
+    UnorderedList, Video,
 };
 
 use crate::{
@@ -207,24 +207,29 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         ));
 
         let result = (|| {
-            // A sidebar sets its own title inside its box and an example sets
-            // its own numbered caption; every other block that shows a title
-            // takes it above.
-            let writes_own_title = matches!(
-                block.inner,
-                DelimitedBlockType::DelimitedSidebar(_) | DelimitedBlockType::DelimitedExample(_)
-            ) || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
-                && block.metadata.style == Some("abstract");
+            // A sidebar sets its own title inside its box, and an abstract centres its own.
+            let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
+                || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
+                    && block.metadata.style == Some("abstract");
+            // The parser resolved a caption for every caption-capable block it parsed, styled
+            // open and literal blocks included. A block built through the API carries none, so
+            // it is classified here with the same rules the parser used. A table's caption is
+            // not rendered yet — see PARITY_CHECKLIST.md §5.
+            let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
+            let captioned = !matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+                && (block.metadata.caption.is_some() || fallback.is_some());
             if shows_block_title(&block.inner) && !writes_own_title {
-                self.write_block_title(&block.title)?;
+                if captioned {
+                    self.write_captioned_title(&block.title, &block.metadata, fallback)?;
+                } else {
+                    self.write_block_title(&block.title)?;
+                }
             }
             match &block.inner {
                 // Each container reads differently in print: an example takes a
                 // light frame, a sidebar a shaded box, and an open block is a
                 // transparent container that takes neither.
-                DelimitedBlockType::DelimitedExample(blocks) => {
-                    self.write_example(&block.title, blocks)
-                }
+                DelimitedBlockType::DelimitedExample(blocks) => self.write_example(blocks),
                 DelimitedBlockType::DelimitedSidebar(blocks) => {
                     self.write_sidebar(&block.title, blocks)
                 }

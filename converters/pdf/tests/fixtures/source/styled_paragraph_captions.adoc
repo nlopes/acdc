@@ -1,0 +1,54 @@
+= Styled paragraph caption counters
+:listing-caption: Listing
+:source-caption: Source
+
+.Example paragraph
+[example]
+Example paragraph content.
+
+[example]
+Untitled examples do not consume a number.
+
+.Example block
+====
+Example block content.
+====
+
+.Custom example paragraph
+[example,caption="Special: "]
+Custom example paragraph content.
+
+.Example after custom caption
+====
+Example content after the custom caption.
+====
+
+.Listing paragraph
+[listing]
+listing paragraph
+
+.Source paragraph
+[source,rust]
+let paragraph = 1;
+
+[listing]
+untitled listing paragraph
+
+.Listing block
+----
+listing block
+----
+
+.Source block
+[source,rust]
+----
+let block = 2;
+----
+
+.Custom listing paragraph
+[listing,caption="Snippet: "]
+custom listing paragraph
+
+.Listing after custom caption
+[listing]
+listing after custom caption
