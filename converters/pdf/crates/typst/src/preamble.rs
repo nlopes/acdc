@@ -124,9 +124,11 @@ fn write_text(out: &mut String, theme: &Theme, options: &EmitOptions) {
     out.push_str(")\n");
     let _ = writeln!(
         out,
-        "#set par(leading: {}em, justify: false)",
+        "#set par(leading: {}em, spacing: {}pt, justify: false)",
         typography.body_leading_em,
+        typst_block_spacing(theme),
     );
+    let _ = writeln!(out, "#set block(spacing: {}pt)", typst_block_spacing(theme));
     // pulldown already emitted curly quotes/dashes; don't let Typst re-process.
     out.push_str("#set smartquote(enabled: false)\n");
 
@@ -209,8 +211,8 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
     let caption_color = caption.font_color.as_deref().unwrap_or(&palette.body_text);
     let _ = writeln!(
         out,
-        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  v({outside}pt, weak: false)\n  block(width: 100%, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}",
-        outside = caption.margin_outside_pt,
+        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  block(width: 100%, above: {outside}pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}",
+        outside = typst_block_spacing(theme) + caption.margin_outside_pt,
         inside = caption.margin_inside_pt,
         align = caption_align,
         size = caption.font_size_em,
@@ -281,6 +283,13 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
         spacing.quote_indent_pt,
         color(&palette.quote_text),
     );
+}
+
+fn typst_block_spacing(theme: &Theme) -> f64 {
+    // Typst measures paragraph spacing from the text baseline. Include the
+    // body's added leading so the visible block margin keeps the theme value.
+    theme.spacing.block_margin_bottom_pt
+        + theme.typography.body_size_pt * theme.typography.body_leading_em
 }
 
 /// The `#let` helpers and list/table styling.
@@ -584,6 +593,20 @@ mod tests {
     }
 
     #[test]
+    fn block_spacing_keeps_the_margin_outside_body_leading() {
+        let mut theme = Theme::default();
+        theme.typography.body_size_pt = 10.0;
+        theme.typography.body_leading_em = 0.5;
+        theme.spacing.block_margin_bottom_pt = 12.0;
+        let mut out = String::new();
+
+        write_text(&mut out, &theme, &EmitOptions::default());
+
+        assert!(out.contains("#set par(leading: 0.5em, spacing: 17pt, justify: false)"));
+        assert!(out.contains("#set block(spacing: 17pt)"));
+    }
+
+    #[test]
     fn table_header_helper_uses_the_theme_weight() {
         let mut theme = Theme::default();
         theme.typography.table_header_weight = 600;
@@ -617,8 +640,8 @@ mod tests {
             "fill: rgb(\"#123456\"), body)\n",
             "}\n",
             "#let blocktitle(body) = {\n",
-            "  v(3pt, weak: false)\n",
-            "  block(width: 100%, below: 0pt, align(center, captiontext(body)))\n",
+            "  block(width: 100%, above: 22.15pt, below: 0pt, ",
+            "align(center, captiontext(body)))\n",
             "  block(height: 8pt, above: 0pt, below: 0pt)\n",
             "}",
         )));

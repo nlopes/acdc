@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generated documents apply the configured margin between document blocks.
 - Generated block titles and captions use the configured PDF caption style.
 - Generated documents include theme-derived abstract title and body styles.
 - Generated documents can set the language and optional region of their text.

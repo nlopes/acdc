@@ -28,6 +28,12 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserialises into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colours, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
 
+=== Document block spacing
+
+`spacing.block_margin_bottom_pt` controls the vertical margin between document
+blocks. It defaults to `12.0`, matching Asciidoctor PDF. List items and headings
+keep their own spacing.
+
 === Block titles and captions
 
 The `caption` tokens apply to ordinary block titles and to numbered captions.

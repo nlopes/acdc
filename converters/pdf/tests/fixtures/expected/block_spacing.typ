@@ -1,7 +1,7 @@
 #set document(
-  title: "Custom Part Signifier",
+  title: "Untitled",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Custom Part Signifier]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Untitled]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -48,17 +48,68 @@
 #set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
 #let tableheader(body) = text(weight: 700, body)
 
-#page(header: none, footer: none)[
-#v(30%)
-#align(center)[
-#text(size: 22pt, weight: "bold")[#text("Custom Part Signifier")]
+#text("First paragraph.")
+
+#text("Second paragraph.")
+
+#blocktitle[#text("Titled paragraph")]
+#text("Third paragraph.")
+
+  - #text("First item")
+  - #text("Second item")
+
+#text("Paragraph after a list.")
+
+#callout("note")[
+#text("A simple admonition.")
+
 ]
-#counter(page).update(0)
+
+#raw(block: true, "A listing block.")
+
+#blocktitle[#text("Example 1. ")#text("An example")]
+#examplebox[
+#text("Example body.")
+
 ]
 
-#pagebreak(weak: true)
+#raw(block: true, "A literal block.")
 
-#heading(level: 1)[#text("Volume I: ")#text("Foundations")] <id-5f666f756e646174696f6e73>
+#blockquote[
+#text("A quote block.")
 
-#text("Part body.")
+]
+
+#verse[#text("A verse block.")]
+
+#sidebarbox[
+#text("A sidebar block.")
+
+]
+
+#text("Image fallback")
+
+#text("First paragraph in an open block.")
+
+#text("Second paragraph in an open block.")
+
+  - #text("Item with continuation")
+#text("First continuation paragraph.")
+
+
+#text("Second continuation paragraph.")
+
+#table(columns: 1, table.cell(x: 0, y: 0)[#text("First table-cell paragraph.")
+
+#text("Second table-cell paragraph.")
+
+])
+
+#heading(level: 1)[#text("First section")] <id-5f66697273745f73656374696f6e>
+
+#text("First section paragraph.")
+
+#heading(level: 1)[#text("Second section")] <id-5f7365636f6e645f73656374696f6e>
+
+#text("Second section paragraph.")
 

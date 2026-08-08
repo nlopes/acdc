@@ -155,6 +155,16 @@ mod tests {
     }
 
     #[test]
+    fn defaults_block_margin_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML.replace("  block_margin_bottom_pt: 12.0\n", "");
+
+        let theme = Theme::from_yaml_str(&yaml)?;
+
+        assert!((theme.spacing.block_margin_bottom_pt - 12.0).abs() < f64::EPSILON);
+        Ok(())
+    }
+
+    #[test]
     fn validates_and_normalizes_caption_style() -> Result<(), Box<dyn std::error::Error>> {
         let yaml = DEFAULT_THEME_YAML
             .replace("font_color: \"#333333\"", "font_color: '#AbC'")
@@ -220,6 +230,11 @@ mod tests {
                 "margin_x_cm: 2.5",
                 "margin_x_cm: -0.1",
                 "spacing.margin_x_cm",
+            ),
+            (
+                "block_margin_bottom_pt: 12.0",
+                "block_margin_bottom_pt: -0.1",
+                "spacing.block_margin_bottom_pt",
             ),
             (
                 "body_weight: 400",

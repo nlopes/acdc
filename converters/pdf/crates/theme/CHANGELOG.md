@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can control the vertical margin between document blocks. The 12 pt
+  default matches Asciidoctor PDF.
 - Themes can control the alignment, colour, size, weight, style, and spacing of
   block titles and captions. The defaults closely match Asciidoctor PDF.
 - Themes can control page breaks before book parts and chapters and can avoid a

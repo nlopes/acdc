@@ -3,7 +3,8 @@
 )
 #set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Cross-reference coverage]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
-#set par(leading: 0.65em, justify: false)
+#set par(leading: 0.65em, spacing: 19.15pt, justify: false)
+#set block(spacing: 19.15pt)
 #set smartquote(enabled: false)
 #show heading: set text(font: ("IBM Plex Serif", "Noto Color Emoji"), weight: 700, fill: rgb("#000000"))
 #show heading.where(level: 1): set text(size: 24pt)
@@ -23,8 +24,7 @@
   text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
 }
 #let blocktitle(body) = {
-  v(0pt, weak: false)
-  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(width: 100%, above: 19.15pt, below: 0pt, align(left, captiontext(body)))
   block(height: 8pt, above: 0pt, below: 0pt)
 }
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))

@@ -10,6 +10,9 @@ pub struct Spacing {
     pub margin_x_cm: f64,
     /// Vertical page margin, in centimetres.
     pub margin_y_cm: f64,
+    /// Vertical space between document blocks.
+    #[serde(default = "default_block_margin_bottom_pt")]
+    pub block_margin_bottom_pt: f64,
     /// Corner radius for embedded images.
     pub image_radius_pt: f64,
     /// Corner radius for code blocks.
@@ -37,6 +40,10 @@ impl Spacing {
         for (field, value) in [
             ("spacing.margin_x_cm", self.margin_x_cm),
             ("spacing.margin_y_cm", self.margin_y_cm),
+            (
+                "spacing.block_margin_bottom_pt",
+                self.block_margin_bottom_pt,
+            ),
             ("spacing.image_radius_pt", self.image_radius_pt),
             ("spacing.code_radius_pt", self.code_radius_pt),
             ("spacing.callout_radius_pt", self.callout_radius_pt),
@@ -57,4 +64,8 @@ impl Spacing {
         }
         Ok(())
     }
+}
+
+const fn default_block_margin_bottom_pt() -> f64 {
+    12.0
 }
