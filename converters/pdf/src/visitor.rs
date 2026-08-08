@@ -327,14 +327,21 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_callout_list(&mut self, list: &CalloutList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
+        self.writer.raw(
+            "#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },\n",
+        );
         for item in &list.items {
-            self.writer.raw("- ");
-            self.write_text_expr(&format!("({}) ", item.callout.number));
+            self.writer.raw("[");
+            self.write_text_expr(&format!("({})", item.callout.number));
+            self.writer.raw("], [");
             self.write_inlines(&item.principal)?;
-            self.writer.raw("\n");
+            if !item.principal.is_empty() && !item.blocks.is_empty() {
+                self.writer.raw("\n\n");
+            }
             self.write_blocks(&item.blocks)?;
+            self.writer.raw("],\n");
         }
-        self.writer.raw("\n");
+        self.writer.raw(")\n\n");
         Ok(())
     }
 

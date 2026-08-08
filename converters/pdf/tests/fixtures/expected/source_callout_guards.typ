@@ -56,22 +56,28 @@
 #blocktitle[#text("Default guards are language-independent")]
 #raw(block: true, lang: "rust", "rust(); (1)\npython = 1 (2)\nSELECT 1; (3)\n(def x 1) (4)\n<tag/> (5)\nsingle ; (6)\nmultiple(); (7) (8)")
 
-- #text("(1) ")#text("Slash guard")
-- #text("(2) ")#text("Hash guard")
-- #text("(3) ")#text("Dash guard")
-- #text("(4) ")#text("Double-semicolon guard")
-- #text("(5) ")#text("XML guard")
-- #text("(6) ")#text("Single semicolon remains")
-- #text("(7) ")#text("First marker on one line")
-- #text("(8) ")#text("Second marker on one line")
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Slash guard")],
+[#text("(2)")], [#text("Hash guard")],
+[#text("(3)")], [#text("Dash guard")],
+[#text("(4)")], [#text("Double-semicolon guard")],
+[#text("(5)")], [#text("XML guard")],
+[#text("(6)")], [#text("Single semicolon remains")],
+[#text("(7)")], [#text("First marker on one line")],
+[#text("(8)")], [#text("Second marker on one line")],
+)
 
 #blocktitle[#text("Custom prefix is not a PDF guard")]
 #raw(block: true, lang: "rust", "custom(); % (1)\nordinary(); (2)")
 
-- #text("(1) ")#text("Custom prefix remains")
-- #text("(2) ")#text("Standard guard is removed")
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Custom prefix remains")],
+[#text("(2)")], [#text("Standard guard is removed")],
+)
 
 #blocktitle[#text("Escaped markers")]
 #raw(block: true, lang: "rust", "literal // <1>\nliteral <!--2-->\nreal (1)")
 
-- #text("(1) ")#text("Real callout")
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("Real callout")],
+)

@@ -74,7 +74,9 @@
 #raw(block: true, "code (1)")
 
 #metadata(none) <id-63616c6c6f75742d6964>
-- #text("(1) ")#text("callout")
+#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
+[#text("(1)")], [#text("callout")],
+)
 
 #metadata(none) <id-61646d6f6e6974696f6e2d6964>
 #callout("note")[

@@ -147,3 +147,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is set. Missing and unknown languages remain readable as plain source, and
   callout comment guards do not appear in the rendered code. Callout references
   use parenthesized number markers.
+- Callout explanations use their matching source-callout number as the list
+  marker, without an unrelated bullet.
