@@ -5184,7 +5184,12 @@ peg::parser! {
             //
             // Literal paragraphs start with a space and should not have inline
             // preprocessing applied
-            if content.starts_with(' ') {
+            if content.starts_with(' ')
+                && !matches!(
+                    block_metadata.metadata.style,
+                    Some("source" | "listing" | "literal")
+                )
+            {
                 return Ok(get_literal_paragraph(state, content, start, span_end, offset, block_metadata));
             }
 
@@ -5682,9 +5687,9 @@ fn resolve_verbatim_callouts<'a>(
     // round-trip per `VerbatimText` node.
     let mut segment = VerbatimSegment::new(arena);
     let mut line_start = 0;
-    let mut lines = text.split_inclusive('\n').peekable();
+    let lines = text.split_inclusive('\n');
 
-    while let Some(raw_line) = lines.next() {
+    for raw_line in lines {
         let line = raw_line.strip_suffix('\n').unwrap_or(raw_line);
         let line = line.strip_suffix('\r').unwrap_or(line);
 
@@ -5766,7 +5771,7 @@ fn resolve_verbatim_callouts<'a>(
             segment.push(line, line_start, line_start + line.len());
         }
 
-        if lines.peek().is_some() {
+        if raw_line.ends_with('\n') {
             segment.push("\n", line_start + line.len(), line_start + raw_line.len());
         }
         line_start += raw_line.len();

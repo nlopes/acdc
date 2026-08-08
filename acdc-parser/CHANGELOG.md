@@ -155,6 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Verbatim blocks preserve trailing blank lines when callouts are enabled, and
+  explicitly styled source, listing, and literal paragraphs preserve their
+  leading indentation.
 - Callout parsing now recognizes every marker at the end of one line and XML
   comment markers, while escaped markers remain literal and do not consume an
   automatic number, matching Asciidoctor. Text and callout nodes now report

@@ -18,7 +18,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "$ grep --context=5 virtualbox ~/apt-key-list\n\n/etc/apt/trusted.gpg\n--------------------\npub   dsa1024 2010-05-18 [SC]\n      7B0F AB3A 13B9 0743 5925  D9C9 5442 2A4B 98AB 5139\nuid           [ unknown] Oracle Corporation (VirtualBox archive signing key) <info@virtualbox.org>\nsub   elg2048 2010-05-18 [E]\n\n...\n\npub   rsa4096 2016-04-22 [SC]\n      B9F8 D658 297A F3EF C18D  5CDF A2F6 83C5 2980 AECF\nuid           [ unknown] Oracle Corporation (VirtualBox archive signing key) <info@virtualbox.org>\nsub   rsa4096 2016-04-22 [E]",
+          "value": "$ grep --context=5 virtualbox ~/apt-key-list\n\n/etc/apt/trusted.gpg\n--------------------\npub   dsa1024 2010-05-18 [SC]\n      7B0F AB3A 13B9 0743 5925  D9C9 5442 2A4B 98AB 5139\nuid           [ unknown] Oracle Corporation (VirtualBox archive signing key) <info@virtualbox.org>\nsub   elg2048 2010-05-18 [E]\n\n...\n\npub   rsa4096 2016-04-22 [SC]\n      B9F8 D658 297A F3EF C18D  5CDF A2F6 83C5 2980 AECF\nuid           [ unknown] Oracle Corporation (VirtualBox archive signing key) <info@virtualbox.org>\nsub   rsa4096 2016-04-22 [E]\n",
           "location": [
             {
               "line": 3,
@@ -26,7 +26,7 @@
             },
             {
               "line": 17,
-              "col": 28
+              "col": 29
             }
           ]
         }
