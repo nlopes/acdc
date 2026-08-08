@@ -1,0 +1,17 @@
+= Passthrough blocks
+:value: expanded
+
+Before passthrough.
+
+.Reference-only title
+[[safe-pass]]
+++++
+plain *not bold* {value}
+  preserved indentation
+#set text(fill: red)
+"] #pagebreak() #text("injected") ["
+++++
+
+See <<safe-pass>>.
+
+After passthrough.

@@ -258,9 +258,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_verse_block(nodes, &block.metadata)
                 }
                 DelimitedBlockType::DelimitedListing(nodes)
-                | DelimitedBlockType::DelimitedLiteral(nodes)
-                | DelimitedBlockType::DelimitedPass(nodes) => {
+                | DelimitedBlockType::DelimitedLiteral(nodes) => {
                     self.write_verbatim_block(nodes);
+                    Ok(())
+                }
+                DelimitedBlockType::DelimitedPass(nodes) => {
+                    self.write_passthrough_block(nodes);
                     Ok(())
                 }
                 DelimitedBlockType::DelimitedTable(table) => self.write_table(table),

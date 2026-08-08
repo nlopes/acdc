@@ -132,3 +132,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nor a role, matching Asciidoctor.
 - Passthrough block titles remain available as automatic cross-reference text
   without being displayed above the block, matching Asciidoctor PDF.
+- Passthrough blocks render as unframed monospace text instead of code cards,
+  matching Asciidoctor PDF. Their content is always escaped and cannot be
+  interpreted as Typst source.

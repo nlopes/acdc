@@ -3,6 +3,9 @@
 //! This converter renders the acdc AST into Typst markup and delegates themed
 //! preamble generation, asset resolution, font loading, and PDF compilation to
 //! the shared `acdc-pdf-*` crates.
+//!
+//! Passthrough blocks render as unframed monospace text. Their content is
+//! always escaped data and is never interpreted as Typst source.
 
 use std::{
     cell::Cell,

@@ -746,10 +746,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_verbatim_block(&mut self, nodes: &[InlineNode<'_>]) {
+        self.writer.raw("#raw(block: true, ");
+        self.write_verbatim_string(nodes);
+        self.writer.raw(")\n\n");
+    }
+
+    /// Write passthrough content as escaped, unframed monospace text.
+    pub(crate) fn write_passthrough_block(&mut self, nodes: &[InlineNode<'_>]) {
+        self.writer.raw("#block(width: 100%)[#raw(block: false, ");
+        self.write_verbatim_string(nodes);
+        self.writer.raw(")]\n\n");
+    }
+
+    fn write_verbatim_string(&mut self, nodes: &[InlineNode<'_>]) {
         let text = InlineTextTransform::default()
             .line_break("\n")
             .to_string(nodes);
-        self.writer.raw("#raw(block: true, ");
         #[cfg(feature = "pre-spec-subs")]
         {
             let text = apply_replacements(
@@ -762,7 +774,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         #[cfg(not(feature = "pre-spec-subs"))]
         self.writer.string_literal(&text);
-        self.writer.raw(")\n\n");
     }
 
     pub(crate) fn write_stem_fallback(&mut self, content: &str, block: bool) {

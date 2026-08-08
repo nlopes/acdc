@@ -100,7 +100,7 @@
 #verse[#text("Verse line.")]
 
 #metadata(none) <id-706173737468726f7567682d6964>
-#raw(block: true, "passthrough")
+#block(width: 100%)[#raw(block: false, "passthrough")]
 
 #metadata(none) <id-7374656d2d6964>
 #block(below: 0.5em)[#text(weight: "bold")[#text("Stem Title")]]
