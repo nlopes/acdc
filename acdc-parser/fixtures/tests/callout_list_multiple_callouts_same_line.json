@@ -42,14 +42,45 @@
         {
           "name": "text",
           "type": "string",
-          "value": "x = 5 <1> ",
+          "value": "x = 5 ",
           "location": [
             {
               "line": 4,
               "col": 1
             },
             {
-              "line": 5,
+              "line": 4,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 4,
+              "col": 7
+            },
+            {
+              "line": 4,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 4,
+              "col": 10
+            },
+            {
+              "line": 4,
               "col": 10
             }
           ]
@@ -62,11 +93,11 @@
           "location": [
             {
               "line": 4,
-              "col": 1
+              "col": 11
             },
             {
-              "line": 5,
-              "col": 10
+              "line": 4,
+              "col": 13
             }
           ]
         },
@@ -77,11 +108,11 @@
           "location": [
             {
               "line": 4,
-              "col": 1
+              "col": 14
             },
             {
               "line": 5,
-              "col": 10
+              "col": 7
             }
           ]
         },
@@ -92,8 +123,8 @@
           "number": 3,
           "location": [
             {
-              "line": 4,
-              "col": 1
+              "line": 5,
+              "col": 8
             },
             {
               "line": 5,

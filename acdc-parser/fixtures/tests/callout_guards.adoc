@@ -1,0 +1,28 @@
+[source,rust]
+----
+rust(); // <1>
+python = 1 # <2>
+SELECT 1; -- <3>
+(def x 1) ;; <4>
+<tag/> <!--5-->
+single ; <6>
+multiple(); // <7> <8>
+π = 3 // <9>
+----
+<1> Slash guard
+<2> Hash guard
+<3> Dash guard
+<4> Double-semicolon guard
+<5> XML guard
+<6> Single semicolon remains
+<7> First marker on one line
+<8> Second marker on one line
+<9> Unicode before marker
+
+[source,rust,line-comment="%"]
+----
+custom(); % <1>
+ordinary(); // <2>
+----
+<1> Custom guard
+<2> Non-custom guard remains

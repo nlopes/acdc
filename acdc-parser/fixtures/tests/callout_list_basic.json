@@ -49,8 +49,8 @@
               "col": 1
             },
             {
-              "line": 6,
-              "col": 14
+              "line": 4,
+              "col": 9
             }
           ]
         },
@@ -62,11 +62,11 @@
           "location": [
             {
               "line": 4,
-              "col": 1
+              "col": 10
             },
             {
-              "line": 6,
-              "col": 14
+              "line": 4,
+              "col": 12
             }
           ]
         },
@@ -77,11 +77,11 @@
           "location": [
             {
               "line": 4,
-              "col": 1
+              "col": 13
             },
             {
-              "line": 6,
-              "col": 14
+              "line": 5,
+              "col": 9
             }
           ]
         },
@@ -92,12 +92,12 @@
           "number": 2,
           "location": [
             {
-              "line": 4,
-              "col": 1
+              "line": 5,
+              "col": 10
             },
             {
-              "line": 6,
-              "col": 14
+              "line": 5,
+              "col": 12
             }
           ]
         },
@@ -107,12 +107,12 @@
           "value": "\nLine three ",
           "location": [
             {
-              "line": 4,
-              "col": 1
+              "line": 5,
+              "col": 13
             },
             {
               "line": 6,
-              "col": 14
+              "col": 11
             }
           ]
         },
@@ -123,8 +123,8 @@
           "number": 3,
           "location": [
             {
-              "line": 4,
-              "col": 1
+              "line": 6,
+              "col": 12
             },
             {
               "line": 6,

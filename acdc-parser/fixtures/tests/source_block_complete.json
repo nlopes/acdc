@@ -28,8 +28,8 @@
               "col": 1
             },
             {
-              "line": 13,
-              "col": 21
+              "line": 6,
+              "col": 36
             }
           ]
         },
@@ -41,11 +41,11 @@
           "location": [
             {
               "line": 6,
-              "col": 1
+              "col": 37
             },
             {
-              "line": 13,
-              "col": 21
+              "line": 6,
+              "col": 39
             }
           ]
         },
@@ -56,11 +56,11 @@
           "location": [
             {
               "line": 6,
-              "col": 1
+              "col": 40
             },
             {
-              "line": 13,
-              "col": 21
+              "line": 9,
+              "col": 29
             }
           ]
         },
@@ -71,12 +71,12 @@
           "number": 2,
           "location": [
             {
-              "line": 6,
-              "col": 1
+              "line": 9,
+              "col": 30
             },
             {
-              "line": 13,
-              "col": 21
+              "line": 9,
+              "col": 32
             }
           ]
         },
@@ -86,12 +86,12 @@
           "value": "\n  res.send('Hello World!');\n});\n\napp.listen(3000); ",
           "location": [
             {
-              "line": 6,
-              "col": 1
+              "line": 9,
+              "col": 33
             },
             {
               "line": 13,
-              "col": 21
+              "col": 18
             }
           ]
         },
@@ -102,8 +102,8 @@
           "number": 3,
           "location": [
             {
-              "line": 6,
-              "col": 1
+              "line": 13,
+              "col": 19
             },
             {
               "line": 13,

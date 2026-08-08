@@ -49,8 +49,8 @@
               "col": 1
             },
             {
-              "line": 5,
-              "col": 15
+              "line": 4,
+              "col": 11
             }
           ]
         },
@@ -62,11 +62,11 @@
           "location": [
             {
               "line": 4,
-              "col": 1
+              "col": 12
             },
             {
-              "line": 5,
-              "col": 15
+              "line": 4,
+              "col": 14
             }
           ]
         },
@@ -77,11 +77,11 @@
           "location": [
             {
               "line": 4,
-              "col": 1
+              "col": 15
             },
             {
               "line": 5,
-              "col": 15
+              "col": 12
             }
           ]
         },
@@ -92,8 +92,8 @@
           "number": 2,
           "location": [
             {
-              "line": 4,
-              "col": 1
+              "line": 5,
+              "col": 13
             },
             {
               "line": 5,

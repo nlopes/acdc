@@ -56,8 +56,8 @@
               "col": 1
             },
             {
-              "line": 9,
-              "col": 3
+              "line": 5,
+              "col": 18
             }
           ]
         },
@@ -69,11 +69,11 @@
           "location": [
             {
               "line": 5,
-              "col": 1
+              "col": 19
             },
             {
-              "line": 9,
-              "col": 3
+              "line": 5,
+              "col": 21
             }
           ]
         },
@@ -84,11 +84,11 @@
           "location": [
             {
               "line": 5,
-              "col": 1
+              "col": 22
             },
             {
-              "line": 9,
-              "col": 3
+              "line": 7,
+              "col": 13
             }
           ]
         },
@@ -99,12 +99,12 @@
           "number": 2,
           "location": [
             {
-              "line": 5,
-              "col": 1
+              "line": 7,
+              "col": 14
             },
             {
-              "line": 9,
-              "col": 3
+              "line": 7,
+              "col": 16
             }
           ]
         },
@@ -114,12 +114,12 @@
           "value": "\n  \"Hello World!\" ",
           "location": [
             {
-              "line": 5,
-              "col": 1
+              "line": 7,
+              "col": 17
             },
             {
-              "line": 9,
-              "col": 3
+              "line": 8,
+              "col": 17
             }
           ]
         },
@@ -130,12 +130,12 @@
           "number": 3,
           "location": [
             {
-              "line": 5,
-              "col": 1
+              "line": 8,
+              "col": 18
             },
             {
-              "line": 9,
-              "col": 3
+              "line": 8,
+              "col": 20
             }
           ]
         },
@@ -145,8 +145,8 @@
           "value": "\nend",
           "location": [
             {
-              "line": 5,
-              "col": 1
+              "line": 8,
+              "col": 21
             },
             {
               "line": 9,
