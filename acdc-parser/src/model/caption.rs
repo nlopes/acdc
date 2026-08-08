@@ -154,14 +154,19 @@ enum CaptionSource<'value, 'a> {
     None,
 }
 
-/// The precedence chain, in one place: the block's own `caption=`, then the document-wide
-/// `caption`, then `<kind>-caption`. Any value found in the first two positions is used
-/// verbatim and takes no ordinal, matching asciidoctor — including an empty one.
+/// Collapsible examples take an empty custom caption. Other blocks use the block's own
+/// `caption=`, then the document-wide `caption`, then `<kind>-caption`. Any value found in the
+/// first two positions is used verbatim and takes no ordinal, matching asciidoctor — including
+/// an empty one.
 fn caption_source<'value, 'a>(
     metadata: &'value BlockMetadata<'a>,
     attributes: &'value DocumentAttributes<'a>,
     kind: CaptionKind,
 ) -> CaptionSource<'value, 'a> {
+    if kind == CaptionKind::Example && metadata.options.contains(&"collapsible") {
+        return CaptionSource::Custom(None);
+    }
+
     // Only a value counts: `caption=` gives an empty custom caption, but the bare marker in
     // `[listing,caption]` is a stray positional that asciidoctor ignores, and it reaches here
     // as `AttributeValue::None`.

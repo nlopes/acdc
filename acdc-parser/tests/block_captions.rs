@@ -124,6 +124,25 @@ fn nested_examples_are_numbered_inner_first() -> Result<(), Error> {
 }
 
 #[test]
+fn collapsible_examples_do_not_consume_example_numbers() -> Result<(), Error> {
+    let parsed = parse(
+        "= T\n\n.Before\n====\none\n====\n\n.Collapsible block\n[%collapsible,caption=\"Ignored: \"]\n====\ntwo\n====\n\n.Collapsible paragraph\n[example%collapsible]\nthree\n\n.Collapsible open block\n[example%collapsible]\n--\nfour\n--\n\n.After\n====\nfive\n====\n",
+        &Options::default(),
+    )?;
+    let document = parsed.document();
+    let [before, block, paragraph, open, after] = document.blocks.as_slice() else {
+        return Err(format!("expected five blocks, got {:?}", document.blocks).into());
+    };
+
+    assert_eq!(numbered(before).and_then(|(_, _, n)| n), Some(1));
+    for collapsible in [block, paragraph, open] {
+        assert_eq!(caption(collapsible), Some(&Caption::Custom("".into())));
+    }
+    assert_eq!(numbered(after).and_then(|(_, _, n)| n), Some(2));
+    Ok(())
+}
+
+#[test]
 fn a_list_continuation_block_takes_a_caption() -> Result<(), Error> {
     // Continuation blocks come from their own grammar rule, not the one plain blocks use.
     let parsed = parse(

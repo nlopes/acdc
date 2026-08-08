@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Caption kind follows a block's effective context: `[listing]` on `====` is still an
   example, `[literal]` on `----` takes no caption, and `[example]`/`[listing]`/`[source]`
   promote an open or literal block. An untitled block takes no number, a custom or blank
-  caption consumes none, and `:example-caption!:` disables both.
+  caption consumes none, and `:example-caption!:` disables both. A `%collapsible` example
+  also takes no caption label or number.
 - `Document::renumber_captions()` reassigns every caption number after you change the
   AST — reorder blocks, remove one, add a title — and `Document::highest_caption_number()`
   reports the highest number assigned for a kind, so a consumer numbering a title the
