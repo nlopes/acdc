@@ -1,0 +1,10 @@
+= Source block language slot
+
+A language in the first slot still resolves when later slots hold other positional
+attributes, so the block is highlighted. Split out of `block_attribute_parity` because
+highlighted output only exists under the `highlighting` feature.
+
+[source,rust,linenums]
+----
+fn main() {}
+----

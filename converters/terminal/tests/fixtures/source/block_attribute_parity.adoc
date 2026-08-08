@@ -175,11 +175,6 @@ Double-bracket anchor syntax with spaces remains text.
 [#only-id.lead%fragment]
 Shorthand-only metadata.
 
-[source,rust,linenums]
-----
-fn main() {}
-----
-
 [source,custom=value,rust]
 ----
 slot three is not a language

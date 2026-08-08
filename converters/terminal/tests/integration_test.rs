@@ -58,6 +58,7 @@ generate_tests!([
     (basic_image_block, false, requires: feature = "images"),
     (source_block_with_attribute_in_title, false, requires: feature = "highlighting"),
     (source_block_complete, false, requires: feature = "highlighting"),
+    (source_block_language_slot, false, requires: feature = "highlighting"),
     (macros_with_quoted_attributes, false, requires: feature = "images"),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
