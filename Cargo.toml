@@ -73,7 +73,7 @@ unicode-width = "0.2"
 ureq = "3.3"
 url = "2"
 percent-encoding = "2"
-usvg = "0.47"
+usvg = "0.48"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
