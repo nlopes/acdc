@@ -38,6 +38,7 @@ The backend currently renders:
 * admonitions, quotes, thematic breaks, and page breaks
 * paragraph and document hard line breaks
 * listing and literal blocks with themed monospace presentation
+* collapsible examples as expanded disclosures with their full content visible
 * local, remote, and `data:` URI images in block and inline positions
 * a configurable page theme, header logo, watermark, footer, and page size
 
@@ -46,6 +47,10 @@ The backend currently renders:
 The backend is intentionally incomplete.
 Inline icons, audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
+
+PDF output cannot preserve interactive open and closed states.
+Examples marked `%collapsible` always render expanded with a disclosure marker and their title, or `Details` when untitled.
+The `%open` and `%closed` options therefore produce the same PDF output.
 
 Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
 ACDC uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.

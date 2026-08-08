@@ -120,6 +120,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the one containing it, and blank, disabled, and custom captions are honoured,
   matching `asciidoctor-pdf`. A title added after parsing still takes a caption,
   numbered after every parsed one.
+- Collapsible examples render as expanded disclosures with a marker and title, or
+  `Details` when untitled. They do not consume an example number, and `%open` and
+  `%closed` produce the same static PDF output, matching `asciidoctor-pdf`.
 - A block title sits on its own line above its block instead of running into
   the content that follows it.
 - Built-in roles now control inline text size, decoration, colour, and

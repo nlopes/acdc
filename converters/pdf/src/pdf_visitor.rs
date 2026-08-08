@@ -419,6 +419,32 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    /// Write a collapsible example as an expanded disclosure for print.
+    pub(crate) fn write_disclosure(
+        &mut self,
+        title: &Title<'_>,
+        write_body: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.writer.raw("#block(width: 100%, below: 0.8em)[\n");
+        self.writer
+            .raw("#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, ");
+        self.writer
+            .raw("[#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, ");
+        self.writer
+            .raw("rotate(90deg, origin: center, text(weight: \"bold\", size: 0.8em, \">\"))))], ");
+        self.writer.raw("[#text(style: \"italic\")[");
+        if title.is_empty() {
+            self.write_text_expr("Details");
+        } else {
+            self.write_title(title)?;
+        }
+        self.writer
+            .raw("]])\n#block(inset: (left: 1em), above: 0.3em)[\n");
+        write_body(self)?;
+        self.writer.raw("\n]\n]\n\n");
+        Ok(())
+    }
+
     /// Write a paragraph's title and content under the paragraph's effective
     /// substitutions.
     ///
@@ -439,6 +465,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         ));
 
         let result = (|| {
+            let fallback = CaptionKind::for_style(para.metadata.style);
+            if is_collapsible_example(&para.metadata, fallback) {
+                return self.write_disclosure(&para.title, |visitor| {
+                    visitor.write_paragraph_alignment(&para.metadata, |visitor| {
+                        visitor.write_inlines(&para.content)
+                    })
+                });
+            }
             if para.metadata.style == Some("abstract") {
                 let title = write_title.then_some(&para.title);
                 return self.write_abstract(title, &para.metadata, |visitor| {
@@ -449,7 +483,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 // An `[example]`, `[listing]` or `[source]` paragraph takes a caption; every
                 // other paragraph takes an ordinary title. A paragraph built through the API
                 // carries no resolved caption, so its style is classified here instead.
-                let fallback = CaptionKind::for_style(para.metadata.style);
                 if para.metadata.caption.is_some() || fallback.is_some() {
                     self.write_captioned_title(&para.title, &para.metadata, fallback)?;
                 } else {
@@ -1039,6 +1072,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("]");
         Ok(())
     }
+}
+
+pub(crate) fn is_collapsible_example(
+    metadata: &BlockMetadata<'_>,
+    kind: Option<CaptionKind>,
+) -> bool {
+    kind == Some(CaptionKind::Example) && metadata.options.contains(&"collapsible")
 }
 
 pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {

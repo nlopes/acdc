@@ -1,0 +1,59 @@
+= Collapsible examples
+
+.Before
+====
+Normal example before the disclosures.
+====
+
+[%collapsible]
+.Collapsed block
+====
+Collapsed content remains visible in PDF.
+====
+
+[%collapsible%open]
+.Open block
+====
+The open option produces the same expanded PDF content.
+====
+
+[%collapsible%closed]
+====
+An untitled disclosure uses the Details label.
+====
+
+[options="collapsible,open",caption="Ignored: "]
+.Explicit options and caption
+====
+The caption override is ignored for a disclosure.
+====
+
+[example%collapsible]
+Collapsible paragraph without a title.
+
+[example%collapsible%closed]
+.Collapsed paragraph
+Collapsible paragraph with a title.
+
+[example%collapsible]
+.Styled open block
+--
+An example-styled open block is also a disclosure.
+--
+
+[%collapsible]
+.Ordinary open block
+--
+The option does not turn an ordinary open block into an example.
+--
+
+[collapsible]
+.Style, not option
+====
+The collapsible style remains a normal example.
+====
+
+.After
+====
+Normal example after the disclosures.
+====

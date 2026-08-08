@@ -14,7 +14,8 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, PdfVisitor, author_name, encode_label, pdf_visitor::collapse_source_whitespace,
+    Error, PdfVisitor, author_name, encode_label,
+    pdf_visitor::{collapse_source_whitespace, is_collapsible_example},
 };
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
@@ -207,15 +208,16 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         ));
 
         let result = (|| {
-            // A sidebar sets its own title inside its box, and an abstract centres its own.
+            let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
+            let collapsible_example = is_collapsible_example(&block.metadata, fallback);
             let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
                 || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
-                    && block.metadata.style == Some("abstract");
+                    && block.metadata.style == Some("abstract")
+                || collapsible_example;
             // The parser resolved a caption for every caption-capable block it parsed, styled
             // open and literal blocks included. A block built through the API carries none, so
             // it is classified here with the same rules the parser used. A table's caption is
             // not rendered yet — see PARITY_CHECKLIST.md §5.
-            let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
             let captioned = !matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
                 && (block.metadata.caption.is_some() || fallback.is_some());
             if shows_block_title(&block.inner) && !writes_own_title {
@@ -226,6 +228,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 }
             }
             match &block.inner {
+                DelimitedBlockType::DelimitedExample(blocks)
+                | DelimitedBlockType::DelimitedOpen(blocks)
+                    if collapsible_example =>
+                {
+                    self.write_disclosure(&block.title, |visitor| visitor.write_blocks(blocks))
+                }
                 // Each container reads differently in print: an example takes a
                 // light frame, a sidebar a shaded box, and an open block is a
                 // transparent container that takes neither.
