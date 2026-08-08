@@ -144,4 +144,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Admonitions use text labels and a vertical divider, with titles above the body
   in the content column, matching Asciidoctor PDF.
 - Source blocks use language-aware syntax highlighting when `source-highlighter`
-  is set. Missing and unknown languages remain readable as plain source.
+  is set. Missing and unknown languages remain readable as plain source, and
+  callout comment guards do not appear in the rendered code.

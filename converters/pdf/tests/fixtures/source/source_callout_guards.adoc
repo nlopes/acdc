@@ -1,0 +1,40 @@
+= Source callout guards
+:source-highlighter: rouge
+
+.Default guards are language-independent
+[source,rust]
+----
+rust(); // <1>
+python = 1 # <2>
+SELECT 1; -- <3>
+(def x 1) ;; <4>
+<tag/> <!--5-->
+single ; <6>
+multiple(); // <7> <8>
+----
+<1> Slash guard
+<2> Hash guard
+<3> Dash guard
+<4> Double-semicolon guard
+<5> XML guard
+<6> Single semicolon remains
+<7> First marker on one line
+<8> Second marker on one line
+
+.Custom prefix is not a PDF guard
+[source,rust,line-comment="%"]
+----
+custom(); % <1>
+ordinary(); // <2>
+----
+<1> Custom prefix remains
+<2> Standard guard is removed
+
+.Escaped markers
+[source,rust]
+----
+literal // \<1>
+literal \<!--2-->
+real // <1>
+----
+<1> Real callout

@@ -756,7 +756,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.string_literal(language);
         }
         self.writer.raw(", ");
-        self.write_verbatim_string(nodes);
+        self.write_code_string(nodes);
         self.writer.raw(")\n\n");
     }
 
@@ -784,10 +784,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let text = InlineTextTransform::default()
             .line_break("\n")
             .to_string(nodes);
+        self.write_verbatim_text(&text);
+    }
+
+    fn write_code_string(&mut self, nodes: &[InlineNode<'_>]) {
+        let text = code_text_without_callout_guards(nodes);
+        self.write_verbatim_text(&text);
+    }
+
+    fn write_verbatim_text(&mut self, text: &str) {
         #[cfg(feature = "pre-spec-subs")]
         {
             let text = apply_replacements(
-                &text,
+                text,
                 self.processor.current_subs.get(),
                 &Replacements::unicode(),
                 TextBoundaries::BOTH,
@@ -795,7 +804,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.string_literal(&text);
         }
         #[cfg(not(feature = "pre-spec-subs"))]
-        self.writer.string_literal(&text);
+        self.writer.string_literal(text);
     }
 
     pub(crate) fn write_stem_fallback(&mut self, content: &str, block: bool) {
@@ -1138,6 +1147,64 @@ pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
         }
     }
     Cow::Owned(collapsed)
+}
+
+fn code_text_without_callout_guards(nodes: &[InlineNode<'_>]) -> String {
+    let mut text = String::new();
+    let transform = InlineTextTransform::default().line_break("\n");
+
+    for (index, node) in nodes.iter().enumerate() {
+        if let InlineNode::VerbatimText(verbatim) = node {
+            let mut content = verbatim.content;
+            if index
+                .checked_sub(1)
+                .is_some_and(|previous| is_xml_callout(nodes, previous))
+            {
+                content = content.strip_prefix("-->").unwrap_or(content);
+            }
+            if index
+                .checked_add(1)
+                .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
+            {
+                if index
+                    .checked_add(1)
+                    .is_some_and(|next| is_xml_callout(nodes, next))
+                {
+                    content = content.strip_suffix("<!--").unwrap_or(content);
+                }
+                content = strip_pdf_callout_guard(content);
+            }
+            text.push_str(content);
+        } else {
+            let _ = transform.write(&mut text, std::slice::from_ref(node));
+        }
+    }
+
+    text
+}
+
+fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
+    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
+        && index.checked_sub(1).is_some_and(|previous| {
+            matches!(
+                nodes.get(previous),
+                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
+            )
+        })
+        && index.checked_add(1).is_some_and(|next| {
+            matches!(
+                nodes.get(next),
+                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
+            )
+        })
+}
+
+fn strip_pdf_callout_guard(text: &str) -> &str {
+    let before_guard = text.strip_suffix(' ').unwrap_or(text);
+    ["//", "#", "--", ";;"]
+        .iter()
+        .find_map(|guard| before_guard.strip_suffix(*guard))
+        .unwrap_or(text)
 }
 
 fn asciidoctor_foreground_colour(role: &str) -> Option<&'static str> {
