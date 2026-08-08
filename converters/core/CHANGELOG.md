@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Source blocks have shared handling for line numbers, custom starting numbers,
+  and highlighted-line selectors.
 - `xref::resolve_xref` resolves an automatic cross-reference's display content
   with Asciidoctor's precedence — explicit reference label, target title, then
   `[id]` — and tells a backend apart the three `[id]` cases it has to render
