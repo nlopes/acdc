@@ -1175,6 +1175,8 @@ fn code_text_without_callout_guards(nodes: &[InlineNode<'_>]) -> String {
                 content = strip_pdf_callout_guard(content);
             }
             text.push_str(content);
+        } else if let InlineNode::CalloutRef(callout) = node {
+            let _ = write!(text, "({})", callout.number);
         } else {
             let _ = transform.write(&mut text, std::slice::from_ref(node));
         }

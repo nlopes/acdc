@@ -56,6 +56,9 @@ Asciidoctor PDF's default theme renders the first laid-out line of an abstract i
 ACDC uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
 This limitation is tracked in https://linear.app/silly-muppets/issue/SC-290/match-asciidoctor-pdf-abstract-first-line-emphasis[SC-290].
 
+Source callout references use parenthesized numbers such as `(1)`.
+Asciidoctor PDF instead uses circled number glyphs such as `①`.
+
 == Document language
 
 The document `:lang:` attribute sets the Typst text language.

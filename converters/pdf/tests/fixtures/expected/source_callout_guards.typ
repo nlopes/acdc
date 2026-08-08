@@ -54,7 +54,7 @@
 #v(1em)
 
 #blocktitle[#text("Default guards are language-independent")]
-#raw(block: true, lang: "rust", "rust(); <1>\npython = 1 <2>\nSELECT 1; <3>\n(def x 1) <4>\n<tag/> <5>\nsingle ; <6>\nmultiple(); <7> <8>")
+#raw(block: true, lang: "rust", "rust(); (1)\npython = 1 (2)\nSELECT 1; (3)\n(def x 1) (4)\n<tag/> (5)\nsingle ; (6)\nmultiple(); (7) (8)")
 
 - #text("(1) ")#text("Slash guard")
 - #text("(2) ")#text("Hash guard")
@@ -66,12 +66,12 @@
 - #text("(8) ")#text("Second marker on one line")
 
 #blocktitle[#text("Custom prefix is not a PDF guard")]
-#raw(block: true, lang: "rust", "custom(); % <1>\nordinary(); <2>")
+#raw(block: true, lang: "rust", "custom(); % (1)\nordinary(); (2)")
 
 - #text("(1) ")#text("Custom prefix remains")
 - #text("(2) ")#text("Standard guard is removed")
 
 #blocktitle[#text("Escaped markers")]
-#raw(block: true, lang: "rust", "literal // <1>\nliteral <!--2-->\nreal <1>")
+#raw(block: true, lang: "rust", "literal // <1>\nliteral <!--2-->\nreal (1)")
 
 - #text("(1) ")#text("Real callout")

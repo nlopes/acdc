@@ -145,4 +145,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the content column, matching Asciidoctor PDF.
 - Source blocks use language-aware syntax highlighting when `source-highlighter`
   is set. Missing and unknown languages remain readable as plain source, and
-  callout comment guards do not appear in the rendered code.
+  callout comment guards do not appear in the rendered code. Callout references
+  use parenthesized number markers.

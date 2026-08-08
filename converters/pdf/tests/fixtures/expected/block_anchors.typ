@@ -71,7 +71,7 @@
 #text(weight: "bold")[#text("Term")]
 #text("definition")
 
-#raw(block: true, "code <1>")
+#raw(block: true, "code (1)")
 
 #metadata(none) <id-63616c6c6f75742d6964>
 - #text("(1) ")#text("callout")
