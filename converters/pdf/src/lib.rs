@@ -207,6 +207,7 @@ impl Processor<'_> {
             processor,
             assets,
             theme.heading,
+            code_wrap_columns(theme, emit_options.page),
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
         );
@@ -384,6 +385,29 @@ impl Processor<'_> {
             source,
         })
     }
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "validated theme dimensions are clamped before conversion"
+)]
+fn code_wrap_columns(theme: &Theme, page: PageSize) -> usize {
+    const CM_TO_PT: f64 = 72.0 / 2.54;
+    const RAW_FONT_SIZE_EM: f64 = 0.8;
+    const MONOSPACE_CELL_WIDTH_EM: f64 = 0.6;
+
+    let page_width_pt = match page {
+        PageSize::A4 => 595.276,
+        PageSize::Letter => 612.0,
+    };
+    let content_width_pt = page_width_pt
+        - 2.0 * theme.spacing.margin_x_cm * CM_TO_PT
+        - 2.0 * theme.spacing.code_pad_pt;
+    let cell_width_pt = theme.typography.body_size_pt * RAW_FONT_SIZE_EM * MONOSPACE_CELL_WIDTH_EM;
+    (content_width_pt / cell_width_pt)
+        .floor()
+        .clamp(20.0, 160.0) as usize
 }
 
 fn read_theme_file(path: &Path) -> Result<String, Error> {

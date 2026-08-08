@@ -24,6 +24,7 @@ use acdc_parser::{
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{Heading, PageBreakBefore, PartBreakAfter};
 use acdc_pdf_typst::Writer;
+use unicode_width::UnicodeWidthChar;
 
 use crate::{Error, Processor, encode_footnote_label};
 
@@ -33,6 +34,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     assets: &'m ImageMap,
     diagnostics: Diagnostics<'d>,
     pub(crate) heading: Heading,
+    code_wrap_columns: usize,
     pub(crate) section_number_tracker: SectionNumberTracker,
     pub(crate) part_number_tracker: PartNumberTracker,
     pub(crate) appendix_tracker: AppendixTracker,
@@ -96,6 +98,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         processor: Processor<'a>,
         assets: &'m ImageMap,
         heading: Heading,
+        code_wrap_columns: usize,
         toc_entries: Vec<TocEntry<'a>>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
@@ -135,6 +138,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             assets,
             diagnostics,
             heading,
+            code_wrap_columns,
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
@@ -755,9 +759,26 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw(", lang: ");
             self.writer.string_literal(language);
         }
+        let tab_size = self.code_tab_size(metadata);
         self.writer.raw(", ");
-        self.write_code_string(nodes);
+        self.write_code_string(nodes, tab_size);
         self.writer.raw(")\n\n");
+    }
+
+    fn code_tab_size(&self, metadata: &BlockMetadata<'_>) -> usize {
+        metadata
+            .attributes
+            .get("tabsize")
+            .or_else(|| self.processor.document_attributes().get("tabsize"))
+            .and_then(|value| {
+                if let AttributeValue::String(value) = value {
+                    value.parse().ok()
+                } else {
+                    None
+                }
+            })
+            .filter(|size| *size > 0)
+            .unwrap_or(4)
     }
 
     fn source_language<'metadata>(
@@ -787,9 +808,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_verbatim_text(&text);
     }
 
-    fn write_code_string(&mut self, nodes: &[InlineNode<'_>]) {
+    fn write_code_string(&mut self, nodes: &[InlineNode<'_>], tab_size: usize) {
         let text = code_text_without_callout_guards(nodes);
-        self.write_verbatim_text(&text);
+        #[cfg(feature = "pre-spec-subs")]
+        let text = apply_replacements(
+            &text,
+            self.processor.current_subs.get(),
+            &Replacements::unicode(),
+            TextBoundaries::BOTH,
+        );
+        #[cfg(not(feature = "pre-spec-subs"))]
+        let text = Cow::Borrowed(text.as_str());
+        let text = expand_code_tabs(&text, tab_size);
+        let text = wrap_code_text(&text, self.code_wrap_columns, tab_size);
+        self.writer.string_literal(&text);
     }
 
     fn write_verbatim_text(&mut self, text: &str) {
@@ -1149,6 +1181,104 @@ pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
     Cow::Owned(collapsed)
 }
 
+fn wrap_code_text(text: &str, max_columns: usize, tab_size: usize) -> Cow<'_, str> {
+    if text
+        .split('\n')
+        .all(|line| code_line_width(line, tab_size) <= max_columns)
+    {
+        return Cow::Borrowed(text);
+    }
+
+    let mut wrapped = String::with_capacity(text.len());
+    for line in text.split_inclusive('\n') {
+        let (line, newline) = line
+            .strip_suffix('\n')
+            .map_or((line, false), |line| (line, true));
+        wrap_code_line(&mut wrapped, line, max_columns, tab_size);
+        if newline {
+            wrapped.push('\n');
+        }
+    }
+    Cow::Owned(wrapped)
+}
+
+fn expand_code_tabs(text: &str, tab_size: usize) -> Cow<'_, str> {
+    if !text.contains('\t') {
+        return Cow::Borrowed(text);
+    }
+
+    let mut expanded = String::with_capacity(text.len());
+    let mut column = 0;
+    for character in text.chars() {
+        match character {
+            '\t' => {
+                let spaces = tab_size - column % tab_size;
+                expanded.extend(std::iter::repeat_n(' ', spaces));
+                column += spaces;
+            }
+            '\n' => {
+                expanded.push(character);
+                column = 0;
+            }
+            _ => {
+                expanded.push(character);
+                column += UnicodeWidthChar::width(character).unwrap_or(0);
+            }
+        }
+    }
+    Cow::Owned(expanded)
+}
+
+fn wrap_code_line(output: &mut String, mut line: &str, max_columns: usize, tab_size: usize) {
+    while !line.is_empty() {
+        let mut columns = 0;
+        let mut hard_break = line.len();
+        let mut whitespace_break = None;
+        let mut overflowed = false;
+        for (index, character) in line.char_indices() {
+            let width = code_character_width(character, columns, tab_size);
+            if columns + width > max_columns {
+                hard_break = index;
+                overflowed = true;
+                break;
+            }
+            columns += width;
+            if character.is_whitespace() && columns >= max_columns / 2 {
+                whitespace_break = Some(index + character.len_utf8());
+            }
+        }
+
+        if !overflowed {
+            output.push_str(line);
+            return;
+        }
+
+        let split = whitespace_break.unwrap_or(hard_break);
+        let split = if split == 0 {
+            line.chars().next().map_or(0, char::len_utf8)
+        } else {
+            split
+        };
+        output.push_str(&line[..split]);
+        output.push('\n');
+        line = &line[split..];
+    }
+}
+
+fn code_line_width(line: &str, tab_size: usize) -> usize {
+    line.chars().fold(0, |columns, character| {
+        columns + code_character_width(character, columns, tab_size)
+    })
+}
+
+fn code_character_width(character: char, column: usize, tab_size: usize) -> usize {
+    if character == '\t' {
+        tab_size - column % tab_size
+    } else {
+        UnicodeWidthChar::width(character).unwrap_or(0)
+    }
+}
+
 fn code_text_without_callout_guards(nodes: &[InlineNode<'_>]) -> String {
     let mut text = String::new();
     let transform = InlineTextTransform::default().line_break("\n");
@@ -1262,4 +1392,30 @@ fn image_fallback_text(image: &Image<'_>) -> String {
         .attributes
         .get_string("alt")
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{expand_code_tabs, wrap_code_text};
+
+    #[test]
+    fn code_wrapping_preserves_whitespace_and_terminal_newlines() {
+        assert_eq!(
+            wrap_code_text("alpha    beta\n\n", 10, 4),
+            "alpha    \nbeta\n\n"
+        );
+    }
+
+    #[test]
+    fn code_wrapping_breaks_long_tokens_at_character_boundaries() {
+        assert_eq!(wrap_code_text("abcdefghijk", 5, 4), "abcde\nfghij\nk");
+        assert_eq!(wrap_code_text("abcd界ef", 5, 4), "abcd\n界ef");
+    }
+
+    #[test]
+    fn code_tabs_expand_to_configured_tab_stops() {
+        assert_eq!(expand_code_tabs("a\tb", 4), "a   b");
+        assert_eq!(expand_code_tabs("TABX\tvalue", 4), "TABX    value");
+        assert_eq!(expand_code_tabs("a\tb", 8), "a       b");
+    }
 }

@@ -22,6 +22,7 @@ acdc-pdf-theme = { path = "crates/theme" }
 acdc-pdf-typst = { path = "crates/typst" }
 tempfile.workspace = true
 thiserror.workspace = true
+unicode-width.workspace = true
 
 [dev-dependencies]
 acdc-converters-dev.workspace = true
