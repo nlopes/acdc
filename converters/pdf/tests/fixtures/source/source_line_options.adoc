@@ -1,0 +1,112 @@
+= Source line options
+:source-highlighter: rouge
+
+== Number forms
+
+[source,rust,linenums]
+----
+fn positional() {}
+fn second() {}
+----
+
+[source%linenums,rust,start=10]
+----
+fn ten() {}
+fn eleven() {}
+----
+
+[source,rust,options=linenums,start=invalid]
+----
+fn invalid_start() {}
+----
+
+== Highlight selectors
+
+[source,rust,highlight="2;4"]
+----
+fn one() {}
+fn two() {}
+fn three() {}
+fn four() {}
+----
+
+[source,rust,linenums,start=20,highlight="20;22"]
+----
+fn twenty() {}
+fn twenty_one() {}
+fn twenty_two() {}
+----
+
+[source,rust,highlight="1..4;!2"]
+----
+fn range_one() {}
+fn range_two() {}
+fn range_three() {}
+fn range_four() {}
+----
+
+[source,rust,highlight="3-"]
+----
+fn open_one() {}
+fn open_two() {}
+fn open_three() {}
+fn open_four() {}
+----
+
+== Source forms
+
+[source,,linenums,highlight=2]
+----
+plain one
+plain two
+----
+
+[source%linenums,rust,highlight=2]
+fn paragraph_one() {}
+fn paragraph_two() {}
+
+[source,rust,linenums,highlight=2]
+----
+fn callout_one() {} <1>
+fn callout_two() {} <2>
+----
+<1> First callout.
+<2> Second callout.
+
+== Document options
+
+:source-linenums-option:
+
+[source,rust]
+----
+fn global_one() {}
+fn global_two() {}
+----
+
+:source-linenums-option!:
+
+[source,rust]
+----
+fn after_unset() {}
+----
+
+== Wrapping
+
+[source,rust,linenums,highlight=1]
+----
+fn a_very_long_function_name_that_wraps_but_keeps_one_number_and_a_highlighted_continuation() {}
+----
+
+[source%nowrap,rust,linenums]
+----
+fn local_nowrap_is_ignored_by_the_pdf_backend_and_this_line_still_wraps_across_multiple_visual_lines() {}
+----
+
+:prewrap!:
+
+[source,rust,linenums]
+----
+fn global_nowrap_is_ignored_by_the_pdf_backend_and_this_line_still_wraps_across_multiple_visual_lines() {}
+----
+
+:prewrap:

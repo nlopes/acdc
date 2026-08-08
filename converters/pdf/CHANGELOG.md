@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- With source highlighting enabled, source blocks honor `linenums`, `start`,
+  and `highlight`, including source paragraphs, blocks without a language,
+  callouts, and wrapped lines. PDF continues to ignore HTML-only wrapping
+  options, matching `asciidoctor-pdf`.
 - Book documents with `:partnums:` number level-zero parts with Roman numerals.
   Part headings use `Part` by default and honor a custom or unset
   `part-signifier`; chapter numbers continue across parts, matching

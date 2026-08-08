@@ -208,6 +208,7 @@ impl Processor<'_> {
             assets,
             theme.heading,
             code_wrap_columns(theme, emit_options.page),
+            &theme.palette,
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
         );

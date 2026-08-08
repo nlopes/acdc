@@ -63,7 +63,24 @@
 #raw(block: true, "plain source")
 
 #blocktitle[#text("Empty language slot")]
-#raw(block: true, "empty language slot")
+#{
+  let numbers = (1, )
+  let highlighted = (false, )
+  let gutter = 0.6em
+  show raw.line: line => {
+    let index = line.number - 1
+    let marked = highlighted.at(index, default: false)
+    let code-width = if numbers == none { 100% } else { 100% - gutter - 0.8em }
+    let code = box(width: code-width, fill: if marked { rgb("#374151") } else { none }, line.body)
+    if numbers == none {
+      code
+    } else {
+      let number = numbers.at(index, default: none)
+      box(width: gutter, align(right + top, if number == none { [] } else { text(fill: rgb("#9ca3af"), str(number)) })) + h(0.8em) + code
+    }
+  }
+  raw(block: true, "empty language slot")
+}
 
 #blocktitle[#text("Unknown language")]
 #raw(block: true, "unknown_language()")

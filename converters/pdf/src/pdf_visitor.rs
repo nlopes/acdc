@@ -4,7 +4,7 @@ use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, rc::Rc};
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
-    code::detect_language,
+    code::{SourceLineOptions, detect_language, source_line_count},
     inlines_to_string,
     section::{
         AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
@@ -22,7 +22,7 @@ use acdc_parser::{
     Table, TableColumn, TableOfContents, Title, TocEntry,
 };
 use acdc_pdf_images::ImageMap;
-use acdc_pdf_theme::{Heading, PageBreakBefore, PartBreakAfter};
+use acdc_pdf_theme::{Heading, PageBreakBefore, Palette, PartBreakAfter};
 use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
 
@@ -35,6 +35,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     diagnostics: Diagnostics<'d>,
     pub(crate) heading: Heading,
     code_wrap_columns: usize,
+    palette: &'m Palette,
     pub(crate) section_number_tracker: SectionNumberTracker,
     pub(crate) part_number_tracker: PartNumberTracker,
     pub(crate) appendix_tracker: AppendixTracker,
@@ -99,6 +100,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         assets: &'m ImageMap,
         heading: Heading,
         code_wrap_columns: usize,
+        palette: &'m Palette,
         toc_entries: Vec<TocEntry<'a>>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
@@ -139,6 +141,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             diagnostics,
             heading,
             code_wrap_columns,
+            palette,
             section_number_tracker,
             part_number_tracker,
             appendix_tracker,
@@ -754,15 +757,113 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
     ) {
+        let tab_size = self.code_tab_size(metadata);
+        let source = self.code_text(nodes, tab_size);
+        let options = if self.source_highlighting_enabled() {
+            SourceLineOptions::resolve(metadata, &source)
+        } else {
+            SourceLineOptions::default()
+        };
+        if options.is_empty() {
+            let source = wrap_code_text(&source, self.code_wrap_columns, tab_size);
+            self.write_raw_block(&source, metadata);
+            return;
+        }
+
+        let (source, source_lines) =
+            wrap_code_text_with_line_origins(&source, self.code_wrap_columns, tab_size);
+        if source_lines.is_empty() {
+            self.write_raw_block(&source, metadata);
+            return;
+        }
+        self.write_source_block_with_line_options(&source, &source_lines, metadata, &options);
+    }
+
+    fn write_raw_block(&mut self, source: &str, metadata: &BlockMetadata<'_>) {
         self.writer.raw("#raw(block: true");
         if let Some(language) = self.source_language(metadata) {
             self.writer.raw(", lang: ");
             self.writer.string_literal(language);
         }
-        let tab_size = self.code_tab_size(metadata);
         self.writer.raw(", ");
-        self.write_code_string(nodes, tab_size);
+        self.writer.string_literal(source);
         self.writer.raw(")\n\n");
+    }
+
+    fn write_source_block_with_line_options(
+        &mut self,
+        source: &str,
+        source_lines: &[usize],
+        metadata: &BlockMetadata<'_>,
+        options: &SourceLineOptions,
+    ) {
+        self.writer.raw("#{\n  let numbers = ");
+        self.write_source_line_numbers(source_lines, options.line_number_start);
+        self.writer.raw("\n  let highlighted = (");
+        for source_line in source_lines {
+            let highlighted = options.highlighted_lines.binary_search(source_line).is_ok();
+            let _ = write!(self.writer, "{highlighted}, ");
+        }
+        self.writer.raw(")\n");
+
+        let gutter_tenths = options.line_number_start.map_or(0, |start| {
+            let last = start.saturating_add(source_line_count(source).saturating_sub(1));
+            last.to_string().len().saturating_mul(6)
+        });
+        let _ = writeln!(
+            self.writer,
+            "  let gutter = {}.{}em",
+            gutter_tenths / 10,
+            gutter_tenths % 10
+        );
+        self.writer.raw("  show raw.line: line => {\n");
+        self.writer.raw("    let index = line.number - 1\n");
+        self.writer
+            .raw("    let marked = highlighted.at(index, default: false)\n");
+        self.writer.raw(
+            "    let code-width = if numbers == none { 100% } else { 100% - gutter - 0.8em }\n",
+        );
+        self.writer
+            .raw("    let code = box(width: code-width, fill: if marked { rgb(");
+        self.writer.string_literal(&self.palette.accent);
+        self.writer.raw(") } else { none }, line.body)\n");
+        self.writer
+            .raw("    if numbers == none {\n      code\n    } else {\n");
+        self.writer
+            .raw("      let number = numbers.at(index, default: none)\n");
+        self.writer.raw(
+            "      box(width: gutter, align(right + top, if number == none { [] } else { text(fill: rgb(",
+        );
+        self.writer.string_literal(&self.palette.counter);
+        self.writer
+            .raw("), str(number)) })) + h(0.8em) + code\n    }\n  }\n  raw(block: true");
+        if let Some(language) = self.source_language(metadata) {
+            self.writer.raw(", lang: ");
+            self.writer.string_literal(language);
+        }
+        self.writer.raw(", ");
+        self.writer.string_literal(source);
+        self.writer.raw(")\n}\n\n");
+    }
+
+    fn write_source_line_numbers(&mut self, source_lines: &[usize], start: Option<usize>) {
+        let Some(start) = start else {
+            self.writer.raw("none");
+            return;
+        };
+
+        self.writer.raw("(");
+        let mut previous_source_line = None;
+        for source_line in source_lines {
+            if previous_source_line == Some(*source_line) {
+                self.writer.raw("none, ");
+            } else {
+                let number = start.saturating_add(source_line.saturating_sub(1));
+                let _ = write!(self.writer, "{number}, ");
+                previous_source_line = Some(*source_line);
+            }
+        }
+        self.writer.raw(")");
     }
 
     fn code_tab_size(&self, metadata: &BlockMetadata<'_>) -> usize {
@@ -785,13 +886,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &self,
         metadata: &'metadata BlockMetadata<'_>,
     ) -> Option<&'metadata str> {
+        self.source_highlighting_enabled()
+            .then(|| detect_language(metadata))
+            .flatten()
+            .filter(|language| acdc_pdf_render::supports_raw_language(language))
+    }
+
+    fn source_highlighting_enabled(&self) -> bool {
         self.processor
             .document_attributes()
             .get("source-highlighter")
             .is_some_and(|value| !matches!(value, AttributeValue::Bool(false)))
-            .then(|| detect_language(metadata))
-            .flatten()
-            .filter(|language| acdc_pdf_render::supports_raw_language(language))
     }
 
     /// Write passthrough content as escaped, unframed monospace text.
@@ -808,20 +913,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_verbatim_text(&text);
     }
 
-    fn write_code_string(&mut self, nodes: &[InlineNode<'_>], tab_size: usize) {
-        let text = code_text_without_callout_guards(nodes);
+    fn code_text(&self, nodes: &[InlineNode<'_>], tab_size: usize) -> String {
+        let mut text = code_text_without_callout_guards(nodes);
         #[cfg(feature = "pre-spec-subs")]
-        let text = apply_replacements(
+        if let Cow::Owned(replaced) = apply_replacements(
             &text,
             self.processor.current_subs.get(),
             &Replacements::unicode(),
             TextBoundaries::BOTH,
-        );
-        #[cfg(not(feature = "pre-spec-subs"))]
-        let text = Cow::Borrowed(text.as_str());
-        let text = expand_code_tabs(&text, tab_size);
-        let text = wrap_code_text(&text, self.code_wrap_columns, tab_size);
-        self.writer.string_literal(&text);
+        ) {
+            text = replaced;
+        }
+        if let Cow::Owned(expanded) = expand_code_tabs(&text, tab_size) {
+            text = expanded;
+        }
+        text
     }
 
     fn write_verbatim_text(&mut self, text: &str) {
@@ -1202,6 +1308,34 @@ fn wrap_code_text(text: &str, max_columns: usize, tab_size: usize) -> Cow<'_, st
     Cow::Owned(wrapped)
 }
 
+fn wrap_code_text_with_line_origins(
+    text: &str,
+    max_columns: usize,
+    tab_size: usize,
+) -> (Cow<'_, str>, Vec<usize>) {
+    if text
+        .split('\n')
+        .all(|line| code_line_width(line, tab_size) <= max_columns)
+    {
+        let source_lines = (1..=source_line_count(text)).collect();
+        return (Cow::Borrowed(text), source_lines);
+    }
+
+    let mut wrapped = String::with_capacity(text.len());
+    let mut source_lines = Vec::new();
+    let line_count = source_line_count(text);
+    for (index, line) in text.split('\n').enumerate() {
+        if index > 0 {
+            wrapped.push('\n');
+        }
+        let visual_lines = wrap_code_line(&mut wrapped, line, max_columns, tab_size);
+        if index < line_count {
+            source_lines.extend(std::iter::repeat_n(index + 1, visual_lines));
+        }
+    }
+    (Cow::Owned(wrapped), source_lines)
+}
+
 fn expand_code_tabs(text: &str, tab_size: usize) -> Cow<'_, str> {
     if !text.contains('\t') {
         return Cow::Borrowed(text);
@@ -1229,7 +1363,13 @@ fn expand_code_tabs(text: &str, tab_size: usize) -> Cow<'_, str> {
     Cow::Owned(expanded)
 }
 
-fn wrap_code_line(output: &mut String, mut line: &str, max_columns: usize, tab_size: usize) {
+fn wrap_code_line(
+    output: &mut String,
+    mut line: &str,
+    max_columns: usize,
+    tab_size: usize,
+) -> usize {
+    let mut visual_lines = 1;
     while !line.is_empty() {
         let mut columns = 0;
         let mut hard_break = line.len();
@@ -1250,7 +1390,7 @@ fn wrap_code_line(output: &mut String, mut line: &str, max_columns: usize, tab_s
 
         if !overflowed {
             output.push_str(line);
-            return;
+            return visual_lines;
         }
 
         let split = whitespace_break.unwrap_or(hard_break);
@@ -1261,8 +1401,10 @@ fn wrap_code_line(output: &mut String, mut line: &str, max_columns: usize, tab_s
         };
         output.push_str(&line[..split]);
         output.push('\n');
+        visual_lines += 1;
         line = &line[split..];
     }
+    visual_lines
 }
 
 fn code_line_width(line: &str, tab_size: usize) -> usize {
@@ -1396,7 +1538,7 @@ fn image_fallback_text(image: &Image<'_>) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{expand_code_tabs, wrap_code_text};
+    use super::{expand_code_tabs, wrap_code_text, wrap_code_text_with_line_origins};
 
     #[test]
     fn code_wrapping_preserves_whitespace_and_terminal_newlines() {
@@ -1417,5 +1559,13 @@ mod tests {
         assert_eq!(expand_code_tabs("a\tb", 4), "a   b");
         assert_eq!(expand_code_tabs("TABX\tvalue", 4), "TABX    value");
         assert_eq!(expand_code_tabs("a\tb", 8), "a       b");
+    }
+
+    #[test]
+    fn code_wrapping_tracks_the_source_line_for_each_visual_line() {
+        let (text, source_lines) = wrap_code_text_with_line_origins("abcdefgh\nxy\n", 5, 4);
+
+        assert_eq!(text, "abcde\nfgh\nxy\n");
+        assert_eq!(source_lines, [1, 1, 2]);
     }
 }
