@@ -17,7 +17,7 @@ emulator = ["dep:libghostty-vt", "dep:asciicast-rs", "dep:serde", "dep:serde_jso
 [dependencies]
 acdc-converters-core.workspace = true
 acdc-parser.workspace = true
-comfy-table = { version = "7.2", features = ["custom_styling"] }
+comfy-table = { version = "8.0", features = ["custom_styling"] }
 crossterm.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
