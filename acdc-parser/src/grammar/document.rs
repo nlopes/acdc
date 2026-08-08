@@ -420,7 +420,7 @@ fn verbatim_inner<'input>(
         );
         metadata.style = Some("source");
     }
-    extract_source_attributes(metadata);
+    extract_source_attributes(state, metadata);
     metadata.move_positional_attributes_to_attributes();
     let content_location = state.create_block_location(p.content_start, p.content_end, p.offset);
     let (inlines, callouts) = resolve_verbatim_callouts(
@@ -849,7 +849,7 @@ fn drain_positional_slots<'input>(
         .collect()
 }
 
-fn extract_source_attributes(metadata: &mut BlockMetadata<'_>) {
+fn extract_source_attributes(state: &ParserState<'_>, metadata: &mut BlockMetadata<'_>) {
     if metadata.style != Some("source") {
         return;
     }
@@ -875,6 +875,20 @@ fn extract_source_attributes(metadata: &mut BlockMetadata<'_>) {
             "linenums".into(),
             AttributeValue::String(Cow::Borrowed(linenums)),
         );
+    }
+    if !metadata.attributes.contains_key("linenums")
+        && (metadata.options.contains(&"linenums")
+            || state.document_attributes.is_set("source-linenums-option"))
+    {
+        metadata
+            .attributes
+            .set("linenums".into(), AttributeValue::String(Cow::Borrowed("")));
+    }
+    if !metadata.options.contains(&"nowrap")
+        && state.document_attributes.contains_key("prewrap")
+        && !state.document_attributes.is_set("prewrap")
+    {
+        metadata.options.push("nowrap");
     }
 }
 
@@ -3163,7 +3177,7 @@ peg::parser! {
             let subs_flags = SubsFlags::all();
             let hardbreaks = subs_flags.contains(SubsFlags::POST_REPLACEMENTS)
                 && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
-            extract_source_attributes(&mut metadata);
+            extract_source_attributes(state, &mut metadata);
             extract_quote_attributes(&mut metadata);
             apply_quote_attribute_substitutions(state, &mut metadata, offset, subs_flags)?;
             Ok(BlockParsingMetadata {

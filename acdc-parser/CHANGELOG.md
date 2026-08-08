@@ -155,6 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Source blocks record `source-linenums-option` and `prewrap` changes at their
+  source position, so converters apply line numbering and HTML wrapping only
+  to the blocks that follow each change.
 - Verbatim blocks preserve trailing blank lines when callouts are enabled, and
   explicitly styled source, listing, and literal paragraphs preserve their
   leading indentation.
