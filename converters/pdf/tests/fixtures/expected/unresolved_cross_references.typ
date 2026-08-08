@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -51,21 +60,21 @@
 #text("A reference whose target’s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
 
 #metadata(none) <id-73656c662d7265666572656e6365>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]]
+#blocktitle[#text("Example 1. ")#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]
 #examplebox[
 #text("body")
 
 ]
 
 #metadata(none) <id-6d757475616c2d6669727374>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 2. ")#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]]
+#blocktitle[#text("Example 2. ")#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]
 #examplebox[
 #text("body")
 
 ]
 
 #metadata(none) <id-6d757475616c2d7365636f6e64>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 3. ")#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]]
+#blocktitle[#text("Example 3. ")#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]
 #examplebox[
 #text("body")
 

@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -44,45 +53,45 @@
 ]
 #v(1em)
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Documented conflict")]]
+#blocktitle[#text("Documented conflict")]
 #text(" — Come here! — I said. + — What is it? — replied Lance.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Documented workaround")]]
+#blocktitle[#text("Documented workaround")]
 #text(" — Come here! — I said.")#linebreak()#text(" — What is it? — replied Lance.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("No substitutions")]]
+#blocktitle[#text("No substitutions")]
 #text("-- First line. + -- Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("No post replacements")]]
+#blocktitle[#text("No post replacements")]
 #text(" — First line. + — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("No replacements")]]
+#blocktitle[#text("No replacements")]
 #text("-- First line.")#linebreak()#text("-- Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("No attributes in the workaround")]]
+#blocktitle[#text("No attributes in the workaround")]
 #text(" — First line.")#linebreak()#text("{empty} — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("No replacements in the workaround")]]
+#blocktitle[#text("No replacements in the workaround")]
 #text("-- First line.")#linebreak()#linebreak()#text("-- Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("No post replacements in the workaround")]]
+#blocktitle[#text("No post replacements in the workaround")]
 #text(" — First line.  — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Replacements before post replacements")]]
+#blocktitle[#text("Replacements before post replacements")]
 #text(" — First line. + — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Post replacements before replacements")]]
+#blocktitle[#text("Post replacements before replacements")]
 #text(" — First line.")#linebreak()#text(" — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Replacements moved after post replacements")]]
+#blocktitle[#text("Replacements moved after post replacements")]
 #text(" — First line.")#linebreak()#text(" — Second line.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Paragraph boundaries")]]
+#blocktitle[#text("Paragraph boundaries")]
 #text(" — alpha")
 
 #text("alpha — ")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Internal boundaries")]]
+#blocktitle[#text("Internal boundaries")]
 #text("alpha — beta")
 
 #text("alpha—​beta")
@@ -91,7 +100,7 @@
 
 #text("alpha-- beta")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Formatting boundaries")]]
+#blocktitle[#text("Formatting boundaries")]
 #strong[#text("-- alpha")]
 
 #strong[#text("alpha --")]
@@ -108,6 +117,6 @@
 
 #emph[#text("-- italic")]#text(" ")#raw("-- monospace")#text(" ")#highlight[#text("-- highlight")]#text(" ")#text(fill: rgb("#bf0000"))[#text("-- role")]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Multiple surrounding spaces")]]
+#blocktitle[#text("Multiple surrounding spaces")]
 #text("alpha  —  beta")
 

@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -44,14 +53,14 @@
 ]
 #v(1em)
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("Before")]]
+#blocktitle[#text("Example 1. ")#text("Before")]
 #examplebox[
 #text("Normal example before the disclosures.")
 
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Collapsed block")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Collapsed block")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("Collapsed content remains visible in PDF.")
 
@@ -60,7 +69,7 @@
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Open block")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Open block")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("The open option produces the same expanded PDF content.")
 
@@ -69,7 +78,7 @@
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Details")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Details")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("An untitled disclosure uses the Details label.")
 
@@ -78,7 +87,7 @@
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Explicit options and caption")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Explicit options and caption")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("The caption override is ignored for a disclosure.")
 
@@ -87,21 +96,21 @@
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Details")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Details")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("Collapsible paragraph without a title.")
 ]
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Collapsed paragraph")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Collapsed paragraph")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("Collapsible paragraph with a title.")
 ]
 ]
 
 #block(width: 100%, below: 0.8em)[
-#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#text(style: "italic")[#text("Styled open block")]])
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Styled open block")]])
 #block(inset: (left: 1em), above: 0.3em)[
 #text("An example-styled open block is also a disclosure.")
 
@@ -109,16 +118,16 @@
 ]
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Ordinary open block")]]
+#blocktitle[#text("Ordinary open block")]
 #text("The option does not turn an ordinary open block into an example.")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 2. ")#text("Style, not option")]]
+#blocktitle[#text("Example 2. ")#text("Style, not option")]
 #examplebox[
 #text("The collapsible style remains a normal example.")
 
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 3. ")#text("After")]]
+#blocktitle[#text("Example 3. ")#text("After")]
 #examplebox[
 #text("Normal example after the disclosures.")
 

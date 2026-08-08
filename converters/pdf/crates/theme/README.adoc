@@ -17,7 +17,7 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 == What it provides
 
-- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, and `heading`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, and `heading`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -27,6 +27,44 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 == Customising
 
 Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserialises into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colours, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
+
+=== Block titles and captions
+
+The `caption` tokens apply to ordinary block titles and to numbered captions.
+Sidebar and abstract titles keep their own treatments.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Values
+
+|`caption.align`
+|`left`
+|`left`, `center`, or `right`.
+
+|`caption.font_color`
+|`#333333`
+|A hexadecimal colour, or `null` to use `palette.body_text`.
+
+|`caption.font_size_em`
+|`0.91`
+|A positive size relative to the body text.
+
+|`caption.font_weight`
+|`400`
+|A Typst font weight from `100` through `900`.
+
+|`caption.font_style`
+|`italic`
+|`normal` or `italic`.
+
+|`caption.margin_inside_pt`
+|`8.0`
+|Space between a title and its block, in points.
+
+|`caption.margin_outside_pt`
+|`0.0`
+|Space before a title, in points.
+|===
 
 === Book heading page breaks
 

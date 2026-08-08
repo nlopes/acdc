@@ -412,10 +412,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if title.is_empty() {
             return Ok(());
         }
-        self.writer
-            .raw("#block(below: 0.5em)[#text(weight: \"bold\")[");
+        self.writer.raw("#blocktitle[");
         self.write_title(title)?;
-        self.writer.raw("]]\n");
+        self.writer.raw("]\n");
         Ok(())
     }
 
@@ -432,7 +431,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .raw("[#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, ");
         self.writer
             .raw("rotate(90deg, origin: center, text(weight: \"bold\", size: 0.8em, \">\"))))], ");
-        self.writer.raw("[#text(style: \"italic\")[");
+        self.writer.raw("[#captiontext[");
         if title.is_empty() {
             self.write_text_expr("Details");
         } else {
@@ -653,13 +652,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         }
         let prefix = self.caption_prefix(metadata, fallback);
-        self.writer
-            .raw("#block(below: 0.5em)[#text(weight: \"bold\")[");
+        self.writer.raw("#blocktitle[");
         if let Some(prefix) = prefix {
             self.write_text_expr(&prefix);
         }
         self.write_title(title)?;
-        self.writer.raw("]]\n");
+        self.writer.raw("]\n");
         Ok(())
     }
 

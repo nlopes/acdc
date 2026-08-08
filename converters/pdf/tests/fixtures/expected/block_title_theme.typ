@@ -1,7 +1,7 @@
 #set document(
-  title: "Styled paragraph caption counters",
+  title: "Block title theme",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Styled paragraph caption counters]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Block title theme]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, justify: false)
 #set smartquote(enabled: false)
@@ -19,12 +19,12 @@
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
-  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
-  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+  show strong: set text(fill: rgb("#b91c1c"), weight: 700, style: "normal")
+  text(size: 1.2em, weight: 600, style: "normal", fill: rgb("#b91c1c"), body)
 }
 #let blocktitle(body) = {
-  v(0pt, weak: false)
-  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  v(3pt, weak: false)
+  block(width: 100%, below: 0pt, align(center, captiontext(body)))
   block(height: 8pt, above: 0pt, below: 0pt)
 }
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
@@ -49,53 +49,67 @@
 #let tableheader(body) = text(weight: 700, body)
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Styled paragraph caption counters")]
+#text(size: 22pt, weight: "bold")[#text("Block title theme")]
 ]
 #v(1em)
 
-#blocktitle[#text("Example 1. ")#text("Example paragraph")]
-#examplebox[
-#text("Example paragraph content.")
-]
+#blocktitle[#text("Paragraph ")#strong[#text("title")]]
+#text("Paragraph body.")
 
-#examplebox[
-#text("Untitled examples do not consume a number.")
-]
+#blocktitle[#text("List title")]
+  - #text("Item")
 
-#blocktitle[#text("Example 2. ")#text("Example block")]
-#examplebox[
-#text("Example block content.")
+#blocktitle[#text("Description title")]
+#text(weight: "bold")[#text("Term")]
+#text("Description.")
 
-]
-
-#blocktitle[#text("Special: ")#text("Custom example paragraph")]
-#examplebox[
-#text("Custom example paragraph content.")
-]
-
-#blocktitle[#text("Example 3. ")#text("Example after custom caption")]
-#examplebox[
-#text("Example content after the custom caption.")
+#blocktitle[#text("Admonition title")]
+#callout("note")[
+#text("Admonition body.")
 
 ]
 
-#blocktitle[#text("Listing 1. ")#text("Listing paragraph")]
-#raw(block: true, "listing paragraph")
+#blocktitle[#text("Listing 1. ")#text("Listing title")]
+#raw(block: true, "listing")
 
-#blocktitle[#text("Listing 2. ")#text("Source paragraph")]
-#raw(block: true, "let paragraph = 1;")
+#blocktitle[#text("Literal title")]
+#raw(block: true, "literal")
 
-#raw(block: true, "untitled listing paragraph")
+#blocktitle[#text("Example 1. ")#text("Example title")]
+#examplebox[
+#text("Example body.")
 
-#blocktitle[#text("Listing 3. ")#text("Listing block")]
-#raw(block: true, "listing block")
+]
 
-#blocktitle[#text("Listing 4. ")#text("Source block")]
-#raw(block: true, "let block = 2;")
+#blocktitle[#text("Open title")]
+#text("Open body.")
 
-#blocktitle[#text("Snippet: ")#text("Custom listing paragraph")]
-#raw(block: true, "custom listing paragraph")
+#blocktitle[#text("Quote title")]
+#blockquote[
+#text("Quote body.")
 
-#blocktitle[#text("Listing 5. ")#text("Listing after custom caption")]
-#raw(block: true, "listing after custom caption")
+]
+
+#blocktitle[#text("Verse title")]
+#verse[#text("Verse body.")]
+
+#sidebarbox[
+#sidebartitle[#text("Sidebar title")]
+#text("Sidebar body.")
+
+]
+
+#abstracttitle[#text("Abstract title")]
+#abstract[
+#text("Abstract body.")
+]
+
+#block(width: 100%, below: 0.8em)[
+#grid(columns: (0.8em, 1fr), column-gutter: 0.2em, align: top, [#box(width: 0.8em, height: 0.8em, baseline: 0.1em, align(center + horizon, rotate(90deg, origin: center, text(weight: "bold", size: 0.8em, ">"))))], [#captiontext[#text("Details")]])
+#block(inset: (left: 1em), above: 0.3em)[
+#text("Collapsible body.")
+
+
+]
+]
 

@@ -135,3 +135,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Passthrough blocks render as unframed monospace text instead of code cards,
   matching Asciidoctor PDF. Their content is always escaped and cannot be
   interpreted as Typst source.
+- Ordinary block titles and numbered captions use the PDF theme's caption
+  style. The default is near-10pt regular italic text in `#333333`, with
+  spacing close to Asciidoctor PDF, instead of bold body-size text.

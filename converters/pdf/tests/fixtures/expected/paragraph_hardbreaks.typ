@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -44,70 +53,70 @@
 ]
 #v(1em)
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Header document attribute")]]
+#blocktitle[#text("Header document attribute")]
 #text("Header first")#linebreak()#text("Header second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Default paragraph")]]
+#blocktitle[#text("Default paragraph")]
 #text("Default first Default second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Repeated normal spaces")]]
+#blocktitle[#text("Repeated normal spaces")]
 #text("Repeated normal spaces")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Shorthand option")]]
+#blocktitle[#text("Shorthand option")]
 #text("Shorthand first")#linebreak()#text("Shorthand second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Named options")]]
+#blocktitle[#text("Named options")]
 #text("Options first")#linebreak()#text("Options second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Named opts")]]
+#blocktitle[#text("Named opts")]
 #text("Opts first")#linebreak()#text("Opts second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Explicit break")]]
+#blocktitle[#text("Explicit break")]
 #text("Explicit first")#linebreak()#text("Explicit second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Formatted content")]]
+#blocktitle[#text("Formatted content")]
 #text("Formatted ")#strong[#text("bold first")#linebreak()#text("bold second")]#text(" and ")#emph[#text("italic first")#linebreak()#text("italic second")]#text(".")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Role does not enable hard breaks")]]
+#blocktitle[#text("Role does not enable hard breaks")]
 #text("Role first Role second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Style does not enable hard breaks")]]
+#blocktitle[#text("Style does not enable hard breaks")]
 #text("Style first Style second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Empty middle line")]]
+#blocktitle[#text("Empty middle line")]
 #text("Middle first")#linebreak()#linebreak()#text("Middle third")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Leading empty line")]]
+#blocktitle[#text("Leading empty line")]
 #linebreak()#text("Leading second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Repeated empty lines")]]
+#blocktitle[#text("Repeated empty lines")]
 #linebreak()#text("Repeated second")#linebreak()#linebreak()#text("Repeated fourth")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Literal paragraph")]]
+#blocktitle[#text("Literal paragraph")]
 #raw(block: true, "Literal   paragraph first\nLiteral paragraph second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Literal block")]]
+#blocktitle[#text("Literal block")]
 #raw(block: true, "Literal   block first\nLiteral block second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Listing paragraph")]]
+#blocktitle[#text("Listing paragraph")]
 #raw(block: true, "Listing   paragraph first\nListing paragraph second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Listing block")]]
+#blocktitle[#text("Listing block")]
 #raw(block: true, "Listing   block first\nListing block second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Source paragraph")]]
+#blocktitle[#text("Source paragraph")]
 #raw(block: true, "puts \"source   paragraph first\"\nputs \"source paragraph second\"")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Source block")]]
+#blocktitle[#text("Source block")]
 #raw(block: true, "puts \"source   block first\"\nputs \"source block second\"")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Verse paragraph")]]
+#blocktitle[#text("Verse paragraph")]
 #verse[#text("Verse   paragraph first\nVerse paragraph second")]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Verse block")]]
+#blocktitle[#text("Verse block")]
 #verse[#text("Verse   block first\nVerse block second")]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Canonical document attribute")]]
+#blocktitle[#text("Canonical document attribute")]
 #text("Canonical first")#linebreak()#text("Canonical second")
 
 #blockquote[
@@ -117,13 +126,13 @@
 
   - #text("List first")#linebreak()#text("List second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Canonical attribute unset")]]
+#blocktitle[#text("Canonical attribute unset")]
 #text("Canonical unset first Canonical unset second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Alias with a value")]]
+#blocktitle[#text("Alias with a value")]
 #text("Alias value first")#linebreak()#text("Alias value second")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Compound option does not propagate")]]
+#blocktitle[#text("Compound option does not propagate")]
 #blockquote[
 #text("Compound first Compound second")
 

@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -44,43 +53,43 @@
 ]
 #v(1em)
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Header Example 1. ")#text("Header example")]]
+#blocktitle[#text("Header Example 1. ")#text("Header example")]
 #examplebox[
 #text("Header example content.")
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Metadata Example 2. ")#text("Metadata example")]]
+#blocktitle[#text("Metadata Example 2. ")#text("Metadata example")]
 #examplebox[
 #text("Metadata example content.")
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Disabled example")]]
+#blocktitle[#text("Disabled example")]
 #examplebox[
 #text("Disabled example content.")
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Later Example 3. ")#text("Later example")]]
+#blocktitle[#text("Later Example 3. ")#text("Later example")]
 #examplebox[
 #text("Later example content.")
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text(" 4. ")#text("Blank example")]]
+#blocktitle[#text(" 4. ")#text("Blank example")]
 #examplebox[
 #text("Blank example content.")
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Header Listing 1. ")#text("Header listing")]]
+#blocktitle[#text("Header Listing 1. ")#text("Header listing")]
 #raw(block: true, "header listing")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Metadata Listing 2. ")#text("Metadata listing")]]
+#blocktitle[#text("Metadata Listing 2. ")#text("Metadata listing")]
 #raw(block: true, "metadata listing")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Disabled listing")]]
+#blocktitle[#text("Disabled listing")]
 #raw(block: true, "let disabled = 1;")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Later Listing 3. ")#text("Later listing")]]
+#blocktitle[#text("Later Listing 3. ")#text("Later listing")]
 #raw(block: true, "later listing")
 
-#block(below: 0.5em)[#text(weight: "bold")[#text(" 4. ")#text("Blank listing")]]
+#blocktitle[#text(" 4. ")#text("Blank listing")]
 #raw(block: true, "let blank = 2;")
 

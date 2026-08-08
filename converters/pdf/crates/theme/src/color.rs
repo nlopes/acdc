@@ -90,7 +90,7 @@ impl Palette {
     }
 }
 
-fn canonical_colour(field: &'static str, value: &str) -> Result<String, Error> {
+pub(super) fn canonical_colour(field: &'static str, value: &str) -> Result<String, Error> {
     let Some(hex) = value.strip_prefix('#') else {
         return Err(invalid_colour(field));
     };

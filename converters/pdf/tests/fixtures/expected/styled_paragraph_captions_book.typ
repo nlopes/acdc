@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -51,24 +60,24 @@
 
 #heading(level: 1)[#text("First Chapter")] <id-5f66697273745f63686170746572>
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("First example")]]
+#blocktitle[#text("Example 1. ")#text("First example")]
 #examplebox[
 #text("First example content.")
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Listing 1. ")#text("First listing")]]
+#blocktitle[#text("Listing 1. ")#text("First listing")]
 #raw(block: true, "first listing")
 
 #pagebreak(weak: true)
 
 #heading(level: 1)[#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 2. ")#text("Second example")]]
+#blocktitle[#text("Example 2. ")#text("Second example")]
 #examplebox[
 #text("Second example content.")
 
 ]
 
-#block(below: 0.5em)[#text(weight: "bold")[#text("Listing 2. ")#text("Second source")]]
+#blocktitle[#text("Listing 2. ")#text("Second source")]
 #raw(block: true, "let second = 2;")
 

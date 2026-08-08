@@ -1,0 +1,60 @@
+= Block title theme
+:acdc-pdf-test-theme: block_titles
+:listing-caption: Listing
+
+.Paragraph *title*
+Paragraph body.
+
+.List title
+* Item
+
+.Description title
+Term:: Description.
+
+.Admonition title
+NOTE: Admonition body.
+
+.Listing title
+----
+listing
+----
+
+.Literal title
+....
+literal
+....
+
+.Example title
+====
+Example body.
+====
+
+.Open title
+--
+Open body.
+--
+
+.Quote title
+____
+Quote body.
+____
+
+.Verse title
+[verse]
+____
+Verse body.
+____
+
+.Sidebar title
+****
+Sidebar body.
+****
+
+.Abstract title
+[abstract]
+Abstract body.
+
+[example%collapsible]
+--
+Collapsible body.
+--

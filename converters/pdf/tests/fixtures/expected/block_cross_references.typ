@@ -18,6 +18,15 @@
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
+#let captiontext(body) = {
+  show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
+  text(size: 0.91em, weight: 400, style: "italic", fill: rgb("#333333"), body)
+}
+#let blocktitle(body) = {
+  v(0pt, weak: false)
+  block(width: 100%, below: 0pt, align(left, captiontext(body)))
+  block(height: 8pt, above: 0pt, below: 0pt)
+}
 #let abstract(body) = block(width: 100%, text(size: 13.75pt, style: "italic", fill: rgb("#4b5563"), body))
 #let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: 12pt, weight: 700, fill: rgb("#000000"), body)))
 #let blockquote(body) = block(width: 100%, inset: (left: 12pt), stroke: (left: 3pt + rgb("#d1d5db")), text(style: "italic", fill: rgb("#4b5563"), body))
@@ -51,34 +60,34 @@
 #heading(level: 1)[#text("Section Title")] <id-73656374696f6e2d6964>
 
 #metadata(none) <id-7061726167726170682d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Paragraph Title")]]
+#blocktitle[#text("Paragraph Title")]
 #text("Paragraph body.")
 
 #metadata(none) <id-6c697374696e672d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Listing Title")]]
+#blocktitle[#text("Listing Title")]
 #raw(block: true, "listing")
 
 #metadata(none) <id-637573746f6d2d6c697374696e672d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Ignored Listing Title")]]
+#blocktitle[#text("Ignored Listing Title")]
 #raw(block: true, "custom listing")
 
 #metadata(none) <id-736f757263652d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Source Title")]]
+#blocktitle[#text("Source Title")]
 #raw(block: true, "fn main() {}")
 
 #metadata(none) <id-6c69746572616c2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Literal Title")]]
+#blocktitle[#text("Literal Title")]
 #raw(block: true, "literal")
 
 #metadata(none) <id-6578616d706c652d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Example 1. ")#text("Example Title")]]
+#blocktitle[#text("Example 1. ")#text("Example Title")]
 #examplebox[
 #text("Example body.")
 
 ]
 
 #metadata(none) <id-6f70656e2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Open Title")]]
+#blocktitle[#text("Open Title")]
 #text("Open body.")
 
 #metadata(none) <id-736964656261722d6964>
@@ -89,65 +98,65 @@
 ]
 
 #metadata(none) <id-71756f74652d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Quote Title")]]
+#blocktitle[#text("Quote Title")]
 #blockquote[
 #text("Quote body.")
 
 ]
 
 #metadata(none) <id-76657273652d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Verse Title")]]
+#blocktitle[#text("Verse Title")]
 #verse[#text("Verse line.")]
 
 #metadata(none) <id-706173737468726f7567682d6964>
 #block(width: 100%)[#raw(block: false, "passthrough")]
 
 #metadata(none) <id-7374656d2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Stem Title")]]
+#blocktitle[#text("Stem Title")]
 #block[#text("x = 1")]
 
 #metadata(none) <id-7461626c652d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Table ")#strong[#text("Title")]]]
+#blocktitle[#text("Table ")#strong[#text("Title")]]
 #table(columns: 1, table.cell(x: 0, y: 0)[#text("Cell")
 
 ])
 
 #metadata(none) <id-6f7264657265642d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Ordered List Title")]]
+#blocktitle[#text("Ordered List Title")]
   + #text("ordered")
 
 #metadata(none) <id-756e6f7264657265642d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Unordered List Title")]]
+#blocktitle[#text("Unordered List Title")]
   - #text("unordered")
 
 #metadata(none) <id-6465736372697074696f6e2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Description List Title")]]
+#blocktitle[#text("Description List Title")]
 #text(weight: "bold")[#text("Term")]
 #text("definition")
 
 #raw(block: true, "code <1>")
 
 #metadata(none) <id-63616c6c6f75742d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Callout List Title")]]
+#blocktitle[#text("Callout List Title")]
 - #text("(1) ")#text("callout")
 
 #metadata(none) <id-61646d6f6e6974696f6e2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Admonition ")#strong[#text("Title")]]]
+#blocktitle[#text("Admonition ")#strong[#text("Title")]]
 #callout("note")[
 #text("note")
 
 ]
 
 #metadata(none) <id-696d6167652d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Image Title")]]
+#blocktitle[#text("Image Title")]
 #text("Image Title")
 
 #metadata(none) <id-766964656f2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Video Title")]]
+#blocktitle[#text("Video Title")]
 #text("[video: video.mp4]")
 
 #metadata(none) <id-617564696f2d6964>
-#block(below: 0.5em)[#text(weight: "bold")[#text("Audio Title")]]
+#blocktitle[#text("Audio Title")]
 #text("[audio: audio.mp3]")
 
 #metadata(none) <id-7468656d617469632d6964>

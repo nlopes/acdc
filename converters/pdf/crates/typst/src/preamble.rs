@@ -3,7 +3,9 @@
 
 use std::fmt::Write as _;
 
-use acdc_pdf_theme::{EMOJI_FONT_FAMILY, FontStack, Palette, Theme};
+use acdc_pdf_theme::{
+    CaptionAlignment, CaptionFontStyle, EMOJI_FONT_FAMILY, FontStack, Palette, Theme,
+};
 
 use crate::{
     DocumentMetadata, EmitOptions, PageSize,
@@ -188,11 +190,35 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
     let typography = &theme.typography;
+    let caption = &theme.caption;
 
     // Asciidoctor PDF derives abstract body text from its lead size and the
     // abstract title from its fourth heading size.
     let abstract_body_size = typography.body_size_pt * 1.25;
     let abstract_title_size = typography.heading_pt[3];
+
+    let caption_align = match caption.align {
+        CaptionAlignment::Left => "left",
+        CaptionAlignment::Center => "center",
+        CaptionAlignment::Right => "right",
+    };
+    let caption_style = match caption.font_style {
+        CaptionFontStyle::Normal => "normal",
+        CaptionFontStyle::Italic => "italic",
+    };
+    let caption_color = caption.font_color.as_deref().unwrap_or(&palette.body_text);
+    let _ = writeln!(
+        out,
+        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  v({outside}pt, weak: false)\n  block(width: 100%, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}",
+        outside = caption.margin_outside_pt,
+        inside = caption.margin_inside_pt,
+        align = caption_align,
+        size = caption.font_size_em,
+        weight = caption.font_weight,
+        strong_weight = typography.strong_weight,
+        style = caption_style,
+        color = color(caption_color),
+    );
 
     let _ = writeln!(
         out,
@@ -567,5 +593,34 @@ mod tests {
 
         assert!(out.contains("#let tableheader(body) = text(weight: 600, body)"));
         assert!(!out.contains("table.cell.where(y: 0)"));
+    }
+
+    #[test]
+    fn block_title_helper_uses_caption_theme() {
+        let mut theme = Theme::default();
+        theme.caption.align = CaptionAlignment::Center;
+        theme.caption.font_color = Some("#123456".to_owned());
+        theme.caption.font_size_em = 1.2;
+        theme.caption.font_weight = 600;
+        theme.caption.font_style = CaptionFontStyle::Normal;
+        theme.caption.margin_inside_pt = 8.0;
+        theme.caption.margin_outside_pt = 3.0;
+        let mut out = String::new();
+
+        write_block_helpers(&mut out, &theme);
+
+        assert!(out.contains(concat!(
+            "#let captiontext(body) = {\n",
+            "  show strong: set text(fill: rgb(\"#123456\"), weight: 700, ",
+            "style: \"normal\")\n",
+            "  text(size: 1.2em, weight: 600, style: \"normal\", ",
+            "fill: rgb(\"#123456\"), body)\n",
+            "}\n",
+            "#let blocktitle(body) = {\n",
+            "  v(3pt, weak: false)\n",
+            "  block(width: 100%, below: 0pt, align(center, captiontext(body)))\n",
+            "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "}",
+        )));
     }
 }
