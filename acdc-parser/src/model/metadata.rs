@@ -5,6 +5,7 @@ use serde::Serialize;
 use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
 use super::attribution::{Attribution, CiteTitle};
+use super::caption::Caption;
 use super::location::Location;
 #[cfg(feature = "pre-spec-subs")]
 use super::substitution::SubstitutionSpec;
@@ -22,6 +23,11 @@ pub(crate) struct PositionalAttribute<'a> {
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct BlockMetadata<'a> {
+    /// Caption behavior resolved from the document attributes in effect at this block's
+    /// source position, and the ordinal assigned to it. `None` means caller-built metadata
+    /// or a block that takes no caption.
+    #[serde(skip)]
+    pub caption: Option<Caption<'a>>,
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
     /// Parser intermediate state: positional attrs from `[foo,bar,baz]` that
@@ -134,6 +140,11 @@ impl<'a> BlockMetadata<'a> {
         }
     }
 
+    /// Whether this metadata serializes to nothing.
+    ///
+    /// This gates `skip_serializing_if` on every block's `metadata` field, so it covers only
+    /// the serialized fields. `caption` is deliberately excluded: it carries `#[serde(skip)]`,
+    /// so counting it would make a block emit an empty `metadata` object.
     #[must_use]
     pub fn is_default(&self) -> bool {
         #[cfg(feature = "pre-spec-subs")]

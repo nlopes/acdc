@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Titled example, listing, source, image, and table blocks now carry their caption —
+  label and number — in `BlockMetadata::caption`, taken from the `caption`,
+  `<kind>-caption`, or block-level `caption=` attribute in effect **at that block's
+  source position**. Changing a caption attribute part-way through a document applies
+  only from that point on, and a block nested inside another is numbered first, both
+  matching Asciidoctor.
+- Caption kind follows a block's effective context: `[listing]` on `====` is still an
+  example, `[literal]` on `----` takes no caption, and `[example]`/`[listing]`/`[source]`
+  promote an open or literal block. An untitled block takes no number, a custom or blank
+  caption consumes none, and `:example-caption!:` disables both.
+- `Document::renumber_captions()` reassigns every caption number after you change the
+  AST — reorder blocks, remove one, add a title — and `Document::highest_caption_number()`
+  reports the highest number assigned for a kind, so a consumer numbering a title the
+  parser never saw can start past it.
 - `Options::builder().with_base_dir(path)` now controls entry include resolution
   for string, reader, and file input. It also defines the Safe/Server local
   boundary; otherwise string/reader input uses the current directory and file
@@ -97,6 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `BlockMetadata` now carries its block's resolved caption, so parsed metadata no longer
+  compares equal to otherwise-identical metadata built by a caller. Serialized output is
+  unchanged — the caption is not part of the ASG.
 - A document attribute assigned the literal value `false` now remains set to
   that text. Use `:name!:` or `:!name:` to unset it, matching Asciidoctor.
 - Include targets beginning with a case-insensitive ASCII URI scheme are now

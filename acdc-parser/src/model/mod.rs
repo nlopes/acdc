@@ -11,6 +11,7 @@ mod admonition;
 mod anchor;
 mod attributes;
 mod attribution;
+pub(crate) mod caption;
 mod inlines;
 mod lists;
 mod location;
@@ -28,6 +29,7 @@ pub use attributes::{
     MAX_TOC_LEVELS, strip_quotes,
 };
 pub use attribution::{Attribution, CiteTitle};
+pub use caption::{Caption, CaptionKind};
 pub use inlines::*;
 pub use lists::{
     CalloutList, CalloutListItem, DescriptionList, DescriptionListItem, ListItem,
@@ -61,6 +63,29 @@ pub struct Document<'a> {
     /// `footnotes`, this is not serialized.
     pub references: HashMap<&'a str, Reference<'a>>,
     pub location: Location,
+}
+
+impl Document<'_> {
+    /// Reassign every automatic caption ordinal, numbering a block's content before the block
+    /// itself as asciidoctor does.
+    ///
+    /// Parsing does this already. Call it after reordering or removing blocks, changing titles,
+    /// or inserting a block whose `metadata.caption` has been set. A caller-built block whose
+    /// `metadata.caption` is `None` stays unnumbered: nothing knows the document attributes at
+    /// a source position it never had, so a converter's own fallback owns it.
+    pub fn renumber_captions(&mut self) {
+        caption::renumber_captions(&mut self.blocks);
+    }
+
+    /// The highest caption ordinal assigned to any block of `kind`, or 0 when none carries one.
+    ///
+    /// A converter that renders a title the parser never numbered — one on a caller-built
+    /// block, or added after parsing — should start its own counter here, so its numbers
+    /// cannot collide with the parser's.
+    #[must_use]
+    pub fn highest_caption_number(&self, kind: CaptionKind) -> u32 {
+        caption::highest_caption_number(&self.blocks, kind)
+    }
 }
 
 /// A `Header` represents the header of a document.
@@ -283,6 +308,48 @@ pub enum Block<'a> {
 }
 
 impl<'a> Block<'a> {
+    /// This block's metadata, for the blocks that carry any.
+    pub(crate) fn metadata(&self) -> Option<&BlockMetadata<'a>> {
+        match self {
+            Block::Section(block) => Some(&block.metadata),
+            Block::DelimitedBlock(block) => Some(&block.metadata),
+            Block::Admonition(block) => Some(&block.metadata),
+            Block::DiscreteHeader(block) => Some(&block.metadata),
+            Block::PageBreak(block) => Some(&block.metadata),
+            Block::Paragraph(block) => Some(&block.metadata),
+            Block::Image(block) => Some(&block.metadata),
+            Block::Audio(block) => Some(&block.metadata),
+            Block::Video(block) => Some(&block.metadata),
+            Block::UnorderedList(block) => Some(&block.metadata),
+            Block::OrderedList(block) => Some(&block.metadata),
+            Block::CalloutList(block) => Some(&block.metadata),
+            Block::DescriptionList(block) => Some(&block.metadata),
+            Block::TableOfContents(block) => Some(&block.metadata),
+            Block::ThematicBreak(_) | Block::DocumentAttribute(_) | Block::Comment(_) => None,
+        }
+    }
+
+    /// This block's metadata, for the blocks that carry any.
+    pub(crate) fn metadata_mut(&mut self) -> Option<&mut BlockMetadata<'a>> {
+        match self {
+            Block::Section(block) => Some(&mut block.metadata),
+            Block::DelimitedBlock(block) => Some(&mut block.metadata),
+            Block::Admonition(block) => Some(&mut block.metadata),
+            Block::DiscreteHeader(block) => Some(&mut block.metadata),
+            Block::PageBreak(block) => Some(&mut block.metadata),
+            Block::Paragraph(block) => Some(&mut block.metadata),
+            Block::Image(block) => Some(&mut block.metadata),
+            Block::Audio(block) => Some(&mut block.metadata),
+            Block::Video(block) => Some(&mut block.metadata),
+            Block::UnorderedList(block) => Some(&mut block.metadata),
+            Block::OrderedList(block) => Some(&mut block.metadata),
+            Block::CalloutList(block) => Some(&mut block.metadata),
+            Block::DescriptionList(block) => Some(&mut block.metadata),
+            Block::TableOfContents(block) => Some(&mut block.metadata),
+            Block::ThematicBreak(_) | Block::DocumentAttribute(_) | Block::Comment(_) => None,
+        }
+    }
+
     /// The anchor defining this block's id (its cross-reference target), if any:
     /// the explicit `[#id]` or the first `[[id]]` anchor.
     pub(crate) fn anchor(&self) -> Option<&Anchor<'a>> {

@@ -294,17 +294,26 @@ impl<'a> ParserState<'a> {
         if matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option") {
             self.hardbreaks = set;
         }
-        let value = match value {
-            AttributeValue::String(s) => {
-                let substituted = substitute(&s, HEADER, &self.document_attributes);
-                AttributeValue::String(Cow::Borrowed(self.intern_str(&substituted)))
-            }
-            AttributeValue::Bool(_) | AttributeValue::None => value,
-        };
+        let value = self.resolve_document_attribute_value(value, &self.document_attributes);
         if !crate::constants::is_trusted_attribute(key.as_ref()) {
             Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
         }
         value
+    }
+
+    /// Expand an attribute value's references against the given attributes.
+    pub(crate) fn resolve_document_attribute_value(
+        &self,
+        value: AttributeValue<'a>,
+        attributes: &DocumentAttributes<'a>,
+    ) -> AttributeValue<'a> {
+        match value {
+            AttributeValue::String(s) => {
+                let substituted = substitute(&s, HEADER, attributes);
+                AttributeValue::String(Cow::Borrowed(self.intern_str(&substituted)))
+            }
+            AttributeValue::Bool(_) | AttributeValue::None => value,
+        }
     }
 
     /// Initialize hard-break state from attributes supplied by the parser API.

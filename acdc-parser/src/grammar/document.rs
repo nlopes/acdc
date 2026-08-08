@@ -27,14 +27,14 @@ use crate::{
         table::parse_table_cell,
     },
     model::{
-        LeveloffsetRange, ListLevel, Locateable, PositionalAttribute, SectionKind, SectionLevel,
-        Substitution, strip_quotes, substitute,
-        substitution::{HEADER, NORMAL, SubsFlags},
+        Caption, CaptionKind, LeveloffsetRange, ListLevel, Locateable, PositionalAttribute,
+        SectionKind, SectionLevel, Substitution, caption, strip_quotes, substitute,
+        substitution::{HEADER, SubsFlags},
     },
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use crate::model::substitution::parse_subs_attribute;
+use crate::model::substitution::{NORMAL, parse_subs_attribute};
 
 use super::helpers::{
     BlockMetadataLine, BlockParsingMetadata, HeaderMetadataLine, PositionWithOffset,
@@ -72,13 +72,7 @@ fn prepare_manpage_name_attributes<'input>(
         let mut attributes = DocumentAttributes::clone(&state.document_attributes);
         for AttributeEntry { key, value, .. } in section.metadata_attributes {
             if !crate::constants::is_trusted_attribute(key) {
-                let value = match value {
-                    AttributeValue::String(value) => {
-                        let substituted = substitute(&value, HEADER, &attributes);
-                        AttributeValue::String(Cow::Borrowed(state.intern_str(&substituted)))
-                    }
-                    AttributeValue::Bool(_) | AttributeValue::None => value,
-                };
+                let value = state.resolve_document_attribute_value(value, &attributes);
                 attributes.set(key.into(), value);
             }
         }
@@ -118,6 +112,20 @@ fn set_manpage_name_attributes<'input>(
     }
     if attributes.get_string("backend").as_deref() == Some("manpage") {
         attributes.set("docname".into(), AttributeValue::String(name.into()));
+    }
+}
+
+/// Resolve the caption a block takes, from the document attributes in effect once the block —
+/// content included — has been parsed. That is when asciidoctor assigns a caption, so an
+/// attribute line inside an example changes that example's own caption. The ordinal comes
+/// later, from `caption::renumber_captions` over the finished tree.
+fn assign_block_caption<'input>(state: &ParserState<'input>, block: &mut Block<'input>) {
+    let Some(kind) = CaptionKind::for_block(block) else {
+        return;
+    };
+    if let Some(metadata) = block.metadata_mut() {
+        let caption = Caption::resolve(metadata, &state.document_attributes, kind);
+        metadata.caption = Some(caption);
     }
 }
 
@@ -2027,7 +2035,7 @@ peg::parser! {
         pub(crate) rule document() -> Result<Document<'input>, Error>
         = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() blocks:blocks(0, None) end:position!() (eol()* / ![_]) {
             let header = header_result?;
-            let blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
+            let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
             // Ensure end offset is on a valid UTF-8 boundary
             let mut document_end_offset = end;
@@ -2116,6 +2124,11 @@ peg::parser! {
                     }
                 }
             }
+
+            // Assign caption ordinals over the finished tree. Numbering here cannot be
+            // disturbed by PEG backtracking, and it runs before the reference catalog so that
+            // catalog can later carry a target's caption label and ordinal.
+            caption::renumber_captions(&mut blocks);
 
             // Build the id -> reference catalog for O(1) `<<id>>` resolution:
             // sections (already collected as toc_entries) plus a single walk over
@@ -3248,7 +3261,9 @@ peg::parser! {
             / markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote }
             / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
         ) {
-            block
+            let mut block = block?;
+            assign_block_caption(state, &mut block);
+            Ok(block)
         }
 
         // Block parsing for continuation context - lists inside continuations cannot consume
@@ -3286,7 +3301,9 @@ peg::parser! {
             / markdown_blockquote:markdown_blockquote(start, offset, &block_metadata) { markdown_blockquote }
             / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
         ) {
-            block
+            let mut block = block?;
+            assign_block_caption(state, &mut block);
+            Ok(block)
         }
 
         /// Block parsing for table cells without `AsciiDoc` style - excludes block types that require full parsing.
@@ -3311,7 +3328,9 @@ peg::parser! {
             // NOTE: toc, page_break, list, markdown_blockquote are excluded - only valid with 'a' cell style
             / paragraph:paragraph(start, offset, &block_metadata) { paragraph }
         ) {
-            block
+            let mut block = block?;
+            assign_block_caption(state, &mut block);
+            Ok(block)
         }
 
         rule delimited_block(
