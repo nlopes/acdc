@@ -165,7 +165,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write_id(&mut self.writer, &para.metadata)?;
                 let class = build_class("listing-block", &para.metadata.roles);
                 writeln!(self.writer, " class=\"{class}\">")?;
-                crate::render_pre_code(&para.content, language, self, &subs)?;
+                crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
                 writeln!(self.writer, "</div>")?;
             } else {
                 write!(self.writer, "<figure")?;
@@ -173,7 +173,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 let class = build_class("listing-block", &para.metadata.roles);
                 writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_title_with_wrapper(&para.title, "<figcaption>", "</figcaption>\n")?;
-                crate::render_pre_code(&para.content, language, self, &subs)?;
+                crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
                 writeln!(self.writer, "</figure>")?;
             }
         } else {
@@ -204,7 +204,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
 
             writeln!(self.writer, "<div class=\"content\">")?;
-            crate::render_pre_code(&para.content, language, self, &subs)?;
+            crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
         }

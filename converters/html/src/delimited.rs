@@ -485,7 +485,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             baseline_subs(true)
         };
 
-        crate::render_pre_code(&processed_inlines, language, self, &subs)
+        crate::render_pre_code(&processed_inlines, metadata, language, self, &subs)
     }
 
     fn render_listing_block(

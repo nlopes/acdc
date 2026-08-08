@@ -13,8 +13,8 @@ use acdc_converters_core::{
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
-    AttributeValue, Document, DocumentAttributes, IndexTermKind, InlineNode, Reference,
-    Substitution, TocEntry, strip_quotes,
+    AttributeValue, BlockMetadata, Document, DocumentAttributes, IndexTermKind, InlineNode,
+    Reference, Substitution, TocEntry, strip_quotes,
 };
 
 mod admonition;
@@ -892,11 +892,11 @@ fn apply_attribute_subs<'a>(
 
 /// Render a `<pre>` (and optional `<code>`) element for listing/source content.
 ///
-/// When the `highlighting` feature is enabled and a source-highlighter is set,
-/// syntax highlighting is applied for the given language. Otherwise the inlines
-/// are visited directly.
+/// With an active source highlighter, this applies syntax and source-line
+/// decoration. Otherwise it visits the inlines directly.
 pub(crate) fn render_pre_code<W: std::io::Write>(
     inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
     language: Option<&str>,
     visitor: &mut HtmlVisitor<'_, '_, W>,
     subs: &[Substitution],
@@ -908,39 +908,52 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         .document_attributes
         .get("source-highlighter")
         .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+    let nowrap = metadata.options.contains(&"nowrap");
+    let nowrap_class = if nowrap { " nowrap" } else { "" };
 
     #[cfg(feature = "highlighting")]
-    if let Some(lang) = language {
-        if highlighting_enabled {
+    if highlighting_enabled {
+        let lang = language.unwrap_or("text");
+        if let Some(language) = language {
             write!(
                 visitor.writer,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
             )?;
-            let processor = visitor.processor.clone();
-            let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
-            let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
-            let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
-            // Split-borrow writer and diagnostics so highlight_code can have
-            // both without overlapping &mut self calls on the visitor.
-            syntax::highlight_code(
-                &mut visitor.writer,
-                highlight_inlines,
-                lang,
-                &theme_name,
-                mode,
-                Some(&mut visitor.diagnostics),
-            )?;
-            writeln!(visitor.writer, "</code></pre>")?;
         } else {
             write!(
                 visitor.writer,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                "<pre class=\"highlight{nowrap_class}\"><code>"
             )?;
-            visitor.visit_inline_nodes(inlines)?;
-            writeln!(visitor.writer, "</code></pre>")?;
         }
+        let processor = visitor.processor.clone();
+        let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
+        let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
+        let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
+        // Split-borrow writer and diagnostics so highlight_code can have both
+        // without overlapping &mut self calls on the visitor.
+        syntax::highlight_code(
+            &mut visitor.writer,
+            highlight_inlines,
+            metadata,
+            lang,
+            &theme_name,
+            mode,
+            Some(&mut visitor.diagnostics),
+        )?;
+        writeln!(visitor.writer, "</code></pre>")?;
+    } else if let Some(lang) = language {
+        write!(
+            visitor.writer,
+            "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+        )?;
+        visitor.visit_inline_nodes(inlines)?;
+        writeln!(visitor.writer, "</code></pre>")?;
     } else {
-        write!(visitor.writer, "<pre>")?;
+        if nowrap {
+            write!(visitor.writer, "<pre class=\"nowrap\">")?;
+        } else {
+            write!(visitor.writer, "<pre>")?;
+        }
         visitor.visit_inline_nodes(inlines)?;
         writeln!(visitor.writer, "</pre>")?;
     }
@@ -951,12 +964,16 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         if let Some(lang) = language {
             write!(
                 visitor.writer,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
             visitor.visit_inline_nodes(inlines)?;
             writeln!(visitor.writer, "</code></pre>")?;
         } else {
-            write!(visitor.writer, "<pre>")?;
+            if nowrap {
+                write!(visitor.writer, "<pre class=\"nowrap\">")?;
+            } else {
+                write!(visitor.writer, "<pre>")?;
+            }
             visitor.visit_inline_nodes(inlines)?;
             writeln!(visitor.writer, "</pre>")?;
         }

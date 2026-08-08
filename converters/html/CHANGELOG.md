@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- With source highlighting enabled, source blocks honor `linenums`, `start`,
+  and `highlight`, including source paragraphs and blocks without a language.
+  `%nowrap` and an unset `prewrap` prevent HTML source lines from wrapping.
 - HTML conversion attributes now identify the standard backend as `html5`
   (`basebackend=html`, `filetype=html`, `outfilesuffix=.html`,
   `htmlsyntax=html`) and the semantic variant as `html5s`, including the

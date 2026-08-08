@@ -16,12 +16,15 @@
 //! HTML (`<i class="conum" data-value="N"></i><b>(N)</b>`) after highlighting.
 
 #[cfg(feature = "highlighting")]
-use std::{collections::HashMap, io::Write};
+use std::{collections::HashMap, fmt::Write as _, io::Write};
 
 #[cfg(feature = "highlighting")]
-use acdc_converters_core::Diagnostics;
+use acdc_converters_core::{
+    Diagnostics,
+    code::{SourceLineOptions, source_line_count},
+};
 #[cfg(feature = "highlighting")]
-use acdc_parser::InlineNode;
+use acdc_parser::{BlockMetadata, InlineNode};
 
 #[cfg(feature = "highlighting")]
 use crate::Error;
@@ -52,11 +55,10 @@ pub(crate) enum HighlightMode {
 const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
     syntect::html::ClassStyle::SpacedPrefixed { prefix: "syntax-" };
 
-/// Highlight code and write HTML output.
+/// Highlight code, apply source-line decoration, and write HTML output.
 ///
-/// When the `highlighting` feature is enabled, this uses syntect for syntax
-/// highlighting. The `mode` parameter controls whether inline styles or CSS
-/// classes are emitted. Otherwise, it outputs plain escaped text.
+/// The `mode` parameter controls whether inline styles or CSS classes are
+/// emitted.
 ///
 /// Callout references are preserved and rendered as proper HTML elements
 /// after the highlighted code on each line.
@@ -64,6 +66,7 @@ const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
 pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
+    metadata: &BlockMetadata<'_>,
     language: &str,
     theme_name: &str,
     mode: HighlightMode,
@@ -77,9 +80,28 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .or_else(|| syntax_set.find_syntax_by_extension(language))
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
+    let options = SourceLineOptions::resolve(metadata, &code);
+    if options.is_empty() {
+        return match mode {
+            HighlightMode::Inline => highlight_code_inline(
+                writer,
+                &code,
+                &callouts,
+                inlines,
+                &syntax_set,
+                syntax,
+                theme_name,
+            ),
+            HighlightMode::Class => {
+                highlight_code_classed(writer, &code, &callouts, &syntax_set, syntax)
+            }
+        };
+    }
+
+    let mut highlighted = Vec::new();
     match mode {
         HighlightMode::Inline => highlight_code_inline(
-            writer,
+            &mut highlighted,
             &code,
             &callouts,
             inlines,
@@ -88,9 +110,122 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
             theme_name,
         ),
         HighlightMode::Class => {
-            highlight_code_classed(writer, &code, &callouts, &syntax_set, syntax)
+            highlight_code_classed(&mut highlighted, &code, &callouts, &syntax_set, syntax)
+        }
+    }?;
+
+    let highlighted = close_spans_at_line_boundaries(&String::from_utf8_lossy(&highlighted));
+    let decorated = decorate_source_lines(&highlighted, &code, &options, theme_name);
+    writer.write_all(decorated.as_bytes())?;
+    Ok(())
+}
+
+#[cfg(feature = "highlighting")]
+fn close_spans_at_line_boundaries(html: &str) -> String {
+    // Syntect can keep a colour span open across lines. Close and reopen it so
+    // the later line wrapper never crosses a span boundary.
+    let mut output = String::with_capacity(html.len());
+    let mut open_spans = Vec::new();
+    let mut remaining = html;
+
+    while !remaining.is_empty() {
+        if remaining.starts_with("<span")
+            && let Some(end) = remaining.find('>')
+        {
+            let (tag, rest) = remaining.split_at(end + 1);
+            output.push_str(tag);
+            open_spans.push(tag);
+            remaining = rest;
+        } else if let Some(rest) = remaining.strip_prefix("</span>") {
+            output.push_str("</span>");
+            open_spans.pop();
+            remaining = rest;
+        } else if let Some(rest) = remaining.strip_prefix('\n') {
+            for _ in open_spans.iter().rev() {
+                output.push_str("</span>");
+            }
+            output.push('\n');
+            for tag in &open_spans {
+                output.push_str(tag);
+            }
+            remaining = rest;
+        } else {
+            let Some(character) = remaining.chars().next() else {
+                break;
+            };
+            output.push(character);
+            remaining = &remaining[character.len_utf8()..];
         }
     }
+
+    output
+}
+
+#[cfg(feature = "highlighting")]
+fn decorate_source_lines(
+    html: &str,
+    source: &str,
+    options: &SourceLineOptions,
+    theme_name: &str,
+) -> String {
+    if options.is_empty() {
+        return html.to_owned();
+    }
+
+    let highlight_colour = source_highlight_colour(theme_name);
+    let mut decorated = String::with_capacity(html.len() + options.highlighted_lines.len() * 96);
+    for (index, line) in html.split_inclusive('\n').enumerate() {
+        if options
+            .highlighted_lines
+            .binary_search(&(index + 1))
+            .is_ok()
+        {
+            let _ = write!(
+                decorated,
+                "<span class=\"hll\" style=\"display:block;background-color:{highlight_colour}\">{line}</span>"
+            );
+        } else {
+            decorated.push_str(line);
+        }
+    }
+
+    let Some(start) = options.line_number_start else {
+        return decorated;
+    };
+    let line_count = source_line_count(source);
+    let mut numbers = String::new();
+    for offset in 0..line_count {
+        if offset > 0 {
+            numbers.push('\n');
+        }
+        let _ = write!(numbers, "{}", start.saturating_add(offset));
+    }
+    format!(
+        "<table class=\"linenotable\"><tbody><tr><td class=\"linenos\"><pre class=\"lineno\">{numbers}</pre></td><td class=\"code\"><pre>{decorated}</pre></td></tr></tbody></table>"
+    )
+}
+
+#[cfg(feature = "highlighting")]
+fn source_highlight_colour(theme_name: &str) -> String {
+    use syntect::highlighting::{Color, ThemeSet};
+
+    let colour = ThemeSet::load_defaults()
+        .themes
+        .get(theme_name)
+        .and_then(|theme| theme.settings.line_highlight)
+        .unwrap_or(Color {
+            r: 255,
+            g: 255,
+            b: 204,
+            a: 255,
+        });
+    format!(
+        "rgba({},{},{},{:.3})",
+        colour.r,
+        colour.g,
+        colour.b,
+        f64::from(colour.a) / 255.0
+    )
 }
 
 /// Inline-style highlighting (existing behaviour).
@@ -421,6 +556,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
+            &BlockMetadata::new(),
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Inline,
@@ -454,6 +590,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
+            &BlockMetadata::new(),
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Inline,
@@ -479,6 +616,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
+            &BlockMetadata::new(),
             "unknown_lang_xyz",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Inline,
@@ -506,6 +644,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
+            &BlockMetadata::new(),
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Class,
@@ -544,6 +683,7 @@ mod tests {
         highlight_code(
             &mut buffer,
             &inlines,
+            &BlockMetadata::new(),
             "rust",
             DEFAULT_THEME_LIGHT,
             HighlightMode::Class,
@@ -584,5 +724,31 @@ mod tests {
     fn test_highlight_css_unknown_theme_errors() {
         let result = highlight_css("nonexistent-theme");
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn decorates_highlighted_lines_and_custom_line_numbers() {
+        let options = SourceLineOptions {
+            line_number_start: Some(10),
+            highlighted_lines: vec![2],
+        };
+        let html = decorate_source_lines(
+            "<span>one</span>\n<span>two</span>\n<span>three</span>",
+            "one\ntwo\nthree",
+            &options,
+            DEFAULT_THEME_LIGHT,
+        );
+
+        assert!(html.contains("<pre class=\"lineno\">10\n11\n12</pre>"));
+        assert!(html.contains("class=\"hll\""));
+        assert!(html.contains("><span>two</span>\n</span>"));
+    }
+
+    #[test]
+    fn closes_and_reopens_highlight_spans_at_line_boundaries() {
+        assert_eq!(
+            close_spans_at_line_boundaries("<span class=\"syntax\">one\ntwo</span>"),
+            "<span class=\"syntax\">one</span>\n<span class=\"syntax\">two</span>"
+        );
     }
 }
