@@ -1,8 +1,7 @@
 #set document(
-  title: "Book Authors",
-  author: ("Ada Lovelace", "Grace Hopper", "Alan Turing", ),
+  title: "Admonition title placement",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Book Authors]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Admonition title placement]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -49,15 +48,50 @@
 #set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
 #let tableheader(body) = text(weight: 700, body)
 
-#page(header: none, footer: none)[
-#v(30%)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Book Authors")]
-#v(0.4em)
-#text("Ada Lovelace, Grace Hopper, Alan Turing")
+#text(size: 22pt, weight: "bold")[#text("Admonition title placement")]
 ]
-#counter(page).update(0)
+#v(1em)
+
+#callout("note")[
+#admonitiontitle[#text("Simple title")]
+#text("Simple body.")
+
 ]
 
-#text("Book body.")
+#callout("note")[
+#admonitiontitle[#text("Compound title")]
+#text("First compound paragraph.")
 
+#text("Second compound paragraph.")
+
+]
+
+#callout("tip")[
+#admonitiontitle[#text("Formatted ")#strong[#text("title")]#text(" with ")#raw("code")]
+#text("Formatted body.")
+
+]
+
+#callout("important")[
+#admonitiontitle[#text("Important title")]
+#text("Important body.")
+
+]
+
+#callout("caution")[
+#admonitiontitle[#text("Caution title")]
+#text("Caution body.")
+
+]
+
+#callout("warning")[
+#admonitiontitle[#text("Warning title")]
+#text("Warning body.")
+
+]
+
+#callout("note")[
+#text("Untitled body.")
+
+]

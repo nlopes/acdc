@@ -1,0 +1,26 @@
+= Admonition title placement
+
+.Simple title
+NOTE: Simple body.
+
+.Compound title
+[NOTE]
+====
+First compound paragraph.
+
+Second compound paragraph.
+====
+
+.Formatted *title* with `code`
+TIP: Formatted body.
+
+.Important title
+IMPORTANT: Important body.
+
+.Caution title
+CAUTION: Caution body.
+
+.Warning title
+WARNING: Warning body.
+
+NOTE: Untitled body.

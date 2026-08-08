@@ -141,3 +141,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Document blocks use a 12 pt vertical margin by default, including blocks in
   open containers, list continuations, and AsciiDoc table cells. List items and
   headings keep their own spacing, matching Asciidoctor PDF.
+- Admonitions use text labels and a vertical divider, with titles above the body
+  in the content column, matching Asciidoctor PDF.

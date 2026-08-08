@@ -351,10 +351,14 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             AdmonitionVariant::Caution => "caution",
             AdmonitionVariant::Warning => "warning",
         };
-        self.write_block_title(&admon.title)?;
         self.writer.raw("#callout(");
         self.writer.string_literal(kind);
         self.writer.raw(")[\n");
+        if !admon.title.is_empty() {
+            self.writer.raw("#admonitiontitle[");
+            self.write_title(&admon.title)?;
+            self.writer.raw("]\n");
+        }
         match admon.blocks.as_slice() {
             [Block::Paragraph(para)] if para.metadata == admon.metadata => {
                 // The parser copies a simple admonition's metadata to its

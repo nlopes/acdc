@@ -221,6 +221,12 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
         style = caption_style,
         color = color(caption_color),
     );
+    let _ = writeln!(
+        out,
+        "#let admonitiontitle(body) = {{\n  block(width: 100%, above: 0pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}",
+        align = caption_align,
+        inside = caption.margin_inside_pt,
+    );
 
     let _ = writeln!(
         out,
@@ -299,34 +305,17 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     let spacing = &theme.spacing;
 
     write_block_helpers(out, theme);
-    // Callouts are drawn as an icon badge beside the body, laid out in two
-    // columns so the content is indented past the icon. Each kind gets a glyph
-    // in the accent colour; `success` draws a check, the rest use a letter.
+    // The label is centred against the complete body. The stroked content
+    // cell makes the divider span titles and multi-paragraph admonitions.
     let _ = writeln!(
         out,
-        "#let _cbadge(body) = box(circle(radius: 0.6em, fill: {title}, inset: 0pt, align(center + horizon, body)))",
-        title = color(&palette.callout_title),
-    );
-    out.push_str(
-        "#let _cico(glyph) = _cbadge(text(fill: white, weight: 700, size: 0.82em)[#glyph])\n",
-    );
-    out.push_str(
-        "#let _ccheck = _cbadge(box(width: 0.62em, height: 0.62em, place(curve(stroke: (paint: white, thickness: 1.5pt, cap: \"round\", join: \"round\"), curve.move((0em, 0.34em)), curve.line((0.21em, 0.55em)), curve.line((0.58em, 0.08em))))))\n",
-    );
-    out.push_str(concat!(
-        "#let _cicon(kind) = (\"note\": _cico(\"i\"), \"tip\": _cico(\"i\"), ",
-        "\"important\": _cico(\"!\"), \"warning\": _cico(\"!\"), ",
-        "\"caution\": _cico(\"!\"), \"success\": _ccheck).at(kind, default: _cico(\"i\"))\n",
-    ));
-    let _ = writeln!(
-        out,
-        "#let callout(kind, body) = pad(left: {indent}pt, block(width: 100%, fill: {bg}, radius: {radius}pt, inset: (x: {px}pt, y: {py}pt), grid(columns: (auto, 1fr), column-gutter: {gutter}pt, align: top, _cicon(kind), body)))",
+        "#let callout(kind, body) = pad(left: {indent}pt, block(width: 100%, inset: (x: {pad}pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: {pad}pt, align: (x, _) => if x == 0 {{ center + horizon }} else {{ left + top }}, text(fill: {title}, weight: {weight}, upper(kind)), grid.cell(stroke: (left: {border}pt + {rule}), inset: (left: {pad}pt), body))))",
         indent = spacing.callout_indent_pt,
-        bg = color(&palette.callout_bg),
-        radius = spacing.callout_radius_pt,
-        px = spacing.callout_pad_x_pt,
-        py = spacing.callout_pad_y_pt,
-        gutter = spacing.callout_pad_x_pt * 0.8,
+        pad = spacing.callout_pad_x_pt,
+        title = color(&palette.callout_title),
+        weight = typography.strong_weight,
+        border = spacing.border_pt,
+        rule = color(&palette.border),
     );
     let _ = writeln!(
         out,
@@ -619,7 +608,32 @@ mod tests {
     }
 
     #[test]
-    fn block_title_helper_uses_caption_theme() {
+    fn callout_helper_uses_text_labels_and_a_divider() {
+        let mut theme = Theme::default();
+        theme.palette.callout_title = "#123456".to_owned();
+        theme.palette.border = "#abcdef".to_owned();
+        theme.typography.strong_weight = 600;
+        theme.spacing.callout_indent_pt = 3.0;
+        theme.spacing.callout_pad_x_pt = 9.0;
+        theme.spacing.border_pt = 0.5;
+        let mut out = String::new();
+
+        write_helpers(&mut out, &theme);
+
+        assert!(out.contains(concat!(
+            "#let callout(kind, body) = pad(left: 3pt, block(width: 100%, ",
+            "inset: (x: 9pt, y: 4pt), grid(columns: (auto, 1fr), ",
+            "column-gutter: 9pt, align: (x, _) => if x == 0 ",
+            "{ center + horizon } else { left + top }, ",
+            "text(fill: rgb(\"#123456\"), weight: 600, upper(kind)), ",
+            "grid.cell(stroke: (left: 0.5pt + rgb(\"#abcdef\")), ",
+            "inset: (left: 9pt), body))))",
+        )));
+        assert!(!out.contains("_cicon"));
+    }
+
+    #[test]
+    fn block_title_helpers_use_caption_theme() {
         let mut theme = Theme::default();
         theme.caption.align = CaptionAlignment::Center;
         theme.caption.font_color = Some("#123456".to_owned());
@@ -641,6 +655,13 @@ mod tests {
             "}\n",
             "#let blocktitle(body) = {\n",
             "  block(width: 100%, above: 22.15pt, below: 0pt, ",
+            "align(center, captiontext(body)))\n",
+            "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "}",
+        )));
+        assert!(out.contains(concat!(
+            "#let admonitiontitle(body) = {\n",
+            "  block(width: 100%, above: 0pt, below: 0pt, ",
             "align(center, captiontext(body)))\n",
             "  block(height: 8pt, above: 0pt, below: 0pt)\n",
             "}",
