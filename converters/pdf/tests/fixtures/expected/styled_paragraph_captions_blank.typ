@@ -69,4 +69,3 @@
 
 #blocktitle[#text(" 2. ")#text("Source block")]
 #raw(block: true, "let block = 1;")
-

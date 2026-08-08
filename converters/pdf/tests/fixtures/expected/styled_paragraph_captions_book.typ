@@ -80,4 +80,3 @@
 
 #blocktitle[#text("Listing 2. ")#text("Second source")]
 #raw(block: true, "let second = 2;")
-

@@ -62,4 +62,3 @@
 ]
 
 #text("Book revision body.")
-

@@ -259,7 +259,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 }
                 DelimitedBlockType::DelimitedListing(nodes)
                 | DelimitedBlockType::DelimitedLiteral(nodes) => {
-                    self.write_verbatim_block(nodes);
+                    self.write_verbatim_block(nodes, &block.metadata);
                     Ok(())
                 }
                 DelimitedBlockType::DelimitedPass(nodes) => {

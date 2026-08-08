@@ -98,4 +98,3 @@
 
 #blocktitle[#text("Listing 5. ")#text("Listing after custom caption")]
 #raw(block: true, "listing after custom caption")
-

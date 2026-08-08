@@ -119,4 +119,3 @@
 
 #blocktitle[#text("Multiple surrounding spaces")]
 #text("alpha  —  beta")
-

@@ -1,7 +1,7 @@
 #set document(
-  title: "Title",
+  title: "Source languages",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Title]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Source languages]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -49,31 +49,27 @@
 #let tableheader(body) = text(weight: 700, body)
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Title")]
+#text(size: 22pt, weight: "bold")[#text("Source languages")]
 ]
 #v(1em)
 
-#heading(outlined: false, bookmarked: false)[#text("Contents")]
-#let _acdc_toc_entry(target, depth, body) = context {
-  link(
-    target,
-    pad(
-      left: depth * 1.25em,
-      grid(
-        columns: (auto, 1fr, auto),
-        column-gutter: 0.5em,
-        body,
-        repeat[.],
-        str(counter(page).at(target).first()),
-      ),
-    ),
-  )
-}
-#_acdc_toc_entry(<id-5f73656374696f6e>, 0, [#text("Section")])
-#pagebreak()
+#blocktitle[#text("Positional language")]
+#raw(block: true, lang: "rust", "fn main() {\n    println!(\"position\");\n}")
 
-#text("Intro.")
+#blocktitle[#text("Named language")]
+#raw(block: true, lang: "python", "print(\"named\")")
 
-#heading(level: 1)[#text("Section")] <id-5f73656374696f6e>
+#blocktitle[#text("Missing language")]
+#raw(block: true, "plain source")
 
-#heading(level: 2)[#text("Child")] <id-5f6368696c64>
+#blocktitle[#text("Empty language slot")]
+#raw(block: true, "empty language slot")
+
+#blocktitle[#text("Unknown language")]
+#raw(block: true, "unknown_language()")
+
+#blocktitle[#text("Language-like attribute on a listing")]
+#raw(block: true, "puts \"listing\"")
+
+#blocktitle[#text("Source paragraph")]
+#raw(block: true, lang: "ruby", "puts \"paragraph\"")

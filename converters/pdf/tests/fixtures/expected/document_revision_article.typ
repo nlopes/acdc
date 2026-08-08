@@ -55,4 +55,3 @@
 #v(1em)
 
 #text("Article revision body.")
-

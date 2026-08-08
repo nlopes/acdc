@@ -59,4 +59,3 @@
 ]
 
 #text("Custom version label body.")
-

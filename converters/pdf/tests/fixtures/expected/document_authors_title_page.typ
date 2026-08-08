@@ -60,4 +60,3 @@
 ]
 
 #text("Title page body.")
-

@@ -79,4 +79,3 @@
 #heading(level: 1)[#text("Chapter 3. ")#text("Third Chapter")] <id-5f74686972645f63686170746572>
 
 #text("Third chapter body.")
-

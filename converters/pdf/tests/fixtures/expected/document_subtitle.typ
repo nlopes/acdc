@@ -59,4 +59,3 @@
 ]
 
 #text("Subtitle comparison body.")
-

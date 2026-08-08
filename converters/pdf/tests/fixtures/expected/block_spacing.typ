@@ -112,4 +112,3 @@
 #heading(level: 1)[#text("Second section")] <id-5f7365636f6e645f73656374696f6e>
 
 #text("Second section paragraph.")
-

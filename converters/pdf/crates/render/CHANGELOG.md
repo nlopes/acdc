@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Consumers can identify source-language names and tags supported by Typst.
 - Initial Typst-backed PDF renderer with bundled fallback fonts, optional
   runtime font directories, on-demand resolved image embedding, and non-fatal
   Typst warning reporting.

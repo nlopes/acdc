@@ -103,4 +103,3 @@
 #heading(level: 2)[#text("2.1. ")#text("Second Topic")] <id-5f7365636f6e645f746f706963>
 
 #text("Second chapter body.")
-

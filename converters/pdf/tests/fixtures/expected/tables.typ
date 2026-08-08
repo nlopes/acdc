@@ -91,4 +91,3 @@
 ], table.cell(x: 0, y: 3, colspan: 4)[#text("Full width footer")
 
 ])
-

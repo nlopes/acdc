@@ -59,4 +59,3 @@
 #v(1em)
 
 #text("Full metadata body.")
-

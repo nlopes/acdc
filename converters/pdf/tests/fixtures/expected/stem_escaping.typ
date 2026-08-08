@@ -56,4 +56,3 @@
 #text("#panic() $ x \\ path")
 
 #block[#text("#panic() $ [y] \\\\ path")]
-

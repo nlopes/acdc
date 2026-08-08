@@ -126,4 +126,3 @@
 
 #metadata(none) <id-64697363726574652d6964>
 #heading(level: 2, outlined: false)[#text("Discrete")]
-

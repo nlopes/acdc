@@ -76,4 +76,3 @@
   - #text("Item ")#counter(footnote).update(6)#footnote[#text("List note.")] <id-666f6f746e6f74653a6c697374>
 
 #text("References ")#footnote(<id-666f6f746e6f74653a7469746c65>)#text(", ")#footnote(<id-666f6f746e6f74653a666f726d6174746564>)#text(", ")#footnote(<id-666f6f746e6f74653a63656c6c>)#text(", and ")#footnote(<id-666f6f746e6f74653a6c697374>)#text(".")
-

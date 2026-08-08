@@ -54,4 +54,3 @@
 #v(1em)
 
 #text("This document uses the English fallback.")
-

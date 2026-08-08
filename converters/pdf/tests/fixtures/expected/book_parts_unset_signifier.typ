@@ -61,4 +61,3 @@
 #heading(level: 1)[#text("I: ")#text("Foundations")] <id-5f666f756e646174696f6e73>
 
 #text("Part body.")
-

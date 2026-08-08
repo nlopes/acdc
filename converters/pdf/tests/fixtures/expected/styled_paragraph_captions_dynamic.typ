@@ -92,4 +92,3 @@
 
 #blocktitle[#text(" 4. ")#text("Blank listing")]
 #raw(block: true, "let blank = 2;")
-

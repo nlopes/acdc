@@ -126,4 +126,3 @@
 #text("The abstract body is aligned to the right.")
 ]
 ]
-

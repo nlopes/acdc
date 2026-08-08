@@ -56,4 +56,3 @@
 #heading(level: 1)[#text("1. ")#text("First Section")] <id-5f66697273745f73656374696f6e>
 
 #text("Section body.")
-

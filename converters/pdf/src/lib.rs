@@ -212,7 +212,10 @@ impl Processor<'_> {
         );
         preamble::write(&mut visitor.writer, theme, emit_options);
         visitor.visit_document(doc)?;
-        Ok(visitor.writer.into_string())
+        let mut source = visitor.writer.into_string();
+        source.truncate(source.trim_end_matches('\n').len());
+        source.push('\n');
+        Ok(source)
     }
 
     fn load_theme(&self) -> Result<Theme, Error> {
@@ -1170,6 +1173,21 @@ mod tests {
             return Err(std::io::Error::other("invalid theme unexpectedly accepted").into());
         };
         assert_eq!(path, theme_file.path());
+        Ok(())
+    }
+
+    #[test]
+    fn emitted_typst_ends_with_one_newline() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.ends_with('\n'));
+        assert!(!typst.ends_with("\n\n"));
         Ok(())
     }
 

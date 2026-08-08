@@ -77,4 +77,3 @@
 #heading(level: 1)[#text("Chapter 2. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
 
 #text("Second chapter body.")
-

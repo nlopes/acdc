@@ -10,11 +10,27 @@ mod error;
 mod fonts;
 mod resolver;
 
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf, sync::LazyLock};
 
 use acdc_pdf_images::ImageMap;
 
 pub use error::Error;
+
+static RAW_LANGUAGES: LazyLock<HashSet<String>> = LazyLock::new(|| {
+    typst::text::RawElem::languages()
+        .into_iter()
+        .flat_map(|(name, extensions)| std::iter::once(name).chain(extensions))
+        .map(str::to_ascii_lowercase)
+        .collect()
+});
+
+/// Whether Typst has a bundled syntax definition for a language name or tag.
+#[must_use]
+pub fn supports_raw_language(language: &str) -> bool {
+    RAW_LANGUAGES.contains(language)
+        || language.bytes().any(|byte| byte.is_ascii_uppercase())
+            && RAW_LANGUAGES.contains(&language.to_ascii_lowercase())
+}
 
 /// Options controlling how markup is compiled to a PDF.
 #[derive(Debug, Clone, Default)]
@@ -103,6 +119,14 @@ mod tests {
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         assert!(rendered.warnings.is_empty(), "{:?}", rendered.warnings);
         Ok(())
+    }
+
+    #[test]
+    fn identifies_typst_raw_languages_by_name_and_tag() {
+        assert!(supports_raw_language("Rust"));
+        assert!(supports_raw_language("rust"));
+        assert!(supports_raw_language("rs"));
+        assert!(!supports_raw_language("definitely-unknown"));
     }
 
     #[test]

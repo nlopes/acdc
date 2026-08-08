@@ -3,7 +3,9 @@ use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, rc::Rc};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
-    Diagnostics, Doctype, InlineTextTransform, inlines_to_string,
+    Diagnostics, Doctype, InlineTextTransform,
+    code::detect_language,
+    inlines_to_string,
     section::{
         AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
         effective_section_level,
@@ -623,7 +625,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_attribution(&para.metadata)
             }
             Some("literal" | "listing" | "source") => {
-                self.write_verbatim_block(&para.content);
+                self.write_verbatim_block(&para.content, &para.metadata);
                 Ok(())
             }
             Some("example") => self.write_aligned_paragraph_body(&para.metadata, |visitor| {
@@ -743,10 +745,32 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_verbatim_block(&mut self, nodes: &[InlineNode<'_>]) {
-        self.writer.raw("#raw(block: true, ");
+    pub(crate) fn write_verbatim_block(
+        &mut self,
+        nodes: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
+    ) {
+        self.writer.raw("#raw(block: true");
+        if let Some(language) = self.source_language(metadata) {
+            self.writer.raw(", lang: ");
+            self.writer.string_literal(language);
+        }
+        self.writer.raw(", ");
         self.write_verbatim_string(nodes);
         self.writer.raw(")\n\n");
+    }
+
+    fn source_language<'metadata>(
+        &self,
+        metadata: &'metadata BlockMetadata<'_>,
+    ) -> Option<&'metadata str> {
+        self.processor
+            .document_attributes()
+            .get("source-highlighter")
+            .is_some_and(|value| !matches!(value, AttributeValue::Bool(false)))
+            .then(|| detect_language(metadata))
+            .flatten()
+            .filter(|language| acdc_pdf_render::supports_raw_language(language))
     }
 
     /// Write passthrough content as escaped, unframed monospace text.

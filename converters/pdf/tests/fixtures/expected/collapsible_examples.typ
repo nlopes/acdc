@@ -132,4 +132,3 @@
 #text("Normal example after the disclosures.")
 
 ]
-

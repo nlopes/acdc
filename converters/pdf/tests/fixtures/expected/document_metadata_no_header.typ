@@ -52,4 +52,3 @@
 #let tableheader(body) = text(weight: 700, body)
 
 #text("Metadata without a document header.")
-

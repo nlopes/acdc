@@ -350,4 +350,3 @@
 #raw(block: true, "puts \"styled source paragraph\"")
 
 #block[#text("sqrt(4) = 2")]
-

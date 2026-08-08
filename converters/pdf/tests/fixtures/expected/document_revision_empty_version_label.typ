@@ -59,4 +59,3 @@
 ]
 
 #text("Empty version label body.")
-

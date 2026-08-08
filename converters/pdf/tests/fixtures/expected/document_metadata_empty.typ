@@ -57,4 +57,3 @@
 #v(1em)
 
 #text("Empty metadata body.")
-

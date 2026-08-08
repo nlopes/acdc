@@ -81,4 +81,3 @@
 ]
 
 #text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(", ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]#text(", and ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]#text(".")
-

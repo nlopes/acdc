@@ -60,4 +60,3 @@
 #heading(level: 2)[#text("1.1. ")#text("Background")] <id-5f6261636b67726f756e64>
 
 #text("Article body.")
-

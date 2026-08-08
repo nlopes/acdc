@@ -60,4 +60,3 @@
 ]
 
 #text("Book body.")
-

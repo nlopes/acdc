@@ -134,4 +134,3 @@
 #pagebreak(weak: true)
 
 #heading(level: 1)[#text("Chapter 8. ")#text("Index")] <id-5f696e646578>
-

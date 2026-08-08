@@ -177,4 +177,3 @@
   - #text("List item with ")#metadata(none) <id-696e6c696e652d6c697374>#text("an anchor.")
 
 #text("See ")#link(<id-696e6c696e652d6669727374>)[#text("Inline First")]#text(", ")#link(<id-696e6c696e652d7365636f6e64>)[#text("Inline Second")]#text(", and ")#link(<id-696e6c696e652d6c697374>)[#text("Inline List")]#text(".")
-

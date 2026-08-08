@@ -109,4 +109,3 @@
 #text("A concealed index term ")#text(".")
 
 #heading(level: 1)[#text("5. ")#text("Index")] <id-5f696e646578>
-
