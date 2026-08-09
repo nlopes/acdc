@@ -88,6 +88,6 @@
 
 ], table.cell(x: 3, y: 2)[#text("Bottom 4")
 
-], table.cell(x: 0, y: 3, colspan: 4)[#text("Full width footer")
+], table.footer(repeat: false, table.cell(x: 0, y: 3, colspan: 4)[#text("Full width footer")
 
-])
+]))

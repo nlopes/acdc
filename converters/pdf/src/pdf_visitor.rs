@@ -1040,8 +1040,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         // Typst owns the merged geometry. Emit each real cell at its logical
         // position and omit the grid's horizontal/vertical span placeholders.
-        for (y, row) in grid.iter().enumerate().filter(|(_, row)| !row.is_header) {
+        for (y, row) in grid
+            .iter()
+            .enumerate()
+            .filter(|(_, row)| !row.is_header && !row.is_footer)
+        {
             self.write_table_row_cells(row, y, ", ")?;
+        }
+
+        if let Some(footer) = grid.last().filter(|row| row.is_footer) {
+            self.writer.raw(", table.footer(repeat: false, ");
+            self.write_table_row_cells(footer, grid.len() - 1, "")?;
+            self.writer.raw(")");
         }
 
         self.writer.raw(")\n\n");

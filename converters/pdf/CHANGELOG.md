@@ -158,3 +158,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   edge.
 - Source, listing, and literal blocks expand document attributes when their
   `subs` configuration enables attribute substitution.
+- Tables declared with `options=footer` retain their footer semantics in PDF
+  output and show the footer once at the end of the table.
