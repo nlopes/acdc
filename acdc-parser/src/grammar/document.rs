@@ -1815,13 +1815,20 @@ fn parse_table_block_impl<'input>(
     let mut active_rowspans: Vec<(usize, usize, usize)> = Vec::new();
 
     for (i, row) in raw_rows.iter().enumerate() {
+        let is_header_row = has_header;
         // Each raw cell produces at least one `columns` entry; duplication
         // produces more but is bounded by the table's column limit.
         let mut columns = Vec::with_capacity(row.len());
         let mut col_idx = 0; // Track current column index for column format lookup
         for cell in row {
             // Apply column format style if cell doesn't have explicit style
-            let effective_cell = if cell.style.is_none()
+            let effective_cell = if is_header_row {
+                // A semantic header row always uses normal substitutions and
+                // header presentation, regardless of column or cell styles.
+                let mut cell_without_style = cell.clone();
+                cell_without_style.style = None;
+                cell_without_style
+            } else if cell.style.is_none()
                 && let Some(col_format) = column_formats.get(col_idx)
                 && col_format.style != crate::ColumnStyle::Default
             {
@@ -1943,7 +1950,7 @@ fn parse_table_block_impl<'input>(
         }
 
         // if we have a header, we need to add the columns we have to the header
-        if has_header {
+        if is_header_row {
             header = Some(TableRow { columns });
             has_header = false;
             continue;

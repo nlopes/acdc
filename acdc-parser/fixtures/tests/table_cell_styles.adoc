@@ -1,0 +1,12 @@
+:who: Ada
+
+[cols="l",options="header,footer"]
+|===
+l|Header *bold* {who}
+
+|Column literal *bold* {who}
+d|Default override *bold* {who}
+l|Literal override *bold* {who}
+  with  spaces
+l|Footer *bold* {who}
+|===

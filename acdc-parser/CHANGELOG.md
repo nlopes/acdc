@@ -155,6 +155,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Literal table cells now keep attribute references, macros, formatting marks,
+  spaces, and line breaks as source text. Semantic header rows ignore cell and
+  column styles and continue to use normal substitutions, matching Asciidoctor.
 - Source blocks record `source-linenums-option` and `prewrap` changes at their
   source position, so converters apply line numbering and HTML wrapping only
   to the blocks that follow each change.

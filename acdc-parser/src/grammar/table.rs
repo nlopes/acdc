@@ -1,4 +1,7 @@
-use crate::{ColumnStyle, Error, TableColumn, blocks::table::ParsedCell, model::SectionLevel};
+use crate::{
+    Block, ColumnStyle, Error, InlineNode, Paragraph, TableColumn, Verbatim,
+    blocks::table::ParsedCell, model::SectionLevel,
+};
 
 use super::{ParserState, document_parser, inline_processing::adjust_and_log_parse_error};
 
@@ -9,6 +12,31 @@ pub(crate) fn parse_table_cell<'a>(
     parent_section_level: Option<SectionLevel>,
     cell: &ParsedCell,
 ) -> Result<TableColumn<'a>, Error> {
+    // Literal cells keep their source text intact. Unlike listing blocks, they
+    // do not run attribute, macro, quote, or callout substitutions.
+    if cell.style == Some(ColumnStyle::Literal) {
+        let location = if content.is_empty() {
+            state.create_location(cell_start_offset, cell_start_offset)
+        } else {
+            state.create_block_location(0, content.len(), cell_start_offset)
+        };
+        let blocks = vec![Block::Paragraph(Paragraph::new(
+            vec![InlineNode::VerbatimText(Verbatim {
+                content,
+                location: location.clone(),
+            })],
+            location,
+        ))];
+        return Ok(TableColumn::with_format(
+            blocks,
+            cell.colspan,
+            cell.rowspan,
+            cell.halign,
+            cell.valign,
+            cell.style,
+        ));
+    }
+
     // Markdown blockquotes are only parsed when cell has AsciiDoc style ('a' prefix).
     // This matches asciidoctor behavior where `> text` is only a blockquote in 'a' style cells.
     let blocks = if cell.style == Some(ColumnStyle::AsciiDoc) {
