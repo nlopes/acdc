@@ -69,7 +69,7 @@
 
 #text("A ")#strong[#text("formatted ")#counter(footnote).update(4)#footnote[#text("Formatted note.")] <id-666f6f746e6f74653a666f726d6174746564>]#text(".")
 
-#table(columns: 1, table.cell(x: 0, y: 0)[#text("Cell ")#counter(footnote).update(5)#footnote[#text("Cell note.")] <id-666f6f746e6f74653a63656c6c>
+#table(columns: (1fr), table.cell(x: 0, y: 0)[#text("Cell ")#counter(footnote).update(5)#footnote[#text("Cell note.")] <id-666f6f746e6f74653a63656c6c>
 
 ])
 

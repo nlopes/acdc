@@ -266,7 +266,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_passthrough_block(nodes);
                     Ok(())
                 }
-                DelimitedBlockType::DelimitedTable(table) => self.write_table(table),
+                DelimitedBlockType::DelimitedTable(table) => {
+                    self.write_table(table, &block.metadata)
+                }
                 DelimitedBlockType::DelimitedStem(stem) => {
                     self.write_stem_fallback(stem.content, true);
                     Ok(())

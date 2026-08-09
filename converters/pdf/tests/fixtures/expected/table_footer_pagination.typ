@@ -54,7 +54,7 @@
 #v(1em)
 
 #blocktitle[#text("Long footer")]
-#table(columns: 2, table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Item")
+#table(columns: (1fr, 1fr), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Item")
 
 ]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
 

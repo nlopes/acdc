@@ -160,3 +160,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `subs` configuration enables attribute substitution.
 - Tables declared with `options=footer` retain their footer semantics in PDF
   output and show the footer once at the end of the table.
+- Table columns now follow proportional, percentage, and automatic `cols`
+  widths. Ordinary tables fill the available width; `%autowidth` tables keep
+  content-sized columns, matching `asciidoctor-pdf`.

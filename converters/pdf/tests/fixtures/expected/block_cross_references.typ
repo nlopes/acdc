@@ -117,7 +117,7 @@
 
 #metadata(none) <id-7461626c652d6964>
 #blocktitle[#text("Table ")#strong[#text("Title")]]
-#table(columns: 1, table.cell(x: 0, y: 0)[#text("Cell")
+#table(columns: (1fr), table.cell(x: 0, y: 0)[#text("Cell")
 
 ])
 

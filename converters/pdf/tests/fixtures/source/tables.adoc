@@ -21,3 +21,44 @@
 | Bottom 3 | Bottom 4
 4+| Full width footer
 |===
+
+.Inferred equal widths
+|===
+|one |two |three
+|===
+
+.Proportional widths
+[cols="1,3"]
+|===
+|one |three
+|===
+
+.Percentage widths
+[cols="25%,75%"]
+|===
+|twenty-five |seventy-five
+|===
+
+.Mixed numeric and percentage widths
+[cols="1,25%"]
+|===
+|one |twenty-five
+|===
+
+.Automatic widths
+[cols="2*~"]
+|===
+|one |two
+|===
+
+.Automatic width with fixed widths
+[cols="~,20,30"]
+|===
+|fifty |twenty |thirty
+|===
+
+.Content-sized table
+[%autowidth,cols="1,3"]
+|===
+|one |three
+|===

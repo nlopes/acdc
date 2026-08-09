@@ -54,7 +54,7 @@
 #v(1em)
 
 #blocktitle[#text("Declared header")]
-#table(columns: 2, table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
+#table(columns: (1fr, 1fr), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
 
 ]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
 
@@ -65,14 +65,14 @@
 ])
 
 #blocktitle[#text("Body only")]
-#table(columns: 2, table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
 
 ])
 
 #blocktitle[#text("Spans")]
-#table(columns: 4, table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
+#table(columns: (1fr, 1fr, 1fr, 1fr), table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
 
 ]], table.cell(x: 2, y: 0)[#tableheader[#text("H3")
 
@@ -91,3 +91,56 @@
 ], table.footer(repeat: false, table.cell(x: 0, y: 3, colspan: 4)[#text("Full width footer")
 
 ]))
+
+#blocktitle[#text("Inferred equal widths")]
+#table(columns: (1fr, 1fr, 1fr), table.cell(x: 0, y: 0)[#text("one")
+
+], table.cell(x: 1, y: 0)[#text("two")
+
+], table.cell(x: 2, y: 0)[#text("three")
+
+])
+
+#blocktitle[#text("Proportional widths")]
+#table(columns: (1fr, 3fr), table.cell(x: 0, y: 0)[#text("one")
+
+], table.cell(x: 1, y: 0)[#text("three")
+
+])
+
+#blocktitle[#text("Percentage widths")]
+#table(columns: (25fr, 75fr), table.cell(x: 0, y: 0)[#text("twenty-five")
+
+], table.cell(x: 1, y: 0)[#text("seventy-five")
+
+])
+
+#blocktitle[#text("Mixed numeric and percentage widths")]
+#table(columns: (1fr, 25fr), table.cell(x: 0, y: 0)[#text("one")
+
+], table.cell(x: 1, y: 0)[#text("twenty-five")
+
+])
+
+#blocktitle[#text("Automatic widths")]
+#table(columns: (1fr, 1fr), table.cell(x: 0, y: 0)[#text("one")
+
+], table.cell(x: 1, y: 0)[#text("two")
+
+])
+
+#blocktitle[#text("Automatic width with fixed widths")]
+#table(columns: (1fr, 20%, 30%), table.cell(x: 0, y: 0)[#text("fifty")
+
+], table.cell(x: 1, y: 0)[#text("twenty")
+
+], table.cell(x: 2, y: 0)[#text("thirty")
+
+])
+
+#blocktitle[#text("Content-sized table")]
+#table(columns: 2, table.cell(x: 0, y: 0)[#text("one")
+
+], table.cell(x: 1, y: 0)[#text("three")
+
+])

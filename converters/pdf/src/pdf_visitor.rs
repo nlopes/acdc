@@ -17,9 +17,9 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, CrossReference, Image,
-    IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source,
-    Table, TableColumn, TableOfContents, Title, TocEntry,
+    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnWidth,
+    CrossReference, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph, Section,
+    SectionKind, Source, Table, TableColumn, TableOfContents, Title, TocEntry,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{Heading, PageBreakBefore, Palette, PartBreakAfter};
@@ -1027,9 +1027,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_table(&mut self, table: &Table<'_>) -> Result<(), Error> {
+    pub(crate) fn write_table(
+        &mut self,
+        table: &Table<'_>,
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
         let column_count = determine_column_count(table);
-        let _ = write!(self.writer, "#table(columns: {column_count}");
+        if metadata.options.contains(&"autowidth") {
+            let _ = write!(self.writer, "#table(columns: {column_count}");
+        } else {
+            let tracks = table_column_tracks(table, column_count);
+            let _ = write!(self.writer, "#table(columns: {tracks}");
+        }
 
         let grid = build_grid(table, column_count);
         if let Some(header) = grid.first().filter(|row| row.is_header) {
@@ -1271,6 +1280,55 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("]");
         Ok(())
     }
+}
+
+fn table_column_tracks(table: &Table<'_>, column_count: usize) -> String {
+    if table.columns.is_empty() {
+        return format!("({})", vec!["1fr"; column_count].join(", "));
+    }
+
+    let has_automatic_width = table
+        .columns
+        .iter()
+        .any(|column| column.width == ColumnWidth::Auto);
+    let fixed_width_total: u64 = table
+        .columns
+        .iter()
+        .filter_map(|column| match column.width {
+            ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width) => {
+                Some(u64::from(width))
+            }
+            ColumnWidth::Auto => None,
+            _ => Some(1),
+        })
+        .sum();
+    let fixed_widths_fit = fixed_width_total <= 100;
+    let all_fixed_widths_are_zero = !has_automatic_width && fixed_width_total == 0;
+
+    let tracks = table
+        .columns
+        .iter()
+        .map(|column| match column.width {
+            ColumnWidth::Proportional(_) | ColumnWidth::Percentage(_)
+                if all_fixed_widths_are_zero =>
+            {
+                "1fr".to_string()
+            }
+            ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width)
+                if has_automatic_width && fixed_widths_fit =>
+            {
+                format!("{width}%")
+            }
+            ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width) => {
+                format!("{width}fr")
+            }
+            ColumnWidth::Auto if fixed_widths_fit => "1fr".to_string(),
+            ColumnWidth::Auto => "0fr".to_string(),
+            _ => "1fr".to_string(),
+        })
+        .collect::<Vec<_>>();
+
+    format!("({})", tracks.join(", "))
 }
 
 pub(crate) fn is_collapsible_example(
