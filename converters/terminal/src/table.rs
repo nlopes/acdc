@@ -505,8 +505,7 @@ pub(crate) fn visit_table<W: std::io::Write>(
     table_widget
         .set_content_arrangement(ContentArrangement::Dynamic)
         .set_width(u16::try_from(terminal_width).unwrap_or(80))
-        .load_preset(comfy_table::presets::UTF8_FULL)
-        .apply_modifier(comfy_table::modifiers::UTF8_ROUND_CORNERS)
+        .load_style(comfy_table::presets::UTF8_FULL.with_rounded_corners())
         .enforce_styling();
 
     if table_has_spans(tbl) {

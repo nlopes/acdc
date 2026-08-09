@@ -110,6 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Terminal tables truncated to the available width now use a single ellipsis
+  (`…`) as the truncation marker, leaving more space for cell content.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed
 - Deduplicated ANSI escape skipping logic into shared `skip_ansi_escape` helper
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of
