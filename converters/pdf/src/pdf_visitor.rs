@@ -17,7 +17,7 @@ use acdc_converters_core::{
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnWidth,
+    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
     CrossReference, HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem,
     Paragraph, Section, SectionKind, Source, Table, TableColumn, TableOfContents, Title, TocEntry,
     VerticalAlignment,
@@ -1108,17 +1108,49 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, ", align: {alignment}");
         }
         self.writer.raw(")[");
-        if is_header {
-            self.writer.raw("#tableheader[");
+        self.write_table_cell_content(cell, is_header)?;
+        self.writer.raw("]");
+        Ok(())
+    }
+
+    fn write_table_cell_content(
+        &mut self,
+        cell: &TableColumn<'_>,
+        is_header: bool,
+    ) -> Result<(), Error> {
+        let style = if is_header {
+            Some(ColumnStyle::Header)
+        } else {
+            cell.style
+        };
+
+        if style == Some(ColumnStyle::Literal)
+            && let Some(text) = literal_table_cell_text(&cell.content)
+        {
+            self.writer.raw("#raw(block: false, ");
+            self.writer.string_literal(&text);
+            self.writer.raw(")");
+            return Ok(());
+        }
+
+        let wrapper = match style {
+            Some(ColumnStyle::Emphasis) => Some("#tableemphasis["),
+            Some(ColumnStyle::Header) => Some("#tableheader["),
+            Some(ColumnStyle::Monospace | ColumnStyle::Literal) => Some("#tablemonospace["),
+            Some(ColumnStyle::Strong) => Some("#tablestrong["),
+            Some(ColumnStyle::AsciiDoc | ColumnStyle::Default) | None => None,
+            Some(_) => None,
+        };
+        if let Some(wrapper) = wrapper {
+            self.writer.raw(wrapper);
         }
         self.write_blocks(&cell.content)?;
         if cell.content.is_empty() {
             self.write_text_expr("");
         }
-        if is_header {
+        if wrapper.is_some() {
             self.writer.raw("]");
         }
-        self.writer.raw("]");
         Ok(())
     }
 
@@ -1664,6 +1696,21 @@ fn image_fallback_text(image: &Image<'_>) -> String {
         .attributes
         .get_string("alt")
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
+}
+
+fn literal_table_cell_text(blocks: &[Block<'_>]) -> Option<String> {
+    let mut text = String::new();
+    for (index, block) in blocks.iter().enumerate() {
+        let Block::Paragraph(paragraph) = block else {
+            return None;
+        };
+        if index > 0 {
+            text.push_str("\n\n");
+        }
+        let transform = InlineTextTransform::default().line_break("\n");
+        let _ = transform.write(&mut text, &paragraph.content);
+    }
+    Some(text)
 }
 
 #[cfg(test)]

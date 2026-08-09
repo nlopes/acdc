@@ -18,6 +18,7 @@
 #show raw: set text(font: ("IBM Plex Mono", "Noto Color Emoji"))
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
+#let tablemonospace(body) = text(font: ("IBM Plex Mono", "Noto Color Emoji"), fill: rgb("#000000"), body)
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
@@ -46,7 +47,18 @@
 #set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
 #set enum(numbering: (..n) => text(fill: rgb("#9ca3af"))[#numbering("1.", ..n.pos())])
 #set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
-#let tableheader(body) = text(weight: 700, body)
+#let tableemphasis(body) = {
+  show strong: set text(style: "normal")
+  text(style: "italic", body)
+}
+#let tablestrong(body) = {
+  show emph: set text(weight: 400)
+  text(weight: 700, body)
+}
+#let tableheader(body) = {
+  show emph: set text(weight: 400)
+  text(weight: 700, body)
+}
 
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("All Article Special Sections Numbered")]

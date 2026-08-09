@@ -179,6 +179,12 @@ fn write_code(out: &mut String, theme: &Theme, options: &EmitOptions) {
     );
     let _ = writeln!(
         out,
+        "#let tablemonospace(body) = text(font: {}, fill: {}, body)",
+        font_tuple(&typography.mono_font, options.brand_fonts),
+        color(&palette.heading),
+    );
+    let _ = writeln!(
+        out,
         "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(fill: {}, it))",
         color(&palette.code_bg),
         spacing.code_radius_pt,
@@ -360,8 +366,17 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     );
     let _ = writeln!(
         out,
-        "#let tableheader(body) = text(weight: {}, body)",
-        typography.table_header_weight,
+        "#let tableemphasis(body) = {{\n  show strong: set text(style: \"normal\")\n  text(style: \"italic\", body)\n}}",
+    );
+    let _ = writeln!(
+        out,
+        "#let tablestrong(body) = {{\n  show emph: set text(weight: {})\n  text(weight: {}, body)\n}}",
+        typography.body_weight, typography.strong_weight,
+    );
+    let _ = writeln!(
+        out,
+        "#let tableheader(body) = {{\n  show emph: set text(weight: {})\n  text(weight: {}, body)\n}}",
+        typography.body_weight, typography.table_header_weight,
     );
 }
 
@@ -598,13 +613,34 @@ mod tests {
     #[test]
     fn table_header_helper_uses_the_theme_weight() {
         let mut theme = Theme::default();
+        theme.typography.body_weight = 450;
         theme.typography.table_header_weight = 600;
         let mut out = String::new();
 
         write_helpers(&mut out, &theme);
 
-        assert!(out.contains("#let tableheader(body) = text(weight: 600, body)"));
+        assert!(out.contains(concat!(
+            "#let tableheader(body) = {\n",
+            "  show emph: set text(weight: 450)\n",
+            "  text(weight: 600, body)\n",
+            "}",
+        )));
         assert!(!out.contains("table.cell.where(y: 0)"));
+    }
+
+    #[test]
+    fn table_monospace_helper_uses_the_theme_font() {
+        let mut theme = Theme::default();
+        theme.typography.mono_font = stack(None, &["Test Mono"]);
+        theme.palette.heading = "#123456".to_owned();
+        let mut out = String::new();
+
+        write_code(&mut out, &theme, &EmitOptions::default());
+
+        assert!(out.contains(concat!(
+            "#let tablemonospace(body) = text(font: (\"Test Mono\", ",
+            "\"Noto Color Emoji\"), fill: rgb(\"#123456\"), body)",
+        )));
     }
 
     #[test]

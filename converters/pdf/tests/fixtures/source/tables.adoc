@@ -121,3 +121,51 @@
 ^.>|Footer center and bottom
 .<|Footer top
 |===
+
+.Column cell styles
+:table-name: Ada
+[cols="d,e,h,l,m,s"]
+|===
+|Default *bold* {table-name}
+|Emphasis *bold* {table-name}
+|Header _italic_ {table-name}
+|Literal *bold* {table-name}
+|Monospace *bold* {table-name}
+|Strong _italic_ {table-name}
+|===
+
+.Cell style overrides
+[cols="3*s"]
+|===
+d|Default
+e|Emphasis
+h|Header
+l|Literal *bold* {table-name}
+m|Monospace *bold* {table-name}
+s|Strong _italic_ {table-name}
+|===
+
+.Cell styles in table sections
+[%header%footer,cols="l,e,s"]
+|===
+l|Header *bold* {table-name}
+m|Header _italic_ {table-name}
+s|Header _italic_ {table-name}
+
+|Body literal *bold* {table-name}
+|Body emphasis *bold* {table-name}
+|Body strong _italic_ {table-name}
+
+l|Footer literal *bold* {table-name}
+m|Footer monospace *bold* {table-name}
+h|Footer header _italic_ {table-name}
+|===
+
+.Literal and monospace whitespace
+[cols="l,m"]
+|===
+|Literal  keeps
+  spaces and *marks* {table-name}
+|Monospace  collapses
+  spaces and *formats* {table-name}
+|===

@@ -170,3 +170,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in headers, bodies, footers, and spanned layouts. An unspecified axis comes
   from the column where the cell appears; after a span, Asciidoctor PDF can
   instead take it from an earlier column.
+- Table columns and cells now apply emphasis, strong, monospace, literal, and
+  header styles. Literal cells keep their source text and whitespace, while
+  semantic header rows ignore cell styles, matching Asciidoctor PDF.

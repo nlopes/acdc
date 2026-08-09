@@ -18,6 +18,7 @@
 #show raw: set text(font: ("IBM Plex Mono", "Noto Color Emoji"))
 #set raw(theme: "/assets/highlight.tmTheme")
 #show raw.where(block: false): set text(fill: rgb("#000000"))
+#let tablemonospace(body) = text(font: ("IBM Plex Mono", "Noto Color Emoji"), fill: rgb("#000000"), body)
 #show raw.where(block: true): it => block(width: 100%, fill: rgb("#1e1e1e"), radius: 4pt, inset: 10pt, text(fill: rgb("#d4d4d4"), it))
 #let captiontext(body) = {
   show strong: set text(fill: rgb("#333333"), weight: 700, style: "normal")
@@ -46,7 +47,18 @@
 #set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
 #set enum(numbering: (..n) => text(fill: rgb("#9ca3af"))[#numbering("1.", ..n.pos())])
 #set table(stroke: (_, y) => (bottom: 0.75pt + rgb("#e5e7eb")), inset: (x: 0.6em, y: 0.45em))
-#let tableheader(body) = text(weight: 700, body)
+#let tableemphasis(body) = {
+  show strong: set text(style: "normal")
+  text(style: "italic", body)
+}
+#let tablestrong(body) = {
+  show emph: set text(weight: 400)
+  text(weight: 700, body)
+}
+#let tableheader(body) = {
+  show emph: set text(weight: 400)
+  text(weight: 700, body)
+}
 
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("Table coverage")]
@@ -223,3 +235,51 @@
 ], table.cell(x: 1, y: 2, align: top)[#text("Footer top")
 
 ]))
+
+#blocktitle[#text("Column cell styles")]
+#table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Default ")#strong[#text("bold")]#text(" Ada")
+
+], table.cell(x: 1, y: 0)[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]#text(" Ada")
+
+]], table.cell(x: 2, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
+
+]], table.cell(x: 3, y: 0)[#raw(block: false, "Literal *bold* {table-name}")], table.cell(x: 4, y: 0)[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
+
+]], table.cell(x: 5, y: 0)[#tablestrong[#text("Strong ")#emph[#text("italic")]#text(" Ada")
+
+]])
+
+#blocktitle[#text("Cell style overrides")]
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Default")
+
+], table.cell(x: 1, y: 0)[#tableemphasis[#text("Emphasis")
+
+]], table.cell(x: 2, y: 0)[#tableheader[#text("Header")
+
+]], table.cell(x: 0, y: 1)[#raw(block: false, "Literal *bold* {table-name}")], table.cell(x: 1, y: 1)[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
+
+]], table.cell(x: 2, y: 1)[#tablestrong[#text("Strong ")#emph[#text("italic")]#text(" Ada")
+
+]])
+
+#blocktitle[#text("Cell styles in table sections")]
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Header ")#strong[#text("bold")]#text(" Ada")
+
+]], table.cell(x: 1, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
+
+]], table.cell(x: 2, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
+
+]]), table.cell(x: 0, y: 1)[#raw(block: false, "Body literal *bold* {table-name}")], table.cell(x: 1, y: 1)[#tableemphasis[#text("Body emphasis ")#strong[#text("bold")]#text(" Ada")
+
+]], table.cell(x: 2, y: 1)[#tablestrong[#text("Body strong ")#emph[#text("italic")]#text(" Ada")
+
+]], table.footer(repeat: false, table.cell(x: 0, y: 2)[#raw(block: false, "Footer literal *bold* {table-name}")], table.cell(x: 1, y: 2)[#tablemonospace[#text("Footer monospace ")#strong[#text("bold")]#text(" Ada")
+
+]], table.cell(x: 2, y: 2)[#tableheader[#text("Footer header ")#emph[#text("italic")]#text(" Ada")
+
+]]))
+
+#blocktitle[#text("Literal and monospace whitespace")]
+#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#raw(block: false, "Literal  keeps\n  spaces and *marks* {table-name}")], table.cell(x: 1, y: 0)[#tablemonospace[#text("Monospace collapses spaces and ")#strong[#text("formats")]#text(" Ada")
+
+]])
