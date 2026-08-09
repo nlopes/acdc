@@ -1,0 +1,19 @@
+= Source without a highlighter
+
+.Known language
+[source,rust]
+----
+fn known_language() {}
+----
+
+.Unknown language
+[source,definitely-unknown]
+----
+unknown_language()
+----
+
+.Missing language
+[source]
+----
+plain source
+----

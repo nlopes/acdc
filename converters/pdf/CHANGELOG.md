@@ -156,3 +156,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source, listing, and literal blocks preserve indentation, blank lines, and
   configured tab stops, and wrap long code instead of clipping it at the page
   edge.
+- Source, listing, and literal blocks expand document attributes when their
+  `subs` configuration enables attribute substitution.

@@ -61,6 +61,18 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     )?;
 
     assert!(pdf.starts_with(b"%PDF-"));
+    let minimum_pages_path = expected_path.with_extension("min-pages");
+    if minimum_pages_path.exists() {
+        let minimum_pages = std::fs::read_to_string(&minimum_pages_path)?
+            .trim()
+            .parse::<usize>()?;
+        let rendered = lopdf::Document::load_mem(&pdf)?;
+        let actual_pages = rendered.get_pages().len();
+        assert!(
+            actual_pages >= minimum_pages,
+            "PDF page count for {file_name} is {actual_pages}; expected at least {minimum_pages}",
+        );
+    }
     let expected = std::fs::read_to_string(expected_path)?;
     let actual = std::fs::read_to_string(typst_path)?;
     pretty_assertions::assert_eq!(

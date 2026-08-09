@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::{apply_replacements, effective_subs_flags};
+use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effective_subs_flags};
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
     code::{SourceLineOptions, detect_language, source_line_count},
@@ -916,12 +916,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn code_text(&self, nodes: &[InlineNode<'_>], tab_size: usize) -> String {
         let mut text = code_text_without_callout_guards(nodes);
         #[cfg(feature = "pre-spec-subs")]
-        if let Cow::Owned(replaced) = apply_replacements(
-            &text,
-            self.processor.current_subs.get(),
-            &Replacements::unicode(),
-            TextBoundaries::BOTH,
-        ) {
+        let subs = self.processor.current_subs.get();
+        #[cfg(feature = "pre-spec-subs")]
+        if subs.contains(SubsFlags::ATTRIBUTES)
+            && let Cow::Owned(expanded) = acdc_parser::substitute(
+                &text,
+                &[acdc_parser::Substitution::Attributes],
+                self.processor.document_attributes(),
+            )
+        {
+            text = expanded;
+        }
+        #[cfg(feature = "pre-spec-subs")]
+        if let Cow::Owned(replaced) =
+            apply_replacements(&text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
+        {
             text = replaced;
         }
         if let Cow::Owned(expanded) = expand_code_tabs(&text, tab_size) {

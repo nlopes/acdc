@@ -1,0 +1,41 @@
+= Source substitutions
+:source-highlighter: rouge
+:project-name: ACDC
+
+.Default source substitutions
+[source,rust]
+----
+let value = "{project-name}"; // (C) ... -> *bold* <1>
+----
+<1> Default callout.
+
+.Attributes added
+[source,rust,subs="+attributes"]
+----
+let value = "{project-name}";
+----
+
+.Replacements added
+[source,rust,subs="+replacements"]
+----
+// (C) ... -> --
+----
+
+.Callouts removed
+[source,rust,subs="-callouts"]
+----
+let value = 1; // <1>
+----
+
+.No substitutions
+[source,rust,subs=none]
+----
+let value = "{project-name}"; // (C) ... -> *bold*
+----
+
+.Explicit substitution set
+[source,rust,subs="specialcharacters,attributes,replacements,callouts"]
+----
+let value = "{project-name}"; // (C) ... -> *bold* <1>
+----
+<1> Explicit callout.
