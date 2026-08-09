@@ -123,7 +123,7 @@ pub(crate) fn escape_href(url: &str) -> String {
 /// Only text that bypasses the inline pipeline needs this — anything the
 /// pipeline renders is escaped there. Quotes are left alone, matching
 /// asciidoctor's PCDATA encoding.
-fn escape_pcdata(text: &str) -> String {
+pub(crate) fn escape_pcdata(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")

@@ -5,7 +5,7 @@ use acdc_parser::{
     TableColumn, VerticalAlignment,
 };
 
-use crate::{Error, HtmlVariant, Processor, RenderOptions};
+use crate::{Error, HtmlVariant, Processor, RenderOptions, inlines::escape_pcdata};
 
 /// Convert horizontal alignment to CSS class name
 fn halign_class(halign: HorizontalAlignment) -> &'static str {
@@ -123,7 +123,13 @@ where
                 let writer = visitor.writer_mut();
                 write!(writer, "<div class=\"literal\"><pre>")?;
                 let _ = writer;
-                visitor.visit_inline_nodes(&para.content)?;
+                for node in &para.content {
+                    if let InlineNode::VerbatimText(verbatim) = node {
+                        write!(visitor.writer_mut(), "{}", escape_pcdata(verbatim.content))?;
+                    } else {
+                        visitor.visit_inline_node(node)?;
+                    }
+                }
                 let writer = visitor.writer_mut();
                 write!(writer, "</pre></div>")?;
             } else if wrap_paragraph {
@@ -471,7 +477,6 @@ where
         for (col_index, cell) in header.columns.iter().enumerate() {
             let halign = halign_class(get_effective_halign(&table.columns, col_index, cell));
             let valign = valign_class(get_effective_valign(&table.columns, col_index, cell));
-            let style = get_effective_style(&table.columns, col_index, cell);
             let span_attrs = format_span_attrs(cell);
             let writer = visitor.writer_mut();
             write!(
@@ -479,7 +484,7 @@ where
                 "<th class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(&cell.content, visitor, processor, options, false, style)?;
+            render_cell_content(&cell.content, visitor, processor, options, false, None)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</th>")?;
         }

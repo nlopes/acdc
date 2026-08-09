@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Literal table cells now keep attributes, macros, formatting marks, and
+  whitespace as source text. Semantic header rows ignore cell and column
+  styles, matching Asciidoctor.
 - With source highlighting enabled, source blocks honor `linenums`, `start`,
   and `highlight`, including source paragraphs and blocks without a language.
   `%nowrap` and an unset `prewrap` prevent HTML source lines from wrapping.
