@@ -62,3 +62,16 @@
 |===
 |one |three
 |===
+
+.Horizontal column alignment
+[cols="<,^,>"]
+|===
+|Left |Center |Right
+|===
+
+.Vertical column alignment
+[cols=".<,.^,.>,<"]
+|===
+|Top |Middle |Bottom
+|This deliberately long cell makes the row tall enough to show each vertical alignment.
+|===

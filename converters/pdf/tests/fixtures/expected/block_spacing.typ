@@ -99,7 +99,7 @@
 
 #text("Second continuation paragraph.")
 
-#table(columns: (1fr), table.cell(x: 0, y: 0)[#text("First table-cell paragraph.")
+#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("First table-cell paragraph.")
 
 #text("Second table-cell paragraph.")
 

@@ -18,8 +18,9 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnWidth,
-    CrossReference, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph, Section,
-    SectionKind, Source, Table, TableColumn, TableOfContents, Title, TocEntry,
+    CrossReference, HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem,
+    Paragraph, Section, SectionKind, Source, Table, TableColumn, TableOfContents, Title, TocEntry,
+    VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{Heading, PageBreakBefore, Palette, PartBreakAfter};
@@ -1039,6 +1040,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let tracks = table_column_tracks(table, column_count);
             let _ = write!(self.writer, "#table(columns: {tracks}");
         }
+        let alignments = table_column_alignments(table, column_count);
+        let _ = write!(self.writer, ", align: {alignments}");
 
         let grid = build_grid(table, column_count);
         if let Some(header) = grid.first().filter(|row| row.is_header) {
@@ -1329,6 +1332,32 @@ fn table_column_tracks(table: &Table<'_>, column_count: usize) -> String {
         .collect::<Vec<_>>();
 
     format!("({})", tracks.join(", "))
+}
+
+fn table_column_alignments(table: &Table<'_>, column_count: usize) -> String {
+    if table.columns.is_empty() {
+        return format!("({})", vec!["left + top"; column_count].join(", "));
+    }
+
+    let alignments = table
+        .columns
+        .iter()
+        .map(|column| {
+            let horizontal = match column.halign {
+                HorizontalAlignment::Left => "left",
+                HorizontalAlignment::Center => "center",
+                HorizontalAlignment::Right => "right",
+            };
+            let vertical = match column.valign {
+                VerticalAlignment::Top => "top",
+                VerticalAlignment::Middle => "horizon",
+                VerticalAlignment::Bottom => "bottom",
+            };
+            format!("{horizontal} + {vertical}")
+        })
+        .collect::<Vec<_>>();
+
+    format!("({})", alignments.join(", "))
 }
 
 pub(crate) fn is_collapsible_example(

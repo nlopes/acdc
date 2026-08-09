@@ -54,7 +54,7 @@
 #v(1em)
 
 #blocktitle[#text("Declared header")]
-#table(columns: (1fr, 1fr), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
 
 ]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
 
@@ -65,14 +65,14 @@
 ])
 
 #blocktitle[#text("Body only")]
-#table(columns: (1fr, 1fr), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
 
 ])
 
 #blocktitle[#text("Spans")]
-#table(columns: (1fr, 1fr, 1fr, 1fr), table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
+#table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
 
 ]], table.cell(x: 2, y: 0)[#tableheader[#text("H3")
 
@@ -93,7 +93,7 @@
 ]))
 
 #blocktitle[#text("Inferred equal widths")]
-#table(columns: (1fr, 1fr, 1fr), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
 
@@ -102,35 +102,35 @@
 ])
 
 #blocktitle[#text("Proportional widths")]
-#table(columns: (1fr, 3fr), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 3fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("three")
 
 ])
 
 #blocktitle[#text("Percentage widths")]
-#table(columns: (25fr, 75fr), table.cell(x: 0, y: 0)[#text("twenty-five")
+#table(columns: (25fr, 75fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("twenty-five")
 
 ], table.cell(x: 1, y: 0)[#text("seventy-five")
 
 ])
 
 #blocktitle[#text("Mixed numeric and percentage widths")]
-#table(columns: (1fr, 25fr), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 25fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("twenty-five")
 
 ])
 
 #blocktitle[#text("Automatic widths")]
-#table(columns: (1fr, 1fr), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
 
 ])
 
 #blocktitle[#text("Automatic width with fixed widths")]
-#table(columns: (1fr, 20%, 30%), table.cell(x: 0, y: 0)[#text("fifty")
+#table(columns: (1fr, 20%, 30%), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("fifty")
 
 ], table.cell(x: 1, y: 0)[#text("twenty")
 
@@ -139,8 +139,28 @@
 ])
 
 #blocktitle[#text("Content-sized table")]
-#table(columns: 2, table.cell(x: 0, y: 0)[#text("one")
+#table(columns: 2, align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("three")
+
+])
+
+#blocktitle[#text("Horizontal column alignment")]
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, center + top, right + top), table.cell(x: 0, y: 0)[#text("Left")
+
+], table.cell(x: 1, y: 0)[#text("Center")
+
+], table.cell(x: 2, y: 0)[#text("Right")
+
+])
+
+#blocktitle[#text("Vertical column alignment")]
+#table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + horizon, left + bottom, left + top), table.cell(x: 0, y: 0)[#text("Top")
+
+], table.cell(x: 1, y: 0)[#text("Middle")
+
+], table.cell(x: 2, y: 0)[#text("Bottom")
+
+], table.cell(x: 3, y: 0)[#text("This deliberately long cell makes the row tall enough to show each vertical alignment.")
 
 ])
