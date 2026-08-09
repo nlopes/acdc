@@ -164,3 +164,62 @@
 ], table.cell(x: 3, y: 0)[#text("This deliberately long cell makes the row tall enough to show each vertical alignment.")
 
 ])
+
+#blocktitle[#text("Cell alignment overrides")]
+#table(columns: (1fr, 1fr, 1fr, 1fr), align: (right + bottom, right + bottom, right + bottom, right + bottom), table.cell(x: 0, y: 0, align: left)[#text("Left")
+
+], table.cell(x: 1, y: 0, align: center)[#text("Center")
+
+], table.cell(x: 2, y: 0, align: right)[#text("Right")
+
+], table.cell(x: 3, y: 0)[#text("This deliberately long cell makes the row tall enough to show horizontal overrides while retaining bottom alignment.")
+
+], table.cell(x: 0, y: 1, align: top)[#text("Top")
+
+], table.cell(x: 1, y: 1, align: horizon)[#text("Middle")
+
+], table.cell(x: 2, y: 1, align: bottom)[#text("Bottom")
+
+], table.cell(x: 3, y: 1)[#text("This deliberately long cell makes the row tall enough to show vertical overrides while retaining right alignment.")
+
+], table.cell(x: 0, y: 2, align: left + top)[#text("Left and top")
+
+], table.cell(x: 1, y: 2, align: center + horizon)[#text("Center and middle")
+
+], table.cell(x: 2, y: 2, align: right + bottom)[#text("Right and bottom")
+
+], table.cell(x: 3, y: 2)[#text("This deliberately long cell makes the row tall enough to show combined alignment overrides.")
+
+])
+
+#blocktitle[#text("Cell alignment after spans")]
+#table(columns: (1fr, 1fr, 1fr), align: (right + top, left + top, center + top), table.cell(x: 0, y: 0, colspan: 2)[#text("Spans logical columns one and two")
+
+], table.cell(x: 2, y: 0, align: bottom)[#text("Bottom in logical column three")
+
+], table.cell(x: 0, y: 1, rowspan: 2)[#text("Spans two rows")
+
+], table.cell(x: 1, y: 1)[#text("First row, logical column two")
+
+], table.cell(x: 2, y: 1)[#text("First row, logical column three")
+
+], table.cell(x: 1, y: 2, align: bottom)[#text("Bottom in logical column two")
+
+], table.cell(x: 2, y: 2)[#text("This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.")
+
+])
+
+#blocktitle[#text("Cell alignment in table sections")]
+#table(columns: (1fr, 1fr), align: (right + bottom, left + top), table.header(repeat: true, table.cell(x: 0, y: 0, align: center + horizon)[#tableheader[#text("Header center and middle")
+
+]], table.cell(x: 1, y: 0, align: bottom)[#tableheader[#text("Header bottom")
+
+]]), table.cell(x: 0, y: 1, align: left + top)[#text("Body left and top")
+
+], table.cell(x: 1, y: 1)[#text("This deliberately long cell makes the body row tall enough to show its first cell at the top.")
+
+], table.footer(repeat: false, table.cell(x: 0, y: 2, align: center + bottom)[#text("Footer center and bottom")
+
+], table.cell(x: 1, y: 2, align: top)[#text("Footer top")
+
+]))

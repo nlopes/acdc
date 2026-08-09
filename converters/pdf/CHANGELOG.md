@@ -166,3 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table column specifications now align cell content horizontally with `<`,
   `^`, and `>`, and vertically with `.<`, `.^`, and `.>`, matching
   `asciidoctor-pdf`.
+- Table cells now honour their own horizontal and vertical alignment markers
+  in headers, bodies, footers, and spanned layouts. An unspecified axis comes
+  from the column where the cell appears; after a span, Asciidoctor PDF can
+  instead take it from an earlier column.

@@ -75,3 +75,49 @@
 |Top |Middle |Bottom
 |This deliberately long cell makes the row tall enough to show each vertical alignment.
 |===
+
+.Cell alignment overrides
+[cols=">.>,>.>,>.>,>.>"]
+|===
+<|Left
+^|Center
+>|Right
+|This deliberately long cell makes the row tall enough to show horizontal overrides while retaining bottom alignment.
+
+.<|Top
+.^|Middle
+.>|Bottom
+|This deliberately long cell makes the row tall enough to show vertical overrides while retaining right alignment.
+
+<.<|Left and top
+^.^|Center and middle
+>.>|Right and bottom
+|This deliberately long cell makes the row tall enough to show combined alignment overrides.
+|===
+
+.Cell alignment after spans
+[cols=">,<,^"]
+|===
+2+|Spans logical columns one and two
+.>|Bottom in logical column three
+
+.2+|Spans two rows
+|First row, logical column two
+|First row, logical column three
+
+.>|Bottom in logical column two
+|This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.
+|===
+
+.Cell alignment in table sections
+[%header%footer,cols=">.>,<"]
+|===
+^.^|Header center and middle
+.>|Header bottom
+
+<.<|Body left and top
+|This deliberately long cell makes the body row tall enough to show its first cell at the top.
+
+^.>|Footer center and bottom
+.<|Footer top
+|===

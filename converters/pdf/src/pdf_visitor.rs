@@ -1104,6 +1104,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if cell.rowspan > 1 {
             let _ = write!(self.writer, ", rowspan: {}", cell.rowspan);
         }
+        if let Some(alignment) = table_cell_alignment(cell) {
+            let _ = write!(self.writer, ", align: {alignment}");
+        }
         self.writer.raw(")[");
         if is_header {
             self.writer.raw("#tableheader[");
@@ -1343,21 +1346,42 @@ fn table_column_alignments(table: &Table<'_>, column_count: usize) -> String {
         .columns
         .iter()
         .map(|column| {
-            let horizontal = match column.halign {
-                HorizontalAlignment::Left => "left",
-                HorizontalAlignment::Center => "center",
-                HorizontalAlignment::Right => "right",
-            };
-            let vertical = match column.valign {
-                VerticalAlignment::Top => "top",
-                VerticalAlignment::Middle => "horizon",
-                VerticalAlignment::Bottom => "bottom",
-            };
+            let horizontal = typst_horizontal_alignment(column.halign);
+            let vertical = typst_vertical_alignment(column.valign);
             format!("{horizontal} + {vertical}")
         })
         .collect::<Vec<_>>();
 
     format!("({})", alignments.join(", "))
+}
+
+fn table_cell_alignment(cell: &TableColumn<'_>) -> Option<String> {
+    match (cell.halign, cell.valign) {
+        (Some(horizontal), Some(vertical)) => Some(format!(
+            "{} + {}",
+            typst_horizontal_alignment(horizontal),
+            typst_vertical_alignment(vertical)
+        )),
+        (Some(horizontal), None) => Some(typst_horizontal_alignment(horizontal).to_string()),
+        (None, Some(vertical)) => Some(typst_vertical_alignment(vertical).to_string()),
+        (None, None) => None,
+    }
+}
+
+const fn typst_horizontal_alignment(alignment: HorizontalAlignment) -> &'static str {
+    match alignment {
+        HorizontalAlignment::Left => "left",
+        HorizontalAlignment::Center => "center",
+        HorizontalAlignment::Right => "right",
+    }
+}
+
+const fn typst_vertical_alignment(alignment: VerticalAlignment) -> &'static str {
+    match alignment {
+        VerticalAlignment::Top => "top",
+        VerticalAlignment::Middle => "horizon",
+        VerticalAlignment::Bottom => "bottom",
+    }
 }
 
 pub(crate) fn is_collapsible_example(
