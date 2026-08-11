@@ -2304,9 +2304,11 @@ peg::parser! {
             Cow::Owned(format!("#{fragment}"))
         }
 
-        /// Filesystem path - conservative character set for cross-platform compatibility
-        /// Includes '{' and '}' for `AsciiDoc` attribute substitution
-        pub rule path() -> Cow<'input, str> = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' ]+)
+        /// Filesystem path accepted by inline macros.
+        ///
+        /// ASCII input uses a conservative filename set. Non-ASCII Unicode characters
+        /// are accepted unchanged, and `{`/`}` permit `AsciiDoc` attribute substitution.
+        pub rule path() -> Cow<'input, str> = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '\u{80}'..='\u{10FFFF}' ]+)
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,

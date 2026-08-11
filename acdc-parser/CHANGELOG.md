@@ -167,6 +167,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Path-based macros now recognize non-ASCII local targets, including cross-references,
+  links, icons, images, audio, and video, matching Asciidoctor.
 - Table cell specifiers now accept the Asciidoctor order with spans or repeats
   before alignment and style. Column styles after spans, and across repeated
   cells, now follow source-cell order.
