@@ -7,7 +7,7 @@ use serde::{
 
 use super::inlines::InlineNode;
 use super::location::Location;
-use super::section::SectionKind;
+use super::section::{SectionKind, SectionNumber};
 use super::title::Title;
 
 /// Section styles that should not receive automatic numbering.
@@ -72,11 +72,44 @@ pub struct TocEntry<'a> {
     /// Optional cross-reference label (from `[[id,xreflabel]]` syntax)
     pub xreflabel: Option<&'a str>,
     /// The section's structural category (special-section style, or `Normal`).
-    /// Converters use it to decide e.g. appendix labelling and which entries are
-    /// excluded from `:sectnums:` numbering.
+    /// Converters use it for presentation, such as appendix labels.
     pub kind: SectionKind,
+    number: Option<SectionNumber>,
     /// Location of the section heading (the cross-reference target).
     pub location: Location,
+}
+
+impl<'a> TocEntry<'a> {
+    pub(crate) fn for_section(
+        id: &'a str,
+        title: Title<'a>,
+        level: u8,
+        xreflabel: Option<&'a str>,
+        kind: SectionKind,
+        location: Location,
+    ) -> Self {
+        Self {
+            id,
+            title,
+            level,
+            xreflabel,
+            kind,
+            number: None,
+            location,
+        }
+    }
+
+    pub(super) fn set_number(&mut self, number: Option<SectionNumber>) {
+        self.number = number;
+    }
+
+    /// Return the assigned number without presentation punctuation or a signifier.
+    ///
+    /// Examples are `1`, `1.2`, `IV`, and `A.1`.
+    #[must_use]
+    pub fn number(&self) -> Option<&str> {
+        self.number.as_ref().map(SectionNumber::as_str)
+    }
 }
 
 impl Serialize for TocEntry<'_> {
@@ -126,14 +159,14 @@ mod tests {
     use super::*;
 
     fn toc_entry(kind: SectionKind) -> TocEntry<'static> {
-        TocEntry {
-            id: "_intro",
-            title: Title::default(),
-            level: 1,
-            xreflabel: None,
+        TocEntry::for_section(
+            "_intro",
+            Title::default(),
+            1,
+            None,
             kind,
-            location: Location::default(),
-        }
+            Location::default(),
+        )
     }
 
     #[test]

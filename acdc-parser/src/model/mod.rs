@@ -17,7 +17,7 @@ mod lists;
 mod location;
 mod media;
 mod metadata;
-mod section;
+pub(crate) mod section;
 pub(crate) mod substitution;
 mod tables;
 mod title;
@@ -66,6 +66,19 @@ pub struct Document<'a> {
 }
 
 impl Document<'_> {
+    /// Reassign section numbers from the current section tree.
+    ///
+    /// Parsing does this automatically. Call it after changing the section tree or a
+    /// section's numbering policy. Existing table-of-contents entries receive the new
+    /// numbers, but this method does not add, remove, or reorder those entries.
+    pub fn renumber_sections(&mut self) {
+        let is_book = self
+            .attributes
+            .get_string("doctype")
+            .is_some_and(|doctype| doctype == "book");
+        section::renumber_sections(&mut self.blocks, &mut self.toc_entries, is_book);
+    }
+
     /// Reassign every automatic caption ordinal, numbering a block's content before the block
     /// itself as asciidoctor does.
     ///

@@ -263,6 +263,11 @@ impl<'a> DocumentAttributes<'a> {
         self.attributes.get(name).is_some_and(is_truthy)
     }
 
+    /// Whether document input or parser options explicitly set a truthy value.
+    pub(crate) fn is_explicitly_set(&self, name: &str) -> bool {
+        self.attributes.explicit.get(name).is_some_and(is_truthy)
+    }
+
     /// Get an attribute value by name.
     #[must_use]
     pub fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {

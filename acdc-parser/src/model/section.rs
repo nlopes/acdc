@@ -1,14 +1,96 @@
-use std::fmt::Display;
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+    sync::Arc,
+};
 
 use bumpalo::Bump;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
-use crate::{Block, BlockMetadata, InlineMacro, InlineNode, Location};
+use crate::{
+    AttributeValue, Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes,
+    InlineMacro, InlineNode, Location, MAX_SECTION_LEVELS, Table, TocEntry,
+};
 
 use super::title::Title;
 
 /// A `SectionLevel` represents a section depth in a document.
 pub type SectionLevel = u8;
+const DEFAULT_NUMBERED_SECTION_LEVELS: SectionLevel = 3;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(super) struct SectionNumber(Arc<str>);
+
+impl SectionNumber {
+    fn new(number: String) -> Self {
+        Self(number.into())
+    }
+
+    pub(super) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct SectionNumbering {
+    enabled: bool,
+    max_level: SectionLevel,
+    number_all: bool,
+    partnums: bool,
+    number: Option<SectionNumber>,
+}
+
+impl SectionNumbering {
+    pub(crate) fn from_attributes(attributes: &DocumentAttributes<'_>) -> Self {
+        let enabled = attributes
+            .get("sectnums")
+            .or_else(|| attributes.get("numbered"))
+            .is_some_and(|value| {
+                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
+            });
+        let max_level = attributes
+            .get_string("sectnumlevels")
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(DEFAULT_NUMBERED_SECTION_LEVELS)
+            .min(MAX_SECTION_LEVELS);
+        let number_all = matches!(
+            attributes
+                .get("sectnums")
+                .or_else(|| attributes.get("numbered")),
+            Some(AttributeValue::String(value)) if value == "all"
+        );
+        let partnums = attributes.get("partnums").is_some_and(|value| {
+            !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
+        });
+        Self {
+            enabled,
+            max_level,
+            number_all,
+            partnums,
+            number: None,
+        }
+    }
+
+    const fn disabled() -> Self {
+        Self {
+            enabled: false,
+            max_level: DEFAULT_NUMBERED_SECTION_LEVELS,
+            number_all: false,
+            partnums: false,
+            number: None,
+        }
+    }
+
+    const fn explicitly_enabled() -> Self {
+        Self {
+            enabled: true,
+            max_level: MAX_SECTION_LEVELS,
+            number_all: true,
+            partnums: true,
+            number: None,
+        }
+    }
+}
 
 /// The structural category of a section.
 ///
@@ -17,9 +99,8 @@ pub type SectionLevel = u8;
 /// `SectionKind` captures that category, derived from the section's style;
 /// `Normal` is any ordinary (non-special) section.
 ///
-/// This is a purely structural classification: it carries no rendering decision
-/// of its own. Converters consult it — for example, to exclude special sections
-/// from `:sectnums:` numbering.
+/// This is a structural classification. Section numbering uses it to apply the
+/// special-section rules, and converters use it for presentation.
 ///
 /// `#[non_exhaustive]` so further kinds (e.g. `partintro`, `acknowledgments`)
 /// can be added without breaking downstream matches.
@@ -92,10 +173,31 @@ pub struct Section<'a> {
     pub content: Vec<Block<'a>>,
     /// The section's structural category (special-section style, or `Normal`).
     pub kind: SectionKind,
+    numbering: SectionNumbering,
     pub location: Location,
 }
 
 impl<'a> Section<'a> {
+    pub(crate) fn parsed(
+        metadata: BlockMetadata<'a>,
+        title: Title<'a>,
+        level: SectionLevel,
+        content: Vec<Block<'a>>,
+        kind: SectionKind,
+        numbering: SectionNumbering,
+        location: Location,
+    ) -> Self {
+        Self {
+            metadata,
+            title,
+            level,
+            content,
+            kind,
+            numbering,
+            location,
+        }
+    }
+
     /// Create a new section with the given title, level, content, and location.
     #[must_use]
     pub fn new(
@@ -110,6 +212,7 @@ impl<'a> Section<'a> {
             level,
             content,
             kind: SectionKind::Normal,
+            numbering: SectionNumbering::disabled(),
             location,
         }
     }
@@ -120,6 +223,446 @@ impl<'a> Section<'a> {
         self.metadata = metadata;
         self
     }
+
+    /// Include or exclude this section from automatic numbering.
+    ///
+    /// [`Section::new`] disables numbering. Call
+    /// [`Document::renumber_sections`](super::Document::renumber_sections) after changing
+    /// this policy on a section in a document.
+    #[must_use]
+    pub fn with_numbering(mut self, enabled: bool) -> Self {
+        self.numbering = if enabled {
+            SectionNumbering::explicitly_enabled()
+        } else {
+            SectionNumbering::disabled()
+        };
+        self
+    }
+
+    /// Return the assigned number without presentation punctuation or a signifier.
+    ///
+    /// Examples are `1`, `1.2`, `IV`, and `A.1`.
+    #[must_use]
+    pub fn number(&self) -> Option<&str> {
+        self.numbering.number.as_ref().map(SectionNumber::as_str)
+    }
+}
+
+#[derive(Default)]
+struct NumberingState {
+    counters: [usize; MAX_SECTION_LEVELS as usize + 1],
+    part_counter: usize,
+    appendix_counter: usize,
+    appendix_letter: Option<char>,
+    base_level: Option<SectionLevel>,
+}
+
+impl NumberingState {
+    fn nested_document() -> Self {
+        Self {
+            base_level: Some(0),
+            ..Self::default()
+        }
+    }
+
+    fn numbering_level(&mut self, source_level: SectionLevel, kind: SectionKind) -> SectionLevel {
+        let level = effective_numbering_level(source_level, kind);
+        let Some(base) = &mut self.base_level else {
+            return level;
+        };
+        if *base == 0 {
+            *base = level;
+        }
+        level.saturating_sub(*base).saturating_add(1)
+    }
+
+    fn next_part(&mut self) -> SectionNumber {
+        self.part_counter = self.part_counter.saturating_add(1);
+        SectionNumber::new(to_upper_roman(self.part_counter))
+    }
+
+    fn next_appendix(&mut self) -> SectionNumber {
+        let index = self.appendix_counter;
+        self.appendix_counter = self.appendix_counter.saturating_add(1);
+        let letter = char::from(b'A' + u8::try_from(index).unwrap_or(25).min(25));
+        self.appendix_letter = Some(letter);
+        for counter in self.counters.iter_mut().skip(1) {
+            *counter = 0;
+        }
+        SectionNumber::new(letter.to_string())
+    }
+
+    fn next_section(&mut self, level: SectionLevel) -> Option<SectionNumber> {
+        if level == 0 || level > MAX_SECTION_LEVELS {
+            return None;
+        }
+        if level == 1 {
+            self.appendix_letter = None;
+        }
+
+        let level_index = usize::from(level - 1);
+        let counter = self.counters.get_mut(level_index)?;
+        *counter = counter.saturating_add(1);
+        for counter in self.counters.iter_mut().skip(level_index + 1) {
+            *counter = 0;
+        }
+
+        let mut number = String::new();
+        if let Some(letter) = self.appendix_letter {
+            number.push(letter);
+            for component in self.counters.get(1..=level_index)? {
+                use std::fmt::Write as _;
+                let _ = write!(number, ".{component}");
+            }
+        } else {
+            for (index, component) in self.counters.get(..=level_index)?.iter().enumerate() {
+                use std::fmt::Write as _;
+                if index > 0 {
+                    number.push('.');
+                }
+                let _ = write!(number, "{component}");
+            }
+        }
+        Some(SectionNumber::new(number))
+    }
+}
+
+/// Reassign numbers after AST mutation, matching existing TOC entries by section ID.
+pub(crate) fn renumber_sections(
+    blocks: &mut [Block<'_>],
+    toc_entries: &mut [TocEntry<'_>],
+    is_book: bool,
+) {
+    let mut state = NumberingState::default();
+    let mut toc_numbers: HashMap<String, VecDeque<Option<SectionNumber>>> =
+        HashMap::with_capacity(toc_entries.len());
+    let mut record_number = |section: &Section<'_>, number| {
+        toc_numbers
+            .entry(Section::generate_id_string(
+                &section.metadata,
+                &section.title,
+            ))
+            .or_default()
+            .push_back(number);
+    };
+    renumber_blocks(blocks, &mut state, is_book, false, true, &mut record_number);
+    for entry in toc_entries {
+        entry.set_number(
+            toc_numbers
+                .get_mut(entry.id)
+                .and_then(VecDeque::pop_front)
+                .flatten(),
+        );
+    }
+}
+
+/// Assign numbers after parsing, matching ordered TOC entries by source location.
+pub(crate) fn number_parsed_sections<'a>(
+    blocks: &mut [Block<'a>],
+    toc_entries: &mut [TocEntry<'a>],
+    is_book: bool,
+) {
+    let mut state = NumberingState::default();
+    let mut toc_index = 0;
+    let mut record_number = |section: &Section<'a>, number| {
+        let Some(remaining_entries) = toc_entries.get(toc_index..) else {
+            return;
+        };
+        let Some(relative_index) = remaining_entries
+            .iter()
+            .position(|entry| toc_entry_matches(section, entry))
+        else {
+            return;
+        };
+        toc_index += relative_index;
+        if let Some(entry) = toc_entries.get_mut(toc_index) {
+            entry.set_number(number);
+            toc_index += 1;
+        }
+    };
+    renumber_blocks(blocks, &mut state, is_book, false, true, &mut record_number);
+}
+
+fn toc_entry_matches(section: &Section<'_>, entry: &TocEntry<'_>) -> bool {
+    entry.level == section.level
+        && entry.kind == section.kind
+        && entry.title == section.title
+        && section.location.absolute_start <= entry.location.absolute_start
+        && section.location.absolute_end >= entry.location.absolute_end
+}
+
+fn renumber_blocks<'a, F>(
+    blocks: &mut [Block<'a>],
+    state: &mut NumberingState,
+    is_book: bool,
+    suppressed: bool,
+    record_toc: bool,
+    record_number: &mut F,
+) where
+    F: FnMut(&Section<'a>, Option<SectionNumber>),
+{
+    for block in blocks {
+        match block {
+            Block::Section(section) => {
+                renumber_section(
+                    section,
+                    state,
+                    is_book,
+                    suppressed,
+                    record_toc,
+                    record_number,
+                );
+            }
+            Block::Admonition(admonition) => renumber_blocks(
+                &mut admonition.blocks,
+                state,
+                is_book,
+                suppressed,
+                record_toc,
+                record_number,
+            ),
+            Block::UnorderedList(list) => {
+                for item in &mut list.items {
+                    renumber_blocks(
+                        &mut item.blocks,
+                        state,
+                        is_book,
+                        suppressed,
+                        record_toc,
+                        record_number,
+                    );
+                }
+            }
+            Block::OrderedList(list) => {
+                for item in &mut list.items {
+                    renumber_blocks(
+                        &mut item.blocks,
+                        state,
+                        is_book,
+                        suppressed,
+                        record_toc,
+                        record_number,
+                    );
+                }
+            }
+            Block::CalloutList(list) => {
+                for item in &mut list.items {
+                    renumber_blocks(
+                        &mut item.blocks,
+                        state,
+                        is_book,
+                        suppressed,
+                        record_toc,
+                        record_number,
+                    );
+                }
+            }
+            Block::DescriptionList(list) => {
+                for item in &mut list.items {
+                    renumber_blocks(
+                        &mut item.description,
+                        state,
+                        is_book,
+                        suppressed,
+                        record_toc,
+                        record_number,
+                    );
+                }
+            }
+            Block::DelimitedBlock(delimited) => renumber_delimited(
+                &mut delimited.inner,
+                state,
+                is_book,
+                suppressed,
+                record_toc,
+                record_number,
+            ),
+            Block::Paragraph(_)
+            | Block::DiscreteHeader(_)
+            | Block::PageBreak(_)
+            | Block::ThematicBreak(_)
+            | Block::TableOfContents(_)
+            | Block::Image(_)
+            | Block::Audio(_)
+            | Block::Video(_)
+            | Block::DocumentAttribute(_)
+            | Block::Comment(_) => {}
+        }
+    }
+}
+
+fn renumber_delimited<'a, F>(
+    inner: &mut DelimitedBlockType<'a>,
+    state: &mut NumberingState,
+    is_book: bool,
+    suppressed: bool,
+    record_toc: bool,
+    record_number: &mut F,
+) where
+    F: FnMut(&Section<'a>, Option<SectionNumber>),
+{
+    match inner {
+        DelimitedBlockType::DelimitedExample(blocks)
+        | DelimitedBlockType::DelimitedOpen(blocks)
+        | DelimitedBlockType::DelimitedSidebar(blocks)
+        | DelimitedBlockType::DelimitedQuote(blocks) => renumber_blocks(
+            blocks,
+            state,
+            is_book,
+            suppressed,
+            record_toc,
+            record_number,
+        ),
+        DelimitedBlockType::DelimitedTable(table) => {
+            renumber_table(table, state, is_book, suppressed, record_toc, record_number);
+        }
+        DelimitedBlockType::DelimitedListing(_)
+        | DelimitedBlockType::DelimitedLiteral(_)
+        | DelimitedBlockType::DelimitedVerse(_)
+        | DelimitedBlockType::DelimitedPass(_)
+        | DelimitedBlockType::DelimitedComment(_)
+        | DelimitedBlockType::DelimitedStem(_) => {}
+    }
+}
+
+fn renumber_section<'a, F>(
+    section: &mut Section<'a>,
+    state: &mut NumberingState,
+    is_book: bool,
+    suppressed: bool,
+    record_toc: bool,
+    record_number: &mut F,
+) where
+    F: FnMut(&Section<'a>, Option<SectionNumber>),
+{
+    let level = state.numbering_level(section.level, section.kind);
+    let participates = section_participates(section, is_book);
+    let eligible = participates && !suppressed;
+    let number = if !eligible {
+        None
+    } else if section.kind == SectionKind::Appendix {
+        Some(state.next_appendix())
+    } else if section.level == 0 && section.kind == SectionKind::Normal {
+        Some(state.next_part())
+    } else {
+        let number = state.next_section(level);
+        (level <= section.numbering.max_level)
+            .then_some(number)
+            .flatten()
+    };
+    section.numbering.number.clone_from(&number);
+    if record_toc {
+        record_number(section, number.clone());
+    }
+
+    let suppress_children = suppressed
+        || (section.kind.is_special() && section.kind != SectionKind::Appendix && !participates);
+    renumber_blocks(
+        &mut section.content,
+        state,
+        is_book,
+        suppress_children,
+        record_toc,
+        record_number,
+    );
+}
+
+fn section_participates(section: &Section<'_>, is_book: bool) -> bool {
+    if section.kind == SectionKind::Appendix {
+        return true;
+    }
+    if section.level == 0 && section.kind == SectionKind::Normal {
+        return is_book && section.numbering.partnums;
+    }
+    if !section.numbering.enabled {
+        return false;
+    }
+    match section.kind {
+        SectionKind::Normal | SectionKind::Appendix => true,
+        SectionKind::Abstract if is_book => true,
+        SectionKind::Preface
+        | SectionKind::Abstract
+        | SectionKind::Dedication
+        | SectionKind::Colophon
+        | SectionKind::Glossary
+        | SectionKind::Bibliography
+        | SectionKind::Index => section.numbering.number_all,
+    }
+}
+
+fn renumber_table<'a, F>(
+    table: &mut Table<'a>,
+    state: &mut NumberingState,
+    is_book: bool,
+    suppressed: bool,
+    record_toc: bool,
+    record_number: &mut F,
+) where
+    F: FnMut(&Section<'a>, Option<SectionNumber>),
+{
+    for row in table
+        .header
+        .iter_mut()
+        .chain(table.rows.iter_mut())
+        .chain(table.footer.iter_mut())
+    {
+        for column in &mut row.columns {
+            if column.style == Some(ColumnStyle::AsciiDoc) {
+                let mut nested_state = NumberingState::nested_document();
+                renumber_blocks(
+                    &mut column.content,
+                    &mut nested_state,
+                    is_book,
+                    false,
+                    false,
+                    record_number,
+                );
+            } else {
+                renumber_blocks(
+                    &mut column.content,
+                    state,
+                    is_book,
+                    suppressed,
+                    record_toc,
+                    record_number,
+                );
+            }
+        }
+    }
+}
+
+fn effective_numbering_level(level: SectionLevel, kind: SectionKind) -> SectionLevel {
+    if level == 0 && kind.is_special() {
+        1
+    } else {
+        level
+    }
+}
+
+fn to_upper_roman(mut number: usize) -> String {
+    const NUMERALS: &[(usize, &str)] = &[
+        (1000, "M"),
+        (900, "CM"),
+        (500, "D"),
+        (400, "CD"),
+        (100, "C"),
+        (90, "XC"),
+        (50, "L"),
+        (40, "XL"),
+        (10, "X"),
+        (9, "IX"),
+        (5, "V"),
+        (4, "IV"),
+        (1, "I"),
+    ];
+    let mut result = String::new();
+    for &(value, numeral) in NUMERALS {
+        while number >= value {
+            result.push_str(numeral);
+            number -= value;
+        }
+    }
+    result
 }
 
 /// A `SafeId` represents a sanitised ID.

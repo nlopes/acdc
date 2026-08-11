@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Parsed sections and their table-of-contents entries now carry the same number,
+  based on the numbering attributes in effect at each heading. Numbering changes
+  apply in source order and restart inside AsciiDoc table cells. `Section::new`
+  creates an unnumbered section; use `Section::with_numbering(true)` and
+  `Document::renumber_sections()` when adding or changing sections through the API.
 - Titled example, listing, source, image, and table blocks now carry their caption —
   label and number — in `BlockMetadata::caption`, taken from the `caption`,
   `<kind>-caption`, or block-level `caption=` attribute in effect **at that block's
@@ -112,6 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Comparing or debugging sections now includes their numbering state. Serialized
+  ASG output is unchanged.
+
 - `BlockMetadata` now carries its block's resolved caption, so parsed metadata no longer
   compares equal to otherwise-identical metadata built by a caller. Serialized output is
   unchanged — the caption is not part of the ASG.
@@ -155,6 +163,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AsciiDoc-style table cells now keep local attributes and sections within the
+  nested cell document. Local section-numbering changes apply in source order,
+  and outer cross-references can still target cell headings.
 - Literal table cells now keep attribute references, macros, formatting marks,
   spaces, and line breaks as source text. Semantic header rows ignore cell and
   column styles and continue to use normal substitutions, matching Asciidoctor.

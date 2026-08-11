@@ -26,6 +26,10 @@ use crate::{
 )]
 pub(crate) struct ParserState<'a> {
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
+    /// Attributes inherited by the current nested document. Asciidoctor-style
+    /// table cells may read these values, but attribute entries in the cell
+    /// cannot replace or unset them.
+    pub(crate) nested_parent_attributes: Option<Rc<DocumentAttributes<'a>>>,
     /// Tracks document hard-break changes that apply only to following blocks.
     pub(crate) hardbreaks: bool,
     /// Processed-text offsets where an empty attribute reference was removed.
@@ -291,10 +295,17 @@ impl<'a> ParserState<'a> {
         value: AttributeValue<'a>,
         set: bool,
     ) -> AttributeValue<'a> {
+        let value = self.resolve_document_attribute_value(value, &self.document_attributes);
+        if self
+            .nested_parent_attributes
+            .as_ref()
+            .is_some_and(|attributes| attributes.is_explicitly_set(key.as_ref()))
+        {
+            return value;
+        }
         if matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option") {
             self.hardbreaks = set;
         }
-        let value = self.resolve_document_attribute_value(value, &self.document_attributes);
         if !crate::constants::is_trusted_attribute(key.as_ref()) {
             Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
         }
@@ -342,6 +353,7 @@ impl<'a> ParserState<'a> {
         Self {
             options: Rc::new(Options::default()),
             document_attributes: Rc::new(DocumentAttributes::default()),
+            nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
@@ -375,6 +387,7 @@ impl<'a> ParserState<'a> {
         Self {
             options: Rc::new(EMPTY_OPTIONS.clone()),
             document_attributes: Rc::new(DocumentAttributes::empty()),
+            nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
@@ -402,6 +415,7 @@ impl<'a> ParserState<'a> {
         Self {
             options: parent.options.clone(),
             document_attributes: Rc::clone(&parent.document_attributes),
+            nested_parent_attributes: parent.nested_parent_attributes.clone(),
             hardbreaks: parent.hardbreaks,
             empty_attribute_offsets: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),

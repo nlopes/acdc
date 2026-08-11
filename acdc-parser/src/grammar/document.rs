@@ -28,7 +28,7 @@ use crate::{
     },
     model::{
         Caption, CaptionKind, LeveloffsetRange, ListLevel, Locateable, PositionalAttribute,
-        SectionKind, SectionLevel, Substitution, caption, strip_quotes, substitute,
+        SectionKind, SectionLevel, Substitution, caption, section, strip_quotes, substitute,
         substitution::{HEADER, SubsFlags},
     },
 };
@@ -1195,8 +1195,8 @@ fn collect_formatted_references<'a, T>(
 /// collect every `<<id>>` / `xref:id[]` into `xrefs` (target, location) for
 /// unresolved-reference checking. A target with no title is still registered (reference
 /// text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than being
-/// treated as unresolved. Section IDs come from `toc_entries` (seeded separately); this
-/// only recurses into their content.
+/// treated as unresolved. Top-level section IDs are seeded from `toc_entries`; this walk
+/// also catalogs nested-document sections that do not belong in the outer table of contents.
 fn collect_references<'a>(
     state: &mut ParserState<'a>,
     blocks: &[Block<'a>],
@@ -1211,7 +1211,25 @@ fn collect_references<'a>(
         }
 
         match block {
-            Block::Section(s) => collect_references(state, &s.content, refs, xrefs),
+            Block::Section(s) => {
+                // Top-level sections are already seeded from `toc_entries`.
+                // Sections in an AsciiDoc-style table cell belong to its
+                // nested document and are intentionally absent from that list,
+                // but their destinations remain visible to outer xrefs.
+                let id = Section::generate_id(state.arena, &s.metadata, &s.title)
+                    .as_arena_str(state.arena);
+                let xreflabel = s
+                    .metadata
+                    .anchors
+                    .last()
+                    .and_then(|anchor| anchor.xreflabel);
+                refs.entry(id).or_insert_with(|| Reference {
+                    xreflabel: parse_reference_label(state, xreflabel, &s.location),
+                    title: Some(s.title.clone()),
+                    location: s.location.clone(),
+                });
+                collect_references(state, &s.content, refs, xrefs);
+            }
             Block::Paragraph(p) => collect_inline_references(state, &p.content, refs, xrefs),
             // A simple admonition's content is a synthetic paragraph that shares
             // the admonition's anchor; the admonition registered it first, so its
@@ -2151,6 +2169,12 @@ peg::parser! {
             // catalog can later carry a target's caption label and ordinal.
             caption::renumber_captions(&mut blocks);
 
+            section::number_parsed_sections(
+                &mut blocks,
+                &mut state.toc_entries,
+                is_book_doctype(&state.document_attributes),
+            );
+
             // Build the id -> reference catalog for O(1) `<<id>>` resolution:
             // sections (already collected as toc_entries) plus a single walk over
             // the final tree for every other anchor (block IDs, inline `[[id]]`
@@ -2899,19 +2923,20 @@ peg::parser! {
 
             // Classify the section by its style (preface, appendix, …).
             let kind = SectionKind::from_style(block_metadata.metadata.style);
+            let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
 
             // Register section for TOC immediately after title is parsed, before content
             let location = state.create_block_location(section_level_start, title_end, offset);
-            state.toc_entries.push(TocEntry {
-                id: section_id,
-                title: title.clone(),
-                level: section_level.1,
+            state.toc_entries.push(TocEntry::for_section(
+                section_id,
+                title.clone(),
+                section_level.1,
                 xreflabel,
                 kind,
                 location,
-            });
+            ));
 
-            Ok::<(Title<'input>, &'input str), Error>((title, section_id))
+            Ok::<(Title<'input>, &'input str, section::SectionNumbering), Error>((title, section_id, numbering))
         })
         content:section_content(offset, Some(expected_child_level(
             section_level.1,
@@ -2919,7 +2944,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )))?
         {
-            let (title, section_id) = section_header?;
+            let (title, _section_id, numbering) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
 
             // Validate section level against parent section level if any is provided.
@@ -2951,19 +2976,19 @@ peg::parser! {
             let level = section_level.1;
             let location = state.create_block_location(span_start, span_end, offset);
 
-            // Classify the section by its style (preface, appendix, …). The
-            // numbering implication of being special — including suppression of
-            // subsection numbering — is decided later, by the converters.
+            // Classify the section before the post-parse numbering pass applies
+            // special-section rules to the complete section tree.
             let kind = SectionKind::from_style(block_metadata.metadata.style);
 
-            Ok(Block::Section(Section {
-                metadata: block_metadata.metadata,
+            Ok(Block::Section(Section::parsed(
+                block_metadata.metadata,
                 title,
                 level,
-                content: content.unwrap_or(Ok(Vec::new()))?,
+                content.unwrap_or(Ok(Vec::new()))?,
                 kind,
-                location
-            }))
+                numbering,
+                location,
+            )))
         }
 
         /// Setext-style section header: Title underlined with `-`, `~`, `^`, or `+`
@@ -3044,19 +3069,20 @@ peg::parser! {
 
                     // Classify the section by its style (preface, appendix, …).
                     let kind = SectionKind::from_style(block_metadata.metadata.style);
+                    let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
 
                     // Register section for TOC
                     let location = state.create_block_location(title_start, title_end, offset);
-                    state.toc_entries.push(TocEntry {
-                        id: section_id,
-                        title: processed_title.clone(),
-                        level: setext_level,
+                    state.toc_entries.push(TocEntry::for_section(
+                        section_id,
+                        processed_title.clone(),
+                        setext_level,
                         xreflabel,
                         kind,
                         location,
-                    });
+                    ));
 
-                    Ok::<(Title<'input>, &'input str), Error>((processed_title, section_id))
+                    Ok::<(Title<'input>, &'input str, section::SectionNumbering), Error>((processed_title, section_id, numbering))
                 }
                 Err(e) => Err(e),
             }
@@ -3067,20 +3093,21 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )))?
         {
-            let (title, _section_id) = section_header?;
+            let (title, _section_id, numbering) = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
 
             // Classify the section by its style (see the ATX section rule).
             let kind = SectionKind::from_style(block_metadata.metadata.style);
 
-            Ok(Block::Section(Section {
-                metadata: block_metadata.metadata,
+            Ok(Block::Section(Section::parsed(
+                block_metadata.metadata,
                 title,
-                level: setext_level,
-                content: content.unwrap_or(Ok(Vec::new()))?,
+                setext_level,
+                content.unwrap_or(Ok(Vec::new()))?,
                 kind,
+                numbering,
                 location,
-            }))
+            )))
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
@@ -6661,9 +6688,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
     #[test]
     #[tracing_test::traced_test]
     fn test_section_kind_classifies_special_sections() -> Result<(), Error> {
-        // The parser records each section's own kind from its style; it does not
-        // infer anything for a plain subsection (the numbering implication of
-        // being nested under a special section is decided by converters).
+        // A plain subsection keeps its own `Normal` kind. The numbering pass
+        // handles any suppression inherited from a special parent.
         let input = "= Title\n\n[preface]\n== Introduction\n\nintro\n\n=== Features\n\nfeatures\n\n== Real Chapter\n\ntext";
         let mut state = ParserState::new_for_test(input);
         let result = document_parser::document(input, &mut state)??;
