@@ -167,6 +167,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Table cell specifiers now accept the Asciidoctor order with spans or repeats
+  before alignment and style. Column styles after spans, and across repeated
+  cells, now follow source-cell order.
 - AsciiDoc-style table cells now keep local attributes and sections within the
   nested cell document. Local section-numbering changes apply in source order,
   and outer cross-references can still target cell headings.

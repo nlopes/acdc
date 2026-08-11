@@ -247,13 +247,14 @@ fn csv_style_delimiter(separator: &str) -> Option<u8> {
 /// Represents a parsed cell specifier with span, alignment, and style information.
 ///
 /// In `AsciiDoc`, cell specifiers appear before the cell separator with format:
-/// `[halign][valign][colspan][.rowspan][op][style]|`
+/// `[colspan][.rowspan][op][halign][valign][style]|`. Alignment without a span
+/// can appear directly before the style and separator.
 ///
 /// Examples:
 /// - `2+|content` → colspan=2
 /// - `.3+|content` → rowspan=3
 /// - `2.3+|content` → colspan=2, rowspan=3
-/// - `^.>2+s|content` → center, bottom, colspan=2, strong style
+/// - `2+^.>s|content` → center, bottom, colspan=2, strong style
 /// - `3*|content` → duplicate cell 3 times
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CellSpecifier {
@@ -303,13 +304,13 @@ impl CellSpecifier {
     /// specifier is only ever recognized as the line-leading token before a
     /// cell delimiter, so style-only specifiers (e.g. `s|` for strong) are
     /// always accepted here.
-    /// Full pattern: `[halign][valign][colspan][.rowspan][+|*][style]`
+    /// Full pattern: `[colspan][.rowspan][+|*][halign][valign][style]`
     ///
     /// Examples:
     /// - `"2+rest"` → colspan=2
     /// - `".3+rest"` → rowspan=3
     /// - `"2.3+rest"` → colspan=2, rowspan=3
-    /// - `"^.>2+srest"` → center, bottom, colspan=2, strong style
+    /// - `"2+^.>srest"` → center, bottom, colspan=2, strong style
     /// - `"3*rest"` → `duplication_count`=3
     /// - `"plain"` → defaults (no specifier found)
     #[must_use]
@@ -442,6 +443,14 @@ impl CellSpecifier {
 
         if (is_span || is_duplication) && has_span_or_dup {
             pos += 1;
+
+            // Asciidoctor places alignment after the span operator. Keep
+            // accepting the older ACDC alignment-first order as well.
+            let (after_span_horizontal, after_span_vertical, alignment_end) =
+                Self::parse_alignments(bytes, pos);
+            pos = alignment_end;
+            let halign = after_span_horizontal.or(halign);
+            let valign = after_span_vertical.or(valign);
 
             // Parse optional style letter after operator
             let style = bytes.get(pos).and_then(|&b| parse_style_byte(b));
@@ -1073,6 +1082,21 @@ mod tests {
         match Table::parse_rows_with_positions(input, separator, has_header, 0, ncols, &mut None) {
             Ok(rows) => rows,
             Err(error) => panic!("table should parse: {error:?}"),
+        }
+    }
+
+    #[test]
+    fn combined_span_accepts_canonical_and_legacy_alignment_order() {
+        for source in ["2.2+^.^e", "^.^2.2+e"] {
+            let (specifier, consumed) = CellSpecifier::parse(source);
+
+            assert_eq!(consumed, source.len());
+            assert_eq!(specifier.colspan, 2);
+            assert_eq!(specifier.rowspan, 2);
+            assert_eq!(specifier.halign, Some(HorizontalAlignment::Center));
+            assert_eq!(specifier.valign, Some(VerticalAlignment::Middle));
+            assert_eq!(specifier.style, Some(ColumnStyle::Emphasis));
+            assert!(!specifier.is_duplication);
         }
     }
 

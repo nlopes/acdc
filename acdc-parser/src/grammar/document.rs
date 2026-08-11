@@ -1837,45 +1837,45 @@ fn parse_table_block_impl<'input>(
         // Each raw cell produces at least one `columns` entry; duplication
         // produces more but is bounded by the table's column limit.
         let mut columns = Vec::with_capacity(row.len());
-        let mut col_idx = 0; // Track current column index for column format lookup
         for cell in row {
-            // Apply column format style if cell doesn't have explicit style
-            let effective_cell = if is_header_row {
-                // A semantic header row always uses normal substitutions and
-                // header presentation, regardless of column or cell styles.
-                let mut cell_without_style = cell.clone();
-                cell_without_style.style = None;
-                cell_without_style
-            } else if cell.style.is_none()
-                && let Some(col_format) = column_formats.get(col_idx)
-                && col_format.style != crate::ColumnStyle::Default
-            {
-                let mut cell_with_style = cell.clone();
-                cell_with_style.style = Some(col_format.style);
-                cell_with_style
+            let cell_count = if cell.is_duplication {
+                cell.duplication_count
             } else {
-                cell.clone()
+                1
             };
+            for _ in 0..cell_count {
+                // Column defaults follow generated cell order; spans do not
+                // advance this source-row index in Asciidoctor.
+                let column_index = columns.len();
+                // Apply column format style if cell doesn't have explicit style
+                let effective_cell = if is_header_row {
+                    // A semantic header row always uses normal substitutions and
+                    // header presentation, regardless of column or cell styles.
+                    let mut cell_without_style = cell.clone();
+                    cell_without_style.style = None;
+                    cell_without_style
+                } else if cell.style.is_none()
+                    && let Some(col_format) = column_formats.get(column_index)
+                    && col_format.style != crate::ColumnStyle::Default
+                {
+                    let mut cell_with_style = cell.clone();
+                    cell_with_style.style = Some(col_format.style);
+                    cell_with_style
+                } else {
+                    cell.clone()
+                };
 
-            // Cell content is owned by the ParsedCell; intern into the parser
-            // arena so downstream block parsing can borrow at `'input`.
-            let cell_content: &'input str = state.intern_str(&effective_cell.content);
-            let parsed = parse_table_cell(
-                cell_content,
-                state,
-                effective_cell.content_start,
-                block_metadata.parent_section_level,
-                &effective_cell,
-            )?;
-            if effective_cell.is_duplication && effective_cell.duplication_count > 1 {
-                // Duplicate the cell N times
-                for _ in 0..effective_cell.duplication_count {
-                    columns.push(parsed.clone());
-                }
-                col_idx += effective_cell.duplication_count * effective_cell.colspan;
-            } else {
+                // Cell content is owned by the ParsedCell; intern into the parser
+                // arena so downstream block parsing can borrow at `'input`.
+                let cell_content: &'input str = state.intern_str(&effective_cell.content);
+                let parsed = parse_table_cell(
+                    cell_content,
+                    state,
+                    effective_cell.content_start,
+                    block_metadata.parent_section_level,
+                    &effective_cell,
+                )?;
                 columns.push(parsed);
-                col_idx += effective_cell.colspan;
             }
         }
 
