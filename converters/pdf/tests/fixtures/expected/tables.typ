@@ -207,7 +207,7 @@
 #blocktitle[#text("Cell alignment after spans")]
 #table(columns: (1fr, 1fr, 1fr), align: (right + top, left + top, center + top), table.cell(x: 0, y: 0, colspan: 2)[#text("Spans logical columns one and two")
 
-], table.cell(x: 2, y: 0, align: bottom)[#text("Bottom in logical column three")
+], table.cell(x: 2, y: 0, align: left + bottom)[#text("Bottom in logical column three")
 
 ], table.cell(x: 0, y: 1, rowspan: 2)[#text("Spans two rows")
 
@@ -215,9 +215,9 @@
 
 ], table.cell(x: 2, y: 1)[#text("First row, logical column three")
 
-], table.cell(x: 1, y: 2, align: bottom)[#text("Bottom in logical column two")
+], table.cell(x: 1, y: 2, align: right + bottom)[#text("Bottom in logical column two")
 
-], table.cell(x: 2, y: 2)[#text("This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.")
+], table.cell(x: 2, y: 2, align: left + top)[#text("This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.")
 
 ])
 

@@ -1032,7 +1032,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let grid = build_grid(table, column_count);
         if let Some(header) = grid.first().filter(|row| row.is_header) {
             self.writer.raw(", table.header(repeat: true, ");
-            self.write_table_row_cells(header, 0, "")?;
+            self.write_table_row_cells(table, header, 0, "")?;
             self.writer.raw(")");
         }
 
@@ -1043,12 +1043,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .enumerate()
             .filter(|(_, row)| !row.is_header && !row.is_footer)
         {
-            self.write_table_row_cells(row, y, ", ")?;
+            self.write_table_row_cells(table, row, y, ", ")?;
         }
 
         if let Some(footer) = grid.last().filter(|row| row.is_footer) {
             self.writer.raw(", table.footer(repeat: false, ");
-            self.write_table_row_cells(footer, grid.len() - 1, "")?;
+            self.write_table_row_cells(table, footer, grid.len() - 1, "")?;
             self.writer.raw(")");
         }
 
@@ -1058,6 +1058,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_table_row_cells(
         &mut self,
+        table: &Table<'_>,
         row: &GridRow<'_>,
         y: usize,
         first_separator: &str,
@@ -1069,7 +1070,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             };
             if let Some(ast_cell) = row.ast_row.columns.get(*cell_index) {
                 self.writer.raw(separator);
-                self.write_table_cell(ast_cell, x, y, row.is_header)?;
+                let source_column_alignment = table.columns.get(*cell_index).map_or_else(
+                    || (HorizontalAlignment::default(), VerticalAlignment::default()),
+                    |column| (column.halign, column.valign),
+                );
+                let physical_column_alignment = table.columns.get(x).map_or_else(
+                    || (HorizontalAlignment::default(), VerticalAlignment::default()),
+                    |column| (column.halign, column.valign),
+                );
+                self.write_table_cell(
+                    ast_cell,
+                    x,
+                    y,
+                    row.is_header,
+                    source_column_alignment,
+                    physical_column_alignment,
+                )?;
                 separator = ", ";
             }
         }
@@ -1082,6 +1098,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         x: usize,
         y: usize,
         is_header: bool,
+        source_column_alignment: (HorizontalAlignment, VerticalAlignment),
+        physical_column_alignment: (HorizontalAlignment, VerticalAlignment),
     ) -> Result<(), Error> {
         let _ = write!(self.writer, "table.cell(x: {x}, y: {y}");
         if cell.colspan > 1 {
@@ -1090,7 +1108,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if cell.rowspan > 1 {
             let _ = write!(self.writer, ", rowspan: {}", cell.rowspan);
         }
-        if let Some(alignment) = table_cell_alignment(cell) {
+        if let Some(alignment) =
+            table_cell_alignment(cell, source_column_alignment, physical_column_alignment)
+        {
             let _ = write!(self.writer, ", align: {alignment}");
         }
         self.writer.raw(")[");
@@ -1392,7 +1412,29 @@ fn table_column_alignments(table: &Table<'_>, column_count: usize) -> String {
     format!("({})", alignments.join(", "))
 }
 
-fn table_cell_alignment(cell: &TableColumn<'_>) -> Option<String> {
+fn table_cell_alignment(
+    cell: &TableColumn<'_>,
+    source_column_alignment: (HorizontalAlignment, VerticalAlignment),
+    physical_column_alignment: (HorizontalAlignment, VerticalAlignment),
+) -> Option<String> {
+    let (column_horizontal, column_vertical) = source_column_alignment;
+    let horizontal = cell.halign.unwrap_or(column_horizontal);
+    let vertical = cell.valign.unwrap_or(column_vertical);
+
+    if cell.style == Some(ColumnStyle::AsciiDoc) {
+        let effective = (HorizontalAlignment::Left, vertical);
+        return (effective != physical_column_alignment)
+            .then(|| format!("left + {}", typst_vertical_alignment(vertical)));
+    }
+
+    if source_column_alignment != physical_column_alignment {
+        return Some(format!(
+            "{} + {}",
+            typst_horizontal_alignment(horizontal),
+            typst_vertical_alignment(vertical)
+        ));
+    }
+
     match (cell.halign, cell.valign) {
         (Some(horizontal), Some(vertical)) => Some(format!(
             "{} + {}",

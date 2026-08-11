@@ -167,14 +167,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `^`, and `>`, and vertically with `.<`, `.^`, and `.>`, matching
   `asciidoctor-pdf`.
 - Table cells now honour their own horizontal and vertical alignment markers
-  in headers, bodies, footers, and spanned layouts. An unspecified axis comes
-  from the column where the cell appears; after a span, Asciidoctor PDF can
-  instead take it from an earlier column.
+  in headers, bodies, footers, and spanned layouts. Column defaults follow each
+  cell's source-row position after spans and across repeated cells, matching
+  `asciidoctor-pdf`.
 - Table columns and cells now apply emphasis, strong, monospace, literal, and
   header styles. Literal cells keep their source text and whitespace, while
   semantic header rows ignore cell styles, matching Asciidoctor PDF.
 - AsciiDoc-style table cells now preserve nested blocks. Cell headings follow
   local section-numbering changes, number independently, and stay out of the
-  outer table of contents and PDF outline.
+  outer table of contents and PDF outline. Their vertical alignment is
+  preserved, while horizontal cell alignment does not affect nested blocks,
+  matching `asciidoctor-pdf`.
 - Section headings and table-of-contents entries now use one source-order number
   assigned by the parser, including parts, appendices, and special sections.
