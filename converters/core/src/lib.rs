@@ -138,84 +138,59 @@ pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
     Cow::Owned(result)
 }
 
-/// Create default document attributes for rendering.
+/// Return the default document attributes used for rendering.
 ///
-/// These defaults match asciidoctor's rendering behavior and are used by converters
-/// (HTML, terminal, etc.) to provide consistent output. Document-level attributes
-/// from the source always take precedence over these defaults.
-///
-/// # Default Attributes
-///
-/// - `lang`: "en" - HTML lang attribute for accessibility
-/// - `note-caption`: "Note" - Capitalized admonition label
-/// - `tip-caption`: "Tip" - Capitalized admonition label
-/// - `important-caption`: "Important" - Capitalized admonition label
-/// - `warning-caption`: "Warning" - Capitalized admonition label
-/// - `caution-caption`: "Caution" - Capitalized admonition label
-/// - `toclevels`: "2" - Table of contents depth (only used when `:toc:` is set)
-/// - `sectnumlevels`: "3" - Section numbering depth (when section numbering enabled)
-///
-/// # Usage
-///
-/// Converters should merge these defaults with document attributes:
-///
-/// ```ignore
-/// let mut attrs = default_rendering_attributes();
-/// attrs.merge(document.attributes.clone()); // Document attributes override defaults
-/// ```
-///
-/// # Note
-///
-/// The `:toc:` attribute is intentionally NOT set by default - TOC generation
-/// must be explicitly requested in the document.
+/// Universal `AsciiDoc` defaults, including captions, remain available for
+/// substitution without being treated as caller-set values. This function also
+/// sets `lang=en` for output metadata. It does not enable the TOC.
 #[must_use]
 pub fn default_rendering_attributes() -> DocumentAttributes<'static> {
     let mut attrs = DocumentAttributes::default();
 
-    // HTML lang attribute (default: "en")
     attrs.set(
         Cow::Borrowed("lang"),
         AttributeValue::String(Cow::Borrowed("en")),
     );
 
-    // Admonition captions (capitalized to match asciidoctor)
-    attrs.set(
-        Cow::Borrowed("note-caption"),
-        AttributeValue::String(Cow::Borrowed("Note")),
-    );
-    attrs.set(
-        Cow::Borrowed("tip-caption"),
-        AttributeValue::String(Cow::Borrowed("Tip")),
-    );
-    attrs.set(
-        Cow::Borrowed("important-caption"),
-        AttributeValue::String(Cow::Borrowed("Important")),
-    );
-    attrs.set(
-        Cow::Borrowed("warning-caption"),
-        AttributeValue::String(Cow::Borrowed("Warning")),
-    );
-    attrs.set(
-        Cow::Borrowed("caution-caption"),
-        AttributeValue::String(Cow::Borrowed("Caution")),
-    );
-
-    // TOC levels (only used when :toc: is set)
-    attrs.set(
-        Cow::Borrowed("toclevels"),
-        AttributeValue::String(Cow::Borrowed("2")),
-    );
-
-    // Section numbering levels (for future section numbering feature)
-    attrs.set(
-        Cow::Borrowed("sectnumlevels"),
-        AttributeValue::String(Cow::Borrowed("3")),
-    );
-
-    // NOTE: :toc: is intentionally NOT set - TOC should only appear when explicitly requested
-    // NOTE: :sectids: is enabled by default in the parser itself, no attribute needed
-
     attrs
+}
+
+#[cfg(test)]
+mod rendering_attribute_tests {
+    use acdc_parser::{Block, InlineNode, Options as ParserOptions, parse};
+
+    use super::*;
+
+    #[test]
+    fn universal_defaults_remain_available_without_becoming_explicit()
+    -> Result<(), acdc_parser::Error> {
+        let mut attributes = default_rendering_attributes();
+        let parsed = parse(
+            "= T\n:toc:\n\n{toclevels}|{example-caption}|{figure-caption}|{table-caption}|{note-caption}\n",
+            &ParserOptions::with_attributes(attributes.clone()),
+        )?;
+        let text = parsed.document().blocks.iter().find_map(|block| {
+            let Block::Paragraph(paragraph) = block else {
+                return None;
+            };
+            paragraph.content.iter().find_map(|inline| {
+                let InlineNode::PlainText(text) = inline else {
+                    return None;
+                };
+                Some(text.content)
+            })
+        });
+
+        assert_eq!(text, Some("{toclevels}|Example|Figure|Table|Note"));
+        assert_eq!(
+            toc::Config::from_attributes(None, &parsed.document().attributes).levels(),
+            2
+        );
+
+        attributes.remove("lang");
+        assert!(attributes.is_empty());
+        Ok(())
+    }
 }
 
 /// Output destination for conversion.
@@ -539,7 +514,7 @@ impl std::fmt::Display for GeneratorMetadata {
 ///
 /// Document attributes follow a layered precedence system (lowest to highest priority):
 ///
-/// 1. **Base rendering defaults** - from [`default_rendering_attributes()`] (admonition captions, toclevels, etc.)
+/// 1. **Base rendering defaults** - from [`default_rendering_attributes()`] (captions, labels, and output metadata)
 /// 2. **Converter-specific defaults** - from [`Converter::document_attributes_defaults()`] (e.g., `man-linkstyle` for manpage)
 /// 3. **CLI attributes** - user-provided via `-a name=value`
 /// 4. **Document attributes** - `:name: value` in document header

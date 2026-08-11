@@ -10,12 +10,7 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, InlineTextTransform, Options,
-    section::{
-        AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
-        last_section_has_style,
-    },
-    visitor::Visitor,
-    xref::XrefGuard,
+    section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
 };
 #[cfg(feature = "emulator")]
 use acdc_parser::BlockMetadata;
@@ -52,14 +47,6 @@ pub struct Processor<'a> {
     pub(crate) example_counter: Rc<Cell<usize>>,
     /// Terminal appearance (theme, capabilities, colors)
     pub(crate) appearance: Appearance,
-    /// Section number tracker for `:sectnums:` support.
-    pub(crate) section_number_tracker: SectionNumberTracker,
-    /// Part number tracker for `:partnums:` support in book doctype.
-    pub(crate) part_number_tracker: PartNumberTracker,
-    /// Appendix tracker for `[appendix]` style on level-0 sections.
-    pub(crate) appendix_tracker: AppendixTracker,
-    /// Tracks special sections so their subsections skip `:sectnums:` numbering.
-    pub(crate) special_section_tracker: SpecialSectionTracker,
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
     pub(crate) terminal_width: usize,
     /// Collected index term kinds for rendering in the index catalog.
@@ -102,11 +89,6 @@ pub(crate) fn create_test_processor_with(
     document_attributes: DocumentAttributes<'_>,
 ) -> Processor<'_> {
     let appearance = Appearance::detect();
-    let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-    let part_number_tracker = PartNumberTracker::new(&document_attributes);
-    let appendix_tracker =
-        AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-    let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
     Processor {
         options: Options::default(),
         document_attributes,
@@ -115,10 +97,6 @@ pub(crate) fn create_test_processor_with(
         xref_guard: XrefGuard::default(),
         example_counter: Rc::new(Cell::new(0)),
         appearance,
-        section_number_tracker,
-        part_number_tracker,
-        appendix_tracker,
-        special_section_tracker,
         terminal_width: FALLBACK_TERMINAL_WIDTH,
         index_entries: Rc::new(RefCell::new(Vec::new())),
         has_valid_index_section: false,
@@ -146,12 +124,6 @@ impl<'a> Converter<'a> for Processor<'a> {
         BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
         let appearance = Appearance::detect();
 
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker = PartNumberTracker::new(&document_attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
-
         let terminal_width = crossterm::terminal::size()
             .map_or(FALLBACK_TERMINAL_WIDTH, |(cols, _)| usize::from(cols))
             .min(MAX_TERMINAL_WIDTH);
@@ -164,10 +136,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             xref_guard: XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
             appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
@@ -202,12 +170,6 @@ impl<'a> Converter<'a> for Processor<'a> {
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
-        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker = PartNumberTracker::new(&doc.attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&doc.attributes);
-
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor = Processor {
             document_attributes: doc.attributes.clone(),
@@ -217,10 +179,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
             appearance: self.appearance.clone(),
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),

@@ -1,0 +1,31 @@
+= AsciiDoc-style table cell attributes
+:outer-value: inherited
+
+[cols="2*a"]
+|===
+|
+:cell-local: local
+:outer-value: changed
+
+Cell sees {cell-local} and {outer-value}.
+
+== Before enabling numbers
+
+Before enabling text.
+
+:sectnums:
+:sectnumlevels: 1
+
+== After enabling numbers
+
+After enabling text.
+
+=== Child beyond the numbering depth
+
+Child text.
+
+|
+Sibling sees {cell-local} and {outer-value}.
+|===
+
+Outer content sees {cell-local} and {outer-value}.

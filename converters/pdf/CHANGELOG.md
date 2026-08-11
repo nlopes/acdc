@@ -173,3 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table columns and cells now apply emphasis, strong, monospace, literal, and
   header styles. Literal cells keep their source text and whitespace, while
   semantic header rows ignore cell styles, matching Asciidoctor PDF.
+- AsciiDoc-style table cells now preserve nested blocks. Cell headings follow
+  local section-numbering changes, number independently, and stay out of the
+  outer table of contents and PDF outline.
+- Section headings and table-of-contents entries now use one source-order number
+  assigned by the parser, including parts, appendices, and special sections.

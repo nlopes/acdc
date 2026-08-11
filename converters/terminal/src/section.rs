@@ -1,7 +1,14 @@
 use std::io::Write;
 
-use acdc_converters_core::{section::effective_section_level, visitor::WritableVisitor};
-use acdc_parser::{DiscreteHeader, InlineNode, Section, SectionKind};
+use acdc_converters_core::{
+    section::{
+        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+    },
+    visitor::WritableVisitor,
+};
+use acdc_parser::{
+    AttributeValue, DiscreteHeader, DocumentAttributes, InlineNode, Section, SectionKind,
+};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -16,29 +23,24 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(w)?;
 
         let effective_level = effective_section_level(section.level, section.kind);
-        let skip_numbering = !processor
-            .special_section_tracker
-            .enter(effective_level, section.kind);
-
         let is_appendix = section.kind == SectionKind::Appendix;
         let is_part = section.level == 0 && section.kind == SectionKind::Normal;
 
-        // Build title prefix (section number, part number, or appendix label)
-        let prefix = if is_appendix {
-            processor.appendix_tracker.enter_appendix()
-        } else if is_part && !skip_numbering {
-            processor
-                .part_number_tracker
-                .enter_part()
-                .unwrap_or_default()
-        } else if !skip_numbering {
-            processor
-                .section_number_tracker
-                .enter_section(effective_level)
-                .unwrap_or_default()
-        } else {
-            String::new()
-        };
+        let prefix = section.number().map_or_else(String::new, |number| {
+            if is_appendix {
+                appendix_number_prefix(
+                    number,
+                    string_attribute(&processor.document_attributes, "appendix-caption"),
+                )
+            } else if is_part {
+                part_number_prefix(
+                    number,
+                    string_attribute(&processor.document_attributes, "part-signifier"),
+                )
+            } else {
+                section_number_prefix(number, None)
+            }
+        });
 
         let raw_title = extract_title_text(&section.title, &processor.references);
         let title = format!("{prefix}{raw_title}");
@@ -113,6 +115,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(w)?;
         writeln!(w)?;
         Ok(())
+    }
+}
+
+fn string_attribute<'a>(attributes: &'a DocumentAttributes<'_>, name: &str) -> Option<&'a str> {
+    match attributes.get(name) {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) | None => None,
     }
 }
 

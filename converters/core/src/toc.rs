@@ -11,56 +11,29 @@
 //! - `preamble` - Render at end of preamble
 //! - `macro` - Render where `toc::[]` macro appears
 
-use acdc_parser::{
-    AttributeValue, DocumentAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, SectionKind,
-    TableOfContents, TocEntry,
-};
+use acdc_parser::{AttributeValue, DocumentAttributes, SectionKind, TableOfContents, TocEntry};
 
-use crate::section::{
-    DEFAULT_SECTION_LEVEL, SpecialSectionPolicy, SpecialSectionTracker, effective_section_level,
-    to_upper_roman,
-};
+use crate::section::{appendix_number_prefix, part_number_prefix, section_number_prefix};
 
 /// Section-number settings used while rendering a table of contents.
 #[derive(Debug, Clone, Copy)]
 pub struct NumberingConfig<'a> {
-    sectnums_enabled: bool,
-    sectnumlevels: u8,
-    partnums_enabled: bool,
     part_signifier: Option<&'a str>,
     appendix_caption: Option<&'a str>,
-    special_section_policy: SpecialSectionPolicy,
 }
 
 impl<'a> NumberingConfig<'a> {
     /// Builds TOC numbering settings from document attributes.
     #[must_use]
-    pub fn new(
-        attributes: &'a DocumentAttributes<'_>,
-        partnums_enabled: bool,
-        part_signifier: Option<&'a str>,
-    ) -> Self {
-        let sectnums_enabled = attributes
-            .get("sectnums")
-            .or_else(|| attributes.get("numbered"))
-            .is_some_and(|value| !matches!(value, AttributeValue::Bool(false)));
-        let sectnumlevels = attributes
-            .get_string("sectnumlevels")
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(DEFAULT_SECTION_LEVEL)
-            .min(MAX_SECTION_LEVELS);
+    pub fn new(attributes: &'a DocumentAttributes<'_>, part_signifier: Option<&'a str>) -> Self {
         let appendix_caption = match attributes.get("appendix-caption") {
             Some(AttributeValue::String(caption)) => Some(caption.as_ref()),
             Some(AttributeValue::Bool(false)) => None,
             _ => Some("Appendix"),
         };
         Self {
-            sectnums_enabled,
-            sectnumlevels,
-            partnums_enabled,
             part_signifier,
             appendix_caption,
-            special_section_policy: SpecialSectionPolicy::from_attributes(attributes),
         }
     }
 }
@@ -89,96 +62,19 @@ pub fn section_numbers(
     entries: &[TocEntry<'_>],
     config: &NumberingConfig<'_>,
 ) -> Vec<Option<String>> {
-    let has_appendix = entries
+    entries
         .iter()
-        .any(|entry| entry.kind == SectionKind::Appendix);
-    if !config.sectnums_enabled && !config.partnums_enabled && !has_appendix {
-        return vec![None; entries.len()];
-    }
-
-    let mut counters = [0u8; MAX_TOC_LEVELS as usize + 1];
-    let mut part_counter = 0;
-    let mut appendix_counter = 0;
-    let mut appendix_letter = None;
-    let mut numbers = Vec::with_capacity(entries.len());
-    let special_sections = SpecialSectionTracker::with_policy(config.special_section_policy);
-
-    for entry in entries {
-        let level = effective_section_level(entry.level, entry.kind);
-        let numbered = special_sections.enter(level, entry.kind);
-
-        if entry.kind == SectionKind::Appendix {
-            for counter in counters.iter_mut().skip(1) {
-                *counter = 0;
-            }
-            let letter = char::from(b'A' + u8::try_from(appendix_counter).unwrap_or(25).min(25));
-            appendix_counter += 1;
-            appendix_letter = Some(letter);
-            numbers.push(Some(match config.appendix_caption {
-                Some(caption) => format!("{caption} {letter}: "),
-                None => format!("{letter}. "),
-            }));
-            continue;
-        }
-
-        if level == 1 {
-            appendix_letter = None;
-        }
-
-        if entry.level == 0 && entry.kind == SectionKind::Normal {
-            if config.partnums_enabled {
-                part_counter += 1;
-                let roman = to_upper_roman(part_counter);
-                numbers.push(Some(match config.part_signifier {
-                    Some(signifier) => format!("{signifier} {roman}: "),
-                    None => format!("{roman}: "),
-                }));
+        .map(|entry| {
+            let number = entry.number()?;
+            Some(if entry.kind == SectionKind::Appendix {
+                appendix_number_prefix(number, config.appendix_caption)
+            } else if entry.level == 0 && entry.kind == SectionKind::Normal {
+                part_number_prefix(number, config.part_signifier)
             } else {
-                numbers.push(None);
-            }
-            continue;
-        }
-
-        if !numbered || level > MAX_TOC_LEVELS + 1 || !config.sectnums_enabled {
-            numbers.push(None);
-            continue;
-        }
-
-        let level_index = (level - 1) as usize;
-        let Some(counter) = counters.get_mut(level_index) else {
-            numbers.push(None);
-            continue;
-        };
-        *counter += 1;
-        for counter in counters.iter_mut().skip(level_index + 1) {
-            *counter = 0;
-        }
-
-        if level > config.sectnumlevels {
-            numbers.push(None);
-            continue;
-        }
-
-        let number = if let Some(letter) = appendix_letter {
-            counters.get(1..=level_index).map(|slice| {
-                std::iter::once(letter.to_string())
-                    .chain(slice.iter().map(ToString::to_string))
-                    .collect::<Vec<_>>()
-                    .join(".")
+                section_number_prefix(number, None)
             })
-        } else {
-            counters.get(..=level_index).map(|slice| {
-                slice
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(".")
-            })
-        };
-        numbers.push(number.map(|number| format!("{number}. ")));
-    }
-
-    numbers
+        })
+        .collect()
 }
 
 /// Configuration for the table of contents placement and options.

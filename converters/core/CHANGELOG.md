@@ -55,11 +55,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute (`arabic`, `decimal`, `loweralpha`, `upperalpha`, `lowerroman`,
   `upperroman`, `lowergreek`) and formats a 1-based item position into its marker
   text, shared by the terminal and manpage backends.
-- `section::SpecialSectionTracker` — shared, reusable tracker that decides which
-  sections take part in `:sectnums:` numbering. Fed each section (by `SectionKind`)
-  in document order, it accounts for book abstracts, `sectnums=all`, unnumbered
-  special-section subtrees, and lettered appendices. Used by each numbered
-  converter and its table of contents so the rule lives in one place.
 - `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
   per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
   Previously lived in the HTML converter; promoted so terminal, manpage, and
@@ -75,12 +70,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   converters. Includes `Replacements::unicode()` for terminal/manpage output.
 - `replace_em_dashes()` — standalone function for em-dash pattern matching, shared
   by converters that need format-specific em-dash output (e.g. HTML entities).
-- **Section numbering utilities** — new `section` module with `SectionNumberTracker`,
-  `PartNumberTracker`, `AppendixTracker`, and `to_upper_roman` moved from `acdc-converters-html`
-  so they can be shared across converters. Inside an appendix, `SectionNumberTracker`
-  numbers subsections with the appendix letter as the top component (`A.1`, `A.1.1`),
-  and `AppendixTracker::enter_appendix` returns the heading prefix (`Appendix A: `, or the
-  bare `A. ` when the caption is disabled) — both driven by the same letter.
 - `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
   `Doctype`, and `IconMode` for semver-safe future additions
 - Comprehensive module-level documentation
@@ -91,6 +80,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Universal AsciiDoc defaults passed to parsers no longer act like caller-set
+  attributes, so nested documents can change them locally.
+- Built-in converters now use the parser's section numbers for both headings and
+  table-of-contents entries. Source-order changes and nested documents therefore
+  use one sequence in every backend.
 - Special-section numbering now treats book abstracts as chapters, honors
   `sectnums=all`, and keeps the ordinary section sequence across appendices.
 - Book table-of-contents numbering now keeps chapter numbers continuous across

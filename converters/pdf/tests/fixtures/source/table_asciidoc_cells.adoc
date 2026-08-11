@@ -1,0 +1,122 @@
+= AsciiDoc-style table cells
+:sectnums:
+:toc:
+:outer-value: inherited
+
+== Nested block content
+
+[cols="1a,1"]
+|===
+|
+First paragraph with *bold*, _italic_, https://example.com[a link], and {outer-value}.
+
+Second paragraph.
+
+* Unordered item one
+* Unordered item two
+
+NOTE: A simple admonition.
+
+[source,rust]
+----
+fn main() {}
+----
+|Plain neighbour
+
+a|
+. Ordered item one
+. Ordered item two
+
+Term:: Description
+
+!===
+! Nested A ! Nested B
+!===
+|Second plain neighbour
+|===
+
+== Cell and column overrides
+
+[cols="a,d,l"]
+|===
+|
+Column-level AsciiDoc paragraph.
+
+* Nested item
+a|
+Cell-level AsciiDoc paragraph.
+
+TIP: Nested tip.
+a|
+Cell-level AsciiDoc overrides literal.
+
+* Another nested item
+
+d|Default overrides AsciiDoc.
+d|Default remains simple.
+l|Literal overrides AsciiDoc: *bold* {outer-value}
+
+l|Literal overrides AsciiDoc: *bold* {outer-value}
+a|
+AsciiDoc overrides default.
+
+....
+literal block
+....
+d|Default overrides literal.
+|===
+
+== Table sections and spans
+
+[%header%footer,cols="2*a"]
+|===
+|Header *bold* |Header {outer-value}
+
+2+a|
+Colspan paragraph.
+
+* Colspan item
+
+.2+a|
+Rowspan paragraph.
+
+WARNING: Rowspan warning.
+|Beside rowspan
+
+|Below rowspan
+
+|
+Footer paragraph one.
+
+Footer paragraph two.
+|
+Footer paragraph.
+
+* Footer item
+|===
+
+== Nested headings and references
+
+[cols="2*a"]
+|===
+|
+Cell sees {outer-value}.
+
+[[cell-heading]]
+== Same-level cell heading
+
+Cell heading text.
+
+=== Generated cell child
+
+Cell child text.
+
+|
+Sibling sees {outer-value}.
+|===
+
+== After the table
+
+Outer content sees {outer-value}.
+
+See <<cell-heading>> and <<_generated_cell_child>>.

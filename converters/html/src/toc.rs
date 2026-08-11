@@ -4,7 +4,7 @@ use acdc_converters_core::{
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::WritableVisitor,
 };
-use acdc_parser::{SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{AttributeValue, SectionKind, TableOfContents, TocEntry};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
@@ -144,11 +144,12 @@ fn render_entries<W: Write>(
 }
 
 fn section_number_config<'p>(processor: &'p crate::Processor<'_>) -> NumberingConfig<'p> {
-    NumberingConfig::new(
-        processor.document_attributes(),
-        processor.part_number_tracker().is_enabled(),
-        processor.part_number_tracker().signifier(),
-    )
+    let attributes = processor.document_attributes();
+    let part_signifier = match attributes.get("part-signifier") {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) | None => None,
+    };
+    NumberingConfig::new(attributes, part_signifier)
 }
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {

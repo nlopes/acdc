@@ -6,10 +6,7 @@ use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
     code::{SourceLineOptions, detect_language, source_line_count},
     inlines_to_string,
-    section::{
-        AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
-        effective_section_level,
-    },
+    section::effective_section_level,
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
@@ -29,6 +26,13 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{Error, Processor, encode_footnote_label};
 
+#[derive(Default)]
+enum TableCellSectionState {
+    #[default]
+    Outside,
+    Inside,
+}
+
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) writer: Writer,
     pub(crate) processor: Processor<'a>,
@@ -37,14 +41,11 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) heading: Heading,
     code_wrap_columns: usize,
     palette: &'m Palette,
-    pub(crate) section_number_tracker: SectionNumberTracker,
-    pub(crate) part_number_tracker: PartNumberTracker,
-    pub(crate) appendix_tracker: AppendixTracker,
-    pub(crate) special_section_tracker: SpecialSectionTracker,
     pub(crate) chapter_signifier: Option<String>,
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
     pub(crate) in_article_abstract: bool,
+    table_cell_section_state: TableCellSectionState,
     pub(crate) doctype: Doctype,
     book_page_break_state: BookPageBreakState,
     text_boundaries: TextBoundaries,
@@ -105,14 +106,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         toc_entries: Vec<TocEntry<'a>>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
-        let section_number_tracker = SectionNumberTracker::new(processor.document_attributes());
-        let part_number_tracker =
-            PartNumberTracker::with_default_signifier(processor.document_attributes(), "Part");
-        let appendix_tracker = AppendixTracker::new(
-            processor.document_attributes(),
-            section_number_tracker.clone(),
-        );
-        let special_section_tracker = SpecialSectionTracker::new(processor.document_attributes());
         let doctype = processor
             .document_attributes()
             .get_string("doctype")
@@ -143,14 +136,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             heading,
             code_wrap_columns,
             palette,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             chapter_signifier,
             list_depth: 0,
             in_inline_span: false,
             in_article_abstract: false,
+            table_cell_section_state: TableCellSectionState::Outside,
             doctype,
             book_page_break_state,
             text_boundaries: TextBoundaries::BOTH,
@@ -233,11 +223,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let entries = self.toc_entries.clone();
         let numbers = section_numbers(
             &entries,
-            &NumberingConfig::new(
-                self.processor.document_attributes(),
-                self.part_number_tracker.is_enabled(),
-                None,
-            ),
+            &NumberingConfig::new(self.processor.document_attributes(), None),
         );
         let has_parts = has_real_parts(&entries);
         let mut root = TocRoot::None;
@@ -1138,13 +1124,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             Some(ColumnStyle::Header) => Some("#tableheader["),
             Some(ColumnStyle::Monospace | ColumnStyle::Literal) => Some("#tablemonospace["),
             Some(ColumnStyle::Strong) => Some("#tablestrong["),
-            Some(ColumnStyle::AsciiDoc | ColumnStyle::Default) | None => None,
-            Some(_) => None,
+            None | Some(_) => None,
         };
         if let Some(wrapper) = wrapper {
             self.writer.raw(wrapper);
         }
-        self.write_blocks(&cell.content)?;
+        if style == Some(ColumnStyle::AsciiDoc) {
+            self.write_asciidoc_table_cell(&cell.content)?;
+        } else {
+            self.write_blocks(&cell.content)?;
+        }
         if cell.content.is_empty() {
             self.write_text_expr("");
         }
@@ -1152,6 +1141,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw("]");
         }
         Ok(())
+    }
+
+    fn write_asciidoc_table_cell(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {
+        let outer_cell_state = std::mem::replace(
+            &mut self.table_cell_section_state,
+            TableCellSectionState::Inside,
+        );
+
+        let result = self.write_blocks(blocks);
+
+        self.table_cell_section_state = outer_cell_state;
+        result
+    }
+
+    pub(super) fn in_asciidoc_table_cell(&self) -> bool {
+        matches!(self.table_cell_section_state, TableCellSectionState::Inside)
     }
 
     pub(crate) fn write_block_image(&mut self, image: &Image<'_>) -> Result<(), Error> {

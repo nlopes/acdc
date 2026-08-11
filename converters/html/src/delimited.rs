@@ -1030,7 +1030,7 @@ mod tests {
         BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
     };
 
-    use crate::{AppendixTracker, PartNumberTracker, RenderOptions, SectionNumberTracker};
+    use crate::RenderOptions;
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::PlainText(Plain {
@@ -1046,12 +1046,6 @@ mod tests {
             .safe_mode(SafeMode::Unsafe)
             .build();
         let document_attributes = DocumentAttributes::default();
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker = PartNumberTracker::new(&document_attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        let special_section_tracker =
-            acdc_converters_core::section::SpecialSectionTracker::new(&document_attributes);
         Processor {
             options,
             document_attributes,
@@ -1065,10 +1059,6 @@ mod tests {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             generate_index: false,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             variant: crate::HtmlVariant::Standard,
         }
     }

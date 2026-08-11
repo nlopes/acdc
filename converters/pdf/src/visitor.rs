@@ -3,8 +3,12 @@ use std::fmt::Write as _;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    Doctype, decode_numeric_char_refs, inlines_to_string, section::effective_section_level,
-    shows_block_title, visitor::Visitor,
+    Doctype, decode_numeric_char_refs, inlines_to_string,
+    section::{
+        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+    },
+    shows_block_title,
+    visitor::Visitor,
 };
 use acdc_parser::{
     Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, CaptionKind,
@@ -118,33 +122,27 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_section(&mut self, section: &Section<'_>) -> Result<(), Self::Error> {
-        if self.section_break_before(section) {
+        let in_asciidoc_table_cell = self.in_asciidoc_table_cell();
+        if !in_asciidoc_table_cell && self.section_break_before(section) {
             self.writer.raw("#pagebreak(weak: true)\n\n");
         }
 
         let level = effective_section_level(section.level, section.kind);
-        let participates = self.special_section_tracker.enter(level, section.kind);
-        let mut prefix = String::new();
-        if section.kind == acdc_parser::SectionKind::Appendix {
-            prefix.push_str(&self.appendix_tracker.enter_appendix());
-        } else if section.level == 0
-            && section.kind == acdc_parser::SectionKind::Normal
-            && participates
-        {
-            if let Some(number) = self.part_number_tracker.enter_part() {
-                prefix.push_str(&number);
+        let prefix = section.number().map_or_else(String::new, |number| {
+            if section.kind == acdc_parser::SectionKind::Appendix {
+                appendix_number_prefix(
+                    number,
+                    appendix_caption(self.processor.document_attributes()),
+                )
+            } else if section.level == 0 && section.kind == acdc_parser::SectionKind::Normal {
+                part_number_prefix(number, part_signifier(self.processor.document_attributes()))
+            } else {
+                let signifier = (level == 1 && !in_asciidoc_table_cell)
+                    .then_some(self.chapter_signifier.as_deref())
+                    .flatten();
+                section_number_prefix(number, signifier)
             }
-        } else if participates
-            && let Some(number) = self.section_number_tracker.enter_section(level)
-        {
-            if level == 1
-                && let Some(signifier) = &self.chapter_signifier
-            {
-                prefix.push_str(signifier);
-                prefix.push(' ');
-            }
-            prefix.push_str(&number);
-        }
+        });
 
         let heading_level = level.max(1);
         let id =
@@ -165,7 +163,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         }
 
         let _ = write!(self.writer, "#heading(level: {heading_level}");
-        if self.in_article_abstract {
+        if self.in_article_abstract || in_asciidoc_table_cell {
             self.writer.raw(", outlined: false, bookmarked: false");
         }
         self.writer.raw(")[");
@@ -522,5 +520,21 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
         self.write_plain(text);
         Ok(())
+    }
+}
+
+fn appendix_caption<'a>(attributes: &'a acdc_parser::DocumentAttributes<'_>) -> Option<&'a str> {
+    match attributes.get("appendix-caption") {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) => None,
+        None => Some("Appendix"),
+    }
+}
+
+fn part_signifier<'a>(attributes: &'a acdc_parser::DocumentAttributes<'_>) -> Option<&'a str> {
+    match attributes.get("part-signifier") {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) => None,
+        None => Some("Part"),
     }
 }

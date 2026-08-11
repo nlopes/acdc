@@ -214,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Section numbering** - Documents with `:sectnums:` attribute now render numbered
   section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:sectnumlevels:`
   to control depth of numbering. Special-style sections (`[preface]`, `[glossary]`, etc.)
-  and every subsection nested under them are left unnumbered, matching asciidoctor.
+  and every subsection nested under them are left unnumbered. Changes to numbering
+  attributes apply only to later headings, matching Asciidoctor.
 - **ToC numbering** - Table of contents entries are now numbered when `:sectnums:` is
   set, matching asciidoctor behavior (special-style sections and their subsections stay
   unnumbered).
@@ -417,9 +418,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   set, matching the standard variant's behaviour.
 - html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
   link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
-- **Section numbering types moved to `acdc-converters-core`** — `SectionNumberTracker`,
-  `PartNumberTracker`, `AppendixTracker`, `to_upper_roman`, and `DEFAULT_SECTION_LEVEL`
-  are now re-exported from `acdc-converters-core::section` instead of being defined locally.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
 [#360]: https://github.com/nlopes/acdc/issues/360

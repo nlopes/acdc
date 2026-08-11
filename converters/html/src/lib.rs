@@ -41,10 +41,7 @@ mod terminal;
 mod toc;
 mod video;
 
-pub(crate) use acdc_converters_core::section::{
-    AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
-    last_section_has_style,
-};
+pub(crate) use acdc_converters_core::section::last_section_has_style;
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
@@ -160,14 +157,6 @@ pub struct Processor<'a> {
     /// `_indexterm_` anchors and `[index]` sections render empty, matching
     /// asciidoctor (index generation is an acdc extension; see `crate::index`).
     generate_index: bool,
-    /// Section number tracker for `:sectnums:` support.
-    section_number_tracker: SectionNumberTracker,
-    /// Part number tracker for `:partnums:` support in book doctype.
-    part_number_tracker: PartNumberTracker,
-    /// Appendix tracker for `[appendix]` style on level-0 sections.
-    appendix_tracker: AppendixTracker,
-    /// Tracks special sections so their subsections skip `:sectnums:` numbering.
-    special_section_tracker: SpecialSectionTracker,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -218,30 +207,6 @@ impl<'a> Processor<'a> {
         self.document_attributes
             .get("icons")
             .is_some_and(|v| v.to_string() == "font")
-    }
-
-    /// Get a reference to the section number tracker
-    #[must_use]
-    pub(crate) fn section_number_tracker(&self) -> &SectionNumberTracker {
-        &self.section_number_tracker
-    }
-
-    /// Get a reference to the part number tracker
-    #[must_use]
-    pub(crate) fn part_number_tracker(&self) -> &PartNumberTracker {
-        &self.part_number_tracker
-    }
-
-    /// Get a reference to the appendix tracker
-    #[must_use]
-    pub(crate) fn appendix_tracker(&self) -> &AppendixTracker {
-        &self.appendix_tracker
-    }
-
-    /// Get a reference to the special-section tracker
-    #[must_use]
-    pub(crate) fn special_section_tracker(&self) -> &SpecialSectionTracker {
-        &self.special_section_tracker
     }
 
     /// Generate a caption prefix based on document attributes.
@@ -308,11 +273,6 @@ impl<'a> Processor<'a> {
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker = PartNumberTracker::new(&doc.attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&doc.attributes);
         // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
         // independent of `self`'s stored-attribute lifetime.
         let processor: Processor<'doc> = Processor {
@@ -322,10 +282,6 @@ impl<'a> Processor<'a> {
             document_attributes: doc.attributes.clone(),
             generate_index: index_generation_enabled(&doc.attributes)
                 && last_section_has_style(&doc.blocks, "index"),
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             options: self.options.clone(),
             example_counter: self.example_counter.clone(),
             table_counter: self.table_counter.clone(),
@@ -594,12 +550,6 @@ impl<'a> Processor<'a> {
             .backend_traits()
             .apply(&mut document_attributes, options.doctype());
 
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker = PartNumberTracker::new(&document_attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
-
         Self {
             options,
             document_attributes,
@@ -613,10 +563,6 @@ impl<'a> Processor<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             variant,
         }
     }

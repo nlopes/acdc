@@ -1,10 +1,12 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    section::effective_section_level,
+    section::{
+        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+    },
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{DiscreteHeader, Section, SectionKind};
+use acdc_parser::{AttributeValue, DiscreteHeader, DocumentAttributes, Section, SectionKind};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
@@ -47,10 +49,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let id = Section::generate_id_string(&section.metadata, &section.title);
         let effective_level = effective_section_level(section.level, section.kind);
 
-        let skip_numbering = !processor
-            .special_section_tracker()
-            .enter(effective_level, section.kind);
-
         let is_appendix = section.kind == SectionKind::Appendix;
         let is_part = section.level == 0 && section.kind == SectionKind::Normal;
         let heading_level = effective_level + 1; // Level 1 = h2
@@ -63,11 +61,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 "<h{heading_level} id=\"{id}\" class=\"{class}\">"
             )?;
 
-            // Prepend part number if :partnums: is enabled
-            if !skip_numbering
-                && let Some(part_label) = processor.part_number_tracker().enter_part()
-            {
-                write!(self.writer, "{part_label}")?;
+            if let Some(number) = section.number() {
+                let prefix = part_number_prefix(
+                    number,
+                    string_attribute(processor.document_attributes(), "part-signifier"),
+                );
+                write!(self.writer, "{prefix}")?;
             }
         } else {
             if processor.variant() == HtmlVariant::Semantic {
@@ -83,19 +82,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             write!(self.writer, "<h{heading_level} id=\"{id}\">")?;
 
-            // Prepend appendix label for appendix sections (any level).
-            // The letter prefix ("Appendix A: " or bare "A. ") shows regardless
-            // of :sectnums:; subsection numbering (A.1) is gated by it.
-            if is_appendix {
-                let appendix_label = processor.appendix_tracker().enter_appendix();
-                write!(self.writer, "{appendix_label}")?;
-            } else if !skip_numbering
-                && let Some(number) = processor
-                    .section_number_tracker()
-                    .enter_section(effective_level)
-            {
-                // Prepend section number if sectnums is enabled and this isn't a special section
-                write!(self.writer, "{number}")?;
+            if let Some(number) = section.number() {
+                let prefix = if is_appendix {
+                    appendix_number_prefix(
+                        number,
+                        string_attribute(processor.document_attributes(), "appendix-caption"),
+                    )
+                } else {
+                    section_number_prefix(number, None)
+                };
+                write!(self.writer, "{prefix}")?;
             }
         }
 
@@ -132,6 +128,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "</div>")?; // Close sectN
         }
         Ok(())
+    }
+}
+
+fn string_attribute<'a>(attributes: &'a DocumentAttributes<'_>, name: &str) -> Option<&'a str> {
+    match attributes.get(name) {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) | None => None,
     }
 }
 
