@@ -260,6 +260,56 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
 }
 
 #[test]
+fn markerless_ordered_list_styles_preserve_their_classes() -> Result<(), Error> {
+    for style in ["no-bullet", "unstyled", "unnumbered"] {
+        let html = convert_string(&format!("[{style}]\n. unmarked\n"), &[])?;
+
+        assert!(
+            html.contains(&format!("<div class=\"olist {style}\">")),
+            "{html}"
+        );
+        assert!(html.contains(&format!("<ol class=\"{style}\">")), "{html}");
+    }
+    Ok(())
+}
+
+#[test]
+fn unordered_list_styles_preserve_their_classes() -> Result<(), Error> {
+    for style in [
+        "none",
+        "no-bullet",
+        "unstyled",
+        "unnumbered",
+        "disc",
+        "circle",
+        "square",
+    ] {
+        let html = convert_string(&format!("[{style}]\n* item\n"), &[])?;
+
+        assert!(
+            html.contains(&format!("<div class=\"ulist {style}\">")),
+            "{html}"
+        );
+        assert!(html.contains(&format!("<ul class=\"{style}\">")), "{html}");
+    }
+    Ok(())
+}
+
+#[test]
+fn checklist_styles_stay_on_the_wrapper() -> Result<(), Error> {
+    for style in ["none", "no-bullet", "unstyled"] {
+        let html = convert_string(&format!("[{style}]\n* [ ] task\n"), &[])?;
+
+        assert!(
+            html.contains(&format!("<div class=\"ulist checklist {style}\">")),
+            "{html}"
+        );
+        assert!(html.contains("<ul class=\"checklist\">"), "{html}");
+    }
+    Ok(())
+}
+
+#[test]
 fn preface_subsections_are_not_numbered() -> Result<(), Error> {
     // Issue #408: with :sectnums:, subsections of a [preface] must stay
     // unnumbered (asciidoctor does not emit "0.1." before them), while a normal

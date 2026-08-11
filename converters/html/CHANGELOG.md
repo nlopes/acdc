@@ -14,8 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `[none]` on an ordered list now suppresses its item markers, matching
-  Asciidoctor.
+- List styles now match Asciidoctor: `[none]`, `[no-bullet]`, and `[unstyled]`
+  suppress markers on ordered and unordered lists; `[unnumbered]` suppresses
+  ordered markers; and `[disc]`, `[circle]`, and `[square]` select unordered
+  bullets. Checklist boxes remain visible.
 - Literal table cells now keep attributes, macros, formatting marks, and
   whitespace as source text. Semantic header rows ignore cell and column
   styles, matching Asciidoctor.

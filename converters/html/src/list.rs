@@ -49,20 +49,16 @@ fn numbering_class_and_type(
     }
 }
 
-/// Resolve an ordered list's `(class, type)`. `[none]` suppresses markers;
-/// numbering styles override the style selected from the nesting `depth`.
-fn resolve_ordered_list_style(
-    style: Option<&str>,
-    depth: u8,
-) -> (&'static str, Option<&'static str>) {
-    if style == Some("none") {
-        return ("none", None);
+/// Resolve an ordered list's CSS class and optional `<ol type>` value.
+fn resolve_ordered_list_style(style: Option<&str>, depth: u8) -> (&str, Option<&'static str>) {
+    if let Some(style) = style {
+        return match OrderedListNumbering::from_explicit_style(style) {
+            Some(numbering) => numbering_class_and_type(numbering),
+            None => (style, None),
+        };
     }
 
-    let numbering = style
-        .and_then(OrderedListNumbering::from_explicit_style)
-        .unwrap_or_else(|| numbering_for_depth(depth));
-    numbering_class_and_type(numbering)
+    numbering_class_and_type(numbering_for_depth(depth))
 }
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
@@ -89,22 +85,23 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else if let Some(anchor) = list.metadata.anchors.first() {
             write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
-        if semantic {
-            // Semantic mode: no "checklist" on wrapper div
-            if is_bibliography {
-                let class = build_class("ulist bibliography", &list.metadata.roles);
-                writeln!(self.writer, " class=\"{class}\">")?;
-            } else {
-                let class = build_class("ulist", &list.metadata.roles);
-                writeln!(self.writer, " class=\"{class}\">")?;
-            }
-        } else if is_checklist {
-            writeln!(self.writer, " class=\"ulist checklist\">")?;
-        } else if is_bibliography {
-            writeln!(self.writer, " class=\"ulist bibliography\">")?;
-        } else {
-            writeln!(self.writer, " class=\"ulist\">")?;
+        let mut wrapper_class = String::from("ulist");
+        if is_checklist && !semantic {
+            wrapper_class.push_str(" checklist");
         }
+        if is_bibliography {
+            wrapper_class.push_str(" bibliography");
+        }
+        if let Some(style) = list.metadata.style
+            && !wrapper_class.split_whitespace().any(|class| class == style)
+        {
+            wrapper_class.push(' ');
+            wrapper_class.push_str(style);
+        }
+        if semantic {
+            wrapper_class = build_class(&wrapper_class, &list.metadata.roles);
+        }
+        writeln!(self.writer, " class=\"{wrapper_class}\">")?;
         if semantic && has_title {
             self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
         } else {
@@ -117,6 +114,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "<ul class=\"checklist\">")?;
         } else if is_bibliography {
             writeln!(self.writer, "<ul class=\"bibliography\">")?;
+        } else if let Some(style) = list.metadata.style {
+            writeln!(self.writer, "<ul class=\"{style}\">")?;
         } else {
             writeln!(self.writer, "<ul>")?;
         }
@@ -589,6 +588,8 @@ fn render_bare_ulist_semantic<W: Write>(
 
     if is_checklist {
         writeln!(visitor.writer, "<ul class=\"task-list\">")?;
+    } else if let Some(style) = list.metadata.style {
+        writeln!(visitor.writer, "<ul class=\"{style}\">")?;
     } else {
         writeln!(visitor.writer, "<ul>")?;
     }

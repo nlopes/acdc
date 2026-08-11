@@ -51,6 +51,10 @@ enum ListMarker {
     Hidden,
 }
 
+fn style_suppresses_marker(style: Option<&str>) -> bool {
+    matches!(style, Some("none" | "no-bullet" | "unstyled"))
+}
+
 impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render a title with italic styling.
     ///
@@ -162,14 +166,19 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
         let unicode = self.processor.appearance.capabilities.unicode;
-        self.render_list_items(&list.items, indent, ListMarker::Bullet, unicode)?;
+        let marker = if style_suppresses_marker(list.metadata.style) {
+            ListMarker::Hidden
+        } else {
+            ListMarker::Bullet
+        };
+        self.render_list_items(&list.items, indent, marker, unicode)?;
         Ok(())
     }
 
     /// Renders an ordered list in terminal format.
     ///
     /// Items are numbered from 1 by default, and nested lists restart numbering
-    /// at each level. The `[none]` style omits the item markers.
+    /// at each level. Markerless styles omit the item markers.
     ///
     /// # Format
     /// ```text
@@ -187,7 +196,9 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
         let unicode = self.processor.appearance.capabilities.unicode;
-        let marker = if list.metadata.style == Some("none") {
+        let marker = if style_suppresses_marker(list.metadata.style)
+            || list.metadata.style == Some("unnumbered")
+        {
             ListMarker::Hidden
         } else {
             let numbering = list
