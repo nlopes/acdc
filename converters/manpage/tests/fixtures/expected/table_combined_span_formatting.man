@@ -1,0 +1,124 @@
+'\" t
+.\"     Title: table-combined-span-formatting
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2025-01-20
+.\"    Manual: \ \&
+.\"    Source: \ \&
+.\"  Language: English
+.\"
+.TH "TABLE\-COMBINED\-SPAN\-FORMATTING" "1" "2025-01-20" "\ \&" "\ \&"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+table\-combined\-span\-formatting \- test combined table span formatting
+.SH "SYNOPSIS"
+.sp
+\fBtable\-combined\-span\-formatting\fP
+.SH "DESCRIPTION"
+.SS "Column defaults"
+.sp
+\fBDefaults follow source cells\fP
+.TS
+allbox tab(:);
+ct s lt
+^ ^ rt
+rt lt ct.
+T{
+\fICombined \fBbold\fP Ada\fP
+T}:T{
+\fIFirst companion \fBbold\fP Ada\fP
+T}
+\^:\^:T{
+\fBSecond companion \fIitalic\fP Ada\fP
+T}
+T{
+\fBFirst \fBbold\fP\fP
+T}:T{
+\fISecond \fBbold\fP\fP
+T}:T{
+Third \fIitalic\fP
+T}
+.TE
+.sp
+\fBDuplicates use each column\fP
+.TS
+allbox tab(:);
+rt lt ct.
+T{
+\fBRepeated \fBbold\fP Ada\fP
+T}:T{
+\fIRepeated \fBbold\fP Ada\fP
+T}:T{
+Repeated \fBbold\fP Ada
+T}
+.TE
+.SS "Explicit span formats"
+.TS
+allbox tab(:);
+lt s lt
+^ ^ lt
+ct s lt
+^ ^ lt
+rt s lt
+^ ^ lt
+ct s lt
+^ ^ lt
+rt s lt
+^ ^ lt.
+T{
+\fBStrong \fIitalic\fP\fP
+T}:Beside strong
+\^:\^:Below strong
+T{
+\fIEmphasis \fBbold\fP\fP
+T}:Beside emphasis
+\^:\^:Below emphasis
+T{
+Header \fIitalic\fP
+T}:Beside header
+\^:\^:Below header
+T{
+.nf
+Literal *bold* {span\-name}
+.fi
+T}:Beside literal
+\^:\^:Below literal
+T{
+\f(CRMonospace \fBbold\fP Ada\fP
+T}:Beside monospace
+\^:\^:Below monospace
+.TE
+.SS "AsciiDoc span"
+.TS
+allbox tab(:);
+rt s lt
+^ ^ lt.
+T{
+Paragraph in a combined cell..RS 0
+.IP \(bu 2
+Nested item one
+.IP \(bu 2
+Nested item two
+.RE
+
+T}:Beside AsciiDoc
+\^:\^:Below AsciiDoc
+.TE

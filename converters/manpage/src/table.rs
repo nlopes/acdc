@@ -9,7 +9,7 @@ use std::io::Write;
 use acdc_converters_core::Diagnostics;
 use acdc_converters_core::table::{CellKind, GridRow, build_grid, determine_column_count};
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{DelimitedBlock, HorizontalAlignment, Table, TableColumn};
+use acdc_parser::{ColumnStyle, DelimitedBlock, HorizontalAlignment, Table, TableColumn};
 
 use crate::{Error, ManpageVisitor, Processor};
 
@@ -23,19 +23,14 @@ fn alignment_prefix(halign: HorizontalAlignment) -> &'static str {
 }
 
 /// Generate a tbl format entry for a single cell position.
-fn format_entry(
-    kind: &CellKind,
-    col_index: usize,
-    row: &GridRow<'_>,
-    col_alignments: &[&str],
-) -> String {
+fn format_entry(kind: &CellKind, row: &GridRow<'_>, col_alignments: &[&str]) -> String {
     match kind {
         CellKind::Content { cell_index } => {
             let align =
                 if let Some(halign) = row.ast_row.columns.get(*cell_index).and_then(|c| c.halign) {
                     alignment_prefix(halign)
                 } else {
-                    col_alignments.get(col_index).copied().unwrap_or("l")
+                    col_alignments.get(*cell_index).copied().unwrap_or("l")
                 };
             if row.is_header {
                 format!("{align}tB")
@@ -108,8 +103,7 @@ pub(crate) fn visit_table<W: Write>(
         .map(|row| {
             row.cells
                 .iter()
-                .enumerate()
-                .map(|(col_idx, kind)| format_entry(kind, col_idx, row, &col_alignments))
+                .map(|kind| format_entry(kind, row, &col_alignments))
                 .collect::<Vec<_>>()
                 .join(" ")
         })
@@ -163,6 +157,13 @@ fn format_cell_with_inlines(
     }
 
     let text = String::from_utf8_lossy(&buf).into_owned();
+    let text = match cell.style {
+        Some(ColumnStyle::Strong) => format!("\\fB{text}\\fP"),
+        Some(ColumnStyle::Emphasis) => format!("\\fI{text}\\fP"),
+        Some(ColumnStyle::Monospace) => format!("\\f(CR{text}\\fP"),
+        Some(ColumnStyle::Literal) => format!(".nf\n{text}\n.fi"),
+        None | Some(ColumnStyle::AsciiDoc | ColumnStyle::Default | ColumnStyle::Header | _) => text,
+    };
 
     // Wrap in T{ T} if content contains tbl special characters or formatting
     if text.contains(':') || text.contains('\n') || text.contains("\\f") {

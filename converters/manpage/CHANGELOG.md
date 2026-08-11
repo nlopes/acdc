@@ -75,6 +75,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Table cells now apply strong, emphasis, literal, and monospace styles,
+  matching the Asciidoctor manpage backend. ACDC's span and alignment extension
+  now applies column alignment by source-cell order after spans.
 - A custom title on the first manpage name section now gets the same special
   spacing, embedded-output handling, and section-order validation as `NAME`,
   matching `asciidoctor`.
