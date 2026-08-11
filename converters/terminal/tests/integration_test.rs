@@ -50,6 +50,7 @@ generate_tests!([
     (table_cell_colspan, false),
     (table_cell_rowspan, false),
     (table_cell_span_combined, false),
+    (table_combined_span_formatting, false),
     (delimited_block, false),
     (quote_block_with_paragraphs, false),
     (admonition_block, false),

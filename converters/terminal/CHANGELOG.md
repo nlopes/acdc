@@ -86,6 +86,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Table alignment after a row or column span now follows source-cell order,
+  consistent with HTML and PDF output.
 - Book abstracts now take chapter numbers, `sectnums=all` includes special
   sections, and ordinary section numbering continues after an appendix.
 - In a book, `:partnums: false` now enables Roman part numbers because the

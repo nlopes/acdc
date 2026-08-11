@@ -441,12 +441,17 @@ fn build_comfy_cells_from_grid(
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<Cell>, Error> {
     let mut cells = Vec::with_capacity(grid_row.cells.len());
-    for (col_idx, kind) in grid_row.cells.iter().enumerate() {
+    for kind in &grid_row.cells {
         let cell = match kind {
             CellKind::Content { cell_index } => {
                 if let Some(col) = grid_row.ast_row.columns.get(*cell_index) {
-                    let mut c =
-                        render_cell_content(col, col_idx, &tbl.columns, processor, diagnostics)?;
+                    let mut c = render_cell_content(
+                        col,
+                        *cell_index,
+                        &tbl.columns,
+                        processor,
+                        diagnostics,
+                    )?;
                     if grid_row.is_header {
                         c = c
                             .fg(processor.appearance.colors.table_header)

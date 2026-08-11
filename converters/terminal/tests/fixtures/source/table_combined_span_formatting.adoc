@@ -1,0 +1,55 @@
+= Combined table span formatting
+:span-name: Ada
+
+== Column defaults
+
+.Defaults follow source cells
+[cols=">.>s,<.<e,^.^h"]
+|===
+2.2+^.^e|Combined *bold* {span-name}
+|First companion *bold* {span-name}
+|Second companion _italic_ {span-name}
+|First *bold*
+|Second *bold*
+|Third _italic_
+|===
+
+.Duplicates use each column
+[cols=">.>s,<.<e,^.^h"]
+|===
+3*|Repeated *bold* {span-name}
+|===
+
+== Explicit span formats
+
+[cols="3*"]
+|===
+2.2+<.<s|Strong _italic_
+|Beside strong
+|Below strong
+2.2+^.^e|Emphasis *bold*
+|Beside emphasis
+|Below emphasis
+2.2+>.>h|Header _italic_
+|Beside header
+|Below header
+2.2+^.<l|Literal *bold* {span-name}
+|Beside literal
+|Below literal
+2.2+>.^m|Monospace *bold* {span-name}
+|Beside monospace
+|Below monospace
+|===
+
+== AsciiDoc span
+
+[cols="3*"]
+|===
+2.2+>.>a|
+Paragraph in a combined cell.
+
+* Nested item one
+* Nested item two
+|Beside AsciiDoc
+|Below AsciiDoc
+|===
