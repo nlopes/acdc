@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apply in source order and restart inside AsciiDoc table cells. `Section::new`
   creates an unnumbered section; use `Section::with_numbering(true)` and
   `Document::renumber_sections()` when adding or changing sections through the API.
+
 - Titled example, listing, source, image, and table blocks now carry their caption —
   label and number — in `BlockMetadata::caption`, taken from the `caption`,
   `<kind>-caption`, or block-level `caption=` attribute in effect **at that block's
@@ -117,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `toclevels` and `sectnumlevels` now remain undefined until the document sets
+  them, so attribute references stay literal by default. TOC and section-numbering
+  depth still default to 2 and 3, matching Asciidoctor.
 - Comparing or debugging sections now includes their numbering state. Serialized
   ASG output is unchanged.
 

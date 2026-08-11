@@ -56,7 +56,6 @@ const fn str_attr(
 /// - Block captions (example, figure, table, appendix)
 /// - UI labels (TOC title, version label, etc.)
 /// - Reference labels (chapter, section, part, appendix)
-/// - Structural settings (TOC levels, section numbering depth)
 /// - ID generation settings
 /// - Attribute processing compliance settings
 pub(crate) const DEFAULT_ATTRIBUTE_ENTRIES: &[(AttributeName<'static>, AttributeValue<'static>)] =
@@ -115,9 +114,6 @@ pub(crate) const DEFAULT_ATTRIBUTE_ENTRIES: &[(AttributeName<'static>, Attribute
         str_attr("chapter-refsig", "Chapter"),
         str_attr("section-refsig", "Section"),
         str_attr("part-refsig", "Part"),
-        // Structural settings
-        str_attr("toclevels", "2"),
-        str_attr("sectnumlevels", "3"),
         // ID generation
         str_attr("idprefix", "_"),
         str_attr("idseparator", "_"),

@@ -198,7 +198,7 @@ fn validate_bounded_attribute(key: &str, value: &AttributeValue<'_>) {
 /// Document-level attributes with universal defaults.
 ///
 /// These attributes apply to the entire document and include defaults for
-/// admonition captions, TOC settings, structural settings, etc.
+/// captions, labels, intrinsic replacements, and ID generation.
 ///
 /// Use `DocumentAttributes::default()` to get a map with universal defaults applied.
 #[derive(Debug, PartialEq, Clone)]
@@ -378,6 +378,27 @@ mod document_attribute_tests {
     use super::*;
     use crate::constants::MAX_INCLUDE_DEPTH_ATTR;
     use serde_json::json;
+
+    #[test]
+    fn captions_are_default_attributes_but_numbering_depths_are_not() {
+        let attributes = DocumentAttributes::default();
+
+        assert_eq!(
+            attributes.get_string("example-caption").as_deref(),
+            Some("Example")
+        );
+        assert_eq!(
+            attributes.get_string("figure-caption").as_deref(),
+            Some("Figure")
+        );
+        assert_eq!(
+            attributes.get_string("table-caption").as_deref(),
+            Some("Table")
+        );
+        assert_eq!(attributes.get("listing-caption"), None);
+        assert_eq!(attributes.get("toclevels"), None);
+        assert_eq!(attributes.get("sectnumlevels"), None);
+    }
 
     #[test]
     fn max_include_depth_default_is_visible_only_through_get() -> Result<(), serde_json::Error> {

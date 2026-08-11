@@ -88,6 +88,24 @@ fn toc_entries_use_the_sections_semantic_numbers() -> Result<(), Error> {
 }
 
 #[test]
+fn default_section_numbering_depth_is_three_without_defining_attribute() -> Result<(), Error> {
+    let parsed = parse(
+        "= T\n:sectnums:\n\n== One\n\n=== Two\n\n==== Three\n\n===== Four\n",
+        &Options::default(),
+    )?;
+    let numbers: Vec<_> = parsed
+        .document()
+        .toc_entries
+        .iter()
+        .map(acdc_parser::TocEntry::number)
+        .collect();
+
+    assert_eq!(parsed.document().attributes.get("sectnumlevels"), None);
+    assert_eq!(numbers, [Some("1"), Some("1.1"), Some("1.1.1"), None]);
+    Ok(())
+}
+
+#[test]
 fn duplicate_generated_ids_keep_their_own_toc_numbers() -> Result<(), Error> {
     let parsed = parse(
         "= T\n:sectnums:\n:toc:\n\n== Same\n\n== Same\n",
