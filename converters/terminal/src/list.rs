@@ -31,7 +31,6 @@ fn render_checked_status<W: Write + ?Sized>(
     unicode: bool,
 ) -> Result<(), Error> {
     if let Some(checked) = checked {
-        write!(w, " ")?;
         if checked == &ListItemCheckedStatus::Checked {
             if unicode {
                 w.queue(PrintStyledContent("[✔]".bold()))?;
@@ -43,6 +42,13 @@ fn render_checked_status<W: Write + ?Sized>(
         }
     }
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug)]
+enum ListMarker {
+    Bullet,
+    Numbered(OrderedListNumbering),
+    Hidden,
 }
 
 impl<W: Write> TerminalVisitor<'_, '_, W> {
@@ -83,11 +89,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         items: &[ListItem],
         indent: usize,
-        numbering: Option<OrderedListNumbering>,
+        marker: ListMarker,
         unicode: bool,
     ) -> Result<(), Error> {
         for (idx, item) in items.iter().enumerate() {
-            self.render_list_item(item, indent, numbering, idx + 1, unicode)?;
+            self.render_list_item(item, indent, marker, idx + 1, unicode)?;
         }
         Ok(())
     }
@@ -101,20 +107,32 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         item: &ListItem,
         indent: usize,
-        numbering: Option<OrderedListNumbering>,
+        marker: ListMarker,
         item_number: usize,
         unicode: bool,
     ) -> Result<(), Error> {
         write_indent(&mut self.writer, indent)?;
 
-        if let Some(numbering) = numbering {
-            write!(self.writer, "{}.", numbering.format(item_number))?;
-        } else {
-            write!(self.writer, "*")?;
+        let marker_written = match marker {
+            ListMarker::Bullet => {
+                write!(self.writer, "*")?;
+                true
+            }
+            ListMarker::Numbered(numbering) => {
+                write!(self.writer, "{}.", numbering.format(item_number))?;
+                true
+            }
+            ListMarker::Hidden => false,
+        };
+
+        if marker_written {
+            write!(self.writer, " ")?;
         }
 
         render_checked_status(item.checked.as_ref(), &mut self.writer, unicode)?;
-        write!(self.writer, " ")?;
+        if item.checked.is_some() {
+            write!(self.writer, " ")?;
+        }
 
         for node in &item.principal {
             self.visit_inline_node(node)?;
@@ -144,14 +162,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
         let unicode = self.processor.appearance.capabilities.unicode;
-        self.render_list_items(&list.items, indent, None, unicode)?;
+        self.render_list_items(&list.items, indent, ListMarker::Bullet, unicode)?;
         Ok(())
     }
 
     /// Renders an ordered list in terminal format.
     ///
-    /// Items are numbered starting from 1 with format "N. " where N is the item number.
-    /// Nested lists restart numbering from 1 at each level.
+    /// Items are numbered from 1 by default, and nested lists restart numbering
+    /// at each level. The `[none]` style omits the item markers.
     ///
     /// # Format
     /// ```text
@@ -169,12 +187,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
         let unicode = self.processor.appearance.capabilities.unicode;
-        let numbering = list
-            .metadata
-            .style
-            .and_then(OrderedListNumbering::from_explicit_style)
-            .unwrap_or_default();
-        self.render_list_items(&list.items, indent, Some(numbering), unicode)?;
+        let marker = if list.metadata.style == Some("none") {
+            ListMarker::Hidden
+        } else {
+            let numbering = list
+                .metadata
+                .style
+                .and_then(OrderedListNumbering::from_explicit_style)
+                .unwrap_or_default();
+            ListMarker::Numbered(numbering)
+        };
+        self.render_list_items(&list.items, indent, marker, unicode)?;
         Ok(())
     }
 

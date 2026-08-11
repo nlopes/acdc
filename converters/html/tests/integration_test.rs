@@ -251,6 +251,15 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
 }
 
 #[test]
+fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
+    let html = convert_string(". numbered\n\n[none]\n. unmarked\n", &[])?;
+
+    assert!(html.contains("<div class=\"olist none\">"), "{html}");
+    assert!(html.contains("<ol class=\"none\">"), "{html}");
+    Ok(())
+}
+
+#[test]
 fn preface_subsections_are_not_numbered() -> Result<(), Error> {
     // Issue #408: with :sectnums:, subsections of a [preface] must stay
     // unnumbered (asciidoctor does not emit "0.1." before them), while a normal

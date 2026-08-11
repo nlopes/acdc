@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convenience attributes.
 - An ordered list with an explicit numbering style (`[loweralpha]`, `[upperalpha]`,
   `[lowerroman]`, `[upperroman]`, `[lowergreek]`, `[arabic]`, `[decimal]`) renders
-  its markers in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`.
+  its markers in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`;
+  `[none]` omits the markers.
 - Terminal replay frame capture (`replay::capture` / `capture_windowed`) turns
   recorded ANSI into ordered, deduplicated `CellGrid` frames for animated replay
   renderers; `capture_windowed` is a fast path for append-only recordings. Each

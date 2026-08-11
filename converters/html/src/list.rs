@@ -49,12 +49,16 @@ fn numbering_class_and_type(
     }
 }
 
-/// Resolve an ordered list's `(class, type)`: an explicit `[style]` attribute wins,
-/// otherwise the style cycles by nesting `depth`.
+/// Resolve an ordered list's `(class, type)`. `[none]` suppresses markers;
+/// numbering styles override the style selected from the nesting `depth`.
 fn resolve_ordered_list_style(
     style: Option<&str>,
     depth: u8,
 ) -> (&'static str, Option<&'static str>) {
+    if style == Some("none") {
+        return ("none", None);
+    }
+
     let numbering = style
         .and_then(OrderedListNumbering::from_explicit_style)
         .unwrap_or_else(|| numbering_for_depth(depth));

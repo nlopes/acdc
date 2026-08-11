@@ -175,6 +175,27 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     Ok(())
 }
 
+#[test]
+fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
+    let input = ". numbered\n\n[none]\n. unmarked\n";
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("terminal");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let actual = String::from_utf8(output)?;
+
+    assert!(actual.contains("1. numbered"), "{actual}");
+    assert!(actual.lines().any(|line| line == "unmarked"), "{actual}");
+    Ok(())
+}
+
 #[cfg(feature = "images")]
 #[test]
 fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error> {
