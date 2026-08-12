@@ -2,7 +2,7 @@ use acdc_converters_core::table::calculate_column_widths;
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{
     Block, BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode, Table,
-    TableColumn, VerticalAlignment,
+    TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, inlines::escape_pcdata};
@@ -303,44 +303,32 @@ fn render_colgroup<W: std::io::Write + ?Sized>(
     Ok(())
 }
 
-/// Get frame class from metadata (default: all).
-fn get_frame_class(metadata: &BlockMetadata) -> &'static str {
-    metadata
-        .attributes
-        .get_string("frame")
-        .map_or("frame-all", |frame| match frame.as_ref() {
-            "ends" | "topbot" => "frame-ends",
-            "sides" => "frame-sides",
-            "none" => "frame-none",
-            _ => "frame-all",
-        })
+fn frame_class(frame: TableFrame) -> &'static str {
+    match frame {
+        TableFrame::Ends => "frame-ends",
+        TableFrame::Sides => "frame-sides",
+        TableFrame::None => "frame-none",
+        TableFrame::All | _ => "frame-all",
+    }
 }
 
-/// Get grid class from metadata (default: all).
-fn get_grid_class(metadata: &BlockMetadata) -> &'static str {
-    metadata
-        .attributes
-        .get_string("grid")
-        .map_or("grid-all", |grid| match grid.as_ref() {
-            "rows" => "grid-rows",
-            "cols" => "grid-cols",
-            "none" => "grid-none",
-            _ => "grid-all",
-        })
+fn grid_class(grid: TableGrid) -> &'static str {
+    match grid {
+        TableGrid::Rows => "grid-rows",
+        TableGrid::Columns => "grid-cols",
+        TableGrid::None => "grid-none",
+        TableGrid::All | _ => "grid-all",
+    }
 }
 
-/// Get stripes class from metadata (only if specified).
-fn get_stripes_class(metadata: &BlockMetadata) -> Option<&'static str> {
-    metadata
-        .attributes
-        .get_string("stripes")
-        .and_then(|stripes| match stripes.as_ref() {
-            "even" => Some("stripes-even"),
-            "odd" => Some("stripes-odd"),
-            "all" => Some("stripes-all"),
-            "hover" => Some("stripes-hover"),
-            _ => None,
-        })
+fn stripes_class(stripes: TableStripes) -> Option<&'static str> {
+    match stripes {
+        TableStripes::All => Some("stripes-all"),
+        TableStripes::Odd => Some("stripes-odd"),
+        TableStripes::Even => Some("stripes-even"),
+        TableStripes::Hover => Some("stripes-hover"),
+        TableStripes::None | _ => None,
+    }
 }
 
 /// Compute the table sizing class and inline width style, matching asciidoctor:
@@ -418,8 +406,11 @@ where
 
     // Build table classes. Order matches asciidoctor:
     // frame, grid, stripes, sizing (stretch/fit-content), float, roles.
-    let frame = get_frame_class(metadata);
-    let grid = get_grid_class(metadata);
+    let presentation = table.presentation().unwrap_or_else(|| {
+        TablePresentation::from_attributes(metadata, processor.document_attributes())
+    });
+    let frame = frame_class(presentation.frame());
+    let grid = grid_class(presentation.grid());
     let (sizing, width_style) = table_sizing(metadata);
 
     // Semantic mode: wrap in <div class="table-block">, no "tableblock" prefix on table
@@ -431,7 +422,7 @@ where
     };
 
     // Add stripes class if specified
-    if let Some(stripes) = get_stripes_class(metadata) {
+    if let Some(stripes) = stripes_class(presentation.stripes()) {
         class_parts.push(' ');
         class_parts.push_str(stripes);
     }

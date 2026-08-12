@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tables honor source-order changes to `table-frame`, `table-grid`, and
+  `table-stripes`. Local `frame`, `grid`, and `stripes` values still override
+  the document defaults, including `stripes=hover`, matching Asciidoctor.
 - List styles now match Asciidoctor: `[none]`, `[no-bullet]`, and `[unstyled]`
   suppress markers on ordered and unordered lists; `[unnumbered]` suppresses
   ordered markers; and `[disc]`, `[circle]`, and `[square]` select unordered
