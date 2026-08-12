@@ -48,6 +48,8 @@ pub enum TableStripes {
     Odd,
     /// Fill even body rows.
     Even,
+    /// Fill the body row under the pointer in interactive output.
+    Hover,
 }
 
 /// Table decoration resolved from the attributes at the table's source position.
@@ -90,6 +92,7 @@ impl TablePresentation {
                     "all" => TableStripes::All,
                     "odd" => TableStripes::Odd,
                     "even" => TableStripes::Even,
+                    "hover" => TableStripes::Hover,
                     _ => TableStripes::None,
                 }),
         }

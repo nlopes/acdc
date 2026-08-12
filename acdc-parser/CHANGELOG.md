@@ -12,7 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parsed tables expose their resolved `frame`, `grid`, and `stripes`
   presentation. Table-level values override `table-frame`, `table-grid`, and
   `table-stripes`, and document-attribute changes apply in source order. The
-  resolved presentation participates in table equality and debug output.
+  resolved presentation, including interactive `stripes=hover`, participates
+  in table equality and debug output.
 - Parsed sections and their table-of-contents entries now carry the same number,
   based on the numbering attributes in effect at each heading. Numbering changes
   apply in source order and restart inside AsciiDoc table cells. `Section::new`

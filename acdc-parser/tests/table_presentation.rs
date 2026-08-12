@@ -54,6 +54,11 @@ fn table_presentation_uses_local_values_and_reference_fallbacks() -> Result<(), 
 |three
 |===
 
+[stripes=hover]
+|===
+|hover
+|===
+
 |===
 |four
 |===
@@ -67,6 +72,7 @@ fn table_presentation_uses_local_values_and_reference_fallbacks() -> Result<(), 
             (TableFrame::Ends, TableGrid::Rows, TableStripes::Odd),
             (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
             (TableFrame::None, TableGrid::None, TableStripes::None),
+            (TableFrame::All, TableGrid::All, TableStripes::Hover),
             (TableFrame::All, TableGrid::All, TableStripes::None),
         ],
     );
@@ -87,7 +93,7 @@ fn table_presentation_follows_document_attributes_in_source_order() -> Result<()
 
 :table-frame: ends
 :table-grid: cols
-:table-stripes: even
+:table-stripes: hover
 
 |===
 |two
@@ -108,7 +114,7 @@ fn table_presentation_follows_document_attributes_in_source_order() -> Result<()
         &tables(&parsed.document().blocks),
         &[
             (TableFrame::Sides, TableGrid::Rows, TableStripes::Odd),
-            (TableFrame::Ends, TableGrid::Columns, TableStripes::Even),
+            (TableFrame::Ends, TableGrid::Columns, TableStripes::Hover),
             (TableFrame::All, TableGrid::All, TableStripes::None),
         ],
     );
