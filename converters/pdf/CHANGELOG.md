@@ -119,6 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   numbering; titled listing blocks, `[listing]` and `[source]` paragraphs share
   `listing-caption`. The same styles on an open or literal block are captioned
   too, though their content renders as before.
+- Titled tables now use document-wide numbered captions and honor
+  `table-caption` and per-table `caption=` values, matching `asciidoctor-pdf`.
+  Nested tables take their number before their containing table.
 - Caption numbering now follows the document: a caption attribute changed
   part-way through applies from that point on, a nested block is numbered before
   the one containing it, and blank, disabled, and custom captions are honoured,

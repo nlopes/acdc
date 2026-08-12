@@ -96,6 +96,8 @@ pub struct Processor<'a> {
     pub(crate) example_counter: Rc<Cell<u32>>,
     /// Fallback counter for listing and source captions the parser did not number.
     pub(crate) listing_counter: Rc<Cell<u32>>,
+    /// Fallback counter for table captions the parser did not number.
+    pub(crate) table_counter: Rc<Cell<u32>>,
     pdf_options: PdfOptions,
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
@@ -203,6 +205,9 @@ impl Processor<'_> {
         processor
             .listing_counter
             .set(doc.highest_caption_number(CaptionKind::Listing));
+        processor
+            .table_counter
+            .set(doc.highest_caption_number(CaptionKind::Table));
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
@@ -851,6 +856,42 @@ mod tests {
 
         assert!(text.contains("Listing 1. Built listing"), "{text}");
         assert!(text.contains("Listing 2. Built source paragraph"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn caller_built_table_titles_continue_table_numbering() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = acdc_parser::parse(
+            ".Parsed table\n|===\n|Cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let Some(Block::DelimitedBlock(parsed_table)) = parsed.document().blocks.first() else {
+            return Err(std::io::Error::other("expected a delimited table").into());
+        };
+        let caller_built =
+            DelimitedBlock::new(parsed_table.inner.clone(), "|===", Location::default())
+                .with_title(title("Caller-built table"));
+
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = vec![
+            Block::DelimitedBlock(parsed_table.clone()),
+            Block::DelimitedBlock(caller_built),
+        ];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Table 1. Parsed table"), "{text}");
+        assert!(text.contains("Table 2. Caller-built table"), "{text}");
         assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }

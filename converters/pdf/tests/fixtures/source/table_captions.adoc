@@ -1,0 +1,42 @@
+= Table captions
+:caption-name: Ada
+
+== Defaults and nesting
+
+[cols="1"]
+|===
+|Untitled tables do not consume a number.
+|===
+
+.First *table*
+[cols="1"]
+|===
+|First cell
+|===
+
+.Example counter stays independent
+====
+Example content.
+====
+
+.Formatted _title_, `mono`, {caption-name}, and https://example.com[link]
+[cols="1"]
+|===
+|Formatted title cell
+|===
+
+.Outer table
+[cols="1a"]
+|===
+|
+.Nested *table*
+!===
+!Nested cell
+!===
+|===
+
+.After nested table
+[cols="1"]
+|===
+|After nested cell
+|===

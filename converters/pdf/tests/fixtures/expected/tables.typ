@@ -65,7 +65,7 @@
 ]
 #v(1em)
 
-#blocktitle[#text("Declared header")]
+#blocktitle[#text("Table 1. ")#text("Declared header")]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
 
 ]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
@@ -76,14 +76,14 @@
 
 ])
 
-#blocktitle[#text("Body only")]
+#blocktitle[#text("Table 2. ")#text("Body only")]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
 
 ])
 
-#blocktitle[#text("Spans")]
+#blocktitle[#text("Table 3. ")#text("Spans")]
 #table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
 
 ]], table.cell(x: 2, y: 0)[#tableheader[#text("H3")
@@ -104,7 +104,7 @@
 
 ]))
 
-#blocktitle[#text("Inferred equal widths")]
+#blocktitle[#text("Table 4. ")#text("Inferred equal widths")]
 #table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
@@ -113,35 +113,35 @@
 
 ])
 
-#blocktitle[#text("Proportional widths")]
+#blocktitle[#text("Table 5. ")#text("Proportional widths")]
 #table(columns: (1fr, 3fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("three")
 
 ])
 
-#blocktitle[#text("Percentage widths")]
+#blocktitle[#text("Table 6. ")#text("Percentage widths")]
 #table(columns: (25fr, 75fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("twenty-five")
 
 ], table.cell(x: 1, y: 0)[#text("seventy-five")
 
 ])
 
-#blocktitle[#text("Mixed numeric and percentage widths")]
+#blocktitle[#text("Table 7. ")#text("Mixed numeric and percentage widths")]
 #table(columns: (1fr, 25fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("twenty-five")
 
 ])
 
-#blocktitle[#text("Automatic widths")]
+#blocktitle[#text("Table 8. ")#text("Automatic widths")]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("two")
 
 ])
 
-#blocktitle[#text("Automatic width with fixed widths")]
+#blocktitle[#text("Table 9. ")#text("Automatic width with fixed widths")]
 #table(columns: (1fr, 20%, 30%), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("fifty")
 
 ], table.cell(x: 1, y: 0)[#text("twenty")
@@ -150,14 +150,14 @@
 
 ])
 
-#blocktitle[#text("Content-sized table")]
+#blocktitle[#text("Table 10. ")#text("Content-sized table")]
 #table(columns: 2, align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
 
 ], table.cell(x: 1, y: 0)[#text("three")
 
 ])
 
-#blocktitle[#text("Horizontal column alignment")]
+#blocktitle[#text("Table 11. ")#text("Horizontal column alignment")]
 #table(columns: (1fr, 1fr, 1fr), align: (left + top, center + top, right + top), table.cell(x: 0, y: 0)[#text("Left")
 
 ], table.cell(x: 1, y: 0)[#text("Center")
@@ -166,7 +166,7 @@
 
 ])
 
-#blocktitle[#text("Vertical column alignment")]
+#blocktitle[#text("Table 12. ")#text("Vertical column alignment")]
 #table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + horizon, left + bottom, left + top), table.cell(x: 0, y: 0)[#text("Top")
 
 ], table.cell(x: 1, y: 0)[#text("Middle")
@@ -177,7 +177,7 @@
 
 ])
 
-#blocktitle[#text("Cell alignment overrides")]
+#blocktitle[#text("Table 13. ")#text("Cell alignment overrides")]
 #table(columns: (1fr, 1fr, 1fr, 1fr), align: (right + bottom, right + bottom, right + bottom, right + bottom), table.cell(x: 0, y: 0, align: left)[#text("Left")
 
 ], table.cell(x: 1, y: 0, align: center)[#text("Center")
@@ -204,7 +204,7 @@
 
 ])
 
-#blocktitle[#text("Cell alignment after spans")]
+#blocktitle[#text("Table 14. ")#text("Cell alignment after spans")]
 #table(columns: (1fr, 1fr, 1fr), align: (right + top, left + top, center + top), table.cell(x: 0, y: 0, colspan: 2)[#text("Spans logical columns one and two")
 
 ], table.cell(x: 2, y: 0, align: left + bottom)[#text("Bottom in logical column three")
@@ -221,7 +221,7 @@
 
 ])
 
-#blocktitle[#text("Cell alignment in table sections")]
+#blocktitle[#text("Table 15. ")#text("Cell alignment in table sections")]
 #table(columns: (1fr, 1fr), align: (right + bottom, left + top), table.header(repeat: true, table.cell(x: 0, y: 0, align: center + horizon)[#tableheader[#text("Header center and middle")
 
 ]], table.cell(x: 1, y: 0, align: bottom)[#tableheader[#text("Header bottom")
@@ -236,7 +236,7 @@
 
 ]))
 
-#blocktitle[#text("Column cell styles")]
+#blocktitle[#text("Table 16. ")#text("Column cell styles")]
 #table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Default ")#strong[#text("bold")]#text(" Ada")
 
 ], table.cell(x: 1, y: 0)[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]#text(" Ada")
@@ -249,7 +249,7 @@
 
 ]])
 
-#blocktitle[#text("Cell style overrides")]
+#blocktitle[#text("Table 17. ")#text("Cell style overrides")]
 #table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Default")
 
 ], table.cell(x: 1, y: 0)[#tableemphasis[#text("Emphasis")
@@ -262,7 +262,7 @@
 
 ]])
 
-#blocktitle[#text("Cell styles in table sections")]
+#blocktitle[#text("Table 18. ")#text("Cell styles in table sections")]
 #table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Header ")#strong[#text("bold")]#text(" Ada")
 
 ]], table.cell(x: 1, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
@@ -279,7 +279,7 @@
 
 ]]))
 
-#blocktitle[#text("Literal and monospace whitespace")]
+#blocktitle[#text("Table 19. ")#text("Literal and monospace whitespace")]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#raw(block: false, "Literal  keeps\n  spaces and *marks* {table-name}")], table.cell(x: 1, y: 0)[#tablemonospace[#text("Monospace collapses spaces and ")#strong[#text("formats")]#text(" Ada")
 
 ]])

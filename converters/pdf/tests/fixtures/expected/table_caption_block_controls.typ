@@ -1,7 +1,7 @@
 #set document(
-  title: "Combined table span formatting",
+  title: "Table block caption controls",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Combined table span formatting]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Table block caption controls]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -61,77 +61,31 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Combined table span formatting")]
+#text(size: 22pt, weight: "bold")[#text("Table block caption controls")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Column defaults")] <id-5f636f6c756d6e5f64656661756c7473>
-
-#blocktitle[#text("Table 1. ")#text("Defaults follow source cells")]
-#table(columns: (1fr, 1fr, 1fr), align: (right + bottom, left + top, center + horizon), table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: center + horizon)[#tableemphasis[#text("Combined ")#strong[#text("bold")]#text(" Ada")
-
-]], table.cell(x: 2, y: 0, align: left + top)[#tableemphasis[#text("First companion ")#strong[#text("bold")]#text(" Ada")
-
-]], table.cell(x: 2, y: 1, align: right + bottom)[#tablestrong[#text("Second companion ")#emph[#text("italic")]#text(" Ada")
-
-]], table.cell(x: 0, y: 2)[#tablestrong[#text("First ")#strong[#text("bold")]
-
-]], table.cell(x: 1, y: 2)[#tableemphasis[#text("Second ")#strong[#text("bold")]
-
-]], table.cell(x: 2, y: 2)[#tableheader[#text("Third ")#emph[#text("italic")]
-
-]])
-
-#blocktitle[#text("Table 2. ")#text("Duplicates use each column")]
-#table(columns: (1fr, 1fr, 1fr), align: (right + bottom, left + top, center + horizon), table.cell(x: 0, y: 0)[#tablestrong[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
-
-]], table.cell(x: 1, y: 0)[#tableemphasis[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
-
-]], table.cell(x: 2, y: 0)[#tableheader[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
-
-]])
-
-#heading(level: 1)[#text("Explicit span formats")] <id-5f6578706c696369745f7370616e5f666f726d617473>
-
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: left + top)[#tablestrong[#text("Strong ")#emph[#text("italic")]
-
-]], table.cell(x: 2, y: 0)[#text("Beside strong")
-
-], table.cell(x: 2, y: 1)[#text("Below strong")
-
-], table.cell(x: 0, y: 2, colspan: 2, rowspan: 2, align: center + horizon)[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]
-
-]], table.cell(x: 2, y: 2)[#text("Beside emphasis")
-
-], table.cell(x: 2, y: 3)[#text("Below emphasis")
-
-], table.cell(x: 0, y: 4, colspan: 2, rowspan: 2, align: right + bottom)[#tableheader[#text("Header ")#emph[#text("italic")]
-
-]], table.cell(x: 2, y: 4)[#text("Beside header")
-
-], table.cell(x: 2, y: 5)[#text("Below header")
-
-], table.cell(x: 0, y: 6, colspan: 2, rowspan: 2, align: center + top)[#raw(block: false, "Literal *bold* {span-name}")], table.cell(x: 2, y: 6)[#text("Beside literal")
-
-], table.cell(x: 2, y: 7)[#text("Below literal")
-
-], table.cell(x: 0, y: 8, colspan: 2, rowspan: 2, align: right + horizon)[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
-
-]], table.cell(x: 2, y: 8)[#text("Beside monospace")
-
-], table.cell(x: 2, y: 9)[#text("Below monospace")
+#blocktitle[#text("Table 1. ")#text("Default before controls")]
+#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default one")
 
 ])
 
-#heading(level: 1)[#text("AsciiDoc span")] <id-5f6173636969646f635f7370616e>
+#blocktitle[#text("Local: ")#text("Block custom caption")]
+#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Block custom")
 
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: left + bottom)[#text("Paragraph in a combined cell.")
+])
 
-  - #text("Nested item one")
-  - #text("Nested item two")
+#blocktitle[#text("Table 2. ")#text("Default after block custom")]
+#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default two")
 
-], table.cell(x: 2, y: 0)[#text("Beside AsciiDoc")
+])
 
-], table.cell(x: 2, y: 1)[#text("Below AsciiDoc")
+#blocktitle[#text("")#text("Block blank caption")]
+#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Block blank")
+
+])
+
+#blocktitle[#text("Table 3. ")#text("Default after block blank")]
+#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default three")
 
 ])

@@ -128,7 +128,7 @@
 #block[#text("x = 1")]
 
 #metadata(none) <id-7461626c652d6964>
-#blocktitle[#text("Table ")#strong[#text("Title")]]
+#blocktitle[#text("Table 1. ")#text("Table ")#strong[#text("Title")]]
 #table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Cell")
 
 ])

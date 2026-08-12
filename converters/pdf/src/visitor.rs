@@ -212,12 +212,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
                     && block.metadata.style == Some("abstract")
                 || collapsible_example;
-            // The parser resolved a caption for every caption-capable block it parsed, styled
-            // open and literal blocks included. A block built through the API carries none, so
-            // it is classified here with the same rules the parser used. A table's caption is
-            // not rendered yet — see PARITY_CHECKLIST.md §5.
-            let captioned = !matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
-                && (block.metadata.caption.is_some() || fallback.is_some());
+            // A block built through the API carries no resolved caption, so classify it with
+            // the same rules the parser used.
+            let captioned = block.metadata.caption.is_some() || fallback.is_some();
             if shows_block_title(&block.inner) && !writes_own_title {
                 if captioned {
                     self.write_captioned_title(&block.title, &block.metadata, fallback)?;

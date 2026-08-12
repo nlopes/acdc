@@ -698,11 +698,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn next_caption_number(&self, kind: CaptionKind) -> u32 {
         let counter = match kind {
             CaptionKind::Listing => &self.processor.listing_counter,
-            // Figure and table captions are not rendered yet, so they share the example
-            // counter rather than carrying two more of their own.
-            CaptionKind::Example | CaptionKind::Figure | CaptionKind::Table | _ => {
-                &self.processor.example_counter
-            }
+            CaptionKind::Table => &self.processor.table_counter,
+            CaptionKind::Example | CaptionKind::Figure | _ => &self.processor.example_counter,
         };
         let number = counter.get() + 1;
         counter.set(number);
