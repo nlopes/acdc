@@ -66,31 +66,31 @@
 #v(1em)
 
 #blocktitle[#text("Table 1. ")#text("Default before controls")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default one")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default one")
 
 ])
 
 #blocktitle[#text("Data 2. ")#text("Document custom caption")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Document custom")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Document custom")
 
 ])
 
 #blocktitle[#text("Document caption unset")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Document unset")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Document unset")
 
 ])
 
 #blocktitle[#text("Table 3. ")#text("Default after unset")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default three")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default three")
 
 ])
 
 #blocktitle[#text(" 4. ")#text("Document caption blank")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Document blank")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Document blank")
 
 ])
 
 #blocktitle[#text("Table 5. ")#text("Default after blank")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default five")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default five")
 
 ])

@@ -68,70 +68,70 @@
 #heading(level: 1)[#text("Column defaults")] <id-5f636f6c756d6e5f64656661756c7473>
 
 #blocktitle[#text("Table 1. ")#text("Defaults follow source cells")]
-#table(columns: (1fr, 1fr, 1fr), align: (right + bottom, left + top, center + horizon), table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: center + horizon)[#tableemphasis[#text("Combined ")#strong[#text("bold")]#text(" Ada")
+#table(columns: (1fr, 1fr, 1fr), align: (right + bottom, left + top, center + horizon), stroke: none, table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: center + horizon, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Combined ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 0, align: left + top)[#tableemphasis[#text("First companion ")#strong[#text("bold")]#text(" Ada")
+]], table.cell(x: 2, y: 0, align: left + top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("First companion ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 1, align: right + bottom)[#tablestrong[#text("Second companion ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 2, y: 1, align: right + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("Second companion ")#emph[#text("italic")]#text(" Ada")
 
-]], table.cell(x: 0, y: 2)[#tablestrong[#text("First ")#strong[#text("bold")]
+]], table.cell(x: 0, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("First ")#strong[#text("bold")]
 
-]], table.cell(x: 1, y: 2)[#tableemphasis[#text("Second ")#strong[#text("bold")]
+]], table.cell(x: 1, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Second ")#strong[#text("bold")]
 
-]], table.cell(x: 2, y: 2)[#tableheader[#text("Third ")#emph[#text("italic")]
+]], table.cell(x: 2, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableheader[#text("Third ")#emph[#text("italic")]
 
 ]])
 
 #blocktitle[#text("Table 2. ")#text("Duplicates use each column")]
-#table(columns: (1fr, 1fr, 1fr), align: (right + bottom, left + top, center + horizon), table.cell(x: 0, y: 0)[#tablestrong[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
+#table(columns: (1fr, 1fr, 1fr), align: (right + bottom, left + top, center + horizon), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 1, y: 0)[#tableemphasis[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
+]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 0)[#tableheader[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableheader[#text("Repeated ")#strong[#text("bold")]#text(" Ada")
 
 ]])
 
 #heading(level: 1)[#text("Explicit span formats")] <id-5f6578706c696369745f7370616e5f666f726d617473>
 
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: left + top)[#tablestrong[#text("Strong ")#emph[#text("italic")]
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: left + top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("Strong ")#emph[#text("italic")]
 
-]], table.cell(x: 2, y: 0)[#text("Beside strong")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside strong")
 
-], table.cell(x: 2, y: 1)[#text("Below strong")
+], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below strong")
 
-], table.cell(x: 0, y: 2, colspan: 2, rowspan: 2, align: center + horizon)[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]
+], table.cell(x: 0, y: 2, colspan: 2, rowspan: 2, align: center + horizon, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]
 
-]], table.cell(x: 2, y: 2)[#text("Beside emphasis")
+]], table.cell(x: 2, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside emphasis")
 
-], table.cell(x: 2, y: 3)[#text("Below emphasis")
+], table.cell(x: 2, y: 3, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below emphasis")
 
-], table.cell(x: 0, y: 4, colspan: 2, rowspan: 2, align: right + bottom)[#tableheader[#text("Header ")#emph[#text("italic")]
+], table.cell(x: 0, y: 4, colspan: 2, rowspan: 2, align: right + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableheader[#text("Header ")#emph[#text("italic")]
 
-]], table.cell(x: 2, y: 4)[#text("Beside header")
+]], table.cell(x: 2, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside header")
 
-], table.cell(x: 2, y: 5)[#text("Below header")
+], table.cell(x: 2, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below header")
 
-], table.cell(x: 0, y: 6, colspan: 2, rowspan: 2, align: center + top)[#raw(block: false, "Literal *bold* {span-name}")], table.cell(x: 2, y: 6)[#text("Beside literal")
+], table.cell(x: 0, y: 6, colspan: 2, rowspan: 2, align: center + top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Literal *bold* {span-name}")], table.cell(x: 2, y: 6, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside literal")
 
-], table.cell(x: 2, y: 7)[#text("Below literal")
+], table.cell(x: 2, y: 7, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below literal")
 
-], table.cell(x: 0, y: 8, colspan: 2, rowspan: 2, align: right + horizon)[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
+], table.cell(x: 0, y: 8, colspan: 2, rowspan: 2, align: right + horizon, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 8)[#text("Beside monospace")
+]], table.cell(x: 2, y: 8, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside monospace")
 
-], table.cell(x: 2, y: 9)[#text("Below monospace")
+], table.cell(x: 2, y: 9, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below monospace")
 
 ])
 
 #heading(level: 1)[#text("AsciiDoc span")] <id-5f6173636969646f635f7370616e>
 
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: left + bottom)[#text("Paragraph in a combined cell.")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, colspan: 2, rowspan: 2, align: left + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Paragraph in a combined cell.")
 
   - #text("Nested item one")
   - #text("Nested item two")
 
-], table.cell(x: 2, y: 0)[#text("Beside AsciiDoc")
+], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside AsciiDoc")
 
-], table.cell(x: 2, y: 1)[#text("Below AsciiDoc")
+], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below AsciiDoc")
 
 ])

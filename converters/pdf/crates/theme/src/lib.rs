@@ -8,6 +8,7 @@ mod fonts;
 mod heading;
 mod spacing;
 mod syntax;
+mod table;
 mod typography;
 
 use std::sync::LazyLock;
@@ -21,6 +22,7 @@ pub use fonts::{EMOJI_FONT_FAMILY, embedded_fonts};
 pub use heading::{ChapterHeading, Heading, PageBreakBefore, PartBreakAfter, PartHeading};
 pub use spacing::Spacing;
 pub use syntax::{HIGHLIGHT_THEME_PATH, highlight_theme};
+pub use table::Table;
 pub use typography::{FontStack, Typography};
 
 const DEFAULT_THEME_YAML: &str = include_str!("../assets/theme/default.yaml");
@@ -36,6 +38,8 @@ pub struct Theme {
     pub caption: Caption,
     #[serde(default)]
     pub heading: Heading,
+    #[serde(default)]
+    pub table: Table,
 }
 
 impl Theme {
@@ -50,6 +54,7 @@ impl Theme {
         let mut theme: Self = serde_saphyr::from_str(yaml)?;
         theme.palette.normalize()?;
         theme.caption.normalize()?;
+        theme.table.normalize()?;
         theme.validate()?;
         Ok(theme)
     }
@@ -58,7 +63,8 @@ impl Theme {
         self.palette.validate()?;
         self.caption.validate()?;
         self.typography.validate()?;
-        self.spacing.validate()
+        self.spacing.validate()?;
+        self.table.validate()
     }
 }
 
@@ -89,6 +95,7 @@ mod tests {
         assert_eq!(theme.typography.body_font.fallback, ["IBM Plex Serif"]);
         assert_eq!(theme.caption, Caption::default());
         assert_eq!(theme.heading, Heading::default());
+        assert_eq!(theme.table, Table::default());
         assert_eq!(Theme::default(), theme);
         Ok(())
     }
@@ -155,6 +162,19 @@ mod tests {
     }
 
     #[test]
+    fn defaults_table_style_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML.replace(
+            "table:\n  border_color: \"#dddddd\"\n  border_width_pt: 0.5\n  header_divider_width_pt: 1.25\n  header_background: null\n  stripe_background: \"#f9f9f9\"\n  footer_background: \"#f0f0f0\"\n",
+            "",
+        );
+
+        let theme = Theme::from_yaml_str(&yaml)?;
+
+        assert_eq!(theme.table, Table::default());
+        Ok(())
+    }
+
+    #[test]
     fn defaults_block_margin_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
         let yaml = DEFAULT_THEME_YAML.replace("  block_margin_bottom_pt: 12.0\n", "");
 
@@ -184,6 +204,36 @@ mod tests {
     }
 
     #[test]
+    fn validates_and_normalizes_table_style() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML
+            .replace("border_color: \"#dddddd\"", "border_color: '#AbC'")
+            .replace("border_width_pt: 0.5", "border_width_pt: 0.75")
+            .replace(
+                "header_divider_width_pt: 1.25",
+                "header_divider_width_pt: 1.5",
+            )
+            .replace("header_background: null", "header_background: '#123'")
+            .replace(
+                "stripe_background: \"#f9f9f9\"",
+                "stripe_background: '#456'",
+            )
+            .replace(
+                "footer_background: \"#f0f0f0\"",
+                "footer_background: '#789'",
+            );
+
+        let theme = Theme::from_yaml_str(&yaml)?;
+
+        assert_eq!(theme.table.border_color, "#aabbcc");
+        assert!((theme.table.border_width_pt - 0.75).abs() < f64::EPSILON);
+        assert!((theme.table.header_divider_width_pt - 1.5).abs() < f64::EPSILON);
+        assert_eq!(theme.table.header_background.as_deref(), Some("#112233"));
+        assert_eq!(theme.table.stripe_background, "#445566");
+        assert_eq!(theme.table.footer_background.as_deref(), Some("#778899"));
+        Ok(())
+    }
+
+    #[test]
     fn parser_has_no_artificial_document_size_limit() -> Result<(), Error> {
         let yaml = format!("{DEFAULT_THEME_YAML}\n# {}", "x".repeat(128 * 1024));
         Theme::from_yaml_str(&yaml)?;
@@ -206,6 +256,29 @@ mod tests {
             result,
             Err(Error::Validation { field, .. }) if field == "caption.font_color"
         ));
+        for (original, replacement, field) in [
+            (
+                "border_color: \"#dddddd\"",
+                "border_color: red",
+                "table.border_color",
+            ),
+            (
+                "stripe_background: \"#f9f9f9\"",
+                "stripe_background: red",
+                "table.stripe_background",
+            ),
+            (
+                "footer_background: \"#f0f0f0\"",
+                "footer_background: red",
+                "table.footer_background",
+            ),
+        ] {
+            let result = Theme::from_yaml_str(&DEFAULT_THEME_YAML.replace(original, replacement));
+            assert!(
+                matches!(&result, Err(Error::Validation { field: actual, .. }) if actual == field),
+                "unexpected result for {field}: {result:?}"
+            );
+        }
     }
 
     #[test]
@@ -255,6 +328,16 @@ mod tests {
                 "margin_inside_pt: 8.0",
                 "margin_inside_pt: -0.1",
                 "caption.margin_inside_pt",
+            ),
+            (
+                "border_width_pt: 0.5",
+                "border_width_pt: -0.1",
+                "table.border_width_pt",
+            ),
+            (
+                "header_divider_width_pt: 1.25",
+                "header_divider_width_pt: .nan",
+                "table.header_divider_width_pt",
             ),
         ] {
             let result = Theme::from_yaml_str(&DEFAULT_THEME_YAML.replace(original, replacement));

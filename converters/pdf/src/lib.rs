@@ -211,9 +211,8 @@ impl Processor<'_> {
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
-            theme.heading,
+            theme,
             code_wrap_columns(theme, emit_options.page),
-            &theme.palette,
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
         );

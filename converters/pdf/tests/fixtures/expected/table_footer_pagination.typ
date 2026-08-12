@@ -66,372 +66,372 @@
 #v(1em)
 
 #blocktitle[#text("Table 1. ")#text("Long footer")]
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Item")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Item")
 
-]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
+]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Value")
 
-]]), table.cell(x: 0, y: 1)[#text("Row 001")
+]]), table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 001")
 
-], table.cell(x: 1, y: 1)[#text("1")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("1")
 
-], table.cell(x: 0, y: 2)[#text("Row 002")
+], table.cell(x: 0, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 002")
 
-], table.cell(x: 1, y: 2)[#text("2")
+], table.cell(x: 1, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("2")
 
-], table.cell(x: 0, y: 3)[#text("Row 003")
+], table.cell(x: 0, y: 3, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 003")
 
-], table.cell(x: 1, y: 3)[#text("3")
+], table.cell(x: 1, y: 3, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("3")
 
-], table.cell(x: 0, y: 4)[#text("Row 004")
+], table.cell(x: 0, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 004")
 
-], table.cell(x: 1, y: 4)[#text("4")
+], table.cell(x: 1, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("4")
 
-], table.cell(x: 0, y: 5)[#text("Row 005")
+], table.cell(x: 0, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 005")
 
-], table.cell(x: 1, y: 5)[#text("5")
+], table.cell(x: 1, y: 5, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("5")
 
-], table.cell(x: 0, y: 6)[#text("Row 006")
+], table.cell(x: 0, y: 6, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 006")
 
-], table.cell(x: 1, y: 6)[#text("6")
+], table.cell(x: 1, y: 6, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("6")
 
-], table.cell(x: 0, y: 7)[#text("Row 007")
+], table.cell(x: 0, y: 7, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 007")
 
-], table.cell(x: 1, y: 7)[#text("7")
+], table.cell(x: 1, y: 7, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("7")
 
-], table.cell(x: 0, y: 8)[#text("Row 008")
+], table.cell(x: 0, y: 8, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 008")
 
-], table.cell(x: 1, y: 8)[#text("8")
+], table.cell(x: 1, y: 8, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("8")
 
-], table.cell(x: 0, y: 9)[#text("Row 009")
+], table.cell(x: 0, y: 9, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 009")
 
-], table.cell(x: 1, y: 9)[#text("9")
+], table.cell(x: 1, y: 9, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("9")
 
-], table.cell(x: 0, y: 10)[#text("Row 010")
+], table.cell(x: 0, y: 10, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 010")
 
-], table.cell(x: 1, y: 10)[#text("10")
+], table.cell(x: 1, y: 10, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("10")
 
-], table.cell(x: 0, y: 11)[#text("Row 011")
+], table.cell(x: 0, y: 11, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 011")
 
-], table.cell(x: 1, y: 11)[#text("11")
+], table.cell(x: 1, y: 11, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("11")
 
-], table.cell(x: 0, y: 12)[#text("Row 012")
+], table.cell(x: 0, y: 12, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 012")
 
-], table.cell(x: 1, y: 12)[#text("12")
+], table.cell(x: 1, y: 12, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("12")
 
-], table.cell(x: 0, y: 13)[#text("Row 013")
+], table.cell(x: 0, y: 13, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 013")
 
-], table.cell(x: 1, y: 13)[#text("13")
+], table.cell(x: 1, y: 13, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("13")
 
-], table.cell(x: 0, y: 14)[#text("Row 014")
+], table.cell(x: 0, y: 14, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 014")
 
-], table.cell(x: 1, y: 14)[#text("14")
+], table.cell(x: 1, y: 14, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("14")
 
-], table.cell(x: 0, y: 15)[#text("Row 015")
+], table.cell(x: 0, y: 15, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 015")
 
-], table.cell(x: 1, y: 15)[#text("15")
+], table.cell(x: 1, y: 15, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("15")
 
-], table.cell(x: 0, y: 16)[#text("Row 016")
+], table.cell(x: 0, y: 16, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 016")
 
-], table.cell(x: 1, y: 16)[#text("16")
+], table.cell(x: 1, y: 16, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("16")
 
-], table.cell(x: 0, y: 17)[#text("Row 017")
+], table.cell(x: 0, y: 17, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 017")
 
-], table.cell(x: 1, y: 17)[#text("17")
+], table.cell(x: 1, y: 17, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("17")
 
-], table.cell(x: 0, y: 18)[#text("Row 018")
+], table.cell(x: 0, y: 18, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 018")
 
-], table.cell(x: 1, y: 18)[#text("18")
+], table.cell(x: 1, y: 18, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("18")
 
-], table.cell(x: 0, y: 19)[#text("Row 019")
+], table.cell(x: 0, y: 19, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 019")
 
-], table.cell(x: 1, y: 19)[#text("19")
+], table.cell(x: 1, y: 19, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("19")
 
-], table.cell(x: 0, y: 20)[#text("Row 020")
+], table.cell(x: 0, y: 20, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 020")
 
-], table.cell(x: 1, y: 20)[#text("20")
+], table.cell(x: 1, y: 20, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("20")
 
-], table.cell(x: 0, y: 21)[#text("Row 021")
+], table.cell(x: 0, y: 21, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 021")
 
-], table.cell(x: 1, y: 21)[#text("21")
+], table.cell(x: 1, y: 21, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("21")
 
-], table.cell(x: 0, y: 22)[#text("Row 022")
+], table.cell(x: 0, y: 22, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 022")
 
-], table.cell(x: 1, y: 22)[#text("22")
+], table.cell(x: 1, y: 22, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("22")
 
-], table.cell(x: 0, y: 23)[#text("Row 023")
+], table.cell(x: 0, y: 23, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 023")
 
-], table.cell(x: 1, y: 23)[#text("23")
+], table.cell(x: 1, y: 23, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("23")
 
-], table.cell(x: 0, y: 24)[#text("Row 024")
+], table.cell(x: 0, y: 24, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 024")
 
-], table.cell(x: 1, y: 24)[#text("24")
+], table.cell(x: 1, y: 24, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("24")
 
-], table.cell(x: 0, y: 25)[#text("Row 025")
+], table.cell(x: 0, y: 25, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 025")
 
-], table.cell(x: 1, y: 25)[#text("25")
+], table.cell(x: 1, y: 25, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("25")
 
-], table.cell(x: 0, y: 26)[#text("Row 026")
+], table.cell(x: 0, y: 26, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 026")
 
-], table.cell(x: 1, y: 26)[#text("26")
+], table.cell(x: 1, y: 26, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("26")
 
-], table.cell(x: 0, y: 27)[#text("Row 027")
+], table.cell(x: 0, y: 27, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 027")
 
-], table.cell(x: 1, y: 27)[#text("27")
+], table.cell(x: 1, y: 27, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("27")
 
-], table.cell(x: 0, y: 28)[#text("Row 028")
+], table.cell(x: 0, y: 28, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 028")
 
-], table.cell(x: 1, y: 28)[#text("28")
+], table.cell(x: 1, y: 28, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("28")
 
-], table.cell(x: 0, y: 29)[#text("Row 029")
+], table.cell(x: 0, y: 29, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 029")
 
-], table.cell(x: 1, y: 29)[#text("29")
+], table.cell(x: 1, y: 29, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("29")
 
-], table.cell(x: 0, y: 30)[#text("Row 030")
+], table.cell(x: 0, y: 30, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 030")
 
-], table.cell(x: 1, y: 30)[#text("30")
+], table.cell(x: 1, y: 30, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("30")
 
-], table.cell(x: 0, y: 31)[#text("Row 031")
+], table.cell(x: 0, y: 31, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 031")
 
-], table.cell(x: 1, y: 31)[#text("31")
+], table.cell(x: 1, y: 31, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("31")
 
-], table.cell(x: 0, y: 32)[#text("Row 032")
+], table.cell(x: 0, y: 32, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 032")
 
-], table.cell(x: 1, y: 32)[#text("32")
+], table.cell(x: 1, y: 32, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("32")
 
-], table.cell(x: 0, y: 33)[#text("Row 033")
+], table.cell(x: 0, y: 33, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 033")
 
-], table.cell(x: 1, y: 33)[#text("33")
+], table.cell(x: 1, y: 33, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("33")
 
-], table.cell(x: 0, y: 34)[#text("Row 034")
+], table.cell(x: 0, y: 34, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 034")
 
-], table.cell(x: 1, y: 34)[#text("34")
+], table.cell(x: 1, y: 34, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("34")
 
-], table.cell(x: 0, y: 35)[#text("Row 035")
+], table.cell(x: 0, y: 35, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 035")
 
-], table.cell(x: 1, y: 35)[#text("35")
+], table.cell(x: 1, y: 35, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("35")
 
-], table.cell(x: 0, y: 36)[#text("Row 036")
+], table.cell(x: 0, y: 36, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 036")
 
-], table.cell(x: 1, y: 36)[#text("36")
+], table.cell(x: 1, y: 36, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("36")
 
-], table.cell(x: 0, y: 37)[#text("Row 037")
+], table.cell(x: 0, y: 37, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 037")
 
-], table.cell(x: 1, y: 37)[#text("37")
+], table.cell(x: 1, y: 37, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("37")
 
-], table.cell(x: 0, y: 38)[#text("Row 038")
+], table.cell(x: 0, y: 38, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 038")
 
-], table.cell(x: 1, y: 38)[#text("38")
+], table.cell(x: 1, y: 38, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("38")
 
-], table.cell(x: 0, y: 39)[#text("Row 039")
+], table.cell(x: 0, y: 39, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 039")
 
-], table.cell(x: 1, y: 39)[#text("39")
+], table.cell(x: 1, y: 39, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("39")
 
-], table.cell(x: 0, y: 40)[#text("Row 040")
+], table.cell(x: 0, y: 40, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 040")
 
-], table.cell(x: 1, y: 40)[#text("40")
+], table.cell(x: 1, y: 40, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("40")
 
-], table.cell(x: 0, y: 41)[#text("Row 041")
+], table.cell(x: 0, y: 41, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 041")
 
-], table.cell(x: 1, y: 41)[#text("41")
+], table.cell(x: 1, y: 41, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("41")
 
-], table.cell(x: 0, y: 42)[#text("Row 042")
+], table.cell(x: 0, y: 42, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 042")
 
-], table.cell(x: 1, y: 42)[#text("42")
+], table.cell(x: 1, y: 42, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("42")
 
-], table.cell(x: 0, y: 43)[#text("Row 043")
+], table.cell(x: 0, y: 43, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 043")
 
-], table.cell(x: 1, y: 43)[#text("43")
+], table.cell(x: 1, y: 43, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("43")
 
-], table.cell(x: 0, y: 44)[#text("Row 044")
+], table.cell(x: 0, y: 44, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 044")
 
-], table.cell(x: 1, y: 44)[#text("44")
+], table.cell(x: 1, y: 44, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("44")
 
-], table.cell(x: 0, y: 45)[#text("Row 045")
+], table.cell(x: 0, y: 45, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 045")
 
-], table.cell(x: 1, y: 45)[#text("45")
+], table.cell(x: 1, y: 45, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("45")
 
-], table.cell(x: 0, y: 46)[#text("Row 046")
+], table.cell(x: 0, y: 46, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 046")
 
-], table.cell(x: 1, y: 46)[#text("46")
+], table.cell(x: 1, y: 46, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("46")
 
-], table.cell(x: 0, y: 47)[#text("Row 047")
+], table.cell(x: 0, y: 47, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 047")
 
-], table.cell(x: 1, y: 47)[#text("47")
+], table.cell(x: 1, y: 47, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("47")
 
-], table.cell(x: 0, y: 48)[#text("Row 048")
+], table.cell(x: 0, y: 48, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 048")
 
-], table.cell(x: 1, y: 48)[#text("48")
+], table.cell(x: 1, y: 48, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("48")
 
-], table.cell(x: 0, y: 49)[#text("Row 049")
+], table.cell(x: 0, y: 49, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 049")
 
-], table.cell(x: 1, y: 49)[#text("49")
+], table.cell(x: 1, y: 49, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("49")
 
-], table.cell(x: 0, y: 50)[#text("Row 050")
+], table.cell(x: 0, y: 50, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 050")
 
-], table.cell(x: 1, y: 50)[#text("50")
+], table.cell(x: 1, y: 50, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("50")
 
-], table.cell(x: 0, y: 51)[#text("Row 051")
+], table.cell(x: 0, y: 51, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 051")
 
-], table.cell(x: 1, y: 51)[#text("51")
+], table.cell(x: 1, y: 51, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("51")
 
-], table.cell(x: 0, y: 52)[#text("Row 052")
+], table.cell(x: 0, y: 52, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 052")
 
-], table.cell(x: 1, y: 52)[#text("52")
+], table.cell(x: 1, y: 52, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("52")
 
-], table.cell(x: 0, y: 53)[#text("Row 053")
+], table.cell(x: 0, y: 53, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 053")
 
-], table.cell(x: 1, y: 53)[#text("53")
+], table.cell(x: 1, y: 53, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("53")
 
-], table.cell(x: 0, y: 54)[#text("Row 054")
+], table.cell(x: 0, y: 54, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 054")
 
-], table.cell(x: 1, y: 54)[#text("54")
+], table.cell(x: 1, y: 54, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("54")
 
-], table.cell(x: 0, y: 55)[#text("Row 055")
+], table.cell(x: 0, y: 55, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 055")
 
-], table.cell(x: 1, y: 55)[#text("55")
+], table.cell(x: 1, y: 55, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("55")
 
-], table.cell(x: 0, y: 56)[#text("Row 056")
+], table.cell(x: 0, y: 56, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 056")
 
-], table.cell(x: 1, y: 56)[#text("56")
+], table.cell(x: 1, y: 56, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("56")
 
-], table.cell(x: 0, y: 57)[#text("Row 057")
+], table.cell(x: 0, y: 57, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 057")
 
-], table.cell(x: 1, y: 57)[#text("57")
+], table.cell(x: 1, y: 57, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("57")
 
-], table.cell(x: 0, y: 58)[#text("Row 058")
+], table.cell(x: 0, y: 58, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 058")
 
-], table.cell(x: 1, y: 58)[#text("58")
+], table.cell(x: 1, y: 58, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("58")
 
-], table.cell(x: 0, y: 59)[#text("Row 059")
+], table.cell(x: 0, y: 59, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 059")
 
-], table.cell(x: 1, y: 59)[#text("59")
+], table.cell(x: 1, y: 59, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("59")
 
-], table.cell(x: 0, y: 60)[#text("Row 060")
+], table.cell(x: 0, y: 60, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 060")
 
-], table.cell(x: 1, y: 60)[#text("60")
+], table.cell(x: 1, y: 60, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("60")
 
-], table.cell(x: 0, y: 61)[#text("Row 061")
+], table.cell(x: 0, y: 61, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 061")
 
-], table.cell(x: 1, y: 61)[#text("61")
+], table.cell(x: 1, y: 61, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("61")
 
-], table.cell(x: 0, y: 62)[#text("Row 062")
+], table.cell(x: 0, y: 62, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 062")
 
-], table.cell(x: 1, y: 62)[#text("62")
+], table.cell(x: 1, y: 62, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("62")
 
-], table.cell(x: 0, y: 63)[#text("Row 063")
+], table.cell(x: 0, y: 63, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 063")
 
-], table.cell(x: 1, y: 63)[#text("63")
+], table.cell(x: 1, y: 63, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("63")
 
-], table.cell(x: 0, y: 64)[#text("Row 064")
+], table.cell(x: 0, y: 64, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 064")
 
-], table.cell(x: 1, y: 64)[#text("64")
+], table.cell(x: 1, y: 64, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("64")
 
-], table.cell(x: 0, y: 65)[#text("Row 065")
+], table.cell(x: 0, y: 65, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 065")
 
-], table.cell(x: 1, y: 65)[#text("65")
+], table.cell(x: 1, y: 65, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("65")
 
-], table.cell(x: 0, y: 66)[#text("Row 066")
+], table.cell(x: 0, y: 66, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 066")
 
-], table.cell(x: 1, y: 66)[#text("66")
+], table.cell(x: 1, y: 66, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("66")
 
-], table.cell(x: 0, y: 67)[#text("Row 067")
+], table.cell(x: 0, y: 67, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 067")
 
-], table.cell(x: 1, y: 67)[#text("67")
+], table.cell(x: 1, y: 67, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("67")
 
-], table.cell(x: 0, y: 68)[#text("Row 068")
+], table.cell(x: 0, y: 68, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 068")
 
-], table.cell(x: 1, y: 68)[#text("68")
+], table.cell(x: 1, y: 68, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("68")
 
-], table.cell(x: 0, y: 69)[#text("Row 069")
+], table.cell(x: 0, y: 69, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 069")
 
-], table.cell(x: 1, y: 69)[#text("69")
+], table.cell(x: 1, y: 69, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("69")
 
-], table.cell(x: 0, y: 70)[#text("Row 070")
+], table.cell(x: 0, y: 70, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 070")
 
-], table.cell(x: 1, y: 70)[#text("70")
+], table.cell(x: 1, y: 70, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("70")
 
-], table.cell(x: 0, y: 71)[#text("Row 071")
+], table.cell(x: 0, y: 71, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 071")
 
-], table.cell(x: 1, y: 71)[#text("71")
+], table.cell(x: 1, y: 71, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("71")
 
-], table.cell(x: 0, y: 72)[#text("Row 072")
+], table.cell(x: 0, y: 72, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 072")
 
-], table.cell(x: 1, y: 72)[#text("72")
+], table.cell(x: 1, y: 72, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("72")
 
-], table.cell(x: 0, y: 73)[#text("Row 073")
+], table.cell(x: 0, y: 73, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 073")
 
-], table.cell(x: 1, y: 73)[#text("73")
+], table.cell(x: 1, y: 73, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("73")
 
-], table.cell(x: 0, y: 74)[#text("Row 074")
+], table.cell(x: 0, y: 74, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 074")
 
-], table.cell(x: 1, y: 74)[#text("74")
+], table.cell(x: 1, y: 74, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("74")
 
-], table.cell(x: 0, y: 75)[#text("Row 075")
+], table.cell(x: 0, y: 75, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 075")
 
-], table.cell(x: 1, y: 75)[#text("75")
+], table.cell(x: 1, y: 75, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("75")
 
-], table.cell(x: 0, y: 76)[#text("Row 076")
+], table.cell(x: 0, y: 76, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 076")
 
-], table.cell(x: 1, y: 76)[#text("76")
+], table.cell(x: 1, y: 76, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("76")
 
-], table.cell(x: 0, y: 77)[#text("Row 077")
+], table.cell(x: 0, y: 77, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 077")
 
-], table.cell(x: 1, y: 77)[#text("77")
+], table.cell(x: 1, y: 77, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("77")
 
-], table.cell(x: 0, y: 78)[#text("Row 078")
+], table.cell(x: 0, y: 78, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 078")
 
-], table.cell(x: 1, y: 78)[#text("78")
+], table.cell(x: 1, y: 78, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("78")
 
-], table.cell(x: 0, y: 79)[#text("Row 079")
+], table.cell(x: 0, y: 79, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 079")
 
-], table.cell(x: 1, y: 79)[#text("79")
+], table.cell(x: 1, y: 79, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("79")
 
-], table.cell(x: 0, y: 80)[#text("Row 080")
+], table.cell(x: 0, y: 80, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 080")
 
-], table.cell(x: 1, y: 80)[#text("80")
+], table.cell(x: 1, y: 80, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("80")
 
-], table.cell(x: 0, y: 81)[#text("Row 081")
+], table.cell(x: 0, y: 81, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 081")
 
-], table.cell(x: 1, y: 81)[#text("81")
+], table.cell(x: 1, y: 81, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("81")
 
-], table.cell(x: 0, y: 82)[#text("Row 082")
+], table.cell(x: 0, y: 82, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 082")
 
-], table.cell(x: 1, y: 82)[#text("82")
+], table.cell(x: 1, y: 82, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("82")
 
-], table.cell(x: 0, y: 83)[#text("Row 083")
+], table.cell(x: 0, y: 83, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 083")
 
-], table.cell(x: 1, y: 83)[#text("83")
+], table.cell(x: 1, y: 83, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("83")
 
-], table.cell(x: 0, y: 84)[#text("Row 084")
+], table.cell(x: 0, y: 84, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 084")
 
-], table.cell(x: 1, y: 84)[#text("84")
+], table.cell(x: 1, y: 84, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("84")
 
-], table.cell(x: 0, y: 85)[#text("Row 085")
+], table.cell(x: 0, y: 85, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 085")
 
-], table.cell(x: 1, y: 85)[#text("85")
+], table.cell(x: 1, y: 85, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("85")
 
-], table.cell(x: 0, y: 86)[#text("Row 086")
+], table.cell(x: 0, y: 86, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 086")
 
-], table.cell(x: 1, y: 86)[#text("86")
+], table.cell(x: 1, y: 86, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("86")
 
-], table.cell(x: 0, y: 87)[#text("Row 087")
+], table.cell(x: 0, y: 87, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 087")
 
-], table.cell(x: 1, y: 87)[#text("87")
+], table.cell(x: 1, y: 87, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("87")
 
-], table.cell(x: 0, y: 88)[#text("Row 088")
+], table.cell(x: 0, y: 88, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 088")
 
-], table.cell(x: 1, y: 88)[#text("88")
+], table.cell(x: 1, y: 88, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("88")
 
-], table.cell(x: 0, y: 89)[#text("Row 089")
+], table.cell(x: 0, y: 89, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 089")
 
-], table.cell(x: 1, y: 89)[#text("89")
+], table.cell(x: 1, y: 89, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("89")
 
-], table.cell(x: 0, y: 90)[#text("Row 090")
+], table.cell(x: 0, y: 90, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Row 090")
 
-], table.cell(x: 1, y: 90)[#text("90")
+], table.cell(x: 1, y: 90, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("90")
 
-], table.footer(repeat: false, table.cell(x: 0, y: 91)[#text("Grand total")
+], table.footer(repeat: false, table.cell(x: 0, y: 91, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Grand total")
 
-], table.cell(x: 1, y: 91)[#text("90")
+], table.cell(x: 1, y: 91, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("90")
 
 ]))

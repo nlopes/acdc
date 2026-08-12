@@ -111,7 +111,7 @@
 
 #text("Second continuation paragraph.")
 
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("First table-cell paragraph.")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("First table-cell paragraph.")
 
 #text("Second table-cell paragraph.")
 

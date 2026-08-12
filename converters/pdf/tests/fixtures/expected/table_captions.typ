@@ -67,12 +67,12 @@
 
 #heading(level: 1)[#text("Defaults and nesting")] <id-5f64656661756c74735f616e645f6e657374696e67>
 
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Untitled tables do not consume a number.")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Untitled tables do not consume a number.")
 
 ])
 
 #blocktitle[#text("Table 1. ")#text("First ")#strong[#text("table")]]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("First cell")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("First cell")
 
 ])
 
@@ -83,19 +83,19 @@
 ]
 
 #blocktitle[#text("Table 2. ")#text("Formatted ")#emph[#text("title")]#text(", ")#raw("mono")#text(", Ada, and ")#link("https://example.com")[#text("link")]]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Formatted title cell")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Formatted title cell")
 
 ])
 
 #blocktitle[#text("Table 4. ")#text("Outer table")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#blocktitle[#text("Table 3. ")#text("Nested ")#strong[#text("table")]]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Nested cell")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#blocktitle[#text("Table 3. ")#text("Nested ")#strong[#text("table")]]
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Nested cell")
 
 ])
 
 ])
 
 #blocktitle[#text("Table 5. ")#text("After nested table")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("After nested cell")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("After nested cell")
 
 ])

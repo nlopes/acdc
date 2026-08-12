@@ -17,7 +17,7 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 == What it provides
 
-- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, and `heading`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -91,6 +91,40 @@ The `heading` tokens apply to book parts and chapters. By default, each part and
 |`heading.chapter.break_before`
 |`always`
 |`always` starts each chapter on a new page; `auto` lets it follow the preceding content.
+|===
+
+=== Tables
+
+The `table` tokens control frame and grid rules plus header, stripe, and footer backgrounds.
+Their defaults match Asciidoctor PDF.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Purpose
+
+|`table.border_color`
+|`#dddddd`
+|Outer frame and inner grid colour.
+
+|`table.border_width_pt`
+|`0.5`
+|Outer frame and inner grid width.
+
+|`table.header_divider_width_pt`
+|`1.25`
+|Rule below a semantic header.
+
+|`table.header_background`
+|`null`
+|Semantic header background, or the table background when omitted.
+
+|`table.stripe_background`
+|`#f9f9f9`
+|Background for striped body rows.
+
+|`table.footer_background`
+|`#f0f0f0`
+|Semantic footer background, or the table background when omitted.
 |===
 
 == Bundled asset policy

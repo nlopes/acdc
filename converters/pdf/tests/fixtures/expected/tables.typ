@@ -66,220 +66,220 @@
 #v(1em)
 
 #blocktitle[#text("Table 1. ")#text("Declared header")]
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Name")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Name")
 
-]], table.cell(x: 1, y: 0)[#tableheader[#text("Value")
+]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Value")
 
-]]), table.cell(x: 0, y: 1)[#text("one")
+]]), table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 1)[#text("two")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("two")
 
 ])
 
 #blocktitle[#text("Table 2. ")#text("Body only")]
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 0)[#text("two")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("two")
 
 ])
 
 #blocktitle[#text("Table 3. ")#text("Spans")]
-#table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2)[#tableheader[#text("Header")
+#table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, colspan: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header")
 
-]], table.cell(x: 2, y: 0)[#tableheader[#text("H3")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("H3")
 
-]], table.cell(x: 3, y: 0)[#tableheader[#text("H4")
+]], table.cell(x: 3, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("H4")
 
-]]), table.cell(x: 0, y: 1, colspan: 2, rowspan: 2)[#text("Combined")
+]]), table.cell(x: 0, y: 1, colspan: 2, rowspan: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Combined")
 
-], table.cell(x: 2, y: 1)[#text("Top 3")
+], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Top 3")
 
-], table.cell(x: 3, y: 1)[#text("Top 4")
+], table.cell(x: 3, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Top 4")
 
-], table.cell(x: 2, y: 2)[#text("Bottom 3")
+], table.cell(x: 2, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Bottom 3")
 
-], table.cell(x: 3, y: 2)[#text("Bottom 4")
+], table.cell(x: 3, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Bottom 4")
 
-], table.footer(repeat: false, table.cell(x: 0, y: 3, colspan: 4)[#text("Full width footer")
+], table.footer(repeat: false, table.cell(x: 0, y: 3, colspan: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Full width footer")
 
 ]))
 
 #blocktitle[#text("Table 4. ")#text("Inferred equal widths")]
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 0)[#text("two")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("two")
 
-], table.cell(x: 2, y: 0)[#text("three")
+], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("three")
 
 ])
 
 #blocktitle[#text("Table 5. ")#text("Proportional widths")]
-#table(columns: (1fr, 3fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 3fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 0)[#text("three")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("three")
 
 ])
 
 #blocktitle[#text("Table 6. ")#text("Percentage widths")]
-#table(columns: (25fr, 75fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("twenty-five")
+#table(columns: (25fr, 75fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("twenty-five")
 
-], table.cell(x: 1, y: 0)[#text("seventy-five")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("seventy-five")
 
 ])
 
 #blocktitle[#text("Table 7. ")#text("Mixed numeric and percentage widths")]
-#table(columns: (1fr, 25fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 25fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 0)[#text("twenty-five")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("twenty-five")
 
 ])
 
 #blocktitle[#text("Table 8. ")#text("Automatic widths")]
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 0)[#text("two")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("two")
 
 ])
 
 #blocktitle[#text("Table 9. ")#text("Automatic width with fixed widths")]
-#table(columns: (1fr, 20%, 30%), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("fifty")
+#table(columns: (1fr, 20%, 30%), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("fifty")
 
-], table.cell(x: 1, y: 0)[#text("twenty")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("twenty")
 
-], table.cell(x: 2, y: 0)[#text("thirty")
+], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("thirty")
 
 ])
 
 #blocktitle[#text("Table 10. ")#text("Content-sized table")]
-#table(columns: 2, align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("one")
+#table(columns: 2, align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
-], table.cell(x: 1, y: 0)[#text("three")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("three")
 
 ])
 
 #blocktitle[#text("Table 11. ")#text("Horizontal column alignment")]
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, center + top, right + top), table.cell(x: 0, y: 0)[#text("Left")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, center + top, right + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Left")
 
-], table.cell(x: 1, y: 0)[#text("Center")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Center")
 
-], table.cell(x: 2, y: 0)[#text("Right")
+], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Right")
 
 ])
 
 #blocktitle[#text("Table 12. ")#text("Vertical column alignment")]
-#table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + horizon, left + bottom, left + top), table.cell(x: 0, y: 0)[#text("Top")
+#table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + horizon, left + bottom, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Top")
 
-], table.cell(x: 1, y: 0)[#text("Middle")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Middle")
 
-], table.cell(x: 2, y: 0)[#text("Bottom")
+], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Bottom")
 
-], table.cell(x: 3, y: 0)[#text("This deliberately long cell makes the row tall enough to show each vertical alignment.")
+], table.cell(x: 3, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This deliberately long cell makes the row tall enough to show each vertical alignment.")
 
 ])
 
 #blocktitle[#text("Table 13. ")#text("Cell alignment overrides")]
-#table(columns: (1fr, 1fr, 1fr, 1fr), align: (right + bottom, right + bottom, right + bottom, right + bottom), table.cell(x: 0, y: 0, align: left)[#text("Left")
+#table(columns: (1fr, 1fr, 1fr, 1fr), align: (right + bottom, right + bottom, right + bottom, right + bottom), stroke: none, table.cell(x: 0, y: 0, align: left, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Left")
 
-], table.cell(x: 1, y: 0, align: center)[#text("Center")
+], table.cell(x: 1, y: 0, align: center, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Center")
 
-], table.cell(x: 2, y: 0, align: right)[#text("Right")
+], table.cell(x: 2, y: 0, align: right, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Right")
 
-], table.cell(x: 3, y: 0)[#text("This deliberately long cell makes the row tall enough to show horizontal overrides while retaining bottom alignment.")
+], table.cell(x: 3, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This deliberately long cell makes the row tall enough to show horizontal overrides while retaining bottom alignment.")
 
-], table.cell(x: 0, y: 1, align: top)[#text("Top")
+], table.cell(x: 0, y: 1, align: top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Top")
 
-], table.cell(x: 1, y: 1, align: horizon)[#text("Middle")
+], table.cell(x: 1, y: 1, align: horizon, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Middle")
 
-], table.cell(x: 2, y: 1, align: bottom)[#text("Bottom")
+], table.cell(x: 2, y: 1, align: bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Bottom")
 
-], table.cell(x: 3, y: 1)[#text("This deliberately long cell makes the row tall enough to show vertical overrides while retaining right alignment.")
+], table.cell(x: 3, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This deliberately long cell makes the row tall enough to show vertical overrides while retaining right alignment.")
 
-], table.cell(x: 0, y: 2, align: left + top)[#text("Left and top")
+], table.cell(x: 0, y: 2, align: left + top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Left and top")
 
-], table.cell(x: 1, y: 2, align: center + horizon)[#text("Center and middle")
+], table.cell(x: 1, y: 2, align: center + horizon, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Center and middle")
 
-], table.cell(x: 2, y: 2, align: right + bottom)[#text("Right and bottom")
+], table.cell(x: 2, y: 2, align: right + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Right and bottom")
 
-], table.cell(x: 3, y: 2)[#text("This deliberately long cell makes the row tall enough to show combined alignment overrides.")
+], table.cell(x: 3, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This deliberately long cell makes the row tall enough to show combined alignment overrides.")
 
 ])
 
 #blocktitle[#text("Table 14. ")#text("Cell alignment after spans")]
-#table(columns: (1fr, 1fr, 1fr), align: (right + top, left + top, center + top), table.cell(x: 0, y: 0, colspan: 2)[#text("Spans logical columns one and two")
+#table(columns: (1fr, 1fr, 1fr), align: (right + top, left + top, center + top), stroke: none, table.cell(x: 0, y: 0, colspan: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Spans logical columns one and two")
 
-], table.cell(x: 2, y: 0, align: left + bottom)[#text("Bottom in logical column three")
+], table.cell(x: 2, y: 0, align: left + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Bottom in logical column three")
 
-], table.cell(x: 0, y: 1, rowspan: 2)[#text("Spans two rows")
+], table.cell(x: 0, y: 1, rowspan: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Spans two rows")
 
-], table.cell(x: 1, y: 1)[#text("First row, logical column two")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("First row, logical column two")
 
-], table.cell(x: 2, y: 1)[#text("First row, logical column three")
+], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("First row, logical column three")
 
-], table.cell(x: 1, y: 2, align: right + bottom)[#text("Bottom in logical column two")
+], table.cell(x: 1, y: 2, align: right + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Bottom in logical column two")
 
-], table.cell(x: 2, y: 2, align: left + top)[#text("This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.")
+], table.cell(x: 2, y: 2, align: left + top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.")
 
 ])
 
 #blocktitle[#text("Table 15. ")#text("Cell alignment in table sections")]
-#table(columns: (1fr, 1fr), align: (right + bottom, left + top), table.header(repeat: true, table.cell(x: 0, y: 0, align: center + horizon)[#tableheader[#text("Header center and middle")
+#table(columns: (1fr, 1fr), align: (right + bottom, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, align: center + horizon, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header center and middle")
 
-]], table.cell(x: 1, y: 0, align: bottom)[#tableheader[#text("Header bottom")
+]], table.cell(x: 1, y: 0, align: bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header bottom")
 
-]]), table.cell(x: 0, y: 1, align: left + top)[#text("Body left and top")
+]]), table.cell(x: 0, y: 1, align: left + top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Body left and top")
 
-], table.cell(x: 1, y: 1)[#text("This deliberately long cell makes the body row tall enough to show its first cell at the top.")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This deliberately long cell makes the body row tall enough to show its first cell at the top.")
 
-], table.footer(repeat: false, table.cell(x: 0, y: 2, align: center + bottom)[#text("Footer center and bottom")
+], table.footer(repeat: false, table.cell(x: 0, y: 2, align: center + bottom, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Footer center and bottom")
 
-], table.cell(x: 1, y: 2, align: top)[#text("Footer top")
+], table.cell(x: 1, y: 2, align: top, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Footer top")
 
 ]))
 
 #blocktitle[#text("Table 16. ")#text("Column cell styles")]
-#table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Default ")#strong[#text("bold")]#text(" Ada")
+#table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default ")#strong[#text("bold")]#text(" Ada")
 
-], table.cell(x: 1, y: 0)[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]#text(" Ada")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Emphasis ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
 
-]], table.cell(x: 3, y: 0)[#raw(block: false, "Literal *bold* {table-name}")], table.cell(x: 4, y: 0)[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
+]], table.cell(x: 3, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Literal *bold* {table-name}")], table.cell(x: 4, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 5, y: 0)[#tablestrong[#text("Strong ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 5, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("Strong ")#emph[#text("italic")]#text(" Ada")
 
 ]])
 
 #blocktitle[#text("Table 17. ")#text("Cell style overrides")]
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Default")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default")
 
-], table.cell(x: 1, y: 0)[#tableemphasis[#text("Emphasis")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Emphasis")
 
-]], table.cell(x: 2, y: 0)[#tableheader[#text("Header")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableheader[#text("Header")
 
-]], table.cell(x: 0, y: 1)[#raw(block: false, "Literal *bold* {table-name}")], table.cell(x: 1, y: 1)[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
+]], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Literal *bold* {table-name}")], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablemonospace[#text("Monospace ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 1)[#tablestrong[#text("Strong ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("Strong ")#emph[#text("italic")]#text(" Ada")
 
 ]])
 
 #blocktitle[#text("Table 18. ")#text("Cell styles in table sections")]
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Header ")#strong[#text("bold")]#text(" Ada")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 1, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
 
-]], table.cell(x: 2, y: 0)[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header ")#emph[#text("italic")]#text(" Ada")
 
-]]), table.cell(x: 0, y: 1)[#raw(block: false, "Body literal *bold* {table-name}")], table.cell(x: 1, y: 1)[#tableemphasis[#text("Body emphasis ")#strong[#text("bold")]#text(" Ada")
+]]), table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Body literal *bold* {table-name}")], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tableemphasis[#text("Body emphasis ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 1)[#tablestrong[#text("Body strong ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablestrong[#text("Body strong ")#emph[#text("italic")]#text(" Ada")
 
-]], table.footer(repeat: false, table.cell(x: 0, y: 2)[#raw(block: false, "Footer literal *bold* {table-name}")], table.cell(x: 1, y: 2)[#tablemonospace[#text("Footer monospace ")#strong[#text("bold")]#text(" Ada")
+]], table.footer(repeat: false, table.cell(x: 0, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#raw(block: false, "Footer literal *bold* {table-name}")], table.cell(x: 1, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#tablemonospace[#text("Footer monospace ")#strong[#text("bold")]#text(" Ada")
 
-]], table.cell(x: 2, y: 2)[#tableheader[#text("Footer header ")#emph[#text("italic")]#text(" Ada")
+]], table.cell(x: 2, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#tableheader[#text("Footer header ")#emph[#text("italic")]#text(" Ada")
 
 ]]))
 
 #blocktitle[#text("Table 19. ")#text("Literal and monospace whitespace")]
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#raw(block: false, "Literal  keeps\n  spaces and *marks* {table-name}")], table.cell(x: 1, y: 0)[#tablemonospace[#text("Monospace collapses spaces and ")#strong[#text("formats")]#text(" Ada")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Literal  keeps\n  spaces and *marks* {table-name}")], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#tablemonospace[#text("Monospace collapses spaces and ")#strong[#text("formats")]#text(" Ada")
 
 ]])

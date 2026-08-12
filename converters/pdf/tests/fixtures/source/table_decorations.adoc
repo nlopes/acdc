@@ -1,0 +1,136 @@
+= Table decorations
+
+== Frame and grid
+
+.Default all
+|===
+|A |B
+|C |D
+|===
+
+.Ends and rows
+[frame=ends,grid=rows]
+|===
+|A |B
+|C |D
+|===
+
+.Legacy topbot and columns
+[frame=topbot,grid=cols]
+|===
+|A |B
+|C |D
+|===
+
+.Sides and no grid
+[frame=sides,grid=none]
+|===
+|A |B
+|C |D
+|===
+
+.No frame and no grid
+[frame=none,grid=none]
+|===
+|A |B
+|C |D
+|===
+
+.Invalid values disable decoration
+[frame=invalid,grid=invalid]
+|===
+|A |B
+|C |D
+|===
+
+.Header divider remains without frame or grid
+[cols="1,1",options=header,frame=none,grid=none]
+|===
+|Name |Value
+|A |1
+|===
+
+== Stripes and sections
+
+.Odd body rows
+[cols="1,1",options="header,footer",stripes=odd]
+|===
+|Name |Value
+|A |1
+|B |2
+|C |3
+|Total |6
+|===
+
+.Even body rows
+[cols="1,1",options="header,footer",stripes=even]
+|===
+|Name |Value
+|A |1
+|B |2
+|C |3
+|Total |6
+|===
+
+.All body rows
+[stripes=all]
+|===
+|A |1
+|B |2
+|===
+
+.Hover has no static effect
+[stripes=hover]
+|===
+|A |1
+|B |2
+|===
+
+== Spans
+
+.Merged cells keep rule gaps and their origin stripe
+[cols="3*",stripes=odd]
+|===
+2.2+|Combined |Top
+|Bottom
+|Left |Middle |Right
+|===
+
+== Source-order document defaults
+
+:table-frame: sides
+:table-grid: rows
+:table-stripes: odd
+
+.Initial document values
+|===
+|A |1
+|B |2
+|===
+
+:table-frame: ends
+:table-grid: cols
+:table-stripes: even
+
+.Changed document values
+|===
+|A |1
+|B |2
+|===
+
+.Local values override document values
+[frame=all,grid=all,stripes=all]
+|===
+|A |1
+|B |2
+|===
+
+:table-frame!:
+:table-grid!:
+:table-stripes!:
+
+.Unset document values restore defaults
+|===
+|A |1
+|B |2
+|===

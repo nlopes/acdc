@@ -62,3 +62,10 @@ heading:
     break_after: auto
   chapter:
     break_before: always
+table:
+  border_color: "#dddddd"
+  border_width_pt: 0.5
+  header_divider_width_pt: 1.25
+  header_background: null
+  stripe_background: "#f9f9f9"
+  footer_background: "#f0f0f0"

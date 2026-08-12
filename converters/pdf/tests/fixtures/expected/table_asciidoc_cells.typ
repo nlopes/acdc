@@ -90,7 +90,7 @@
 
 #heading(level: 1)[#text("1. ")#text("Nested block content")] <id-5f6e65737465645f626c6f636b5f636f6e74656e74>
 
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("First paragraph with ")#strong[#text("bold")]#text(", ")#emph[#text("italic")]#text(", ")#link("https://example.com")[#text("a link")]#text(", and inherited.")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("First paragraph with ")#strong[#text("bold")]#text(", ")#emph[#text("italic")]#text(", ")#link("https://example.com")[#text("a link")]#text(", and inherited.")
 
 #text("Second paragraph.")
 
@@ -104,79 +104,79 @@
 
 #raw(block: true, "fn main() {}")
 
-], table.cell(x: 1, y: 0)[#text("Plain neighbour")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Plain neighbour")
 
-], table.cell(x: 0, y: 1)[  + #text("Ordered item one")
+], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[  + #text("Ordered item one")
   + #text("Ordered item two")
 
 #text(weight: "bold")[#text("Term")]
 #text("Description")
 
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("Nested A")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Nested A")
 
-], table.cell(x: 1, y: 0)[#text("Nested B")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Nested B")
 
 ])
 
-], table.cell(x: 1, y: 1)[#text("Second plain neighbour")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Second plain neighbour")
 
 ])
 
 #heading(level: 1)[#text("2. ")#text("Cell and column overrides")] <id-5f63656c6c5f616e645f636f6c756d6e5f6f7665727269646573>
 
-#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), table.cell(x: 0, y: 0)[#text("Column-level AsciiDoc paragraph.")
+#table(columns: (1fr, 1fr, 1fr), align: (left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Column-level AsciiDoc paragraph.")
 
   - #text("Nested item")
 
-], table.cell(x: 1, y: 0)[#text("Cell-level AsciiDoc paragraph.")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell-level AsciiDoc paragraph.")
 
 #callout("tip")[
 #text("Nested tip.")
 
 ]
 
-], table.cell(x: 2, y: 0)[#text("Cell-level AsciiDoc overrides literal.")
+], table.cell(x: 2, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell-level AsciiDoc overrides literal.")
 
   - #text("Another nested item")
 
-], table.cell(x: 0, y: 1)[#text("Default overrides AsciiDoc.")
+], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default overrides AsciiDoc.")
 
-], table.cell(x: 1, y: 1)[#text("Default remains simple.")
+], table.cell(x: 1, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default remains simple.")
 
-], table.cell(x: 2, y: 1)[#raw(block: false, "Literal overrides AsciiDoc: *bold* {outer-value}")], table.cell(x: 0, y: 2)[#raw(block: false, "Literal overrides AsciiDoc: *bold* {outer-value}")], table.cell(x: 1, y: 2)[#text("AsciiDoc overrides default.")
+], table.cell(x: 2, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Literal overrides AsciiDoc: *bold* {outer-value}")], table.cell(x: 0, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: false, "Literal overrides AsciiDoc: *bold* {outer-value}")], table.cell(x: 1, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("AsciiDoc overrides default.")
 
 #raw(block: true, "literal block")
 
-], table.cell(x: 2, y: 2)[#text("Default overrides literal.")
+], table.cell(x: 2, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default overrides literal.")
 
 ])
 
 #heading(level: 1)[#text("3. ")#text("Table sections and spans")] <id-5f7461626c655f73656374696f6e735f616e645f7370616e73>
 
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.header(repeat: true, table.cell(x: 0, y: 0)[#tableheader[#text("Header ")#strong[#text("bold")]
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header ")#strong[#text("bold")]
 
-]], table.cell(x: 1, y: 0)[#tableheader[#text("Header inherited")
+]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Header inherited")
 
-]]), table.cell(x: 0, y: 1, colspan: 2)[#text("Colspan paragraph.")
+]]), table.cell(x: 0, y: 1, colspan: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 1.25pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Colspan paragraph.")
 
   - #text("Colspan item")
 
-], table.cell(x: 0, y: 2, rowspan: 2)[#text("Rowspan paragraph.")
+], table.cell(x: 0, y: 2, rowspan: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Rowspan paragraph.")
 
 #callout("warning")[
 #text("Rowspan warning.")
 
 ]
 
-], table.cell(x: 1, y: 2)[#text("Beside rowspan")
+], table.cell(x: 1, y: 2, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Beside rowspan")
 
-], table.cell(x: 1, y: 3)[#text("Below rowspan")
+], table.cell(x: 1, y: 3, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Below rowspan")
 
-], table.footer(repeat: false, table.cell(x: 0, y: 4)[#text("Footer paragraph one.")
+], table.footer(repeat: false, table.cell(x: 0, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Footer paragraph one.")
 
 #text("Footer paragraph two.")
 
-], table.cell(x: 1, y: 4)[#text("Footer paragraph.")
+], table.cell(x: 1, y: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("Footer paragraph.")
 
   - #text("Footer item")
 
@@ -184,7 +184,7 @@
 
 #heading(level: 1)[#text("4. ")#text("Nested headings and references")] <id-5f6e65737465645f68656164696e67735f616e645f7265666572656e636573>
 
-#table(columns: (1fr, 1fr), align: (left + top, left + top), table.cell(x: 0, y: 0)[#text("Cell sees inherited.")
+#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell sees inherited.")
 
 #heading(level: 1, outlined: false, bookmarked: false)[#text("1. ")#text("Same-level cell heading")] <id-63656c6c2d68656164696e67>
 
@@ -194,7 +194,7 @@
 
 #text("Cell child text.")
 
-], table.cell(x: 1, y: 0)[#text("Sibling sees inherited.")
+], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Sibling sees inherited.")
 
 ])
 

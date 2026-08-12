@@ -356,8 +356,7 @@ fn write_helpers(out: &mut String, theme: &Theme) {
         color(&palette.counter),
     );
 
-    // Tables: horizontal rules only, in the border colour. The converter wraps
-    // cells from declared header rows with `tableheader`.
+    // Converter-emitted tables override this rule per cell.
     let _ = writeln!(
         out,
         "#set table(stroke: (_, y) => (bottom: {border}pt + {color}), inset: (x: 0.6em, y: 0.45em))",

@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Tables honor `frame`, `grid`, and static `stripes` values, including
+  source-order `table-frame`, `table-grid`, and `table-stripes` defaults.
+  Headers, footers, and merged cells keep their correct rules and fills. Unlike
+  `asciidoctor-pdf`, stripe alternation continues across a page break instead
+  of restarting after the repeated header.
 - Article abstract sections now stay out of the PDF table of contents and
   document outline, use centered titles and italic text, and keep their heading
   number hidden while preserving the `sectnums=all` sequence, matching

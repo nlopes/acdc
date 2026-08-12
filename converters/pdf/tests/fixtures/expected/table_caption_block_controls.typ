@@ -66,26 +66,26 @@
 #v(1em)
 
 #blocktitle[#text("Table 1. ")#text("Default before controls")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default one")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default one")
 
 ])
 
 #blocktitle[#text("Local: ")#text("Block custom caption")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Block custom")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Block custom")
 
 ])
 
 #blocktitle[#text("Table 2. ")#text("Default after block custom")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default two")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default two")
 
 ])
 
 #blocktitle[#text("")#text("Block blank caption")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Block blank")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Block blank")
 
 ])
 
 #blocktitle[#text("Table 3. ")#text("Default after block blank")]
-#table(columns: (1fr), align: (left + top), table.cell(x: 0, y: 0)[#text("Default three")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default three")
 
 ])

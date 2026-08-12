@@ -16,11 +16,13 @@ use acdc_converters_core::{
 use acdc_parser::{
     Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
     CrossReference, HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem,
-    Paragraph, Section, SectionKind, Source, Table, TableColumn, TableOfContents, Title, TocEntry,
-    VerticalAlignment,
+    Paragraph, Section, SectionKind, Source, Table, TableColumn, TableFrame, TableGrid,
+    TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
-use acdc_pdf_theme::{Heading, PageBreakBefore, Palette, PartBreakAfter};
+use acdc_pdf_theme::{
+    Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, Theme,
+};
 use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
 
@@ -41,6 +43,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) heading: Heading,
     code_wrap_columns: usize,
     palette: &'m Palette,
+    table_theme: &'m TableTheme,
     pub(crate) chapter_signifier: Option<String>,
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
@@ -75,6 +78,22 @@ enum ParagraphAlignment {
     Justify,
 }
 
+struct TableRenderContext<'table, 'source> {
+    table: &'table Table<'source>,
+    presentation: TablePresentation,
+    column_count: usize,
+    row_count: usize,
+    header_rows: usize,
+}
+
+#[derive(Clone, Copy)]
+struct TableCellPosition {
+    x: usize,
+    y: usize,
+    is_header: bool,
+    is_footer: bool,
+}
+
 impl ParagraphAlignment {
     fn from_metadata(metadata: &BlockMetadata<'_>) -> Option<Self> {
         metadata.roles.iter().rev().find_map(|role| match *role {
@@ -100,9 +119,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn new(
         processor: Processor<'a>,
         assets: &'m ImageMap,
-        heading: Heading,
+        theme: &'m Theme,
         code_wrap_columns: usize,
-        palette: &'m Palette,
         toc_entries: Vec<TocEntry<'a>>,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
@@ -133,9 +151,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             processor,
             assets,
             diagnostics,
-            heading,
+            heading: theme.heading,
             code_wrap_columns,
-            palette,
+            palette: &theme.palette,
+            table_theme: &theme.table,
             chapter_signifier,
             list_depth: 0,
             in_inline_span: false,
@@ -1024,12 +1043,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, "#table(columns: {tracks}");
         }
         let alignments = table_column_alignments(table, column_count);
-        let _ = write!(self.writer, ", align: {alignments}");
+        let _ = write!(self.writer, ", align: {alignments}, stroke: none");
 
         let grid = build_grid(table, column_count);
+        let presentation = table.presentation().unwrap_or_else(|| {
+            TablePresentation::from_attributes(metadata, self.processor.document_attributes())
+        });
+        let header_rows = usize::from(grid.first().is_some_and(|row| row.is_header));
+        let row_count = grid.len();
+        let context = TableRenderContext {
+            table,
+            presentation,
+            column_count,
+            row_count,
+            header_rows,
+        };
         if let Some(header) = grid.first().filter(|row| row.is_header) {
             self.writer.raw(", table.header(repeat: true, ");
-            self.write_table_row_cells(table, header, 0, "")?;
+            self.write_table_row_cells(&context, header, 0, "")?;
             self.writer.raw(")");
         }
 
@@ -1040,12 +1071,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .enumerate()
             .filter(|(_, row)| !row.is_header && !row.is_footer)
         {
-            self.write_table_row_cells(table, row, y, ", ")?;
+            self.write_table_row_cells(&context, row, y, ", ")?;
         }
 
         if let Some(footer) = grid.last().filter(|row| row.is_footer) {
             self.writer.raw(", table.footer(repeat: false, ");
-            self.write_table_row_cells(table, footer, grid.len() - 1, "")?;
+            self.write_table_row_cells(&context, footer, grid.len() - 1, "")?;
             self.writer.raw(")");
         }
 
@@ -1055,7 +1086,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_table_row_cells(
         &mut self,
-        table: &Table<'_>,
+        context: &TableRenderContext<'_, '_>,
         row: &GridRow<'_>,
         y: usize,
         first_separator: &str,
@@ -1067,21 +1098,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             };
             if let Some(ast_cell) = row.ast_row.columns.get(*cell_index) {
                 self.writer.raw(separator);
-                let source_column_alignment = table.columns.get(*cell_index).map_or_else(
-                    || (HorizontalAlignment::default(), VerticalAlignment::default()),
-                    |column| (column.halign, column.valign),
-                );
-                let physical_column_alignment = table.columns.get(x).map_or_else(
-                    || (HorizontalAlignment::default(), VerticalAlignment::default()),
-                    |column| (column.halign, column.valign),
-                );
                 self.write_table_cell(
+                    context,
                     ast_cell,
-                    x,
-                    y,
-                    row.is_header,
-                    source_column_alignment,
-                    physical_column_alignment,
+                    *cell_index,
+                    TableCellPosition {
+                        x,
+                        y,
+                        is_header: row.is_header,
+                        is_footer: row.is_footer,
+                    },
                 )?;
                 separator = ", ";
             }
@@ -1091,13 +1117,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_table_cell(
         &mut self,
+        context: &TableRenderContext<'_, '_>,
         cell: &TableColumn<'_>,
-        x: usize,
-        y: usize,
-        is_header: bool,
-        source_column_alignment: (HorizontalAlignment, VerticalAlignment),
-        physical_column_alignment: (HorizontalAlignment, VerticalAlignment),
+        source_column_index: usize,
+        position: TableCellPosition,
     ) -> Result<(), Error> {
+        let TableCellPosition { x, y, .. } = position;
         let _ = write!(self.writer, "table.cell(x: {x}, y: {y}");
         if cell.colspan > 1 {
             let _ = write!(self.writer, ", colspan: {}", cell.colspan);
@@ -1105,15 +1130,120 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if cell.rowspan > 1 {
             let _ = write!(self.writer, ", rowspan: {}", cell.rowspan);
         }
+        let default_alignment = || (HorizontalAlignment::default(), VerticalAlignment::default());
+        let source_column_alignment = context
+            .table
+            .columns
+            .get(source_column_index)
+            .map_or_else(default_alignment, |column| (column.halign, column.valign));
+        let physical_column_alignment = context
+            .table
+            .columns
+            .get(x)
+            .map_or_else(default_alignment, |column| (column.halign, column.valign));
         if let Some(alignment) =
             table_cell_alignment(cell, source_column_alignment, physical_column_alignment)
         {
             let _ = write!(self.writer, ", align: {alignment}");
         }
+        self.write_table_cell_stroke(context, cell, position);
+        self.write_table_cell_fill(context, position);
         self.writer.raw(")[");
-        self.write_table_cell_content(cell, is_header)?;
+        self.write_table_cell_content(cell, position.is_header)?;
         self.writer.raw("]");
         Ok(())
+    }
+
+    fn write_table_cell_stroke(
+        &mut self,
+        context: &TableRenderContext<'_, '_>,
+        cell: &TableColumn<'_>,
+        position: TableCellPosition,
+    ) {
+        let presentation = context.presentation;
+        let column_count = context.column_count;
+        let row_count = context.row_count;
+        let header_rows = context.header_rows;
+        let TableCellPosition { x, y, .. } = position;
+        let row_rule = matches!(presentation.grid(), TableGrid::All | TableGrid::Rows);
+        let column_rule = matches!(presentation.grid(), TableGrid::All | TableGrid::Columns);
+        let vertical_frame = matches!(presentation.frame(), TableFrame::All | TableFrame::Sides);
+        let horizontal_frame = matches!(presentation.frame(), TableFrame::All | TableFrame::Ends);
+        let right = x.saturating_add(cell.colspan).min(column_count);
+        let bottom = y.saturating_add(cell.rowspan).min(row_count);
+
+        self.writer.raw(", stroke: (");
+        self.write_table_stroke_side("left", if x == 0 { vertical_frame } else { column_rule });
+        self.write_table_stroke_side(
+            "right",
+            if right == column_count {
+                vertical_frame
+            } else {
+                column_rule
+            },
+        );
+        if header_rows > 0 && y == header_rows {
+            let _ = write!(
+                self.writer,
+                "top: {}pt + rgb(\"{}\"), ",
+                self.table_theme.header_divider_width_pt, self.table_theme.border_color,
+            );
+        } else {
+            self.write_table_stroke_side("top", if y == 0 { horizontal_frame } else { row_rule });
+        }
+        if header_rows > 0 && bottom == header_rows {
+            let _ = write!(
+                self.writer,
+                "bottom: {}pt + rgb(\"{}\"), ",
+                self.table_theme.header_divider_width_pt, self.table_theme.border_color,
+            );
+        } else {
+            self.write_table_stroke_side(
+                "bottom",
+                if bottom == row_count {
+                    horizontal_frame
+                } else {
+                    row_rule
+                },
+            );
+        }
+        self.writer.raw(")");
+    }
+
+    fn write_table_stroke_side(&mut self, side: &str, enabled: bool) {
+        if enabled {
+            let _ = write!(
+                self.writer,
+                "{side}: {}pt + rgb(\"{}\"), ",
+                self.table_theme.border_width_pt, self.table_theme.border_color,
+            );
+        } else {
+            let _ = write!(self.writer, "{side}: none, ");
+        }
+    }
+
+    fn write_table_cell_fill(
+        &mut self,
+        context: &TableRenderContext<'_, '_>,
+        position: TableCellPosition,
+    ) {
+        let fill = if position.is_header {
+            self.table_theme.header_background.as_deref()
+        } else if position.is_footer {
+            self.table_theme.footer_background.as_deref()
+        } else {
+            let body_row = position.y.saturating_sub(context.header_rows);
+            let striped = match context.presentation.stripes() {
+                TableStripes::All => true,
+                TableStripes::Odd => body_row & 1 == 0,
+                TableStripes::Even => body_row & 1 == 1,
+                TableStripes::None | _ => false,
+            };
+            striped.then_some(self.table_theme.stripe_background.as_str())
+        };
+        if let Some(fill) = fill {
+            let _ = write!(self.writer, ", fill: rgb(\"{fill}\")");
+        }
     }
 
     fn write_table_cell_content(
