@@ -120,9 +120,10 @@ pub use model::{
     MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak,
     Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Reference, Role, Section, SectionKind,
     Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Substitution, Subtitle, Superscript, Table, TableColumn, TableOfContents, TableRow,
-    ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
-    Verbatim, VerticalAlignment, Video, strip_quotes, substitute,
+    Substitution, Subtitle, Superscript, Table, TableColumn, TableFrame, TableGrid,
+    TableOfContents, TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry,
+    UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
+    strip_quotes, substitute,
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};

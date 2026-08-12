@@ -11,7 +11,8 @@ use crate::{
     Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
     ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw,
     Reference, Section, Source, SourceLocation, StemContent, StemNotation, Subtitle, Table,
-    TableOfContents, TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, Video,
+    TableOfContents, TablePresentation, TableRow, ThematicBreak, Title, TocEntry, UnorderedList,
+    Verbatim, Video,
     blocks::table::MAX_TABLE_COLUMNS,
     grammar::{
         ParserState,
@@ -1587,6 +1588,7 @@ fn parse_table_block_impl<'input>(
 
     let mut metadata = block_metadata.metadata.clone();
     metadata.move_positional_attributes_to_attributes();
+    let presentation = TablePresentation::from_attributes(&metadata, &state.document_attributes);
     let location = state.create_block_location(start, end, offset);
     let table_location = state.create_block_location(table_start, end, offset);
     let open_delimiter_location = state.create_location(
@@ -1984,13 +1986,11 @@ fn parse_table_block_impl<'input>(
         rows.push(TableRow { columns });
     }
 
-    let table = Table {
-        header,
-        footer,
-        rows,
-        columns: column_formats,
-        location: table_location.clone(),
-    };
+    let table = Table::new(rows, table_location.clone())
+        .with_header(header)
+        .with_footer(footer)
+        .with_columns(column_formats)
+        .with_presentation(presentation);
 
     Ok(Block::DelimitedBlock(DelimitedBlock {
         metadata: metadata.clone(),

@@ -2,8 +2,134 @@
 
 use serde::Serialize;
 
-use super::Block;
 use super::location::Location;
+use super::{AttributeValue, Block, BlockMetadata, DocumentAttributes};
+
+/// The outer border applied to a table.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum TableFrame {
+    /// Draw all four outer edges.
+    #[default]
+    All,
+    /// Draw only the top and bottom edges.
+    Ends,
+    /// Draw only the left and right edges.
+    Sides,
+    /// Draw no outer edge.
+    None,
+}
+
+/// The rules drawn between table cells.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum TableGrid {
+    /// Draw rules between rows and columns.
+    #[default]
+    All,
+    /// Draw rules only between rows.
+    Rows,
+    /// Draw rules only between columns.
+    Columns,
+    /// Draw no rules between cells.
+    None,
+}
+
+/// The body rows that receive a background fill.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum TableStripes {
+    /// Do not fill body rows.
+    #[default]
+    None,
+    /// Fill every body row.
+    All,
+    /// Fill odd body rows.
+    Odd,
+    /// Fill even body rows.
+    Even,
+}
+
+/// Table decoration resolved from the attributes at the table's source position.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct TablePresentation {
+    frame: TableFrame,
+    grid: TableGrid,
+    stripes: TableStripes,
+}
+
+impl TablePresentation {
+    /// Resolve local table decoration and the document defaults in effect.
+    #[must_use]
+    pub fn from_attributes(
+        metadata: &BlockMetadata<'_>,
+        attributes: &DocumentAttributes<'_>,
+    ) -> Self {
+        Self {
+            frame: resolve_table_attribute(metadata, attributes, "frame", "table-frame").map_or(
+                TableFrame::All,
+                |value| match value {
+                    "all" => TableFrame::All,
+                    "ends" | "topbot" => TableFrame::Ends,
+                    "sides" => TableFrame::Sides,
+                    _ => TableFrame::None,
+                },
+            ),
+            grid: resolve_table_attribute(metadata, attributes, "grid", "table-grid").map_or(
+                TableGrid::All,
+                |value| match value {
+                    "all" => TableGrid::All,
+                    "rows" => TableGrid::Rows,
+                    "cols" => TableGrid::Columns,
+                    _ => TableGrid::None,
+                },
+            ),
+            stripes: resolve_table_attribute(metadata, attributes, "stripes", "table-stripes")
+                .map_or(TableStripes::None, |value| match value {
+                    "all" => TableStripes::All,
+                    "odd" => TableStripes::Odd,
+                    "even" => TableStripes::Even,
+                    _ => TableStripes::None,
+                }),
+        }
+    }
+
+    /// The outer border applied to the table.
+    #[must_use]
+    pub const fn frame(self) -> TableFrame {
+        self.frame
+    }
+
+    /// The rules drawn between table cells.
+    #[must_use]
+    pub const fn grid(self) -> TableGrid {
+        self.grid
+    }
+
+    /// The body rows that receive a background fill.
+    #[must_use]
+    pub const fn stripes(self) -> TableStripes {
+        self.stripes
+    }
+}
+
+fn resolve_table_attribute<'value>(
+    metadata: &'value BlockMetadata<'_>,
+    attributes: &'value DocumentAttributes<'_>,
+    local_name: &str,
+    document_name: &str,
+) -> Option<&'value str> {
+    let value = metadata
+        .attributes
+        .get(local_name)
+        .or_else(|| attributes.get(document_name))?;
+    match value {
+        AttributeValue::String(value) => Some(value),
+        AttributeValue::Bool(true) => Some(""),
+        AttributeValue::Bool(false) | AttributeValue::None => None,
+    }
+}
 
 /// Horizontal alignment for table cells
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize)]
@@ -152,6 +278,8 @@ pub struct Table<'a> {
     /// Skipped if all columns have default format
     #[serde(default, skip_serializing_if = "are_all_columns_default")]
     pub columns: Vec<ColumnFormat>,
+    #[serde(skip)]
+    presentation: Option<TablePresentation>,
     pub location: Location,
 }
 
@@ -164,6 +292,7 @@ impl<'a> Table<'a> {
             footer: None,
             rows,
             columns: Vec::new(),
+            presentation: None,
             location,
         }
     }
@@ -187,6 +316,18 @@ impl<'a> Table<'a> {
     pub fn with_columns(mut self, columns: Vec<ColumnFormat>) -> Self {
         self.columns = columns;
         self
+    }
+
+    #[must_use]
+    pub(crate) fn with_presentation(mut self, presentation: TablePresentation) -> Self {
+        self.presentation = Some(presentation);
+        self
+    }
+
+    /// Table decoration that overrides converter defaults, if present.
+    #[must_use]
+    pub const fn presentation(&self) -> Option<TablePresentation> {
+        self.presentation
     }
 }
 

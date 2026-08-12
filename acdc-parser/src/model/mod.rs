@@ -42,8 +42,8 @@ pub use metadata::{BlockMetadata, Role};
 pub use section::*;
 pub use substitution::*;
 pub use tables::{
-    ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, Table, TableColumn, TableRow,
-    VerticalAlignment,
+    ColumnFormat, ColumnStyle, ColumnWidth, HorizontalAlignment, Table, TableColumn, TableFrame,
+    TableGrid, TablePresentation, TableRow, TableStripes, VerticalAlignment,
 };
 pub use title::{Subtitle, Title};
 
