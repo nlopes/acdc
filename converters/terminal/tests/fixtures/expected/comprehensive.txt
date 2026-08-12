@@ -141,8 +141,8 @@ multiple concepts.
 │ Feature A ┆ First feature  ┆ Done    │
 │           ┆                ┆         │
 ├╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│[2m Feature B [0m┆[2m Second feature [0m┆[2m Pending [0m│
-│[2m           [0m┆[2m                [0m┆[2m         [0m│
+│ Feature B ┆ Second feature ┆ Pending │
+│           ┆                ┆         │
 ╰───────────┴────────────────┴─────────╯
 
 [38;5;15m────────────────────────────────────────[39m
@@ -154,8 +154,8 @@ multiple concepts.
 │ Widget ┆ $10   │
 │        ┆       │
 ├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┤
-│[2m Gadget [0m┆[2m $25   [0m│
-│[2m        [0m┆[2m       [0m│
+│ Gadget ┆ $25   │
+│        ┆       │
 ├╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌┤
 │[38;5;14m[1m Total  [0m┆[38;5;14m[1m $35   [0m│
 │[38;5;14m[1m        [0m┆[38;5;14m[1m       [0m│
@@ -167,8 +167,8 @@ multiple concepts.
 │ Left    ┆  Center ┆   Right │
 │         ┆         ┆         │
 ├╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌┤
-│[2m aligned [0m┆[2m aligned [0m┆[2m aligned [0m│
-│[2m         [0m┆[2m         [0m┆[2m         [0m│
+│ aligned ┆ aligned ┆ aligned │
+│         ┆         ┆         │
 ╰─────────┴─────────┴─────────╯
 
 [38;5;15m────────────────────────────────────────[39m
@@ -177,8 +177,8 @@ multiple concepts.
 │[1m Strong Column [0m┆[3m Emphasis Column [0m│
 │[1m               [0m┆[3m                 [0m│
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│[1m[2m Bold content  [0m┆[2m[3m Italic content  [0m│
-│[1m[2m               [0m┆[2m[3m                 [0m│
+│[1m Bold content  [0m┆[3m Italic content  [0m│
+│[1m               [0m┆[3m                 [0m│
 ╰───────────────┴─────────────────╯
   A titled table
 ╭────────┬────────╮

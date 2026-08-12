@@ -10,12 +10,12 @@
 │ Sections    ┆ ✅ Supported ┆ ✅ Supported ┆ Up to 6 levels   │
 │             ┆              ┆              ┆                  │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│[2m Lists       [0m┆[2m ✅ Supported [0m┆[2m ✅ Supported [0m┆[2m All types        [0m│
-│[2m             [0m┆[2m              [0m┆[2m              [0m┆[2m                  [0m│
+│ Lists       ┆ ✅ Supported ┆ ✅ Supported ┆ All types        │
+│             ┆              ┆              ┆                  │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │ Tables      ┆ ✅ Supported ┆ ⚠️Partial    ┆ PSV and DSV only │
 │             ┆              ┆              ┆                  │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
-│[2m Stem blocks [0m┆[2m ✅ Supported [0m┆[2m ❌ Missing   [0m┆[2m Planned for 0.3  [0m│
-│[2m             [0m┆[2m              [0m┆[2m              [0m┆[2m                  [0m│
+│ Stem blocks ┆ ✅ Supported ┆ ❌ Missing   ┆ Planned for 0.3  │
+│             ┆              ┆              ┆                  │
 ╰─────────────┴──────────────┴──────────────┴──────────────────╯

@@ -5,7 +5,10 @@ use acdc_converters_core::table::{
     CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count, table_has_spans,
 };
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{ColumnStyle, HorizontalAlignment};
+use acdc_parser::{
+    BlockMetadata, ColumnStyle, HorizontalAlignment, TableFrame, TableGrid, TablePresentation,
+    TableStripes,
+};
 use comfy_table::{
     Attribute, Cell, CellAlignment, ColumnConstraint, ContentArrangement, Table, Width,
 };
@@ -201,13 +204,17 @@ fn classify_lines(output: &str, num_grid_rows: usize) -> Vec<LineType> {
 
 /// Remove internal borders for spanned cells in the rendered table output.
 #[allow(clippy::too_many_lines)]
-fn remove_span_borders(output: &str, grid: &[GridRow<'_>], num_cols: usize) -> String {
-    let boundaries = find_column_boundaries(output);
+fn remove_span_borders(
+    output: &str,
+    grid: &[GridRow<'_>],
+    num_cols: usize,
+    boundaries: &[usize],
+    line_types: &[LineType],
+) -> String {
     if boundaries.is_empty() || boundaries.len() < num_cols.saturating_sub(1) {
         return output.to_string();
     }
 
-    let line_types = classify_lines(output, grid.len());
     let lines: Vec<&str> = output.lines().collect();
     let mut result_lines: Vec<String> = Vec::with_capacity(lines.len());
 
@@ -433,6 +440,96 @@ fn is_hspan_origin(grid: &[GridRow<'_>], row_idx: usize, col_idx: usize) -> bool
     false
 }
 
+fn stripe_row(stripes: TableStripes, row: usize) -> bool {
+    match stripes {
+        TableStripes::All => true,
+        TableStripes::Odd => row & 1 == 0,
+        TableStripes::Even => row & 1 == 1,
+        TableStripes::None | TableStripes::Hover | _ => false,
+    }
+}
+
+fn remove_vertical_at(line: &mut String, position: usize, horizontal: char) {
+    let Some(character) = char_at_visible(line, position) else {
+        return;
+    };
+    let replacement = if matches!(character, '│' | '┆') {
+        ' '
+    } else if character == ' ' {
+        return;
+    } else {
+        horizontal
+    };
+    replace_char_at_visible(line, position, replacement);
+}
+
+fn apply_table_presentation(
+    output: &str,
+    has_header: bool,
+    boundaries: &[usize],
+    line_types: &[LineType],
+    presentation: TablePresentation,
+) -> String {
+    let vertical_frame = matches!(presentation.frame(), TableFrame::All | TableFrame::Sides);
+    let horizontal_frame = matches!(presentation.frame(), TableFrame::All | TableFrame::Ends);
+    let column_rule = matches!(presentation.grid(), TableGrid::All | TableGrid::Columns);
+    let row_rule = matches!(presentation.grid(), TableGrid::All | TableGrid::Rows);
+    let mut result = Vec::with_capacity(line_types.len());
+
+    for (line, line_type) in output.lines().zip(line_types.iter().copied()) {
+        let mut line = line.to_string();
+        let last = visible_line_len(&line).saturating_sub(1);
+
+        match line_type {
+            LineType::TopBorder | LineType::BottomBorder => {
+                if !horizontal_frame {
+                    continue;
+                }
+                if !vertical_frame {
+                    remove_vertical_at(&mut line, 0, '─');
+                    remove_vertical_at(&mut line, last, '─');
+                }
+                if !column_rule {
+                    for &boundary in boundaries {
+                        remove_vertical_at(&mut line, boundary, '─');
+                    }
+                }
+            }
+            LineType::Content(_) => {
+                if !vertical_frame {
+                    replace_char_at_visible(&mut line, 0, ' ');
+                    replace_char_at_visible(&mut line, last, ' ');
+                }
+                if !column_rule {
+                    for &boundary in boundaries {
+                        replace_char_at_visible(&mut line, boundary, ' ');
+                    }
+                }
+            }
+            LineType::Separator(row_above) => {
+                let is_header_separator = has_header && row_above == 0;
+                if !is_header_separator && !row_rule {
+                    continue;
+                }
+                let horizontal = if is_header_separator { '═' } else { '╌' };
+                if !vertical_frame {
+                    remove_vertical_at(&mut line, 0, horizontal);
+                    remove_vertical_at(&mut line, last, horizontal);
+                }
+                if !column_rule {
+                    for &boundary in boundaries {
+                        remove_vertical_at(&mut line, boundary, horizontal);
+                    }
+                }
+            }
+        }
+
+        result.push(line);
+    }
+
+    result.join("\n")
+}
+
 /// Build `comfy_table` cells from a logical grid row.
 fn build_comfy_cells_from_grid(
     grid_row: &GridRow<'_>,
@@ -499,64 +596,14 @@ fn apply_column_widths(table_widget: &mut Table, tbl: &acdc_parser::Table, num_c
     }
 }
 
-pub(crate) fn visit_table<W: std::io::Write>(
+fn render_table_without_spans(
+    table_widget: &mut Table,
     tbl: &acdc_parser::Table,
-    visitor: &mut TerminalVisitor<'_, '_, W>,
+    visitor: &mut TerminalVisitor<'_, '_, impl std::io::Write>,
     processor: &Processor<'_>,
-) -> Result<(), Error> {
-    let terminal_width = processor.terminal_width;
-
-    let mut table_widget = Table::new();
-    table_widget
-        .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_width(u16::try_from(terminal_width).unwrap_or(80))
-        .load_style(comfy_table::presets::UTF8_FULL.with_rounded_corners())
-        .enforce_styling();
-
-    if table_has_spans(tbl) {
-        let num_cols = determine_column_count(tbl);
-        let grid = build_grid(tbl, num_cols);
-
-        apply_column_widths(&mut table_widget, tbl, num_cols);
-
-        // Separate header rows from body/footer rows
-        let mut header_set = false;
-        let mut body_row_idx = 0;
-        for grid_row in &grid {
-            let cells =
-                build_comfy_cells_from_grid(grid_row, tbl, processor, &mut visitor.diagnostics)?;
-
-            if grid_row.is_header && !header_set {
-                table_widget.set_header(cells);
-                header_set = true;
-            } else {
-                // Alternating row shading for body rows (not footer)
-                let cells = if !grid_row.is_footer && body_row_idx % 2 == 1 {
-                    cells
-                        .into_iter()
-                        .map(|c| c.add_attribute(Attribute::Dim))
-                        .collect()
-                } else {
-                    cells
-                };
-                table_widget.add_row(cells);
-                if !grid_row.is_footer {
-                    body_row_idx += 1;
-                }
-            }
-        }
-
-        // Post-process to remove internal borders for spanned cells
-        let rendered = format!("{table_widget}");
-        let result = remove_span_borders(&rendered, &grid, num_cols);
-
-        let w = visitor.writer_mut();
-        writeln!(w, "{result}")?;
-        return Ok(());
-    }
-
-    // No spans — use the direct path (no grid overhead)
-    apply_column_widths(&mut table_widget, tbl, tbl.columns.len());
+    presentation: TablePresentation,
+) -> Result<String, Error> {
+    apply_column_widths(table_widget, tbl, tbl.columns.len());
 
     if let Some(header) = &tbl.header {
         let header_cells = header
@@ -588,7 +635,7 @@ pub(crate) fn visit_table<W: std::io::Write>(
                     processor,
                     &mut visitor.diagnostics,
                 )?;
-                if row_idx % 2 == 1 {
+                if stripe_row(presentation.stripes(), row_idx) {
                     cell = cell.add_attribute(Attribute::Dim);
                 }
                 Ok(cell)
@@ -614,8 +661,88 @@ pub(crate) fn visit_table<W: std::io::Write>(
         table_widget.add_row(footer_cells);
     }
 
+    let rendered = format!("{table_widget}");
+    let boundaries = find_column_boundaries(&rendered);
+    let row_count =
+        usize::from(tbl.header.is_some()) + tbl.rows.len() + usize::from(tbl.footer.is_some());
+    let line_types = classify_lines(&rendered, row_count);
+    Ok(apply_table_presentation(
+        &rendered,
+        tbl.header.is_some(),
+        &boundaries,
+        &line_types,
+        presentation,
+    ))
+}
+
+pub(crate) fn visit_table<W: std::io::Write>(
+    tbl: &acdc_parser::Table,
+    metadata: &BlockMetadata<'_>,
+    visitor: &mut TerminalVisitor<'_, '_, W>,
+    processor: &Processor<'_>,
+) -> Result<(), Error> {
+    let terminal_width = processor.terminal_width;
+    let presentation = tbl.presentation().unwrap_or_else(|| {
+        TablePresentation::from_attributes(metadata, &processor.document_attributes)
+    });
+
+    let mut table_widget = Table::new();
+    table_widget
+        .set_content_arrangement(ContentArrangement::Dynamic)
+        .set_width(u16::try_from(terminal_width).unwrap_or(80))
+        .load_style(comfy_table::presets::UTF8_FULL.with_rounded_corners())
+        .enforce_styling();
+
+    if table_has_spans(tbl) {
+        let num_cols = determine_column_count(tbl);
+        let grid = build_grid(tbl, num_cols);
+
+        apply_column_widths(&mut table_widget, tbl, num_cols);
+
+        // Separate header rows from body/footer rows
+        let mut header_set = false;
+        let mut body_row_idx = 0;
+        for grid_row in &grid {
+            let cells =
+                build_comfy_cells_from_grid(grid_row, tbl, processor, &mut visitor.diagnostics)?;
+
+            if grid_row.is_header && !header_set {
+                table_widget.set_header(cells);
+                header_set = true;
+            } else {
+                let cells =
+                    if !grid_row.is_footer && stripe_row(presentation.stripes(), body_row_idx) {
+                        cells
+                            .into_iter()
+                            .map(|c| c.add_attribute(Attribute::Dim))
+                            .collect()
+                    } else {
+                        cells
+                    };
+                table_widget.add_row(cells);
+                if !grid_row.is_footer {
+                    body_row_idx += 1;
+                }
+            }
+        }
+
+        // Post-process to remove internal borders for spanned cells
+        let rendered = format!("{table_widget}");
+        let boundaries = find_column_boundaries(&rendered);
+        let line_types = classify_lines(&rendered, grid.len());
+        let result = remove_span_borders(&rendered, &grid, num_cols, &boundaries, &line_types);
+        let result =
+            apply_table_presentation(&result, header_set, &boundaries, &line_types, presentation);
+
+        let w = visitor.writer_mut();
+        writeln!(w, "{result}")?;
+        return Ok(());
+    }
+
+    let rendered =
+        render_table_without_spans(&mut table_widget, tbl, visitor, processor, presentation)?;
     let w = visitor.writer_mut();
-    writeln!(w, "{table_widget}")?;
+    writeln!(w, "{rendered}")?;
     Ok(())
 }
 
@@ -671,7 +798,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -708,7 +835,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -735,7 +862,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -767,7 +894,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -802,7 +929,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -836,7 +963,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -867,7 +994,7 @@ mod tests {
         let mut visitor =
             crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
 
-        visit_table(&table, &mut visitor, &processor)?;
+        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tables honor `frame`, `grid`, and static `stripes` values, including
+  source-order `table-frame`, `table-grid`, and `table-stripes` defaults.
+  `stripes=hover` has no effect in non-interactive terminal output.
 - Terminal conversion attributes now include the `terminal` backend,
   base-backend and file type, `.terminal` output suffix, and their conditional
   convenience attributes.
@@ -74,7 +77,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching Asciidoctor.
 - Index term collection and alphabetized index catalog rendering (`[index]` sections).
 - Table column alignment and column style support (strong, emphasis, header).
-- Alternating row shading in tables for readability.
 - Dynamic terminal width detection, capped at 120 columns.
 - Super/subscript Unicode conversion with dim-styled fallback for unsupported characters.
 - Cross-reference, callout reference, button, keyboard, menu, stem, image, and icon inline macro rendering.

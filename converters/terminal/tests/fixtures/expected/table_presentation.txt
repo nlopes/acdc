@@ -1,0 +1,44 @@
+[1m[4mTable presentation[0m
+  Sides, rows, and odd stripes
+│[2m A [0m [2m 1 [0m│
+│[2m   [0m [2m   [0m│
+├╌╌╌╌╌╌╌┤
+│ B   2 │
+│       │
+  Ends, columns, and even stripes
+────┬────
+  C ┆ 3  
+    ┆    
+ [2m D [0m┆[2m 4 [0m 
+ [2m   [0m┆[2m   [0m 
+────┴────
+  Local all
+╭───┬───╮
+│[2m E [0m┆[2m 5 [0m│
+│[2m   [0m┆[2m   [0m│
+├╌╌╌┼╌╌╌┤
+│[2m F [0m┆[2m 6 [0m│
+│[2m   [0m┆[2m   [0m│
+╰───┴───╯
+  No rules and interactive hover
+  G   7  
+         
+  H   8  
+         
+  Restored defaults
+╭───┬────╮
+│ I ┆ 9  │
+│   ┆    │
+├╌╌╌┼╌╌╌╌┤
+│ J ┆ 10 │
+│   ┆    │
+╰───┴────╯
+  Spans keep the selected rules
+ [2m Combined [0m [2m        [0m [2m Top    [0m 
+ [2m          [0m          [2m        [0m 
+                    ╌╌╌╌╌╌╌╌╌╌
+                      Bottom  
+                              
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ [2m Left     [0m [2m Middle [0m [2m Right  [0m 
+ [2m          [0m [2m        [0m [2m        [0m 

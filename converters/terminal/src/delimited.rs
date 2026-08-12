@@ -95,7 +95,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             DelimitedBlockType::DelimitedTable(t) => {
                 self.render_title_if_present(&block.title)?;
                 let processor = self.processor.clone();
-                crate::table::visit_table(t, self, &processor)
+                crate::table::visit_table(t, &block.metadata, self, &processor)
             }
             DelimitedBlockType::DelimitedListing(inlines)
             | DelimitedBlockType::DelimitedLiteral(inlines) => {
