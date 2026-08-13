@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can place tables at the left, centre, or right of the available page
+  width. The default is left.
 - Themes can control table borders, the header divider, row stripes, and header
   and footer backgrounds. The defaults match Asciidoctor PDF.
 - Themes can control the vertical margin between document blocks. The 12 pt

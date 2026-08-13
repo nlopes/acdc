@@ -65,8 +65,9 @@
 ]
 #v(1em)
 
-#blocktitle[#text("Table 1. ")#text("Long footer")]
-#table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Item")
+#context {
+let acdc-table-body = [
+#table(columns: 2, align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Item")
 
 ]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Value")
 
@@ -435,3 +436,12 @@
 ], table.cell(x: 1, y: 91, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ), fill: rgb("#f0f0f0"))[#text("90")
 
 ]))
+
+]
+align(right, [
+#context block(width: measure(acdc-table-body).width)[
+#blocktitle[#text("Table 1. ")#text("Long right-aligned footer")]
+]
+#acdc-table-body
+])
+}

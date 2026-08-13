@@ -34,7 +34,7 @@ The backend currently renders:
 * bold, italic, monospace, highlight, subscript, and superscript text
 * links, cross-references, footnotes, inline anchors, and common UI macros
 * ordered, unordered, description, checklist, and callout lists
-* tables with semantic, repeating headers, column/row spans, frames, grids, and row stripes
+* tables with widths, page placement, semantic repeating headers, column/row spans, frames, grids, and row stripes
 * admonitions, quotes, thematic breaks, and page breaks
 * paragraph and document hard line breaks
 * listing and literal blocks with themed monospace presentation

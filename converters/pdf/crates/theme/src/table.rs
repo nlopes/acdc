@@ -2,10 +2,25 @@ use serde::Deserialize;
 
 use crate::{Error, color::canonical_colour};
 
+/// Horizontal placement of a table within the available page width.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TableAlignment {
+    /// Place the table against the left edge.
+    #[default]
+    Left,
+    /// Centre the table.
+    Center,
+    /// Place the table against the right edge.
+    Right,
+}
+
 /// Styling for table rules and section backgrounds.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Table {
+    /// Default horizontal placement of tables.
+    pub align: TableAlignment,
     /// Outer-frame and grid-rule colour.
     pub border_color: String,
     /// Outer-frame and grid-rule width, in points.
@@ -23,6 +38,7 @@ pub struct Table {
 impl Default for Table {
     fn default() -> Self {
         Self {
+            align: TableAlignment::Left,
             border_color: "#dddddd".to_owned(),
             border_width_pt: 0.5,
             header_divider_width_pt: 1.25,

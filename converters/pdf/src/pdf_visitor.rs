@@ -21,7 +21,7 @@ use acdc_parser::{
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
-    Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, Theme,
+    Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, TableAlignment, Theme,
 };
 use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
@@ -1095,6 +1095,57 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         true
     }
 
+    pub(crate) fn write_table_alignment_start(&mut self, metadata: &BlockMetadata<'_>) -> bool {
+        let alignment = table_alignment(metadata, self.table_theme.align);
+        let has_reduced_width = table_width(metadata).is_some_and(|width| width < 100);
+        if alignment == TableAlignment::Left
+            || !(has_reduced_width || Self::table_has_intrinsic_width(metadata))
+        {
+            return false;
+        }
+        let _ = writeln!(self.writer, "#align({})[", typst_table_alignment(alignment));
+        true
+    }
+
+    pub(crate) fn table_has_intrinsic_width(metadata: &BlockMetadata<'_>) -> bool {
+        metadata.options.contains(&"autowidth")
+            && table_width(metadata).is_none()
+            && !metadata.roles.contains(&"stretch")
+    }
+
+    pub(crate) fn write_intrinsic_table_start(&mut self) {
+        self.writer.raw("#context {\nlet acdc-table-body = [\n");
+    }
+
+    pub(crate) fn write_intrinsic_table_end(
+        &mut self,
+        title: &Title<'_>,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Result<(), Error> {
+        let alignment = table_alignment(metadata, self.table_theme.align);
+        let _ = writeln!(
+            self.writer,
+            "]\nalign({}, [\n#context block(width: measure(acdc-table-body).width)[",
+            typst_table_alignment(alignment)
+        );
+        self.write_captioned_title(title, metadata, fallback)?;
+        self.writer.raw("]\n#acdc-table-body\n])\n}\n\n");
+        Ok(())
+    }
+
+    pub(crate) fn write_table_wrappers_end(&mut self, sized: bool, aligned: bool) {
+        if sized {
+            self.writer.raw("]\n");
+        }
+        if aligned {
+            self.writer.raw("]\n");
+        }
+        if sized || aligned {
+            self.writer.raw("\n");
+        }
+    }
+
     pub(crate) fn omit_zero_width_table(&mut self, metadata: &BlockMetadata<'_>) -> bool {
         if table_width(metadata) != Some(0) {
             return false;
@@ -1562,6 +1613,37 @@ fn table_width(metadata: &BlockMetadata<'_>) -> Option<u8> {
             .filter(|width| (1..=100).contains(width))
             .unwrap_or(100),
     )
+}
+
+fn table_alignment(metadata: &BlockMetadata<'_>, theme_default: TableAlignment) -> TableAlignment {
+    if let Some(AttributeValue::String(value)) = metadata.attributes.get("align")
+        && let Some(alignment) = source_table_alignment(value)
+    {
+        return alignment;
+    }
+    metadata
+        .roles
+        .iter()
+        .rev()
+        .find_map(|role| source_table_alignment(role))
+        .unwrap_or(theme_default)
+}
+
+fn source_table_alignment(value: &str) -> Option<TableAlignment> {
+    match value {
+        "left" => Some(TableAlignment::Left),
+        "center" => Some(TableAlignment::Center),
+        "right" => Some(TableAlignment::Right),
+        _ => None,
+    }
+}
+
+const fn typst_table_alignment(alignment: TableAlignment) -> &'static str {
+    match alignment {
+        TableAlignment::Left => "left",
+        TableAlignment::Center => "center",
+        TableAlignment::Right => "right",
+    }
 }
 
 fn table_column_alignments(table: &Table<'_>, column_count: usize) -> String {

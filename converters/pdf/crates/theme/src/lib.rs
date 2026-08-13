@@ -22,7 +22,7 @@ pub use fonts::{EMOJI_FONT_FAMILY, embedded_fonts};
 pub use heading::{ChapterHeading, Heading, PageBreakBefore, PartBreakAfter, PartHeading};
 pub use spacing::Spacing;
 pub use syntax::{HIGHLIGHT_THEME_PATH, highlight_theme};
-pub use table::Table;
+pub use table::{Table, TableAlignment};
 pub use typography::{FontStack, Typography};
 
 const DEFAULT_THEME_YAML: &str = include_str!("../assets/theme/default.yaml");
@@ -164,7 +164,7 @@ mod tests {
     #[test]
     fn defaults_table_style_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
         let yaml = DEFAULT_THEME_YAML.replace(
-            "table:\n  border_color: \"#dddddd\"\n  border_width_pt: 0.5\n  header_divider_width_pt: 1.25\n  header_background: null\n  stripe_background: \"#f9f9f9\"\n  footer_background: \"#f0f0f0\"\n",
+            "table:\n  align: left\n  border_color: \"#dddddd\"\n  border_width_pt: 0.5\n  header_divider_width_pt: 1.25\n  header_background: null\n  stripe_background: \"#f9f9f9\"\n  footer_background: \"#f0f0f0\"\n",
             "",
         );
 
@@ -172,6 +172,13 @@ mod tests {
 
         assert_eq!(theme.table, Table::default());
         Ok(())
+    }
+
+    #[test]
+    fn rejects_invalid_table_alignment() {
+        let yaml = DEFAULT_THEME_YAML.replace("table:\n  align: left", "table:\n  align: diagonal");
+
+        assert!(Theme::from_yaml_str(&yaml).is_err());
     }
 
     #[test]
@@ -206,6 +213,7 @@ mod tests {
     #[test]
     fn validates_and_normalizes_table_style() -> Result<(), Box<dyn std::error::Error>> {
         let yaml = DEFAULT_THEME_YAML
+            .replace("table:\n  align: left", "table:\n  align: right")
             .replace("border_color: \"#dddddd\"", "border_color: '#AbC'")
             .replace("border_width_pt: 0.5", "border_width_pt: 0.75")
             .replace(
@@ -224,6 +232,7 @@ mod tests {
 
         let theme = Theme::from_yaml_str(&yaml)?;
 
+        assert_eq!(theme.table.align, TableAlignment::Right);
         assert_eq!(theme.table.border_color, "#aabbcc");
         assert!((theme.table.border_width_pt - 0.75).abs() < f64::EPSILON);
         assert!((theme.table.header_divider_width_pt - 1.5).abs() < f64::EPSILON);

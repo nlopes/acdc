@@ -213,8 +213,17 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             if zero_width_table {
                 return Ok(());
             }
-            let sized_table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
-                && self.write_table_width_start(&block.metadata);
+            let table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_));
+            let intrinsic_table = table
+                && !block.title.is_empty()
+                && Self::table_has_intrinsic_width(&block.metadata);
+            if intrinsic_table {
+                self.write_intrinsic_table_start();
+            }
+            let aligned_table =
+                table && !intrinsic_table && self.write_table_alignment_start(&block.metadata);
+            let sized_table =
+                table && !intrinsic_table && self.write_table_width_start(&block.metadata);
             let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
                 || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
                     && block.metadata.style == Some("abstract")
@@ -222,7 +231,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             // A block built through the API carries no resolved caption, so classify it with
             // the same rules the parser used.
             let captioned = block.metadata.caption.is_some() || fallback.is_some();
-            if shows_block_title(&block.inner) && !writes_own_title {
+            if shows_block_title(&block.inner) && !writes_own_title && !intrinsic_table {
                 if captioned {
                     self.write_captioned_title(&block.title, &block.metadata, fallback)?;
                 } else {
@@ -277,9 +286,10 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 }
                 DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
             };
-            if sized_table {
-                self.writer.raw("]\n\n");
+            if intrinsic_table {
+                self.write_intrinsic_table_end(&block.title, &block.metadata, fallback)?;
             }
+            self.write_table_wrappers_end(sized_table, aligned_table);
             result
         })();
 

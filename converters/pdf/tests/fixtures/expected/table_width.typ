@@ -106,12 +106,22 @@
 
 ])
 
-#blocktitle[#text("Table 6. ")#text("Content-sized autowidth")]
+#context {
+let acdc-table-body = [
 #table(columns: 2, align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Short")
 
 ], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A deliberately wider second cell")
 
 ])
+
+]
+align(left, [
+#context block(width: measure(acdc-table-body).width)[
+#blocktitle[#text("Table 6. ")#text("Content-sized autowidth")]
+]
+#acdc-table-body
+])
+}
 
 #block(width: 75%)[
 #blocktitle[#text("Table 7. ")#text("Autowidth with explicit 75 percent width")]

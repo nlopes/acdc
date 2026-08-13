@@ -176,6 +176,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `%autowidth` alone remains content-sized. When a width or `stretch` fixes an
   autowidth table's size, its columns use declared or equal proportions because
   Typst cannot expand content-sized columns to a fixed table width.
+- Tables can be placed at the left, centre, or right with `align=` or a matching
+  role; valid local attributes take precedence over the last matching role and
+  the PDF theme default. Table `float=` is ignored in print, matching
+  `asciidoctor-pdf`.
 - Table column specifications now align cell content horizontally with `<`,
   `^`, and `>`, and vertically with `.<`, `.^`, and `.>`, matching
   `asciidoctor-pdf`.

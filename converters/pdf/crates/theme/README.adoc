@@ -102,6 +102,10 @@ Their defaults match Asciidoctor PDF.
 |===
 |Token |Default |Purpose
 
+|`table.align`
+|`left`
+|Default table placement: `left`, `center`, or `right`.
+
 |`table.border_color`
 |`#dddddd`
 |Outer frame and inner grid colour.

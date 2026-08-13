@@ -1,7 +1,7 @@
 = Table footer pagination
 
-.Long footer
-[cols="1,1",options="header,footer"]
+.Long right-aligned footer
+[.right%autowidth,cols="1,1",options="header,footer"]
 |===
 |Item |Value
 |Row 001 |1

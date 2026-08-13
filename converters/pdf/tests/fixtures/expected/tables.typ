@@ -150,12 +150,22 @@
 
 ])
 
-#blocktitle[#text("Table 10. ")#text("Content-sized table")]
+#context {
+let acdc-table-body = [
 #table(columns: 2, align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("one")
 
 ], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("three")
 
 ])
+
+]
+align(left, [
+#context block(width: measure(acdc-table-body).width)[
+#blocktitle[#text("Table 10. ")#text("Content-sized table")]
+]
+#acdc-table-body
+])
+}
 
 #blocktitle[#text("Table 11. ")#text("Horizontal column alignment")]
 #table(columns: (1fr, 1fr, 1fr), align: (left + top, center + top, right + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Left")

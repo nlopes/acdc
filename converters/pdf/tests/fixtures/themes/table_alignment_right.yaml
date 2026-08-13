@@ -1,6 +1,3 @@
-# The built-in default theme: a bland, neutral look (white page, grayscale,
-# bundled fonts). This file is the single source of truth for `Theme::default()`
-# — it is embedded via `include_str!` and parsed at runtime.
 palette:
   page_bg: "#ffffff"
   body_text: "#111111"
@@ -63,7 +60,7 @@ heading:
   chapter:
     break_before: always
 table:
-  align: left
+  align: right
   border_color: "#dddddd"
   border_width_pt: 0.5
   header_divider_width_pt: 1.25
