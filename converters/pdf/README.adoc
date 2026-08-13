@@ -62,6 +62,10 @@ Asciidoctor PDF instead uses circled number glyphs such as `①`.
 Table row stripes continue by logical row number when a table crosses a page.
 Asciidoctor PDF restarts the stripe cycle after each repeated header.
 
+Table roles have no general PDF theme hook.
+The `left`, `center`, and `right` roles control placement, and `stretch` controls width.
+Other table roles are ignored without warnings, matching Asciidoctor PDF.
+
 == Document language
 
 The document `:lang:` attribute sets the Typst text language.

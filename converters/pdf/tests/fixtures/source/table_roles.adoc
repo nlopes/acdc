@@ -1,0 +1,31 @@
+= Table roles
+
+.Single arbitrary role
+[.brand,width=45%]
+|===
+|Brand |A wider second cell
+|===
+
+.Multiple arbitrary roles
+[.brand.audit,width=45%]
+|===
+|Brand and audit |A wider second cell
+|===
+
+.Arbitrary role before a placement role
+[.brand.center,width=45%]
+|===
+|Brand then center |A wider second cell
+|===
+
+.Arbitrary role after a placement role
+[.center.brand,width=45%]
+|===
+|Center then brand |A wider second cell
+|===
+
+.Arbitrary role with stretch
+[.brand.stretch%autowidth]
+|===
+|Brand and stretch |A deliberately wider second cell
+|===
