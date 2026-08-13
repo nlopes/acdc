@@ -1036,7 +1036,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
         let column_count = determine_column_count(table);
-        if metadata.options.contains(&"autowidth") {
+        let width = table_width(metadata);
+        let autowidth = metadata.options.contains(&"autowidth");
+        let constrained = width.is_some() || metadata.roles.contains(&"stretch");
+        if autowidth && !constrained {
             let _ = write!(self.writer, "#table(columns: {column_count}");
         } else {
             let tracks = table_column_tracks(table, column_count);
@@ -1082,6 +1085,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         self.writer.raw(")\n\n");
         Ok(())
+    }
+
+    pub(crate) fn write_table_width_start(&mut self, metadata: &BlockMetadata<'_>) -> bool {
+        let Some(width) = table_width(metadata).filter(|width| *width < 100) else {
+            return false;
+        };
+        let _ = writeln!(self.writer, "#block(width: {width}%)[");
+        true
+    }
+
+    pub(crate) fn omit_zero_width_table(&mut self, metadata: &BlockMetadata<'_>) -> bool {
+        if table_width(metadata) != Some(0) {
+            return false;
+        }
+        self.diagnostics.warn(
+            "cannot fit contents of table cell into a table with a width of 0%; omitting the table",
+        );
+        true
     }
 
     fn write_table_row_cells(
@@ -1519,6 +1540,28 @@ fn table_column_tracks(table: &Table<'_>, column_count: usize) -> String {
         .collect::<Vec<_>>();
 
     format!("({})", tracks.join(", "))
+}
+
+fn table_width(metadata: &BlockMetadata<'_>) -> Option<u8> {
+    let AttributeValue::String(value) = metadata.attributes.get("width")? else {
+        return Some(100);
+    };
+    if matches!(value.as_ref(), "0" | "0%") {
+        return Some(0);
+    }
+    let value = value.trim_start();
+    let sign_len = usize::from(value.starts_with(['+', '-']));
+    let digit_len = value[sign_len..]
+        .bytes()
+        .take_while(u8::is_ascii_digit)
+        .count();
+    let integer = value[..sign_len + digit_len].parse::<i64>().unwrap_or(0);
+    Some(
+        u8::try_from(integer)
+            .ok()
+            .filter(|width| (1..=100).contains(width))
+            .unwrap_or(100),
+    )
 }
 
 fn table_column_alignments(table: &Table<'_>, column_count: usize) -> String {

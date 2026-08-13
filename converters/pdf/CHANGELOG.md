@@ -171,6 +171,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table columns now follow proportional, percentage, and automatic `cols`
   widths. Ordinary tables fill the available width; `%autowidth` tables keep
   content-sized columns, matching `asciidoctor-pdf`.
+- Tables now honour numeric `width` percentages, including values without a
+  `%` suffix. Local widths override `%autowidth` and the `stretch` role, and
+  `%autowidth` alone remains content-sized. When a width or `stretch` fixes an
+  autowidth table's size, its columns use declared or equal proportions because
+  Typst cannot expand content-sized columns to a fixed table width.
 - Table column specifications now align cell content horizontally with `<`,
   `^`, and `>`, and vertically with `.<`, `.^`, and `.>`, matching
   `asciidoctor-pdf`.

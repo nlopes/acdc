@@ -208,6 +208,13 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         let result = (|| {
             let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
             let collapsible_example = is_collapsible_example(&block.metadata, fallback);
+            let zero_width_table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+                && self.omit_zero_width_table(&block.metadata);
+            if zero_width_table {
+                return Ok(());
+            }
+            let sized_table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+                && self.write_table_width_start(&block.metadata);
             let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
                 || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
                     && block.metadata.style == Some("abstract")
@@ -222,7 +229,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_block_title(&block.title)?;
                 }
             }
-            match &block.inner {
+            let result = match &block.inner {
                 DelimitedBlockType::DelimitedExample(blocks)
                 | DelimitedBlockType::DelimitedOpen(blocks)
                     if collapsible_example =>
@@ -269,7 +276,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     Ok(())
                 }
                 DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
+            };
+            if sized_table {
+                self.writer.raw("]\n\n");
             }
+            result
         })();
 
         #[cfg(feature = "pre-spec-subs")]
