@@ -1,0 +1,43 @@
+= Styled image macro contexts
+:listing-caption: Listing
+
+.Listing style
+[listing]
+image::listing.png[Listing alt]
+
+.Source style
+[source,rust]
+image::source.png[Source alt]
+
+.Literal style
+[literal]
+image::literal.png[Literal alt]
+
+.Verse style
+[verse]
+image::verse.png[Verse alt]
+
+.Example positional value
+[example]
+image::example.png[Explicit alt]
+
+.Quote positional value
+[quote]
+image::quote.png[Explicit alt]
+
+.Custom positional fallback
+[custom]
+image::custom.png[]
+
+[.image-role]
+image::role.png[]
+
+[listing]
+image::untitled-listing.png[Untitled listing alt]
+
+.Listing after styled macros
+[listing]
+plain listing text
+
+.Figure after styled macros
+image::final.png[Final alt]

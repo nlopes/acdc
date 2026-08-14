@@ -226,3 +226,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   matching `asciidoctor-pdf`.
 - Section headings and table-of-contents entries now use one source-order number
   assigned by the parser, including parts, appendices, and special sections.
+
+### Fixed
+
+- `[listing]`, `[source]`, `[literal]`, and `[verse]` before a block image
+  macro now render the macro text in that block style instead of expanding an
+  image, matching Asciidoctor PDF. Listing and figure counters remain separate.
