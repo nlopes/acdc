@@ -1162,8 +1162,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_ordered_list_start(&mut self, style: Option<&str>, marker: &str) {
-        let numbering = match style {
+    pub(crate) fn write_ordered_list_start(&mut self, metadata: &BlockMetadata<'_>, marker: &str) {
+        let numbering = match metadata.style {
             Some(style) => OrderedListNumbering::from_explicit_style(style).unwrap_or_default(),
             None => match marker.matches('.').count() {
                 2 => OrderedListNumbering::LowerAlpha,
@@ -1177,6 +1177,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let _ = writeln!(self.writer, "{indent}#[");
         let _ = write!(self.writer, "{indent}#set enum(numbering: ");
         self.write_ordered_list_numbering(numbering);
+        if let Some(start) = metadata
+            .attributes
+            .get_string("start")
+            .and_then(|start| start.parse::<i64>().ok())
+            .filter(|start| *start > 0)
+        {
+            let _ = write!(self.writer, ", start: {start}");
+        }
         self.writer.raw(")\n");
     }
 

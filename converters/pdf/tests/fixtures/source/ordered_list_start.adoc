@@ -1,0 +1,43 @@
+= Ordered list starts
+
+== Arabic
+
+[start=5]
+. Five
+. Six
+
+== Decimal boundary
+
+[decimal,start=9]
+. Nine
+. Ten
+
+== Lower alpha
+
+[loweralpha,start=3]
+. C
+. D
+
+== Upper alpha rollover
+
+[upperalpha,start=26]
+. Z
+. AA
+
+== Lower Roman
+
+[lowerroman,start=4]
+. Four
+. Five
+
+== Upper Roman
+
+[upperroman,start=9]
+. Nine
+. Ten
+
+== Lower Greek
+
+[lowergreek,start=18]
+. Final sigma
+. Sigma
