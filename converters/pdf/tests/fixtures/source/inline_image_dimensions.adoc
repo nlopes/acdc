@@ -1,0 +1,22 @@
+= Inline image dimensions
+:dimension-image: inline-image-dimensions.svg
+
+No dimensions: before image:{dimension-image}[Intrinsic] after.
+
+Positional width: before image:{dimension-image}[Numeric,120] after.
+
+Named width: before image:{dimension-image}[Named,width=120] after.
+
+Percentage width: before image:{dimension-image}[Percentage,width=40%] after.
+
+Width and height: before image:{dimension-image}[Both,120,20] after.
+
+Named width and height: before image:{dimension-image}[Named both,width=120,height=20] after.
+
+Height only: before image:{dimension-image}[Height,height=20] after.
+
+Unit-suffixed width: before image:{dimension-image}[Units,width=120px] after.
+
+Oversized percentage: before image:{dimension-image}[Oversized,width=150%] after.
+
+Zero width: before image:{dimension-image}[Zero,width=0] after.
