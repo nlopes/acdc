@@ -1,7 +1,7 @@
 #set document(
-  title: "Block anchor coverage",
+  title: "Ordered list styles",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Block anchor coverage]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Ordered list styles]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -69,85 +69,110 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Block anchor coverage")]
+#text(size: 22pt, weight: "bold")[#text("Ordered list styles")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Section")] <id-73656374696f6e2d6964>
+#heading(level: 1)[#text("Default")] <id-5f64656661756c74>
 
-#metadata(none) <id-7061726167726170682d6964>
-#text("A paragraph.")
-
-#metadata(none) <id-64656c696d697465642d6964>
-#raw(block: true, "listing")
-
-#metadata(none) <id-6f7264657265642d6964>
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("ordered")
+  + #text("One")
+  + #text("Two")
 ]
 
-#metadata(none) <id-756e6f7264657265642d6964>
-  - #text("unordered")
+#heading(level: 1)[#text("Arabic")] <id-5f617261626963>
 
-#metadata(none) <id-6465736372697074696f6e2d6964>
-#text(weight: "bold")[#text("Term")]
-#text("definition")
-
-#raw(block: true, "code (1)")
-
-#metadata(none) <id-63616c6c6f75742d6964>
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("callout")],
-)
-
-#metadata(none) <id-61646d6f6e6974696f6e2d6964>
-#callout("note")[
-#text("admonition")
-
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
+  + #text("One")
+  + #text("Two")
 ]
 
-#metadata(none) <id-636f6d706f756e642d61646d6f6e6974696f6e2d6964>
-#callout("note")[
-#metadata(none) <id-696e6e65722d7061726167726170682d6964>
-#text("Inner paragraph.")
+#heading(level: 1)[#text("Decimal")] <id-5f646563696d616c>
 
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), { let number = numbers.pos().last(); (if number < 10 { "0" } else { "" }) + str(number) + "." }))
+  + #text("One")
+  + #text("Two")
+  + #text("Three")
+  + #text("Four")
+  + #text("Five")
+  + #text("Six")
+  + #text("Seven")
+  + #text("Eight")
+  + #text("Nine")
+  + #text("Ten")
 ]
 
-#metadata(none) <id-696d6167652d6964>
-#text("[Missing image]")#text(" | missing.png")
+#heading(level: 1)[#text("Lower alpha")] <id-5f6c6f7765725f616c706861>
 
-#metadata(none) <id-766964656f2d6964>
-#text("[video: video.mp4]")
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
+  + #text("One")
+  + #text("Two")
+]
 
-#metadata(none) <id-617564696f2d6964>
-#text("[audio: audio.mp3]")
+#heading(level: 1)[#text("Upper alpha")] <id-5f75707065725f616c706861>
 
-#metadata(none) <id-7468656d617469632d6964>
-#hr()
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("A.", ..numbers.pos())))
+  + #text("One")
+  + #text("Two")
+]
 
-#metadata(none) <id-706167652d6964>
-#pagebreak()
+#heading(level: 1)[#text("Lower roman")] <id-5f6c6f7765725f726f6d616e>
 
-#metadata(none) <id-746f632d6964>
-#heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
-#let _acdc_toc_entry(target, depth, body) = context {
-  link(
-    target,
-    pad(
-      left: depth * 1.25em,
-      grid(
-        columns: (auto, 1fr, auto),
-        column-gutter: 0.5em,
-        body,
-        repeat[.],
-        str(counter(page).at(target).first()),
-      ),
-    ),
-  )
-}
-#_acdc_toc_entry(<id-73656374696f6e2d6964>, 0, [#text("Section")])
-#pagebreak()
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("i.", ..numbers.pos())))
+  + #text("One")
+  + #text("Two")
+]
 
-#metadata(none) <id-64697363726574652d6964>
-#heading(level: 2, outlined: false)[#text("Discrete")]
+#heading(level: 1)[#text("Upper roman")] <id-5f75707065725f726f6d616e>
+
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("I.", ..numbers.pos())))
+  + #text("One")
+  + #text("Two")
+]
+
+#heading(level: 1)[#text("Lower Greek")] <id-5f6c6f7765725f677265656b>
+
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), { let number = numbers.pos().last(); str.from-unicode(944 + number) + "." }))
+  + #text("One")
+  + #text("Two")
+  + #text("Three")
+  + #text("Four")
+  + #text("Five")
+  + #text("Six")
+  + #text("Seven")
+  + #text("Eight")
+  + #text("Nine")
+  + #text("Ten")
+  + #text("Eleven")
+  + #text("Twelve")
+  + #text("Thirteen")
+  + #text("Fourteen")
+  + #text("Fifteen")
+  + #text("Sixteen")
+  + #text("Seventeen")
+  + #text("Eighteen")
+  + #text("Nineteen")
+  + #text("Twenty")
+  + #text("Twenty-one")
+  + #text("Twenty-two")
+  + #text("Twenty-three")
+  + #text("Twenty-four")
+  + #text("Twenty-five")
+  + #text("Twenty-six")
+]
+
+#heading(level: 1)[#text("Unknown")] <id-5f756e6b6e6f776e>
+
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
+  + #text("One")
+  + #text("Two")
+]

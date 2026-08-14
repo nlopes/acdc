@@ -140,6 +140,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Figure captions honor custom, empty, and unset `figure-caption` values,
   document-level `caption`, and per-image `caption=` overrides. Disabled and
   explicit prefixes do not consume a figure number.
+- Ordered lists honor explicit `arabic`, `decimal`, `loweralpha`, `upperalpha`,
+  `lowerroman`, `upperroman`, and `lowergreek` numbering styles, matching
+  Asciidoctor PDF.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.

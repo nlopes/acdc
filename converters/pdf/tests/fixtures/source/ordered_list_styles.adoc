@@ -1,0 +1,86 @@
+= Ordered list styles
+
+== Default
+
+. One
+. Two
+
+== Arabic
+
+[arabic]
+. One
+. Two
+
+== Decimal
+
+[decimal]
+. One
+. Two
+. Three
+. Four
+. Five
+. Six
+. Seven
+. Eight
+. Nine
+. Ten
+
+== Lower alpha
+
+[loweralpha]
+. One
+. Two
+
+== Upper alpha
+
+[upperalpha]
+. One
+. Two
+
+== Lower roman
+
+[lowerroman]
+. One
+. Two
+
+== Upper roman
+
+[upperroman]
+. One
+. Two
+
+== Lower Greek
+
+[lowergreek]
+. One
+. Two
+. Three
+. Four
+. Five
+. Six
+. Seven
+. Eight
+. Nine
+. Ten
+. Eleven
+. Twelve
+. Thirteen
+. Fourteen
+. Fifteen
+. Sixteen
+. Seventeen
+. Eighteen
+. Nineteen
+. Twenty
+. Twenty-one
+. Twenty-two
+. Twenty-three
+. Twenty-four
+. Twenty-five
+. Twenty-six
+
+== Unknown
+
+[unknown]
+. One
+. Two

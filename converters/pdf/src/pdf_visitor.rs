@@ -6,6 +6,7 @@ use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
     code::{SourceLineOptions, detect_language, source_line_count},
     inlines_to_string,
+    list::OrderedListNumbering,
     section::effective_section_level,
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
@@ -1159,6 +1160,52 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.list_depth -= 1;
         }
         Ok(())
+    }
+
+    pub(crate) fn write_ordered_list_start(&mut self, style: Option<&str>) {
+        let numbering = style
+            .and_then(OrderedListNumbering::from_explicit_style)
+            .unwrap_or_default();
+        let indent = "  ".repeat(self.list_depth);
+        let _ = writeln!(self.writer, "{indent}#[");
+        let _ = write!(self.writer, "{indent}#set enum(numbering: ");
+        self.write_ordered_list_numbering(numbering);
+        self.writer.raw(")\n");
+    }
+
+    fn write_ordered_list_numbering(&mut self, numbering: OrderedListNumbering) {
+        self.writer.raw("(..numbers) => text(fill: rgb(");
+        self.writer.string_literal(&self.palette.counter);
+        self.writer.raw("), ");
+        let pattern = match numbering {
+            // Typst treats `0` as literal text in a numbering pattern, so `01.`
+            // would produce `010.` for item 10 instead of Asciidoctor's `10.`.
+            OrderedListNumbering::Decimal => {
+                self.writer.raw(
+                    "{ let number = numbers.pos().last(); (if number < 10 { \"0\" } else { \"\" }) + str(number) + \".\" }",
+                );
+                None
+            }
+            // Asciidoctor PDF advances through lowercase Greek Unicode code points,
+            // including final sigma, instead of using Typst's Greek numerals.
+            OrderedListNumbering::LowerGreek => {
+                self.writer.raw(
+                    "{ let number = numbers.pos().last(); str.from-unicode(944 + number) + \".\" }",
+                );
+                None
+            }
+            OrderedListNumbering::Arabic => Some("1."),
+            OrderedListNumbering::LowerAlpha => Some("a."),
+            OrderedListNumbering::UpperAlpha => Some("A."),
+            OrderedListNumbering::LowerRoman => Some("i."),
+            OrderedListNumbering::UpperRoman => Some("I."),
+        };
+        if let Some(pattern) = pattern {
+            self.writer.raw("numbering(");
+            self.writer.string_literal(pattern);
+            self.writer.raw(", ..numbers.pos())");
+        }
+        self.writer.raw(")");
     }
 
     pub(crate) fn write_table(

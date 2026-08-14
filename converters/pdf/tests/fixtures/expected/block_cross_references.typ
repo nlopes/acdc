@@ -143,7 +143,10 @@
 
 #metadata(none) <id-6f7264657265642d6964>
 #blocktitle[#text("Ordered List Title")]
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
   + #text("ordered")
+]
 
 #metadata(none) <id-756e6f7264657265642d6964>
 #blocktitle[#text("Unordered List Title")]
