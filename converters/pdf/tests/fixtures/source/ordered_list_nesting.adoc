@@ -1,0 +1,26 @@
+= Ordered list nesting
+
+== Automatic styles
+
+. Level 1 one
+.. Level 2 one
+... Level 3 one
+.... Level 4 one
+..... Level 5 one
+...... Level 6 one
+....... Level 7 one
+....... Level 7 two
+...... Level 6 two
+..... Level 5 two
+.... Level 4 two
+... Level 3 two
+.. Level 2 two
+. Level 1 two
+
+== Explicit parent
+
+[upperalpha]
+. Parent one
+.. Child one
+.. Child two
+. Parent two

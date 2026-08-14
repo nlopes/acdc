@@ -143,6 +143,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ordered lists honor explicit `arabic`, `decimal`, `loweralpha`, `upperalpha`,
   `lowerroman`, `upperroman`, and `lowergreek` numbering styles, matching
   Asciidoctor PDF.
+- Unstyled nested ordered lists use Arabic, lower-alpha, lower-Roman,
+  upper-alpha, and upper-Roman numbering through level five, then Arabic at
+  deeper levels. Explicit parent styles do not affect their children, matching
+  Asciidoctor PDF.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.

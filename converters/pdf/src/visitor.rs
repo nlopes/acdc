@@ -301,7 +301,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_ordered_list(&mut self, list: &OrderedList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
-        self.write_ordered_list_start(list.metadata.style);
+        self.write_ordered_list_start(list.metadata.style, list.marker);
         self.list_depth += 1;
         for item in &list.items {
             self.write_list_item("+", item)?;

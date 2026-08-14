@@ -1162,10 +1162,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn write_ordered_list_start(&mut self, style: Option<&str>) {
-        let numbering = style
-            .and_then(OrderedListNumbering::from_explicit_style)
-            .unwrap_or_default();
+    pub(crate) fn write_ordered_list_start(&mut self, style: Option<&str>, marker: &str) {
+        let numbering = match style {
+            Some(style) => OrderedListNumbering::from_explicit_style(style).unwrap_or_default(),
+            None => match marker.matches('.').count() {
+                2 => OrderedListNumbering::LowerAlpha,
+                3 => OrderedListNumbering::LowerRoman,
+                4 => OrderedListNumbering::UpperAlpha,
+                5 => OrderedListNumbering::UpperRoman,
+                _ => OrderedListNumbering::Arabic,
+            },
+        };
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}#[");
         let _ = write!(self.writer, "{indent}#set enum(numbering: ");
