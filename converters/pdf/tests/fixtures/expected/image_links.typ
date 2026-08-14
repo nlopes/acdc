@@ -1,7 +1,7 @@
 #set document(
-  title: "Table block caption controls",
+  title: "Image links",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Table block caption controls]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Image links]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -65,31 +65,57 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Table block caption controls")]
+#text(size: 22pt, weight: "bold")[#text("Image links")]
 ]
 #v(1em)
 
-#blocktitle[#text("Table 1. ")#text("Default before controls")]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default one")
+#heading(level: 1)[#text("Link target")] <id-6c6f63616c2d746172676574>
 
-])
+#heading(level: 2)[#text("Block images")] <id-5f626c6f636b5f696d61676573>
 
-#blocktitle[#text("Local: ")#text("Block custom caption")]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Block custom")
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/image?one=1&two=2")
 
-])
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "mailto:docs@example.com")
 
-#blocktitle[#text("Table 2. ")#text("Default after block custom")]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default two")
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "#local-target")
 
-])
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "local-target")
 
-#blocktitle[#text("")#text("Block blank caption")]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Block blank")
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "none")
 
-])
+#docimage("/images/de454d7e4e1cfda7.svg")
 
-#blocktitle[#text("Table 3. ")#text("Default after block blank")]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default three")
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "not a valid uri")
 
-])
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/from-attribute")
+
+#docimage("/images/de454d7e4e1cfda7.svg", width: 75pt)
+
+#docimage("/images/de454d7e4e1cfda7.svg", width: 75pt, destination: "https://example.com/width")
+
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#link("https://example.com/positioned")[#image("/images/de454d7e4e1cfda7.svg", width: 75pt)]]]
+
+#blocktitle[#text("Caption outside link")]
+#docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/captioned")
+
+#link("https://example.com/missing")[#text("Missing linked image")]
+
+#heading(level: 2)[#text("Inline images")] <id-5f696e6c696e655f696d61676573>
+
+#text("External: ")#box(link("https://example.com/inline?one=1&two=2")[#image("/images/de454d7e4e1cfda7.svg")])
+
+#text("Email: ")#box(link("mailto:docs@example.com")[#image("/images/de454d7e4e1cfda7.svg")])
+
+#text("Document fragment: ")#box(link("#local-target")[#image("/images/de454d7e4e1cfda7.svg")])
+
+#text("Plain target: ")#box(link("local-target")[#image("/images/de454d7e4e1cfda7.svg")])
+
+#text("Named none: ")#box(link("none")[#image("/images/de454d7e4e1cfda7.svg")])
+
+#text("Malformed link: ")#box(link("not a valid uri")[#image("/images/de454d7e4e1cfda7.svg")])
+
+#text("Sized link: ")#box(link("https://example.com/sized")[#image("/images/de454d7e4e1cfda7.svg", width: 75pt)])
+
+#text("Scaled link: ")#box(link("https://example.com/scaled")[#scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg"))])
+
+#link("https://example.com/missing-inline")[#text("Missing linked inline image")]

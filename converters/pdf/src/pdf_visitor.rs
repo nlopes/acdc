@@ -1546,41 +1546,62 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         self.write_block_title(&image.title)?;
         let source = image.source.to_string();
+        let link = image
+            .metadata
+            .attributes
+            .get_string("link")
+            .filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
             let width = image_width(&image.metadata, true);
             let alignment = block_image_alignment(&image.metadata);
-            match (width, alignment) {
-                (
-                    Some(ImageWidth::Points {
-                        value,
-                        constrain_to_bounds: true,
-                    }),
-                    BlockImageAlignment::Left,
-                ) => {
-                    self.writer.raw("#docimage(");
-                    self.writer.string_literal(&asset.virtual_path);
-                    let _ = write!(self.writer, ", width: {value}pt)\n\n");
+            let uses_doc_image = alignment == BlockImageAlignment::Left
+                && matches!(
+                    width,
+                    None | Some(
+                        ImageWidth::Points {
+                            constrain_to_bounds: true,
+                            ..
+                        } | ImageWidth::ContainerRatio {
+                            constrain_to_bounds: true,
+                            ..
+                        }
+                    )
+                );
+            if uses_doc_image {
+                self.writer.raw("#docimage(");
+                self.writer.string_literal(&asset.virtual_path);
+                match width {
+                    Some(ImageWidth::Points { value, .. }) => {
+                        let _ = write!(self.writer, ", width: {value}pt");
+                    }
+                    Some(ImageWidth::ContainerRatio { value, .. }) => {
+                        let _ = write!(self.writer, ", ratio: {value}");
+                    }
+                    Some(ImageWidth::IntrinsicRatio(_) | ImageWidth::ViewportRatio(_)) | None => {}
                 }
-                (
-                    Some(ImageWidth::ContainerRatio {
-                        value,
-                        constrain_to_bounds: true,
-                    }),
-                    BlockImageAlignment::Left,
-                ) => {
-                    self.writer.raw("#docimage(");
-                    self.writer.string_literal(&asset.virtual_path);
-                    let _ = write!(self.writer, ", ratio: {value})\n\n");
+                if let Some(target) = &link {
+                    self.writer.raw(", destination: ");
+                    self.writer.string_literal(target);
                 }
-                (None, BlockImageAlignment::Left) => {
-                    self.writer.raw("#docimage(");
-                    self.writer.string_literal(&asset.virtual_path);
-                    self.writer.raw(")\n\n");
-                }
-                _ => self.write_positioned_block_image(&asset.virtual_path, width, alignment),
+                self.writer.raw(")\n\n");
+            } else {
+                self.write_positioned_block_image(
+                    &asset.virtual_path,
+                    width,
+                    alignment,
+                    link.as_deref(),
+                );
             }
         } else {
+            if let Some(target) = &link {
+                self.writer.raw("#link(");
+                self.writer.string_literal(target);
+                self.writer.raw(")[");
+            }
             self.write_text_expr(&image_fallback_text(image));
+            if link.is_some() {
+                self.writer.raw("]");
+            }
             self.writer.raw("\n\n");
         }
         Ok(())
@@ -1591,6 +1612,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         path: &str,
         width: Option<ImageWidth>,
         alignment: BlockImageAlignment,
+        link: Option<&str>,
     ) {
         let clip = matches!(
             width,
@@ -1611,6 +1633,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
         if alignment != BlockImageAlignment::Left {
             let _ = write!(self.writer, "#align({})[", alignment.typst());
+        }
+        if let Some(target) = link {
+            self.writer.raw("#link(");
+            self.writer.string_literal(target);
+            self.writer.raw(")[");
         }
         match width {
             Some(ImageWidth::Points { value, .. }) => {
@@ -1644,6 +1671,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.raw(")");
             }
         }
+        if link.is_some() {
+            self.writer.raw("]");
+        }
         if alignment != BlockImageAlignment::Left {
             self.writer.raw("]");
         }
@@ -1652,8 +1682,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_inline_image(&mut self, image: &Image<'_>) {
         let source = image.source.to_string();
+        let link = image
+            .metadata
+            .attributes
+            .get_string("link")
+            .filter(|target| !target.is_empty());
         if let Some(asset) = self.assets.get(&source) {
             self.writer.raw("#box(");
+            if let Some(target) = &link {
+                self.writer.raw("link(");
+                self.writer.string_literal(target);
+                self.writer.raw(")[#");
+            }
             match image_width(&image.metadata, false) {
                 Some(ImageWidth::IntrinsicRatio(ratio)) => {
                     let _ = write!(
@@ -1684,9 +1724,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.raw(")");
                 }
             }
+            if link.is_some() {
+                self.writer.raw("]");
+            }
             self.writer.raw(")");
         } else {
+            if let Some(target) = &link {
+                self.writer.raw("#link(");
+                self.writer.string_literal(target);
+                self.writer.raw(")[");
+            }
             self.write_text_expr(&image_fallback_text(image));
+            if link.is_some() {
+                self.writer.raw("]");
+            }
         }
     }
 

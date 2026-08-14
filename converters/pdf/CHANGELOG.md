@@ -122,6 +122,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block images with `float=left|right` now render on the requested side and
   emit a warning for each affected image. Following text starts below the image
   because Typst does not yet support side wrapping.
+- Block and inline images now honor `link=`, including missing-image fallback
+  text. Block-image captions remain outside the link, matching Asciidoctor PDF.
+  Empty link targets are ignored because Typst does not accept them.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.

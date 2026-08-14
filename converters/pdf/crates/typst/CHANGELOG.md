@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Generated documents can make block images clickable without extending the
+  link to their captions or surrounding layout.
 - Generated documents can include title, author, description, and keyword
   metadata.
 - Initial shared Typst writer, escaping, page preamble, header/footer,

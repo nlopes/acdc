@@ -1,0 +1,55 @@
+= Image links
+:linked-image: inline-image-dimensions.svg
+:imagelink: https://example.com/from-attribute
+
+[[local-target]]
+== Link target
+
+=== Block images
+
+image::{linked-image}[External link,link=https://example.com/image?one=1&two=2]
+
+image::{linked-image}[Email link,link=mailto:docs@example.com]
+
+image::{linked-image}[Document fragment,link=#local-target]
+
+image::{linked-image}[Plain target,link=local-target]
+
+image::{linked-image}[Named none,link=none]
+
+image::{linked-image}[Empty link,link=]
+
+image::{linked-image}[Malformed link,link="not a valid uri"]
+
+image::{linked-image}[Substituted link,link={imagelink}]
+
+image::{linked-image}[Positional value,100,50,https://example.com/positional]
+
+image::{linked-image}[Linked width,width=100,link=https://example.com/width]
+
+image::{linked-image}[Positioned link,width=100,align=right,link=https://example.com/positioned]
+
+.Caption outside link
+image::{linked-image}[Captioned link,link=https://example.com/captioned]
+
+image::missing.svg[Missing linked image,link=https://example.com/missing]
+
+=== Inline images
+
+External: image:{linked-image}[External link,link=https://example.com/inline?one=1&two=2]
+
+Email: image:{linked-image}[Email link,link=mailto:docs@example.com]
+
+Document fragment: image:{linked-image}[Document fragment,link=#local-target]
+
+Plain target: image:{linked-image}[Plain target,link=local-target]
+
+Named none: image:{linked-image}[Named none,link=none]
+
+Malformed link: image:{linked-image}[Malformed link,link="not a valid uri"]
+
+Sized link: image:{linked-image}[Sized link,width=100,link=https://example.com/sized]
+
+Scaled link: image:{linked-image}[Scaled link,pdfwidth=50iw,link=https://example.com/scaled]
+
+image:missing.svg[Missing linked inline image,link=https://example.com/missing-inline]

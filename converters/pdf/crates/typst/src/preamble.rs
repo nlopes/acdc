@@ -337,7 +337,7 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     );
     let _ = writeln!(
         out,
-        "#let docimage(path, width: none, ratio: none) = block(width: 100%, radius: {}pt, clip: true, layout(size => {{\n  let resolved-width = if ratio != none {{ ratio * size.width }} else if width != none {{ calc.min(width, size.width) }} else {{ size.width }}\n  image(path, width: resolved-width)\n}}))",
+        "#let docimage(path, width: none, ratio: none, destination: none) = block(width: 100%, radius: {}pt, clip: true, layout(size => {{\n  let resolved-width = if ratio != none {{ ratio * size.width }} else if width != none {{ calc.min(width, size.width) }} else {{ size.width }}\n  let content = image(path, width: resolved-width)\n  if destination == none {{ content }} else {{ link(destination, content) }}\n}}))",
         spacing.image_radius_pt,
     );
 
