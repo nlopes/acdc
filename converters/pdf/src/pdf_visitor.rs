@@ -50,6 +50,12 @@ enum TableColumnTrack {
     Percentage(u32),
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum BlockImageWidth {
+    Points(f64),
+    Ratio(f64),
+}
+
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) writer: Writer,
     pub(crate) processor: Processor<'a>,
@@ -1497,6 +1503,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if let Some(asset) = self.assets.get(&source) {
             self.writer.raw("#docimage(");
             self.writer.string_literal(&asset.virtual_path);
+            match block_image_width(&image.metadata) {
+                Some(BlockImageWidth::Points(points)) => {
+                    let _ = write!(self.writer, ", width: {points}pt");
+                }
+                Some(BlockImageWidth::Ratio(ratio)) => {
+                    let _ = write!(self.writer, ", ratio: {ratio}");
+                }
+                None => {}
+            }
             self.writer.raw(")\n\n");
         } else {
             self.write_text_expr(&image_fallback_text(image));
@@ -2200,6 +2215,22 @@ fn image_fallback_text(image: &Image<'_>) -> String {
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
 }
 
+fn block_image_width(metadata: &BlockMetadata<'_>) -> Option<BlockImageWidth> {
+    let width = metadata.attributes.get_string("width")?;
+    if let Some(percentage) = width.strip_suffix('%') {
+        let percentage = percentage.parse::<f64>().ok()?;
+        return (percentage.is_finite() && percentage >= 0.0)
+            .then(|| BlockImageWidth::Ratio((percentage / 100.0).min(1.0)));
+    }
+    if width.is_empty() || !width.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    let pixels = width.parse::<f64>().ok()?;
+    pixels
+        .is_finite()
+        .then_some(BlockImageWidth::Points(pixels * 0.75))
+}
+
 fn literal_table_cell_text(blocks: &[Block<'_>]) -> Option<String> {
     let mut text = String::new();
     for (index, block) in blocks.iter().enumerate() {
@@ -2218,8 +2249,37 @@ fn literal_table_cell_text(blocks: &[Block<'_>]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        expand_code_tabs, long_unbreakable_ranges, wrap_code_text, wrap_code_text_with_line_origins,
+        BlockImageWidth, block_image_width, expand_code_tabs, long_unbreakable_ranges,
+        wrap_code_text, wrap_code_text_with_line_origins,
     };
+    use acdc_parser::{AttributeValue, BlockMetadata};
+
+    fn metadata_with_width(width: &'static str) -> BlockMetadata<'static> {
+        let mut metadata = BlockMetadata::default();
+        metadata
+            .attributes
+            .set("width".into(), AttributeValue::String(width.into()));
+        metadata
+    }
+
+    #[test]
+    fn block_image_width_matches_asciidoctor_pdf_units() {
+        assert_eq!(
+            block_image_width(&metadata_with_width("120")),
+            Some(BlockImageWidth::Points(90.0))
+        );
+        assert_eq!(
+            block_image_width(&metadata_with_width("40%")),
+            Some(BlockImageWidth::Ratio(0.4))
+        );
+        assert_eq!(
+            block_image_width(&metadata_with_width("150%")),
+            Some(BlockImageWidth::Ratio(1.0))
+        );
+        for ignored in ["120px", "12.5", "-1", "invalid%"] {
+            assert_eq!(block_image_width(&metadata_with_width(ignored)), None);
+        }
+    }
 
     #[test]
     fn table_break_ranges_select_only_long_uninterrupted_runs() {

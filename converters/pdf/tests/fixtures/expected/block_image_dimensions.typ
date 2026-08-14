@@ -1,7 +1,7 @@
 #set document(
-  title: "Source code whitespace",
+  title: "Block image dimensions",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Source code whitespace]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Block image dimensions]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -64,32 +64,42 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Source code whitespace")]
+#text(size: 22pt, weight: "bold")[#text("Block image dimensions")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Listing whitespace")] <id-5f6c697374696e675f77686974657370616365>
+#heading(level: 1)[#text("Intrinsic syntax")] <id-5f696e7472696e7369635f73796e746178>
 
-#raw(block: true, "  leading spaces\nrepeated    spaces\na  value\n\nafter blank\n")
+#docimage("/images/7e994247ede781e7.svg")
 
-#heading(level: 1)[#text("Literal whitespace")] <id-5f6c69746572616c5f77686974657370616365>
+#heading(level: 1)[#text("Numeric width")] <id-5f6e756d657269635f7769647468>
 
-#raw(block: true, "  leading literal\nliteral    spaces\n\nafter literal blank\n")
+#docimage("/images/7e994247ede781e7.svg", width: 90pt)
 
-#heading(level: 1)[#text("Source whitespace and block tab size")] <id-5f736f757263655f776869746573706163655f616e645f626c6f636b5f7461625f73697a65>
+#heading(level: 1)[#text("Named numeric width")] <id-5f6e616d65645f6e756d657269635f7769647468>
 
-#raw(block: true, lang: "rust", "  let value    = 5;\na     value\n\nprintln!(\"after blank\");\n")
+#docimage("/images/7e994247ede781e7.svg", width: 90pt)
 
-#heading(level: 1)[#text("Styled paragraphs")] <id-5f7374796c65645f70617261677261706873>
+#heading(level: 1)[#text("Percentage width")] <id-5f70657263656e746167655f7769647468>
 
-#raw(block: true, lang: "rust", "  source indentation    stays")
+#docimage("/images/7e994247ede781e7.svg", ratio: 0.4)
 
-#raw(block: true, "  listing indentation    stays")
+#heading(level: 1)[#text("Width and height")] <id-5f77696474685f616e645f686569676874>
 
-#raw(block: true, "  literal indentation    stays")
+#docimage("/images/7e994247ede781e7.svg", width: 90pt)
 
-#heading(level: 1)[#text("Long lines")] <id-5f6c6f6e675f6c696e6573>
+#heading(level: 1)[#text("Named width and height")] <id-5f6e616d65645f77696474685f616e645f686569676874>
 
-#raw(block: true, "space-separated content that is deliberately long enough to cross the usable \nwidth of an A4 page and confirm that the PDF wraps at spaces without clipping any \nwords from the source line\nunbroken_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJK\nLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcde\nfghijklmnopqrstuvwxyz0123456789")
+#docimage("/images/7e994247ede781e7.svg", width: 90pt)
 
-#raw(block: true, lang: "rust", "fn highlighted_line_with_no_breaks() { let token = \n\"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRS\nTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789\"; }")
+#heading(level: 1)[#text("Height only")] <id-5f6865696768745f6f6e6c79>
+
+#docimage("/images/7e994247ede781e7.svg")
+
+#heading(level: 1)[#text("Invalid unit")] <id-5f696e76616c69645f756e6974>
+
+#docimage("/images/7e994247ede781e7.svg")
+
+#heading(level: 1)[#text("Oversized width")] <id-5f6f76657273697a65645f7769647468>
+
+#docimage("/images/7e994247ede781e7.svg", width: 750pt)

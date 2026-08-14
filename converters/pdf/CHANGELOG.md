@@ -106,6 +106,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PDF tables now preserve `n+|` column spans, `.n+|` row spans, and combined
   `n.m+|` spans. Declared header rows are emitted as semantic Typst table
   headers and repeat across page breaks.
+- Block images now honor bare numeric and percentage `width` values. The
+  generic `height` attribute and unit-suffixed `width` values remain ignored,
+  matching Asciidoctor PDF.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.
