@@ -3665,8 +3665,21 @@ peg::parser! {
             }))
         }
 
+        rule image_macro_expands(block_metadata: &BlockParsingMetadata<'input>)
+        = {?
+            if matches!(
+                block_metadata.metadata.style,
+                Some("listing" | "source" | "literal" | "verse")
+            ) {
+                Err("verbatim paragraph style")
+            } else {
+                Ok(())
+            }
+        }
+
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = "image::" source:source() attributes:macro_attributes() end:position!()
+        = image_macro_expands(block_metadata)
+          "image::" source:source() attributes:macro_attributes() end:position!()
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("image", trailing, end, offset);

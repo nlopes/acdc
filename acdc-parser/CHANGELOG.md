@@ -172,6 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A block image macro preceded by `[listing]`, `[source]`, `[literal]`, or
+  `[verse]` is parsed as that styled paragraph and kept as text instead of
+  becoming an image, matching Asciidoctor.
 - Path-based macros now recognize non-ASCII local targets, including cross-references,
   links, icons, images, audio, and video, matching Asciidoctor.
 - Table cell specifiers now accept the Asciidoctor order with spans or repeats
