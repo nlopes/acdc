@@ -1,0 +1,53 @@
+= Image aspect ratios
+:svg-image: inline-image-dimensions.svg
+:raster-image: ../../../../../acdc-parser/fixtures/samples/book-starter/chapter-03-How-Planet-Systems-Work/images/space.jpeg
+
+== Block SVG
+
+Generic width only:
+
+image::{svg-image}[SVG width,width=120]
+
+Generic width and ignored height:
+
+image::{svg-image}[SVG width and height,width=120,height=20]
+
+Ignored height only:
+
+image::{svg-image}[SVG height,height=20]
+
+PDF width only:
+
+image::{svg-image}[SVG PDF width,pdfwidth=90pt]
+
+== Block raster
+
+Generic width only:
+
+image::{raster-image}[Raster width,width=120]
+
+Generic width and ignored height:
+
+image::{raster-image}[Raster width and height,width=120,height=20]
+
+PDF width only:
+
+image::{raster-image}[Raster PDF width,pdfwidth=90pt]
+
+== Inline SVG
+
+Width only: before image:{svg-image}[SVG width,width=120] after.
+
+Width and ignored height: before image:{svg-image}[SVG width and height,width=120,height=20] after.
+
+Ignored height only: before image:{svg-image}[SVG height,height=20] after.
+
+PDF width only: before image:{svg-image}[SVG PDF width,pdfwidth=90pt] after.
+
+== Inline raster
+
+Width only: before image:{raster-image}[Raster width,width=120] after.
+
+Width and ignored height: before image:{raster-image}[Raster width and height,width=120,height=20] after.
+
+PDF width only: before image:{raster-image}[Raster PDF width,pdfwidth=90pt] after.
