@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Block images without an explicit width now keep their intrinsic size instead
+  of expanding to the page width. Oversized images still fit the available
+  area, matching Asciidoctor PDF.
 - Wide table cells now wrap long uninterrupted text, monospace and literal
   content, and nested source blocks instead of clipping or overlapping nearby
   cells, matching `asciidoctor-pdf`.

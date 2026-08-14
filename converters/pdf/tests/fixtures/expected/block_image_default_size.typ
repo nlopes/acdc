@@ -1,7 +1,7 @@
 #set document(
-  title: "Numbered figure captions",
+  title: "Block image default size",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Numbered figure captions]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Block image default size]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -69,25 +69,8 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Numbered figure captions")]
+#text(size: 22pt, weight: "bold")[#text("Block image default size")]
 ]
 #v(1em)
 
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "First image", width: 60pt)
-#imagecaption[#text("Figure 1. ")#text("First figure")]
-
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Untitled image", width: 60pt)
-
-#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Second image", width: 90pt)]]
-#imagecaption[#text("Figure 2. ")#text("Second ")#strong[#text("formatted")]#text(" figure")]
-
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Linked image", width: 60pt, destination: "https://example.com/figure")
-#imagecaption[#text("Figure 3. ")#text("Linked figure")]
-
-  - #text("List item")
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Nested image", width: 60pt)
-#imagecaption[#text("Figure 4. ")#text("Nested figure")]
-
-
-#text("[Missing image]")#text(" | missing.svg")
-#imagecaption[#text("Figure 5. ")#text("Missing figure")]
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Small intrinsic image")
