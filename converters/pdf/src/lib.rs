@@ -1262,6 +1262,36 @@ mod tests {
     }
 
     #[test]
+    fn block_image_float_fallback_warns_for_each_block_image()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "image::one.svg[float=left]\n\nimage::two.svg[float=right]\n\nimage::three.svg[float=invalid]\n\nBefore image:four.svg[float=left] after.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let _ = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert_eq!(warnings.len(), 2);
+        for warning in warnings {
+            assert_eq!(
+                warning.message,
+                "block image side wrapping is not yet supported by the PDF backend, rendering the image on the requested side with following content below it",
+            );
+            assert_eq!(
+                warning.advice(),
+                Some(
+                    "Use the HTML backend or Asciidoctor PDF for this feature until PDF backend support is added."
+                ),
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn hostile_theme_font_name_remains_literal_typst_data() -> Result<(), Box<dyn std::error::Error>>
     {
         let hostile = r#"Acme"), size: 1pt)#undefined_function()//"#;

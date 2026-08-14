@@ -66,6 +66,10 @@ Table roles have no general PDF theme hook.
 The `left`, `center`, and `right` roles control placement, and `stretch` controls width.
 Other table roles are ignored without warnings, matching Asciidoctor PDF.
 
+Block images with `float=left` or `float=right` render on the requested side, but following text starts below the image.
+Typst does not yet support wrapping paragraph text beside a floating image, so the converter emits a warning for each affected image.
+Native side wrapping is tracked in https://github.com/typst/typst/issues/5181[Typst issue 5181].
+
 == Document language
 
 The document `:lang:` attribute sets the Typst text language.

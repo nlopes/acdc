@@ -1538,6 +1538,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_block_image(&mut self, image: &Image<'_>) -> Result<(), Error> {
+        if block_image_float(&image.metadata).is_some() {
+            self.warn_unsupported(
+                "block image side wrapping",
+                "rendering the image on the requested side with following content below it",
+            );
+        }
         self.write_block_title(&image.title)?;
         let source = image.source.to_string();
         if let Some(asset) = self.assets.get(&source) {
@@ -1571,11 +1577,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.string_literal(&asset.virtual_path);
                     self.writer.raw(")\n\n");
                 }
-                _ => self.write_positioned_block_image(
-                    &asset.virtual_path,
-                    width,
-                    alignment,
-                ),
+                _ => self.write_positioned_block_image(&asset.virtual_path, width, alignment),
             }
         } else {
             self.write_text_expr(&image_fallback_text(image));
@@ -1592,16 +1594,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) {
         let clip = matches!(
             width,
-            None
-                | Some(
-                    ImageWidth::Points {
-                        constrain_to_bounds: true,
-                        ..
-                    } | ImageWidth::ContainerRatio {
-                        constrain_to_bounds: true,
-                        ..
-                    }
-                )
+            None | Some(
+                ImageWidth::Points {
+                    constrain_to_bounds: true,
+                    ..
+                } | ImageWidth::ContainerRatio {
+                    constrain_to_bounds: true,
+                    ..
+                }
+            )
         );
         let _ = write!(
             self.writer,
@@ -1635,11 +1636,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             Some(ImageWidth::ViewportRatio(ratio)) => {
                 self.writer.raw("#image(");
                 self.writer.string_literal(path);
-                let _ = write!(
-                    self.writer,
-                    ", width: {}pt)",
-                    ratio * self.page_width_pt
-                );
+                let _ = write!(self.writer, ", width: {}pt)", ratio * self.page_width_pt);
             }
             None => {
                 self.writer.raw("#image(");
@@ -1676,18 +1673,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                             let _ = write!(self.writer, ", width: {value}pt");
                         }
                         Some(ImageWidth::ContainerRatio { value, .. }) => {
-                            let _ = write!(
-                                self.writer,
-                                ", width: {}%",
-                                value.min(1.0) * 100.0
-                            );
+                            let _ = write!(self.writer, ", width: {}%", value.min(1.0) * 100.0);
                         }
                         Some(ImageWidth::ViewportRatio(ratio)) => {
-                            let _ = write!(
-                                self.writer,
-                                ", width: {}pt",
-                                ratio * self.page_width_pt
-                            );
+                            let _ =
+                                write!(self.writer, ", width: {}pt", ratio * self.page_width_pt);
                         }
                         Some(ImageWidth::IntrinsicRatio(_)) | None => {}
                     }
@@ -2385,6 +2375,9 @@ fn image_fallback_text(image: &Image<'_>) -> String {
 }
 
 fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {
+    if let Some(side) = block_image_float(metadata) {
+        return side;
+    }
     if metadata.attributes.contains_key("align") {
         return metadata
             .attributes
@@ -2401,6 +2394,14 @@ fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {
         .unwrap_or_default()
 }
 
+fn block_image_float(metadata: &BlockMetadata<'_>) -> Option<BlockImageAlignment> {
+    metadata
+        .attributes
+        .get_string("float")
+        .and_then(|value| BlockImageAlignment::from_name(&value))
+        .filter(|alignment| *alignment != BlockImageAlignment::Center)
+}
+
 fn image_width(metadata: &BlockMetadata<'_>, supports_viewport_width: bool) -> Option<ImageWidth> {
     if let Some(value) = metadata.attributes.get("pdfwidth") {
         let value = if let AttributeValue::String(value) = value {
@@ -2414,11 +2415,10 @@ fn image_width(metadata: &BlockMetadata<'_>, supports_viewport_width: bool) -> O
     let width = metadata.attributes.get_string("width")?;
     if let Some(percentage) = width.strip_suffix('%') {
         let percentage = percentage.parse::<f64>().ok()?;
-        return (percentage.is_finite() && percentage >= 0.0)
-            .then(|| ImageWidth::ContainerRatio {
-                value: (percentage / 100.0).min(1.0),
-                constrain_to_bounds: true,
-            });
+        return (percentage.is_finite() && percentage >= 0.0).then(|| ImageWidth::ContainerRatio {
+            value: (percentage / 100.0).min(1.0),
+            constrain_to_bounds: true,
+        });
     }
     if width.is_empty() || !width.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
@@ -2440,9 +2440,7 @@ fn pdf_image_width(width: &str, supports_viewport_width: bool) -> ImageWidth {
     if let Some(percentage) = width.strip_suffix("iw") {
         return ImageWidth::IntrinsicRatio(leading_number(percentage) / 100.0);
     }
-    if supports_viewport_width
-        && let Some(percentage) = width.strip_suffix("vw")
-    {
+    if supports_viewport_width && let Some(percentage) = width.strip_suffix("vw") {
         return ImageWidth::ViewportRatio(leading_number(percentage) / 100.0);
     }
 
@@ -2627,7 +2625,7 @@ mod tests {
     }
 
     #[test]
-    fn block_image_alignment_prefers_named_alignment_then_the_last_valid_role() {
+    fn block_image_alignment_follows_float_attribute_and_role_precedence() {
         let mut metadata = BlockMetadata::default();
         assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Left);
 
@@ -2646,6 +2644,22 @@ mod tests {
             .attributes
             .set("align".into(), AttributeValue::String("invalid".into()));
         assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Left);
+
+        metadata
+            .attributes
+            .set("float".into(), AttributeValue::String("right".into()));
+        assert_eq!(block_image_alignment(&metadata), BlockImageAlignment::Right);
+
+        metadata
+            .attributes
+            .set("float".into(), AttributeValue::String("invalid".into()));
+        metadata
+            .attributes
+            .set("align".into(), AttributeValue::String("center".into()));
+        assert_eq!(
+            block_image_alignment(&metadata),
+            BlockImageAlignment::Center
+        );
     }
 
     #[test]

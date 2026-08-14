@@ -119,6 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block images now honor `align=left|center|right` and the corresponding
   alignment roles. A named alignment takes precedence over the last alignment
   role, matching Asciidoctor PDF.
+- Block images with `float=left|right` now render on the requested side and
+  emit a warning for each affected image. Following text starts below the image
+  because Typst does not yet support side wrapping.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.

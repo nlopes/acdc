@@ -1,0 +1,53 @@
+= Block image floats
+:float-image: inline-image-dimensions.svg
+
+== Left float
+
+image::{float-image}[Left float,width=200,float=left]
+
+The paragraph after a left float contains enough text to make its position relative to the image easy to inspect. It continues across several phrases and extends beyond the height of the image.
+
+== Right float
+
+image::{float-image}[Right float,width=200,float=right]
+
+The paragraph after a right float contains enough text to make its position relative to the image easy to inspect. It continues across several phrases and extends beyond the height of the image.
+
+== Consecutive paragraphs
+
+image::{float-image}[Consecutive paragraphs,width=280,float=left]
+
+The first paragraph contains enough text to occupy part of the image height.
+
+The second consecutive paragraph makes it possible to inspect how long the image affects following paragraph layout.
+
+== Non-paragraph boundary
+
+image::{float-image}[Listing boundary,width=200,float=left]
+
+[source]
+----
+This listing starts below the image.
+----
+
+== Full-width image
+
+image::{float-image}[Full width,float=right,width=100%]
+
+This paragraph starts below an image that occupies the full available width.
+
+== Float precedence
+
+image::{float-image}[Float overrides align,width=200,float=right,align=left]
+
+The valid right float takes precedence over the conflicting left alignment.
+
+== Invalid float fallback
+
+image::{float-image}[Invalid float,width=200,float=invalid,align=center]
+
+An invalid float falls through to the valid centered alignment.
+
+== Inline control
+
+Before image:{float-image}[Inline float,width=40,float=right] after.
