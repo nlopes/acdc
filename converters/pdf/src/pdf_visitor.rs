@@ -1556,6 +1556,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             );
         }
         let source = image.source.to_string();
+        let alt = block_image_alt(image);
         let link = image
             .metadata
             .attributes
@@ -1580,6 +1581,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if uses_doc_image {
                 self.writer.raw("#docimage(");
                 self.writer.string_literal(&asset.virtual_path);
+                self.writer.raw(", alt: ");
+                self.writer.string_literal(&alt);
                 match width {
                     Some(ImageWidth::Points { value, .. }) => {
                         let _ = write!(self.writer, ", width: {value}pt");
@@ -1597,13 +1600,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             } else {
                 self.write_positioned_block_image(
                     &asset.virtual_path,
+                    &alt,
                     width,
                     alignment,
                     link.as_deref(),
                 );
             }
         } else {
-            self.write_block_image_fallback(image, link.as_deref());
+            self.write_block_image_fallback(image, &alt, link.as_deref());
             self.writer.raw("\n");
         }
         if image.title.is_empty() {
@@ -1620,12 +1624,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    fn write_block_image_fallback(&mut self, image: &Image<'_>, link: Option<&str>) {
-        let alt = image
-            .metadata
-            .attributes
-            .get_string("alt")
-            .map_or_else(|| block_image_default_alt(image), Cow::into_owned);
+    fn write_block_image_fallback(&mut self, image: &Image<'_>, alt: &str, link: Option<&str>) {
         if let Some(target) = link {
             self.writer.raw("#link(");
             self.writer.string_literal(target);
@@ -1641,6 +1640,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     fn write_positioned_block_image(
         &mut self,
         path: &str,
+        alt: &str,
         width: Option<ImageWidth>,
         alignment: BlockImageAlignment,
         link: Option<&str>,
@@ -1674,11 +1674,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             Some(ImageWidth::Points { value, .. }) => {
                 self.writer.raw("#image(");
                 self.writer.string_literal(path);
+                self.writer.raw(", alt: ");
+                self.writer.string_literal(alt);
                 let _ = write!(self.writer, ", width: {value}pt)");
             }
             Some(ImageWidth::ContainerRatio { value, .. }) => {
                 self.writer.raw("#image(");
                 self.writer.string_literal(path);
+                self.writer.raw(", alt: ");
+                self.writer.string_literal(alt);
                 let _ = write!(self.writer, ", width: {}%)", value * 100.0);
             }
             Some(ImageWidth::IntrinsicRatio(ratio)) => {
@@ -1689,16 +1693,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     ratio * 100.0
                 );
                 self.writer.string_literal(path);
+                self.writer.raw(", alt: ");
+                self.writer.string_literal(alt);
                 self.writer.raw("))");
             }
             Some(ImageWidth::ViewportRatio(ratio)) => {
                 self.writer.raw("#image(");
                 self.writer.string_literal(path);
+                self.writer.raw(", alt: ");
+                self.writer.string_literal(alt);
                 let _ = write!(self.writer, ", width: {}pt)", ratio * self.page_width_pt);
             }
             None => {
                 self.writer.raw("#image(");
                 self.writer.string_literal(path);
+                self.writer.raw(", alt: ");
+                self.writer.string_literal(alt);
                 self.writer.raw(")");
             }
         }
@@ -1713,6 +1723,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     pub(crate) fn write_inline_image(&mut self, image: &Image<'_>) {
         let source = image.source.to_string();
+        let alt = inline_image_alt(image);
         let link = image
             .metadata
             .attributes
@@ -1734,11 +1745,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         ratio * 100.0
                     );
                     self.writer.string_literal(&asset.virtual_path);
+                    self.writer.raw(", alt: ");
+                    self.writer.string_literal(&alt);
                     self.writer.raw("))");
                 }
                 width => {
                     self.writer.raw("image(");
                     self.writer.string_literal(&asset.virtual_path);
+                    self.writer.raw(", alt: ");
+                    self.writer.string_literal(&alt);
                     match width {
                         Some(ImageWidth::Points { value, .. }) => {
                             let _ = write!(self.writer, ", width: {value}pt");
@@ -2464,6 +2479,22 @@ fn block_image_default_alt(image: &Image<'_>) -> String {
         .and_then(std::ffi::OsStr::to_str)
         .unwrap_or_default()
         .replace(['-', '_'], " ")
+}
+
+fn block_image_alt<'a>(image: &Image<'a>) -> Cow<'a, str> {
+    image
+        .metadata
+        .attributes
+        .get_string("alt")
+        .unwrap_or_else(|| Cow::Owned(block_image_default_alt(image)))
+}
+
+fn inline_image_alt<'a>(image: &Image<'a>) -> Cow<'a, str> {
+    if image.title.is_empty() {
+        block_image_alt(image)
+    } else {
+        Cow::Owned(inlines_to_string(&image.title))
+    }
 }
 
 fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {

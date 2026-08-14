@@ -87,3 +87,55 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
 fn typst_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Result<(), Error> {
     run_typst_fixture(&path)
 }
+
+#[test]
+fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
+    let path = Path::new("tests/fixtures/source/image_accessibility_alt_text.adoc");
+    let bootstrap = Processor::new(
+        ConverterOptions::default(),
+        acdc_converters_core::default_rendering_attributes(),
+    );
+    let parser_options = ParserOptions::with_attributes(bootstrap.document_attributes().clone());
+    let parsed = acdc_parser::parse_file(path, &parser_options)?;
+    let processor = Processor::new(
+        ConverterOptions::default(),
+        parsed.document().attributes.clone(),
+    );
+    let mut pdf = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("pdf");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(
+        parsed.document(),
+        &mut pdf,
+        Some(path),
+        None,
+        &mut diagnostics,
+    )?;
+
+    let rendered = lopdf::Document::load_mem(&pdf)?;
+    let mut descriptions = rendered
+        .objects
+        .values()
+        .filter_map(|object| {
+            let dictionary = object.as_dict().ok()?;
+            let alt = dictionary.get(b"Alt").ok()?;
+            lopdf::decode_text_string(alt).ok()
+        })
+        .collect::<Vec<_>>();
+    descriptions.sort();
+
+    assert_eq!(
+        descriptions,
+        [
+            "Explicit block description",
+            "Explicit inline description",
+            "Linked description",
+            "Positioned description",
+            "inline image dimensions",
+            "inline image dimensions",
+        ]
+    );
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}

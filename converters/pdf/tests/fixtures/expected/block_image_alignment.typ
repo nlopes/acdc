@@ -47,9 +47,9 @@
 #let callout(kind, body) = pad(left: 0pt, block(width: 100%, inset: (x: 12pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: 12pt, align: (x, _) => if x == 0 { center + horizon } else { left + top }, text(fill: rgb("#111111"), weight: 700, upper(kind)), grid.cell(stroke: (left: 0.75pt + rgb("#e5e7eb")), inset: (left: 12pt), body))))
 #let checkbox(checked) = box(height: 0.85em, width: 0.85em, baseline: 0.15em, radius: 2pt, stroke: 0.75pt + rgb("#9ca3af"), fill: if checked { rgb("#374151") } else { white })
 #let hr() = block(above: 1.2em, below: 1.2em, line(length: 100%, stroke: 0.75pt + rgb("#e5e7eb")))
-#let docimage(path, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
+#let docimage(path, alt: none, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
   let resolved-width = if ratio != none { ratio * size.width } else if width != none { calc.min(width, size.width) } else { size.width }
-  let content = image(path, width: resolved-width)
+  let content = image(path, alt: alt, width: resolved-width)
   if destination == none { content } else { link(destination, content) }
 }))
 #set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
@@ -75,38 +75,38 @@
 
 #heading(level: 1)[#text("Default")] <id-5f64656661756c74>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Default", width: 90pt)
 
 #heading(level: 1)[#text("Named alignment")] <id-5f6e616d65645f616c69676e6d656e74>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Named left", width: 90pt)
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Named center", width: 90pt)]]
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", alt: "Named right", width: 90pt)]]
 
 #heading(level: 1)[#text("Alignment roles")] <id-5f616c69676e6d656e745f726f6c6573>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Left role", width: 90pt)
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Center role", width: 90pt)]]
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", alt: "Right role", width: 90pt)]]
 
 #heading(level: 1)[#text("Precedence")] <id-5f707265636564656e6365>
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Named beats role", width: 90pt)]]
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Invalid named alignment", width: 90pt)
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", alt: "Last role wins", width: 90pt)]]
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Last role wins again", width: 90pt)
 
 #heading(level: 1)[#text("No positional alignment")] <id-5f6e6f5f706f736974696f6e616c5f616c69676e6d656e74>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Fourth positional attribute", width: 90pt)
 
 #heading(level: 1)[#text("Inline control")] <id-5f696e6c696e655f636f6e74726f6c>
 
-#text("Before ")#box(image("/images/de454d7e4e1cfda7.svg", width: 30pt))#text(" after.")
+#text("Before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Inline", width: 30pt))#text(" after.")

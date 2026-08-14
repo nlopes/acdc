@@ -1,0 +1,12 @@
+= Image accessibility alt text
+:image-file: inline-image-dimensions.svg
+
+image::{image-file}[Explicit block description]
+
+image::{image-file}[]
+
+image::{image-file}[Positioned description,width=80,align=center]
+
+image::{image-file}[Linked description,width=80,link=https://example.com/image]
+
+Inline image:{image-file}[Explicit inline description,16] and image:{image-file}[].

@@ -1,8 +1,8 @@
 #set document(
-  title: "Underscore Language Region",
+  title: "Image accessibility alt text",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Underscore Language Region]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
-#set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "pt", region: "BR")
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Image accessibility alt text]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
 #set smartquote(enabled: false)
@@ -69,8 +69,16 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Underscore Language Region")]
+#text(size: 22pt, weight: "bold")[#text("Image accessibility alt text")]
 ]
 #v(1em)
 
-#text("Um parágrafo em português do Brasil.")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Explicit block description")
+
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "inline image dimensions")
+
+#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Positioned description", width: 60pt)]]
+
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Linked description", width: 60pt, destination: "https://example.com/image")
+
+#text("Inline ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Explicit inline description", width: 12pt))#text(" and ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "inline image dimensions"))#text(".")

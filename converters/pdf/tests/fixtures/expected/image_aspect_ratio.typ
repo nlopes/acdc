@@ -47,9 +47,9 @@
 #let callout(kind, body) = pad(left: 0pt, block(width: 100%, inset: (x: 12pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: 12pt, align: (x, _) => if x == 0 { center + horizon } else { left + top }, text(fill: rgb("#111111"), weight: 700, upper(kind)), grid.cell(stroke: (left: 0.75pt + rgb("#e5e7eb")), inset: (left: 12pt), body))))
 #let checkbox(checked) = box(height: 0.85em, width: 0.85em, baseline: 0.15em, radius: 2pt, stroke: 0.75pt + rgb("#9ca3af"), fill: if checked { rgb("#374151") } else { white })
 #let hr() = block(above: 1.2em, below: 1.2em, line(length: 100%, stroke: 0.75pt + rgb("#e5e7eb")))
-#let docimage(path, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
+#let docimage(path, alt: none, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
   let resolved-width = if ratio != none { ratio * size.width } else if width != none { calc.min(width, size.width) } else { size.width }
-  let content = image(path, width: resolved-width)
+  let content = image(path, alt: alt, width: resolved-width)
   if destination == none { content } else { link(destination, content) }
 }))
 #set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
@@ -77,48 +77,48 @@
 
 #text("Generic width only:")
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "SVG width", width: 90pt)
 
 #text("Generic width and ignored height:")
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 90pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "SVG width and height", width: 90pt)
 
 #text("Ignored height only:")
 
-#docimage("/images/de454d7e4e1cfda7.svg")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "SVG height")
 
 #text("PDF width only:")
 
-#block(width: 100%, radius: 4pt, clip: false)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]
+#block(width: 100%, radius: 4pt, clip: false)[#image("/images/de454d7e4e1cfda7.svg", alt: "SVG PDF width", width: 90pt)]
 
 #heading(level: 1)[#text("Block raster")] <id-5f626c6f636b5f726173746572>
 
 #text("Generic width only:")
 
-#docimage("/images/fe563ee2ab8c4caa.jpg", width: 90pt)
+#docimage("/images/fe563ee2ab8c4caa.jpg", alt: "Raster width", width: 90pt)
 
 #text("Generic width and ignored height:")
 
-#docimage("/images/fe563ee2ab8c4caa.jpg", width: 90pt)
+#docimage("/images/fe563ee2ab8c4caa.jpg", alt: "Raster width and height", width: 90pt)
 
 #text("PDF width only:")
 
-#block(width: 100%, radius: 4pt, clip: false)[#image("/images/fe563ee2ab8c4caa.jpg", width: 90pt)]
+#block(width: 100%, radius: 4pt, clip: false)[#image("/images/fe563ee2ab8c4caa.jpg", alt: "Raster PDF width", width: 90pt)]
 
 #heading(level: 1)[#text("Inline SVG")] <id-5f696e6c696e655f737667>
 
-#text("Width only: before ")#box(image("/images/de454d7e4e1cfda7.svg", width: 90pt))#text(" after.")
+#text("Width only: before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "SVG width", width: 90pt))#text(" after.")
 
-#text("Width and ignored height: before ")#box(image("/images/de454d7e4e1cfda7.svg", width: 90pt))#text(" after.")
+#text("Width and ignored height: before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "SVG width and height", width: 90pt))#text(" after.")
 
-#text("Ignored height only: before ")#box(image("/images/de454d7e4e1cfda7.svg"))#text(" after.")
+#text("Ignored height only: before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "SVG height"))#text(" after.")
 
-#text("PDF width only: before ")#box(image("/images/de454d7e4e1cfda7.svg", width: 90pt))#text(" after.")
+#text("PDF width only: before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "SVG PDF width", width: 90pt))#text(" after.")
 
 #heading(level: 1)[#text("Inline raster")] <id-5f696e6c696e655f726173746572>
 
-#text("Width only: before ")#box(image("/images/fe563ee2ab8c4caa.jpg", width: 90pt))#text(" after.")
+#text("Width only: before ")#box(image("/images/fe563ee2ab8c4caa.jpg", alt: "Raster width", width: 90pt))#text(" after.")
 
-#text("Width and ignored height: before ")#box(image("/images/fe563ee2ab8c4caa.jpg", width: 90pt))#text(" after.")
+#text("Width and ignored height: before ")#box(image("/images/fe563ee2ab8c4caa.jpg", alt: "Raster width and height", width: 90pt))#text(" after.")
 
-#text("PDF width only: before ")#box(image("/images/fe563ee2ab8c4caa.jpg", width: 90pt))#text(" after.")
+#text("PDF width only: before ")#box(image("/images/fe563ee2ab8c4caa.jpg", alt: "Raster PDF width", width: 90pt))#text(" after.")

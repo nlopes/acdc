@@ -47,9 +47,9 @@
 #let callout(kind, body) = pad(left: 0pt, block(width: 100%, inset: (x: 12pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: 12pt, align: (x, _) => if x == 0 { center + horizon } else { left + top }, text(fill: rgb("#111111"), weight: 700, upper(kind)), grid.cell(stroke: (left: 0.75pt + rgb("#e5e7eb")), inset: (left: 12pt), body))))
 #let checkbox(checked) = box(height: 0.85em, width: 0.85em, baseline: 0.15em, radius: 2pt, stroke: 0.75pt + rgb("#9ca3af"), fill: if checked { rgb("#374151") } else { white })
 #let hr() = block(above: 1.2em, below: 1.2em, line(length: 100%, stroke: 0.75pt + rgb("#e5e7eb")))
-#let docimage(path, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
+#let docimage(path, alt: none, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
   let resolved-width = if ratio != none { ratio * size.width } else if width != none { calc.min(width, size.width) } else { size.width }
-  let content = image(path, width: resolved-width)
+  let content = image(path, alt: alt, width: resolved-width)
   if destination == none { content } else { link(destination, content) }
 }))
 #set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
@@ -75,19 +75,19 @@
 
 #heading(level: 1)[#text("Left float")] <id-5f6c6566745f666c6f6174>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 150pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Left float", width: 150pt)
 
 #text("The paragraph after a left float contains enough text to make its position relative to the image easy to inspect. It continues across several phrases and extends beyond the height of the image.")
 
 #heading(level: 1)[#text("Right float")] <id-5f72696768745f666c6f6174>
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", width: 150pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", alt: "Right float", width: 150pt)]]
 
 #text("The paragraph after a right float contains enough text to make its position relative to the image easy to inspect. It continues across several phrases and extends beyond the height of the image.")
 
 #heading(level: 1)[#text("Consecutive paragraphs")] <id-5f636f6e73656375746976655f70617261677261706873>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 210pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Consecutive paragraphs", width: 210pt)
 
 #text("The first paragraph contains enough text to occupy part of the image height.")
 
@@ -95,28 +95,28 @@
 
 #heading(level: 1)[#text("Non-paragraph boundary")] <id-5f6e6f6e5f7061726167726170685f626f756e64617279>
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 150pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Listing boundary", width: 150pt)
 
 #raw(block: true, "This listing starts below the image.")
 
 #heading(level: 1)[#text("Full-width image")] <id-5f66756c6c5f77696474685f696d616765>
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", width: 100%)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", alt: "Full width", width: 100%)]]
 
 #text("This paragraph starts below an image that occupies the full available width.")
 
 #heading(level: 1)[#text("Float precedence")] <id-5f666c6f61745f707265636564656e6365>
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", width: 150pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#image("/images/de454d7e4e1cfda7.svg", alt: "Float overrides align", width: 150pt)]]
 
 #text("The valid right float takes precedence over the conflicting left alignment.")
 
 #heading(level: 1)[#text("Invalid float fallback")] <id-5f696e76616c69645f666c6f61745f66616c6c6261636b>
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", width: 150pt)]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Invalid float", width: 150pt)]]
 
 #text("An invalid float falls through to the valid centered alignment.")
 
 #heading(level: 1)[#text("Inline control")] <id-5f696e6c696e655f636f6e74726f6c>
 
-#text("Before ")#box(image("/images/de454d7e4e1cfda7.svg", width: 30pt))#text(" after.")
+#text("Before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Inline float", width: 30pt))#text(" after.")

@@ -47,9 +47,9 @@
 #let callout(kind, body) = pad(left: 0pt, block(width: 100%, inset: (x: 12pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: 12pt, align: (x, _) => if x == 0 { center + horizon } else { left + top }, text(fill: rgb("#111111"), weight: 700, upper(kind)), grid.cell(stroke: (left: 0.75pt + rgb("#e5e7eb")), inset: (left: 12pt), body))))
 #let checkbox(checked) = box(height: 0.85em, width: 0.85em, baseline: 0.15em, radius: 2pt, stroke: 0.75pt + rgb("#9ca3af"), fill: if checked { rgb("#374151") } else { white })
 #let hr() = block(above: 1.2em, below: 1.2em, line(length: 100%, stroke: 0.75pt + rgb("#e5e7eb")))
-#let docimage(path, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
+#let docimage(path, alt: none, width: none, ratio: none, destination: none) = block(width: 100%, radius: 4pt, clip: true, layout(size => {
   let resolved-width = if ratio != none { ratio * size.width } else if width != none { calc.min(width, size.width) } else { size.width }
-  let content = image(path, width: resolved-width)
+  let content = image(path, alt: alt, width: resolved-width)
   if destination == none { content } else { link(destination, content) }
 }))
 #set list(marker: (box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("#6b7280"))), box(baseline: -0.2em, circle(radius: 0.13em, stroke: 0.6pt + rgb("#6b7280"))), box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280")))))
@@ -77,49 +77,49 @@
 
 #heading(level: 2)[#text("Block images")] <id-5f626c6f636b5f696d61676573>
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/image?one=1&two=2")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "External link", destination: "https://example.com/image?one=1&two=2")
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "mailto:docs@example.com")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Email link", destination: "mailto:docs@example.com")
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "#local-target")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Document fragment", destination: "#local-target")
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "local-target")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Plain target", destination: "local-target")
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "none")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Named none", destination: "none")
 
-#docimage("/images/de454d7e4e1cfda7.svg")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Empty link")
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "not a valid uri")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Malformed link", destination: "not a valid uri")
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/from-attribute")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Substituted link", destination: "https://example.com/from-attribute")
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 75pt)
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Positional value", width: 75pt)
 
-#docimage("/images/de454d7e4e1cfda7.svg", width: 75pt, destination: "https://example.com/width")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Linked width", width: 75pt, destination: "https://example.com/width")
 
-#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#link("https://example.com/positioned")[#image("/images/de454d7e4e1cfda7.svg", width: 75pt)]]]
+#block(width: 100%, radius: 4pt, clip: true)[#align(right)[#link("https://example.com/positioned")[#image("/images/de454d7e4e1cfda7.svg", alt: "Positioned link", width: 75pt)]]]
 
-#docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/captioned")
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Captioned link", destination: "https://example.com/captioned")
 #imagecaption[#text("Figure 1. ")#text("Caption outside link")]
 
 #link("https://example.com/missing")[#text("[Missing linked image]")]#text(" | missing.svg")
 
 #heading(level: 2)[#text("Inline images")] <id-5f696e6c696e655f696d61676573>
 
-#text("External: ")#box(link("https://example.com/inline?one=1&two=2")[#image("/images/de454d7e4e1cfda7.svg")])
+#text("External: ")#box(link("https://example.com/inline?one=1&two=2")[#image("/images/de454d7e4e1cfda7.svg", alt: "External link")])
 
-#text("Email: ")#box(link("mailto:docs@example.com")[#image("/images/de454d7e4e1cfda7.svg")])
+#text("Email: ")#box(link("mailto:docs@example.com")[#image("/images/de454d7e4e1cfda7.svg", alt: "Email link")])
 
-#text("Document fragment: ")#box(link("#local-target")[#image("/images/de454d7e4e1cfda7.svg")])
+#text("Document fragment: ")#box(link("#local-target")[#image("/images/de454d7e4e1cfda7.svg", alt: "Document fragment")])
 
-#text("Plain target: ")#box(link("local-target")[#image("/images/de454d7e4e1cfda7.svg")])
+#text("Plain target: ")#box(link("local-target")[#image("/images/de454d7e4e1cfda7.svg", alt: "Plain target")])
 
-#text("Named none: ")#box(link("none")[#image("/images/de454d7e4e1cfda7.svg")])
+#text("Named none: ")#box(link("none")[#image("/images/de454d7e4e1cfda7.svg", alt: "Named none")])
 
-#text("Malformed link: ")#box(link("not a valid uri")[#image("/images/de454d7e4e1cfda7.svg")])
+#text("Malformed link: ")#box(link("not a valid uri")[#image("/images/de454d7e4e1cfda7.svg", alt: "Malformed link")])
 
-#text("Sized link: ")#box(link("https://example.com/sized")[#image("/images/de454d7e4e1cfda7.svg", width: 75pt)])
+#text("Sized link: ")#box(link("https://example.com/sized")[#image("/images/de454d7e4e1cfda7.svg", alt: "Sized link", width: 75pt)])
 
-#text("Scaled link: ")#box(link("https://example.com/scaled")[#scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg"))])
+#text("Scaled link: ")#box(link("https://example.com/scaled")[#scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Scaled link"))])
 
 #link("https://example.com/missing-inline")[#text("Missing linked inline image")]

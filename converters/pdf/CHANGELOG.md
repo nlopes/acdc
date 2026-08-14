@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tagged PDFs now include explicit or filename-derived alternative text for
+  embedded block and inline images. Asciidoctor PDF 2.3.15 does not emit tagged
+  PDF structure.
 - With source highlighting enabled, source blocks honor `linenums`, `start`,
   and `highlight`, including source paragraphs, blocks without a language,
   callouts, and wrapped lines. PDF continues to ignore HTML-only wrapping
