@@ -217,7 +217,7 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
     let caption_color = caption.font_color.as_deref().unwrap_or(&palette.body_text);
     let _ = writeln!(
         out,
-        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  block(width: 100%, above: {outside}pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}",
+        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  block(width: 100%, above: {outside}pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}\n#let imagecaption(body) = {{\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n  block(width: 100%, above: 0pt, below: {outside}pt, align({align}, captiontext(body)))\n}}",
         outside = typst_block_spacing(theme) + caption.margin_outside_pt,
         inside = caption.margin_inside_pt,
         align = caption_align,
@@ -692,6 +692,13 @@ mod tests {
             "  block(width: 100%, above: 22.15pt, below: 0pt, ",
             "align(center, captiontext(body)))\n",
             "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "}",
+        )));
+        assert!(out.contains(concat!(
+            "#let imagecaption(body) = {\n",
+            "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "  block(width: 100%, above: 0pt, below: 22.15pt, ",
+            "align(center, captiontext(body)))\n",
             "}",
         )));
         assert!(out.contains(concat!(

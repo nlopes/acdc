@@ -23,6 +23,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: std::rc::Rc::new(std::collections::HashMap::new()),
             xref_guard: acdc_converters_core::xref::XrefGuard::default(),
             example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            figure_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             listing_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             table_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
             pdf_options: PdfOptions::default(),

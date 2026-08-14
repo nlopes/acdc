@@ -28,6 +28,10 @@
   block(width: 100%, above: 19.15pt, below: 0pt, align(left, captiontext(body)))
   block(height: 8pt, above: 0pt, below: 0pt)
 }
+#let imagecaption(body) = {
+  block(height: 8pt, above: 0pt, below: 0pt)
+  block(width: 100%, above: 0pt, below: 19.15pt, align(left, captiontext(body)))
+}
 #let admonitiontitle(body) = {
   block(width: 100%, above: 0pt, below: 0pt, align(left, captiontext(body)))
   block(height: 8pt, above: 0pt, below: 0pt)
@@ -95,10 +99,10 @@
 
 #block(width: 100%, radius: 4pt, clip: true)[#align(right)[#link("https://example.com/positioned")[#image("/images/de454d7e4e1cfda7.svg", width: 75pt)]]]
 
-#blocktitle[#text("Caption outside link")]
 #docimage("/images/de454d7e4e1cfda7.svg", destination: "https://example.com/captioned")
+#imagecaption[#text("Figure 1. ")#text("Caption outside link")]
 
-#link("https://example.com/missing")[#text("Missing linked image")]
+#link("https://example.com/missing")[#text("[Missing linked image]")]#text(" | missing.svg")
 
 #heading(level: 2)[#text("Inline images")] <id-5f696e6c696e655f696d61676573>
 

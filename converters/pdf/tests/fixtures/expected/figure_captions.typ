@@ -1,7 +1,7 @@
 #set document(
-  title: "Untitled",
+  title: "Numbered figure captions",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Untitled]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Numbered figure captions]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -68,67 +68,26 @@
   text(weight: 700, body)
 }
 
-#text("First paragraph.")
-
-#text("Second paragraph.")
-
-#blocktitle[#text("Titled paragraph")]
-#text("Third paragraph.")
-
-  - #text("First item")
-  - #text("Second item")
-
-#text("Paragraph after a list.")
-
-#callout("note")[
-#text("A simple admonition.")
-
+#align(center)[
+#text(size: 22pt, weight: "bold")[#text("Numbered figure captions")]
 ]
+#v(1em)
 
-#raw(block: true, "A listing block.")
+#docimage("/images/de454d7e4e1cfda7.svg", width: 60pt)
+#imagecaption[#text("Figure 1. ")#text("First figure")]
 
-#blocktitle[#text("Example 1. ")#text("An example")]
-#examplebox[
-#text("Example body.")
+#docimage("/images/de454d7e4e1cfda7.svg", width: 60pt)
 
-]
+#block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", width: 90pt)]]
+#imagecaption[#text("Figure 2. ")#text("Second ")#strong[#text("formatted")]#text(" figure")]
 
-#raw(block: true, "A literal block.")
+#docimage("/images/de454d7e4e1cfda7.svg", width: 60pt, destination: "https://example.com/figure")
+#imagecaption[#text("Figure 3. ")#text("Linked figure")]
 
-#blockquote[
-#text("A quote block.")
-
-]
-
-#verse[#text("A verse block.")]
-
-#sidebarbox[
-#text("A sidebar block.")
-
-]
-
-#text("[Image fallback]")#text(" | missing.png")
-
-#text("First paragraph in an open block.")
-
-#text("Second paragraph in an open block.")
-
-  - #text("Item with continuation")
-#text("First continuation paragraph.")
+  - #text("List item")
+#docimage("/images/de454d7e4e1cfda7.svg", width: 60pt)
+#imagecaption[#text("Figure 4. ")#text("Nested figure")]
 
 
-#text("Second continuation paragraph.")
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("First table-cell paragraph.")
-
-#text("Second table-cell paragraph.")
-
-])
-
-#heading(level: 1)[#text("First section")] <id-5f66697273745f73656374696f6e>
-
-#text("First section paragraph.")
-
-#heading(level: 1)[#text("Second section")] <id-5f7365636f6e645f73656374696f6e>
-
-#text("Second section paragraph.")
+#text("[Missing image]")#text(" | missing.svg")
+#imagecaption[#text("Figure 5. ")#text("Missing figure")]

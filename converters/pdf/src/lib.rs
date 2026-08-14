@@ -94,6 +94,8 @@ pub struct Processor<'a> {
     pub(crate) xref_guard: XrefGuard,
     /// Fallback counter for example captions the parser did not number.
     pub(crate) example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for figure captions the parser did not number.
+    pub(crate) figure_counter: Rc<Cell<u32>>,
     /// Fallback counter for listing and source captions the parser did not number.
     pub(crate) listing_counter: Rc<Cell<u32>>,
     /// Fallback counter for table captions the parser did not number.
@@ -202,6 +204,9 @@ impl Processor<'_> {
         processor
             .example_counter
             .set(doc.highest_caption_number(CaptionKind::Example));
+        processor
+            .figure_counter
+            .set(doc.highest_caption_number(CaptionKind::Figure));
         processor
             .listing_counter
             .set(doc.highest_caption_number(CaptionKind::Listing));
@@ -769,7 +774,7 @@ fn encode_footnote_label(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_converters_core::{Converter, WarningSource};
-    use acdc_parser::{DelimitedBlock, Location, Paragraph, Plain, Title};
+    use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title};
     use tempfile::NamedTempFile;
 
     use super::*;
@@ -897,6 +902,37 @@ mod tests {
         assert!(text.contains("Table 1. Parsed table"), "{text}");
         assert!(text.contains("Table 2. Caller-built table"), "{text}");
         assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn caller_built_figure_titles_continue_figure_numbering()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            ".Parsed figure\nimage::missing-one.svg[First]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
+            .with_title(title("Caller-built figure"));
+        let Some(parsed_figure) = parsed.document().blocks.first().cloned() else {
+            return Err(std::io::Error::other("expected a block image").into());
+        };
+
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = vec![parsed_figure, Block::Image(caller_built)];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Figure 1. Parsed figure"), "{text}");
+        assert!(text.contains("Figure 2. Caller-built figure"), "{text}");
         Ok(())
     }
 

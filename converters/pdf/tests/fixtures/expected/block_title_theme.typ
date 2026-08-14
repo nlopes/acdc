@@ -28,6 +28,10 @@
   block(width: 100%, above: 22.15pt, below: 0pt, align(center, captiontext(body)))
   block(height: 8pt, above: 0pt, below: 0pt)
 }
+#let imagecaption(body) = {
+  block(height: 8pt, above: 0pt, below: 0pt)
+  block(width: 100%, above: 0pt, below: 22.15pt, align(center, captiontext(body)))
+}
 #let admonitiontitle(body) = {
   block(width: 100%, above: 0pt, below: 0pt, align(center, captiontext(body)))
   block(height: 8pt, above: 0pt, below: 0pt)

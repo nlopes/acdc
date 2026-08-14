@@ -780,11 +780,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
     ) -> Result<(), Error> {
+        self.write_captioned_title_with("blocktitle", title, metadata, fallback)
+    }
+
+    fn write_captioned_title_with(
+        &mut self,
+        wrapper: &str,
+        title: &Title<'_>,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Result<(), Error> {
         if title.is_empty() {
             return Ok(());
         }
         let prefix = self.caption_prefix(metadata, fallback);
-        self.writer.raw("#blocktitle[");
+        let _ = write!(self.writer, "#{wrapper}[");
         if let Some(prefix) = prefix {
             self.write_text_expr(&prefix);
         }
@@ -833,9 +843,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn next_caption_number(&self, kind: CaptionKind) -> u32 {
         let counter = match kind {
+            CaptionKind::Figure => &self.processor.figure_counter,
             CaptionKind::Listing => &self.processor.listing_counter,
             CaptionKind::Table => &self.processor.table_counter,
-            CaptionKind::Example | CaptionKind::Figure | _ => &self.processor.example_counter,
+            CaptionKind::Example | _ => &self.processor.example_counter,
         };
         let number = counter.get() + 1;
         counter.set(number);
@@ -1544,7 +1555,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 "rendering the image on the requested side with following content below it",
             );
         }
-        self.write_block_title(&image.title)?;
         let source = image.source.to_string();
         let link = image
             .metadata
@@ -1583,7 +1593,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.raw(", destination: ");
                     self.writer.string_literal(target);
                 }
-                self.writer.raw(")\n\n");
+                self.writer.raw(")\n");
             } else {
                 self.write_positioned_block_image(
                     &asset.virtual_path,
@@ -1593,18 +1603,39 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 );
             }
         } else {
-            if let Some(target) = &link {
-                self.writer.raw("#link(");
-                self.writer.string_literal(target);
-                self.writer.raw(")[");
-            }
-            self.write_text_expr(&image_fallback_text(image));
-            if link.is_some() {
-                self.writer.raw("]");
-            }
-            self.writer.raw("\n\n");
+            self.write_block_image_fallback(image, link.as_deref());
+            self.writer.raw("\n");
+        }
+        if image.title.is_empty() {
+            self.writer.raw("\n");
+        } else {
+            self.write_captioned_title_with(
+                "imagecaption",
+                &image.title,
+                &image.metadata,
+                Some(CaptionKind::Figure),
+            )?;
+            self.writer.raw("\n");
         }
         Ok(())
+    }
+
+    fn write_block_image_fallback(&mut self, image: &Image<'_>, link: Option<&str>) {
+        let alt = image
+            .metadata
+            .attributes
+            .get_string("alt")
+            .map_or_else(|| block_image_default_alt(image), Cow::into_owned);
+        if let Some(target) = link {
+            self.writer.raw("#link(");
+            self.writer.string_literal(target);
+            self.writer.raw(")[");
+        }
+        self.write_text_expr(&format!("[{alt}]"));
+        if link.is_some() {
+            self.writer.raw("]");
+        }
+        self.write_text_expr(&format!(" | {}", image.source));
     }
 
     fn write_positioned_block_image(
@@ -1677,7 +1708,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if alignment != BlockImageAlignment::Left {
             self.writer.raw("]");
         }
-        self.writer.raw("]\n\n");
+        self.writer.raw("]\n");
     }
 
     pub(crate) fn write_inline_image(&mut self, image: &Image<'_>) {
@@ -1734,7 +1765,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.writer.string_literal(target);
                 self.writer.raw(")[");
             }
-            self.write_text_expr(&image_fallback_text(image));
+            self.write_text_expr(&inline_image_fallback_text(image));
             if link.is_some() {
                 self.writer.raw("]");
             }
@@ -2414,7 +2445,7 @@ fn asciidoctor_background_colour(role: &str) -> Option<&'static str> {
     }
 }
 
-fn image_fallback_text(image: &Image<'_>) -> String {
+fn inline_image_fallback_text(image: &Image<'_>) -> String {
     if !image.title.is_empty() {
         return inlines_to_string(image.title.as_ref());
     }
@@ -2423,6 +2454,16 @@ fn image_fallback_text(image: &Image<'_>) -> String {
         .attributes
         .get_string("alt")
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
+}
+
+fn block_image_default_alt(image: &Image<'_>) -> String {
+    image
+        .source
+        .get_filename()
+        .and_then(|filename| std::path::Path::new(filename).file_stem())
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_default()
+        .replace(['-', '_'], " ")
 }
 
 fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {
