@@ -170,8 +170,10 @@
 ]
 
 #metadata(none) <id-696d6167652d6964>
+#block(width: 100%, breakable: false)[
 #text("[Missing image]")#text(" | missing.png")
 #imagecaption[#text("Figure 1. ")#text("Image Title")]
+]
 
 #metadata(none) <id-766964656f2d6964>
 #blocktitle[#text("Video Title")]

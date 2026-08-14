@@ -85,14 +85,20 @@
 #blocktitle[#text("Verse style")]
 #verse[#text("image::verse.png[Verse alt]")]
 
+#block(width: 100%, breakable: false)[
 #text("[Explicit alt]")#text(" | example.png")
 #imagecaption[#text("Figure 1. ")#text("Example positional value")]
+]
 
+#block(width: 100%, breakable: false)[
 #text("[Explicit alt]")#text(" | quote.png")
 #imagecaption[#text("Figure 2. ")#text("Quote positional value")]
+]
 
+#block(width: 100%, breakable: false)[
 #text("[custom]")#text(" | custom.png")
 #imagecaption[#text("Figure 3. ")#text("Custom positional fallback")]
+]
 
 #text("[role]")#text(" | role.png")
 
@@ -101,5 +107,7 @@
 #blocktitle[#text("Listing 3. ")#text("Listing after styled macros")]
 #raw(block: true, "plain listing text")
 
+#block(width: 100%, breakable: false)[
 #text("[Final alt]")#text(" | final.png")
 #imagecaption[#text("Figure 4. ")#text("Figure after styled macros")]
+]

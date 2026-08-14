@@ -1,0 +1,51 @@
+= Image page boundary
+:raster-image: ../../../../../acdc-parser/fixtures/samples/book-starter/chapter-03-How-Planet-Systems-Work/images/space.jpeg
+
+== Captioned image near the boundary
+
+Filler 1.
+
+Filler 2.
+
+Filler 3.
+
+Filler 4.
+
+Filler 5.
+
+Filler 6.
+
+Filler 7.
+
+Filler 8.
+
+Filler 9.
+
+Filler 10.
+
+Filler 11.
+
+Filler 12.
+
+Filler 13.
+
+Filler 14.
+
+Filler 15.
+
+Filler 16.
+
+Filler 17.
+
+Filler 18.
+
+Filler 19.
+
+Filler 20.
+
+Filler 21.
+
+Filler 22.
+
+.Boundary figure
+image::{raster-image}[Boundary raster,width=150]

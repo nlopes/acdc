@@ -73,21 +73,31 @@
 ]
 #v(1em)
 
+#block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "First image", width: 60pt)
 #imagecaption[#text("Figure 1. ")#text("First figure")]
+]
 
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Untitled image", width: 60pt)
 
+#block(width: 100%, breakable: false)[
 #block(width: 100%, radius: 4pt, clip: true)[#align(center)[#image("/images/de454d7e4e1cfda7.svg", alt: "Second image", width: 90pt)]]
 #imagecaption[#text("Figure 2. ")#text("Second ")#strong[#text("formatted")]#text(" figure")]
+]
 
+#block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Linked image", width: 60pt, destination: "https://example.com/figure")
 #imagecaption[#text("Figure 3. ")#text("Linked figure")]
+]
 
   - #text("List item")
+#block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Nested image", width: 60pt)
 #imagecaption[#text("Figure 4. ")#text("Nested figure")]
+]
 
 
+#block(width: 100%, breakable: false)[
 #text("[Missing image]")#text(" | missing.svg")
 #imagecaption[#text("Figure 5. ")#text("Missing figure")]
+]

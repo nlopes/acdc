@@ -1555,6 +1555,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 "rendering the image on the requested side with following content below it",
             );
         }
+        let has_caption = !image.title.is_empty();
+        if has_caption {
+            self.writer.raw("#block(width: 100%, breakable: false)[\n");
+        }
         let source = image.source.to_string();
         let alt = block_image_alt(image);
         let link = image
@@ -1610,15 +1614,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_block_image_fallback(image, &alt, link.as_deref());
             self.writer.raw("\n");
         }
-        if image.title.is_empty() {
-            self.writer.raw("\n");
-        } else {
+        if has_caption {
             self.write_captioned_title_with(
                 "imagecaption",
                 &image.title,
                 &image.metadata,
                 Some(CaptionKind::Figure),
             )?;
+            self.writer.raw("]\n\n");
+        } else {
             self.writer.raw("\n");
         }
         Ok(())

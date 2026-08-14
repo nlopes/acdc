@@ -135,6 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including linked and missing images. Missing images show their alt text and
   source target. Untitled and inline images do not consume a figure number,
   matching Asciidoctor PDF.
+- Captioned block images now stay with their captions across page breaks,
+  matching Asciidoctor PDF.
 - Figure captions honor custom, empty, and unset `figure-caption` values,
   document-level `caption`, and per-image `caption=` overrides. Disabled and
   explicit prefixes do not consume a figure number.

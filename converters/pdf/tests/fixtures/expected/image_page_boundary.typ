@@ -1,7 +1,7 @@
 #set document(
-  title: "Figure caption controls",
+  title: "Image page boundary",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Figure caption controls]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Image page boundary]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -69,58 +69,57 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Figure caption controls")]
+#text(size: 22pt, weight: "bold")[#text("Image page boundary")]
 ]
 #v(1em)
 
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Default", width: 60pt)
-#imagecaption[#text("Figure 1. ")#text("Default label")]
-]
+#heading(level: 1)[#text("Captioned image near the boundary")] <id-5f63617074696f6e65645f696d6167655f6e6561725f7468655f626f756e64617279>
+
+#text("Filler 1.")
+
+#text("Filler 2.")
+
+#text("Filler 3.")
+
+#text("Filler 4.")
+
+#text("Filler 5.")
+
+#text("Filler 6.")
+
+#text("Filler 7.")
+
+#text("Filler 8.")
+
+#text("Filler 9.")
+
+#text("Filler 10.")
+
+#text("Filler 11.")
+
+#text("Filler 12.")
+
+#text("Filler 13.")
+
+#text("Filler 14.")
+
+#text("Filler 15.")
+
+#text("Filler 16.")
+
+#text("Filler 17.")
+
+#text("Filler 18.")
+
+#text("Filler 19.")
+
+#text("Filler 20.")
+
+#text("Filler 21.")
+
+#text("Filler 22.")
 
 #block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Custom", width: 60pt)
-#imagecaption[#text("Illustration 2. ")#text("Custom document label")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Empty", width: 60pt)
-#imagecaption[#text(" 3. ")#text("Empty document label")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Disabled", width: 60pt)
-#imagecaption[#text("Disabled document label")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Restored", width: 60pt)
-#imagecaption[#text("Figure 4. ")#text("Restored document label")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Block custom", width: 60pt)
-#imagecaption[#text("Exhibit: ")#text("Custom block prefix")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Block empty", width: 60pt)
-#imagecaption[#text("")#text("Empty block prefix")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Bare", width: 60pt)
-#imagecaption[#text("Figure 5. ")#text("Bare caption marker")]
-]
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Generic", width: 60pt)
-#imagecaption[#text("Plate:")#text("Generic document prefix")]
-]
-
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Untitled", width: 60pt)
-
-#block(width: 100%, breakable: false)[
-#docimage("/images/de454d7e4e1cfda7.svg", alt: "Final", width: 60pt)
-#imagecaption[#text("Figure 6. ")#text("Final automatic caption")]
+#docimage("/images/fe563ee2ab8c4caa.jpg", alt: "Boundary raster", width: 112.5pt)
+#imagecaption[#text("Figure 1. ")#text("Boundary figure")]
 ]

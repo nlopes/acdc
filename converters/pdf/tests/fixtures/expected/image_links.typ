@@ -99,8 +99,10 @@
 
 #block(width: 100%, radius: 4pt, clip: true)[#align(right)[#link("https://example.com/positioned")[#image("/images/de454d7e4e1cfda7.svg", alt: "Positioned link", width: 75pt)]]]
 
+#block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Captioned link", destination: "https://example.com/captioned")
 #imagecaption[#text("Figure 1. ")#text("Caption outside link")]
+]
 
 #link("https://example.com/missing")[#text("[Missing linked image]")]#text(" | missing.svg")
 
