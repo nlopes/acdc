@@ -478,9 +478,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     let wrappers = self.write_inline_span_start(mono.id, mono.role);
                     let text = inlines_to_string(&mono.content);
                     let text = collapse_source_whitespace(&text);
-                    self.writer.raw("#raw(");
-                    self.writer.string_literal(&text);
-                    self.writer.raw(")");
+                    self.write_inline_verbatim(&text);
                     self.write_inline_span_end(wrappers);
                 }
                 InlineNode::HighlightText(highlight) => {

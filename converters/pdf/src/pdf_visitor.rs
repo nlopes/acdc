@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, rc::Rc};
+use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, ops::Range, rc::Rc};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effective_subs_flags};
@@ -28,11 +28,26 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{Error, Processor, encode_footnote_label};
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 enum TableCellSectionState {
     #[default]
     Outside,
-    Inside,
+    Inside {
+        width_columns: usize,
+    },
+}
+
+#[derive(Clone, Copy)]
+enum TableTextKind {
+    Text,
+    InlineVerbatim,
+    Literal,
+}
+
+#[derive(Clone, Copy)]
+enum TableColumnTrack {
+    Fraction(u32),
+    Percentage(u32),
 }
 
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
@@ -84,6 +99,7 @@ struct TableRenderContext<'table, 'source> {
     column_count: usize,
     row_count: usize,
     header_rows: usize,
+    column_width_columns: Vec<usize>,
 }
 
 #[derive(Clone, Copy)]
@@ -331,7 +347,62 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_text_expr(&mut self, text: &str) {
-        self.writer.raw("#text(");
+        if let Some(max_columns) = self.table_cell_text_break_columns() {
+            self.write_table_text_expr(text, max_columns, TableTextKind::Text);
+        } else {
+            self.write_text_or_raw_expr(text, TableTextKind::Text);
+        }
+    }
+
+    pub(crate) fn write_inline_verbatim(&mut self, text: &str) {
+        if let Some(max_columns) = self.table_cell_text_break_columns() {
+            self.write_table_text_expr(text, max_columns, TableTextKind::InlineVerbatim);
+        } else {
+            self.write_text_or_raw_expr(text, TableTextKind::InlineVerbatim);
+        }
+    }
+
+    fn write_table_literal(&mut self, text: &str) {
+        let max_columns = self.table_cell_text_break_columns().unwrap_or(usize::MAX);
+        self.write_table_text_expr(text, max_columns, TableTextKind::Literal);
+    }
+
+    fn write_table_text_expr(&mut self, text: &str, max_columns: usize, kind: TableTextKind) {
+        let ranges = long_unbreakable_ranges(text, max_columns);
+        if ranges.is_empty() {
+            self.write_text_or_raw_expr(text, kind);
+            return;
+        }
+
+        let mut previous_end = 0;
+        for range in ranges {
+            if range.start > previous_end {
+                self.write_text_or_raw_expr(&text[previous_end..range.start], kind);
+            }
+            self.writer.raw("#(");
+            self.writer.string_literal(&text[range.clone()]);
+            if matches!(kind, TableTextKind::InlineVerbatim | TableTextKind::Literal) {
+                self.writer.raw(concat!(
+                    ".clusters().map(value => raw(block: false, value))",
+                    ".join(box(width: 0pt)))",
+                ));
+            } else {
+                self.writer
+                    .raw(".clusters().map(text).join(box(width: 0pt)))");
+            }
+            previous_end = range.end;
+        }
+        if previous_end < text.len() {
+            self.write_text_or_raw_expr(&text[previous_end..], kind);
+        }
+    }
+
+    fn write_text_or_raw_expr(&mut self, text: &str, kind: TableTextKind) {
+        self.writer.raw(match kind {
+            TableTextKind::Text => "#text(",
+            TableTextKind::InlineVerbatim => "#raw(",
+            TableTextKind::Literal => "#raw(block: false, ",
+        });
         self.writer.string_literal(text);
         self.writer.raw(")");
     }
@@ -767,14 +838,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else {
             SourceLineOptions::default()
         };
+        let wrap_columns = self
+            .table_cell_code_wrap_columns()
+            .unwrap_or(self.code_wrap_columns);
         if options.is_empty() {
-            let source = wrap_code_text(&source, self.code_wrap_columns, tab_size);
+            let source = wrap_code_text(&source, wrap_columns, tab_size);
             self.write_raw_block(&source, metadata);
             return;
         }
 
         let (source, source_lines) =
-            wrap_code_text_with_line_origins(&source, self.code_wrap_columns, tab_size);
+            wrap_code_text_with_line_origins(&source, wrap_columns, tab_size);
         if source_lines.is_empty() {
             self.write_raw_block(&source, metadata);
             return;
@@ -1043,7 +1117,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, "#table(columns: {column_count}");
         } else {
             let tracks = table_column_tracks(table, column_count);
-            let _ = write!(self.writer, "#table(columns: {tracks}");
+            let _ = write!(
+                self.writer,
+                "#table(columns: {}",
+                typst_table_column_tracks(&tracks)
+            );
         }
         let alignments = table_column_alignments(table, column_count);
         let _ = write!(self.writer, ", align: {alignments}, stroke: none");
@@ -1054,12 +1132,25 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         });
         let header_rows = usize::from(grid.first().is_some_and(|row| row.is_header));
         let row_count = grid.len();
+        let available_columns = self
+            .table_cell_code_wrap_columns()
+            .unwrap_or(self.code_wrap_columns)
+            .saturating_mul(usize::from(width.unwrap_or(100)))
+            / 100;
         let context = TableRenderContext {
             table,
             presentation,
             column_count,
             row_count,
             header_rows,
+            column_width_columns: if autowidth && !constrained {
+                equal_table_column_widths(column_count, available_columns)
+            } else {
+                table_column_width_columns(
+                    &table_column_tracks(table, column_count),
+                    available_columns,
+                )
+            },
         };
         if let Some(header) = grid.first().filter(|row| row.is_header) {
             self.writer.raw(", table.header(repeat: true, ");
@@ -1221,7 +1312,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_table_cell_stroke(context, cell, position);
         self.write_table_cell_fill(context, position);
         self.writer.raw(")[");
-        self.write_table_cell_content(cell, position.is_header)?;
+        let outer_cell_state = std::mem::replace(
+            &mut self.table_cell_section_state,
+            TableCellSectionState::Inside {
+                width_columns: table_cell_width_columns(context, x, cell.colspan),
+            },
+        );
+        let result = self.write_table_cell_content(cell, position.is_header);
+        self.table_cell_section_state = outer_cell_state;
+        result?;
         self.writer.raw("]");
         Ok(())
     }
@@ -1332,9 +1431,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if style == Some(ColumnStyle::Literal)
             && let Some(text) = literal_table_cell_text(&cell.content)
         {
-            self.writer.raw("#raw(block: false, ");
-            self.writer.string_literal(&text);
-            self.writer.raw(")");
+            self.write_table_literal(&text);
             return Ok(());
         }
 
@@ -1363,19 +1460,35 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_asciidoc_table_cell(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {
-        let outer_cell_state = std::mem::replace(
-            &mut self.table_cell_section_state,
-            TableCellSectionState::Inside,
-        );
-
-        let result = self.write_blocks(blocks);
-
-        self.table_cell_section_state = outer_cell_state;
-        result
+        self.write_blocks(blocks)
     }
 
     pub(super) fn in_asciidoc_table_cell(&self) -> bool {
-        matches!(self.table_cell_section_state, TableCellSectionState::Inside)
+        self.in_table_cell()
+    }
+
+    fn in_table_cell(&self) -> bool {
+        matches!(
+            self.table_cell_section_state,
+            TableCellSectionState::Inside { .. }
+        )
+    }
+
+    fn table_cell_code_wrap_columns(&self) -> Option<usize> {
+        self.table_cell_width_columns()
+            .map(|columns| columns.saturating_sub(4).max(1))
+    }
+
+    fn table_cell_text_break_columns(&self) -> Option<usize> {
+        self.table_cell_width_columns()
+            .map(|columns| columns.saturating_sub(2).max(4))
+    }
+
+    fn table_cell_width_columns(&self) -> Option<usize> {
+        match self.table_cell_section_state {
+            TableCellSectionState::Inside { width_columns } => Some(width_columns),
+            TableCellSectionState::Outside => None,
+        }
     }
 
     pub(crate) fn write_block_image(&mut self, image: &Image<'_>) -> Result<(), Error> {
@@ -1434,9 +1547,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             InlineMacro::Image(image) => self.write_inline_image(image),
             InlineMacro::Keyboard(keyboard) => {
                 let joined = keyboard.keys.join("+");
-                self.writer.raw("#raw(");
-                self.writer.string_literal(&joined);
-                self.writer.raw(")");
+                self.write_inline_verbatim(&joined);
             }
             InlineMacro::Button(button) => self.write_text_expr(button.label),
             InlineMacro::Menu(menu) => {
@@ -1544,9 +1655,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 }
 
-fn table_column_tracks(table: &Table<'_>, column_count: usize) -> String {
+fn table_column_tracks(table: &Table<'_>, column_count: usize) -> Vec<TableColumnTrack> {
     if table.columns.is_empty() {
-        return format!("({})", vec!["1fr"; column_count].join(", "));
+        return vec![TableColumnTrack::Fraction(1); column_count];
     }
 
     let has_automatic_width = table
@@ -1567,30 +1678,96 @@ fn table_column_tracks(table: &Table<'_>, column_count: usize) -> String {
     let fixed_widths_fit = fixed_width_total <= 100;
     let all_fixed_widths_are_zero = !has_automatic_width && fixed_width_total == 0;
 
-    let tracks = table
+    table
         .columns
         .iter()
         .map(|column| match column.width {
             ColumnWidth::Proportional(_) | ColumnWidth::Percentage(_)
                 if all_fixed_widths_are_zero =>
             {
-                "1fr".to_string()
+                TableColumnTrack::Fraction(1)
             }
             ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width)
                 if has_automatic_width && fixed_widths_fit =>
             {
-                format!("{width}%")
+                TableColumnTrack::Percentage(width)
             }
             ColumnWidth::Proportional(width) | ColumnWidth::Percentage(width) => {
-                format!("{width}fr")
+                TableColumnTrack::Fraction(width)
             }
-            ColumnWidth::Auto if fixed_widths_fit => "1fr".to_string(),
-            ColumnWidth::Auto => "0fr".to_string(),
-            _ => "1fr".to_string(),
+            ColumnWidth::Auto if fixed_widths_fit => TableColumnTrack::Fraction(1),
+            ColumnWidth::Auto => TableColumnTrack::Fraction(0),
+            _ => TableColumnTrack::Fraction(1),
+        })
+        .collect()
+}
+
+fn typst_table_column_tracks(tracks: &[TableColumnTrack]) -> String {
+    let tracks = tracks
+        .iter()
+        .map(|track| match track {
+            TableColumnTrack::Fraction(width) => format!("{width}fr"),
+            TableColumnTrack::Percentage(width) => format!("{width}%"),
         })
         .collect::<Vec<_>>();
-
     format!("({})", tracks.join(", "))
+}
+
+fn table_cell_width_columns(
+    context: &TableRenderContext<'_, '_>,
+    column: usize,
+    colspan: usize,
+) -> usize {
+    let span_end = column.saturating_add(colspan).min(context.column_count);
+    context
+        .column_width_columns
+        .get(column..span_end)
+        .unwrap_or_default()
+        .iter()
+        .copied()
+        .sum::<usize>()
+        .max(1)
+}
+
+fn equal_table_column_widths(column_count: usize, table_columns: usize) -> Vec<usize> {
+    let width = table_columns
+        .checked_div(column_count)
+        .unwrap_or(table_columns);
+    vec![width; column_count]
+}
+
+fn table_column_width_columns(tracks: &[TableColumnTrack], table_columns: usize) -> Vec<usize> {
+    let percentage_total = tracks
+        .iter()
+        .filter_map(|track| match track {
+            TableColumnTrack::Percentage(width) => Some(usize::try_from(*width).unwrap_or(100)),
+            TableColumnTrack::Fraction(_) => None,
+        })
+        .sum::<usize>()
+        .min(100);
+    let fraction_total = tracks
+        .iter()
+        .filter_map(|track| match track {
+            TableColumnTrack::Fraction(width) => {
+                Some(usize::try_from(*width).unwrap_or(usize::MAX))
+            }
+            TableColumnTrack::Percentage(_) => None,
+        })
+        .sum::<usize>();
+    let fraction_columns = table_columns.saturating_mul(100 - percentage_total) / 100;
+
+    tracks
+        .iter()
+        .map(|track| match track {
+            TableColumnTrack::Percentage(width) => {
+                table_columns.saturating_mul(usize::try_from(*width).unwrap_or(100)) / 100
+            }
+            TableColumnTrack::Fraction(width) => fraction_columns
+                .saturating_mul(usize::try_from(*width).unwrap_or(usize::MAX))
+                .checked_div(fraction_total)
+                .unwrap_or(0),
+        })
+        .collect()
 }
 
 fn table_width(metadata: &BlockMetadata<'_>) -> Option<u8> {
@@ -1746,6 +1923,32 @@ pub(crate) fn collapse_source_whitespace(text: &str) -> Cow<'_, str> {
         }
     }
     Cow::Owned(collapsed)
+}
+
+fn long_unbreakable_ranges(text: &str, max_columns: usize) -> Vec<Range<usize>> {
+    let mut ranges = Vec::new();
+    let mut run_start = None;
+    let mut run_columns = 0;
+
+    for (index, character) in text.char_indices() {
+        if character.is_alphanumeric()
+            || character == '_'
+            || UnicodeWidthChar::width(character) == Some(0)
+        {
+            run_start.get_or_insert(index);
+            run_columns += UnicodeWidthChar::width(character).unwrap_or(0);
+        } else {
+            if run_columns > max_columns {
+                ranges.push(run_start.unwrap_or(index)..index);
+            }
+            run_start = None;
+            run_columns = 0;
+        }
+    }
+    if run_columns > max_columns {
+        ranges.push(run_start.unwrap_or(text.len())..text.len());
+    }
+    ranges
 }
 
 fn wrap_code_text(text: &str, max_columns: usize, tab_size: usize) -> Cow<'_, str> {
@@ -2014,7 +2217,17 @@ fn literal_table_cell_text(blocks: &[Block<'_>]) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{expand_code_tabs, wrap_code_text, wrap_code_text_with_line_origins};
+    use super::{
+        expand_code_tabs, long_unbreakable_ranges, wrap_code_text, wrap_code_text_with_line_origins,
+    };
+
+    #[test]
+    fn table_break_ranges_select_only_long_uninterrupted_runs() {
+        let ranges = long_unbreakable_ranges("short abcdefghij after", 8);
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(ranges.first(), Some(&(6..16)));
+        assert!(long_unbreakable_ranges("one two three", 8).is_empty());
+    }
 
     #[test]
     fn code_wrapping_preserves_whitespace_and_terminal_newlines() {

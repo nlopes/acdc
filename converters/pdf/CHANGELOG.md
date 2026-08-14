@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Wide table cells now wrap long uninterrupted text, monospace and literal
+  content, and nested source blocks instead of clipping or overlapping nearby
+  cells, matching `asciidoctor-pdf`.
 - Tables honor `frame`, `grid`, and static `stripes` values, including
   source-order `table-frame`, `table-grid`, and `table-stripes` defaults.
   Headers, footers, and merged cells keep their correct rules and fills. Unlike
