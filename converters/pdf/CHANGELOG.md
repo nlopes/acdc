@@ -113,6 +113,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and percentage `width` values instead of being forced to the text height.
   Generic `height` and unit-suffixed `width` values remain ignored, matching
   Asciidoctor PDF.
+- Block and inline images now honor `pdfwidth`, which overrides `width` and
+  accepts PDF units, percentages, and intrinsic-width scaling. Block images
+  also accept page-width scaling, matching Asciidoctor PDF.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.

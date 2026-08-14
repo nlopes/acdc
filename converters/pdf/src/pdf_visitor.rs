@@ -52,8 +52,16 @@ enum TableColumnTrack {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum ImageWidth {
-    Points(f64),
-    Ratio(f64),
+    Points {
+        value: f64,
+        constrain_to_bounds: bool,
+    },
+    ContainerRatio {
+        value: f64,
+        constrain_to_bounds: bool,
+    },
+    IntrinsicRatio(f64),
+    ViewportRatio(f64),
 }
 
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
@@ -65,6 +73,8 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     code_wrap_columns: usize,
     palette: &'m Palette,
     table_theme: &'m TableTheme,
+    image_radius_pt: f64,
+    page_width_pt: f64,
     pub(crate) chapter_signifier: Option<String>,
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
@@ -142,6 +152,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         processor: Processor<'a>,
         assets: &'m ImageMap,
         theme: &'m Theme,
+        page_width_pt: f64,
         code_wrap_columns: usize,
         toc_entries: Vec<TocEntry<'a>>,
         diagnostics: Diagnostics<'d>,
@@ -177,6 +188,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             code_wrap_columns,
             palette: &theme.palette,
             table_theme: &theme.table,
+            image_radius_pt: theme.spacing.image_radius_pt,
+            page_width_pt,
             chapter_signifier,
             list_depth: 0,
             in_inline_span: false,
@@ -1501,18 +1514,30 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_block_title(&image.title)?;
         let source = image.source.to_string();
         if let Some(asset) = self.assets.get(&source) {
-            self.writer.raw("#docimage(");
-            self.writer.string_literal(&asset.virtual_path);
-            match image_width(&image.metadata) {
-                Some(ImageWidth::Points(points)) => {
-                    let _ = write!(self.writer, ", width: {points}pt");
+            match image_width(&image.metadata, true) {
+                Some(ImageWidth::Points {
+                    value,
+                    constrain_to_bounds: true,
+                }) => {
+                    self.writer.raw("#docimage(");
+                    self.writer.string_literal(&asset.virtual_path);
+                    let _ = write!(self.writer, ", width: {value}pt)\n\n");
                 }
-                Some(ImageWidth::Ratio(ratio)) => {
-                    let _ = write!(self.writer, ", ratio: {ratio}");
+                Some(ImageWidth::ContainerRatio {
+                    value,
+                    constrain_to_bounds: true,
+                }) => {
+                    self.writer.raw("#docimage(");
+                    self.writer.string_literal(&asset.virtual_path);
+                    let _ = write!(self.writer, ", ratio: {value})\n\n");
                 }
-                None => {}
+                Some(width) => self.write_pdf_width_block_image(&asset.virtual_path, width),
+                None => {
+                    self.writer.raw("#docimage(");
+                    self.writer.string_literal(&asset.virtual_path);
+                    self.writer.raw(")\n\n");
+                }
             }
-            self.writer.raw(")\n\n");
         } else {
             self.write_text_expr(&image_fallback_text(image));
             self.writer.raw("\n\n");
@@ -1520,21 +1545,94 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    fn write_pdf_width_block_image(&mut self, path: &str, width: ImageWidth) {
+        let _ = write!(
+            self.writer,
+            "#block(width: 100%, radius: {}pt, clip: false)[",
+            self.image_radius_pt
+        );
+        match width {
+            ImageWidth::Points { value, .. } => {
+                self.writer.raw("#image(");
+                self.writer.string_literal(path);
+                let _ = write!(self.writer, ", width: {value}pt)");
+            }
+            ImageWidth::ContainerRatio { value, .. } => {
+                self.writer.raw("#image(");
+                self.writer.string_literal(path);
+                let _ = write!(self.writer, ", width: {}%)", value * 100.0);
+            }
+            ImageWidth::IntrinsicRatio(ratio) => {
+                let _ = write!(
+                    self.writer,
+                    "#scale(x: {}%, y: {}%, reflow: true, image(",
+                    ratio * 100.0,
+                    ratio * 100.0
+                );
+                self.writer.string_literal(path);
+                self.writer.raw("))");
+            }
+            ImageWidth::ViewportRatio(ratio) => {
+                self.writer.raw("#image(");
+                self.writer.string_literal(path);
+                let _ = write!(
+                    self.writer,
+                    ", width: {}pt)",
+                    ratio * self.page_width_pt
+                );
+            }
+        }
+        self.writer.raw("]\n\n");
+    }
+
     pub(crate) fn write_inline_image(&mut self, image: &Image<'_>) {
         let source = image.source.to_string();
         if let Some(asset) = self.assets.get(&source) {
-            self.writer.raw("#box(image(");
-            self.writer.string_literal(&asset.virtual_path);
-            match image_width(&image.metadata) {
-                Some(ImageWidth::Points(points)) => {
-                    let _ = write!(self.writer, ", width: {points}pt");
+            self.writer.raw("#box(");
+            match image_width(&image.metadata, false) {
+                Some(ImageWidth::IntrinsicRatio(ratio)) => {
+                    let _ = write!(
+                        self.writer,
+                        "scale(x: {}%, y: {}%, reflow: true, image(",
+                        ratio * 100.0,
+                        ratio * 100.0
+                    );
+                    self.writer.string_literal(&asset.virtual_path);
+                    self.writer.raw("))");
                 }
-                Some(ImageWidth::Ratio(ratio)) => {
-                    let _ = write!(self.writer, ", width: {}%", ratio * 100.0);
+                width => {
+                    self.writer.raw("image(");
+                    self.writer.string_literal(&asset.virtual_path);
+                    match width {
+                        Some(ImageWidth::Points {
+                            value,
+                            constrain_to_bounds: false,
+                        }) => {
+                            let _ = write!(self.writer, ", width: {value}pt");
+                        }
+                        Some(ImageWidth::Points { value, .. }) => {
+                            let _ = write!(self.writer, ", width: {value}pt");
+                        }
+                        Some(ImageWidth::ContainerRatio { value, .. }) => {
+                            let _ = write!(
+                                self.writer,
+                                ", width: {}%",
+                                value.min(1.0) * 100.0
+                            );
+                        }
+                        Some(ImageWidth::ViewportRatio(ratio)) => {
+                            let _ = write!(
+                                self.writer,
+                                ", width: {}pt",
+                                ratio * self.page_width_pt
+                            );
+                        }
+                        Some(ImageWidth::IntrinsicRatio(_)) | None => {}
+                    }
+                    self.writer.raw(")");
                 }
-                None => {}
             }
-            self.writer.raw("))");
+            self.writer.raw(")");
         } else {
             self.write_text_expr(&image_fallback_text(image));
         }
@@ -2224,20 +2322,97 @@ fn image_fallback_text(image: &Image<'_>) -> String {
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
 }
 
-fn image_width(metadata: &BlockMetadata<'_>) -> Option<ImageWidth> {
+fn image_width(metadata: &BlockMetadata<'_>, supports_viewport_width: bool) -> Option<ImageWidth> {
+    if let Some(value) = metadata.attributes.get("pdfwidth") {
+        let value = match value {
+            AttributeValue::String(value) => value.as_ref(),
+            _ => "",
+        };
+        return Some(pdf_image_width(value, supports_viewport_width));
+    }
+
     let width = metadata.attributes.get_string("width")?;
     if let Some(percentage) = width.strip_suffix('%') {
         let percentage = percentage.parse::<f64>().ok()?;
         return (percentage.is_finite() && percentage >= 0.0)
-            .then(|| ImageWidth::Ratio((percentage / 100.0).min(1.0)));
+            .then(|| ImageWidth::ContainerRatio {
+                value: (percentage / 100.0).min(1.0),
+                constrain_to_bounds: true,
+            });
     }
     if width.is_empty() || !width.bytes().all(|byte| byte.is_ascii_digit()) {
         return None;
     }
     let pixels = width.parse::<f64>().ok()?;
-    pixels
-        .is_finite()
-        .then_some(ImageWidth::Points(pixels * 0.75))
+    pixels.is_finite().then_some(ImageWidth::Points {
+        value: pixels * 0.75,
+        constrain_to_bounds: true,
+    })
+}
+
+fn pdf_image_width(width: &str, supports_viewport_width: bool) -> ImageWidth {
+    if let Some(percentage) = width.strip_suffix('%') {
+        return ImageWidth::ContainerRatio {
+            value: leading_number(percentage) / 100.0,
+            constrain_to_bounds: false,
+        };
+    }
+    if let Some(percentage) = width.strip_suffix("iw") {
+        return ImageWidth::IntrinsicRatio(leading_number(percentage) / 100.0);
+    }
+    if supports_viewport_width
+        && let Some(percentage) = width.strip_suffix("vw")
+    {
+        return ImageWidth::ViewportRatio(leading_number(percentage) / 100.0);
+    }
+
+    ImageWidth::Points {
+        value: measurement_points(width),
+        constrain_to_bounds: false,
+    }
+}
+
+fn measurement_points(value: &str) -> f64 {
+    const POINTS_PER_INCH: f64 = 72.0;
+    let units = [
+        ("pt", 1.0),
+        ("px", 0.75),
+        ("in", POINTS_PER_INCH),
+        ("cm", POINTS_PER_INCH / 2.54),
+        ("mm", POINTS_PER_INCH / 25.4),
+        ("pc", 12.0),
+    ];
+    for (suffix, factor) in units {
+        if let Some(number) = value.strip_suffix(suffix) {
+            return leading_number(number) * factor;
+        }
+    }
+    leading_number(value)
+}
+
+fn leading_number(value: &str) -> f64 {
+    let bytes = value.as_bytes();
+    let mut end = usize::from(matches!(bytes.first(), Some(b'+' | b'-')));
+    let mut saw_digit = false;
+    let mut saw_dot = false;
+
+    while let Some(byte) = bytes.get(end) {
+        match byte {
+            b'0'..=b'9' => saw_digit = true,
+            b'.' if !saw_dot => saw_dot = true,
+            _ => break,
+        }
+        end += 1;
+    }
+
+    if !saw_digit {
+        return 0.0;
+    }
+    value[..end]
+        .parse::<f64>()
+        .ok()
+        .filter(|number| number.is_finite())
+        .unwrap_or(0.0)
 }
 
 fn literal_table_cell_text(blocks: &[Block<'_>]) -> Option<String> {
@@ -2258,8 +2433,8 @@ fn literal_table_cell_text(blocks: &[Block<'_>]) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        ImageWidth, expand_code_tabs, image_width, long_unbreakable_ranges, wrap_code_text,
-        wrap_code_text_with_line_origins,
+        ImageWidth, expand_code_tabs, image_width, long_unbreakable_ranges, measurement_points,
+        wrap_code_text, wrap_code_text_with_line_origins,
     };
     use acdc_parser::{AttributeValue, BlockMetadata};
 
@@ -2274,20 +2449,88 @@ mod tests {
     #[test]
     fn image_width_matches_asciidoctor_pdf_units() {
         assert_eq!(
-            image_width(&metadata_with_width("120")),
-            Some(ImageWidth::Points(90.0))
+            image_width(&metadata_with_width("120"), true),
+            Some(ImageWidth::Points {
+                value: 90.0,
+                constrain_to_bounds: true,
+            })
         );
         assert_eq!(
-            image_width(&metadata_with_width("40%")),
-            Some(ImageWidth::Ratio(0.4))
+            image_width(&metadata_with_width("40%"), true),
+            Some(ImageWidth::ContainerRatio {
+                value: 0.4,
+                constrain_to_bounds: true,
+            })
         );
         assert_eq!(
-            image_width(&metadata_with_width("150%")),
-            Some(ImageWidth::Ratio(1.0))
+            image_width(&metadata_with_width("150%"), true),
+            Some(ImageWidth::ContainerRatio {
+                value: 1.0,
+                constrain_to_bounds: true,
+            })
         );
         for ignored in ["120px", "12.5", "-1", "invalid%"] {
-            assert_eq!(image_width(&metadata_with_width(ignored)), None);
+            assert_eq!(image_width(&metadata_with_width(ignored), true), None);
         }
+    }
+
+    #[test]
+    fn pdfwidth_overrides_width_and_uses_pdf_measurements() {
+        let mut metadata = metadata_with_width("40");
+        metadata
+            .attributes
+            .set("pdfwidth".into(), AttributeValue::String("60".into()));
+        assert_eq!(
+            image_width(&metadata, true),
+            Some(ImageWidth::Points {
+                value: 60.0,
+                constrain_to_bounds: false,
+            })
+        );
+
+        assert_eq!(measurement_points("40pt"), 40.0);
+        assert_eq!(measurement_points("40px"), 30.0);
+        assert_eq!(measurement_points("1in"), 72.0);
+        assert_eq!(measurement_points("2.54cm"), 72.0);
+        assert_eq!(measurement_points("25.4mm"), 72.0);
+        assert_eq!(measurement_points("6pc"), 72.0);
+        assert_eq!(measurement_points("12.5"), 12.5);
+        assert_eq!(measurement_points("40unknown"), 40.0);
+        assert_eq!(measurement_points("invalid"), 0.0);
+    }
+
+    #[test]
+    fn pdfwidth_supports_container_intrinsic_and_block_viewport_units() {
+        let metadata_with_pdfwidth = |width: &'static str| {
+            let mut metadata = BlockMetadata::default();
+            metadata
+                .attributes
+                .set("pdfwidth".into(), AttributeValue::String(width.into()));
+            metadata
+        };
+
+        assert_eq!(
+            image_width(&metadata_with_pdfwidth("200%"), true),
+            Some(ImageWidth::ContainerRatio {
+                value: 2.0,
+                constrain_to_bounds: false,
+            })
+        );
+        assert_eq!(
+            image_width(&metadata_with_pdfwidth("50iw"), true),
+            Some(ImageWidth::IntrinsicRatio(0.5))
+        );
+        assert_eq!(
+            image_width(&metadata_with_pdfwidth("50vw"), true),
+            Some(ImageWidth::ViewportRatio(0.5))
+        );
+        assert_eq!(
+            image_width(&metadata_with_pdfwidth("50vw"), false),
+            Some(ImageWidth::Points {
+                value: 50.0,
+                constrain_to_bounds: false,
+            })
+        );
     }
 
     #[test]

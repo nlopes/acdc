@@ -212,6 +212,7 @@ impl Processor<'_> {
             processor,
             assets,
             theme,
+            page_width_points(emit_options.page),
             code_wrap_columns(theme, emit_options.page),
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
@@ -402,10 +403,7 @@ fn code_wrap_columns(theme: &Theme, page: PageSize) -> usize {
     const RAW_FONT_SIZE_EM: f64 = 0.8;
     const MONOSPACE_CELL_WIDTH_EM: f64 = 0.6;
 
-    let page_width_pt = match page {
-        PageSize::A4 => 595.276,
-        PageSize::Letter => 612.0,
-    };
+    let page_width_pt = page_width_points(page);
     let content_width_pt = page_width_pt
         - 2.0 * theme.spacing.margin_x_cm * CM_TO_PT
         - 2.0 * theme.spacing.code_pad_pt;
@@ -413,6 +411,13 @@ fn code_wrap_columns(theme: &Theme, page: PageSize) -> usize {
     (content_width_pt / cell_width_pt)
         .floor()
         .clamp(20.0, 160.0) as usize
+}
+
+const fn page_width_points(page: PageSize) -> f64 {
+    match page {
+        PageSize::A4 => 595.276,
+        PageSize::Letter => 612.0,
+    }
 }
 
 fn read_theme_file(path: &Path) -> Result<String, Error> {
