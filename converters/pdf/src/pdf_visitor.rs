@@ -1593,14 +1593,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let clip = matches!(
             width,
             None
-                | Some(ImageWidth::Points {
-                    constrain_to_bounds: true,
-                    ..
-                })
-                | Some(ImageWidth::ContainerRatio {
-                    constrain_to_bounds: true,
-                    ..
-                })
+                | Some(
+                    ImageWidth::Points {
+                        constrain_to_bounds: true,
+                        ..
+                    } | ImageWidth::ContainerRatio {
+                        constrain_to_bounds: true,
+                        ..
+                    }
+                )
         );
         let _ = write!(
             self.writer,
@@ -1671,12 +1672,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.writer.raw("image(");
                     self.writer.string_literal(&asset.virtual_path);
                     match width {
-                        Some(ImageWidth::Points {
-                            value,
-                            constrain_to_bounds: false,
-                        }) => {
-                            let _ = write!(self.writer, ", width: {value}pt");
-                        }
                         Some(ImageWidth::Points { value, .. }) => {
                             let _ = write!(self.writer, ", width: {value}pt");
                         }
@@ -2408,9 +2403,10 @@ fn block_image_alignment(metadata: &BlockMetadata<'_>) -> BlockImageAlignment {
 
 fn image_width(metadata: &BlockMetadata<'_>, supports_viewport_width: bool) -> Option<ImageWidth> {
     if let Some(value) = metadata.attributes.get("pdfwidth") {
-        let value = match value {
-            AttributeValue::String(value) => value.as_ref(),
-            _ => "",
+        let value = if let AttributeValue::String(value) = value {
+            value.as_ref()
+        } else {
+            ""
         };
         return Some(pdf_image_width(value, supports_viewport_width));
     }
@@ -2531,6 +2527,14 @@ mod tests {
         metadata
     }
 
+    fn assert_measurement(input: &str, expected: f64) {
+        let actual = measurement_points(input);
+        assert!(
+            (actual - expected).abs() < 1e-9,
+            "measurement {input:?} resolved to {actual}, expected {expected}"
+        );
+    }
+
     #[test]
     fn image_width_matches_asciidoctor_pdf_units() {
         assert_eq!(
@@ -2573,15 +2577,19 @@ mod tests {
             })
         );
 
-        assert_eq!(measurement_points("40pt"), 40.0);
-        assert_eq!(measurement_points("40px"), 30.0);
-        assert_eq!(measurement_points("1in"), 72.0);
-        assert_eq!(measurement_points("2.54cm"), 72.0);
-        assert_eq!(measurement_points("25.4mm"), 72.0);
-        assert_eq!(measurement_points("6pc"), 72.0);
-        assert_eq!(measurement_points("12.5"), 12.5);
-        assert_eq!(measurement_points("40unknown"), 40.0);
-        assert_eq!(measurement_points("invalid"), 0.0);
+        for (input, expected) in [
+            ("40pt", 40.0),
+            ("40px", 30.0),
+            ("1in", 72.0),
+            ("2.54cm", 72.0),
+            ("25.4mm", 72.0),
+            ("6pc", 72.0),
+            ("12.5", 12.5),
+            ("40unknown", 40.0),
+            ("invalid", 0.0),
+        ] {
+            assert_measurement(input, expected);
+        }
     }
 
     #[test]
