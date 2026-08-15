@@ -247,6 +247,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Checklist-like prefixes in ordered lists now remain visible text instead of
+  rendering as checkboxes, matching Asciidoctor PDF. ACDC continues to accept
+  `[X]` in unordered checklists as an intentional extension.
 - Unindented ordered, unordered, and checklist items now retain their automatic
   mixed-list nesting, matching `asciidoctor-pdf`.
 - `[listing]`, `[source]`, `[literal]`, and `[verse]` before a block image
