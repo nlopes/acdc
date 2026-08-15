@@ -16,6 +16,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Ordered lists honor a positive `start` value, including on nested lists.
+  Explicit alphabetic and Roman styles remain an ACDC extension; Asciidoctor's
+  manpage backend uses decimal markers for those styles.
 - Manpage conversion attributes now include the `manpage` backend and
   base-backend, `man` file type, `.man` default output suffix, implied manpage
   doctype, and their conditional convenience attributes.

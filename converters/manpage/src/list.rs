@@ -85,11 +85,18 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             .style
             .and_then(OrderedListNumbering::from_explicit_style)
             .unwrap_or_default();
+        let start = list
+            .metadata
+            .attributes
+            .get_string("start")
+            .and_then(|start| start.parse::<usize>().ok())
+            .filter(|start| *start > 0)
+            .unwrap_or(1);
         self.with_list_scope(&list.title, |visitor| {
             for (i, item) in list.items.iter().enumerate() {
                 let w = visitor.writer_mut();
                 // Numbered item with 4-character indent
-                writeln!(w, ".IP {}. 4", numbering.format(i + 1))?;
+                writeln!(w, ".IP {}. 4", numbering.format(start.saturating_add(i)))?;
 
                 // Visit principal text
                 if !item.principal.is_empty() {
