@@ -172,6 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block attributes and anchors directly before an automatically nested list now
+  apply to that child list instead of appearing in the parent item text,
+  matching Asciidoctor.
 - A block image macro preceded by `[listing]`, `[source]`, `[literal]`, or
   `[verse]` is parsed as that styled paragraph and kept as text instead of
   becoming an image, matching Asciidoctor.

@@ -1,0 +1,33 @@
+= Nested List Block Attributes
+
+== Ordered in Ordered
+
+. Parent one
+[loweralpha,start=3,id=ordered-child,role=child-role]
+.. Child three
+.. Child four
+. Parent two
+
+== Unordered in Unordered
+
+* Parent one
+[square,id=unordered-child,role=child-role]
+** Child one
+** Child two
+* Parent two
+
+== Unordered in Ordered
+
+. Parent one
+[square,id=mixed-unordered-child,role=child-role]
+  * Child one
+  * Child two
+. Parent two
+
+== Ordered in Unordered
+
+* Parent one
+[loweralpha,start=3,id=mixed-ordered-child,role=child-role]
+  . Child three
+  . Child four
+* Parent two

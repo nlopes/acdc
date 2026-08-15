@@ -22,10 +22,9 @@ pub(crate) enum BlockMetadataLine<'input> {
     DocumentAttribute(Cow<'input, str>, AttributeValue<'input>, bool),
 }
 
-// Used purely in the grammar to break down header metadata lines (anchors and attributes
-// that appear before the document title).
+// Used purely in the grammar where only anchors and attribute lists are valid metadata.
 #[derive(Debug)]
-pub(crate) enum HeaderMetadataLine<'input> {
+pub(crate) enum AttributeOrAnchorLine<'input> {
     Anchor(Anchor<'input>),
     Attributes((bool, Box<BlockMetadata<'input>>)),
 }

@@ -1,0 +1,43 @@
+= Nested List Block Attribute Boundaries
+
+== Immediate
+
+. Parent
+[loweralpha,start=3]
+.. Child
+
+== After Blank Line
+
+. Parent
+
+[loweralpha,start=3]
+.. Child
+
+== Explicit Continuation
+
+. Parent
++
+[loweralpha,start=3]
+.. Child
+
+== Multiple Metadata Lines and Gap
+
+. Parent
+[[nested-child]]
+[loweralpha]
+[start=3,role=child-role]
+// Metadata may be separated from the child by comments and blank lines.
+
+.. Child
+
+== Indented Attribute Line
+
+. Parent
+  [loweralpha,start=3]
+.. Child
+
+== Block Title
+
+. Parent
+.Not a nested list title
+.. Child

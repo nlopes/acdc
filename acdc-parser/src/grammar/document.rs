@@ -38,7 +38,7 @@ use crate::{
 use crate::model::substitution::{NORMAL, parse_subs_attribute};
 
 use super::helpers::{
-    BlockMetadataLine, BlockParsingMetadata, HeaderMetadataLine, PositionWithOffset,
+    AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, PositionWithOffset,
     RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE,
     RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values, strip_url_backslash_escapes,
     title_looks_like_description_list,
@@ -128,6 +128,92 @@ fn assign_block_caption<'input>(state: &ParserState<'input>, block: &mut Block<'
         let caption = Caption::resolve(metadata, &state.document_attributes, kind);
         metadata.caption = Some(caption);
     }
+}
+
+fn merge_attribute_metadata<'input>(
+    metadata: &mut BlockMetadata<'input>,
+    attribute_metadata: BlockMetadata<'input>,
+) {
+    if attribute_metadata.id.is_some() {
+        metadata.id = attribute_metadata.id;
+    }
+    if attribute_metadata.style.is_some() {
+        metadata.style = attribute_metadata.style;
+    }
+    metadata.roles.extend(attribute_metadata.roles);
+    metadata.options.extend(attribute_metadata.options);
+    for (name, value) in attribute_metadata.attributes.iter() {
+        metadata.attributes.set(name.clone(), value.clone());
+    }
+    metadata.overlay_positional_attributes(&attribute_metadata.positional_attributes);
+    #[cfg(feature = "pre-spec-subs")]
+    if attribute_metadata.substitutions.is_some() {
+        metadata.substitutions = attribute_metadata.substitutions;
+    }
+    if attribute_metadata.attribution.is_some() {
+        metadata.attribution = attribute_metadata.attribution;
+        metadata.attribution_substitutions = attribute_metadata.attribution_substitutions;
+    } else if attribute_metadata.attribution_substitutions {
+        metadata.attribution_substitutions = true;
+    }
+    if attribute_metadata.citetitle.is_some() {
+        metadata.citetitle = attribute_metadata.citetitle;
+        metadata.citetitle_substitutions = attribute_metadata.citetitle_substitutions;
+    } else if attribute_metadata.citetitle_substitutions {
+        metadata.citetitle_substitutions = true;
+    }
+}
+
+fn finish_block_parsing_metadata<'input>(
+    state: &mut ParserState<'input>,
+    mut metadata: BlockMetadata<'input>,
+    title: Title<'input>,
+    parent_section_level: Option<SectionLevel>,
+    discrete: bool,
+    offset: usize,
+) -> Result<BlockParsingMetadata<'input>, Error> {
+    #[cfg(feature = "pre-spec-subs")]
+    let subs_flags = metadata
+        .substitutions
+        .as_ref()
+        .map_or(SubsFlags::all(), |spec| {
+            let mut flags = SubsFlags::all();
+            for (flag, sub) in SubsFlags::FLAG_SUBSTITUTIONS {
+                flags.set(*flag, !spec.is_disabled(sub));
+            }
+            let resolved = spec.resolve(NORMAL);
+            let replacements = resolved
+                .iter()
+                .position(|sub| sub == &Substitution::Replacements);
+            let post_replacements = resolved
+                .iter()
+                .position(|sub| sub == &Substitution::PostReplacements);
+            flags.set(SubsFlags::REPLACEMENTS, replacements.is_some());
+            flags.set(SubsFlags::POST_REPLACEMENTS, post_replacements.is_some());
+            flags.set(
+            SubsFlags::REPLACEMENTS_BEFORE_POST_REPLACEMENTS,
+            matches!(
+                (replacements, post_replacements),
+                (Some(replacements), Some(post_replacements)) if replacements < post_replacements
+            ),
+        );
+            flags
+        });
+    #[cfg(not(feature = "pre-spec-subs"))]
+    let subs_flags = SubsFlags::all();
+    let hardbreaks = subs_flags.contains(SubsFlags::POST_REPLACEMENTS)
+        && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
+    extract_source_attributes(state, &mut metadata);
+    extract_quote_attributes(&mut metadata);
+    apply_quote_attribute_substitutions(state, &mut metadata, offset, subs_flags)?;
+    Ok(BlockParsingMetadata {
+        metadata,
+        title,
+        parent_section_level,
+        subs_flags,
+        hardbreaks,
+        discrete,
+    })
 }
 
 /// Helper to check delimiter matching and return error if mismatched
@@ -2364,16 +2450,16 @@ peg::parser! {
         /// meant for the first block when there's no document title.
         rule header_metadata() -> BlockMetadata<'input>
             = lines:(
-                anchor:anchor() { HeaderMetadataLine::Anchor(anchor) }
-                / attr:attributes_line() { HeaderMetadataLine::Attributes((attr.0, Box::new(attr.1))) }
+                anchor:anchor() { AttributeOrAnchorLine::Anchor(anchor) }
+                / attr:attributes_line() { AttributeOrAnchorLine::Attributes((attr.0, Box::new(attr.1))) }
             )+ &document_title()
             {
                 let mut metadata = BlockMetadata::default();
 
                 for line in lines {
                     match line {
-                        HeaderMetadataLine::Anchor(anchor) => metadata.anchors.push(anchor),
-                        HeaderMetadataLine::Attributes((_, attr_metadata)) => {
+                        AttributeOrAnchorLine::Anchor(anchor) => metadata.anchors.push(anchor),
+                        AttributeOrAnchorLine::Attributes((_, attr_metadata)) => {
                             let attr_metadata = *attr_metadata;
                             // Merge attribute metadata - last one wins for id/style
                             if attr_metadata.id.is_some() {
@@ -3131,40 +3217,8 @@ peg::parser! {
                 match value {
                     BlockMetadataLine::Anchor(value) => metadata.anchors.push(value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
-                        let attr_metadata = *attr_metadata;
                         discrete = attr_discrete;
-                        if attr_metadata.id.is_some() {
-                            metadata.id = attr_metadata.id;
-                        }
-                        if attr_metadata.style.is_some() {
-                            metadata.style = attr_metadata.style;
-                        }
-                        metadata.roles.extend(attr_metadata.roles);
-                        metadata.options.extend(attr_metadata.options);
-                        for (k, v) in attr_metadata.attributes.iter() {
-                            metadata.attributes.set(k.clone(), v.clone());
-                        }
-                        metadata.overlay_positional_attributes(
-                            &attr_metadata.positional_attributes,
-                        );
-                        #[cfg(feature = "pre-spec-subs")]
-                        if attr_metadata.substitutions.is_some() {
-                            metadata.substitutions = attr_metadata.substitutions;
-                        }
-                        if attr_metadata.attribution.is_some() {
-                            metadata.attribution = attr_metadata.attribution;
-                            metadata.attribution_substitutions =
-                                attr_metadata.attribution_substitutions;
-                        } else if attr_metadata.attribution_substitutions {
-                            metadata.attribution_substitutions = true;
-                        }
-                        if attr_metadata.citetitle.is_some() {
-                            metadata.citetitle = attr_metadata.citetitle;
-                            metadata.citetitle_substitutions =
-                                attr_metadata.citetitle_substitutions;
-                        } else if attr_metadata.citetitle_substitutions {
-                            metadata.citetitle_substitutions = true;
-                        }
+                        merge_attribute_metadata(&mut metadata, *attr_metadata);
                     },
                     BlockMetadataLine::DocumentAttribute(key, value, set) => {
                         // Set the document attribute immediately so it's available for
@@ -3179,49 +3233,14 @@ peg::parser! {
             if meta_start != meta_end {
                 metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
             }
-            #[cfg(feature = "pre-spec-subs")]
-            let subs_flags = metadata.substitutions.as_ref().map_or(SubsFlags::all(), |spec| {
-                let mut flags = SubsFlags::all();
-                for (flag, sub) in SubsFlags::FLAG_SUBSTITUTIONS {
-                    flags.set(*flag, !spec.is_disabled(sub));
-                }
-                let resolved = spec.resolve(NORMAL);
-                let replacements = resolved
-                    .iter()
-                    .position(|sub| sub == &Substitution::Replacements);
-                let post_replacements = resolved
-                    .iter()
-                    .position(|sub| sub == &Substitution::PostReplacements);
-                flags.set(SubsFlags::REPLACEMENTS, replacements.is_some());
-                flags.set(
-                    SubsFlags::POST_REPLACEMENTS,
-                    post_replacements.is_some(),
-                );
-                flags.set(
-                    SubsFlags::REPLACEMENTS_BEFORE_POST_REPLACEMENTS,
-                    matches!(
-                        (replacements, post_replacements),
-                        (Some(replacements), Some(post_replacements))
-                            if replacements < post_replacements
-                    ),
-                );
-                flags
-            });
-            #[cfg(not(feature = "pre-spec-subs"))]
-            let subs_flags = SubsFlags::all();
-            let hardbreaks = subs_flags.contains(SubsFlags::POST_REPLACEMENTS)
-                && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
-            extract_source_attributes(state, &mut metadata);
-            extract_quote_attributes(&mut metadata);
-            apply_quote_attribute_substitutions(state, &mut metadata, offset, subs_flags)?;
-            Ok(BlockParsingMetadata {
+            finish_block_parsing_metadata(
+                state,
                 metadata,
                 title,
                 parent_section_level,
-                subs_flags,
-                hardbreaks,
                 discrete,
-            })
+                offset,
+            )
         }
 
         // A title line can be a simple title or a section title
@@ -3837,6 +3856,75 @@ peg::parser! {
 
         rule section_level_marker() -> &'input str = $(("=" / "#")+)
 
+        // This restricted form excludes titles and document attributes, which
+        // asciidoctor does not assign to an automatically nested list.
+        rule nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
+        = meta_start:position!() lines:(
+            anchor:anchor() { AttributeOrAnchorLine::Anchor(anchor) }
+            / attr:attributes_line() { AttributeOrAnchorLine::Attributes((attr.0, Box::new(attr.1))) }
+        )+ meta_end:position!()
+        {
+            let mut metadata = BlockMetadata::default();
+            let mut discrete = false;
+            for line in lines {
+                match line {
+                    AttributeOrAnchorLine::Anchor(anchor) => metadata.anchors.push(anchor),
+                    AttributeOrAnchorLine::Attributes((attr_discrete, attr_metadata)) => {
+                        discrete = attr_discrete;
+                        merge_attribute_metadata(&mut metadata, *attr_metadata);
+                    }
+                }
+            }
+            metadata.location = Some(state.create_block_location(meta_start, meta_end, offset));
+            finish_block_parsing_metadata(
+                state,
+                metadata,
+                Title::default(),
+                parent_section_level,
+                discrete,
+                offset,
+            )
+        }
+
+        rule parsed_nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> BlockParsingMetadata<'input>
+        = metadata:nested_list_metadata(offset, parent_section_level) {?
+            metadata.map_err(|error| {
+                tracing::error!(?error, "error parsing nested list metadata");
+                "nested list metadata parse error"
+            })
+        }
+
+        // Syntactic counterparts of `nested_list_metadata`; these are used in
+        // lookahead and therefore do not run metadata actions speculatively.
+        rule nested_list_attribute_line_match()
+        = !empty_list_separator() !double_open_square_bracket()
+          open_square_bracket() attribute_list_content() eol()
+
+        rule nested_list_anchor_line_match()
+        = inline_anchor_match() eol()
+
+        rule nested_list_metadata_line_match()
+        = nested_list_anchor_line_match() / nested_list_attribute_line_match()
+
+        rule nested_list_metadata_gap()
+        = eol() / comment_line()
+
+        rule nested_unordered_child_after_metadata(current_marker: &str, parent_ordered_marker: Option<&'input str>)
+        = nested_list_metadata_line_match()+ nested_list_metadata_gap()* (
+            !at_root_ordered_marker()
+            !at_ancestor_ordered_marker(parent_ordered_marker)
+            &(whitespace()* ordered_list_marker() whitespace())
+            / &at_deeper_unordered_marker(current_marker)
+        )
+
+        rule nested_ordered_child_after_metadata(current_marker: &str, parent_unordered_marker: Option<&'input str>)
+        = nested_list_metadata_line_match()+ nested_list_metadata_gap()* (
+            !at_root_unordered_marker()
+            !at_ancestor_unordered_marker(parent_unordered_marker)
+            &(whitespace()* unordered_list_marker() whitespace())
+            / &at_deeper_ordered_marker(current_marker)
+        )
+
         // Helper rule to check if we're at the start of a new list item (lookahead)
         rule at_list_item_start() = whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace()
 
@@ -3920,6 +4008,30 @@ peg::parser! {
         rule at_list_separator_content()
         = "//" [^'\n']* (&eol() / ![_])  // Line comment separator
         / whitespace()* "[" whitespace()* "]" whitespace()* (&eol() / ![_])  // Empty block attributes
+
+        rule unordered_list_principal_continuation(current_marker: &str, parent_ordered_marker: Option<&'input str>) -> &'input str
+        = eol()
+          !(
+              &eol()
+              / &at_list_item_start()
+              / &"+"
+              / &at_section_start()
+              / &at_list_separator_content()
+              / &nested_unordered_child_after_metadata(current_marker, parent_ordered_marker)
+          )
+          line:$((!eol() [_])*) { line }
+
+        rule ordered_list_principal_continuation(current_marker: &str, parent_unordered_marker: Option<&'input str>) -> &'input str
+        = eol()
+          !(
+              &eol()
+              / &at_list_item_start()
+              / &"+"
+              / &at_section_start()
+              / &at_list_separator_content()
+              / &nested_ordered_child_after_metadata(current_marker, parent_unordered_marker)
+          )
+          line:$((!eol() [_])*) { line }
 
         // Helper rule to check if we're at a blank line followed by block attributes or anchor
         // Used by description lists to terminate when new block metadata appears after a blank line
@@ -4059,14 +4171,14 @@ peg::parser! {
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
         // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
         first_line_end:position!()
         // Try to parse nested list (ordered, or unordered with deeper markers)
         // Don't consume newlines if we're at a list separator (comment or [])
         // Nested items cannot consume parent-level continuations (allow_continuation: false)
         // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
         // alternative fails and backtracks, leaving eol() unconsumed for explicit_continuation
-        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         // Try to parse explicit continuations (+ marker)
         // Don't consume newlines if we're at a list separator (comment or [])
         // Parent items accept both:
@@ -4122,12 +4234,12 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
         first_line_end:position!()
         // Nested items can still have nested lists, but those also cannot consume parent continuations
         // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
         // alternative fails and backtracks, leaving eol() unconsumed for immediate_continuation
-        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         // Parse immediate continuations (0 empty lines) - these attach to this item
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
@@ -4172,9 +4284,9 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
         first_line_end:position!()
-        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         explicit_continuations:(!at_list_separator() cont:(
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
@@ -4215,9 +4327,9 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:unordered_list_principal_continuation(marker, parent_ordered_marker)*
         first_line_end:position!()
-        nested:(!at_list_separator() eol()+ nested_content:unordered_list_item_nested_content(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:unordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_ordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found unordered list item (after marker, immediate only)");
@@ -4254,6 +4366,28 @@ peg::parser! {
         /// current_marker: the marker of the parent unordered list item (e.g., "*" or "**")
         /// parent_ordered_marker: the marker of an ancestor ordered list (if any), to prevent
         /// consuming sibling ordered markers that belong to a parent ordered list context
+        rule unordered_list_item_nested_after_principal(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
+        = eol() nested:(
+            unordered_list_item_nested_content_with_metadata(offset, block_metadata, current_marker, parent_ordered_marker)
+            / unordered_list_item_nested_content(offset, block_metadata, current_marker, parent_ordered_marker)
+          ) { nested }
+        / eol()+ nested:unordered_list_item_nested_content(offset, block_metadata, current_marker, parent_ordered_marker) { nested }
+
+        rule unordered_list_item_nested_content_with_metadata(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
+        = nested_start:position!()
+          metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
+          nested_list_metadata_gap()*
+          list:(
+              !at_root_ordered_marker()
+              !at_ancestor_ordered_marker(parent_ordered_marker)
+              list:ordered_list(nested_start, offset, &metadata, Some(current_marker), false, false) { list }
+              / &at_deeper_unordered_marker(current_marker)
+                list:unordered_list_nested(nested_start, offset, &metadata, current_marker, parent_ordered_marker, true) { list }
+          )
+        {
+            Some(list)
+        }
+
         rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
         // !at_root_ordered_marker() prevents root-level ordered items (no leading
         // whitespace) from being incorrectly parsed as nested. Without this, `. item` at
@@ -4268,7 +4402,7 @@ peg::parser! {
         // Uses unordered_list_nested which only parses items deeper than current_marker
         / &at_deeper_unordered_marker(current_marker)
           nested_start:position!()
-          list:unordered_list_nested(nested_start, offset, block_metadata, current_marker, parent_ordered_marker)
+          list:unordered_list_nested(nested_start, offset, block_metadata, current_marker, parent_ordered_marker, false)
         {
             Some(list)
         }
@@ -4277,7 +4411,7 @@ peg::parser! {
         /// This is used to parse same-type nesting (e.g., ** inside *) as hierarchical content
         /// rather than flat siblings, enabling proper ancestor continuation handling.
         /// Uses allow_continuation=false to prevent nested items from consuming parent continuations.
-        rule unordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, parent_ordered_marker: Option<&'input str>) -> Result<Block<'input>, Error>
+        rule unordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, parent_ordered_marker: Option<&'input str>, has_own_metadata: bool) -> Result<Block<'input>, Error>
         // Parse first item - must have a deeper marker than parent_marker
         = &at_deeper_unordered_marker(parent_marker)
           whitespace()* marker_start:position!() base_marker:$(unordered_list_marker()) &whitespace()
@@ -4295,8 +4429,8 @@ peg::parser! {
             let marker = items.first().map_or("", |item| item.marker);
 
             Ok(Block::UnorderedList(UnorderedList {
-                title: Title::default(),
-                metadata: BlockMetadata::default(),
+                title: if has_own_metadata { block_metadata.title.clone() } else { Title::default() },
+                metadata: if has_own_metadata { block_metadata.metadata.clone() } else { BlockMetadata::default() },
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
@@ -4344,14 +4478,14 @@ peg::parser! {
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
         // Stop at: blank line, list item start, explicit continuation marker, section heading, or list separator
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
         first_line_end:position!()
         // Try to parse nested list (unordered, or ordered with deeper markers)
         // Don't consume newlines if we're at a list separator (comment or [])
         // Nested items cannot consume parent-level continuations (allow_continuation: false)
         // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
         // alternative fails and backtracks, leaving eol() unconsumed for explicit_continuation
-        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         // Try to parse explicit continuations (+ marker)
         // Don't consume newlines if we're at a list separator (comment or [])
         // Parent items accept both:
@@ -4407,12 +4541,12 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
         first_line_end:position!()
         // Nested items can still have nested lists, but those also cannot consume parent continuations
         // NOTE: nested_content is NOT optional here - if no nested content matches, the entire
         // alternative fails and backtracks, leaving eol() unconsumed for immediate_continuation
-        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         // Parse immediate continuations (0 empty lines) - these attach to this item
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
@@ -4455,9 +4589,9 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
         first_line_end:position!()
-        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         explicit_continuations:(!at_list_separator() cont:(
             list_explicit_continuation_immediate(offset, block_metadata)
             / list_explicit_continuation_ancestor(offset, block_metadata)
@@ -4498,9 +4632,9 @@ peg::parser! {
         checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
-        continuation_lines:(eol() !(&eol() / &at_list_item_start() / &"+" / &at_section_start() / &at_list_separator_content()) cont_line:$((!(eol()) [_])*) { cont_line })*
+        continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
         first_line_end:position!()
-        nested:(!at_list_separator() eol()+ nested_content:ordered_list_item_nested_content(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
+        nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
             tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker, immediate only)");
@@ -4537,6 +4671,28 @@ peg::parser! {
         /// current_marker: the marker of the parent ordered list item (e.g., "." or "..")
         /// parent_unordered_marker: the marker of an ancestor unordered list (if any), to prevent
         /// consuming sibling unordered markers that belong to a parent unordered list context
+        rule ordered_list_item_nested_after_principal(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
+        = eol() nested:(
+            ordered_list_item_nested_content_with_metadata(offset, block_metadata, current_marker, parent_unordered_marker)
+            / ordered_list_item_nested_content(offset, block_metadata, current_marker, parent_unordered_marker)
+          ) { nested }
+        / eol()+ nested:ordered_list_item_nested_content(offset, block_metadata, current_marker, parent_unordered_marker) { nested }
+
+        rule ordered_list_item_nested_content_with_metadata(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
+        = nested_start:position!()
+          metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
+          nested_list_metadata_gap()*
+          list:(
+              !at_root_unordered_marker()
+              !at_ancestor_unordered_marker(parent_unordered_marker)
+              list:unordered_list(nested_start, offset, &metadata, Some(current_marker), false, false) { list }
+              / &at_deeper_ordered_marker(current_marker)
+                list:ordered_list_nested(nested_start, offset, &metadata, current_marker, parent_unordered_marker, true) { list }
+          )
+        {
+            Some(list)
+        }
+
         rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
         // !at_root_unordered_marker() prevents root-level unordered items (no leading
         // whitespace) from being incorrectly parsed as nested. Without this, `* item` at
@@ -4551,7 +4707,7 @@ peg::parser! {
         // Uses ordered_list_nested which only parses items deeper than current_marker
         / &at_deeper_ordered_marker(current_marker)
           nested_start:position!()
-          list:ordered_list_nested(nested_start, offset, block_metadata, current_marker, parent_unordered_marker)
+          list:ordered_list_nested(nested_start, offset, block_metadata, current_marker, parent_unordered_marker, false)
         {
             Some(list)
         }
@@ -4560,7 +4716,7 @@ peg::parser! {
         /// This is used to parse same-type nesting (e.g., .. inside .) as hierarchical content
         /// rather than flat siblings, enabling proper ancestor continuation handling.
         /// Uses allow_continuation=false to prevent nested items from consuming parent continuations.
-        rule ordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, parent_unordered_marker: Option<&'input str>) -> Result<Block<'input>, Error>
+        rule ordered_list_nested(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_marker: &str, parent_unordered_marker: Option<&'input str>, has_own_metadata: bool) -> Result<Block<'input>, Error>
         // Parse first item - must have a deeper marker than parent_marker
         = &at_deeper_ordered_marker(parent_marker)
           whitespace()* marker_start:position!() base_marker:$(ordered_list_marker()) &whitespace()
@@ -4578,8 +4734,8 @@ peg::parser! {
             let marker = items.first().map_or("", |item| item.marker);
 
             Ok(Block::OrderedList(OrderedList {
-                title: Title::default(),
-                metadata: BlockMetadata::default(),
+                title: if has_own_metadata { block_metadata.title.clone() } else { Title::default() },
+                metadata: if has_own_metadata { block_metadata.metadata.clone() } else { BlockMetadata::default() },
                 items,
                 marker,
                 location: state.create_location(start+offset, end+offset),
