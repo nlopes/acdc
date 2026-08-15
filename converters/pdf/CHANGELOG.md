@@ -129,8 +129,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   emit a warning for each affected image. Following text starts below the image
   because Typst does not yet support side wrapping.
 - Block and inline images now honor `link=`, including missing-image fallback
-  text. Block-image captions remain outside the link, matching Asciidoctor PDF.
-  Empty link targets are ignored because Typst does not accept them.
+  text. Block-image captions remain outside the link, and an inline image's own
+  link takes precedence over an enclosing link, matching Asciidoctor PDF. Empty
+  link targets are ignored because Typst does not accept them.
 - Titled block images now render as numbered figure captions below the image,
   including linked and missing images. Missing images show their alt text and
   source target. Untitled and inline images do not consume a figure number,

@@ -25,6 +25,18 @@ image::{linked-image}[Substituted link,link={imagelink}]
 
 image::{linked-image}[Positional value,100,50,https://example.com/positional]
 
+[link=https://example.com/block-attribute]
+image::{linked-image}[Block attribute link]
+
+[link=https://example.com/overridden]
+image::{linked-image}[Macro attribute wins,link=https://example.com/macro]
+
+image::{linked-image}[Repeated link,link=https://example.com/first,link=https://example.com/last]
+
+image::{linked-image}[Empty link,link=]
+
+image::{linked-image}[Browser controls,link=https://example.com/controls,window=_blank,opts=nofollow]
+
 image::{linked-image}[Linked width,width=100,link=https://example.com/width]
 
 image::{linked-image}[Positioned link,width=100,align=right,link=https://example.com/positioned]
@@ -43,6 +55,20 @@ Email: image:{linked-image}[Email link,link=mailto:docs@example.com]
 Document fragment: image:{linked-image}[Document fragment,link=#local-target]
 
 Plain target: image:{linked-image}[Plain target,link=local-target]
+
+Empty link: image:{linked-image}[Empty inline link,link=]
+
+Repeated link: image:{linked-image}[Repeated inline link,link=https://example.com/first,link=https://example.com/last]
+
+Substituted link: image:{linked-image}[Substituted inline link,link={imagelink}]
+
+Positional value: image:{linked-image}[Positional inline link,100,50,https://example.com/ignored]
+
+Browser controls: image:{linked-image}[Browser controls,link=https://example.com/inline-controls,window=_blank,opts=nofollow]
+
+Outer link: link:https://example.com/outer[image:{linked-image}[Outer inline link]]
+
+Inner link precedence: link:https://example.com/outer[image:{linked-image}[Inner inline link,link=https://example.com/inner]]
 
 Named none: image:{linked-image}[Named none,link=none]
 

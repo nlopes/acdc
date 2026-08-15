@@ -95,6 +95,16 @@
 
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Positional value", width: 75pt)
 
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Block attribute link", destination: "https://example.com/block-attribute")
+
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Macro attribute wins", destination: "https://example.com/macro")
+
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Repeated link", destination: "https://example.com/last")
+
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Empty link")
+
+#docimage("/images/de454d7e4e1cfda7.svg", alt: "Browser controls", destination: "https://example.com/controls")
+
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Linked width", width: 75pt, destination: "https://example.com/width")
 
 #block(width: 100%, radius: 4pt, clip: true)[#align(right)[#link("https://example.com/positioned")[#image("/images/de454d7e4e1cfda7.svg", alt: "Positioned link", width: 75pt)]]]
@@ -115,6 +125,20 @@
 #text("Document fragment: ")#box(link("#local-target")[#image("/images/de454d7e4e1cfda7.svg", alt: "Document fragment")])
 
 #text("Plain target: ")#box(link("local-target")[#image("/images/de454d7e4e1cfda7.svg", alt: "Plain target")])
+
+#text("Empty link: ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Empty inline link"))
+
+#text("Repeated link: ")#box(link("https://example.com/last")[#image("/images/de454d7e4e1cfda7.svg", alt: "Repeated inline link")])
+
+#text("Substituted link: ")#box(link("https://example.com/from-attribute")[#image("/images/de454d7e4e1cfda7.svg", alt: "Substituted inline link")])
+
+#text("Positional value: ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Positional inline link", width: 75pt))
+
+#text("Browser controls: ")#box(link("https://example.com/inline-controls")[#image("/images/de454d7e4e1cfda7.svg", alt: "Browser controls")])
+
+#text("Outer link: ")#link("https://example.com/outer")[#box(image("/images/de454d7e4e1cfda7.svg", alt: "Outer inline link"))]
+
+#text("Inner link precedence: ")#box(link("https://example.com/inner")[#image("/images/de454d7e4e1cfda7.svg", alt: "Inner inline link")])
 
 #text("Named none: ")#box(link("none")[#image("/images/de454d7e4e1cfda7.svg", alt: "Named none")])
 

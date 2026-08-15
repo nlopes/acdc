@@ -1979,6 +1979,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_link_text(&mut self, target: &str, text: &[InlineNode<'_>]) -> Result<(), Error> {
+        match text {
+            [InlineNode::Macro(InlineMacro::Image(image))]
+                if image.metadata.attributes.get_string("link").is_some() =>
+            {
+                self.write_inline_image(image);
+                return Ok(());
+            }
+            _ => {}
+        }
+
         self.writer.raw("#link(");
         self.writer.string_literal(target);
         self.writer.raw(")[");
