@@ -172,6 +172,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Checklist markers now apply only to unordered list items. `[ ]`, `[x]`,
+  `[X]`, and `[*]` remain visible text in ordered items, matching Asciidoctor.
+  ACDC continues to accept `[X]` in unordered checklists as an intentional
+  extension.
 - Unindented ordered and unordered markers now nest automatically when the
   marker type changes, while metadata after a blank line still starts a new
   list, matching Asciidoctor.

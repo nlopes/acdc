@@ -4459,7 +4459,6 @@ peg::parser! {
         = whitespace()*
         marker:ordered_list_marker()
         whitespace()
-        checked:checklist_item()?
         first_line_start:position!()
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
@@ -4485,7 +4484,7 @@ peg::parser! {
         ) { cont })*
         list_dangling_continuation()?
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
@@ -4513,7 +4512,7 @@ peg::parser! {
                 blocks,
                 level,
                 marker,
-                checked,
+                checked: None,
                 location: state.create_location(span_start+offset, actual_end+offset),
             }, actual_end))
         }
@@ -4525,7 +4524,6 @@ peg::parser! {
         = whitespace()*
         marker:ordered_list_marker()
         whitespace()
-        checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
@@ -4538,7 +4536,7 @@ peg::parser! {
         // Ancestor continuations (1+ empty lines) bubble up to parent items
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (immediate continuation only)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item (immediate continuation only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
@@ -4565,7 +4563,7 @@ peg::parser! {
                 blocks,
                 level,
                 marker,
-                checked,
+                checked: None,
                 location: state.create_location(span_start+offset, actual_end+offset),
             }, actual_end))
         }
@@ -4573,7 +4571,6 @@ peg::parser! {
         // After-marker variants for ordered lists: used when marker has already been consumed by parent rule
         rule ordered_list_item_with_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = whitespace()
-        checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
@@ -4585,7 +4582,7 @@ peg::parser! {
         ) { cont })*
         list_dangling_continuation()?
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item (after marker)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
@@ -4609,14 +4606,13 @@ peg::parser! {
                 blocks,
                 level,
                 marker,
-                checked,
+                checked: None,
                 location: state.create_location(marker_start+offset, actual_end+offset),
             }, actual_end))
         }
 
         rule ordered_list_item_no_continuation_after_marker(offset: usize, block_metadata: &BlockParsingMetadata<'input>, marker: &'input str, marker_start: usize, parent_unordered_marker: Option<&'input str>) -> Result<(ListItem<'input>, usize), Error>
         = whitespace()
-        checked:checklist_item()?
         first_line_start:position!()
         first_line:$((!(eol()) [_])*)
         continuation_lines:ordered_list_principal_continuation(marker, parent_unordered_marker)*
@@ -4624,7 +4620,7 @@ peg::parser! {
         nested:(!at_list_separator() nested_content:ordered_list_item_nested_after_principal(offset, block_metadata, marker, parent_unordered_marker) { nested_content })?
         immediate_continuations:(!at_list_separator() cont:list_explicit_continuation_immediate(offset, block_metadata) { cont })*
         {
-            tracing::debug!(%first_line, ?continuation_lines, %marker, ?checked, "found ordered list item (after marker, immediate only)");
+            tracing::debug!(%first_line, ?continuation_lines, %marker, "found ordered list item (after marker, immediate only)");
             let level = ListLevel::try_from(ListItem::parse_depth_from_marker(marker).unwrap_or(1))?;
             let principal_text: &'input str = assemble_principal_text(state, first_line, &continuation_lines);
             let item_end = calculate_item_end(principal_text.is_empty(), span_start, first_line_end);
@@ -4648,7 +4644,7 @@ peg::parser! {
                 blocks,
                 level,
                 marker,
-                checked,
+                checked: None,
                 location: state.create_location(marker_start+offset, actual_end+offset),
             }, actual_end))
         }

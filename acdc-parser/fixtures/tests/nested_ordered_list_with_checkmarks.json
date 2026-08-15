@@ -247,16 +247,15 @@
                       "name": "listItem",
                       "type": "block",
                       "marker": ".",
-                      "checked": false,
                       "principal": [
                         {
                           "name": "text",
                           "type": "string",
-                          "value": "Item 1",
+                          "value": "[ ] Item 1",
                           "location": [
                             {
                               "line": 11,
-                              "col": 7
+                              "col": 3
                             },
                             {
                               "line": 11,
@@ -304,16 +303,15 @@
                                       "name": "listItem",
                                       "type": "block",
                                       "marker": "...",
-                                      "checked": true,
                                       "principal": [
                                         {
                                           "name": "text",
                                           "type": "string",
-                                          "value": "Item 1.1.1",
+                                          "value": "[*] Item 1.1.1",
                                           "location": [
                                             {
                                               "line": 13,
-                                              "col": 9
+                                              "col": 5
                                             },
                                             {
                                               "line": 13,
@@ -469,16 +467,15 @@
                       "name": "listItem",
                       "type": "block",
                       "marker": ".",
-                      "checked": true,
                       "principal": [
                         {
                           "name": "text",
                           "type": "string",
-                          "value": "Item 3",
+                          "value": "[x] Item 3",
                           "location": [
                             {
                               "line": 16,
-                              "col": 7
+                              "col": 3
                             },
                             {
                               "line": 16,

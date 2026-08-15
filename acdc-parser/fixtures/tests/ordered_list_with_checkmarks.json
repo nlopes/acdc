@@ -34,16 +34,15 @@
               "name": "listItem",
               "type": "block",
               "marker": ".",
-              "checked": false,
               "principal": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Item 1",
+                  "value": "[ ] Item 1",
                   "location": [
                     {
                       "line": 3,
-                      "col": 7
+                      "col": 3
                     },
                     {
                       "line": 3,
@@ -99,16 +98,15 @@
               "name": "listItem",
               "type": "block",
               "marker": ".",
-              "checked": true,
               "principal": [
                 {
                   "name": "text",
                   "type": "string",
-                  "value": "Item 3",
+                  "value": "[x] Item 3",
                   "location": [
                     {
                       "line": 5,
-                      "col": 7
+                      "col": 3
                     },
                     {
                       "line": 5,
