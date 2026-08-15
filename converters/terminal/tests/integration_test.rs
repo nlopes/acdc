@@ -44,6 +44,7 @@ generate_tests!([
     (book_special_section_numbering_all, false),
     (nested_sections, false),
     (ordered_list, false),
+    (nested_list_metadata, false),
     (unordered_list, false),
     (description_list_mixed_content, false),
     (table_multi_cell_per_line, false),

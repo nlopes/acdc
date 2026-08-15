@@ -94,10 +94,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         items: &[ListItem],
         indent: usize,
         marker: ListMarker,
+        start: usize,
         unicode: bool,
     ) -> Result<(), Error> {
         for (idx, item) in items.iter().enumerate() {
-            self.render_list_item(item, indent, marker, idx + 1, unicode)?;
+            self.render_list_item(item, indent, marker, start.saturating_add(idx), unicode)?;
         }
         Ok(())
     }
@@ -171,7 +172,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         } else {
             ListMarker::Bullet
         };
-        self.render_list_items(&list.items, indent, marker, unicode)?;
+        self.render_list_items(&list.items, indent, marker, 1, unicode)?;
         Ok(())
     }
 
@@ -208,7 +209,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 .unwrap_or_default();
             ListMarker::Numbered(numbering)
         };
-        self.render_list_items(&list.items, indent, marker, unicode)?;
+        let start = list
+            .metadata
+            .attributes
+            .get_string("start")
+            .and_then(|start| start.parse::<usize>().ok())
+            .filter(|start| *start > 0)
+            .unwrap_or(1);
+        self.render_list_items(&list.items, indent, marker, start, unicode)?;
         Ok(())
     }
 

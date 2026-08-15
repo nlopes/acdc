@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Ordered lists honor a positive `start` value, including on nested lists.
 - Tables honor `frame`, `grid`, and static `stripes` values, including
   source-order `table-frame`, `table-grid`, and `table-stripes` defaults.
   `stripes=hover` has no effect in non-interactive terminal output.
