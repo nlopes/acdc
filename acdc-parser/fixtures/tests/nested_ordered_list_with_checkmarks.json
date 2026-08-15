@@ -236,81 +236,31 @@
                   ]
                 }
               ],
-              "location": [
-                {
-                  "line": 8,
-                  "col": 1
-                },
-                {
-                  "line": 8,
-                  "col": 34
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 3,
-              "col": 1
-            },
-            {
-              "line": 8,
-              "col": 34
-            }
-          ]
-        },
-        {
-          "name": "list",
-          "type": "block",
-          "variant": "ordered",
-          "marker": ".",
-          "items": [
-            {
-              "name": "listItem",
-              "type": "block",
-              "marker": ".",
-              "checked": false,
-              "principal": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Item 1",
-                  "location": [
-                    {
-                      "line": 11,
-                      "col": 7
-                    },
-                    {
-                      "line": 11,
-                      "col": 12
-                    }
-                  ]
-                }
-              ],
               "blocks": [
                 {
                   "name": "list",
                   "type": "block",
                   "variant": "ordered",
-                  "marker": "..",
+                  "marker": ".",
                   "items": [
                     {
                       "name": "listItem",
                       "type": "block",
-                      "marker": "..",
+                      "marker": ".",
+                      "checked": false,
                       "principal": [
                         {
                           "name": "text",
                           "type": "string",
-                          "value": "Item 1.1",
+                          "value": "Item 1",
                           "location": [
                             {
-                              "line": 12,
-                              "col": 4
+                              "line": 11,
+                              "col": 7
                             },
                             {
-                              "line": 12,
-                              "col": 11
+                              "line": 11,
+                              "col": 12
                             }
                           ]
                         }
@@ -320,22 +270,74 @@
                           "name": "list",
                           "type": "block",
                           "variant": "ordered",
-                          "marker": "...",
+                          "marker": "..",
                           "items": [
                             {
                               "name": "listItem",
                               "type": "block",
-                              "marker": "...",
-                              "checked": true,
+                              "marker": "..",
                               "principal": [
                                 {
                                   "name": "text",
                                   "type": "string",
-                                  "value": "Item 1.1.1",
+                                  "value": "Item 1.1",
+                                  "location": [
+                                    {
+                                      "line": 12,
+                                      "col": 4
+                                    },
+                                    {
+                                      "line": 12,
+                                      "col": 11
+                                    }
+                                  ]
+                                }
+                              ],
+                              "blocks": [
+                                {
+                                  "name": "list",
+                                  "type": "block",
+                                  "variant": "ordered",
+                                  "marker": "...",
+                                  "items": [
+                                    {
+                                      "name": "listItem",
+                                      "type": "block",
+                                      "marker": "...",
+                                      "checked": true,
+                                      "principal": [
+                                        {
+                                          "name": "text",
+                                          "type": "string",
+                                          "value": "Item 1.1.1",
+                                          "location": [
+                                            {
+                                              "line": 13,
+                                              "col": 9
+                                            },
+                                            {
+                                              "line": 13,
+                                              "col": 18
+                                            }
+                                          ]
+                                        }
+                                      ],
+                                      "location": [
+                                        {
+                                          "line": 13,
+                                          "col": 1
+                                        },
+                                        {
+                                          "line": 13,
+                                          "col": 18
+                                        }
+                                      ]
+                                    }
+                                  ],
                                   "location": [
                                     {
                                       "line": 13,
-                                      "col": 9
+                                      "col": 1
                                     },
                                     {
                                       "line": 13,
@@ -346,7 +348,7 @@
                               ],
                               "location": [
                                 {
-                                  "line": 13,
+                                  "line": 12,
                                   "col": 1
                                 },
                                 {
@@ -358,7 +360,7 @@
                           ],
                           "location": [
                             {
-                              "line": 13,
+                              "line": 12,
                               "col": 1
                             },
                             {
@@ -370,7 +372,7 @@
                       ],
                       "location": [
                         {
-                          "line": 12,
+                          "line": 11,
                           "col": 1
                         },
                         {
@@ -378,72 +380,72 @@
                           "col": 18
                         }
                       ]
-                    }
-                  ],
-                  "location": [
-                    {
-                      "line": 12,
-                      "col": 1
                     },
-                    {
-                      "line": 13,
-                      "col": 18
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 11,
-                  "col": 1
-                },
-                {
-                  "line": 13,
-                  "col": 18
-                }
-              ]
-            },
-            {
-              "name": "listItem",
-              "type": "block",
-              "marker": ".",
-              "principal": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Item 2",
-                  "location": [
-                    {
-                      "line": 14,
-                      "col": 3
-                    },
-                    {
-                      "line": 14,
-                      "col": 8
-                    }
-                  ]
-                }
-              ],
-              "blocks": [
-                {
-                  "name": "list",
-                  "type": "block",
-                  "variant": "ordered",
-                  "marker": "..",
-                  "items": [
                     {
                       "name": "listItem",
                       "type": "block",
-                      "marker": "..",
+                      "marker": ".",
                       "principal": [
                         {
                           "name": "text",
                           "type": "string",
-                          "value": "Item 2.1",
+                          "value": "Item 2",
+                          "location": [
+                            {
+                              "line": 14,
+                              "col": 3
+                            },
+                            {
+                              "line": 14,
+                              "col": 8
+                            }
+                          ]
+                        }
+                      ],
+                      "blocks": [
+                        {
+                          "name": "list",
+                          "type": "block",
+                          "variant": "ordered",
+                          "marker": "..",
+                          "items": [
+                            {
+                              "name": "listItem",
+                              "type": "block",
+                              "marker": "..",
+                              "principal": [
+                                {
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Item 2.1",
+                                  "location": [
+                                    {
+                                      "line": 15,
+                                      "col": 4
+                                    },
+                                    {
+                                      "line": 15,
+                                      "col": 11
+                                    }
+                                  ]
+                                }
+                              ],
+                              "location": [
+                                {
+                                  "line": 15,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 15,
+                                  "col": 11
+                                }
+                              ]
+                            }
+                          ],
                           "location": [
                             {
                               "line": 15,
-                              "col": 4
+                              "col": 1
                             },
                             {
                               "line": 15,
@@ -454,7 +456,7 @@
                       ],
                       "location": [
                         {
-                          "line": 15,
+                          "line": 14,
                           "col": 1
                         },
                         {
@@ -462,45 +464,45 @@
                           "col": 11
                         }
                       ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": ".",
+                      "checked": true,
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Item 3",
+                          "location": [
+                            {
+                              "line": 16,
+                              "col": 7
+                            },
+                            {
+                              "line": 16,
+                              "col": 12
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 16,
+                          "col": 1
+                        },
+                        {
+                          "line": 16,
+                          "col": 12
+                        }
+                      ]
                     }
                   ],
                   "location": [
                     {
-                      "line": 15,
+                      "line": 11,
                       "col": 1
-                    },
-                    {
-                      "line": 15,
-                      "col": 11
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 14,
-                  "col": 1
-                },
-                {
-                  "line": 15,
-                  "col": 11
-                }
-              ]
-            },
-            {
-              "name": "listItem",
-              "type": "block",
-              "marker": ".",
-              "checked": true,
-              "principal": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Item 3",
-                  "location": [
-                    {
-                      "line": 16,
-                      "col": 7
                     },
                     {
                       "line": 16,
@@ -511,7 +513,7 @@
               ],
               "location": [
                 {
-                  "line": 16,
+                  "line": 8,
                   "col": 1
                 },
                 {
@@ -523,7 +525,7 @@
           ],
           "location": [
             {
-              "line": 11,
+              "line": 3,
               "col": 1
             },
             {

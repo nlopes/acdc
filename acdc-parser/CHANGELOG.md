@@ -172,6 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unindented ordered and unordered markers now nest automatically when the
+  marker type changes, while metadata after a blank line still starts a new
+  list, matching Asciidoctor.
 - Block attributes and anchors directly before an automatically nested list now
   apply to that child list instead of appearing in the parent item text,
   matching Asciidoctor.

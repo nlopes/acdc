@@ -3911,7 +3911,6 @@ peg::parser! {
 
         rule nested_unordered_child_after_metadata(current_marker: &str, parent_ordered_marker: Option<&'input str>)
         = nested_list_metadata_line_match()+ nested_list_metadata_gap()* (
-            !at_root_ordered_marker()
             !at_ancestor_ordered_marker(parent_ordered_marker)
             &(whitespace()* ordered_list_marker() whitespace())
             / &at_deeper_unordered_marker(current_marker)
@@ -3919,7 +3918,6 @@ peg::parser! {
 
         rule nested_ordered_child_after_metadata(current_marker: &str, parent_unordered_marker: Option<&'input str>)
         = nested_list_metadata_line_match()+ nested_list_metadata_gap()* (
-            !at_root_unordered_marker()
             !at_ancestor_unordered_marker(parent_unordered_marker)
             &(whitespace()* unordered_list_marker() whitespace())
             / &at_deeper_ordered_marker(current_marker)
@@ -3937,12 +3935,6 @@ peg::parser! {
 
         // Helper rule to check if we're at an unordered list marker ahead (after newlines)
         rule at_unordered_marker_ahead() = eol()+ whitespace()* unordered_list_marker()
-
-        // Helper rule to check if we're at a root-level (non-indented) ordered marker (current position)
-        rule at_root_ordered_marker() = !whitespace() ordered_list_marker()
-
-        // Helper rule to check if we're at a root-level (non-indented) unordered marker (current position)
-        rule at_root_unordered_marker() = !whitespace() unordered_list_marker()
 
         // Helper rule to check if we're at an ancestor-level ordered marker
         // Used in cross-type nesting to prevent consuming sibling ordered markers
@@ -4378,7 +4370,6 @@ peg::parser! {
           metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
           nested_list_metadata_gap()*
           list:(
-              !at_root_ordered_marker()
               !at_ancestor_ordered_marker(parent_ordered_marker)
               list:ordered_list(nested_start, offset, &metadata, Some(current_marker), false, false) { list }
               / &at_deeper_unordered_marker(current_marker)
@@ -4389,13 +4380,9 @@ peg::parser! {
         }
 
         rule unordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_ordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
-        // !at_root_ordered_marker() prevents root-level ordered items (no leading
-        // whitespace) from being incorrectly parsed as nested. Without this, `. item` at
-        // column 1 would be nested inside the parent unordered item instead of being a
-        // sibling list.
         // !at_ancestor_ordered_marker() prevents sibling ordered markers from a parent
         // ordered list context from being consumed by this nested unordered item.
-        = !at_root_ordered_marker() !at_ancestor_ordered_marker(parent_ordered_marker) nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, Some(current_marker), false, true) {
+        = !at_ancestor_ordered_marker(parent_ordered_marker) nested_start:position!() list:ordered_list(nested_start, offset, block_metadata, Some(current_marker), false, true) {
             Some(list)
         }
         // Nested unordered list with deeper markers (e.g., ** inside *)
@@ -4683,7 +4670,6 @@ peg::parser! {
           metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
           nested_list_metadata_gap()*
           list:(
-              !at_root_unordered_marker()
               !at_ancestor_unordered_marker(parent_unordered_marker)
               list:unordered_list(nested_start, offset, &metadata, Some(current_marker), false, false) { list }
               / &at_deeper_ordered_marker(current_marker)
@@ -4694,13 +4680,9 @@ peg::parser! {
         }
 
         rule ordered_list_item_nested_content(offset: usize, block_metadata: &BlockParsingMetadata<'input>, current_marker: &'input str, parent_unordered_marker: Option<&'input str>) -> Option<Result<Block<'input>, Error>>
-        // !at_root_unordered_marker() prevents root-level unordered items (no leading
-        // whitespace) from being incorrectly parsed as nested. Without this, `* item` at
-        // column 1 would be nested inside the parent ordered item instead of being a
-        // sibling list.
         // !at_ancestor_unordered_marker() prevents sibling unordered markers from a parent
         // unordered list context from being consumed by this nested ordered item.
-        = !at_root_unordered_marker() !at_ancestor_unordered_marker(parent_unordered_marker) nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, Some(current_marker), false, true) {
+        = !at_ancestor_unordered_marker(parent_unordered_marker) nested_start:position!() list:unordered_list(nested_start, offset, block_metadata, Some(current_marker), false, true) {
             Some(list)
         }
         // Nested ordered list with deeper markers (e.g., .. inside .)
