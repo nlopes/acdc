@@ -128,3 +128,16 @@
   + #text("Final sigma")
   + #text("Sigma")
 ]
+
+#heading(level: 1)[#text("Nested")] <id-5f6e6573746564>
+
+#[
+#set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
+  + #text("Parent")
+    #[
+    #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())), start: 3)
+      + #text("Child C")
+      + #text("Child D")
+    ]
+
+]

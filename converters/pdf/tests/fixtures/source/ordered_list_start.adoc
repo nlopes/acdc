@@ -41,3 +41,10 @@
 [lowergreek,start=18]
 . Final sigma
 . Sigma
+
+== Nested
+
+. Parent
+[loweralpha,start=3]
+.. Child C
+.. Child D

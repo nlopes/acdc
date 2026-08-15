@@ -148,7 +148,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deeper levels. Explicit parent styles do not affect their children, matching
   Asciidoctor PDF.
 - Ordered lists honor positive `start` values across all supported numbering
-  styles, matching Asciidoctor PDF.
+  styles. Nested lists keep style and start attributes placed directly before
+  their first item, matching Asciidoctor PDF.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.
