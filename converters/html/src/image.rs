@@ -1,7 +1,7 @@
 use std::{io::Write, string::ToString};
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::Image;
+use acdc_parser::{BlockMetadata, Image};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
@@ -46,11 +46,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
+        let link_controls = image_link_control_attributes(&img.metadata);
         if let Some(link) = link {
             write!(
                 self.writer,
-                "<a class=\"image\" href=\"{}\">",
-                escape_href(&link.to_string())
+                "<a class=\"image\" href=\"{}\"{link_controls}>",
+                escape_href(&link.to_string()),
             )?;
         }
 
@@ -121,6 +122,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
+        let link_controls = image_link_control_attributes(&img.metadata);
         let link_str = link.as_ref().map(ToString::to_string);
         let is_link_none = link_str.as_deref() == Some("none");
         let is_link_self = link_str.as_deref() == Some("self");
@@ -150,8 +152,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 );
             write!(
                 self.writer,
-                "<a class=\"image bare\" href=\"{}\" title=\"{label}\" aria-label=\"{label}\">",
-                img.source
+                "<a class=\"image bare\" href=\"{}\"{link_controls} title=\"{label}\" aria-label=\"{label}\">",
+                img.source,
             )?;
         } else if !is_link_none
             && !is_link_self
@@ -159,8 +161,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         {
             write!(
                 self.writer,
-                "<a class=\"image\" href=\"{}\">",
-                escape_href(link_str)
+                "<a class=\"image\" href=\"{}\"{link_controls}>",
+                escape_href(link_str),
             )?;
         }
 
@@ -198,4 +200,26 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         writeln!(self.writer, "</{tag}>")?;
         Ok(())
     }
+}
+
+pub(crate) fn image_link_control_attributes(metadata: &BlockMetadata<'_>) -> String {
+    let window = metadata
+        .attributes
+        .get_string("window")
+        .filter(|window| !window.is_empty());
+    let nofollow = metadata.options.contains(&"nofollow");
+    let noopener = window
+        .as_deref()
+        .is_some_and(|window| window == "_blank" || metadata.options.contains(&"noopener"));
+
+    let mut attributes = window.map_or_else(String::new, |window| {
+        format!(" target=\"{}\"", escape_href(&window))
+    });
+    match (nofollow, noopener) {
+        (true, true) => attributes.push_str(" rel=\"nofollow noopener\""),
+        (true, false) => attributes.push_str(" rel=\"nofollow\""),
+        (false, true) => attributes.push_str(" rel=\"noopener\""),
+        (false, false) => {}
+    }
+    attributes
 }

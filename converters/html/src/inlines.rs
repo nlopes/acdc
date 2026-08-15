@@ -94,6 +94,7 @@ use crate::{
     Error, HtmlVisitor, RenderOptions,
     constants::{encode_html_entities, escape_ampersands},
     icon::write_icon,
+    image::image_link_control_attributes,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
 
@@ -842,11 +843,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         };
 
         let link = i.metadata.attributes.get("link");
+        let link_controls = image_link_control_attributes(&i.metadata);
         if let Some(link) = link {
             write!(
                 w,
-                "<a class=\"image\" href=\"{}\">",
-                escape_href(&link.to_string())
+                "<a class=\"image\" href=\"{}\"{link_controls}>",
+                escape_href(&link.to_string()),
             )?;
         }
 

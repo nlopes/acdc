@@ -249,6 +249,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image links now honor `window`, `nofollow`, and `noopener`, including the
+  implicit `noopener` relation for `window=_blank`, matching Asciidoctor.
 - `[listing]`, `[source]`, `[literal]`, and `[verse]` before a block image
   macro now render the macro text in that block style instead of expanding an
   image, matching Asciidoctor.
