@@ -6,7 +6,7 @@
 - Item 2
 - Item 3
     - Nested item 1
-- Nested item 2
+    - Nested item 2
 
 - Item 4
 
@@ -16,7 +16,7 @@
 2. Second item
 3. Third item
     1. Nested item A
-2. Nested item B
+    2. Nested item B
 
 4. Fourth item
 

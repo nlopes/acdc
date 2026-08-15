@@ -26,6 +26,7 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Current heading level (for nested sections).
     pub(crate) heading_level: usize,
+    list_depth: usize,
     /// Collected footnotes for rendering at document end.
     /// Stored as `(id, pre-rendered markdown content)` so that the visitor
     /// does not need to borrow data from the document being walked.
@@ -40,6 +41,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             processor,
             diagnostics,
             heading_level: 0,
+            list_depth: 0,
             footnotes: Vec::new(),
         }
     }
@@ -195,7 +197,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
-        self.visit_list_items(&list.items, "-")
+        self.visit_list_items(&list.items, "-", 1)
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
@@ -211,12 +213,20 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 OrderedListNumbering::Arabic | OrderedListNumbering::Decimal
             )
         {
+            self.write_list_indent()?;
             self.write_warning(
                 "non-numeric ordered list numbering styles",
                 "rendering numerically",
             )?;
         }
-        self.visit_list_items(&list.items, "1.")
+        let start = list
+            .metadata
+            .attributes
+            .get_string("start")
+            .and_then(|start| start.parse::<usize>().ok())
+            .filter(|start| *start > 0)
+            .unwrap_or(1);
+        self.visit_list_items(&list.items, "1.", start)
     }
 
     fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
@@ -634,6 +644,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                                 processor: self.processor.clone(),
                                 diagnostics: self.diagnostics.reborrow(),
                                 heading_level: self.heading_level,
+                                list_depth: self.list_depth,
                                 footnotes: Vec::new(),
                             };
                             for node in &footnote.content {
@@ -747,12 +758,25 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
+    fn write_list_indent(&mut self) -> Result<(), Error> {
+        for _ in 0..self.list_depth {
+            write!(self.writer, "    ")?;
+        }
+        Ok(())
+    }
+
     /// Render list items with the given marker (for both ordered and unordered lists).
-    fn visit_list_items(&mut self, items: &[ListItem], marker: &str) -> Result<(), Error> {
+    fn visit_list_items(
+        &mut self,
+        items: &[ListItem],
+        marker: &str,
+        start: usize,
+    ) -> Result<(), Error> {
         for (i, item) in items.iter().enumerate() {
+            self.write_list_indent()?;
             // For ordered lists, use the actual number
             let item_marker = if marker.ends_with('.') {
-                format!("{}.", i + 1)
+                format!("{}.", start.saturating_add(i))
             } else {
                 marker.to_string()
             };
@@ -777,9 +801,15 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
 
             // Render nested blocks (indented)
             for block in &item.blocks {
-                // Indent nested content
-                write!(self.writer, "    ")?;
-                self.visit_block(block)?;
+                if matches!(block, Block::OrderedList(_) | Block::UnorderedList(_)) {
+                    self.list_depth += 1;
+                    let result = self.visit_block(block);
+                    self.list_depth -= 1;
+                    result?;
+                } else {
+                    write!(self.writer, "    ")?;
+                    self.visit_block(block)?;
+                }
             }
         }
         writeln!(self.writer)?;
