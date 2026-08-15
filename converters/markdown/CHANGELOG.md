@@ -44,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unindented ordered and unordered markers now render as nested mixed lists,
+  matching Asciidoctor's list ownership.
 - Brackets in block attribute values no longer make the attribute line leak
   into Markdown output.
 - **Inline markup in `link:` text** — link text with nested formatting is now rendered

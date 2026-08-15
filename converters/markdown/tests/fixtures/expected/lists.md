@@ -23,9 +23,8 @@
 ## Mixed Lists
 
 - Unordered item
-
-1. Ordered nested item
-2. Another ordered item
+    1. Ordered nested item
+    2. Another ordered item
 
 - Back to unordered
 
