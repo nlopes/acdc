@@ -1,0 +1,50 @@
+[1m[4mChecklist contexts[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mNested checklist states[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+* [1m[ ][0m Unchecked parent
+  * [1m[✔][0m Lowercase checked child
+  * [1m[✔][0m Uppercase checked child
+  * [1m[✔][0m Star checked child
+* [1m[✔][0m Checked sibling
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mChecklist nested under an ordered item[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+1. Ordered parent
+  * [1m[ ][0m Unchecked child
+    * [1m[✔][0m Checked grandchild
+  * [1m[✔][0m Checked sibling
+2. Ordered sibling
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mOrdered list nested under a checklist item[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+* [1m[✔][0m Checklist parent
+  1. Ordered child
+    1. [x] Literal lowercase marker
+    2. [X] Literal uppercase marker
+    3. [*] Literal star marker
+    4. [ ] Literal unchecked marker
+* [1m[ ][0m Checklist sibling
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mOrdinary bullet nested under a checklist item[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+* [1m[✔][0m Checklist parent
+  * Ordinary bullet
+    * [1m[ ][0m Nested checklist
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mChecklist-like markers in an ordered list[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+1. [ ] Literal unchecked marker
+2. [x] Literal lowercase marker
+3. [X] Literal uppercase marker
+4. [*] Literal star marker

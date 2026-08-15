@@ -1,0 +1,40 @@
+= Checklist contexts
+
+== Nested checklist states
+
+* [ ] Unchecked parent
+** [x] Lowercase checked child
+** [X] Uppercase checked child
+** [*] Star checked child
+* [x] Checked sibling
+
+== Checklist nested under an ordered item
+
+. Ordered parent
+* [ ] Unchecked child
+** [x] Checked grandchild
+* [*] Checked sibling
+. Ordered sibling
+
+== Ordered list nested under a checklist item
+
+* [x] Checklist parent
+. Ordered child
+.. [x] Literal lowercase marker
+.. [X] Literal uppercase marker
+.. [*] Literal star marker
+.. [ ] Literal unchecked marker
+* [ ] Checklist sibling
+
+== Ordinary bullet nested under a checklist item
+
+* [X] Checklist parent
+** Ordinary bullet
+*** [ ] Nested checklist
+
+== Checklist-like markers in an ordered list
+
+. [ ] Literal unchecked marker
+. [x] Literal lowercase marker
+. [X] Literal uppercase marker
+. [*] Literal star marker
