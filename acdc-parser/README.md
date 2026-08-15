@@ -325,6 +325,10 @@ Run `acdc lint` over new or changed AsciiDoc fixtures before handing them off.
 
 acdc's references are the [AsciiDoc Language draft specification](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/) and [asciidoctor](https://asciidoctor.org). A handful of parser behaviours intentionally differ from asciidoctor where the draft spec and asciidoctor diverge, or where asciidoctor's output is an implementation artifact.
 
+* **Uppercase checklist marker**: acdc treats `[X]` as checked, alongside `[x]`
+  and `[*]`. Asciidoctor leaves `[X]` in the item's text. This acceptance
+  difference is an intentional acdc extension.
+
 * **Remote include response limit**: Each decoded HTTP(S) include response is limited
   to 10 MiB. See [Remote includes](#remote-includes) for the authority requirements
   and limit behavior.

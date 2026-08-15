@@ -59,6 +59,10 @@ This limitation is tracked in https://linear.app/silly-muppets/issue/SC-290/matc
 Source callout references use parenthesized numbers such as `(1)`.
 Asciidoctor PDF instead uses circled number glyphs such as `①`.
 
+ACDC treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
+Asciidoctor PDF leaves `[X]` in the item text.
+This is an intentional parser extension shared by all ACDC converters.
+
 Table row stripes continue by logical row number when a table crosses a page.
 Asciidoctor PDF restarts the stripe cycle after each repeated header.
 

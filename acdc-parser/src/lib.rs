@@ -37,6 +37,12 @@
 //! - Detailed error reporting with source location information.
 //! - Support for parsing from strings, files, and readers.
 //!
+//! # Checklist markers
+//!
+//! acdc treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
+//! Asciidoctor leaves `[X]` in the item text. This is an intentional acdc
+//! extension.
+//!
 //! # Local include confinement
 //!
 //! For file input, [`SafeMode::Safe`] and [`SafeMode::Server`] use the entry
