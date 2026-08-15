@@ -12,6 +12,12 @@ pub(crate) struct PositionWithOffset {
     pub(crate) position: crate::Position,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MacroAttributeContext {
+    General,
+    Image,
+}
+
 // Used purely in the grammar to break down the block metadata lines into its different
 // types.
 #[derive(Debug)]
@@ -118,6 +124,7 @@ pub(crate) fn process_attribute_list<'input>(
     state: &ParserState<'input>,
     fallback_start: usize,
     fallback_end: usize,
+    context: MacroAttributeContext,
 ) -> Option<(usize, usize)> {
     let mut title_position = None;
     let mut first_positional = true;
@@ -171,9 +178,15 @@ pub(crate) fn process_attribute_list<'input>(
             }
             _ => {
                 if let AttributeValue::String(ref s) = value {
-                    metadata
-                        .attributes
-                        .insert(key, AttributeValue::String(s.clone()));
+                    if context == MacroAttributeContext::Image && key == "link" {
+                        metadata
+                            .attributes
+                            .set(key, AttributeValue::String(s.clone()));
+                    } else {
+                        metadata
+                            .attributes
+                            .insert(key, AttributeValue::String(s.clone()));
+                    }
                 } else if value == AttributeValue::None {
                     // Positional attribute
                     let key_str: &'input str = state.intern_cow(key);

@@ -16,7 +16,7 @@ use crate::{
 };
 
 use super::helpers::{
-    BlockParsingMetadata, PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID,
+    BlockParsingMetadata, MacroAttributeContext, PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID,
     RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand,
     process_attribute_list, strip_url_backslash_escapes,
 };
@@ -1031,7 +1031,7 @@ peg::parser! {
         = ("latexmath" / "asciimath" / "stem") ":[" ("\\\\" / "\\" ['[' | ']'] / [^(']' | '\\')]+ / "\\")* "]"
 
         rule inline_image() -> InlineNode<'input>
-        = "image:" source:source() attributes:macro_attributes()
+        = "image:" source:source() attributes:image_macro_attributes()
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -2062,8 +2062,26 @@ peg::parser! {
                 state,
                 span_start,
                 span_end,
+                MacroAttributeContext::General,
             );
             // macro_attributes never sets discrete flag (that's block-level only)
+            (false, metadata, title_position)
+        }
+
+        rule image_macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+            = open_square_bracket()
+              attrs:(att:image_macro_attribute() comma()? { att })*
+              close_square_bracket()
+        {
+            let mut metadata = BlockMetadata::default();
+            let title_position = process_attribute_list(
+                attrs,
+                &mut metadata,
+                state,
+                span_start,
+                span_end,
+                MacroAttributeContext::Image,
+            );
             (false, metadata, title_position)
         }
 
@@ -2085,6 +2103,17 @@ peg::parser! {
             / val:macro_positional_value() {
                 val.map(|v| (v, AttributeValue::None, None))
             }
+
+        rule image_macro_attribute() -> Option<(Cow<'input, str>, AttributeValue<'input>, Option<(usize, usize)>)>
+            = whitespace()* "link" "=" start:position!() value:image_link_attribute_value() end:position!() {
+                let substituted = substitute(value, &[Substitution::Attributes], &state.document_attributes);
+                Some((Cow::Borrowed("link"), AttributeValue::String(substituted), Some((start, end))))
+            }
+            / macro_attribute()
+
+        rule image_link_attribute_value() -> &'input str
+            = value:named_attribute_value() { value }
+            / &("," / "]") { "" }
 
         rule open_square_bracket() = "["
         rule close_square_bracket() = "]"

@@ -38,10 +38,10 @@ use crate::{
 use crate::model::substitution::{NORMAL, parse_subs_attribute};
 
 use super::helpers::{
-    AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, PositionWithOffset,
-    RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE,
-    RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values, strip_url_backslash_escapes,
-    title_looks_like_description_list,
+    AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, MacroAttributeContext,
+    PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
+    RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values,
+    strip_url_backslash_escapes, title_looks_like_description_list,
 };
 use super::setext;
 
@@ -684,7 +684,7 @@ struct ScannedAttribute {
 #[derive(Clone, Copy)]
 enum BlockAttributeMode {
     Block,
-    Macro,
+    Macro(MacroAttributeContext),
 }
 
 fn is_attribute_name_start(character: char) -> bool {
@@ -986,6 +986,7 @@ fn store_named_block_attribute<'input>(
     value: &'input str,
     quote: AttributeQuote,
     location: Option<Location>,
+    context: Option<MacroAttributeContext>,
 ) -> Option<(usize, usize)> {
     if quote == AttributeQuote::Unquoted && value == "None" {
         return None;
@@ -1039,10 +1040,17 @@ fn store_named_block_attribute<'input>(
             metadata.citetitle_substitutions = quote == AttributeQuote::Single;
         }
         _ => {
-            metadata.attributes.insert(
-                Cow::Borrowed(name),
-                AttributeValue::String(Cow::Borrowed(value)),
-            );
+            if context == Some(MacroAttributeContext::Image) && name == "link" {
+                metadata.attributes.set(
+                    Cow::Borrowed(name),
+                    AttributeValue::String(Cow::Borrowed(value)),
+                );
+            } else {
+                metadata.attributes.insert(
+                    Cow::Borrowed(name),
+                    AttributeValue::String(Cow::Borrowed(value)),
+                );
+            }
         }
     }
     title_position
@@ -1087,6 +1095,10 @@ fn parse_block_attribute_list<'input>(
                 value,
                 attribute.quote,
                 location,
+                match mode {
+                    BlockAttributeMode::Block => None,
+                    BlockAttributeMode::Macro(context) => Some(context),
+                },
             )
             .or(title_position);
         } else if slot == 0 {
@@ -1094,8 +1106,8 @@ fn parse_block_attribute_list<'input>(
                 BlockAttributeMode::Block => {
                     discrete = apply_block_style(state, &mut metadata, value, location.as_ref());
                 }
-                BlockAttributeMode::Macro if !value.is_empty() => metadata.style = Some(value),
-                BlockAttributeMode::Macro => {}
+                BlockAttributeMode::Macro(_) if !value.is_empty() => metadata.style = Some(value),
+                BlockAttributeMode::Macro(_) => {}
             }
         } else {
             ensure_positional_slot(&mut metadata, slot);
@@ -3698,7 +3710,7 @@ peg::parser! {
 
         rule image(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = image_macro_expands(block_metadata)
-          "image::" source:source() attributes:macro_attributes() end:position!()
+          "image::" source:source() attributes:image_macro_attributes() end:position!()
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("image", trailing, end, offset);
@@ -5589,6 +5601,12 @@ peg::parser! {
         /// - `image::photo.jpg[.role]` -> alt=".role" (literal text, NOT a role)
         /// - `image::photo.jpg[Diablo 4 picture of Lilith.]` -> alt="Diablo 4 picture of Lilith."
         pub(crate) rule macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+            = macro_attributes_for(MacroAttributeContext::General)
+
+        rule image_macro_attributes() -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
+            = macro_attributes_for(MacroAttributeContext::Image)
+
+        rule macro_attributes_for(context: MacroAttributeContext) -> (bool, BlockMetadata<'input>, Option<(usize, usize)>)
             = open_square_bracket()
               content_start:position!()
               content:attribute_list_content()
@@ -5598,7 +5616,7 @@ peg::parser! {
                     content,
                     content_start,
                     span_end,
-                    BlockAttributeMode::Macro,
+                    BlockAttributeMode::Macro(context),
                 )
             }
 

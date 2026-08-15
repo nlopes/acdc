@@ -172,6 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image macros now accept an empty inline `link=` value and use the last value
+  when `link=` appears more than once, matching Asciidoctor.
 - Checklist markers now apply only to unordered list items. `[ ]`, `[x]`,
   `[X]`, and `[*]` remain visible text in ordered items, matching Asciidoctor.
   ACDC continues to accept `[X]` in unordered checklists as an intentional
