@@ -1,0 +1,10 @@
+. Parent
+[[nested-child]]
+[loweralpha,start=3,role=child-role]
+.. Child C
+.. Child D
+
+. Parent
+[[nested-unordered-child]]
+[square,role=child-role]
+  * Child

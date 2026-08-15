@@ -98,9 +98,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             wrapper_class.push(' ');
             wrapper_class.push_str(style);
         }
-        if semantic {
-            wrapper_class = build_class(&wrapper_class, &list.metadata.roles);
-        }
+        wrapper_class = build_class(&wrapper_class, &list.metadata.roles);
         writeln!(self.writer, " class=\"{wrapper_class}\">")?;
         if semantic && has_title {
             self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
@@ -158,11 +156,20 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
         }
 
-        if let Some(t) = type_attr {
-            writeln!(self.writer, "<ol class=\"{style}\" type=\"{t}\">")?;
-        } else {
-            writeln!(self.writer, "<ol class=\"{style}\">")?;
+        write!(self.writer, "<ol class=\"{style}\"")?;
+        if let Some(value) = type_attr {
+            write!(self.writer, " type=\"{value}\"")?;
         }
+        if let Some(start) = list
+            .metadata
+            .attributes
+            .get_string("start")
+            .and_then(|start| start.parse::<usize>().ok())
+            .filter(|start| *start > 0)
+        {
+            write!(self.writer, " start=\"{start}\"")?;
+        }
+        writeln!(self.writer, ">")?;
         render_nested_list_items(&list.items, self, 1, true, 1, !semantic, semantic)?;
         writeln!(self.writer, "</ol>")?;
         writeln!(self.writer, "</{wrapper_tag}>")?;
