@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `[ordered]` and `[unordered]` description lists now render as numbered or
+  bulleted lists. Terms are bold, punctuation and stacked answers are
+  preserved, and attached content stays with its item, matching Asciidoctor
+  PDF.
 - `[qanda]` description lists now render numbered, italic questions with
   answers beneath them. Shared questions, attached content, nested Q&A lists,
   alignment roles, and numbering restarts match Asciidoctor PDF.

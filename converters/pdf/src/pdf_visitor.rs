@@ -1237,6 +1237,74 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    pub(crate) fn write_marker_description_list(
+        &mut self,
+        list: &DescriptionList<'_>,
+    ) -> Result<(), Error> {
+        if list.items.is_empty() {
+            return Ok(());
+        }
+
+        let ordered = list.metadata.style == Some("ordered");
+        let stacked = list.metadata.roles.contains(&"stack");
+        let subject_stop = list.metadata.attributes.get_string("subject-stop");
+        let indent = "  ".repeat(self.list_depth);
+        let _ = writeln!(self.writer, "{indent}#[");
+        if ordered {
+            let _ = write!(self.writer, "{indent}#set enum(numbering: ");
+            self.write_ordered_list_numbering(OrderedListNumbering::Arabic);
+            self.writer.raw(")\n");
+        } else {
+            let _ = write!(
+                self.writer,
+                "{indent}#set list(marker: box(baseline: -0.2em, circle(radius: 0.14em, fill: rgb("
+            );
+            self.writer.string_literal(&self.palette.bullet);
+            self.writer.raw("))))\n");
+        }
+
+        for row in description_list_rows(&list.items) {
+            let Some(subject) = row.first() else {
+                continue;
+            };
+            let Some(description) = row.last() else {
+                continue;
+            };
+            let marker = if ordered { "+" } else { "-" };
+            let _ = write!(self.writer, "{indent}  {marker} #block(width: 100%)[");
+            for anchor in &subject.anchors {
+                self.write_anchor_target(anchor);
+            }
+            self.writer.raw("#strong[");
+            self.write_inlines(&subject.term)?;
+            let subject_text = inlines_to_string(&subject.term);
+            let has_stop = subject_text
+                .trim_end()
+                .chars()
+                .next_back()
+                .is_some_and(|last| matches!(last, '.' | '!' | '?' | ';' | ':'));
+            if !has_stop
+                && let Some(stop) = subject_stop.as_deref().or_else(|| (!stacked).then_some(":"))
+            {
+                self.write_text_expr(stop);
+            }
+            self.writer.raw("]");
+
+            if !description.principal_text.is_empty() {
+                self.writer.raw(if stacked { "#linebreak()\n" } else { " " });
+                self.write_inlines(&description.principal_text)?;
+            }
+            if !description.description.is_empty() {
+                self.writer.raw("\n\n");
+                self.write_blocks(&description.description)?;
+            }
+            self.writer.raw("]\n");
+        }
+
+        let _ = writeln!(self.writer, "{indent}]\n");
+        Ok(())
+    }
+
     fn write_horizontal_description_terms(
         &mut self,
         items: &[DescriptionListItem<'_>],

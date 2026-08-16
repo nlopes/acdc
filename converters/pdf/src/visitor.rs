@@ -327,6 +327,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
+        if matches!(list.metadata.style, Some("ordered" | "unordered")) {
+            return self.write_marker_description_list(list);
+        }
         self.write_block_title(&list.title)?;
         if list.metadata.style == Some("horizontal") {
             return self.write_horizontal_description_list(list);
