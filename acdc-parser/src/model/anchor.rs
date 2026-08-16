@@ -36,6 +36,8 @@ pub struct Anchor<'a> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub xreflabel: Option<&'a str>,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) bibliography: bool,
 }
 
 impl<'a> Anchor<'a> {
@@ -46,6 +48,7 @@ impl<'a> Anchor<'a> {
             id,
             xreflabel: None,
             location,
+            bibliography: false,
         }
     }
 
@@ -54,6 +57,12 @@ impl<'a> Anchor<'a> {
     pub fn with_xreflabel(mut self, xreflabel: Option<&'a str>) -> Self {
         self.xreflabel = xreflabel;
         self
+    }
+
+    /// Returns whether this anchor identifies a bibliography entry.
+    #[must_use]
+    pub fn is_bibliography(&self) -> bool {
+        self.bibliography
     }
 }
 
@@ -152,6 +161,22 @@ pub struct Reference<'a> {
     pub title: Option<Title<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
     pub location: Location,
+    pub(crate) bibliography: bool,
+    pub(crate) automatic_citation: bool,
+}
+
+impl Reference<'_> {
+    /// Returns whether this target is a bibliography entry.
+    #[must_use]
+    pub fn is_bibliography(&self) -> bool {
+        self.bibliography
+    }
+
+    /// Returns whether the document contains an automatic citation to this target.
+    #[must_use]
+    pub fn has_automatic_citation(&self) -> bool {
+        self.automatic_citation
+    }
 }
 
 #[cfg(test)]

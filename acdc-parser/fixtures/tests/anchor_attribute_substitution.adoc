@@ -26,6 +26,7 @@ See xref:{prefix}-intro[] for the introduction.
 
 Link to xref:{chapter}-{topic}[the overview section].
 
+[bibliography]
 == Bibliography
 
 * [[[{prefix}-ref01]]] First reference with substituted ID

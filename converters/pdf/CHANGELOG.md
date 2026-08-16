@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bibliography lists now use square markers and show each entry's bracketed
+  reference label. Automatic citations link to entries, and entry labels link
+  back to the first automatic citation. List titles, IDs, alignment roles, and
+  attached blocks are preserved, matching Asciidoctor PDF.
 - `[ordered]` and `[unordered]` description lists now render as numbered or
   bulleted lists. Terms are bold, punctuation and stacked answers are
   preserved, and attached content stays with its item, matching Asciidoctor

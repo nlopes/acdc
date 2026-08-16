@@ -316,6 +316,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_unordered_list(&mut self, list: &UnorderedList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
+        if list.metadata.style == Some("bibliography") {
+            return self.write_bibliography_list(list);
+        }
         self.list_depth += 1;
         for item in &list.items {
             self.write_list_item("-", item)?;

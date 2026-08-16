@@ -101,6 +101,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[[id,*Bold* label]]` renders bold while a macro in a label stays literal,
   matching `asciidoctor`. When two elements claim the same id, the first one to
   claim it keeps the reference text, also matching `asciidoctor`.
+- Bibliography sections classify each direct unordered list without an explicit
+  style as `bibliography`. A valid leading `[[[id]]]` or
+  `[[[id,reference text]]]` in those lists is exposed through
+  `Anchor::is_bibliography()` and `Reference::is_bibliography()`; misplaced
+  syntax remains an ordinary anchor with visible brackets, and invalid IDs
+  remain literal text. `Reference::has_automatic_citation()` reports whether a
+  bibliography target is cited without explicit link text. This matches
+  Asciidoctor.
 - An `<<id>>`/`xref:id[]` whose target is defined nowhere now reports a
   `WarningKind::UnresolvedReference`, matching `asciidoctor` (external/inter-document
   references aren't flagged as the parser only deals with one file at a time).
@@ -123,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Comparing or debugging `Anchor` and `Reference` values now includes their
+  bibliography state. Serialized ASG output is unchanged.
 - `toclevels` and `sectnumlevels` now remain undefined until the document sets
   them, so attribute references stay literal by default. TOC and section-numbering
   depth still default to 2 and 3, matching Asciidoctor.

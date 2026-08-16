@@ -40,8 +40,8 @@ use crate::model::substitution::{NORMAL, parse_subs_attribute};
 use super::helpers::{
     AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, MacroAttributeContext,
     PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
-    RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, parse_comma_separated_values,
-    strip_url_backslash_escapes, title_looks_like_description_list,
+    RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, is_valid_bibliography_id,
+    parse_comma_separated_values, strip_url_backslash_escapes, title_looks_like_description_list,
 };
 use super::setext;
 
@@ -911,6 +911,7 @@ fn apply_style_part<'input>(
                 id: value,
                 xreflabel: None,
                 location,
+                bibliography: false,
             });
         }
         Some(StylePartKind::Role) => metadata.roles.push(value),
@@ -1004,6 +1005,7 @@ fn store_named_block_attribute<'input>(
                 id: value,
                 xreflabel: None,
                 location: location.clone().unwrap_or_default(),
+                bibliography: false,
             });
         }
         RESERVED_NAMED_ATTRIBUTE_ROLE | "roles" => {
@@ -1259,15 +1261,40 @@ fn insert_reference<'a>(
     if refs.contains_key(anchor.id) {
         return;
     }
-    let xreflabel = parse_reference_label(state, anchor.xreflabel, &anchor.location);
+    let mut xreflabel = parse_reference_label(state, anchor.xreflabel, &anchor.location);
+    if anchor.is_bibliography()
+        && let Some(label) = xreflabel.as_mut()
+    {
+        label.insert(
+            0,
+            InlineNode::PlainText(Plain {
+                content: "[",
+                location: anchor.location.clone(),
+                escaped: false,
+            }),
+        );
+        label.push(InlineNode::PlainText(Plain {
+            content: "]",
+            location: anchor.location.clone(),
+            escaped: false,
+        }));
+    }
     refs.insert(
         anchor.id,
         Reference {
             xreflabel,
             title,
             location: anchor.location.clone(),
+            bibliography: anchor.is_bibliography(),
+            automatic_citation: false,
         },
     );
+}
+
+struct CrossReferenceUse<'a> {
+    target: &'a str,
+    location: Location,
+    automatic: bool,
 }
 
 /// Catalog a formatted span's ID and recurse into its inline content.
@@ -1275,7 +1302,7 @@ fn collect_formatted_references<'a, T>(
     state: &mut ParserState<'a>,
     text: &T,
     refs: &mut HashMap<&'a str, Reference<'a>>,
-    xrefs: &mut Vec<(&'a str, Location)>,
+    xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) where
     T: MarkedText<'a, Content = Vec<InlineNode<'a>>>,
 {
@@ -1284,6 +1311,8 @@ fn collect_formatted_references<'a, T>(
             xreflabel: None,
             title: None,
             location: text.location().clone(),
+            bibliography: false,
+            automatic_citation: false,
         });
     }
     collect_inline_references(state, text.content(), refs, xrefs);
@@ -1291,8 +1320,8 @@ fn collect_formatted_references<'a, T>(
 
 /// Walk the final document tree to (1) populate the cross-reference catalog `refs` with
 /// every anchor (block IDs, inline `[[id]]` anchors, and formatted span IDs) and (2)
-/// collect every `<<id>>` / `xref:id[]` into `xrefs` (target, location) for
-/// unresolved-reference checking. A target with no title is still registered (reference
+/// collect every `<<id>>` / `xref:id[]` use for unresolved-reference checking and
+/// bibliography citation metadata. A target with no title is still registered (reference
 /// text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than being
 /// treated as unresolved. Top-level section IDs are seeded from `toc_entries`; this walk
 /// also catalogs nested-document sections that do not belong in the outer table of contents.
@@ -1300,7 +1329,7 @@ fn collect_references<'a>(
     state: &mut ParserState<'a>,
     blocks: &[Block<'a>],
     refs: &mut HashMap<&'a str, Reference<'a>>,
-    xrefs: &mut Vec<(&'a str, Location)>,
+    xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     for block in blocks {
         if !matches!(block, Block::Section(_))
@@ -1326,6 +1355,8 @@ fn collect_references<'a>(
                     xreflabel: parse_reference_label(state, xreflabel, &s.location),
                     title: Some(s.title.clone()),
                     location: s.location.clone(),
+                    bibliography: false,
+                    automatic_citation: false,
                 });
                 collect_references(state, &s.content, refs, xrefs);
             }
@@ -1376,12 +1407,134 @@ fn collect_references<'a>(
     }
 }
 
+fn normalize_bibliography_lists<'a>(state: &ParserState<'a>, blocks: &mut [Block<'a>]) {
+    for block in blocks {
+        match block {
+            Block::Section(section) => {
+                if section.kind == SectionKind::Bibliography {
+                    for child in &mut section.content {
+                        if let Block::UnorderedList(list) = child
+                            && list.metadata.style.is_none()
+                        {
+                            list.metadata.style = Some("bibliography");
+                        }
+                    }
+                }
+                normalize_bibliography_lists(state, &mut section.content);
+            }
+            Block::UnorderedList(list) => {
+                if list.metadata.style == Some("bibliography") {
+                    for item in &mut list.items {
+                        promote_bibliography_anchor(state, &mut item.principal);
+                    }
+                }
+                for item in &mut list.items {
+                    normalize_bibliography_lists(state, &mut item.blocks);
+                }
+            }
+            Block::OrderedList(list) => {
+                for item in &mut list.items {
+                    normalize_bibliography_lists(state, &mut item.blocks);
+                }
+            }
+            Block::CalloutList(list) => {
+                for item in &mut list.items {
+                    normalize_bibliography_lists(state, &mut item.blocks);
+                }
+            }
+            Block::DescriptionList(list) => {
+                for item in &mut list.items {
+                    normalize_bibliography_lists(state, &mut item.description);
+                }
+            }
+            Block::Admonition(admonition) => {
+                normalize_bibliography_lists(state, &mut admonition.blocks);
+            }
+            Block::DelimitedBlock(block) => match &mut block.inner {
+                DelimitedBlockType::DelimitedExample(blocks)
+                | DelimitedBlockType::DelimitedOpen(blocks)
+                | DelimitedBlockType::DelimitedSidebar(blocks)
+                | DelimitedBlockType::DelimitedQuote(blocks) => {
+                    normalize_bibliography_lists(state, blocks);
+                }
+                DelimitedBlockType::DelimitedTable(table) => {
+                    for row in table
+                        .header
+                        .iter_mut()
+                        .chain(table.rows.iter_mut())
+                        .chain(table.footer.iter_mut())
+                    {
+                        for column in &mut row.columns {
+                            normalize_bibliography_lists(state, &mut column.content);
+                        }
+                    }
+                }
+                DelimitedBlockType::DelimitedListing(_)
+                | DelimitedBlockType::DelimitedLiteral(_)
+                | DelimitedBlockType::DelimitedPass(_)
+                | DelimitedBlockType::DelimitedVerse(_)
+                | DelimitedBlockType::DelimitedComment(_)
+                | DelimitedBlockType::DelimitedStem(_) => {}
+            },
+            Block::Paragraph(_)
+            | Block::DiscreteHeader(_)
+            | Block::ThematicBreak(_)
+            | Block::PageBreak(_)
+            | Block::Image(_)
+            | Block::Audio(_)
+            | Block::Video(_)
+            | Block::TableOfContents(_)
+            | Block::DocumentAttribute(_)
+            | Block::Comment(_) => {}
+        }
+    }
+}
+
+fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<InlineNode<'a>>) {
+    let [
+        InlineNode::PlainText(open),
+        InlineNode::InlineAnchor(anchor),
+        InlineNode::PlainText(close),
+        ..,
+    ] = principal.as_mut_slice()
+    else {
+        return;
+    };
+    if open.content != "["
+        || !close.content.starts_with(']')
+        || !is_valid_bibliography_id(anchor.id)
+        || open.location.absolute_start + 1 != anchor.location.absolute_start
+        || anchor.location.absolute_end + 1 != close.location.absolute_start
+    {
+        return;
+    }
+
+    anchor.bibliography = true;
+    anchor.location =
+        state.create_location(open.location.absolute_start, close.location.absolute_start);
+    let remove_close = if close.content == "]" {
+        true
+    } else {
+        close.content = &close.content[1..];
+        close.location = state.create_location(
+            close.location.absolute_start + 1,
+            close.location.absolute_end,
+        );
+        false
+    };
+
+    principal.remove(0);
+    if remove_close {
+        principal.remove(1);
+    }
+}
+
 /// Walk the content of a delimited block for anchors and cross-references.
 fn collect_delimited_references<'a>(
     state: &mut ParserState<'a>,
     inner: &DelimitedBlockType<'a>,
     refs: &mut HashMap<&'a str, Reference<'a>>,
-    xrefs: &mut Vec<(&'a str, Location)>,
+    xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
@@ -1419,13 +1572,17 @@ fn collect_inline_references<'a>(
     state: &mut ParserState<'a>,
     inlines: &[InlineNode<'a>],
     refs: &mut HashMap<&'a str, Reference<'a>>,
-    xrefs: &mut Vec<(&'a str, Location)>,
+    xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     for inline in inlines {
         match inline {
             InlineNode::InlineAnchor(anchor) => insert_reference(state, refs, anchor, None),
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                xrefs.push((xref.target, xref.location.clone()));
+                xrefs.push(CrossReferenceUse {
+                    target: xref.target,
+                    location: xref.location.clone(),
+                    automatic: xref.text.is_empty(),
+                });
             }
             InlineNode::BoldText(t) => collect_formatted_references(state, t, refs, xrefs),
             InlineNode::ItalicText(t) => collect_formatted_references(state, t, refs, xrefs),
@@ -2265,6 +2422,7 @@ peg::parser! {
             // Assign caption ordinals over the finished tree. Numbering here cannot be
             // disturbed by PEG backtracking, and it runs before the reference catalog so that
             // catalog can later carry a target's caption label and ordinal.
+            normalize_bibliography_lists(state, &mut blocks);
             caption::renumber_captions(&mut blocks);
 
             section::number_parsed_sections(
@@ -2289,21 +2447,29 @@ peg::parser! {
                         xreflabel,
                         title: Some(entry.title.clone()),
                         location: entry.location.clone(),
+                        bibliography: false,
+                        automatic_citation: false,
                     },
                 );
             }
-            let mut xrefs: Vec<(&str, Location)> = Vec::new();
+            let mut xrefs = Vec::new();
             collect_references(state, &blocks, &mut references, &mut xrefs);
 
             // An internal `<<id>>` whose target is absent from the catalog is an
             // unresolved (broken) reference. Inter-document/external targets
             // (those addressing another resource) are not validated here.
-            for (target, location) in xrefs {
-                if is_internal_reference(target) && !references.contains_key(target) {
-                    let source_location = state.create_error_source_location(location);
+            for xref in xrefs {
+                if xref.automatic
+                    && let Some(reference) = references.get_mut(xref.target)
+                    && reference.is_bibliography()
+                {
+                    reference.automatic_citation = true;
+                }
+                if is_internal_reference(xref.target) && !references.contains_key(xref.target) {
+                    let source_location = state.create_error_source_location(xref.location);
                     state.add_warning(crate::Warning::new(
                         crate::WarningKind::UnresolvedReference {
-                            target: target.to_string(),
+                            target: xref.target.to_string(),
                         },
                         Some(source_location),
                     ));
@@ -5515,7 +5681,8 @@ peg::parser! {
             Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_location(span_start, end)
+                location: state.create_location(span_start, end),
+                bibliography: false,
             }
         }
 
@@ -5523,7 +5690,7 @@ peg::parser! {
         = double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
         warn_anchor_id_with_whitespace()?
-        id:$([^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+)
+        id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(
             comma() reftext:$([^']']+) {
                 Some(reftext)
@@ -5539,29 +5706,27 @@ peg::parser! {
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_block_location(span_start, span_end, offset)
+                location: state.create_block_location(span_start, span_end, offset),
+                bibliography: false,
             })
         }
 
         rule inline_anchor_match() -> ()
-        = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
+        = double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
 
-        /// Bibliography anchor: `[[[id]]]` or `[[[id,reftext]]]`
-        /// Must be parsed before inline_anchor to avoid capturing `[id` as the ID
-        rule bibliography_anchor(offset: usize) -> InlineNode<'input>
-        = "[[["
-        warn_anchor_id_with_whitespace()?
-        id:$([^'\'' | ',' | ']' | '[' | '.' | ' ' | '\t' | '\n' | '\r']+)
-        reftext:(comma() reftext:$([^']']+) { Some(reftext) } / { None })
-        "]]]"
-        {
-            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
-            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
-            InlineNode::InlineAnchor(Anchor {
-                id: substituted_id,
-                xreflabel: substituted_reftext,
-                location: state.create_block_location(span_start, span_end, offset)
-            })
+        rule invalid_bibliography_anchor(offset: usize) -> InlineNode<'input>
+        = syntax:$("[[[" [^']' | '\n']* "]]]") {?
+            let body = &syntax[3..syntax.len() - 3];
+            let id = body.split_once(',').map_or(body, |(id, _)| id);
+            if is_valid_bibliography_id(id) {
+                Err("valid bibliography anchor")
+            } else {
+                Ok(InlineNode::PlainText(Plain {
+                    content: syntax,
+                    location: state.create_block_location(span_start, span_end, offset),
+                    escaped: false,
+                }))
+            }
         }
 
         rule attributes_line() -> (bool, BlockMetadata<'input>)
@@ -6660,7 +6825,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     absolute_end: 9,
                     start: crate::Position::new(1, 5),
                     end: crate::Position::new(1, 10),
-                }
+                },
+                bibliography: false,
             })
         );
         assert_eq!(metadata.style, None);
@@ -6687,7 +6853,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     absolute_end: 12,
                     start: crate::Position::new(1, 9),
                     end: crate::Position::new(1, 13),
-                }
+                },
+                bibliography: false,
             })
         );
         assert_eq!(metadata.style, Some("astyle"));
@@ -6714,7 +6881,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     absolute_end: 12,
                     start: crate::Position::new(1, 9),
                     end: crate::Position::new(1, 13),
-                }
+                },
+                bibliography: false,
             })
         );
         assert_eq!(metadata.style, Some("astyle"));
@@ -6742,7 +6910,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     absolute_end: 12,
                     start: crate::Position::new(1, 3),
                     end: crate::Position::new(1, 13),
-                }
+                },
+                bibliography: false,
             })
         );
         assert_eq!(metadata.style, None);
@@ -6768,7 +6937,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     absolute_end: 7,
                     start: crate::Position::new(1, 3),
                     end: crate::Position::new(1, 8),
-                }
+                },
+                bibliography: false,
             })
         );
         assert_eq!(metadata.style, None);

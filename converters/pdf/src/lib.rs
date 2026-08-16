@@ -767,6 +767,10 @@ fn encode_label(value: &str) -> String {
     out
 }
 
+fn encode_bibliography_reference_label(value: &str) -> String {
+    format!("bibref-{}", encode_label(value))
+}
+
 fn encode_footnote_label(value: &str) -> String {
     encode_label(&format!("footnote:{value}"))
 }

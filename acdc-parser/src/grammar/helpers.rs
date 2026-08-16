@@ -61,6 +61,16 @@ pub(crate) const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
 
+pub(crate) fn is_valid_bibliography_id(id: &str) -> bool {
+    let mut chars = id.chars();
+    chars
+        .next()
+        .is_some_and(|first| first.is_alphabetic() || matches!(first, '_' | ':'))
+        && chars.all(|character| {
+            character.is_alphanumeric() || matches!(character, '_' | '-' | ':' | '.')
+        })
+}
+
 /// Strip backslash escapes from URL paths.
 ///
 /// In `AsciiDoc`, backslash escapes prevent typography substitutions.
@@ -143,6 +153,7 @@ pub(crate) fn process_attribute_list<'input>(
                     id,
                     xreflabel: None,
                     location: state.create_location(id_start, id_end),
+                    bibliography: false,
                 });
             }
             k if k == RESERVED_NAMED_ATTRIBUTE_ROLE => {

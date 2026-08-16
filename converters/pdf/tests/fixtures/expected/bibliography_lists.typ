@@ -1,7 +1,7 @@
 #set document(
-  title: "All Article Special Sections Numbered",
+  title: "Bibliography list semantics",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[All Article Special Sections Numbered]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Bibliography list semantics]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -69,66 +69,36 @@
 }
 
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("All Article Special Sections Numbered")]
+#text(size: 22pt, weight: "bold")[#text("Bibliography list semantics")]
 ]
 #v(1em)
 
-#heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
-#let _acdc_toc_entry(target, depth, body) = context {
-  link(
-    target,
-    pad(
-      left: depth * 1.25em,
-      grid(
-        columns: (auto, 1fr, auto),
-        column-gutter: 0.5em,
-        body,
-        repeat[.],
-        str(counter(page).at(target).first()),
-      ),
-    ),
-  )
-}
-#_acdc_toc_entry(<id-5f66697273745f73656374696f6e>, 0, [#text("2. ")#text("First Section")])
-#_acdc_toc_entry(<id-5f617070656e6469785f6d6174657269616c>, 0, [#text("Appendix A: ")#text("Appendix Material")])
-#_acdc_toc_entry(<id-5f617070656e6469785f746f706963>, 1, [#text("A.1. ")#text("Appendix Topic")])
-#_acdc_toc_entry(<id-5f6269626c696f677261706879>, 0, [#text("3. ")#text("Bibliography")])
-#_acdc_toc_entry(<id-5f676c6f7373617279>, 0, [#text("4. ")#text("Glossary")])
-#_acdc_toc_entry(<id-5f696e646578>, 0, [#text("5. ")#text("Index")])
-#pagebreak()
+#text("The first citation is ")#metadata(none) <bibref-id-7265662d61>#link(<id-7265662d61>)[#text("[ref-a]")]#text(", the labelled citation is ")#metadata(none) <bibref-id-7265662d62>#link(<id-7265662d62>)[#text("[")#text("Short label")#text("]")]#text(", and the first citation repeats as ")#link(<id-7265662d61>)[#text("[ref-a]")]#text(". An explicit citation label is ")#link(<id-7265662d63>)[#text("custom citation")]#text(". The numeric citation is ")#metadata(none) <bibref-id-7265662d6e756d6265726564>#link(<id-7265662d6e756d6265726564>)[#text("[")#text("1")#text("]")]#text(". The regular anchor is referenced as ")#link(<id-726567756c61722d616e63686f72>)[#text("[regular-anchor]")]#text(".")
 
-#abstracttitle[#text("Abstract")] <id-5f6162737472616374>
-#abstract[
-#text("Abstract body.")
+#heading(level: 1)[#text("References")] <id-5f7265666572656e636573>
 
-#heading(level: 2, outlined: false, bookmarked: false)[#text(style: "normal")[#text("1.1. ")#text("Abstract Topic")]] <id-5f61627374726163745f746f706963>
+#metadata(none) <id-7265666572656e63652d6c697374>
+#blocktitle[#text("Primary sources")]
+#[
+#set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
+  - #block(width: 100%)[#metadata(none) <id-7265662d61>#link(<bibref-id-7265662d61>)[#text("[ref-a]")]#text(" First reference.")]
+  - #block(width: 100%)[#metadata(none) <id-7265662d62>#link(<bibref-id-7265662d62>)[#text("[")#text("Short label")#text("]")]#text(" Second reference with a custom label.")]
+  - #block(width: 100%)[#metadata(none) <id-7265662d63>#text("[")#text("Third label")#text("]")#text(" Third reference with a custom label.")]
+  - #block(width: 100%)[#metadata(none) <id-7265662d6e756d6265726564>#link(<bibref-id-7265662d6e756d6265726564>)[#text("[")#text("1")#text("]")]#text(" A numerically labelled reference.")]
+  - #block(width: 100%)[#text("[")#text("[[escaped]]")#text("] Escaped bibliography syntax remains literal.")]
+  - #block(width: 100%)[#metadata(none) <id-726567756c61722d616e63686f72>#text(" A regular inline anchor stays hidden.")]
+  - #block(width: 100%)[#metadata(none) <id-7265662d626c6f636b>#text("[ref-block]")#text(" Reference with attached content.")
 
-#text("Abstract topic body.")
+#text("An attached paragraph with ")#strong[#text("formatting")]#text(".")
 
 ]
+]
 
-#heading(level: 1)[#text("2. ")#text("First Section")] <id-5f66697273745f73656374696f6e>
-
-#text("First body.")
-
-#heading(level: 1)[#text("Appendix A: ")#text("Appendix Material")] <id-5f617070656e6469785f6d6174657269616c>
-
-#heading(level: 2)[#text("A.1. ")#text("Appendix Topic")] <id-5f617070656e6469785f746f706963>
-
-#text("Appendix topic body.")
-
-#heading(level: 1)[#text("3. ")#text("Bibliography")] <id-5f6269626c696f677261706879>
+#heading(level: 1)[#text("Explicit bibliography list")] <id-5f6578706c696369745f6269626c696f6772617068795f6c697374>
 
 #[
 #set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
-  - #block(width: 100%)[#metadata(none) <id-726566>#text("[ref]")#text(" Reference")]
+  - #block(width: 100%)[#metadata(none) <id-7265662d6578706c69636974>#link(<bibref-id-7265662d6578706c69636974>)[#text("[ref-explicit]")]#text(" An explicitly styled bibliography entry.")]
 ]
 
-#heading(level: 1)[#text("4. ")#text("Glossary")] <id-5f676c6f7373617279>
-
-#text(weight: "bold")[#text("Term")]
-#text("Definition.")
-
-#text("A concealed index term ")#text(".")
-
-#heading(level: 1)[#text("5. ")#text("Index")] <id-5f696e646578>
+#text("See ")#metadata(none) <bibref-id-7265662d6578706c69636974>#link(<id-7265662d6578706c69636974>)[#text("[ref-explicit]")]#text(".")

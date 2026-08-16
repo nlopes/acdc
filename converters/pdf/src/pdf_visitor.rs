@@ -1,4 +1,6 @@
-use std::{borrow::Cow, fmt::Write as _, num::NonZeroU32, ops::Range, rc::Rc};
+use std::{
+    borrow::Cow, collections::HashSet, fmt::Write as _, num::NonZeroU32, ops::Range, rc::Rc,
+};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effective_subs_flags};
@@ -28,7 +30,9 @@ use acdc_pdf_theme::{
 use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
 
-use crate::{Error, Processor, encode_footnote_label};
+use crate::{
+    Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
+};
 
 #[derive(Clone, Copy, Default)]
 enum TableCellSectionState {
@@ -114,6 +118,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     text_boundaries: TextBoundaries,
     toc_entries: Vec<TocEntry<'a>>,
     toc_written: bool,
+    bibliography_backlinks_written: HashSet<String>,
 }
 
 #[derive(PartialEq, Eq)]
@@ -229,6 +234,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             text_boundaries: TextBoundaries::BOTH,
             toc_entries,
             toc_written: false,
+            bibliography_backlinks_written: HashSet::new(),
         }
     }
 
@@ -1163,6 +1169,74 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    pub(crate) fn write_bibliography_list(
+        &mut self,
+        list: &acdc_parser::UnorderedList<'_>,
+    ) -> Result<(), Error> {
+        let indent = "  ".repeat(self.list_depth);
+        let _ = writeln!(self.writer, "{indent}#[");
+        let _ = write!(
+            self.writer,
+            "{indent}#set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("
+        );
+        self.writer.string_literal(&self.palette.bullet);
+        self.writer.raw("))))\n");
+
+        self.list_depth += 1;
+        for item in &list.items {
+            let item_indent = "  ".repeat(self.list_depth);
+            let _ = write!(self.writer, "{item_indent}- #block(width: 100%)[");
+            self.write_paragraph_alignment(&list.metadata, |visitor| {
+                visitor.write_bibliography_principal(item)
+            })?;
+            if !item.blocks.is_empty() {
+                self.writer.raw("\n\n");
+                self.list_depth += 1;
+                for block in &item.blocks {
+                    self.visit_block(block)?;
+                }
+                self.list_depth -= 1;
+            }
+            self.writer.raw("]\n");
+        }
+        self.list_depth -= 1;
+        let _ = writeln!(self.writer, "{indent}]\n");
+        Ok(())
+    }
+
+    fn write_bibliography_principal(&mut self, item: &ListItem<'_>) -> Result<(), Error> {
+        let Some((InlineNode::InlineAnchor(anchor), content)) = item.principal.split_first() else {
+            return self.write_inlines(&item.principal);
+        };
+        if !anchor.is_bibliography() {
+            return self.write_inlines(&item.principal);
+        }
+
+        let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
+        let references = Rc::clone(&self.processor.references);
+        let backlink = references
+            .get(anchor.id)
+            .is_some_and(acdc_parser::Reference::has_automatic_citation);
+        if backlink {
+            let label = encode_bibliography_reference_label(anchor.id);
+            let _ = write!(self.writer, "#link(<{label}>)[");
+        }
+
+        if let Some(label) = references
+            .get(anchor.id)
+            .and_then(|reference| reference.xreflabel.as_deref())
+        {
+            self.write_inlines(label)?;
+        } else {
+            self.write_text_expr(&format!("[{}]", anchor.id));
+        }
+
+        if backlink {
+            self.writer.raw("]");
+        }
+        self.write_inlines(content)
+    }
+
     pub(crate) fn write_horizontal_description_list(
         &mut self,
         list: &DescriptionList<'_>,
@@ -1284,14 +1358,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 .next_back()
                 .is_some_and(|last| matches!(last, '.' | '!' | '?' | ';' | ':'));
             if !has_stop
-                && let Some(stop) = subject_stop.as_deref().or_else(|| (!stacked).then_some(":"))
+                && let Some(stop) = subject_stop
+                    .as_deref()
+                    .or_else(|| (!stacked).then_some(":"))
             {
                 self.write_text_expr(stop);
             }
             self.writer.raw("]");
 
             if !description.principal_text.is_empty() {
-                self.writer.raw(if stacked { "#linebreak()\n" } else { " " });
+                self.writer
+                    .raw(if stacked { "#linebreak()\n" } else { " " });
                 self.write_inlines(&description.principal_text)?;
             }
             if !description.description.is_empty() {
@@ -2126,6 +2203,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
+
+        if xref.text.is_empty()
+            && references
+                .get(xref.target)
+                .is_some_and(acdc_parser::Reference::is_bibliography)
+            && self
+                .bibliography_backlinks_written
+                .insert(xref.target.to_string())
+        {
+            let label = encode_bibliography_reference_label(xref.target);
+            let _ = write!(self.writer, "#metadata(none) <{label}>");
+        }
 
         if !xref.text.is_empty() {
             if references.contains_key(xref.target) {

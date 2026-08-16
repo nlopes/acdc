@@ -1048,6 +1048,7 @@ mod tests {
                 id: "custom_id",
                 xreflabel: None,
                 location: Location::default(),
+                bibliography: false,
             }),
             ..Default::default()
         };
@@ -1062,6 +1063,7 @@ mod tests {
                 id: "anchor_id",
                 xreflabel: None,
                 location: Location::default(),
+                bibliography: false,
             }],
             ..Default::default()
         };
@@ -1077,11 +1079,13 @@ mod tests {
                     id: "first_anchor",
                     xreflabel: None,
                     location: Location::default(),
+                    bibliography: false,
                 },
                 Anchor {
                     id: "last_anchor",
                     xreflabel: None,
                     location: Location::default(),
+                    bibliography: false,
                 },
             ],
             ..Default::default()
@@ -1097,11 +1101,13 @@ mod tests {
                 id: "from_id",
                 xreflabel: None,
                 location: Location::default(),
+                bibliography: false,
             }),
             anchors: vec![Anchor {
                 id: "from_anchors",
                 xreflabel: None,
                 location: Location::default(),
+                bibliography: false,
             }],
             ..Default::default()
         };

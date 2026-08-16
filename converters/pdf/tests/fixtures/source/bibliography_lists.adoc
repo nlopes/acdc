@@ -1,0 +1,28 @@
+= Bibliography list semantics
+
+The first citation is <<ref-a>>, the labelled citation is <<ref-b>>, and the first citation repeats as <<ref-a>>.
+An explicit citation label is <<ref-c,custom citation>>.
+The numeric citation is <<ref-numbered>>.
+The regular anchor is referenced as <<regular-anchor>>.
+
+[bibliography]
+== References
+
+.Primary sources
+[#reference-list.references-role]
+* [[[ref-a]]] First reference.
+* [[[ref-b,Short label]]] Second reference with a custom label.
+* [[[ref-c,Third label]]] Third reference with a custom label.
+* [[[ref-numbered,1]]] A numerically labelled reference.
+* [\[[escaped]]] Escaped bibliography syntax remains literal.
+* [[regular-anchor]] A regular inline anchor stays hidden.
+* [[[ref-block]]] Reference with attached content.
++
+An attached paragraph with *formatting*.
+
+== Explicit bibliography list
+
+[bibliography]
+* [[[ref-explicit]]] An explicitly styled bibliography entry.
+
+See <<ref-explicit>>.

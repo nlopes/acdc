@@ -18,7 +18,7 @@ use crate::{
 use super::helpers::{
     BlockParsingMetadata, MacroAttributeContext, PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID,
     RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand,
-    process_attribute_list, strip_url_backslash_escapes,
+    is_valid_bibliography_id, process_attribute_list, strip_url_backslash_escapes,
 };
 
 /// RFC 5321 max local-part length. An email address must have `@` within this
@@ -296,8 +296,7 @@ peg::parser! {
             / check_macros() &['('] index_term:index_term_flow() { index_term }
             / check_macros() &['i'] indexterm:indexterm_macro() { indexterm }
             / check_macros() &['i'] indexterm2:indexterm2_macro() { indexterm2 }
-            // Bibliography anchor (triple brackets) must come before inline anchor (double brackets)
-            / check_macros() &['['] bibliography_anchor:bibliography_anchor() { bibliography_anchor }
+            / check_macros() &['['] invalid_bibliography_anchor:invalid_bibliography_anchor() { invalid_bibliography_anchor }
             / check_macros() &['['] inline_anchor:inline_anchor() { inline_anchor }
             / check_macros() &['<'] cross_reference_shorthand:cross_reference_shorthand() { cross_reference_shorthand }
             / check_macros() &['x'] cross_reference_macro:cross_reference_macro() { cross_reference_macro }
@@ -1890,7 +1889,7 @@ peg::parser! {
         = double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
         warn_anchor_id_with_whitespace()?
-        id:$([^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+)
+        id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(
             comma() reftext:$([^']']+) {
                 Some(reftext)
@@ -1906,29 +1905,27 @@ peg::parser! {
             InlineNode::InlineAnchor(Anchor {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset)
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                bibliography: false,
             })
         }
 
         rule inline_anchor_match() -> ()
-        = double_open_square_bracket() [^'\'' | ',' | ']' | '.' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
+        = double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
 
-        /// Bibliography anchor: `[[[id]]]` or `[[[id,reftext]]]`
-        /// Must be parsed before inline_anchor to avoid capturing `[id` as the ID
-        rule bibliography_anchor() -> InlineNode<'input>
-        = "[[["
-        warn_anchor_id_with_whitespace()?
-        id:$([^'\'' | ',' | ']' | '[' | '.' | ' ' | '\t' | '\n' | '\r']+)
-        reftext:(comma() reftext:$([^']']+) { Some(reftext) } / { None })
-        "]]]"
-        {
-            let substituted_id = state.intern_cow(substitute(id, HEADER, &state.document_attributes));
-            let substituted_reftext = reftext.map(|rt| state.intern_cow(substitute(rt, HEADER, &state.document_attributes)));
-            InlineNode::InlineAnchor(Anchor {
-                id: substituted_id,
-                xreflabel: substituted_reftext,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset)
-            })
+        rule invalid_bibliography_anchor() -> InlineNode<'input>
+        = syntax:$("[[[" [^']' | '\n']* "]]]") {?
+            let body = &syntax[3..syntax.len() - 3];
+            let id = body.split_once(',').map_or(body, |(id, _)| id);
+            if is_valid_bibliography_id(id) {
+                Err("valid bibliography anchor")
+            } else {
+                Ok(InlineNode::PlainText(Plain {
+                    content: syntax,
+                    location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                    escaped: false,
+                }))
+            }
         }
 
         /// Rust-native guard: returns Ok for characters that cannot start any inline
