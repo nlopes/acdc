@@ -16,9 +16,10 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
-    CrossReference, HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem,
-    Paragraph, Section, SectionKind, Source, Table, TableColumn, TableFrame, TableGrid,
-    TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    CrossReference, DescriptionList, DescriptionListItem, HorizontalAlignment, Image,
+    IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source,
+    Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableStripes,
+    Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -1162,6 +1163,71 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    pub(crate) fn write_horizontal_description_list(
+        &mut self,
+        list: &DescriptionList<'_>,
+    ) -> Result<(), Error> {
+        if list.items.is_empty() {
+            return Ok(());
+        }
+
+        self.writer
+            .raw("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
+        for row in horizontal_description_rows(&list.items) {
+            self.writer.raw("measure([");
+            self.write_horizontal_description_terms(row, false)?;
+            self.writer.raw("]).width,\n");
+        }
+        self.writer.raw(
+            "), size.width * 50%)\ngrid(columns: (term-width, 1fr), column-gutter: 20pt, row-gutter: 0.5em, align: top,\n",
+        );
+
+        for row in horizontal_description_rows(&list.items) {
+            let Some(item) = row.last() else {
+                continue;
+            };
+            self.writer.raw("[");
+            self.write_horizontal_description_terms(row, true)?;
+            self.writer.raw("], [");
+            self.write_description_list_item(item)?;
+            self.writer.raw("],\n");
+        }
+
+        self.writer.raw(")\n})\n\n");
+        Ok(())
+    }
+
+    fn write_horizontal_description_terms(
+        &mut self,
+        items: &[DescriptionListItem<'_>],
+        write_anchors: bool,
+    ) -> Result<(), Error> {
+        for (index, item) in items.iter().enumerate() {
+            if index > 0 {
+                self.writer.raw("#linebreak()");
+            }
+            if write_anchors {
+                for anchor in &item.anchors {
+                    self.write_anchor_target(anchor);
+                }
+            }
+            self.writer.raw("#text(weight: \"bold\")[");
+            self.write_inlines(&item.term)?;
+            self.writer.raw("]");
+        }
+        Ok(())
+    }
+
+    fn write_description_list_item(&mut self, item: &DescriptionListItem<'_>) -> Result<(), Error> {
+        if !item.principal_text.is_empty() {
+            self.write_inlines(&item.principal_text)?;
+            if !item.description.is_empty() {
+                self.writer.raw("\n\n");
+            }
+        }
+        self.write_blocks(&item.description)
+    }
+
     pub(crate) fn write_ordered_list_start(&mut self, metadata: &BlockMetadata<'_>, marker: &str) {
         let numbering = match metadata.style {
             Some(style) => OrderedListNumbering::from_explicit_style(style).unwrap_or_default(),
@@ -2000,6 +2066,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("]");
         Ok(())
     }
+}
+
+fn horizontal_description_rows<'items, 'document>(
+    items: &'items [DescriptionListItem<'document>],
+) -> impl Iterator<Item = &'items [DescriptionListItem<'document>]> {
+    items.split_inclusive(|item| !item.principal_text.is_empty() || !item.description.is_empty())
 }
 
 fn table_column_tracks(table: &Table<'_>, column_count: usize) -> Vec<TableColumnTrack> {

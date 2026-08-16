@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Horizontal description lists now render terms and descriptions in a
+  borderless two-column layout. The term column fits its content up to half
+  the available width, and multiple terms and attached blocks stay with their
+  description, matching Asciidoctor PDF.
 - Block images without an explicit width now keep their intrinsic size instead
   of expanding to the page width. Oversized images still fit the available
   area, matching Asciidoctor PDF.

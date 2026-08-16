@@ -328,6 +328,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
+        if list.metadata.style == Some("horizontal") {
+            return self.write_horizontal_description_list(list);
+        }
         for item in &list.items {
             for anchor in &item.anchors {
                 self.write_anchor_target(anchor);
