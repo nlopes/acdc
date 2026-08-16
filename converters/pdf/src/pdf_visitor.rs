@@ -1173,7 +1173,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
         self.writer
             .raw("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
-        for row in horizontal_description_rows(&list.items) {
+        for row in description_list_rows(&list.items) {
             self.writer.raw("measure([");
             self.write_horizontal_description_terms(row, false)?;
             self.writer.raw("]).width,\n");
@@ -1182,7 +1182,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "), size.width * 50%)\ngrid(columns: (term-width, 1fr), column-gutter: 20pt, row-gutter: 0.5em, align: top,\n",
         );
 
-        for row in horizontal_description_rows(&list.items) {
+        for row in description_list_rows(&list.items) {
             let Some(item) = row.last() else {
                 continue;
             };
@@ -1194,6 +1194,46 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         self.writer.raw(")\n})\n\n");
+        Ok(())
+    }
+
+    pub(crate) fn write_qanda_description_list(
+        &mut self,
+        list: &DescriptionList<'_>,
+    ) -> Result<(), Error> {
+        if list.items.is_empty() {
+            return Ok(());
+        }
+
+        let indent = "  ".repeat(self.list_depth);
+        let _ = writeln!(self.writer, "{indent}#[");
+        let _ = write!(self.writer, "{indent}#set enum(numbering: ");
+        self.write_ordered_list_numbering(OrderedListNumbering::Arabic);
+        self.writer.raw(", spacing: 1em)\n");
+
+        for row in description_list_rows(&list.items) {
+            let Some(answer) = row.last() else {
+                continue;
+            };
+            let _ = write!(self.writer, "{indent}  + #block(width: 100%)[");
+            self.writer.raw("#block(width: 100%, breakable: false)[");
+            self.write_paragraph_alignment(&list.metadata, |visitor| {
+                visitor.write_qanda_description_terms(row)?;
+                if !answer.principal_text.is_empty() {
+                    visitor.writer.raw("#linebreak()\n");
+                    visitor.write_inlines(&answer.principal_text)?;
+                }
+                Ok(())
+            })?;
+            self.writer.raw("]");
+            if !answer.description.is_empty() {
+                self.writer.raw("\n\n");
+                self.write_blocks(&answer.description)?;
+            }
+            self.writer.raw("]\n");
+        }
+
+        let _ = writeln!(self.writer, "{indent}]\n");
         Ok(())
     }
 
@@ -1212,6 +1252,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
             self.writer.raw("#text(weight: \"bold\")[");
+            self.write_inlines(&item.term)?;
+            self.writer.raw("]");
+        }
+        Ok(())
+    }
+
+    fn write_qanda_description_terms(
+        &mut self,
+        items: &[DescriptionListItem<'_>],
+    ) -> Result<(), Error> {
+        for (index, item) in items.iter().enumerate() {
+            if index > 0 {
+                self.writer.raw("#linebreak()");
+            }
+            for anchor in &item.anchors {
+                self.write_anchor_target(anchor);
+            }
+            self.writer.raw("#emph[");
             self.write_inlines(&item.term)?;
             self.writer.raw("]");
         }
@@ -2068,7 +2126,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 }
 
-fn horizontal_description_rows<'items, 'document>(
+fn description_list_rows<'items, 'document>(
     items: &'items [DescriptionListItem<'document>],
 ) -> impl Iterator<Item = &'items [DescriptionListItem<'document>]> {
     items.split_inclusive(|item| !item.principal_text.is_empty() || !item.description.is_empty())

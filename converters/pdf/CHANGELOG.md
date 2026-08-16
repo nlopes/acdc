@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `[qanda]` description lists now render numbered, italic questions with
+  answers beneath them. Shared questions, attached content, nested Q&A lists,
+  alignment roles, and numbering restarts match Asciidoctor PDF.
 - Horizontal description lists now render terms and descriptions in a
   borderless two-column layout. The term column fits its content up to half
   the available width, and multiple terms and attached blocks stay with their

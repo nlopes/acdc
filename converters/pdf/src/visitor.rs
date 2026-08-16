@@ -331,6 +331,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         if list.metadata.style == Some("horizontal") {
             return self.write_horizontal_description_list(list);
         }
+        if list.metadata.style == Some("qanda") {
+            return self.write_qanda_description_list(list);
+        }
         for item in &list.items {
             for anchor in &item.anchors {
                 self.write_anchor_target(anchor);
