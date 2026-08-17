@@ -131,6 +131,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Parsed URL, link, and autolink nodes report whether fallback display text
+  should omit the URI scheme, based on `hide-uri-scheme` at their source
+  position. Serialized ASG output is unchanged.
 - Keyboard, button, and menu macros are now recognized only while the
   `experimental` document attribute is set. Setting or unsetting it in the
   document body applies to the content that follows, matching Asciidoctor.

@@ -777,6 +777,7 @@ peg::parser! {
                 target: target_source,
                 attributes: metadata.attributes.clone(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                hide_uri_scheme: state.document_attributes.is_set("hide-uri-scheme"),
             })))
         }
 
@@ -881,6 +882,7 @@ peg::parser! {
                 url: url_source,
                 bracketed,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                hide_uri_scheme: state.document_attributes.is_set("hide-uri-scheme"),
             })))
         }
 
@@ -1172,6 +1174,7 @@ peg::parser! {
                 target,
                 attributes: metadata.attributes.clone(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                hide_uri_scheme: state.document_attributes.is_set("hide-uri-scheme"),
             })))
         }
 

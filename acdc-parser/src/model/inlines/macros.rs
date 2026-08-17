@@ -60,6 +60,8 @@ pub struct Link<'a> {
     pub target: Source<'a>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) hide_uri_scheme: bool,
 }
 
 impl<'a> Link<'a> {
@@ -71,6 +73,7 @@ impl<'a> Link<'a> {
             target,
             attributes: ElementAttributes::default(),
             location,
+            hide_uri_scheme: false,
         }
     }
 
@@ -87,6 +90,12 @@ impl<'a> Link<'a> {
         self.attributes = attributes;
         self
     }
+
+    /// Whether fallback display text omits the target's URI scheme.
+    #[must_use]
+    pub fn hides_uri_scheme(&self) -> bool {
+        self.hide_uri_scheme
+    }
 }
 
 /// An `Url` represents an inline URL in a document.
@@ -98,6 +107,16 @@ pub struct Url<'a> {
     pub target: Source<'a>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) hide_uri_scheme: bool,
+}
+
+impl Url<'_> {
+    /// Whether fallback display text omits the target's URI scheme.
+    #[must_use]
+    pub fn hides_uri_scheme(&self) -> bool {
+        self.hide_uri_scheme
+    }
 }
 
 /// An `Mailto` represents an inline `mailto:` in a document.
@@ -187,6 +206,16 @@ pub struct Autolink<'a> {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bracketed: bool,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) hide_uri_scheme: bool,
+}
+
+impl Autolink<'_> {
+    /// Whether fallback display text omits the target's URI scheme.
+    #[must_use]
+    pub fn hides_uri_scheme(&self) -> bool {
+        self.hide_uri_scheme
+    }
 }
 
 /// A `Stem` represents an inline mathematical expression.
