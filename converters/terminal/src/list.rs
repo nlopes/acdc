@@ -10,8 +10,8 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    CalloutList, DescriptionList, DescriptionListItem, InlineNode, ListItem, ListItemCheckedStatus,
-    OrderedList, UnorderedList,
+    Block, CalloutList, DescriptionList, DescriptionListItem, InlineNode, ListItem,
+    ListItemCheckedStatus, OrderedList, UnorderedList,
 };
 
 use crate::{Error, TerminalVisitor};
@@ -265,8 +265,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// - **horizontal**: Terms and definitions on same line separated by `::`
     /// - **qanda**: Terms prefixed with "Q: ", definitions with "A: "
     pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
+        let indent = self.processor.list_indent.get();
         self.render_styled_title(&list.title)?;
-        writeln!(self.writer)?;
+        if indent == 0 || !list.title.is_empty() {
+            writeln!(self.writer)?;
+        }
 
         let style = list.metadata.style;
 
@@ -291,6 +294,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// The term is rendered in bold, followed by the principal text (if present)
     /// indented with 2 spaces, and any additional description blocks.
     fn render_description_list_item(&mut self, item: &DescriptionListItem) -> Result<(), Error> {
+        let indent = self.processor.list_indent.get();
         // Render term in bold
         let processor = self.processor.clone();
         let buffer = Vec::new();
@@ -304,6 +308,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?;
 
+        write_indent(&mut self.writer, indent)?;
         self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
         ))?;
@@ -311,19 +316,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         // Render principal text with indentation if present
         if !item.principal_text.is_empty() {
-            write!(self.writer, "  ")?;
+            write_indent(&mut self.writer, indent + 2)?;
             for node in &item.principal_text {
                 self.visit_inline_node(node)?;
             }
             writeln!(self.writer)?;
         }
 
-        // Render description blocks (without indentation as block.render handles formatting)
-        for block in &item.description {
-            self.visit_block(block)?;
-        }
-
-        Ok(())
+        self.render_description_blocks(&item.description, indent + 2)
     }
 
     /// Renders a single description list item in horizontal style.
@@ -333,6 +333,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         item: &DescriptionListItem,
     ) -> Result<(), Error> {
+        let indent = self.processor.list_indent.get();
         // Render term in bold
         let processor = self.processor.clone();
         let buffer = Vec::new();
@@ -346,6 +347,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?;
 
+        write_indent(&mut self.writer, indent)?;
         self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
         ))?;
@@ -360,12 +362,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(self.writer)?;
 
         // Render description blocks indented
-        for block in &item.description {
-            write!(self.writer, "  ")?;
-            self.visit_block(block)?;
-        }
-
-        Ok(())
+        self.render_description_blocks(&item.description, indent + 2)
     }
 
     /// Renders a single description list item in Q&A style.
@@ -375,6 +372,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         item: &DescriptionListItem,
     ) -> Result<(), Error> {
+        let indent = self.processor.list_indent.get();
         // Render "Q: " prefix + term in bold
         let processor = self.processor.clone();
         let buffer = Vec::new();
@@ -388,6 +386,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .into_inner()
             .map_err(io::IntoInnerError::into_error)?;
 
+        write_indent(&mut self.writer, indent)?;
         self.writer.queue(PrintStyledContent("Q: ".bold()))?;
         self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
@@ -396,6 +395,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         // Render "A: " prefix + principal text
         if !item.principal_text.is_empty() {
+            write_indent(&mut self.writer, indent)?;
             self.writer.queue(PrintStyledContent("A: ".dim()))?;
             for node in &item.principal_text {
                 self.visit_inline_node(node)?;
@@ -404,11 +404,25 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         }
 
         // Render description blocks indented
-        for block in &item.description {
-            write!(self.writer, "   ")?;
-            self.visit_block(block)?;
-        }
+        self.render_description_blocks(&item.description, indent + 3)
+    }
 
-        Ok(())
+    fn render_description_blocks(
+        &mut self,
+        blocks: &[Block<'_>],
+        indent: usize,
+    ) -> Result<(), Error> {
+        let previous_indent = self.processor.list_indent.replace(indent);
+        let result = blocks.iter().try_for_each(|block| {
+            if !matches!(
+                block,
+                Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
+            ) {
+                write_indent(&mut self.writer, indent)?;
+            }
+            self.visit_block(block)
+        });
+        self.processor.list_indent.set(previous_indent);
+        result
     }
 }

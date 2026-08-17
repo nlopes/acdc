@@ -1,0 +1,19 @@
+[1m[4mDescription list topology[0m
+
+[1mRoot one[0m
+  Root one description.
+  [1mChild one[0m
+    Child one description.
+    [1mGrandchild one[0m
+      Grandchild one description.
+  [1mChild two[0m
+    Child two description.
+[1mRoot two[0m
+  Root two description.
+
+[1mNamed ordered[0m
+  Named style is effective.
+
+[1mQ: [0m[1mAnswered question?[0m
+[2mA: [0mThis question has an answer.
+[1mQ: [0m[1mTrailing unanswered question?[0m

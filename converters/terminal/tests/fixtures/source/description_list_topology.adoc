@@ -1,0 +1,14 @@
+= Description list topology
+
+Root one:: Root one description.
+Child one::: Child one description.
+Grandchild one:::: Grandchild one description.
+Child two::: Child two description.
+Root two:: Root two description.
+
+[style=ordered]
+Named ordered:: Named style is effective.
+
+[qanda]
+Answered question?:: This question has an answer.
+Trailing unanswered question?::

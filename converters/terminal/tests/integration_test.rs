@@ -48,6 +48,7 @@ generate_tests!([
     (nested_list_metadata, false),
     (unordered_list, false),
     (description_list_mixed_content, false),
+    (description_list_topology, false),
     (table_multi_cell_per_line, false),
     (table_cell_colspan, false),
     (table_cell_rowspan, false),

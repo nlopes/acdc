@@ -89,6 +89,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Description lists now indent nested levels and preserve repeated
+  continuations, formatted terms, titled boundaries, named styles, and
+  trailing unanswered Q&A items.
 - Table alignment after a row or column span now follows source-cell order,
   consistent with HTML and PDF output.
 - Book abstracts now take chapter numbers, `sectnums=all` includes special
