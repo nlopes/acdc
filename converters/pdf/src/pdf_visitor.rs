@@ -1271,6 +1271,45 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
+    pub(crate) fn write_description_list(
+        &mut self,
+        list: &DescriptionList<'_>,
+    ) -> Result<(), Error> {
+        let indent = "  ".repeat(self.list_depth);
+
+        for row in description_list_rows(&list.items) {
+            let Some(description) = row.last() else {
+                continue;
+            };
+            let _ = writeln!(
+                self.writer,
+                "{indent}#block(width: 100%, above: 0pt, below: 0.5em)["
+            );
+            for (index, item) in row.iter().enumerate() {
+                if index > 0 {
+                    self.writer.raw("#linebreak()");
+                }
+                for anchor in &item.anchors {
+                    self.write_anchor_target(anchor);
+                }
+                self.writer.raw("#text(weight: \"bold\")[");
+                self.write_inlines(&item.term)?;
+                self.writer.raw("]");
+            }
+            if !description.principal_text.is_empty() || !description.description.is_empty() {
+                self.writer
+                    .raw("\n#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[");
+                self.list_depth += 1;
+                self.write_description_list_item(description)?;
+                self.list_depth -= 1;
+                self.writer.raw("]");
+            }
+            let _ = writeln!(self.writer, "\n{indent}]");
+        }
+        self.writer.raw("\n");
+        Ok(())
+    }
+
     pub(crate) fn write_qanda_description_list(
         &mut self,
         list: &DescriptionList<'_>,

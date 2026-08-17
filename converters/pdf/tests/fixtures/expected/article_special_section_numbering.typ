@@ -136,7 +136,9 @@
 
 #heading(level: 1)[#text("Glossary")] <id-5f676c6f7373617279>
 
+#block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
-#text("Definition.")
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Definition.")]
+]
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>

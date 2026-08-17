@@ -91,8 +91,10 @@
   - #text("unordered")
 
 #metadata(none) <id-6465736372697074696f6e2d6964>
+#block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
-#text("definition")
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("definition")]
+]
 
 #raw(block: true, "code (1)")
 

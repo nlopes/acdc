@@ -154,8 +154,10 @@
 
 #metadata(none) <id-6465736372697074696f6e2d6964>
 #blocktitle[#text("Description List Title")]
+#block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
-#text("definition")
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("definition")]
+]
 
 #raw(block: true, "code (1)")
 
@@ -196,8 +198,10 @@
 #heading(level: 2, outlined: false)[#text("Discrete Title")]
 
 #metadata(none) <id-7465726d2d6964>
+#block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
-#text("Definition")
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Definition")]
+]
 
 #text("Paragraph with ")#metadata(none) <id-696e6c696e652d6669727374>#text("one anchor and ")#metadata(none) <id-696e6c696e652d7365636f6e64>#text("a second anchor.")
 

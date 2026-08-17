@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Description lists now keep nested levels indented and retain continued
+  blocks with their owning item. Mixed nested lists, formatted terms, titled
+  boundaries, named styles, and unanswered Q&A items match Asciidoctor PDF.
 - Bibliography lists now use square markers and show each entry's bracketed
   reference label. Automatic citations link to entries, and entry labels link
   back to the first automatic citation. List titles, IDs, alignment roles, and

@@ -80,8 +80,10 @@
   - #text("Item")
 
 #blocktitle[#text("Description title")]
+#block(width: 100%, above: 0pt, below: 0.5em)[
 #text(weight: "bold")[#text("Term")]
-#text("Description.")
+#block(above: 0pt, below: 0pt, inset: (left: 1.5em))[#text("Description.")]
+]
 
 #callout("note")[
 #admonitiontitle[#text("Admonition title")]
