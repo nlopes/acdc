@@ -440,15 +440,18 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
         // Description lists (definition lists) not in standard Markdown
+        self.write_list_indent()?;
         self.write_warning("description lists", "using regular list")?;
         for item in &list.items {
             // Render term as bold text in a list item
+            self.write_list_indent()?;
             write!(self.writer, "- **")?;
             self.visit_inline_nodes(&item.term)?;
             writeln!(self.writer, "**")?;
 
             // Render principal text (inline content after delimiter) if present
             if !item.principal_text.is_empty() {
+                self.write_list_indent()?;
                 write!(self.writer, "  ")?;
                 self.visit_inline_nodes(&item.principal_text)?;
                 writeln!(self.writer)?;
@@ -456,8 +459,18 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
             // Render description blocks indented
             for block in &item.description {
-                write!(self.writer, "  ")?;
-                self.visit_block(block)?;
+                self.list_depth += 1;
+                let result = (|| {
+                    if !matches!(
+                        block,
+                        Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
+                    ) {
+                        self.write_list_indent()?;
+                    }
+                    self.visit_block(block)
+                })();
+                self.list_depth -= 1;
+                result?;
             }
         }
         writeln!(self.writer)?;
