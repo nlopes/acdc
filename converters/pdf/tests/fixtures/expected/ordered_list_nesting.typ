@@ -77,43 +77,55 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("Level 1 one")
+  + #block(width: 100%)[#text("Level 1 one")
+
     #[
     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
-      + #text("Level 2 one")
+      + #block(width: 100%)[#text("Level 2 one")
+
         #[
         #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("i.", ..numbers.pos())))
-          + #text("Level 3 one")
+          + #block(width: 100%)[#text("Level 3 one")
+
             #[
             #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("A.", ..numbers.pos())))
-              + #text("Level 4 one")
+              + #block(width: 100%)[#text("Level 4 one")
+
                 #[
                 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("I.", ..numbers.pos())))
-                  + #text("Level 5 one")
+                  + #block(width: 100%)[#text("Level 5 one")
+
                     #[
                     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-                      + #text("Level 6 one")
+                      + #block(width: 100%)[#text("Level 6 one")
+
                         #[
                         #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
                           + #text("Level 7 one")
                           + #text("Level 7 two")
                         ]
 
+                      ]
                       + #text("Level 6 two")
                     ]
 
+                  ]
                   + #text("Level 5 two")
                 ]
 
+              ]
               + #text("Level 4 two")
             ]
 
+          ]
           + #text("Level 3 two")
         ]
 
+      ]
       + #text("Level 2 two")
     ]
 
+  ]
   + #text("Level 1 two")
 ]
 
@@ -121,12 +133,14 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("A.", ..numbers.pos())))
-  + #text("Parent one")
+  + #block(width: 100%)[#text("Parent one")
+
     #[
     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
       + #text("Child one")
       + #text("Child two")
     ]
 
+  ]
   + #text("Parent two")
 ]

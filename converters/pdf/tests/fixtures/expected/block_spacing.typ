@@ -113,9 +113,11 @@
 
 #text("Second paragraph in an open block.")
 
-  - #text("Item with continuation")
+  - #block(width: 100%)[#text("Item with continuation")
+
 #text("First continuation paragraph.")
 
+  ]
 
 #text("Second continuation paragraph.")
 

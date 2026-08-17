@@ -90,12 +90,14 @@
 #imagecaption[#text("Figure 3. ")#text("Linked figure")]
 ]
 
-  - #text("List item")
+  - #block(width: 100%)[#text("List item")
+
 #block(width: 100%, breakable: false)[
 #docimage("/images/de454d7e4e1cfda7.svg", alt: "Nested image", width: 60pt)
 #imagecaption[#text("Figure 4. ")#text("Nested figure")]
 ]
 
+  ]
 
 #block(width: 100%, breakable: false)[
 #text("[Missing image]")#text(" | missing.svg")

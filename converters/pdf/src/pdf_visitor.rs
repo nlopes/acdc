@@ -1147,6 +1147,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) -> Result<(), Error> {
         let indent = "  ".repeat(self.list_depth);
         let _ = write!(self.writer, "{indent}{marker} ");
+        let has_blocks = !item.blocks.is_empty();
+        if has_blocks {
+            self.writer.raw("#block(width: 100%)[");
+        }
         if let Some(checked) = &item.checked {
             match checked {
                 acdc_parser::ListItemCheckedStatus::Checked => self.writer.raw("#checkbox(true) "),
@@ -1159,12 +1163,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.write_inlines(&item.principal)?;
         self.writer.raw("\n");
 
-        if !item.blocks.is_empty() {
+        if has_blocks {
+            self.writer.raw("\n");
             self.list_depth += 1;
             for block in &item.blocks {
                 self.visit_block(block)?;
             }
             self.list_depth -= 1;
+            let _ = writeln!(self.writer, "{indent}]");
         }
         Ok(())
     }

@@ -251,32 +251,42 @@ grid(columns: (term-width, 1fr), column-gutter: 20pt, row-gutter: 0.5em, align: 
 
 #heading(level: 1)[#text("Continued mixed lists")] <id-5f636f6e74696e7565645f6d697865645f6c69737473>
 
-  - #text("Outer unordered owner")
+  - #block(width: 100%)[#text("Outer unordered owner")
+
     #[
     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
       + #text("First ordered child")
-      + #text("Second ordered child")
+      + #block(width: 100%)[#text("Second ordered child")
+
           - #text("Unordered grandchild under the second ordered child")
           - #text("Second unordered grandchild")
 
+      ]
     ]
 
-  - #text("Following unordered sibling")
+  ]
+  - #block(width: 100%)[#text("Following unordered sibling")
+
     #[
     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-      + #text("Outer ordered owner")
+      + #block(width: 100%)[#text("Outer ordered owner")
+
           - #text("First unordered child")
-          - #text("Second unordered child")
+          - #block(width: 100%)[#text("Second unordered child")
+
             #[
             #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
               + #text("Ordered grandchild under the second unordered child")
               + #text("Second ordered grandchild")
             ]
 
+          ]
 
+      ]
       + #text("Following ordered sibling")
     ]
 
+  ]
 
 #heading(level: 1)[#text("Trailing unanswered Q&A")] <id-5f747261696c696e675f756e616e7377657265645f7161>
 

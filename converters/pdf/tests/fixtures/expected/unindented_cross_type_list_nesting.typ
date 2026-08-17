@@ -77,22 +77,26 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("Ordered parent")
+  + #block(width: 100%)[#text("Ordered parent")
+
       - #text("Unordered child one")
       - #text("Unordered child two")
 
+  ]
   + #text("Ordered parent two")
 ]
 
 #heading(level: 1)[#text("Unordered parent with immediate child metadata")] <id-5f756e6f7264657265645f706172656e745f776974685f696d6d6564696174655f6368696c645f6d65746164617461>
 
-  - #text("Unordered parent")
+  - #block(width: 100%)[#text("Unordered parent")
+
     #[
     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
       + #text("Ordered child one")
       + #text("Ordered child two")
     ]
 
+  ]
   - #text("Unordered parent two")
 
 #heading(level: 1)[#text("Metadata after a blank line")] <id-5f6d657461646174615f61667465725f615f626c616e6b5f6c696e65>
@@ -108,15 +112,19 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("Level one")
-      - #text("Level two")
+  + #block(width: 100%)[#text("Level one")
+
+      - #block(width: 100%)[#text("Level two")
+
         #[
         #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
           + #text("Level three")
         ]
 
+      ]
       - #text("Level two sibling")
 
+  ]
   + #text("Level one sibling")
 ]
 
@@ -124,9 +132,11 @@
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("Ordered parent")
+  + #block(width: 100%)[#text("Ordered parent")
+
       - #checkbox(true) #text("Checked child")
       - #checkbox(false) #text("Unchecked child")
 
+  ]
   + #text("Ordered parent two")
 ]

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Ordered and unordered lists now preserve numbering and item ownership when
+  continued blocks or nested lists span pages, matching Asciidoctor PDF.
 - Description lists now keep nested levels indented and retain continued
   blocks with their owning item. Mixed nested lists, formatted terms, titled
   boundaries, named styles, and unanswered Q&A items match Asciidoctor PDF.

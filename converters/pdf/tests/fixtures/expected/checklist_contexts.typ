@@ -75,32 +75,40 @@
 
 #heading(level: 1)[#text("Nested checklist states")] <id-5f6e65737465645f636865636b6c6973745f737461746573>
 
-  - #checkbox(false) #text("Unchecked parent")
+  - #block(width: 100%)[#checkbox(false) #text("Unchecked parent")
+
       - #checkbox(true) #text("Lowercase checked child")
       - #checkbox(true) #text("Uppercase checked child")
       - #checkbox(true) #text("Star checked child")
 
+  ]
   - #checkbox(true) #text("Checked sibling")
 
 #heading(level: 1)[#text("Checklist nested under an ordered item")] <id-5f636865636b6c6973745f6e65737465645f756e6465725f616e5f6f7264657265645f6974656d>
 
 #[
 #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-  + #text("Ordered parent")
-      - #checkbox(false) #text("Unchecked child")
+  + #block(width: 100%)[#text("Ordered parent")
+
+      - #block(width: 100%)[#checkbox(false) #text("Unchecked child")
+
           - #checkbox(true) #text("Checked grandchild")
 
+      ]
       - #checkbox(true) #text("Checked sibling")
 
+  ]
   + #text("Ordered sibling")
 ]
 
 #heading(level: 1)[#text("Ordered list nested under a checklist item")] <id-5f6f7264657265645f6c6973745f6e65737465645f756e6465725f615f636865636b6c6973745f6974656d>
 
-  - #checkbox(true) #text("Checklist parent")
+  - #block(width: 100%)[#checkbox(true) #text("Checklist parent")
+
     #[
     #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("1.", ..numbers.pos())))
-      + #text("Ordered child")
+      + #block(width: 100%)[#text("Ordered child")
+
         #[
         #set enum(numbering: (..numbers) => text(fill: rgb("#9ca3af"), numbering("a.", ..numbers.pos())))
           + #text("[x] Literal lowercase marker")
@@ -109,17 +117,23 @@
           + #text("[ ] Literal unchecked marker")
         ]
 
+      ]
     ]
 
+  ]
   - #checkbox(false) #text("Checklist sibling")
 
 #heading(level: 1)[#text("Ordinary bullet nested under a checklist item")] <id-5f6f7264696e6172795f62756c6c65745f6e65737465645f756e6465725f615f636865636b6c6973745f6974656d>
 
-  - #checkbox(true) #text("Checklist parent")
-      - #text("Ordinary bullet")
+  - #block(width: 100%)[#checkbox(true) #text("Checklist parent")
+
+      - #block(width: 100%)[#text("Ordinary bullet")
+
           - #checkbox(false) #text("Nested checklist")
 
+      ]
 
+  ]
 
 #heading(level: 1)[#text("Checklist-like markers in an ordered list")] <id-5f636865636b6c6973745f6c696b655f6d61726b6572735f696e5f616e5f6f7264657265645f6c697374>
 

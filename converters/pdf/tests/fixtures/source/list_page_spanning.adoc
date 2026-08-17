@@ -1,0 +1,164 @@
+= List pagination
+
+== Continued block across pages
+
+. The owner starts before the continued block.
++
+[listing]
+----
+continued line 01
+continued line 02
+continued line 03
+continued line 04
+continued line 05
+continued line 06
+continued line 07
+continued line 08
+continued line 09
+continued line 10
+continued line 11
+continued line 12
+continued line 13
+continued line 14
+continued line 15
+continued line 16
+continued line 17
+continued line 18
+continued line 19
+continued line 20
+continued line 21
+continued line 22
+continued line 23
+continued line 24
+continued line 25
+continued line 26
+continued line 27
+continued line 28
+continued line 29
+continued line 30
+continued line 31
+continued line 32
+continued line 33
+continued line 34
+continued line 35
+continued line 36
+continued line 37
+continued line 38
+continued line 39
+continued line 40
+continued line 41
+continued line 42
+continued line 43
+continued line 44
+continued line 45
+continued line 46
+continued line 47
+continued line 48
+continued line 49
+continued line 50
+continued line 51
+continued line 52
+continued line 53
+continued line 54
+continued line 55
+continued line 56
+continued line 57
+continued line 58
+continued line 59
+continued line 60
+continued line 61
+continued line 62
+continued line 63
+continued line 64
+continued line 65
+continued line 66
+continued line 67
+continued line 68
+continued line 69
+continued line 70
+----
++
+The owner continues after the page-spanning block.
++
+--
+* An unordered child remains inside the ordered item.
+** Its unordered grandchild keeps the deeper indentation.
+. An ordered child follows inside the same continuation.
+--
+. The following ordered sibling remains outside the continuation.
+
+== Unordered list across pages
+
+* Unordered item 01.
+* Unordered item 02.
+* Unordered item 03.
+* Unordered item 04.
+* Unordered item 05.
+* Unordered item 06.
+* Unordered item 07.
+* Unordered item 08.
+* Unordered item 09.
+* Unordered item 10.
+* Unordered item 11.
+* Unordered item 12.
+* Unordered item 13.
+* Unordered item 14.
+* Unordered item 15.
+* Unordered item 16.
+* Unordered item 17.
+* Unordered item 18.
+* Unordered item 19.
+* Unordered item 20.
+* Unordered item 21.
+* Unordered item 22.
+* Unordered item 23.
+* Unordered item 24.
+* Unordered item 25.
+* Unordered item 26.
+* Unordered item 27.
+* Unordered item 28.
+* Unordered item 29.
+* Unordered item 30.
+* Unordered item 31.
+* Unordered item 32.
+* Unordered item 33.
+* Unordered item 34.
+* Unordered item 35.
+* Unordered item 36.
+* Unordered item 37.
+* Unordered item 38.
+* Unordered item 39.
+* Unordered item 40.
+
+== Description list across pages
+
+Term 01:: Description 01.
+Term 02:: Description 02.
+Term 03:: Description 03.
+Term 04:: Description 04.
+Term 05:: Description 05.
+Term 06:: Description 06.
+Term 07:: Description 07.
+Term 08:: Description 08.
+Term 09:: Description 09.
+Term 10:: Description 10.
+Term 11:: Description 11.
+Term 12:: Description 12.
+Term 13:: Description 13.
+Term 14:: Description 14.
+Term 15:: Description 15.
+Term 16:: Description 16.
+Term 17:: Description 17.
+Term 18:: Description 18.
+Term 19:: Description 19.
+Term 20:: Description 20.
+Term 21:: Description 21.
+Term 22:: Description 22.
+Term 23:: Description 23.
+Term 24:: Description 24.
+Term 25:: Description 25.
+Term 26:: Description 26.
+Term 27:: Description 27.
+Term 28:: Description 28.
+Term 29:: Description 29.
+Term 30:: Description 30.
