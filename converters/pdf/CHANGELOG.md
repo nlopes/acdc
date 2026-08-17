@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keyboard keys render as individual keycaps, buttons use bold bracketed
+  labels, and menu paths use bold text with chevron separators, matching
+  Asciidoctor PDF.
 - Keyboard, button, and menu macros remain literal unless `experimental` is
   set, including when the attribute changes in the document body, matching
   Asciidoctor PDF.

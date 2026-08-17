@@ -2197,15 +2197,41 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             InlineMacro::Image(image) => self.write_inline_image(image),
             InlineMacro::Keyboard(keyboard) => {
-                let joined = keyboard.keys.join("+");
-                self.write_inline_verbatim(&joined);
+                for (index, key) in keyboard.keys.iter().enumerate() {
+                    if index > 0 {
+                        self.write_text_expr("\u{202f}+\u{202f}");
+                    }
+                    self.writer.raw("#box(baseline: 15%, fill: rgb(");
+                    self.writer.string_literal(&self.palette.callout_bg);
+                    self.writer.raw("), stroke: 0.5pt + rgb(");
+                    self.writer.string_literal(&self.palette.border);
+                    self.writer
+                        .raw("), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[");
+                    self.write_inline_verbatim(key);
+                    self.writer.raw("]");
+                }
             }
-            InlineMacro::Button(button) => self.write_text_expr(button.label),
+            InlineMacro::Button(button) => {
+                self.writer.raw("#strong[\\[\u{2009}");
+                self.write_text_expr(button.label);
+                self.writer.raw("\u{2009}\\]]");
+            }
             InlineMacro::Menu(menu) => {
                 let mut parts = Vec::with_capacity(menu.items.len() + 1);
                 parts.push(menu.target);
                 parts.extend(menu.items.iter().copied());
-                self.write_text_expr(&parts.join(" > "));
+                self.writer.raw("#strong[");
+                for (index, part) in parts.into_iter().enumerate() {
+                    if index > 0 {
+                        self.write_text_expr(" ");
+                        self.writer.raw("#text(size: 1.15em, fill: rgb(");
+                        self.writer.string_literal(&self.palette.accent);
+                        self.writer.raw("))[\u{203a}]");
+                        self.write_text_expr(" ");
+                    }
+                    self.write_text_expr(part);
+                }
+                self.writer.raw("]");
             }
             InlineMacro::Url(url) => self.write_link(&url.target, &url.text)?,
             InlineMacro::Link(link) => self.write_link(&link.target, &link.text)?,

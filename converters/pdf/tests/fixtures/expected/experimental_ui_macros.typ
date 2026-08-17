@@ -75,8 +75,8 @@
 
 #text("Before: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].")
 
-#text("Enabled: ")#raw("Ctrl+C")#text(", ")#text("Save")#text(", ")#text("File > Open > Recent")#text(".")
+#text("Enabled: ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("Ctrl")]#text(" + ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("C")]#text(", ")#strong[\[ #text("Save") \]]#text(", ")#strong[#text("File")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Open")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Recent")]#text(".")
 
-#text("False value: ")#raw("Ctrl+C")#text(", ")#text("Save")#text(", ")#text("File > Open > Recent")#text(".")
+#text("False value: ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("Ctrl")]#text(" + ")#box(baseline: 15%, fill: rgb("#f3f4f6"), stroke: 0.5pt + rgb("#e5e7eb"), radius: 2pt, inset: (x: 2pt, y: 0.5pt))[#raw("C")]#text(", ")#strong[\[ #text("Save") \]]#text(", ")#strong[#text("File")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Open")#text(" ")#text(size: 1.15em, fill: rgb("#374151"))[›]#text(" ")#text("Recent")]#text(".")
 
 #text("After: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].")
