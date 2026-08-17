@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keyboard, button, and menu macros remain literal unless `experimental` is
+  set, including when the attribute changes in the document body, matching
+  Asciidoctor PDF.
 - Ordered and unordered lists now preserve numbering and item ownership when
   continued blocks or nested lists span pages, matching Asciidoctor PDF.
 - Description lists now keep nested levels indented and retain continued

@@ -1028,10 +1028,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn render_button(&mut self, b: &Button<'_>) -> Result<(), Error> {
         let processor = self.processor.clone();
         let w = self.writer_mut();
-        if processor.document_attributes.get("experimental").is_none() {
-            write!(w, "btn:[{}]", b.label)?;
-            return Ok(());
-        }
         if processor.variant() == crate::HtmlVariant::Semantic {
             write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
         } else {

@@ -249,6 +249,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keyboard, button, and menu macros remain literal unless `experimental` is
+  set, including when the attribute changes in the document body, matching
+  Asciidoctor.
 - Description lists now preserve delimiter-based nesting, repeated
   continuations, formatted terms, titled boundaries, named styles, and
   trailing unanswered Q&A items, matching Asciidoctor.
