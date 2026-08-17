@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- When `hide-uri-scheme` is set, including to `false`, PDF links without custom
+  text omit their URI scheme. Body attribute changes apply in source order,
+  matching Asciidoctor PDF. Mailto macros and email autolinks retain one
+  `mailto:` scheme in their destination and display the email address.
 - Keyboard keys render as individual keycaps, buttons use bold bracketed
   labels, and menu paths use bold text with chevron separators, matching
   Asciidoctor PDF.

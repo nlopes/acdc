@@ -45,6 +45,7 @@ pub mod code;
 mod doctype;
 pub mod icon;
 pub mod inline_text;
+pub mod link;
 pub mod list;
 pub mod section;
 pub mod substitutions;

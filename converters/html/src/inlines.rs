@@ -130,15 +130,6 @@ pub(crate) fn escape_pcdata(text: &str) -> String {
         .replace('>', "&gt;")
 }
 
-/// Strip the URI scheme (e.g., `https://`, `http://`, `ftp://`) from a URL string.
-///
-/// Used when the `hide-uri-scheme` document attribute is set to display cleaner link text
-/// while preserving the full URL in the `href` attribute.
-fn strip_uri_scheme(url: &str) -> &str {
-    url.find("://")
-        .map_or(url, |pos| url.get(pos + 3..).unwrap_or(url))
-}
-
 /// Extract the `role` attribute as a non-empty, unquoted string.
 ///
 /// Returns `None` when the attribute is absent, non-string, or empty after stripping quotes.
@@ -179,7 +170,7 @@ fn link_display_fallback(target: &str, hide_uri_scheme: bool) -> &str {
     if let Some(email) = target.strip_prefix("mailto:") {
         email
     } else if hide_uri_scheme {
-        strip_uri_scheme(target)
+        acdc_converters_core::link::strip_uri_scheme(target)
     } else {
         target
     }
@@ -745,12 +736,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 
     fn render_autolink(&mut self, al: &Autolink<'_>, options: &RenderOptions) -> Result<(), Error> {
-        let processor = self.processor.clone();
         let w = self.writer_mut();
-        let hide_uri_scheme = processor
-            .document_attributes()
-            .get("hide-uri-scheme")
-            .is_some();
         let href_str = al.url.to_string();
         let inner = if al.bracketed {
             href_str
@@ -760,7 +746,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else {
             &href_str
         };
-        let display_text = link_display_fallback(inner, hide_uri_scheme).to_string();
+        let display_text = link_display_fallback(inner, al.hides_uri_scheme()).to_string();
 
         if options.inlines_basic || options.toc_mode {
             write!(w, "{display_text}")?;
@@ -787,13 +773,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let hide_uri_scheme = processor
-            .document_attributes()
-            .get("hide-uri-scheme")
-            .is_some();
         let target_str = l.target.to_string();
-        let fallback = link_display_fallback(&target_str, hide_uri_scheme);
+        let fallback = link_display_fallback(&target_str, l.hides_uri_scheme());
 
         if options.inlines_basic || options.toc_mode {
             if l.text.is_empty() {
@@ -892,13 +873,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let hide_uri_scheme = processor
-            .document_attributes()
-            .get("hide-uri-scheme")
-            .is_some();
         let target_str = u.target.to_string();
-        let fallback = link_display_fallback(&target_str, hide_uri_scheme);
+        let fallback = link_display_fallback(&target_str, u.hides_uri_scheme());
 
         if options.toc_mode {
             if u.text.is_empty() {

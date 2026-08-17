@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Link fallback labels can omit Asciidoctor-compatible URI prefixes while
+  preserving the complete destination.
 - Source blocks have shared handling for line numbers, custom starting numbers,
   and highlighted-line selectors.
 - `xref::resolve_xref` resolves an automatic cross-reference's display content

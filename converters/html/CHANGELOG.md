@@ -135,9 +135,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
   `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
   `sharp-solid`) values. Defaults to `fa-solid` when no set is specified. ([#360])
-- **`:hide-uri-scheme:` support** — when the document attribute `:hide-uri-scheme:` is set, the URI
-  scheme (e.g., `https://`, `http://`, `ftp://`) is stripped from displayed link text for autolinks,
-  URL macros, and link macros without custom text. The `href` attribute retains the full URL. ([#359])
+- **`:hide-uri-scheme:` support** — when `hide-uri-scheme` is set, including to
+  `false`, URI schemes are omitted from fallback link text for the content that
+  follows. Unsetting it restores full targets. The `href` retains the complete
+  URI, matching Asciidoctor. ([#359])
 - **Collapsible blocks in standard mode** — example blocks with `[%collapsible]` and paragraphs
   with `[example%collapsible]` now render as `<details>/<summary>` elements in the standard HTML
   backend. Supports `%open` for initially expanded blocks and defaults to "Details" as the

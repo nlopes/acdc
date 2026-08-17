@@ -2233,15 +2233,17 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
                 self.writer.raw("]");
             }
-            InlineMacro::Url(url) => self.write_link(&url.target, &url.text)?,
-            InlineMacro::Link(link) => self.write_link(&link.target, &link.text)?,
+            InlineMacro::Url(url) => {
+                self.write_link(&url.target, &url.text, url.hides_uri_scheme())?;
+            }
+            InlineMacro::Link(link) => {
+                self.write_link(&link.target, &link.text, link.hides_uri_scheme())?;
+            }
             InlineMacro::Mailto(mailto) => {
-                let target = format!("mailto:{}", mailto.target);
-                self.write_link_text(&target, &mailto.text)?;
+                self.write_link(&mailto.target, &mailto.text, false)?;
             }
             InlineMacro::Autolink(autolink) => {
-                let target = autolink.url.to_string();
-                self.write_link_text(&target, &[])?;
+                self.write_link(&autolink.url, &[], autolink.hides_uri_scheme())?;
             }
             InlineMacro::CrossReference(xref) => self.write_cross_reference(xref)?,
             InlineMacro::Pass(pass) => {
@@ -2326,11 +2328,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    fn write_link(&mut self, target: &Source<'_>, text: &[InlineNode<'_>]) -> Result<(), Error> {
-        self.write_link_text(&target.to_string(), text)
-    }
-
-    fn write_link_text(&mut self, target: &str, text: &[InlineNode<'_>]) -> Result<(), Error> {
+    fn write_link(
+        &mut self,
+        target: &Source<'_>,
+        text: &[InlineNode<'_>],
+        hide_uri_scheme: bool,
+    ) -> Result<(), Error> {
         match text {
             [InlineNode::Macro(InlineMacro::Image(image))]
                 if image.metadata.attributes.get_string("link").is_some() =>
@@ -2341,11 +2344,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             _ => {}
         }
 
+        let target = target.to_string();
         self.writer.raw("#link(");
-        self.writer.string_literal(target);
+        self.writer.string_literal(&target);
         self.writer.raw(")[");
         if text.is_empty() {
-            self.write_text_expr(target);
+            let display = if let Some(address) = target.strip_prefix("mailto:") {
+                address
+            } else if hide_uri_scheme {
+                acdc_converters_core::link::strip_uri_scheme(&target)
+            } else {
+                &target
+            };
+            self.write_text_expr(display);
         } else {
             self.write_inlines(text)?;
         }

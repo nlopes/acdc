@@ -1,3 +1,5 @@
+= Link display attributes
+
 Before bare URL: https://before.example/path
 
 Before URL macro: https://before.example/path[]
@@ -15,6 +17,10 @@ Enabled link macro: link:https://enabled.example/path[]
 Explicit text: https://enabled.example/path[example site]
 
 FTP URL: ftp://files.example/readme.txt
+
+Mailto macro: mailto:person@example.com[]
+
+Bare email: person@example.com
 
 :hide-uri-scheme: false
 
