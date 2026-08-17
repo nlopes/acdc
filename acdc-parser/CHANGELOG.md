@@ -131,6 +131,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Keyboard, button, and menu macros are now recognized only while the
+  `experimental` document attribute is set. Setting or unsetting it in the
+  document body applies to the content that follows, matching Asciidoctor.
 - Comparing or debugging `Anchor` and `Reference` values now includes their
   bibliography state. Serialized ASG output is unchanged.
 - `toclevels` and `sectnumlevels` now remain undefined until the document sets

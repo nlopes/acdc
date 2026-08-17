@@ -681,7 +681,7 @@ peg::parser! {
         / "indexterm2:[" [^']']* "]"  // indexterm2:[term]
 
         rule inline_menu() -> InlineNode<'input>
-        = "menu:"
+        = check_experimental() "menu:"
         target:$([^'[']+)
         "["
         items:((item:$([^(']' | '>')]+) { item.trim() }) ** (">" whitespace()?))
@@ -697,10 +697,10 @@ peg::parser! {
 
         /// Match inline menu without consuming - for use in negative lookaheads.
         rule inline_menu_match()
-        = "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
+        = check_experimental() "menu:" [^'[']+ "[" ([^']' | '>']+ (">" whitespace()? [^']' | '>']+)*)? "]"
 
         rule inline_button() -> InlineNode<'input>
-        = "btn:[" label:$balanced_bracket_content() "]"
+        = check_experimental() "btn:[" label:$balanced_bracket_content() "]"
         {
             tracing::debug!(?label, "Found button inline");
             InlineNode::Macro(InlineMacro::Button(Button {
@@ -711,10 +711,10 @@ peg::parser! {
 
         /// Match inline button without consuming - for use in negative lookaheads.
         rule inline_button_match()
-        = "btn:[" balanced_bracket_content() "]"
+        = check_experimental() "btn:[" balanced_bracket_content() "]"
 
         rule inline_keyboard() -> InlineNode<'input>
-        = "kbd:["
+        = check_experimental() "kbd:["
         keys:((key:$([^(']' | '+' | ',')]+) { key.trim() }) ** (("," / "+") whitespace()?))
         "]"
         {
@@ -727,7 +727,7 @@ peg::parser! {
 
         /// Match inline keyboard without consuming - for use in negative lookaheads.
         rule inline_keyboard_match()
-        = "kbd:[" [^']' | '+' | ',']+ (("," / "+") whitespace()? [^']' | '+' | ',']+)* "]"
+        = check_experimental() "kbd:[" [^']' | '+' | ',']+ (("," / "+") whitespace()? [^']' | '+' | ',']+)* "]"
 
         /// Parse URL macros with attribute handling.
         ///
@@ -847,6 +847,9 @@ peg::parser! {
 
         rule check_macros() -> ()
         = {? if state.inline_ctx.subs_flags.contains(SubsFlags::MACROS) { Ok(()) } else { Err("macros disabled") } }
+
+        rule check_experimental() -> ()
+        = {? if state.document_attributes.is_set("experimental") { Ok(()) } else { Err("experimental UI macros disabled") } }
 
         rule check_post_replacements() -> ()
         = {? if state.inline_ctx.subs_flags.contains(SubsFlags::POST_REPLACEMENTS) { Ok(()) } else { Err("post_replacements disabled") } }

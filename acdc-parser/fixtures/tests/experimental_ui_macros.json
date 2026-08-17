@@ -1,0 +1,382 @@
+{
+  "name": "document",
+  "type": "block",
+  "attributes": {
+    "experimental": false
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 59
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 1,
+          "col": 59
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": true,
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 3,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Enabled: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            "Ctrl",
+            "C"
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 10
+            },
+            {
+              "line": 5,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 5,
+              "col": 22
+            },
+            {
+              "line": 5,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": "Save",
+          "location": [
+            {
+              "line": 5,
+              "col": 24
+            },
+            {
+              "line": 5,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 5,
+              "col": 34
+            },
+            {
+              "line": 5,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": "File",
+          "items": [
+            "Open",
+            "Recent"
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 36
+            },
+            {
+              "line": 5,
+              "col": 59
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 60
+            },
+            {
+              "line": 5,
+              "col": 60
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 60
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": "false",
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "False value: ",
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "keyboard",
+          "type": "inline",
+          "keys": [
+            "Ctrl",
+            "C"
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 14
+            },
+            {
+              "line": 9,
+              "col": 25
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 9,
+              "col": 26
+            },
+            {
+              "line": 9,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": "Save",
+          "location": [
+            {
+              "line": 9,
+              "col": 28
+            },
+            {
+              "line": 9,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ", ",
+          "location": [
+            {
+              "line": 9,
+              "col": 38
+            },
+            {
+              "line": 9,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": "File",
+          "items": [
+            "Open",
+            "Recent"
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 40
+            },
+            {
+              "line": 9,
+              "col": 63
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 9,
+              "col": 64
+            },
+            {
+              "line": 9,
+              "col": 64
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 64
+        }
+      ]
+    },
+    {
+      "name": "experimental",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 58
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 58
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 13,
+      "col": 58
+    }
+  ]
+}
