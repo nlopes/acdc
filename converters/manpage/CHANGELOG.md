@@ -78,6 +78,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Description lists now preserve nested ownership, repeated continuations,
+  formatted terms, titled boundaries, named styles, and trailing unanswered
+  Q&A items, matching the Asciidoctor manpage backend.
 - Table cells now apply strong, emphasis, literal, and monospace styles,
   matching the Asciidoctor manpage backend. ACDC's span and alignment extension
   now applies column alignment by source-cell order after spans.

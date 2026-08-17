@@ -1,0 +1,284 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "ordered"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Positional ordered",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Positional style remains effective.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 22
+                },
+                {
+                  "line": 2,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 57
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 57
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "ordered"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named ordered",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 5,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named style becomes effective.",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 17
+                },
+                {
+                  "line": 5,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 47
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "unordered"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Positional unordered",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Positional style remains effective.",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 24
+                },
+                {
+                  "line": 8,
+                  "col": 58
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 59
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 59
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "unordered"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named unordered",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Named style becomes effective.",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 19
+                },
+                {
+                  "line": 11,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 49
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 11,
+      "col": 48
+    }
+  ]
+}

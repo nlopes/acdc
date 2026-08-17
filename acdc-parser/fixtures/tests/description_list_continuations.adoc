@@ -1,0 +1,14 @@
+[horizontal]
+Owner:: Principal description text.
++
+An attached paragraph owned by Owner.
++
+NOTE: An attached admonition owned by Owner.
++
+[source,rust]
+----
+fn owned() {
+    println!("owner");
+}
+----
+Sibling:: This sibling must remain a separate row.

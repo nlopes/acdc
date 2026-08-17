@@ -1,0 +1,12 @@
+Root one:: Root one description.
+Child one::: Child one description.
+Grandchild one:::: Grandchild one description.
+Child two::: Child two description.
+Root two:: Root two description.
+
+Protocols::
+HTTP::: Transfers web resources.
+Headers:::: Carry request metadata.
+SSH::: Provides a secure shell.
+
+Final:: A root sibling after the nested topology.

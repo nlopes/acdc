@@ -1,0 +1,11 @@
+[ordered]
+Positional ordered:: Positional style remains effective.
+
+[style=ordered]
+Named ordered:: Named style becomes effective.
+
+[unordered]
+Positional unordered:: Positional style remains effective.
+
+[style=unordered]
+Named unordered:: Named style becomes effective.

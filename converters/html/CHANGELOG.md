@@ -249,6 +249,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Description lists now preserve delimiter-based nesting, repeated
+  continuations, formatted terms, titled boundaries, named styles, and
+  trailing unanswered Q&A items, matching Asciidoctor.
 - Image links now honor `window`, `nofollow`, and `noopener`, including the
   implicit `noopener` relation for `window=_blank`, matching Asciidoctor.
 - `[listing]`, `[source]`, `[literal]`, and `[verse]` before a block image

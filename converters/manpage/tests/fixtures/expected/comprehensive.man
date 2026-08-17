@@ -62,10 +62,10 @@ And a reference back.[2]
 .SH "OPTIONS"
 .RS 0
 .TP
-\fB\fB\-v\fP, *\-\-verbose*\fP
+\fB\fB\-v\fP, \fB\-\-verbose\fP\fP
 Increase verbosity level.
 .TP
-\fB\fB\-o\fP _FILE_\fP
+\fB\fB\-o\fP \fIFILE\fP\fP
 Write output to \fIFILE\fP instead of stdout.
 .RS 0
 .sp
@@ -130,7 +130,7 @@ Definition of term one.
 \fBterm two\fP
 Multi\-line definition for term two.
 .TP
-\fBterm with *formatting*\fP
+\fBterm with \fBformatting\fP\fP
 A \fIstyled\fP definition.
 .RE
 .SS "Callout List"

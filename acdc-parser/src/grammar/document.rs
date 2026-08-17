@@ -2,7 +2,11 @@
 // rules with just 3 explicit params exceed clippy's 7-argument threshold.
 #![allow(clippy::too_many_arguments)]
 
-use std::{borrow::Cow, collections::HashMap, rc::Rc};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, VecDeque},
+    rc::Rc,
+};
 
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Block,
@@ -1018,6 +1022,7 @@ fn store_named_block_attribute<'input>(
                 .options
                 .extend(parse_comma_separated_values(state, value));
         }
+        "style" => metadata.style = Some(value),
         RESERVED_NAMED_ATTRIBUTE_SUBS => {
             #[cfg(feature = "pre-spec-subs")]
             {
@@ -2303,11 +2308,79 @@ fn find_dlist_marker(bytes: &[u8], pos: usize, scan_across_eol: bool, allow_eoi:
     false
 }
 
+fn description_list_location(items: &[DescriptionListItem<'_>]) -> Location {
+    let Some((first, rest)) = items.split_first() else {
+        return Location::default();
+    };
+    let last = rest.last().unwrap_or(first);
+    Location {
+        absolute_start: first.location.absolute_start,
+        absolute_end: last.location.absolute_end,
+        start: first.location.start.clone(),
+        end: last.location.end.clone(),
+    }
+}
+
+fn nest_description_list_items<'input>(
+    items: &mut VecDeque<DescriptionListItem<'input>>,
+    delimiter: &'input str,
+    ancestors: &mut Vec<&'input str>,
+) -> Vec<DescriptionListItem<'input>> {
+    let mut nested = Vec::new();
+
+    while items
+        .front()
+        .is_some_and(|item| item.delimiter == delimiter)
+    {
+        let Some(mut item) = items.pop_front() else {
+            break;
+        };
+
+        if let Some(child_delimiter) = items.front().map(|child| child.delimiter)
+            && child_delimiter != delimiter
+            && !ancestors.contains(&child_delimiter)
+        {
+            // A new delimiter starts one child level; only an ancestor delimiter unwinds it.
+            ancestors.push(delimiter);
+            let children = nest_description_list_items(items, child_delimiter, ancestors);
+            ancestors.pop();
+            let location = description_list_location(&children);
+            item.location.absolute_end = location.absolute_end;
+            item.location.end = location.end.clone();
+            item.description
+                .push(Block::DescriptionList(DescriptionList {
+                    title: Title::default(),
+                    metadata: BlockMetadata::default(),
+                    items: children,
+                    location,
+                }));
+        }
+
+        nested.push(item);
+    }
+
+    nested
+}
+
+fn build_description_list_topology(
+    items: Vec<DescriptionListItem<'_>>,
+) -> Vec<DescriptionListItem<'_>> {
+    if items
+        .first()
+        .is_none_or(|first| items.iter().all(|item| item.delimiter == first.delimiter))
+    {
+        return items;
+    }
+
+    let mut items = VecDeque::from(items);
+    let delimiter = items.front().map_or("", |item| item.delimiter);
+    nest_description_list_items(&mut items, delimiter, &mut Vec::new())
+}
+
 peg::parser! {
     pub(crate) grammar document_parser(state: &mut ParserState<'input>) for str {
         use std::str::FromStr;
         use crate::model::substitute;
-        use crate::grammar::inlines::inline_parser;
 
         // Injected span endpoints — `span_start`/`span_end` are bound in every
         // action block to the byte range of the sequence leading up to it.
@@ -4022,7 +4095,7 @@ peg::parser! {
         = callout_list(start, offset, block_metadata)
         / unordered_list(start, offset, block_metadata, None, allow_continuation, false)
         / ordered_list(start, offset, block_metadata, None, allow_continuation, false)
-        / description_list(start, offset, block_metadata)
+        / description_list(start, offset, block_metadata, allow_continuation)
 
         rule unordered_list_marker() -> &'input str = $("*"+ / "-")
 
@@ -4203,17 +4276,13 @@ peg::parser! {
           )
           line:$((!eol() [_])*) { line }
 
-        // Helper rule to check if we're at a blank line followed by block attributes or anchor
-        // Used by description lists to terminate when new block metadata appears after a blank line
-        // This signals a new block context where the attributes/anchor should apply to a new list
-        // Matches: 2+ newlines, then either:
-        //   - `[` at column 1 followed by non-empty content and `]` (block attributes)
-        //   - `[[` at column 1 followed by content and `]]` (anchor/id)
-        // Note: NO whitespace before `[` - indented brackets are not block metadata
+        // Block metadata in column one after a blank line starts a new description list.
+        // Indented metadata-like text remains part of the current item.
         rule at_dlist_block_boundary()
         = eol()*<2,> &(
             ("[" ![']' | '['] [^']' | '\n']+ "]" whitespace()* eol())
             / ("[[" [^']']+ "]]" whitespace()* eol())
+            / ("." ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']* eol())
         )
 
         rule unordered_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, parent_ordered_marker: Option<&'input str>, allow_continuation: bool, is_nested: bool) -> Result<Block<'input>, Error>
@@ -5105,20 +5174,17 @@ peg::parser! {
             }
         }
 
-        /// Variant of `check_line_is_description_list` that does not accept
-        /// end-of-input as marker context. Mirrors the inline pattern previously
-        /// embedded in `description_list_item`'s continuation guard.
-        rule check_line_is_description_list_strict(offset: usize)
+        rule check_start_of_description_list_in_context(offset: usize, scan_across_eol: bool)
         = pos:position!() {?
-            if find_dlist_marker(state.input.as_bytes(), pos + offset, false, false) {
+            if find_dlist_marker(state.input.as_bytes(), pos + offset, scan_across_eol, true) {
                 Ok(())
             } else {
-                Err("no dlist marker on current line")
+                Err("no dlist marker in this block context")
             }
         }
 
-        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
-        = check_start_of_description_list(offset)
+        rule description_list(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>, scan_across_eol: bool) -> Result<Block<'input>, Error>
+        = check_start_of_description_list_in_context(offset, scan_across_eol)
         first_item:description_list_item(offset, block_metadata)
         additional_items:description_list_additional_items(offset, block_metadata)*
         {
@@ -5137,7 +5203,7 @@ peg::parser! {
             Ok(Block::DescriptionList(DescriptionList {
                 title: block_metadata.title.clone(),
                 metadata: block_metadata.metadata.clone(),
-                items,
+                items: build_description_list_topology(items),
                 location: state.create_location(start+offset, actual_end+offset),
             }))
         }
@@ -5157,7 +5223,9 @@ peg::parser! {
         }
 
         rule description_list_item(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
-        = term:$((!(description_list_marker() (eol() / " ") / eol()*<2,2>) [_])+)
+        = term_start:position!()
+        term:$((!(description_list_marker() (eol() / " " / ![_]) / eol()*<2,2>) [_])+)
+        term_end:position!()
         delim_start:position!() delimiter:description_list_marker() delim_end:position!()
         whitespace()?
         principal_start:position!()
@@ -5169,7 +5237,7 @@ peg::parser! {
             // dlist-specific stop conditions.
             (eol()
              !eol()                                    // not a blank line
-             !check_line_is_description_list_strict(offset)  // not a new dlist entry (line-local check)
+             !check_line_is_description_list(offset)
              !(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())  // not a list item
              !("+" (whitespace() / eol() / ![_]))      // not a continuation marker
              !example_delimiter()                      // not a block delimiter
@@ -5192,13 +5260,18 @@ peg::parser! {
         {
             tracing::debug!(%term, %delimiter, "parsing description list item with auto-attachment");
 
-            state.inline_ctx.offset = span_start + offset;
-            state.inline_ctx.subs_flags = block_metadata.subs_flags;
-            let term = inline_parser::inlines(term.trim(), state)
-                .unwrap_or_else(|e| {
-                    adjust_and_log_parse_error(&e, term.trim(), span_start+offset, state, "Error parsing term as inline content");
-                    vec![]
-                });
+            let trimmed_term = term.trim();
+            let leading_whitespace = term.len() - term.trim_start().len();
+            let term_start = term_start + leading_whitespace;
+            let term_end = term_end - (term.len() - term.trim_end().len());
+            let term = process_inlines(
+                state,
+                block_metadata,
+                term_start,
+                term_end,
+                offset,
+                trimmed_term,
+            )?;
 
             let principal_end = principal_start + principal_content.len();
             let principal_text = if principal_content.trim().is_empty() {

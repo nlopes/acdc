@@ -182,6 +182,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Description lists now preserve repeated continuations, delimiter-based
+  nesting, formatted terms, trailing unanswered Q&A items, titled-list
+  boundaries, and named `style=` values, matching Asciidoctor.
 - Image macros now accept an empty inline `link=` value and use the last value
   when `link=` appears more than once, matching Asciidoctor.
 - Checklist markers now apply only to unordered list items. `[ ]`, `[x]`,
