@@ -432,6 +432,12 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 write!(self.writer_mut(), "{text}")?;
                 Ok(())
             }
+            XrefDisplay::External(target) => {
+                let fallback = format!("[{target}]");
+                let text = manify(&fallback, EscapeMode::Normalize);
+                write!(self.writer_mut(), "{text}")?;
+                Ok(())
+            }
         }
     }
 

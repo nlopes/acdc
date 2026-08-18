@@ -250,6 +250,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Link fallback text keeps `mailto:` for a `link:` target, uses angle brackets
+  only around bracketed email autolinks, and maps inter-document references to
+  the HTML output suffix, matching Asciidoctor.
 - Keyboard, button, and menu macros remain literal unless `experimental` is
   set, including when the attribute changes in the document body, matching
   Asciidoctor.

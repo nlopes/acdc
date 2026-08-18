@@ -21,9 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and highlighted-line selectors.
 - `xref::resolve_xref` resolves an automatic cross-reference's display content
   with Asciidoctor's precedence — explicit reference label, target title, then
-  `[id]` — and tells a backend apart the three `[id]` cases it has to render
-  differently: an untitled target, a target that is absent from the catalog (no
-  anchor to link to), and a reference nested inside another one's text. Its
+  `[id]` — and distinguishes an untitled target, a missing local target, an
+  inter-document target, and a reference nested inside another one's text. Its
   `xref::XrefGuard` keeps a target whose reference text holds a reference of its
   own from recursing. Asciidoctor falls back to `[refid]` at the same point,
   except where it reuses a target's cached converted title, which can carry one
@@ -82,6 +81,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Link fallback text distinguishes `link:`, `mailto:`, and automatic links, so
+  the HTML and PDF backends match Asciidoctor mail targets and angle brackets.
+- Inter-document cross-references preserve their external target and let each
+  backend use its own output suffix and fallback filename.
 - Universal AsciiDoc defaults passed to parsers no longer act like caller-set
   attributes, so nested documents can change them locally.
 - Built-in converters now use the parser's section numbers for both headings and

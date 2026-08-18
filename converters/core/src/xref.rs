@@ -18,6 +18,8 @@ pub enum XrefDisplay<'r, 'a> {
     /// converter's inline pipeline as written. Carries the same scope as
     /// [`XrefDisplay::Title`].
     Label(&'r [InlineNode<'a>], XrefScope<'r>),
+    /// An inter-document target as written, such as `other.adoc#section`.
+    External(String),
     /// The literal `[id]` fallback for a target that is in the catalog but has
     /// no reference text. A link to the target still resolves.
     Fallback(String),
@@ -87,9 +89,10 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 
 /// Resolve an empty cross-reference's display content.
 ///
-/// Explicit reference labels take precedence over target titles. Unknown and
-/// untitled targets fall back to `[id]`, matching Asciidoctor, and so does a
-/// reference that `guard` reports as nested inside another one's text.
+/// Explicit reference labels take precedence over target titles. Unknown local
+/// and untitled targets fall back to `[id]`, matching Asciidoctor, and so does
+/// a reference that `guard` reports as nested inside another one's text.
+/// Inter-document targets are returned separately for backend-specific links.
 #[must_use]
 pub fn resolve_xref<'r, 'a>(
     reference: Option<&'r Reference<'a>>,
@@ -97,7 +100,11 @@ pub fn resolve_xref<'r, 'a>(
     guard: &'r XrefGuard,
 ) -> XrefDisplay<'r, 'a> {
     let Some(reference) = reference else {
-        return XrefDisplay::Unresolved(format!("[{target}]"));
+        return if is_interdocument_target(target) {
+            XrefDisplay::External(target.to_string())
+        } else {
+            XrefDisplay::Unresolved(format!("[{target}]"))
+        };
     };
     if guard.is_resolving() {
         return XrefDisplay::Nested(format!("[{target}]"));
@@ -111,11 +118,56 @@ pub fn resolve_xref<'r, 'a>(
     }
 }
 
+/// Map an inter-document cross-reference to a backend target and fallback text.
+///
+/// Source-document paths use `output_extension`, without a leading dot. A
+/// fragment remains in the link target but is omitted from the visible
+/// fallback.
+#[must_use]
+pub fn interdocument_xref(target: &str, output_extension: &str) -> Option<(String, String)> {
+    if !is_interdocument_target(target) {
+        return None;
+    }
+
+    let (path, fragment) = match target.split_once('#') {
+        Some((path, fragment)) => (path, Some(fragment)),
+        None => (target, None),
+    };
+    let stem = source_document_stem(path, fragment.is_some());
+    let display = stem.map_or_else(
+        || path.to_string(),
+        |stem| format!("{stem}.{output_extension}"),
+    );
+    let destination = fragment.map_or_else(
+        || display.clone(),
+        |fragment| format!("{display}#{fragment}"),
+    );
+    Some((destination, display))
+}
+
+fn is_interdocument_target(target: &str) -> bool {
+    match target.split_once('#') {
+        Some((path, _)) => !path.is_empty(),
+        None => target.contains(['.', ':']),
+    }
+}
+
+fn source_document_stem(path: &str, has_fragment: bool) -> Option<&str> {
+    const EXTENSIONS: [&str; 5] = [".adoc", ".asciidoc", ".asc", ".ad", ".txt"];
+    if !has_fragment {
+        return path.strip_suffix(".adoc");
+    }
+    EXTENSIONS
+        .iter()
+        .find_map(|extension| path.strip_suffix(extension))
+        .or_else(|| (!path.rsplit('/').next().unwrap_or(path).contains('.')).then_some(path))
+}
+
 #[cfg(test)]
 mod tests {
     use acdc_parser::{Error, Options, ParseResult, parse};
 
-    use super::{XrefDisplay, XrefGuard, resolve_xref};
+    use super::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref};
 
     /// Parse a document whose catalog holds `labelled` (an explicit label),
     /// `titled` (a title), and `untitled` (neither).
@@ -179,6 +231,28 @@ mod tests {
             resolve_xref(None, "no-such-id", &guard),
             XrefDisplay::Unresolved(text) if text == "[no-such-id]"
         ));
+    }
+
+    #[test]
+    fn interdocument_target_is_not_an_unresolved_local_id() {
+        let guard = XrefGuard::default();
+        assert!(matches!(
+            resolve_xref(None, "other.adoc#part", &guard),
+            XrefDisplay::External(target) if target == "other.adoc#part"
+        ));
+    }
+
+    #[test]
+    fn interdocument_target_uses_backend_suffix_and_hides_fragment() {
+        assert_eq!(
+            interdocument_xref("other.adoc#part", "pdf"),
+            Some(("other.pdf#part".to_string(), "other.pdf".to_string()))
+        );
+        assert_eq!(
+            interdocument_xref("manual.pdf#part", "html"),
+            Some(("manual.pdf#part".to_string(), "manual.pdf".to_string()))
+        );
+        assert_eq!(interdocument_xref("local-id", "html"), None);
     }
 
     #[test]

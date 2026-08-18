@@ -43,17 +43,19 @@
 //! IDs, trusting the document author to provide safe values.
 
 use std::{
+    borrow::Cow,
     io::{self, Write},
     rc::Rc,
 };
 
 use acdc_converters_core::{
     inlines_to_string,
+    link::{autolink_fallback, link_fallback, mailto_fallback},
     substitutions::{
         Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
     },
     visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
     AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
@@ -159,20 +161,6 @@ fn link_class_attr(role: Option<String>, bare: bool) -> String {
         (true, None) => " class=\"bare\"".to_string(),
         (false, Some(role)) => format!(" class=\"{role}\""),
         (false, None) => String::new(),
-    }
-}
-
-/// Compute the visible fallback text for a link target when no display text was given.
-///
-/// Strips the `mailto:` prefix, or — when `hide_uri_scheme` is set — strips schemes like
-/// `https://`, `http://`, `ftp://`. Otherwise returns the target as-is.
-fn link_display_fallback(target: &str, hide_uri_scheme: bool) -> &str {
-    if let Some(email) = target.strip_prefix("mailto:") {
-        email
-    } else if hide_uri_scheme {
-        acdc_converters_core::link::strip_uri_scheme(target)
-    } else {
-        target
     }
 }
 
@@ -738,20 +726,18 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn render_autolink(&mut self, al: &Autolink<'_>, options: &RenderOptions) -> Result<(), Error> {
         let w = self.writer_mut();
         let href_str = al.url.to_string();
-        let inner = if al.bracketed {
-            href_str
-                .strip_prefix('<')
-                .and_then(|s| s.strip_suffix('>'))
-                .unwrap_or(&href_str)
-        } else {
-            &href_str
-        };
-        let display_text = link_display_fallback(inner, al.hides_uri_scheme()).to_string();
+        let (display_text, angle_brackets) =
+            autolink_fallback(&href_str, al.bracketed, al.hides_uri_scheme());
 
         if options.inlines_basic || options.toc_mode {
+            if angle_brackets {
+                write!(w, "&lt;")?;
+            }
             write!(w, "{display_text}")?;
-        } else if al.bracketed {
-            // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
+            if angle_brackets {
+                write!(w, "&gt;")?;
+            }
+        } else if angle_brackets {
             write!(
                 w,
                 "&lt;<a href=\"{}\">{display_text}</a>&gt;",
@@ -774,7 +760,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target_str = l.target.to_string();
-        let fallback = link_display_fallback(&target_str, l.hides_uri_scheme());
+        let fallback = link_fallback(&target_str, l.hides_uri_scheme());
 
         if options.inlines_basic || options.toc_mode {
             if l.text.is_empty() {
@@ -874,7 +860,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target_str = u.target.to_string();
-        let fallback = link_display_fallback(&target_str, u.hides_uri_scheme());
+        let fallback = link_fallback(&target_str, u.hides_uri_scheme());
 
         if options.toc_mode {
             if u.text.is_empty() {
@@ -912,9 +898,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target_str = m.target.to_string();
-        // `mailto:` never uses `hide-uri-scheme` (the prefix strip handles it),
-        // and never emits `class="bare"` (asciidoctor's convention).
-        let fallback = link_display_fallback(&target_str, false);
+        // `mailto:` never emits `class="bare"` (asciidoctor's convention).
+        let fallback = mailto_fallback(&target_str);
 
         if options.toc_mode {
             if m.text.is_empty() {
@@ -1037,6 +1022,24 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 &processor.xref_guard,
             );
 
+            if let XrefDisplay::External(target) = &display {
+                let Some((target, text)) = self.interdocument_xref(target) else {
+                    write!(self.writer_mut(), "{}", escape_pcdata(target))?;
+                    return Ok(());
+                };
+                if options.inlines_basic || options.toc_mode {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
+                } else {
+                    write!(
+                        self.writer_mut(),
+                        "<a href=\"{}\">{}</a>",
+                        escape_href(&target),
+                        escape_pcdata(&text)
+                    )?;
+                }
+                return Ok(());
+            }
+
             // A cross-reference inside another one's text cannot be a link: an
             // `<a>` does not nest. Everything else links, including an
             // unresolved target, matching asciidoctor.
@@ -1057,6 +1060,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 | XrefDisplay::Nested(text) => {
                     write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
                 }
+                XrefDisplay::External(target) => {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&target))?;
+                }
             }
             if linked {
                 write!(self.writer_mut(), "</a>")?;
@@ -1071,12 +1077,30 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        if let Some((target, _)) = self.interdocument_xref(xref.target) {
+            write!(self.writer_mut(), "<a href=\"{}\">", escape_href(&target))?;
+            for inline in &xref.text {
+                self.render_inline_node(inline, options, subs)?;
+            }
+            write!(self.writer_mut(), "</a>")?;
+            return Ok(());
+        }
+
         write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
         for inline in &xref.text {
             self.render_inline_node(inline, options, subs)?;
         }
         write!(self.writer_mut(), "</a>")?;
         Ok(())
+    }
+
+    fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {
+        let attributes = self.processor.document_attributes();
+        let extension = attributes
+            .get_string("relfilesuffix")
+            .or_else(|| attributes.get_string("outfilesuffix"))
+            .map_or_else(|| "html".to_string(), Cow::into_owned);
+        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(&extension))
     }
 
     fn render_stem(&mut self, s: &Stem<'_>) -> Result<(), Error> {

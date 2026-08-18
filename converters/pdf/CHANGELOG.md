@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Link fallback text keeps `mailto:` for a `link:` target, preserves angle
+  brackets around bracketed email autolinks, and maps inter-document
+  references to the PDF output suffix, matching Asciidoctor PDF.
 - Link roles use the same supported size, decoration, colour, and background
   formatting as other inline text. Browser-only link attributes do not affect
   PDF output, matching Asciidoctor PDF.

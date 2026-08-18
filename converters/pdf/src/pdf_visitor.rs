@@ -8,20 +8,21 @@ use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
     code::{SourceLineOptions, detect_language, source_line_count},
     inlines_to_string,
+    link::{autolink_fallback, link_fallback, mailto_fallback},
     list::OrderedListNumbering,
     section::effective_section_level,
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::Visitor,
-    xref::{XrefDisplay, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
-    CrossReference, DescriptionList, DescriptionListItem, ElementAttributes, HorizontalAlignment,
-    Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu, Paragraph, Section, SectionKind,
-    Source, Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation,
-    TableStripes, Title, TocEntry, VerticalAlignment,
+    Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
+    ColumnWidth, CrossReference, DescriptionList, DescriptionListItem, ElementAttributes,
+    HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu, Paragraph,
+    Section, SectionKind, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
+    TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -2218,32 +2219,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             InlineMacro::Menu(menu) => self.write_menu(menu),
             InlineMacro::Url(url) => {
-                self.write_link(
-                    &url.target,
-                    &url.text,
-                    Some(&url.attributes),
-                    url.hides_uri_scheme(),
-                )?;
+                let target = url.target.to_string();
+                let fallback = link_fallback(&target, url.hides_uri_scheme());
+                self.write_link(&target, &url.text, Some(&url.attributes), fallback)?;
             }
             InlineMacro::Link(link) => {
-                self.write_link(
-                    &link.target,
-                    &link.text,
-                    Some(&link.attributes),
-                    link.hides_uri_scheme(),
-                )?;
+                let target = link.target.to_string();
+                let fallback = link_fallback(&target, link.hides_uri_scheme());
+                self.write_link(&target, &link.text, Some(&link.attributes), fallback)?;
             }
             InlineMacro::Mailto(mailto) => {
-                self.write_link(
-                    &mailto.target,
-                    &mailto.text,
-                    Some(&mailto.attributes),
-                    false,
-                )?;
+                let target = mailto.target.to_string();
+                let fallback = mailto_fallback(&target);
+                self.write_link(&target, &mailto.text, Some(&mailto.attributes), fallback)?;
             }
-            InlineMacro::Autolink(autolink) => {
-                self.write_link(&autolink.url, &[], None, autolink.hides_uri_scheme())?;
-            }
+            InlineMacro::Autolink(autolink) => self.write_autolink(autolink)?,
             InlineMacro::CrossReference(xref) => self.write_cross_reference(xref)?,
             InlineMacro::Pass(pass) => {
                 if let Some(text) = pass.text {
@@ -2281,6 +2271,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("]");
     }
 
+    fn write_autolink(&mut self, autolink: &Autolink<'_>) -> Result<(), Error> {
+        let target = autolink.url.to_string();
+        let (fallback, angle_brackets) =
+            autolink_fallback(&target, autolink.bracketed, autolink.hides_uri_scheme());
+        if angle_brackets {
+            self.write_text_expr("<");
+        }
+        self.write_link(&target, &[], None, fallback)?;
+        if angle_brackets {
+            self.write_text_expr(">");
+        }
+        Ok(())
+    }
+
     /// Write a cross-reference as a Typst link to the target's label.
     ///
     /// Typst fails the whole compilation on a link to a label that no element
@@ -2307,7 +2311,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         if !xref.text.is_empty() {
-            if references.contains_key(xref.target) {
+            if let Some((target, _)) = self.interdocument_xref(xref.target) {
+                self.write_external_link(&target, |visitor| visitor.write_inlines(&xref.text))?;
+            } else if references.contains_key(xref.target) {
                 self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(&xref.text))?;
             } else {
                 self.write_inlines(&xref.text)?;
@@ -2328,7 +2334,39 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             XrefDisplay::Unresolved(text) | XrefDisplay::Nested(text) => {
                 self.write_text_expr(&text);
             }
+            XrefDisplay::External(target) => {
+                if let Some((target, text)) = self.interdocument_xref(&target) {
+                    self.write_external_link(&target, |visitor| {
+                        visitor.write_text_expr(&text);
+                        Ok(())
+                    })?;
+                } else {
+                    self.write_text_expr(&target);
+                }
+            }
         }
+        Ok(())
+    }
+
+    fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {
+        let attributes = self.processor.document_attributes();
+        let extension = attributes
+            .get_string("relfilesuffix")
+            .or_else(|| attributes.get_string("outfilesuffix"))
+            .map_or_else(|| "pdf".to_string(), Cow::into_owned);
+        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(&extension))
+    }
+
+    fn write_external_link(
+        &mut self,
+        target: &str,
+        content: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.writer.raw("#link(");
+        self.writer.string_literal(target);
+        self.writer.raw(")[");
+        content(self)?;
+        self.writer.raw("]");
         Ok(())
     }
 
@@ -2347,10 +2385,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
 
     fn write_link(
         &mut self,
-        target: &Source<'_>,
+        target: &str,
         text: &[InlineNode<'_>],
         attributes: Option<&ElementAttributes<'_>>,
-        hide_uri_scheme: bool,
+        fallback: &str,
     ) -> Result<(), Error> {
         let role = attributes.and_then(|attributes| attributes.get_string("role"));
         let wrappers = self.write_inline_span_start(None, role.as_deref());
@@ -2366,19 +2404,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             _ => {}
         }
 
-        let target = target.to_string();
         self.writer.raw("#link(");
-        self.writer.string_literal(&target);
+        self.writer.string_literal(target);
         self.writer.raw(")[");
         if text.is_empty() {
-            let display = if let Some(address) = target.strip_prefix("mailto:") {
-                address
-            } else if hide_uri_scheme {
-                acdc_converters_core::link::strip_uri_scheme(&target)
-            } else {
-                &target
-            };
-            self.write_text_expr(display);
+            self.write_text_expr(fallback);
         } else {
             self.write_inlines(text)?;
         }

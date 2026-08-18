@@ -384,6 +384,10 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                     Ok(())
                 })
             }
+            XrefDisplay::External(target) => self.write_link_styled(processor, |visitor| {
+                write!(visitor.writer_mut(), "[{target}]")?;
+                Ok(())
+            }),
             // Already inside a reference's styling: plain text, so the outer
             // reference keeps its colour and underline.
             XrefDisplay::Nested(text) => {
@@ -679,6 +683,7 @@ fn render_cross_reference_to_writer<W: Write + ?Sized>(
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => text,
+            XrefDisplay::External(target) => format!("[{target}]"),
         }
     } else {
         inlines_to_string(&xref.text)

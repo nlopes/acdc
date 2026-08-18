@@ -750,6 +750,10 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                     Ok(())
                 })
             }
+            XrefDisplay::External(target) => self.write_anchor_link(&target, |visitor| {
+                write!(visitor.writer, "[{target}]")?;
+                Ok(())
+            }),
             // Markdown links do not nest, so a reference inside another one's
             // text is text alone.
             XrefDisplay::Nested(text) => {
