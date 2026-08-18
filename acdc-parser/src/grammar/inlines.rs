@@ -195,6 +195,13 @@ macro_rules! process_inlines_or_err {
     };
 }
 
+fn strip_link_window_shorthand(text: Option<&str>) -> (Option<&str>, bool) {
+    match text.and_then(|text| text.strip_suffix('^')) {
+        Some(text) => (Some(text), true),
+        None => (text, false),
+    }
+}
+
 peg::parser! {
     pub(crate) grammar inline_parser(state: &mut ParserState<'input>) for str {
         use std::borrow::Cow;
@@ -754,7 +761,11 @@ peg::parser! {
                 subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
-            let (text, attributes) = content;
+            let (text, mut attributes) = content;
+            let (text, opens_new_window) = strip_link_window_shorthand(text);
+            if opens_new_window && !attributes.iter().any(|(name, _, _)| name == "window") {
+                attributes.push((Cow::Borrowed("window"), "_blank".into(), None));
+            }
             let mut metadata = BlockMetadata::default();
             for (k, v, _pos) in attributes {
                 if let AttributeValue::String(v) = v {
@@ -812,7 +823,11 @@ peg::parser! {
                 subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
-            let (text, attributes) = content;
+            let (text, mut attributes) = content;
+            let (text, opens_new_window) = strip_link_window_shorthand(text);
+            if opens_new_window && !attributes.iter().any(|(name, _, _)| name == "window") {
+                attributes.push((Cow::Borrowed("window"), "_blank".into(), None));
+            }
             let mut metadata = BlockMetadata::default();
             for (k, v, _pos) in attributes {
                 if let AttributeValue::String(v) = v {
@@ -1146,7 +1161,11 @@ peg::parser! {
                 subs_flags: state.inline_ctx.subs_flags,
                 ..BlockParsingMetadata::default()
             };
-            let (text, attributes) = content;
+            let (text, mut attributes) = content;
+            let (text, opens_new_window) = strip_link_window_shorthand(text);
+            if opens_new_window && !attributes.iter().any(|(name, _, _)| name == "window") {
+                attributes.push((Cow::Borrowed("window"), "_blank".into(), None));
+            }
             let mut metadata = BlockMetadata::default();
             for (k, v, _pos) in attributes {
                 if let AttributeValue::String(v) = v {

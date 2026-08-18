@@ -1,0 +1,11 @@
+= Link window shorthand
+
+URL: https://example.com[URL^]
+
+Link: link:https://example.com[Link^]
+
+Mailto: mailto:person@example.com[Email^]
+
+Explicit window: link:https://example.com[Reader^,window=reader]
+
+Empty text: link:https://example.com[^]

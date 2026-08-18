@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A trailing `^` in URL, link, and mailto display text now sets
+  `window=_blank` and is omitted from the text, matching Asciidoctor.
 - Parsed URL, link, and autolink nodes report whether fallback display text
   should omit the URI scheme, based on `hide-uri-scheme` at their source
   position. Serialized ASG output is unchanged.
