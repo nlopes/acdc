@@ -98,6 +98,8 @@ The PDF backend supports these built-in roles:
 * Matching `*-background` roles set the background colour.
 
 Use `[.underline]#text#` to apply a role or `[.red.underline]#text#` to combine roles.
+The same roles apply to URL, link, and mailto text through the macro's `role` attribute.
+Browser-only `window`, `target`, `title`, `rel`, and `opts` attributes do not affect PDF output.
 Unknown roles are ignored without warnings and cannot yet be styled through PDF themes.
 Highlighted text keeps its default background only when it has neither an ID nor a role.
 

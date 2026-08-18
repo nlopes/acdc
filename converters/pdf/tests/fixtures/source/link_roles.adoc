@@ -1,0 +1,31 @@
+= Link roles and browser attributes
+
+Underline URL: https://example.com/underline[Underlined,role=underline]
+
+Struck link: link:https://example.com/struck[Struck,role=line-through]
+
+Large link: link:https://example.com/large[Large,role=big]
+
+Small mailto: mailto:person@example.com[Small,role=small]
+
+Combined roles: link:https://example.com/combined[Combined,role="big underline"]
+
+Unknown role: link:https://example.com/custom[Custom,role=custom]
+
+Button role: link:https://example.com/button[Button,role=button]
+
+Plain control: link:https://example.com/plain[Same]
+
+Window: link:https://example.com/window[Same,window=_blank]
+
+Target: link:https://example.com/target[Same,target=reader]
+
+Title: link:https://example.com/title[Same,title="Browser tooltip"]
+
+Nofollow: link:https://example.com/nofollow[Same,opts=nofollow]
+
+Noopener: link:https://example.com/noopener[Same,window=_blank,opts=noopener]
+
+Relation: link:https://example.com/relation[Same,rel=nofollow]
+
+Window shorthand: link:https://example.com/shorthand[Same^]

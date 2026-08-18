@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Link roles use the same supported size, decoration, colour, and background
+  formatting as other inline text. Browser-only link attributes do not affect
+  PDF output, matching Asciidoctor PDF.
 - When `hide-uri-scheme` is set, including to `false`, PDF links without custom
   text omit their URI scheme. Body attribute changes apply in source order,
   matching Asciidoctor PDF. Mailto macros and email autolinks retain one

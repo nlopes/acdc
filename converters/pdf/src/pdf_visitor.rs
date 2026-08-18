@@ -18,10 +18,10 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle, ColumnWidth,
-    CrossReference, DescriptionList, DescriptionListItem, HorizontalAlignment, Image,
-    IndexTermKind, InlineMacro, InlineNode, ListItem, Paragraph, Section, SectionKind, Source,
-    Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation, TableStripes,
-    Title, TocEntry, VerticalAlignment,
+    CrossReference, DescriptionList, DescriptionListItem, ElementAttributes, HorizontalAlignment,
+    Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu, Paragraph, Section, SectionKind,
+    Source, Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation,
+    TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -2216,34 +2216,33 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_text_expr(button.label);
                 self.writer.raw("\u{2009}\\]]");
             }
-            InlineMacro::Menu(menu) => {
-                let mut parts = Vec::with_capacity(menu.items.len() + 1);
-                parts.push(menu.target);
-                parts.extend(menu.items.iter().copied());
-                self.writer.raw("#strong[");
-                for (index, part) in parts.into_iter().enumerate() {
-                    if index > 0 {
-                        self.write_text_expr(" ");
-                        self.writer.raw("#text(size: 1.15em, fill: rgb(");
-                        self.writer.string_literal(&self.palette.accent);
-                        self.writer.raw("))[\u{203a}]");
-                        self.write_text_expr(" ");
-                    }
-                    self.write_text_expr(part);
-                }
-                self.writer.raw("]");
-            }
+            InlineMacro::Menu(menu) => self.write_menu(menu),
             InlineMacro::Url(url) => {
-                self.write_link(&url.target, &url.text, url.hides_uri_scheme())?;
+                self.write_link(
+                    &url.target,
+                    &url.text,
+                    Some(&url.attributes),
+                    url.hides_uri_scheme(),
+                )?;
             }
             InlineMacro::Link(link) => {
-                self.write_link(&link.target, &link.text, link.hides_uri_scheme())?;
+                self.write_link(
+                    &link.target,
+                    &link.text,
+                    Some(&link.attributes),
+                    link.hides_uri_scheme(),
+                )?;
             }
             InlineMacro::Mailto(mailto) => {
-                self.write_link(&mailto.target, &mailto.text, false)?;
+                self.write_link(
+                    &mailto.target,
+                    &mailto.text,
+                    Some(&mailto.attributes),
+                    false,
+                )?;
             }
             InlineMacro::Autolink(autolink) => {
-                self.write_link(&autolink.url, &[], autolink.hides_uri_scheme())?;
+                self.write_link(&autolink.url, &[], None, autolink.hides_uri_scheme())?;
             }
             InlineMacro::CrossReference(xref) => self.write_cross_reference(xref)?,
             InlineMacro::Pass(pass) => {
@@ -2262,6 +2261,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             _ => {}
         }
         Ok(())
+    }
+
+    fn write_menu(&mut self, menu: &Menu<'_>) {
+        let mut parts = Vec::with_capacity(menu.items.len() + 1);
+        parts.push(menu.target);
+        parts.extend(menu.items.iter().copied());
+        self.writer.raw("#strong[");
+        for (index, part) in parts.into_iter().enumerate() {
+            if index > 0 {
+                self.write_text_expr(" ");
+                self.writer.raw("#text(size: 1.15em, fill: rgb(");
+                self.writer.string_literal(&self.palette.accent);
+                self.writer.raw("))[\u{203a}]");
+                self.write_text_expr(" ");
+            }
+            self.write_text_expr(part);
+        }
+        self.writer.raw("]");
     }
 
     /// Write a cross-reference as a Typst link to the target's label.
@@ -2332,13 +2349,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         target: &Source<'_>,
         text: &[InlineNode<'_>],
+        attributes: Option<&ElementAttributes<'_>>,
         hide_uri_scheme: bool,
     ) -> Result<(), Error> {
+        let role = attributes.and_then(|attributes| attributes.get_string("role"));
+        let wrappers = self.write_inline_span_start(None, role.as_deref());
+
         match text {
             [InlineNode::Macro(InlineMacro::Image(image))]
                 if image.metadata.attributes.get_string("link").is_some() =>
             {
                 self.write_inline_image(image);
+                self.write_inline_span_end(wrappers);
                 return Ok(());
             }
             _ => {}
@@ -2361,6 +2383,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_inlines(text)?;
         }
         self.writer.raw("]");
+        self.write_inline_span_end(wrappers);
         Ok(())
     }
 }
