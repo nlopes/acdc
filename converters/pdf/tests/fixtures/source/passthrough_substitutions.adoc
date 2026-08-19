@@ -1,0 +1,62 @@
+= Passthrough substitutions
+:name: Ada
+:formatted: *attribute bold*
+:replaceable: (C)
+:url: https://example.com
+
+== Structural forms
+
+Single: +<tag> {name} *bold* (C) -> ... --+
+
+Double: ++<tag> {name} *bold* (C) -> ... --++
+
+Triple: +++#pagebreak() {name} *bold* (C)+++
+
+Macro without substitutions: pass:[literal #pagebreak() {name} *bold* (C)]
+
+Numeric reference without substitutions: pass:[&#169;]
+
+== Individual substitutions
+
+Special characters: pass:c[<tag> & &#169;]
+
+Attributes: pass:a[{name} *bold*]
+
+Quotes: pass:q[*bold* _italic_ #marked#]
+
+Replacements: pass:r[(C) -> ... --]
+
+Macros: pass:m[https://example.com]
+
+Post replacements: pass:p[first +
+second]
+
+== Substitution groups
+
+Normal: pass:n[<tag> {name} *bold* (C) https://example.com]
+
+Normal quotes before attributes: pass:n[{formatted}]
+
+Verbatim: pass:v[<tag> {name} *bold* (C) <1>]
+
+== Ordered substitutions
+
+Quotes then attributes: pass:q,a[{formatted}]
+
+Attributes then quotes: pass:a,q[{formatted}]
+
+Replacements then attributes: pass:r,a[{replaceable}]
+
+Attributes then replacements: pass:a,r[{replaceable}]
+
+Macros then attributes: pass:m,a[{url}]
+
+Attributes then macros: pass:a,m[{url}]
+
+== Escaping
+
+No substitutions: pass:[\*literal*]
+
+Quotes: pass:q[\*literal*]
+
+Typst source stays text: pass:[literal #pagebreak() ) \ " #raw("injected")]

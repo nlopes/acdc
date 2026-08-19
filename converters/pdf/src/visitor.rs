@@ -3,7 +3,7 @@ use std::fmt::Write as _;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    Doctype, decode_numeric_char_refs, inlines_to_string,
+    Doctype, inlines_to_string,
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
@@ -465,9 +465,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         let result = (|| {
             match node {
                 InlineNode::PlainText(plain) => self.write_plain(plain.content),
-                InlineNode::RawText(raw) => {
-                    self.write_text_expr(&decode_numeric_char_refs(raw.content));
-                }
+                InlineNode::RawText(raw) => self.write_raw(raw),
                 InlineNode::VerbatimText(verbatim) => self.write_text_expr(verbatim.content),
                 InlineNode::BoldText(bold) => {
                     self.write_quoted_span(bold.id, bold.role, "#strong[", &bold.content, "]")?;

@@ -21,8 +21,8 @@ use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DescriptionList, DescriptionListItem, ElementAttributes,
     HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu, Paragraph,
-    Section, SectionKind, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
-    TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    Raw, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
+    TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -527,6 +527,24 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let text = Cow::Owned(Replacements::unicode().transform(text, self.text_boundaries));
         let text = collapse_source_whitespace(&text);
         self.write_text_expr(&text);
+    }
+
+    pub(crate) fn write_raw(&mut self, raw: &Raw<'_>) {
+        let text = if raw.subs.contains(&Substitution::Replacements) {
+            let mut replacements = Replacements::unicode();
+            replacements.double_arrow_right = "=>";
+            replacements.double_arrow_left = "<=";
+            replacements.arrow_right = "->";
+            replacements.arrow_left = "<-";
+            Cow::Owned(replacements.transform(raw.content, self.text_boundaries))
+        } else {
+            Cow::Borrowed(raw.content)
+        };
+        if raw.subs.contains(&Substitution::SpecialChars) {
+            self.write_text_expr(&text);
+        } else {
+            self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
+        }
     }
 
     pub(crate) fn write_quoted_span(

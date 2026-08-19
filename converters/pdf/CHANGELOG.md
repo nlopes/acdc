@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Inline passthroughs now honor special-character, quote, attribute,
+  replacement, macro, and post-replacement policies, including their written
+  order and the `normal` and `verbatim` groups. Raw backend markup remains
+  literal text instead of being executed as Typst source.
 - Link fallback text keeps `mailto:` for a `link:` target, preserves angle
   brackets around bracketed email autolinks, and maps inter-document
   references to the PDF output suffix, matching Asciidoctor PDF.
