@@ -116,6 +116,15 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
+fn passthrough_replacements() -> Replacements<'static> {
+    let mut replacements = replacements();
+    replacements.double_arrow_right = "=>";
+    replacements.double_arrow_left = "<=";
+    replacements.arrow_right = "->";
+    replacements.arrow_left = "<-";
+    replacements
+}
+
 /// Escape `&` to `&amp;` in URL strings for use in HTML.
 pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
@@ -433,7 +442,18 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else if r.subs.is_empty() {
             content.to_string()
         } else {
-            substitution_text(content, &r.subs, options, self.text_boundaries())
+            let content = if r.subs.contains(&Substitution::SpecialChars) {
+                Cow::Owned(content.replace('&', "&amp;"))
+            } else {
+                Cow::Borrowed(*content)
+            };
+            substitution_text_with_replacements(
+                &content,
+                &r.subs,
+                options,
+                self.text_boundaries(),
+                &passthrough_replacements(),
+            )
         };
         write!(self.writer_mut(), "{text}")?;
         Ok(())
@@ -1233,6 +1253,16 @@ fn substitution_text(
     options: &RenderOptions,
     text_boundaries: TextBoundaries,
 ) -> String {
+    substitution_text_with_replacements(text, subs, options, text_boundaries, &replacements())
+}
+
+fn substitution_text_with_replacements(
+    text: &str,
+    subs: &[Substitution],
+    options: &RenderOptions,
+    text_boundaries: TextBoundaries,
+    replacements: &Replacements<'_>,
+) -> String {
     debug_assert!(
         !text.is_empty(),
         "substitution_text called with empty text - caller should filter empty content"
@@ -1244,10 +1274,7 @@ fn substitution_text(
         return String::new();
     }
 
-    // When escape_html is false (subs=none), return text as-is
-    if !subs.contains(&Substitution::SpecialChars) {
-        return text.to_string();
-    }
+    let should_escape = subs.contains(&Substitution::SpecialChars);
 
     // Determine if we should apply typography replacements
     // Based on substitutions list, skip for basic mode (passthrough)
@@ -1262,13 +1289,18 @@ fn substitution_text(
         text.to_string()
     };
 
-    // Escape & first (before arrow replacements that produce & entities)
-    let text = escape_ampersands(&text);
+    // Escape source ampersands before replacements so entities produced by the
+    // replacement table remain valid HTML.
+    let text = if should_escape {
+        escape_ampersands(&text)
+    } else {
+        text
+    };
 
     // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
     // This must happen after & escaping (replacements produce & entities) and before <> escaping
     let text = if should_apply_replacements {
-        replacements().apply(&text, text_boundaries)
+        replacements.apply(&text, text_boundaries)
     } else {
         text
     };
@@ -1281,6 +1313,10 @@ fn substitution_text(
     } else {
         text
     };
+
+    if !should_escape {
+        return text;
+    }
 
     // Escape < and > after restore so that restored patterns (e.g., \=> → =>) keep literal chars
     let text = text.replace('>', "&gt;").replace('<', "&lt;");

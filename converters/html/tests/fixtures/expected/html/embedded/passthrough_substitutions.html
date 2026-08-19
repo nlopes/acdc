@@ -1,0 +1,92 @@
+<div class="sect1">
+<h2 id="_structural_forms">Structural forms</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Single: &lt;tag&gt; {name} *bold* (C) -&gt; ... --</p>
+</div>
+<div class="paragraph">
+<p>Double: &lt;tag&gt; {name} *bold* (C) -&gt; ... --</p>
+</div>
+<div class="paragraph">
+<p>Triple: <mark>raw</mark> {name} *bold* (C)</p>
+</div>
+<div class="paragraph">
+<p>Macro without substitutions: <mark>raw</mark> {name} *bold* (C)</p>
+</div>
+<div class="paragraph">
+<p>Numeric reference without substitutions: &#169;</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_individual_substitutions">Individual substitutions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Special characters: &lt;tag&gt; &amp; &amp;#169;</p>
+</div>
+<div class="paragraph">
+<p>Attributes: Ada *bold*</p>
+</div>
+<div class="paragraph">
+<p>Quotes: <strong>bold</strong> <em>italic</em> <mark>marked</mark></p>
+</div>
+<div class="paragraph">
+<p>Replacements: &#169; -> &#8230;&#8203;&thinsp;&mdash;&thinsp;</p>
+</div>
+<div class="paragraph">
+<p>Macros: <a href="https://example.com" class="bare">https://example.com</a></p>
+</div>
+<div class="paragraph">
+<p>Post replacements: first<br>
+second</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_substitution_groups">Substitution groups</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Normal: &lt;tag&gt; Ada <strong>bold</strong> &#169; <a href="https://example.com" class="bare">https://example.com</a></p>
+</div>
+<div class="paragraph">
+<p>Normal quotes before attributes: *attribute bold*</p>
+</div>
+<div class="paragraph">
+<p>Verbatim: &lt;tag&gt; {name} *bold* (C) &lt;1&gt;</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_ordered_substitutions">Ordered substitutions</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Quotes then attributes: *attribute bold*</p>
+</div>
+<div class="paragraph">
+<p>Attributes then quotes: <strong>attribute bold</strong></p>
+</div>
+<div class="paragraph">
+<p>Replacements then attributes: (C)</p>
+</div>
+<div class="paragraph">
+<p>Attributes then replacements: &#169;</p>
+</div>
+<div class="paragraph">
+<p>Macros then attributes: https://example.com</p>
+</div>
+<div class="paragraph">
+<p>Attributes then macros: <a href="https://example.com" class="bare">https://example.com</a></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_escaping">Escaping</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>No substitutions: \*literal*</p>
+</div>
+<div class="paragraph">
+<p>Quotes: *literal*</p>
+</div>
+</div>
+</div>
