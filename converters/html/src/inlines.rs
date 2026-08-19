@@ -116,7 +116,7 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
-/// Escape `&` to `&amp;` in URL strings for use in `href` attributes.
+/// Escape `&` to `&amp;` in URL strings for use in HTML.
 pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
 }
@@ -728,6 +728,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let href_str = al.url.to_string();
         let (display_text, angle_brackets) =
             autolink_fallback(&href_str, al.bracketed, al.hides_uri_scheme());
+        let display_text = escape_href(display_text);
 
         if options.inlines_basic || options.toc_mode {
             if angle_brackets {
@@ -760,7 +761,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target_str = l.target.to_string();
-        let fallback = link_fallback(&target_str, l.hides_uri_scheme());
+        let fallback = escape_href(link_fallback(&target_str, l.hides_uri_scheme()));
 
         if options.inlines_basic || options.toc_mode {
             if l.text.is_empty() {
@@ -860,7 +861,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target_str = u.target.to_string();
-        let fallback = link_fallback(&target_str, u.hides_uri_scheme());
+        let fallback = escape_href(link_fallback(&target_str, u.hides_uri_scheme()));
 
         if options.toc_mode {
             if u.text.is_empty() {
@@ -899,7 +900,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let target_str = m.target.to_string();
         // `mailto:` never emits `class="bare"` (asciidoctor's convention).
-        let fallback = mailto_fallback(&target_str);
+        let fallback = escape_href(mailto_fallback(&target_str));
 
         if options.toc_mode {
             if m.text.is_empty() {
