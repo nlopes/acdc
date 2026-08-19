@@ -1,0 +1,7 @@
+:long: a much longer replacement value
+
+Before pass:a[{long}] after.
+
+Before pass:q[*bold*] after.
+
+Before pass:a,q[{long} and *bold*] after.

@@ -120,15 +120,18 @@ impl Serialize for LineBreak {
     }
 }
 
-/// A `Plain` represents a plain text section in a document.
+/// Ordinary inline text that inherits processing from its enclosing block.
 ///
-/// This is the most basic form of text in a document.
+/// Converters apply the enclosing block's substitutions and normal prose
+/// whitespace rules. Use [`Raw`] for text whose passthrough defines its own
+/// substitutions, or [`Verbatim`] for literal and listing content.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Plain<'a> {
     pub content: &'a str,
     pub location: Location,
-    /// True if content originated from an escaped pattern (e.g., `\^2^`).
-    /// When true, the converter should not re-parse for quotes.
+    /// Whether an escape prevented this text from being parsed as inline formatting.
+    ///
+    /// When set, quote substitution must not reinterpret the content.
     pub escaped: bool,
 }
 
@@ -146,32 +149,32 @@ impl Serialize for Plain<'_> {
     }
 }
 
-/// A `Raw` represents a raw text section in a document.
+/// Inline passthrough text with its own substitution policy.
 ///
-/// This is the most basic form of text in a document and it should note that its contents
-/// must be rendered as they are (e.g: "\<h1>" should not end up being a \<h1> tag, it
-/// should be "\<h1>" text in html, very likely \&lt;h1\&gt;).
+/// Unlike [`Plain`], this text does not inherit substitutions from its enclosing
+/// block. Unlike [`Verbatim`], it is not implicitly literal or code content. An
+/// empty [`Raw::subs`] preserves the passthrough content using the backend's raw
+/// output behavior.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Raw<'a> {
     pub content: &'a str,
     pub location: Location,
-    /// The substitutions to apply when rendering this node.
+    /// The passthrough substitutions that the converter applies to this text.
     ///
-    /// Carries the passthrough's own substitution list (minus Quotes, which are
-    /// already handled during parsing). The converter uses these subs directly
-    /// instead of the enclosing block's substitutions. An empty vec means no
-    /// substitutions (raw output), as with `+++text+++` and `pass:[text]`.
+    /// These replace, rather than extend, the enclosing block's substitutions.
+    /// The parser resolves substitutions that create inline structure before it
+    /// returns the AST, so parsed nodes normally retain only substitutions that
+    /// require converter-specific rendering. An empty list means no further
+    /// substitutions, as with `+++text+++` and `pass:[text]`.
     pub subs: Vec<Substitution>,
 }
 
-/// A `Verbatim` represents verbatim text section in a document.
+/// Text from a literal, listing, or source context.
 ///
-/// This is the most basic form of text in a document and it should note that its contents
-/// must be rendered as they are (e.g: "\<h1>" should not end up being a \<h1> tag, it
-/// should be "\<h1>" text in html, very likely \&lt;h1\&gt;).
-///
-/// It is similar to `Raw`, but is intended for use in contexts where verbatim text is
-/// used, and some substitutions are done, namely converting callouts.
+/// Verbatim text inherits substitutions from its enclosing block like [`Plain`],
+/// but converters use literal or code presentation and preserve source whitespace
+/// unless a requested substitution transforms it. Parsed callout markers are
+/// represented by separate [`CalloutRef`] nodes rather than remaining in this text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Verbatim<'a> {
     pub content: &'a str,

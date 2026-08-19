@@ -43,7 +43,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "code",
               "location": [
@@ -91,7 +91,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "subscript",
               "location": [
@@ -139,7 +139,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "superscript",
               "location": [

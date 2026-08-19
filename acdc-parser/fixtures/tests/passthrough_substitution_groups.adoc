@@ -1,0 +1,19 @@
+:name: Ada
+:formatted: *attribute bold*
+
+Special characters: pass:c[<tag> & &#169;]
+
+Attributes: pass:a[{name} *bold*]
+
+Quotes: pass:q[*bold* _italic_ #marked#]
+
+Macros: pass:m[https://example.com]
+
+Post replacements: pass:p[first +
+second]
+
+Normal: pass:n[<tag> {name} *bold* (C) https://example.com]
+
+Normal quotes before attributes: pass:n[{formatted}]
+
+Verbatim: pass:v[<tag> {name} *bold* (C) <1>]

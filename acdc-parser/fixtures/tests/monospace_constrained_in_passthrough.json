@@ -43,7 +43,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "function()",
               "location": [

@@ -18,11 +18,11 @@ use crate::{Anchor, ElementAttributes, Image, Location, Source, model::Locateabl
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum InlineNode<'a> {
-    // This is just "normal" text
+    /// Ordinary text that inherits substitutions from its enclosing block.
     PlainText(Plain<'a>),
-    // This is raw text only found in Delimited Pass blocks
+    /// Passthrough text that carries its own substitutions instead of inheriting them.
     RawText(Raw<'a>),
-    // This is verbatim text found in Delimited Literal and Listing blocks
+    /// Literal or listing text rendered with verbatim whitespace and escaping rules.
     VerbatimText(Verbatim<'a>),
     BoldText(Bold<'a>),
     ItalicText(Italic<'a>),
@@ -259,8 +259,7 @@ impl Serialize for InlineNode<'_> {
                 map.serialize_entry("location", &raw.location)?;
             }
             InlineNode::VerbatimText(verbatim) => {
-                // We use "text" here to make sure the TCK passes, even though this is raw
-                // text.
+                // ASG represents verbatim leaf content as text rather than raw content.
                 map.serialize_entry("name", "text")?;
                 map.serialize_entry("type", "string")?;
                 map.serialize_entry("value", &verbatim.content)?;

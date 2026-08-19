@@ -131,6 +131,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The public `NORMAL` substitution list and parsed `[subs=normal]` metadata now
+  put quotes before attributes, matching Asciidoctor's substitution order.
 - A trailing `^` in URL, link, and mailto display text now sets
   `window=_blank` and is omitted from the text, matching Asciidoctor.
 - Parsed URL, link, and autolink nodes report whether fallback display text
@@ -190,6 +192,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Inline passthroughs apply `c`, `q`, `a`, `r`, `m`, and `p` substitutions in
+  the written order. The `n` and `v` groups use Asciidoctor's inline
+  passthrough policies, and attribute values longer than their source
+  references keep valid source locations.
 - Description lists now preserve repeated continuations, delimiter-based
   nesting, formatted terms, trailing unanswered Q&A items, titled-list
   boundaries, and named `style=` values, matching Asciidoctor.

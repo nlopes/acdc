@@ -43,7 +43,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "first",
               "location": [
@@ -91,7 +91,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "second",
               "location": [

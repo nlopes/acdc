@@ -1,0 +1,17 @@
+:formatted: *attribute bold*
+:replaceable: (C)
+:url: https://example.com
+
+Quotes then attributes: pass:q,a[{formatted}]
+
+Attributes then quotes: pass:a,q[{formatted}]
+
+Replacements then attributes: pass:r,a[{replaceable}]
+
+Attributes then replacements: pass:a,r[{replaceable}]
+
+Macros then attributes: pass:m,a[{url}]
+
+Attributes then macros: pass:a,m[{url}]
+
+Normal quotes before attributes: pass:n[{formatted}]

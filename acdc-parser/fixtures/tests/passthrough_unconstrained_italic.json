@@ -43,7 +43,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "unconstrained italic",
               "location": [
@@ -121,7 +121,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "constrained",
               "location": [
@@ -169,7 +169,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "unconstrained",
               "location": [

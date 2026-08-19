@@ -280,59 +280,6 @@ pub(crate) fn map_inner_content_locations<'a>(
         .collect()
 }
 
-/// Helper macro to remap locations for simple nodes (`PlainText`, etc.)
-macro_rules! remap_simple_location {
-    ($node:expr, $base_offset:expr) => {{
-        $node.location.absolute_start += $base_offset;
-        $node.location.absolute_end += $base_offset;
-        let col_shift = u32::try_from($base_offset).unwrap_or(u32::MAX);
-        $node.location.start.column += col_shift;
-        $node.location.end.column += col_shift;
-    }};
-}
-
-/// Helper macro to remap locations for formatted nodes with content
-macro_rules! remap_formatted_location {
-    ($node:expr, $base_offset:expr) => {{
-        remap_simple_location!($node, $base_offset);
-        // Recursively remap nested content
-        for nested_node in &mut $node.content {
-            remap_inline_node_location(nested_node, $base_offset);
-        }
-    }};
-}
-
-/// Remap the location of an inline node to final document coordinates
-pub(crate) fn remap_inline_node_location(node: &mut InlineNode, base_offset: usize) {
-    match node {
-        InlineNode::PlainText(plain) => remap_simple_location!(plain, base_offset),
-        InlineNode::BoldText(bold) => remap_formatted_location!(bold, base_offset),
-        InlineNode::ItalicText(italic) => remap_formatted_location!(italic, base_offset),
-        InlineNode::SuperscriptText(superscript) => {
-            remap_formatted_location!(superscript, base_offset);
-        }
-        InlineNode::SubscriptText(subscript) => remap_formatted_location!(subscript, base_offset),
-        InlineNode::CurvedQuotationText(curved_quotation) => {
-            remap_formatted_location!(curved_quotation, base_offset);
-        }
-        InlineNode::CurvedApostropheText(curved_apostrophe) => {
-            remap_formatted_location!(curved_apostrophe, base_offset);
-        }
-        InlineNode::MonospaceText(monospace) => remap_formatted_location!(monospace, base_offset),
-        InlineNode::HighlightText(highlight) => remap_formatted_location!(highlight, base_offset),
-        // Add other inline node types as needed
-        InlineNode::RawText(_)
-        | InlineNode::VerbatimText(_)
-        | InlineNode::StandaloneCurvedApostrophe(_)
-        | InlineNode::LineBreak(_)
-        | InlineNode::InlineAnchor(_)
-        | InlineNode::CalloutRef(_)
-        | InlineNode::Macro(_) => {
-            // No location remapping needed for these types
-        }
-    }
-}
-
 /// Create a location that maps back to original source coordinates when content has been
 /// modified by passthrough replacement.
 ///

@@ -1,56 +1,26 @@
 //! Substitution types and application for `AsciiDoc` content.
 //!
-//! # Architecture: Parser vs Converter Responsibilities
+//! # Parser and converter responsibilities
 //!
-//! Substitutions are split between the parser and converters by design:
+//! Substitution handling depends on the content context. The parser resolves
+//! named groups and applies substitutions that create inline structure. It also
+//! records substitutions that require output-specific rendering on the AST.
 //!
-//! ## Parser handles (format-agnostic)
+//! Inline passthroughs are processed in their requested order before the parser
+//! returns the AST. Ordinary blocks retain their substitution specification so
+//! converters can apply the block's output-specific behavior.
 //!
-//! - **Attributes** - Expands `{name}` references using document attributes.
-//!   This is document-wide and doesn't depend on output format.
-//!
-//! - **Group expansion** - `Normal` and `Verbatim` expand to their constituent
-//!   substitution lists recursively.
-//!
-//! ## Converters handle (format-specific)
+//! Converters handle the format-specific parts:
 //!
 //! - **`SpecialChars`** - HTML converter escapes `<`, `>`, `&` to entities.
 //!   Other converters may handle differently (e.g., terminal needs no escaping).
 //!
-//! - **Quotes** - Parses inline formatting (`*bold*`, `_italic_`, etc.) via
-//!   [`crate::parse_text_for_quotes`]. The converter then renders the parsed
-//!   nodes appropriately for the output format.
-//!
 //! - **Replacements** - Typography transformations (em-dashes, arrows, ellipsis).
 //!   Output varies by format (HTML entities vs Unicode characters).
 //!
-//! - **Callouts** - Already parsed into [`crate::CalloutRef`] nodes by the grammar.
-//!   Converters render the callout markers.
-//!
-//! - **Macros** - Handled at the grammar level: when macros are disabled via `subs`,
-//!   macro grammar rules are gated by a predicate and macro-like text becomes plain text.
-//!
-//! - **`PostReplacements`** - Handled at the grammar level (under the
-//!   `pre-spec-subs` feature): trailing-`+` hard line breaks are produced as
-//!   [`crate::InlineNode::LineBreak`] only when post-replacements are enabled
-//!   on the block. When `[subs="-post_replacements"]` is set, the `+` falls
-//!   through to plain text. No-op as a substitution step here, consistent
-//!   with the draft spec direction of moving from substitutions to an inline
-//!   parsing grammar.
-//!
-//! ## Why this split?
-//!
-//! The parser stays format-agnostic. It extracts the substitution list from
-//! `[subs=...]` attributes and stores it in the AST. Each converter then
-//! applies the relevant substitutions for its output format. This allows
-//! adding new converters (terminal, manpage, PDF) without modifying the parser.
-//!
-//! ## Usage flow
-//!
-//! 1. Parser extracts `subs=` attribute → stored in [`crate::BlockMetadata`]
-//! 2. Parser applies `Attributes` substitution during parsing
-//! 3. Converter reads the substitution list from AST
-//! 4. Converter applies remaining substitutions during rendering
+//! Formatting, macros, line breaks, and callouts become structured AST nodes
+//! when their substitution is active. Each converter decides how those nodes
+//! appear in its output.
 
 use std::borrow::Cow;
 
@@ -110,7 +80,7 @@ impl SubsFlags {
     ];
 }
 
-/// A `Substitution` represents a substitution in a passthrough macro.
+/// An `AsciiDoc` substitution or named substitution group.
 #[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 #[non_exhaustive]
@@ -173,8 +143,8 @@ pub const HEADER: &[Substitution] = &[Substitution::SpecialChars, Substitution::
 /// Default substitutions for normal content (paragraphs, etc).
 pub const NORMAL: &[Substitution] = &[
     Substitution::SpecialChars,
-    Substitution::Attributes,
     Substitution::Quotes,
+    Substitution::Attributes,
     Substitution::Replacements,
     Substitution::Macros,
     Substitution::PostReplacements,
@@ -182,6 +152,58 @@ pub const NORMAL: &[Substitution] = &[
 
 /// Default substitutions for verbatim blocks (listing, literal).
 pub const VERBATIM: &[Substitution] = &[Substitution::SpecialChars, Substitution::Callouts];
+
+/// The inline `verbatim` group excludes block-only callout processing.
+const PASSTHROUGH_VERBATIM: &[Substitution] = &[Substitution::SpecialChars];
+
+#[derive(Clone, Copy)]
+enum GroupContext {
+    #[cfg(feature = "pre-spec-subs")]
+    Block,
+    Passthrough,
+}
+
+fn substitution_members(substitution: &Substitution, context: GroupContext) -> &[Substitution] {
+    match (substitution, context) {
+        (Substitution::Normal, _) => NORMAL,
+        #[cfg(feature = "pre-spec-subs")]
+        (Substitution::Verbatim, GroupContext::Block) => VERBATIM,
+        (Substitution::Verbatim, GroupContext::Passthrough) => PASSTHROUGH_VERBATIM,
+        (
+            Substitution::SpecialChars
+            | Substitution::Attributes
+            | Substitution::Replacements
+            | Substitution::Macros
+            | Substitution::PostReplacements
+            | Substitution::Quotes
+            | Substitution::Callouts,
+            _,
+        ) => std::slice::from_ref(substitution),
+    }
+}
+
+fn append_expanded_substitution(
+    result: &mut Vec<Substitution>,
+    substitution: &Substitution,
+    context: GroupContext,
+) {
+    for member in substitution_members(substitution, context) {
+        if !result.contains(member) {
+            result.push(member.clone());
+        }
+    }
+}
+
+/// Resolve named groups for an inline passthrough while preserving source order.
+pub(crate) fn resolve_passthrough_substitutions(
+    substitutions: &[Substitution],
+) -> Vec<Substitution> {
+    let mut resolved = Vec::with_capacity(substitutions.len());
+    for substitution in substitutions {
+        append_expanded_substitution(&mut resolved, substitution, GroupContext::Passthrough);
+    }
+    resolved
+}
 
 /// A substitution operation to apply to a default substitution list.
 ///
@@ -412,39 +434,17 @@ pub(crate) fn parse_subs_attribute(value: &str) -> SubstitutionSpec {
     }
 }
 
-/// Expand a substitution to its constituent list.
-///
-/// Groups (`Normal`, `Verbatim`) expand to their members; individual subs return themselves.
-#[cfg(feature = "pre-spec-subs")]
-fn expand_substitution(sub: &Substitution) -> &[Substitution] {
-    match sub {
-        Substitution::Normal => NORMAL,
-        Substitution::Verbatim => VERBATIM,
-        Substitution::SpecialChars
-        | Substitution::Attributes
-        | Substitution::Replacements
-        | Substitution::Macros
-        | Substitution::PostReplacements
-        | Substitution::Quotes
-        | Substitution::Callouts => std::slice::from_ref(sub),
-    }
-}
-
 /// Append a substitution (or group) to the end of the list.
 #[cfg(feature = "pre-spec-subs")]
 pub(crate) fn append_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
-    for s in expand_substitution(sub) {
-        if !result.contains(s) {
-            result.push(s.clone());
-        }
-    }
+    append_expanded_substitution(result, sub, GroupContext::Block);
 }
 
 /// Prepend a substitution (or group) to the beginning of the list.
 #[cfg(feature = "pre-spec-subs")]
 pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
     // Insert in reverse order at position 0 to maintain group order
-    for s in expand_substitution(sub).iter().rev() {
+    for s in substitution_members(sub, GroupContext::Block).iter().rev() {
         if !result.contains(s) {
             result.insert(0, s.clone());
         }
@@ -454,7 +454,7 @@ pub(crate) fn prepend_substitution(result: &mut Vec<Substitution>, sub: &Substit
 /// Remove a substitution (or group) from the list.
 #[cfg(feature = "pre-spec-subs")]
 pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitution) {
-    for s in expand_substitution(sub) {
+    for s in substitution_members(sub, GroupContext::Block) {
         result.retain(|x| x != s);
     }
 }
@@ -576,6 +576,57 @@ where
         }
     }
     result
+}
+
+#[cfg(test)]
+mod group_tests {
+    use super::*;
+
+    #[test]
+    fn normal_group_uses_reference_order() {
+        assert_eq!(
+            NORMAL,
+            &[
+                Substitution::SpecialChars,
+                Substitution::Quotes,
+                Substitution::Attributes,
+                Substitution::Replacements,
+                Substitution::Macros,
+                Substitution::PostReplacements,
+            ]
+        );
+    }
+
+    #[test]
+    fn passthrough_groups_use_inline_policies() {
+        assert_eq!(
+            resolve_passthrough_substitutions(&[Substitution::Normal]),
+            NORMAL
+        );
+        assert_eq!(
+            resolve_passthrough_substitutions(&[Substitution::Verbatim]),
+            [Substitution::SpecialChars]
+        );
+    }
+
+    #[test]
+    fn passthrough_group_expansion_preserves_first_occurrence() {
+        assert_eq!(
+            resolve_passthrough_substitutions(&[
+                Substitution::Attributes,
+                Substitution::Normal,
+                Substitution::Quotes,
+            ]),
+            [
+                Substitution::Attributes,
+                Substitution::SpecialChars,
+                Substitution::Quotes,
+                Substitution::Replacements,
+                Substitution::Macros,
+                Substitution::PostReplacements,
+            ]
+        );
+    }
 }
 
 // Tests cover the `subs=` machinery (parse_subs_attribute, SubstitutionSpec,

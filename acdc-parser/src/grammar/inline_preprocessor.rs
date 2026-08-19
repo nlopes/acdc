@@ -690,16 +690,8 @@ parser!(
             // For pass macro: "pass:" (5) + substitutions + "[" (1) + "]" (1)
             let padding = 5 + subs_str.len() + 1 + 1; // "pass:" + subs + "[" + "]"
             let location = state.calculate_location(start, content, padding);
-            // Normal substitution group includes Attributes, so check for both
-            let content = if substitutions.contains(&Substitution::Attributes)
-                || substitutions.contains(&Substitution::Normal)
-            {
-                inline_preprocessing::attribute_reference_substitutions(content, document_attributes, state).unwrap_or_else(|_| content.into())
-            } else {
-                content.into()
-            };
                 state.passthroughs.borrow_mut().push(Pass {
-                    text: Some(state.arena.alloc_str(&content)),
+                    text: Some(content),
                     substitutions: substitutions.clone(),
                     location: location.clone(),
                     kind: PassthroughKind::Macro,
@@ -1165,7 +1157,7 @@ mod tests {
         // Check passthrough content preserved original text
         assert!(matches!(
             &pass.text,
-            Some(s) if *s == "<u>underline _test-doc_</u>"
+            Some(s) if *s == "<u>underline _{docname}_</u>"
         ));
 
         // Verify substitutions were captured

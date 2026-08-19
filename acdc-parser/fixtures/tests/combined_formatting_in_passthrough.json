@@ -28,7 +28,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "E",
               "location": [
@@ -38,7 +38,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 17
+                  "col": 18
                 }
               ]
             }
@@ -76,7 +76,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "m",
               "location": [
@@ -86,7 +86,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 23
+                  "col": 24
                 }
               ]
             }
@@ -124,7 +124,7 @@
           "form": "constrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "c",
               "location": [
@@ -134,7 +134,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 29
+                  "col": 30
                 }
               ]
             }
@@ -157,7 +157,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "2",
               "location": [
@@ -167,7 +167,7 @@
                 },
                 {
                   "line": 1,
-                  "col": 32
+                  "col": 33
                 }
               ]
             }
@@ -205,11 +205,11 @@
           "location": [
             {
               "line": 1,
-              "col": 57
+              "col": 56
             },
             {
               "line": 1,
-              "col": 57
+              "col": 56
             }
           ]
         },
@@ -220,13 +220,13 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "2",
               "location": [
                 {
                   "line": 1,
-                  "col": 59
+                  "col": 58
                 },
                 {
                   "line": 1,
@@ -238,11 +238,11 @@
           "location": [
             {
               "line": 1,
-              "col": 58
+              "col": 57
             },
             {
               "line": 1,
-              "col": 60
+              "col": 59
             }
           ]
         },
@@ -253,11 +253,11 @@
           "location": [
             {
               "line": 1,
-              "col": 61
+              "col": 60
             },
             {
               "line": 1,
-              "col": 61
+              "col": 60
             }
           ]
         },

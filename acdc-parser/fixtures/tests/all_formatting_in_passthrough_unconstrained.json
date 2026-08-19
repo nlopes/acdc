@@ -13,7 +13,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "bold",
               "location": [
@@ -61,7 +61,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "italic",
               "location": [
@@ -109,7 +109,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "mono",
               "location": [
@@ -157,7 +157,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "highlight",
               "location": [

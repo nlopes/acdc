@@ -579,10 +579,11 @@ peg::parser! {
         "]"
         {
             tracing::debug!(?content, "Found pass inline");
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             InlineNode::Macro(InlineMacro::Pass(Pass {
-                text: Some(content.trim()),
+                text: Some(content),
                 substitutions: substitutions.into_iter().filter_map(|s| parse_substitution(s.trim())).collect(),
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                location,
                 kind: PassthroughKind::Macro,
             }))
         }
