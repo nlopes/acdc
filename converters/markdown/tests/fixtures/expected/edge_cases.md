@@ -30,11 +30,7 @@ Email: mailto:user@example.com
 
 - List item 1
     Continuation paragraph
-
     ```
 Code block in list
 ```
-
 - List item 2
-
-

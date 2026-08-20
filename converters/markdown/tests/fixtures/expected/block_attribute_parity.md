@@ -4,59 +4,41 @@
 
 > Balanced brackets.
 
-
 > Unmatched opening bracket.
-
 
 > Extra closing bracket.
 
-
 > Unquoted comma.
-
 
 > Quoted comma.
 
-
 > Quote-delimited slot.
-
 
 > Empty slot.
 
-
 > Named slot.
-
 
 > Named author.
 
-
 > Named citation.
-
 
 > Both fields named.
 
-
 > Unset None value.
-
 
 > Quoted None value.
 
-
 > Positional None value.
-
 
 > Spaced equals signs.
 
-
 > Expanded slots.
-
 
 ## Stacked lists
 
 > Named-only stack.
 
-
 > Positional overlay stack.
-
 
 > Style replacement stack.
 
@@ -64,24 +46,17 @@
 
 > Unquoted values.
 
-
 > Double-quoted values.
-
 
 > Single-quoted formatting.
 
-
 > Escaped single quote.
-
 
 > Unquoted macros.
 
-
 > Single-quoted macros.
 
-
 > Named substitutions.
-
 
 ## Quote and verse forms
 
@@ -96,7 +71,6 @@ Styled verse paragraph.
 ## Styles and context slots
 
 > Adjacent shorthand.
-
 
 Spaces disable shorthand.
 
@@ -122,4 +96,3 @@ empty language slot
 puts "styled source paragraph"
 
 <!-- Warning: STEM/math blocks not natively supported in Markdown, skipping (use LaTeX-enabled renderer) -->
-

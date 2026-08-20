@@ -7,6 +7,17 @@ use acdc_parser::Options as ParserOptions;
 
 type Error = Box<dyn std::error::Error>;
 
+fn assert_canonical_final_newline(output: &str, fixture: &str) {
+    assert!(
+        output.ends_with('\n'),
+        "Markdown output must end with a newline for fixture: {fixture}",
+    );
+    assert!(
+        !output.ends_with("\n\n"),
+        "Markdown output must not end with a blank line for fixture: {fixture}",
+    );
+}
+
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
 }
@@ -54,6 +65,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
 
     // Compare (with normalization)
     let actual = String::from_utf8(output)?;
+    assert_canonical_final_newline(&actual, file_name);
     let expected_normalized = remove_lines_trailing_whitespace(&expected);
     let actual_normalized = remove_lines_trailing_whitespace(&actual);
 
@@ -104,6 +116,7 @@ fn test_commonmark_variant(
 
     // Compare (with normalization)
     let actual = String::from_utf8(output)?;
+    assert_canonical_final_newline(&actual, file_name);
     let expected_normalized = remove_lines_trailing_whitespace(&expected);
     let actual_normalized = remove_lines_trailing_whitespace(&actual);
 
@@ -142,6 +155,22 @@ fn has_numbering_style_warning(warnings: &[acdc_converters_core::Warning]) -> bo
             .message
             .contains("non-numeric ordered list numbering styles not natively supported")
     })
+}
+
+#[test]
+fn markdown_block_spacing_and_final_newline_are_canonical() -> Result<(), Error> {
+    for (input, expected) in [
+        ("", "\n"),
+        ("Paragraph.\n", "Paragraph.\n"),
+        ("First.\n\nSecond.\n", "First.\n\nSecond.\n"),
+        ("= Title\n", "# Title\n"),
+        ("= Title\n\nBody.\n", "# Title\n\nBody.\n"),
+        ("[discrete]\n== Heading\n", "## Heading\n"),
+    ] {
+        let (output, _warnings) = convert_str(input)?;
+        pretty_assertions::assert_eq!(output, expected, "input: {input:?}");
+    }
+    Ok(())
 }
 
 #[test]

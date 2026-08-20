@@ -76,7 +76,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         write_body: F,
     ) -> Result<(), Error>
     where
-        F: FnOnce(&mut Self) -> Result<(), Error>,
+        F: FnOnce(&mut Self) -> Result<bool, Error>,
     {
         if is_open {
             writeln!(self.writer, "<details open>")?;
@@ -92,9 +92,83 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         writeln!(self.writer, "</summary>")?;
         // Blank line so inner content is rendered as Markdown inside <details>.
         writeln!(self.writer)?;
-        write_body(self)?;
+        if write_body(self)? {
+            writeln!(self.writer)?;
+        }
         writeln!(self.writer, "</details>")?;
-        writeln!(self.writer)?;
+        Ok(())
+    }
+
+    fn block_has_output(&self, block: &Block) -> bool {
+        match block {
+            Block::DelimitedBlock(block) => match &block.inner {
+                DelimitedBlockType::DelimitedOpen(blocks) => {
+                    blocks.iter().any(|block| self.block_has_output(block))
+                }
+                DelimitedBlockType::DelimitedQuote(blocks) => {
+                    blocks.iter().any(|block| self.block_has_output(block))
+                }
+                DelimitedBlockType::DelimitedTable(table) => {
+                    self.variant() == MarkdownVariant::CommonMark || !table.rows.is_empty()
+                }
+                DelimitedBlockType::DelimitedExample(_)
+                | DelimitedBlockType::DelimitedListing(_)
+                | DelimitedBlockType::DelimitedLiteral(_)
+                | DelimitedBlockType::DelimitedSidebar(_)
+                | DelimitedBlockType::DelimitedPass(_)
+                | DelimitedBlockType::DelimitedVerse(_)
+                | DelimitedBlockType::DelimitedStem(_) => true,
+                DelimitedBlockType::DelimitedComment(_) | _ => false,
+            },
+            Block::TableOfContents(_)
+            | Block::Admonition(_)
+            | Block::DiscreteHeader(_)
+            | Block::ThematicBreak(_)
+            | Block::PageBreak(_)
+            | Block::UnorderedList(_)
+            | Block::OrderedList(_)
+            | Block::CalloutList(_)
+            | Block::DescriptionList(_)
+            | Block::Section(_)
+            | Block::Paragraph(_)
+            | Block::Image(_)
+            | Block::Audio(_)
+            | Block::Video(_) => true,
+            Block::Comment(_) | Block::DocumentAttribute(_) | _ => false,
+        }
+    }
+
+    fn visit_separated_blocks(
+        &mut self,
+        blocks: &[Block],
+        mut has_output: bool,
+    ) -> Result<bool, Error> {
+        for block in blocks {
+            if !self.block_has_output(block) {
+                continue;
+            }
+            if has_output {
+                writeln!(self.writer)?;
+            }
+            self.visit_block(block)?;
+            has_output = true;
+        }
+        Ok(has_output)
+    }
+
+    fn visit_blockquote_blocks(&mut self, blocks: &[Block]) -> Result<(), Error> {
+        let mut has_output = false;
+        for block in blocks {
+            if !self.block_has_output(block) {
+                continue;
+            }
+            if has_output {
+                writeln!(self.writer, ">")?;
+            }
+            write!(self.writer, "> ")?;
+            self.visit_block(block)?;
+            has_output = true;
+        }
         Ok(())
     }
 }
@@ -108,25 +182,63 @@ impl<W: Write> WritableVisitor for MarkdownVisitor<'_, '_, W> {
 impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     type Error = Error;
 
-    fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        // No document-level preamble needed for Markdown
-        // Title will be rendered as level-1 heading if present
-        Ok(())
-    }
+    fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
+        self.visit_document_start(doc)?;
 
-    fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        // Render collected footnotes (GFM only)
+        let mut has_output = false;
+        if let Some(header) = &doc.header
+            && !header.title.is_empty()
+        {
+            self.visit_header(header)?;
+            has_output = true;
+        }
+
+        self.visit_body_content_start(doc)?;
+
+        let first_section = doc
+            .blocks
+            .iter()
+            .position(|block| matches!(block, Block::Section(_)));
+        let (preamble, remaining) = first_section.map_or_else(
+            || (doc.blocks.as_slice(), &[][..]),
+            |index| doc.blocks.split_at(index),
+        );
+        let emit_preamble = doc.header.is_some()
+            && first_section.is_some()
+            && preamble
+                .iter()
+                .any(|block| !matches!(block, Block::Comment(_) | Block::DocumentAttribute(_)));
+
+        if emit_preamble {
+            self.visit_preamble_start(doc)?;
+        }
+        has_output = self.visit_separated_blocks(preamble, has_output)?;
+        if emit_preamble {
+            self.visit_preamble_end(doc)?;
+        }
+        has_output = self.visit_separated_blocks(remaining, has_output)?;
+
+        self.visit_document_supplements(doc)?;
         if self.variant() == MarkdownVariant::GitHubFlavored && !self.footnotes.is_empty() {
-            writeln!(self.writer)?;
-            // Footnotes are already pre-rendered as markdown strings.
+            if has_output {
+                writeln!(self.writer)?;
+            }
             let footnotes = std::mem::take(&mut self.footnotes);
             for (id, content) in footnotes {
                 writeln!(self.writer, "[^{id}]: {content}")?;
             }
+            has_output = true;
         }
 
-        // Ensure final newline
-        writeln!(self.writer)?;
+        if !has_output {
+            writeln!(self.writer)?;
+        }
+        self.visit_document_end(doc)
+    }
+
+    fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+        // No document-level preamble needed for Markdown
+        // Title will be rendered as level-1 heading if present
         Ok(())
     }
 
@@ -135,7 +247,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         if !header.title.is_empty() {
             write!(self.writer, "# ")?;
             self.visit_inline_nodes(header.title.as_ref())?;
-            writeln!(self.writer)?;
             writeln!(self.writer)?;
         }
 
@@ -163,15 +274,12 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         write!(self.writer, "{hashes} ")?;
         self.visit_inline_nodes(section.title.as_ref())?;
         writeln!(self.writer)?;
-        writeln!(self.writer)?;
 
         // Visit section content
         let prev_level = self.heading_level;
         self.heading_level = level as usize;
 
-        for block in &section.content {
-            self.visit_block(block)?;
-        }
+        self.visit_separated_blocks(&section.content, true)?;
 
         self.heading_level = prev_level;
         Ok(())
@@ -185,13 +293,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             return self.write_collapsible(&paragraph.title, is_open, |v| {
                 v.visit_inline_nodes(&paragraph.content)?;
                 writeln!(v.writer)?;
-                writeln!(v.writer)?;
-                Ok(())
+                Ok(true)
             });
         }
 
         self.visit_inline_nodes(&paragraph.content)?;
-        writeln!(self.writer)?;
         writeln!(self.writer)?;
         Ok(())
     }
@@ -236,7 +342,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {
         writeln!(self.writer, "---")?;
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -244,7 +349,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         // Page breaks don't exist in Markdown; use thematic break as fallback
         self.write_warning("page breaks", "using horizontal rule")?;
         writeln!(self.writer, "---")?;
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -266,58 +370,37 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 writeln!(self.writer, "```{language}")?;
                 self.write_code_block_content(content)?;
                 writeln!(self.writer, "```")?;
-                writeln!(self.writer)?;
             }
             DelimitedBlockType::DelimitedLiteral(content) => {
                 // Use fenced code block without syntax highlighting
                 writeln!(self.writer, "```")?;
                 self.write_code_block_content(content)?;
                 writeln!(self.writer, "```")?;
-                writeln!(self.writer)?;
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
-                // Markdown blockquotes
-                for block_item in blocks {
-                    write!(self.writer, "> ")?;
-                    // Visit each block in the quote
-                    self.visit_block(block_item)?;
-                }
-                writeln!(self.writer)?;
+                self.visit_blockquote_blocks(blocks)?;
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
                 if block.metadata.options.contains(&"collapsible") {
                     let is_open = block.metadata.options.contains(&"open");
                     self.write_collapsible(&block.title, is_open, |v| {
-                        for block_item in blocks {
-                            v.visit_block(block_item)?;
-                        }
-                        Ok(())
+                        v.visit_separated_blocks(blocks, false)
                     })?;
                 } else {
                     // Examples don't have a direct Markdown equivalent
                     // Use blockquote as fallback
                     self.write_warning("example blocks", "using blockquote")?;
-                    for block_item in blocks {
-                        write!(self.writer, "> ")?;
-                        self.visit_block(block_item)?;
-                    }
-                    writeln!(self.writer)?;
+                    self.visit_blockquote_blocks(blocks)?;
                 }
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 // Sidebars don't have a direct Markdown equivalent
                 self.write_warning("sidebar blocks", "using blockquote")?;
-                for block_item in blocks {
-                    write!(self.writer, "> ")?;
-                    self.visit_block(block_item)?;
-                }
-                writeln!(self.writer)?;
+                self.visit_blockquote_blocks(blocks)?;
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
                 // Open blocks are just containers, render contents normally
-                for block_item in blocks {
-                    self.visit_block(block_item)?;
-                }
+                self.visit_separated_blocks(blocks, false)?;
             }
             DelimitedBlockType::DelimitedPass(_content) => {
                 // Passthrough blocks - skip for now
@@ -332,7 +415,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 for node in content {
                     self.visit_inline_node(node)?;
                 }
-                writeln!(self.writer)?;
                 writeln!(self.writer)?;
             }
             DelimitedBlockType::DelimitedComment(_) => {
@@ -380,11 +462,18 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             writeln!(self.writer, "> **{label}**")?;
         }
 
+        let mut has_body = false;
         for block in &admonition.blocks {
+            if !self.block_has_output(block) {
+                continue;
+            }
+            if has_body {
+                writeln!(self.writer, ">")?;
+            }
             write!(self.writer, "> ")?;
             self.visit_block(block)?;
+            has_body = true;
         }
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -394,7 +483,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         let hashes = "#".repeat(level as usize);
         write!(self.writer, "{hashes} ")?;
         self.visit_inline_nodes(header.title.as_ref())?;
-        writeln!(self.writer)?;
         writeln!(self.writer)?;
         Ok(())
     }
@@ -414,7 +502,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         } else {
             writeln!(self.writer, "![{alt}]({target})")?;
         }
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -425,7 +512,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             let target = first_source.to_string();
             writeln!(self.writer, "[Video: {target}]({target})")?;
         }
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -434,7 +520,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         self.write_warning("audio embedding", "providing link")?;
         let target = audio.source.to_string();
         writeln!(self.writer, "[Audio: {target}]({target})")?;
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -473,7 +558,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 result?;
             }
         }
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -829,7 +913,6 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 }
             }
         }
-        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -919,8 +1002,6 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
             }
             writeln!(self.writer)?;
         }
-        writeln!(self.writer)?;
-
         Ok(())
     }
 

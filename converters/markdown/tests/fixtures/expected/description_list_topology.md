@@ -9,10 +9,8 @@
         <!-- Warning: description lists not natively supported in Markdown, using regular list -->
         - **Grandchild one**
           Grandchild one description.
-
     - **Child two**
       Child two description.
-
 - **Root two**
   Root two description.
 

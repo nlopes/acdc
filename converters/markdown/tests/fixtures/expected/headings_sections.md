@@ -23,5 +23,3 @@ Content under section 5.
 ======= Section Level 6 (will be capped)
 
 This should be capped at level 6 in Markdown.
-
-

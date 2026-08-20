@@ -7,7 +7,6 @@
 - Item 3
     - Nested item 1
     - Nested item 2
-
 - Item 4
 
 ## Ordered Lists
@@ -17,7 +16,6 @@
 3. Third item
     1. Nested item A
     2. Nested item B
-
 4. Fourth item
 
 ## Mixed Lists
@@ -25,7 +23,6 @@
 - Unordered item
     1. Ordered nested item
     2. Another ordered item
-
 - Back to unordered
 
 ## Checklist (Task List)
@@ -34,5 +31,3 @@
 - [ ] Incomplete task
 - [x] Also completed
 - [ ] Also incomplete
-
-

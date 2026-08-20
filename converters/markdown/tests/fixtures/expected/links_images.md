@@ -19,5 +19,3 @@ Inline image: ![image](small-icon.png) in text.
 Image with title:
 
 ![Photo](photo.jpg "A beautiful photo")
-
-

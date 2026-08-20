@@ -27,7 +27,6 @@ Unordered list:
 - First item
 - Second item with **bold** text
     - Nested item
-
 - Third item
 
 Ordered list:
@@ -54,12 +53,10 @@ Simple table:
 
 > Don't Panic.
 
-
 ### Admonition
 
 > [!TIP]
 > Always write tests for your code!
-
 
 ### Images
 
@@ -72,5 +69,3 @@ Inline image:![image](icon.png) in text.
 This document demonstrates various AsciiDoc features and their Markdown conversion.
 
 Some features like H<sub>2</sub>O (subscript) and E=mc<sup>2</sup> (superscript) use HTML tags in Markdown.
-
-

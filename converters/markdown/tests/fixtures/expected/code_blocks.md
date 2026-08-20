@@ -26,5 +26,3 @@ This is a literal block
 ## Inline Code
 
 This paragraph has `inline code` in it.
-
-

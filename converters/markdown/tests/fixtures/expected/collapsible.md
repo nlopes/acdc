@@ -37,5 +37,3 @@ Summary defaults to "Details" when no title is given.
 This is a one-paragraph collapsible example.
 
 </details>
-
-

@@ -10,5 +10,3 @@ Subscript: H<sub>2</sub>O and superscript: E=mc<sup>2</sup>.
 
 Line breaks:  
 This is after a line break.
-
-
