@@ -1281,16 +1281,6 @@ fn substitution_text(
     options: &RenderOptions,
     text_boundaries: TextBoundaries,
 ) -> String {
-    substitution_text_with_replacements(text, subs, options, text_boundaries, &replacements())
-}
-
-fn substitution_text_with_replacements(
-    text: &str,
-    subs: &[Substitution],
-    options: &RenderOptions,
-    text_boundaries: TextBoundaries,
-    replacements: &Replacements<'_>,
-) -> String {
     debug_assert!(
         !text.is_empty(),
         "substitution_text called with empty text - caller should filter empty content"
@@ -1328,7 +1318,7 @@ fn substitution_text_with_replacements(
     // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
     // This must happen after & escaping (replacements produce & entities) and before <> escaping
     let text = if should_apply_replacements {
-        replacements.apply(&text, text_boundaries)
+        replacements().apply(&text, text_boundaries)
     } else {
         text
     };
