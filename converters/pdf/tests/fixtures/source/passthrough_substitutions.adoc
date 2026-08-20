@@ -3,6 +3,9 @@
 :formatted: *attribute bold*
 :replaceable: (C)
 :url: https://example.com
+:markup: <mark>inserted</mark>
+:ncr: &#169;
+:plus: +
 
 == Structural forms
 
@@ -11,6 +14,51 @@ Single: +<tag> {name} *bold* (C) -> ... --+
 Double: ++<tag> {name} *bold* (C) -> ... --++
 
 Triple: +++#pagebreak() {name} *bold* (C)+++
+
+Single numeric: +&#169;+
+
+Double numeric: ++&#169;++
+
+Triple numeric: +++&#169;+++
+
+Escaped single plain: \+plain+
+
+Escaped double plain: \++plain++
+
+Escaped triple plain: \+++plain+++
+
+Escaped single formatting: \+*bold*+
+
+Escaped double formatting: \++*bold*++
+
+Escaped triple formatting: \+++*bold*+++
+
+Escaped single attribute: \+{name}+
+
+Escaped double attribute: \++{name}++
+
+Escaped triple attribute: \+++{name}+++
+
+Escaped single markup: \+<mark>*bold*</mark>+
+
+Escaped double markup: \++<mark>*bold*</mark>++
+
+Escaped triple markup: \+++<mark>*bold*</mark>+++
+
+Escaped single numeric: \+&#169;+
+
+Escaped double numeric: \++&#169;++
+
+Escaped triple numeric: \+++&#169;+++
+
+[subs="-macros"]
+Macros disabled escaped single: \+*bold*+
+
+[subs="-macros"]
+Macros disabled escaped double: \++*bold*++
+
+[subs="-macros"]
+Macros disabled escaped triple: \+++*bold*+++
 
 Macro without substitutions: pass:[literal #pagebreak() {name} *bold* (C)]
 
@@ -53,10 +101,26 @@ Macros then attributes: pass:m,a[{url}]
 
 Attributes then macros: pass:a,m[{url}]
 
+Special chars then attributes markup: pass:c,a[{markup}]
+
+Attributes then special chars markup: pass:a,c[{markup}]
+
+Special chars then attributes numeric: pass:c,a[{ncr}]
+
+Attributes then special chars numeric: pass:a,c[{ncr}]
+
+Post then attributes: pass:p,a[first {plus}
+second]
+
+Attributes then post: pass:a,p[first {plus}
+second]
+
 == Escaping
 
 No substitutions: pass:[\*literal*]
 
 Quotes: pass:q[\*literal*]
+
+Replacement escape: pass:r[\->]
 
 Typst source stays text: pass:[literal #pagebreak() ) \ " #raw("injected")]

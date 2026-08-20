@@ -81,6 +81,48 @@
 
 #text("Triple: ")#text("#pagebreak() {name} *bold* (C)")
 
+#text("Single numeric: ")#text("&#169;")
+
+#text("Double numeric: ")#text("&#169;")
+
+#text("Triple numeric: ")#text("©")
+
+#text("Escaped single plain: +plain+")
+
+#text("Escaped double plain: ")#text("+plain")#text("+")
+
+#text("Escaped triple plain: ")#text("++plain")#text("++")
+
+#text("Escaped single formatting: +")#strong[#text("bold")]#text("+")
+
+#text("Escaped double formatting: ")#text("+*bold*")#text("+")
+
+#text("Escaped triple formatting: ")#text("+")#strong[#text("bold")]#text("+")
+
+#text("Escaped single attribute: +Ada+")
+
+#text("Escaped double attribute: ")#text("+{name}")#text("+")
+
+#text("Escaped triple attribute: ")#text("+")#text("Ada")#text("+")
+
+#text("Escaped single markup: +<mark>*bold*</mark>+")
+
+#text("Escaped double markup: ")#text("+<mark>*bold*</mark>")#text("+")
+
+#text("Escaped triple markup: ")#text("+")#text("<mark>*bold*</mark>")#text("+")
+
+#text("Escaped single numeric: +©+")
+
+#text("Escaped double numeric: ")#text("+&#169;")#text("+")
+
+#text("Escaped triple numeric: ")#text("+")#text("©+++")
+
+#text("Macros disabled escaped single: \\+")#strong[#text("bold")]#text("+")
+
+#text("Macros disabled escaped double: \\++")#strong[#text("bold")]#text("++")
+
+#text("Macros disabled escaped triple: \\+++")#strong[#text("bold")]#text("+++")
+
 #text("Macro without substitutions: ")#text("literal #pagebreak() {name} *bold* (C)")
 
 #text("Numeric reference without substitutions: ")#text("©")
@@ -121,10 +163,24 @@
 
 #text("Attributes then macros: ")#link("https://example.com")[#text("https://example.com")]
 
+#text("Special chars then attributes markup: ")#text("<mark>inserted</mark>")
+
+#text("Attributes then special chars markup: ")#text("&lt;mark&gt;inserted&lt;/mark&gt;")
+
+#text("Special chars then attributes numeric: ")#text("&#169;")
+
+#text("Attributes then special chars numeric: ")#text("&amp;#169;")
+
+#text("Post then attributes: ")#text("first ")#text("+")#text(" second")
+
+#text("Attributes then post: ")#text("first")#linebreak()#text("second")
+
 #heading(level: 1)[#text("Escaping")] <id-5f6573636170696e67>
 
 #text("No substitutions: ")#text("\\*literal*")
 
 #text("Quotes: ")#text("*")#text("literal*")
+
+#text("Replacement escape: ")#text("\\->")
 
 #text("Typst source stays text: ")#text("literal #pagebreak() ) \\ \" #raw(\"injected\")")

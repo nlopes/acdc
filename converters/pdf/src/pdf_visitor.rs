@@ -526,21 +526,45 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         #[cfg(not(feature = "pre-spec-subs"))]
         let text = Cow::Owned(Replacements::unicode().transform(text, self.text_boundaries));
         let text = collapse_source_whitespace(&text);
-        self.write_text_expr(&text);
+        self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
     }
 
     pub(crate) fn write_raw(&mut self, raw: &Raw<'_>) {
-        let text = if raw.subs.contains(&Substitution::Replacements) {
-            let mut replacements = Replacements::unicode();
-            replacements.double_arrow_right = "=>";
-            replacements.double_arrow_left = "<=";
-            replacements.arrow_right = "->";
-            replacements.arrow_left = "<-";
-            Cow::Owned(replacements.transform(raw.content, self.text_boundaries))
-        } else {
-            Cow::Borrowed(raw.content)
-        };
-        if raw.subs.contains(&Substitution::SpecialChars) {
+        let mut replacements = Replacements::unicode();
+        replacements.double_arrow_right = "=>";
+        replacements.double_arrow_left = "<=";
+        replacements.arrow_right = "->";
+        replacements.arrow_left = "<-";
+
+        let mut text = raw.content.to_string();
+        let mut applied_special_chars = false;
+        for substitution in &raw.subs {
+            match substitution {
+                Substitution::SpecialChars => {
+                    if applied_special_chars {
+                        text = text
+                            .replace('&', "&amp;")
+                            .replace('>', "&gt;")
+                            .replace('<', "&lt;");
+                    }
+                    applied_special_chars = true;
+                }
+                Substitution::Replacements => {
+                    text = replacements.apply(&text, self.text_boundaries);
+                }
+                Substitution::Attributes
+                | Substitution::Macros
+                | Substitution::PostReplacements
+                | Substitution::Normal
+                | Substitution::Verbatim
+                | Substitution::Quotes
+                | Substitution::Callouts
+                | _ => {}
+            }
+        }
+
+        let text = collapse_source_whitespace(&text);
+        if applied_special_chars {
             self.write_text_expr(&text);
         } else {
             self.write_text_expr(&acdc_converters_core::decode_numeric_char_refs(&text));
