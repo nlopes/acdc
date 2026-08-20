@@ -11,6 +11,69 @@
 <p>Triple: <mark>raw</mark> {name} *bold* (C)</p>
 </div>
 <div class="paragraph">
+<p>Single numeric: &amp;#169;</p>
+</div>
+<div class="paragraph">
+<p>Double numeric: &amp;#169;</p>
+</div>
+<div class="paragraph">
+<p>Triple numeric: &#169;</p>
+</div>
+<div class="paragraph">
+<p>Escaped single plain: +plain+</p>
+</div>
+<div class="paragraph">
+<p>Escaped double plain: +plain+</p>
+</div>
+<div class="paragraph">
+<p>Escaped triple plain: ++plain++</p>
+</div>
+<div class="paragraph">
+<p>Escaped single formatting: +<strong>bold</strong>+</p>
+</div>
+<div class="paragraph">
+<p>Escaped double formatting: +*bold*+</p>
+</div>
+<div class="paragraph">
+<p>Escaped triple formatting: +<strong>bold</strong>+</p>
+</div>
+<div class="paragraph">
+<p>Escaped single attribute: +Ada+</p>
+</div>
+<div class="paragraph">
+<p>Escaped double attribute: +{name}+</p>
+</div>
+<div class="paragraph">
+<p>Escaped triple attribute: +Ada+</p>
+</div>
+<div class="paragraph">
+<p>Escaped single markup: +&lt;mark&gt;*bold*&lt;/mark&gt;+</p>
+</div>
+<div class="paragraph">
+<p>Escaped double markup: +&lt;mark&gt;*bold*&lt;/mark&gt;+</p>
+</div>
+<div class="paragraph">
+<p>Escaped triple markup: +&lt;mark&gt;*bold*&lt;/mark&gt;+</p>
+</div>
+<div class="paragraph">
+<p>Escaped single numeric: +&#169;+</p>
+</div>
+<div class="paragraph">
+<p>Escaped double numeric: +&amp;#169;+</p>
+</div>
+<div class="paragraph">
+<p>Escaped triple numeric: +&#169;+++</p>
+</div>
+<div class="paragraph">
+<p>Macros disabled escaped single: \+<strong>bold</strong>+</p>
+</div>
+<div class="paragraph">
+<p>Macros disabled escaped double: \++<strong>bold</strong>++</p>
+</div>
+<div class="paragraph">
+<p>Macros disabled escaped triple: \+++<strong>bold</strong>+++</p>
+</div>
+<div class="paragraph">
 <p>Macro without substitutions: <mark>raw</mark> {name} *bold* (C)</p>
 </div>
 <div class="paragraph">
@@ -77,6 +140,26 @@ second</p>
 <div class="paragraph">
 <p>Attributes then macros: <a href="https://example.com" class="bare">https://example.com</a></p>
 </div>
+<div class="paragraph">
+<p>Special chars then attributes markup: &lt;mark&gt;inserted&lt;/mark&gt;</p>
+</div>
+<div class="paragraph">
+<p>Attributes then special chars markup: &amp;lt;mark&amp;gt;inserted&amp;lt;/mark&amp;gt;</p>
+</div>
+<div class="paragraph">
+<p>Special chars then attributes numeric: &amp;#169;</p>
+</div>
+<div class="paragraph">
+<p>Attributes then special chars numeric: &amp;amp;#169;</p>
+</div>
+<div class="paragraph">
+<p>Post then attributes: first +
+second</p>
+</div>
+<div class="paragraph">
+<p>Attributes then post: first<br>
+second</p>
+</div>
 </div>
 </div>
 <div class="sect1">
@@ -87,6 +170,9 @@ second</p>
 </div>
 <div class="paragraph">
 <p>Quotes: *literal*</p>
+</div>
+<div class="paragraph">
+<p>Replacement escape: \-></p>
 </div>
 </div>
 </div>

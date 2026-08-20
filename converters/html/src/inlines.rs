@@ -125,6 +125,45 @@ fn passthrough_replacements() -> Replacements<'static> {
     replacements
 }
 
+fn passthrough_substitution_text(
+    text: &str,
+    subs: &[Substitution],
+    text_boundaries: TextBoundaries,
+) -> String {
+    let replacements = passthrough_replacements();
+    let mut text = text.to_string();
+    let mut applied_special_chars = false;
+
+    for substitution in subs {
+        match substitution {
+            Substitution::SpecialChars => {
+                text = text
+                    .replace('&', "&amp;")
+                    .replace('>', "&gt;")
+                    .replace('<', "&lt;");
+                applied_special_chars = true;
+            }
+            Substitution::Replacements => {
+                text = replacements.apply(&text, text_boundaries);
+            }
+            Substitution::Attributes
+            | Substitution::Macros
+            | Substitution::PostReplacements
+            | Substitution::Normal
+            | Substitution::Verbatim
+            | Substitution::Quotes
+            | Substitution::Callouts
+            | _ => {}
+        }
+    }
+
+    if applied_special_chars {
+        encode_html_entities(&text)
+    } else {
+        text
+    }
+}
+
 /// Escape `&` to `&amp;` in URL strings for use in HTML.
 pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
@@ -442,18 +481,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else if r.subs.is_empty() {
             content.to_string()
         } else {
-            let content = if r.subs.contains(&Substitution::SpecialChars) {
-                Cow::Owned(content.replace('&', "&amp;"))
-            } else {
-                Cow::Borrowed(*content)
-            };
-            substitution_text_with_replacements(
-                &content,
-                &r.subs,
-                options,
-                self.text_boundaries(),
-                &passthrough_replacements(),
-            )
+            passthrough_substitution_text(content, &r.subs, self.text_boundaries())
         };
         write!(self.writer_mut(), "{text}")?;
         Ok(())

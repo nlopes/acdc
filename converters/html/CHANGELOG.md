@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Inline passthroughs now honor special-character, quote, attribute,
   replacement, macro, and post-replacement policies, including their written
-  order and the `normal` and `verbatim` groups, matching Asciidoctor.
+  order and the `normal` and `verbatim` groups. Escaped delimiters, numeric
+  character references, and hard line breaks match Asciidoctor.
 - Ordered lists honor a positive `start` value, including on nested lists.
   Standard HTML also keeps roles on unordered-list wrappers, matching
   Asciidoctor.
