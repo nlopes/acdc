@@ -1,6 +1,9 @@
 :formatted: *attribute bold*
 :replaceable: (C)
 :url: https://example.com
+:markup: <mark>inserted</mark>
+:ncr: &#169;
+:plus: +
 
 Quotes then attributes: pass:q,a[{formatted}]
 
@@ -15,3 +18,17 @@ Macros then attributes: pass:m,a[{url}]
 Attributes then macros: pass:a,m[{url}]
 
 Normal quotes before attributes: pass:n[{formatted}]
+
+Special chars then attributes markup: pass:c,a[{markup}]
+
+Attributes then special chars markup: pass:a,c[{markup}]
+
+Special chars then attributes numeric: pass:c,a[{ncr}]
+
+Attributes then special chars numeric: pass:a,c[{ncr}]
+
+Post then attributes: pass:p,a[first {plus}
+second]
+
+Attributes then post: pass:a,p[first {plus}
+second]

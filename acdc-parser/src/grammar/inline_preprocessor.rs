@@ -217,6 +217,247 @@ impl<'a> InlinePreprocessorParserState<'a> {
         reconstructed
     }
 
+    fn expand_escaped_passthrough(
+        &self,
+        source: &'a str,
+        document_attributes: &DocumentAttributes<'a>,
+        extract_single_passthroughs: bool,
+    ) -> String {
+        if !self.macros_enabled {
+            self.advance_by(source.len() + 1);
+            return format!("\\{source}");
+        }
+
+        let escape_start = self.get_offset();
+        let source_start = escape_start + 1;
+        // Escaping `++` or `+++` skips that match, but the remaining pluses still
+        // enter the constrained single-plus passthrough pass.
+        let expanded = if extract_single_passthroughs {
+            self.extract_single_passthroughs(source, source_start, document_attributes)
+        } else {
+            let mut output = String::with_capacity(source.len());
+            self.append_unprotected_text(&mut output, source, source_start, document_attributes);
+            output
+        };
+
+        self.source_map.borrow_mut().add_replacement(
+            escape_start,
+            source_start,
+            0,
+            ProcessedKind::Escape,
+        );
+        self.advance_by(source.len() + 1);
+        expanded
+    }
+
+    fn extract_single_passthroughs(
+        &self,
+        source: &'a str,
+        source_start: usize,
+        document_attributes: &DocumentAttributes<'a>,
+    ) -> String {
+        let mut output = String::with_capacity(source.len());
+        let mut copied_until = 0;
+        let mut search_from = 0;
+
+        while let Some(relative_start) = source[search_from..].find('+') {
+            let start = search_from + relative_start;
+            let previous = if start == 0 {
+                self.full_input[..source_start.saturating_sub(1)]
+                    .chars()
+                    .next_back()
+            } else {
+                source[..start].chars().next_back()
+            };
+            if previous.is_some_and(|character| {
+                is_passthrough_word_character(character) || matches!(character, ';' | ':' | '\\')
+            }) {
+                search_from = start + 1;
+                continue;
+            }
+
+            let Some(end) = constrained_passthrough_end(source, start) else {
+                search_from = start + 1;
+                continue;
+            };
+
+            self.append_unprotected_text(
+                &mut output,
+                &source[copied_until..start],
+                source_start + copied_until,
+                document_attributes,
+            );
+
+            let content = &source[start + 1..end];
+            let location = self.location_from_offsets(source_start + start, source_start + end + 1);
+            self.passthroughs.borrow_mut().push(Pass {
+                text: Some(content),
+                substitutions: vec![Substitution::SpecialChars],
+                location: location.clone(),
+                kind: PassthroughKind::Single,
+            });
+            let placeholder = format!(
+                "\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}",
+                self.pass_found_count.get()
+            );
+            self.source_map.borrow_mut().add_replacement(
+                location.absolute_start,
+                location.absolute_end,
+                placeholder.len(),
+                ProcessedKind::Passthrough,
+            );
+            self.pass_found_count.set(self.pass_found_count.get() + 1);
+            output.push_str(&placeholder);
+
+            copied_until = end + 1;
+            search_from = copied_until;
+        }
+
+        self.append_unprotected_text(
+            &mut output,
+            &source[copied_until..],
+            source_start + copied_until,
+            document_attributes,
+        );
+        output
+    }
+
+    fn append_unprotected_text(
+        &self,
+        output: &mut String,
+        source: &'a str,
+        source_start: usize,
+        document_attributes: &DocumentAttributes<'a>,
+    ) {
+        if !self.attributes_enabled {
+            output.push_str(source);
+            return;
+        }
+
+        let mut copied_until = 0;
+        let mut search_from = 0;
+        while let Some(relative_start) = source[search_from..].find('{') {
+            let start = search_from + relative_start;
+            let Some(relative_end) = source[start + 1..].find('}') else {
+                break;
+            };
+            let end = start + relative_end + 2;
+            let name = &source[start + 1..end - 1];
+            if name.is_empty()
+                || !name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+            {
+                search_from = end;
+                continue;
+            }
+
+            output.push_str(&source[copied_until..start]);
+            let location = self.location_from_offsets(source_start + start, source_start + end);
+            output.push_str(&self.expand_attribute_reference(name, location, document_attributes));
+            copied_until = end;
+            search_from = end;
+        }
+        output.push_str(&source[copied_until..]);
+    }
+
+    fn expand_attribute_reference(
+        &self,
+        attribute_name: &str,
+        location: Location,
+        document_attributes: &DocumentAttributes<'a>,
+    ) -> String {
+        if !self.attributes_enabled {
+            return format!("{{{attribute_name}}}");
+        }
+
+        // Character-replacement attributes must bypass the second inline parse;
+        // otherwise values such as `+` and `*` become AsciiDoc syntax.
+        // https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
+        let is_character_reference = matches!(
+            attribute_name,
+            "lt" | "gt"
+                | "amp"
+                | "plus"
+                | "pp"
+                | "cpp"
+                | "cxx"
+                | "asterisk"
+                | "backtick"
+                | "caret"
+                | "tilde"
+                | "vbar"
+                | "startsb"
+                | "endsb"
+                | "backslash"
+                | "two-colons"
+                | "two-semicolons"
+                | "apos"
+                | "quot"
+        );
+
+        match document_attributes.get(attribute_name) {
+            Some(AttributeValue::String(value)) if is_character_reference => {
+                self.passthroughs.borrow_mut().push(Pass {
+                    text: Some(self.arena.alloc_str(value)),
+                    substitutions: Vec::new(),
+                    location: location.clone(),
+                    kind: PassthroughKind::AttributeRef,
+                });
+                let placeholder = format!(
+                    "\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}",
+                    self.pass_found_count.get()
+                );
+                self.source_map.borrow_mut().add_replacement(
+                    location.absolute_start,
+                    location.absolute_end,
+                    placeholder.len(),
+                    ProcessedKind::Passthrough,
+                );
+                self.pass_found_count.set(self.pass_found_count.get() + 1);
+                placeholder
+            }
+            Some(AttributeValue::String(value)) => {
+                self.source_map.borrow_mut().add_replacement(
+                    location.absolute_start,
+                    location.absolute_end,
+                    value.len(),
+                    ProcessedKind::Attribute,
+                );
+                self.attributes
+                    .borrow_mut()
+                    .insert(self.source_map.borrow().replacements.len(), location);
+                value.to_string()
+            }
+            Some(AttributeValue::Bool(true)) => {
+                self.source_map.borrow_mut().add_replacement(
+                    location.absolute_start,
+                    location.absolute_end,
+                    0,
+                    ProcessedKind::Attribute,
+                );
+                self.attributes
+                    .borrow_mut()
+                    .insert(self.source_map.borrow().replacements.len(), location);
+                String::new()
+            }
+            _ => format!("{{{attribute_name}}}"),
+        }
+    }
+
+    fn location_from_offsets(&self, absolute_start: usize, absolute_end: usize) -> Location {
+        Location {
+            absolute_start,
+            absolute_end,
+            start: self
+                .line_map
+                .offset_to_position(absolute_start, self.full_input),
+            end: self
+                .line_map
+                .offset_to_position(absolute_end, self.full_input),
+        }
+    }
+
     /// Calculate location for a matched construct.
     ///
     /// Advances the offset by `content.len() + padding` and returns a Location
@@ -257,7 +498,33 @@ pub(crate) struct SourceMap {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProcessedKind {
     Attribute,
+    Escape,
     Passthrough,
+}
+
+fn is_passthrough_word_character(character: char) -> bool {
+    character.is_alphanumeric() || character == '_'
+}
+
+fn constrained_passthrough_end(source: &str, start: usize) -> Option<usize> {
+    let content_start = start + 1;
+    let first = source[content_start..].chars().next()?;
+    if first.is_whitespace() {
+        return None;
+    }
+
+    for (relative_end, character) in source[content_start..].char_indices() {
+        if character != '+' || relative_end == 0 {
+            continue;
+        }
+        let end = content_start + relative_end;
+        let last = source[content_start..end].chars().next_back()?;
+        let next = source[end + 1..].chars().next();
+        if !last.is_whitespace() && next.is_none_or(|value| !is_passthrough_word_character(value)) {
+            return Some(end);
+        }
+    }
+    None
 }
 
 /// Convert usize to i32, logging on overflow.
@@ -294,8 +561,6 @@ impl SourceMap {
             byte_len: replacement_length,
             kind,
         });
-        // Ensure replacements are sorted by where they occur in the original text.
-        self.replacements.sort_by_key(|r| r.absolute_start);
     }
 
     /// Map a position in the processed text back to the original source.
@@ -364,6 +629,7 @@ impl SourceMap {
                         // All inserted characters map to the left-most original position
                         Ok(rep.absolute_start)
                     }
+                    ProcessedKind::Escape => Ok(rep.absolute_start),
                     ProcessedKind::Passthrough => {
                         let mapped_pos = signed_pos - adjustment;
                         if mapped_pos >= rep_end {
@@ -390,10 +656,16 @@ parser!(
 
         pub rule run() -> ProcessedContent<'input>
             = content:inlines()+ {
+                let mut source_map = state.source_map.borrow().clone();
+                // Mapping is not read during preprocessing, so sort once after all
+                // actions finish.
+                source_map
+                    .replacements
+                    .sort_by_key(|replacement| replacement.absolute_start);
                 ProcessedContent {
                     text: Cow::Owned(content.join("")),
                     passthroughs: state.passthroughs.borrow().clone(),
-                    source_map: state.source_map.borrow().clone(),
+                    source_map,
                 }
             }
 
@@ -403,6 +675,7 @@ parser!(
             // We add monospace before passthrough to skip content inside backticks
             kbd_macro()
             / monospace()
+            / escaped_passthrough()
             / passthrough()
             // counter_reference must come BEFORE attribute_reference because counters
             // have a colon in the name (e.g., {counter:num}) which is not valid in
@@ -454,86 +727,24 @@ parser!(
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
-                if !state.attributes_enabled {
-                    let text = format!("{{{attribute_name}}}");
-                    state.advance(&text);
-                    return text;
-                }
-
                 let location = state.calculate_location(start, attribute_name, 2);
-
-                // Special handling for character replacement attributes that need passthrough behavior.
-                // In asciidoctor, expanded attribute values don't get re-parsed for inline syntax.
-                // In acdc, the inline preprocessor expands attributes into a string that the main
-                // PEG grammar fully re-parses. This means ALL character replacement attributes with
-                // syntactically significant ASCII values need passthrough protection to prevent the
-                // expanded values from being misinterpreted as AsciiDoc syntax (e.g., {plus} → "+"
-                // being matched as a line break, {asterisk} → "*" triggering bold formatting).
-                // See: https://docs.asciidoctor.org/asciidoc/latest/attributes/character-replacement-ref/
-                let is_char_ref = matches!(
-                    attribute_name,
-                    "lt" | "gt" | "amp"
-                        | "plus" | "pp" | "cpp" | "cxx"
-                        | "asterisk" | "backtick" | "caret" | "tilde"
-                        | "vbar" | "startsb" | "endsb" | "backslash"
-                        | "two-colons" | "two-semicolons"
-                        | "apos" | "quot"
-                );
-
-                match document_attributes.get(attribute_name) {
-                    Some(AttributeValue::String(value)) => {
-                        if is_char_ref {
-                            // Treat character replacement attributes as passthroughs (like +++<+++)
-                            // Empty substitutions = RawText = bypasses further inline parsing
-                            state.passthroughs.borrow_mut().push(Pass {
-                                text: Some(state.arena.alloc_str(value)),
-                                substitutions: Vec::new(),
-                                location: location.clone(),
-                                kind: PassthroughKind::AttributeRef,
-                            });
-                            let new_content = format!("\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}", state.pass_found_count.get());
-                            state.source_map.borrow_mut().add_replacement(
-                                location.absolute_start,
-                                location.absolute_end,
-                                new_content.len(),
-                                ProcessedKind::Passthrough,
-                            );
-                            state.pass_found_count.set(state.pass_found_count.get() + 1);
-                            new_content
-                        } else {
-                            // Normal attribute substitution
-                            let mut attributes = state.attributes.borrow_mut();
-                            state.source_map.borrow_mut().add_replacement(
-                                location.absolute_start,
-                                location.absolute_end,
-                                value.len(),
-                                ProcessedKind::Attribute,
-                            );
-                            attributes.insert(state.source_map.borrow().replacements.len(), location);
-                            value.to_string()
-                        }
-                    },
-                    Some(AttributeValue::Bool(true)) => {
-                        let mut attributes = state.attributes.borrow_mut();
-                        state.source_map.borrow_mut().add_replacement(
-                            location.absolute_start,
-                            location.absolute_end,
-                            0,
-                            ProcessedKind::Attribute,
-                        );
-                        attributes.insert(state.source_map.borrow().replacements.len(), location);
-                        String::new()
-                    },
-                    _ => {
-                        // For non-string attributes, keep original text
-                        format!("{{{attribute_name}}}")
-                    }
-                }
+                state.expand_attribute_reference(attribute_name, location, document_attributes)
             }
 
         rule attribute_name() -> &'input str
             = start:position() attribute_name:$(attribute_name_pattern()) {
                 attribute_name
+            }
+
+        rule escaped_passthrough() -> String
+            = "\\" source:$("+++" (!"+++" [_])+ "+++") {
+                state.expand_escaped_passthrough(source, document_attributes, true)
+            }
+            / "\\" source:$("++" (!"++" [_])+ "++") {
+                state.expand_escaped_passthrough(source, document_attributes, true)
+            }
+            / "\\" source:$("+" ![' '| '\t' | '\n' | '\r'] (!("+" &([' '| '\t' | '\n' | '\r' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | ')' | ']' | '}' | '/' | '-' | '<' | '>'] / ![_])) [_])* "+") {
+                state.expand_escaped_passthrough(source, document_attributes, false)
             }
 
         rule passthrough() -> String = quiet!{
@@ -723,9 +934,9 @@ parser!(
 
         rule unprocessed_text() -> String
             = text:$((
-                [^'{' | '+' | '`' | 'k' | 'p']+
+                [^'{' | '+' | '`' | 'k' | 'p' | '\\']+
                 /
-                !(passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(escaped_passthrough_pattern() / passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
@@ -753,6 +964,8 @@ parser!(
         "+" ![' '|'\t'|'\n'|'\r'] (!("+" &([' '|'\t'|'\n'|'\r'|','|';'|'"'|'.'|'?'|'!'|':'|')'|']'|'}'|'/'|'-'|'<'|'>'] / ![_])) [_])* "+" /
         "pass:" substitutions()? "[" [^']']* "]"
 
+        rule escaped_passthrough_pattern() = "\\" passthrough_pattern()
+
         pub rule attribute_reference_substitutions() -> String
             = content:(attribute_reference_content() / unprocessed_text_content())+ {
                 content.join("")
@@ -770,9 +983,9 @@ parser!(
 
         rule unprocessed_text_content() -> String
             = text:$((
-                [^'{' | '+' | '`' | 'p']+
+                [^'{' | '+' | '`' | 'p' | '\\']+
                 /
-                !(passthrough_pattern() / attribute_reference_pattern()) [_]
+                !(escaped_passthrough_pattern() / passthrough_pattern() / attribute_reference_pattern()) [_]
             )+) {
                 text.to_string()
             }
@@ -949,6 +1162,27 @@ mod tests {
         assert_eq!(second.location.start.column, 32);
         assert_eq!(second.location.end.line, 3);
         assert_eq!(second.location.end.column, 49);
+        Ok(())
+    }
+
+    #[test]
+    fn dense_escaped_passthroughs_finalize_source_map_in_order() -> Result<(), Error> {
+        let attributes = setup_attributes();
+        let input = r"\++plain++ ".repeat(256);
+        let state = setup_state(&input);
+
+        let result = inline_preprocessing::run(&input, &attributes, &state)?;
+
+        assert_eq!(result.source_map.replacements.len(), 512);
+        assert!(
+            result
+                .source_map
+                .replacements
+                .windows(2)
+                .all(|replacements| {
+                    replacements[0].absolute_start <= replacements[1].absolute_start
+                })
+        );
         Ok(())
     }
 

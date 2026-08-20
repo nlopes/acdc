@@ -3,6 +3,9 @@
   "type": "block",
   "attributes": {
     "formatted": "*attribute bold*",
+    "markup": "<mark>inserted</mark>",
+    "ncr": "&#169;",
+    "plus": "+",
     "replaceable": "(C)",
     "url": "https://example.com"
   },
@@ -17,11 +20,11 @@
           "value": "Quotes then attributes: ",
           "location": [
             {
-              "line": 5,
+              "line": 8,
               "col": 1
             },
             {
-              "line": 5,
+              "line": 8,
               "col": 25
             }
           ]
@@ -32,11 +35,11 @@
           "value": "*attribute bold*",
           "location": [
             {
-              "line": 5,
+              "line": 8,
               "col": 34
             },
             {
-              "line": 5,
+              "line": 8,
               "col": 44
             }
           ]
@@ -44,11 +47,11 @@
       ],
       "location": [
         {
-          "line": 5,
+          "line": 8,
           "col": 1
         },
         {
-          "line": 5,
+          "line": 8,
           "col": 45
         }
       ]
@@ -63,11 +66,11 @@
           "value": "Attributes then quotes: ",
           "location": [
             {
-              "line": 7,
+              "line": 10,
               "col": 1
             },
             {
-              "line": 7,
+              "line": 10,
               "col": 25
             }
           ]
@@ -84,11 +87,11 @@
               "value": "attribute bold",
               "location": [
                 {
-                  "line": 7,
+                  "line": 10,
                   "col": 35
                 },
                 {
-                  "line": 7,
+                  "line": 10,
                   "col": 45
                 }
               ]
@@ -96,11 +99,11 @@
           ],
           "location": [
             {
-              "line": 7,
+              "line": 10,
               "col": 34
             },
             {
-              "line": 7,
+              "line": 10,
               "col": 45
             }
           ]
@@ -108,11 +111,11 @@
       ],
       "location": [
         {
-          "line": 7,
+          "line": 10,
           "col": 1
         },
         {
-          "line": 7,
+          "line": 10,
           "col": 45
         }
       ]
@@ -127,11 +130,11 @@
           "value": "Replacements then attributes: ",
           "location": [
             {
-              "line": 9,
+              "line": 12,
               "col": 1
             },
             {
-              "line": 9,
+              "line": 12,
               "col": 31
             }
           ]
@@ -142,11 +145,11 @@
           "value": "(C)",
           "location": [
             {
-              "line": 9,
+              "line": 12,
               "col": 40
             },
             {
-              "line": 9,
+              "line": 12,
               "col": 53
             }
           ]
@@ -154,11 +157,11 @@
       ],
       "location": [
         {
-          "line": 9,
+          "line": 12,
           "col": 1
         },
         {
-          "line": 9,
+          "line": 12,
           "col": 53
         }
       ]
@@ -173,11 +176,11 @@
           "value": "Attributes then replacements: ",
           "location": [
             {
-              "line": 11,
+              "line": 14,
               "col": 1
             },
             {
-              "line": 11,
+              "line": 14,
               "col": 31
             }
           ]
@@ -188,11 +191,11 @@
           "value": "(C)",
           "location": [
             {
-              "line": 11,
+              "line": 14,
               "col": 40
             },
             {
-              "line": 11,
+              "line": 14,
               "col": 53
             }
           ]
@@ -200,11 +203,11 @@
       ],
       "location": [
         {
-          "line": 11,
+          "line": 14,
           "col": 1
         },
         {
-          "line": 11,
+          "line": 14,
           "col": 53
         }
       ]
@@ -219,11 +222,11 @@
           "value": "Macros then attributes: ",
           "location": [
             {
-              "line": 13,
+              "line": 16,
               "col": 1
             },
             {
-              "line": 13,
+              "line": 16,
               "col": 25
             }
           ]
@@ -234,11 +237,11 @@
           "value": "https://example.com",
           "location": [
             {
-              "line": 13,
+              "line": 16,
               "col": 34
             },
             {
-              "line": 13,
+              "line": 16,
               "col": 38
             }
           ]
@@ -246,11 +249,11 @@
       ],
       "location": [
         {
-          "line": 13,
+          "line": 16,
           "col": 1
         },
         {
-          "line": 13,
+          "line": 16,
           "col": 39
         }
       ]
@@ -265,11 +268,11 @@
           "value": "Attributes then macros: ",
           "location": [
             {
-              "line": 15,
+              "line": 18,
               "col": 1
             },
             {
-              "line": 15,
+              "line": 18,
               "col": 25
             }
           ]
@@ -284,11 +287,11 @@
           },
           "location": [
             {
-              "line": 15,
+              "line": 18,
               "col": 34
             },
             {
-              "line": 15,
+              "line": 18,
               "col": 39
             }
           ]
@@ -296,11 +299,11 @@
       ],
       "location": [
         {
-          "line": 15,
+          "line": 18,
           "col": 1
         },
         {
-          "line": 15,
+          "line": 18,
           "col": 39
         }
       ]
@@ -315,11 +318,11 @@
           "value": "Normal quotes before attributes: ",
           "location": [
             {
-              "line": 17,
+              "line": 20,
               "col": 1
             },
             {
-              "line": 17,
+              "line": 20,
               "col": 34
             }
           ]
@@ -330,11 +333,11 @@
           "value": "*attribute bold*",
           "location": [
             {
-              "line": 17,
+              "line": 20,
               "col": 41
             },
             {
-              "line": 17,
+              "line": 20,
               "col": 51
             }
           ]
@@ -342,12 +345,347 @@
       ],
       "location": [
         {
-          "line": 17,
+          "line": 20,
           "col": 1
         },
         {
-          "line": 17,
+          "line": 20,
           "col": 52
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Special chars then attributes markup: ",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<mark>inserted</mark>",
+          "location": [
+            {
+              "line": 22,
+              "col": 48
+            },
+            {
+              "line": 22,
+              "col": 56
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 56
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Attributes then special chars markup: ",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "<mark>inserted</mark>",
+          "location": [
+            {
+              "line": 24,
+              "col": 48
+            },
+            {
+              "line": 24,
+              "col": 56
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 56
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Special chars then attributes numeric: ",
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&#169;",
+          "location": [
+            {
+              "line": 26,
+              "col": 49
+            },
+            {
+              "line": 26,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Attributes then special chars numeric: ",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "&#169;",
+          "location": [
+            {
+              "line": 28,
+              "col": 49
+            },
+            {
+              "line": 28,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Post then attributes: ",
+          "location": [
+            {
+              "line": 30,
+              "col": 1
+            },
+            {
+              "line": 30,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "first ",
+          "location": [
+            {
+              "line": 30,
+              "col": 32
+            },
+            {
+              "line": 30,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "+",
+          "location": [
+            {
+              "line": 30,
+              "col": 38
+            },
+            {
+              "line": 30,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "\nsecond",
+          "location": [
+            {
+              "line": 30,
+              "col": 44
+            },
+            {
+              "line": 31,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 7
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Attributes then post: ",
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 33,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "first",
+          "location": [
+            {
+              "line": 33,
+              "col": 32
+            },
+            {
+              "line": 33,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "break",
+          "type": "inline",
+          "location": [
+            {
+              "line": 33,
+              "col": 38
+            },
+            {
+              "line": 34,
+              "col": 1
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "second",
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 6
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 33,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 7
         }
       ]
     }
@@ -358,8 +696,8 @@
       "col": 1
     },
     {
-      "line": 17,
-      "col": 52
+      "line": 34,
+      "col": 7
     }
   ]
 }

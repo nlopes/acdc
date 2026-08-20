@@ -114,10 +114,9 @@ pub(crate) fn match_constrained_boundary(b: u8) -> bool {
             | b'!'
             | b'\''
             | b'"'
-            | b'<'
-            | b'>'
             | b'^'
             | b'~'
+            | b'+'
     )
 }
 
@@ -1331,7 +1330,7 @@ peg::parser! {
         /// character (or nothing at end of input), so it works in both `&` and
         /// `!` lookaheads where the old inline character class was used.
         rule constrained_boundary_follow()
-        = [' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~']
+        = [' ' | '\t' | '\n' | ',' | ';' | '"' | '.' | '?' | '!' | ':' | '(' | ')' | '[' | ']' | '{' | '}' | '/' | '-' | '|' | '<' | '>' | '^' | '~' | '+']
         / non_word_non_ascii_char()
         / ![_]
 

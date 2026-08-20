@@ -24,92 +24,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "<del>",
+          "value": "<del>*bold _italic_*</del>",
           "location": [
             {
               "line": 1,
               "col": 23
-            },
-            {
-              "line": 1,
-              "col": 27
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "bold ",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 29
-                },
-                {
-                  "line": 1,
-                  "col": 33
-                }
-              ]
-            },
-            {
-              "name": "span",
-              "type": "inline",
-              "variant": "emphasis",
-              "form": "constrained",
-              "inlines": [
-                {
-                  "name": "raw",
-                  "type": "string",
-                  "value": "italic",
-                  "location": [
-                    {
-                      "line": 1,
-                      "col": 35
-                    },
-                    {
-                      "line": 1,
-                      "col": 40
-                    }
-                  ]
-                }
-              ],
-              "location": [
-                {
-                  "line": 1,
-                  "col": 34
-                },
-                {
-                  "line": 1,
-                  "col": 41
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 1,
-              "col": 28
-            },
-            {
-              "line": 1,
-              "col": 42
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "</del>",
-          "location": [
-            {
-              "line": 1,
-              "col": 43
             },
             {
               "line": 1,
@@ -135,59 +54,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "<del>",
+          "value": "<del>_italic *bold*_</del>",
           "location": [
             {
               "line": 1,
               "col": 62
-            },
-            {
-              "line": 1,
-              "col": 66
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "emphasis",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "italic *bold*",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 68
-                },
-                {
-                  "line": 1,
-                  "col": 80
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 1,
-              "col": 67
-            },
-            {
-              "line": 1,
-              "col": 81
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": "</del>",
-          "location": [
-            {
-              "line": 1,
-              "col": 82
             },
             {
               "line": 1,

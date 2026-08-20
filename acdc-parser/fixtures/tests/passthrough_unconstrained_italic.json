@@ -102,59 +102,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "<del>",
+          "value": "<del>_constrained_ ",
           "location": [
             {
               "line": 1,
               "col": 84
-            },
-            {
-              "line": 1,
-              "col": 88
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "emphasis",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "constrained",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 90
-                },
-                {
-                  "line": 1,
-                  "col": 100
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 1,
-              "col": 89
-            },
-            {
-              "line": 1,
-              "col": 101
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": " ",
-          "location": [
-            {
-              "line": 1,
-              "col": 102
             },
             {
               "line": 1,

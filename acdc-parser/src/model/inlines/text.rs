@@ -159,13 +159,13 @@ impl Serialize for Plain<'_> {
 pub struct Raw<'a> {
     pub content: &'a str,
     pub location: Location,
-    /// The passthrough substitutions that the converter applies to this text.
+    /// The passthrough substitutions that the converter applies to this text, in order.
     ///
     /// These replace, rather than extend, the enclosing block's substitutions.
     /// The parser resolves substitutions that create inline structure before it
     /// returns the AST, so parsed nodes normally retain only substitutions that
-    /// require converter-specific rendering. An empty list means no further
-    /// substitutions, as with `+++text+++` and `pass:[text]`.
+    /// require converter-specific rendering. Repeated entries remain significant. An
+    /// empty list means no further substitutions, as with `+++text+++` and `pass:[text]`.
     pub subs: Vec<Substitution>,
 }
 

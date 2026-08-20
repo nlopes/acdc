@@ -1,8 +1,8 @@
 use bumpalo::Bump;
 
 use crate::{
-    AttributeValue, InlineMacro, InlineNode, Location, ParseInlineResult, Pass, PassthroughKind,
-    Plain, ProcessedContent, Raw, Substitution,
+    AttributeValue, InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass,
+    PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
     model::substitution::{SubsFlags, resolve_passthrough_substitutions},
     parsed::OwnedInput,
 };
@@ -59,8 +59,12 @@ fn process_raw_substitutions<'a>(
     };
 
     match substitution {
-        Substitution::SpecialChars | Substitution::Replacements => {
-            if !raw.subs.contains(substitution) {
+        Substitution::SpecialChars => {
+            raw.subs.push(substitution.clone());
+            process_raw_substitutions(raw, remaining, state)
+        }
+        Substitution::Replacements => {
+            if !raw.subs.contains(&Substitution::Replacements) {
                 raw.subs.push(substitution.clone());
             }
             process_raw_substitutions(raw, remaining, state)
@@ -92,6 +96,11 @@ fn process_inline_nodes<'a>(
         return nodes;
     }
 
+    if let Some((Substitution::PostReplacements, remaining)) = substitutions.split_first() {
+        let nodes = process_post_replacements(nodes, state);
+        return process_inline_nodes(nodes, remaining, state);
+    }
+
     let mut result = Vec::with_capacity(nodes.len());
     for mut node in nodes {
         if let InlineNode::RawText(raw) = node {
@@ -102,6 +111,143 @@ fn process_inline_nodes<'a>(
         result.push(node);
     }
     result
+}
+
+fn process_post_replacements<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let mut staged = Vec::with_capacity(nodes.len());
+    for mut node in nodes {
+        if let InlineNode::RawText(raw) = node {
+            staged.extend(parse_raw_substitution(
+                raw,
+                &Substitution::PostReplacements,
+                state,
+            ));
+        } else {
+            process_inline_children(&mut node, &[Substitution::PostReplacements], state);
+            staged.push(node);
+        }
+    }
+    replace_cross_boundary_hardbreaks(staged, state)
+}
+
+fn replace_cross_boundary_hardbreaks<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &ParserState<'a>,
+) -> Vec<InlineNode<'a>> {
+    let mut result = Vec::with_capacity(nodes.len());
+    let mut pending = None;
+
+    for node in nodes {
+        let InlineNode::RawText(right) = node else {
+            if let Some(left) = pending.take() {
+                result.push(InlineNode::RawText(left));
+            }
+            result.push(node);
+            continue;
+        };
+
+        let Some(left) = pending.take() else {
+            pending = Some(right);
+            continue;
+        };
+
+        if is_cross_boundary_hardbreak(&result, &left, &right) {
+            let location = cross_boundary_hardbreak_location(&left, &right, state);
+            remove_cross_boundary_hardbreak_marker(&mut result, left, state);
+            result.push(InlineNode::LineBreak(LineBreak { location }));
+            pending = raw_without_first_byte(right, state);
+        } else {
+            result.push(InlineNode::RawText(left));
+            pending = Some(right);
+        }
+    }
+
+    if let Some(raw) = pending {
+        result.push(InlineNode::RawText(raw));
+    }
+    result
+}
+
+fn is_cross_boundary_hardbreak(result: &[InlineNode<'_>], left: &Raw<'_>, right: &Raw<'_>) -> bool {
+    if !left.content.ends_with('+') || !right.content.starts_with('\n') {
+        return false;
+    }
+    left.content
+        .strip_suffix('+')
+        .and_then(|prefix| prefix.chars().next_back())
+        .or_else(|| match result.last() {
+            Some(InlineNode::RawText(raw)) => raw.content.chars().next_back(),
+            _ => None,
+        })
+        == Some(' ')
+}
+
+fn remove_cross_boundary_hardbreak_marker<'a>(
+    result: &mut Vec<InlineNode<'a>>,
+    left: Raw<'a>,
+    state: &ParserState<'_>,
+) {
+    if left.content.len() > 1 {
+        if let Some(prefix) = raw_without_suffix(left, 2, state) {
+            result.push(InlineNode::RawText(prefix));
+        }
+        return;
+    }
+
+    let Some(InlineNode::RawText(previous)) = result.pop() else {
+        return;
+    };
+    if let Some(prefix) = raw_without_suffix(previous, 1, state) {
+        result.push(InlineNode::RawText(prefix));
+    }
+}
+
+fn raw_without_suffix<'a>(
+    mut raw: Raw<'a>,
+    suffix_len: usize,
+    state: &ParserState<'_>,
+) -> Option<Raw<'a>> {
+    let end = raw.content.len().checked_sub(suffix_len)?;
+    if end == 0 {
+        return None;
+    }
+    raw.location = raw_segment_location(&raw, 0, end, state);
+    raw.content = &raw.content[..end];
+    Some(raw)
+}
+
+fn raw_without_first_byte<'a>(mut raw: Raw<'a>, state: &ParserState<'_>) -> Option<Raw<'a>> {
+    if raw.content.len() <= 1 {
+        return None;
+    }
+    raw.location = raw_segment_location(&raw, 1, raw.content.len(), state);
+    raw.content = &raw.content[1..];
+    Some(raw)
+}
+
+fn cross_boundary_hardbreak_location(
+    left: &Raw<'_>,
+    right: &Raw<'_>,
+    state: &ParserState<'_>,
+) -> Location {
+    let left_source_len = left.location.absolute_end - left.location.absolute_start;
+    let absolute_start = if left_source_len == left.content.len() {
+        left.location.absolute_end.saturating_sub(1)
+    } else {
+        left.location.absolute_start
+    };
+    let absolute_end = (right.location.absolute_start + 1).min(right.location.absolute_end);
+    Location {
+        absolute_start,
+        absolute_end,
+        start: state
+            .line_map
+            .offset_to_position(absolute_start, state.input),
+        end: state.line_map.offset_to_position(absolute_end, state.input),
+    }
 }
 
 fn process_inline_children<'a>(
@@ -192,7 +338,7 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             AttributeValue::String(value) => result.push(InlineNode::RawText(Raw {
                 content: state.intern_str(value),
                 location: reference_location,
-                subs: Vec::new(),
+                subs: vec![Substitution::SpecialChars],
             })),
             AttributeValue::Bool(true) => {}
             AttributeValue::Bool(false) | AttributeValue::None => {

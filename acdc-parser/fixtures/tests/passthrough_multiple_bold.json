@@ -24,59 +24,11 @@
         {
           "name": "raw",
           "type": "string",
-          "value": "<del>",
+          "value": "<del>*first* and ",
           "location": [
             {
               "line": 1,
               "col": 32
-            },
-            {
-              "line": 1,
-              "col": 36
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "constrained",
-          "inlines": [
-            {
-              "name": "raw",
-              "type": "string",
-              "value": "first",
-              "location": [
-                {
-                  "line": 1,
-                  "col": 38
-                },
-                {
-                  "line": 1,
-                  "col": 42
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 1,
-              "col": 37
-            },
-            {
-              "line": 1,
-              "col": 43
-            }
-          ]
-        },
-        {
-          "name": "raw",
-          "type": "string",
-          "value": " and ",
-          "location": [
-            {
-              "line": 1,
-              "col": 44
             },
             {
               "line": 1,

@@ -194,8 +194,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Inline passthroughs apply `c`, `q`, `a`, `r`, `m`, and `p` substitutions in
   the written order. The `n` and `v` groups use Asciidoctor's inline
-  passthrough policies, and attribute values longer than their source
-  references keep valid source locations.
+  passthrough policies. Escaped passthroughs stay literal, ordered substitutions
+  can create hard line breaks across attribute references, and expanded values
+  keep valid source locations.
 - Description lists now preserve repeated continuations, delimiter-based
   nesting, formatted terms, trailing unanswered Q&A items, titled-list
   boundaries, and named `style=` values, matching Asciidoctor.

@@ -1,0 +1,38 @@
+Single numeric: +&#169;+
+
+Double numeric: ++&#169;++
+
+Triple numeric: +++&#169;+++
+
+Escaped single plain: \+plain+
+
+Escaped double plain: \++plain++
+
+Escaped triple plain: \+++plain+++
+
+Escaped single formatting: \+*bold*+
+
+Escaped double formatting: \++*bold*++
+
+Escaped triple formatting: \+++*bold*+++
+
+Escaped single markup: \+<mark>*bold*</mark>+
+
+Escaped double markup: \++<mark>*bold*</mark>++
+
+Escaped triple markup: \+++<mark>*bold*</mark>+++
+
+Escaped single numeric: \+&#169;+
+
+Escaped double numeric: \++&#169;++
+
+Escaped triple numeric: \+++&#169;+++
+
+[subs="-macros"]
+Macros disabled escaped single: \+*bold*+
+
+[subs="-macros"]
+Macros disabled escaped double: \++*bold*++
+
+[subs="-macros"]
+Macros disabled escaped triple: \+++*bold*+++

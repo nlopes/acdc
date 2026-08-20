@@ -9,6 +9,8 @@ Quotes: pass:q[*bold* _italic_ #marked#]
 
 Macros: pass:m[https://example.com]
 
+Replacement escape: pass:r[\->]
+
 Post replacements: pass:p[first +
 second]
 
