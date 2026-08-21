@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Icon mode selection now treats any set `icons` value other than `font` as
+  image mode, matching Asciidoctor.
 - Link fallback text distinguishes `link:`, `mailto:`, and automatic links, so
   the HTML and PDF backends match Asciidoctor mail targets and angle brackets.
 - Inter-document cross-references preserve their external target and let each
