@@ -37,3 +37,5 @@ icon\-test \- test icon macro rendering
 Here is a star [star] in text.
 .sp
 And a github [github] reference.
+.sp
+A directional [arrow left] and [Love]\&.

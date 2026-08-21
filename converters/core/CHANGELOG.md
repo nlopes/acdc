@@ -32,7 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference text only) the same way.
 - `inline_text::InlineTextTransform` now carries the text of every inline node,
   so a heading or caption loses nothing it cannot render as markup: a link
-  contributes its link text, an image its alt text, an icon its target, a
+  contributes its link text, an image its alt text, an icon its alternative
+  text (or a readable form of its target), a
   footnote its marker, and a stem its content; asciidoctor brackets the last
   four, and so does this. A reference to an unknown target reads as its stylized
   id, which drops a file extension so `other.adoc#part` reads as `[other#part]`. Two options extend it — `decode_char_refs` turns

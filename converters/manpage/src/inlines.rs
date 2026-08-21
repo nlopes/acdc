@@ -456,9 +456,8 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::Icon(icon) => {
-                // Icon - show target name in brackets
-                let w = self.writer_mut();
-                write!(w, "[{}]", icon.target)?;
+                let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
+                write!(self.writer_mut(), "[{alt}]")?;
             }
 
             InlineMacro::Keyboard(kbd) => {

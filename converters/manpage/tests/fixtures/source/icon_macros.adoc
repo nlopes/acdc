@@ -18,3 +18,5 @@ icon-test - test icon macro rendering
 Here is a star icon:star[] in text.
 
 And a github icon:github[set=fab] reference.
+
+A directional icon:arrow-left[] and icon:heart[alt=Love].

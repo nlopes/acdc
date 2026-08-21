@@ -596,8 +596,8 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             write!(w, "[Image: {}]", img.source)?;
         }
         InlineMacro::Icon(icon) => {
-            // Terminal can't display icons, show icon name
-            write!(w, "[Icon: {}]", icon.target)?;
+            let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
+            write!(w, "[Icon: {alt}]")?;
         }
         InlineMacro::Keyboard(kbd) => {
             // Show keyboard shortcuts with brackets

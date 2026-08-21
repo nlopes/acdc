@@ -22,11 +22,13 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
-    icon::IconMode, visitor::Visitor, xref::XrefGuard,
+    icon::{IconMode, image_source as icon_image_source},
+    visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, CaptionKind, DelimitedBlockType, Document, DocumentAttributes, Icon,
-    InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source, Table, TableRow,
+    Author, Block, CaptionKind, DelimitedBlockType, Document, DocumentAttributes, InlineMacro,
+    InlineNode, ListItem, Reference, SafeMode, Source, Table, TableRow,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -770,7 +772,7 @@ fn collect_inline_images(
             }
             InlineNode::Macro(InlineMacro::Image(image)) => collect_source(&image.source, urls),
             InlineNode::Macro(InlineMacro::Icon(icon)) if context.icon_mode == IconMode::Image => {
-                urls.insert(icon_image_source(context.attributes, icon));
+                urls.insert(icon_image_source(context.attributes, &icon.target));
             }
             InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
                 collect_inline_images(&footnote.content, context, urls);
@@ -797,27 +799,6 @@ fn collect_inline_images(
             | InlineNode::CalloutRef(_)
             | _ => {}
         }
-    }
-}
-
-fn icon_image_source(attributes: &DocumentAttributes<'_>, icon: &Icon<'_>) -> String {
-    let directory = attributes
-        .get_string("iconsdir")
-        .unwrap_or_else(|| "./images/icons".into());
-    let extension = attributes
-        .get_string("icontype")
-        .or_else(|| {
-            attributes.get_string("icons").filter(|value| {
-                !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
-            })
-        })
-        .unwrap_or_else(|| "png".into());
-    let directory = directory.trim_end_matches(['/', '\\']);
-    let extension = extension.trim_start_matches('.');
-    if directory.is_empty() {
-        format!("{}.{extension}", icon.target)
-    } else {
-        format!("{directory}/{}.{extension}", icon.target)
     }
 }
 

@@ -7,7 +7,7 @@ use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effecti
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
     code::{SourceLineOptions, detect_language, source_line_count},
-    icon::IconMode,
+    icon::{IconMode, alt as icon_alt, image_source as icon_image_source},
     inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback},
     list::OrderedListNumbering,
@@ -34,7 +34,6 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
-    icon_image_source,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -2213,7 +2212,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn write_icon(&mut self, icon: &Icon<'_>) {
-        let alt = icon_alt(icon);
+        let alt = icon_alt(&icon.target, &icon.attributes);
         match IconMode::from(self.processor.document_attributes()) {
             IconMode::Font => {
                 if let Some(glyph) = builtin_icon_glyph(&icon.target.to_string()) {
@@ -2223,7 +2222,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
             IconMode::Image => {
-                let source = icon_image_source(self.processor.document_attributes(), icon);
+                let source = icon_image_source(self.processor.document_attributes(), &icon.target);
                 if let Some(asset) = self.assets.get(&source) {
                     self.writer.raw("#box(image(");
                     self.writer.string_literal(&asset.virtual_path);
@@ -3034,13 +3033,6 @@ fn inline_image_fallback_text(image: &Image<'_>) -> String {
         .attributes
         .get_string("alt")
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
-}
-
-fn icon_alt(icon: &Icon<'_>) -> String {
-    icon.attributes.get_string("alt").map_or_else(
-        || icon.target.to_string().replace(['-', '_'], " "),
-        Cow::into_owned,
-    )
 }
 
 fn builtin_icon_glyph(name: &str) -> Option<&'static str> {

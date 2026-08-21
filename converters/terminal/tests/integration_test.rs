@@ -65,6 +65,7 @@ generate_tests!([
     (source_block_complete, false, requires: feature = "highlighting"),
     (source_block_language_slot, false, requires: feature = "highlighting"),
     (macros_with_quoted_attributes, false, requires: feature = "images"),
+    (icon_names, false),
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
     (block_attribute_parity, false),

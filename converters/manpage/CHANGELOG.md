@@ -16,6 +16,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Inline icon macros render their explicit alternative text, or a readable
+  form of their target when no alternative is set, matching Asciidoctor.
 - Ordered lists honor a positive `start` value, including on nested lists.
   Explicit alphabetic and Roman styles remain an ACDC extension; Asciidoctor's
   manpage backend uses decimal markers for those styles.

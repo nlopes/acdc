@@ -22,7 +22,54 @@
 //! }
 //! ```
 
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use std::borrow::Cow;
+
+use acdc_parser::{AttributeValue, DocumentAttributes, ElementAttributes, Source};
+
+/// Resolve the text alternative for an icon.
+///
+/// An explicit `alt` attribute takes precedence. Otherwise, hyphens and
+/// underscores in the icon target become spaces.
+#[must_use]
+pub fn alt<'a>(target: &Source<'a>, attributes: &ElementAttributes<'a>) -> Cow<'a, str> {
+    attributes
+        .get_string("alt")
+        .unwrap_or_else(|| match target {
+            Source::Name(name) if !name.contains(['-', '_']) => Cow::Borrowed(name),
+            Source::Name(name) => Cow::Owned(name.replace(['-', '_'], " ")),
+            Source::Path(_) | Source::Url(_) => {
+                Cow::Owned(target.to_string().replace(['-', '_'], " "))
+            }
+        })
+}
+
+/// Build the logical image source for an icon.
+///
+/// `iconsdir` defaults to `./images/icons`. An explicit `icontype` takes
+/// precedence over an image format supplied through `icons`, and the default
+/// extension is `png`.
+#[must_use]
+pub fn image_source(attributes: &DocumentAttributes<'_>, target: &Source<'_>) -> String {
+    let directory = attributes
+        .get_string("iconsdir")
+        .unwrap_or_else(|| "./images/icons".into());
+    let extension = attributes
+        .get_string("icontype")
+        .or_else(|| {
+            attributes.get_string("icons").filter(|value| {
+                !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
+            })
+        })
+        .unwrap_or_else(|| "png".into());
+    let directory = directory.trim_end_matches(['/', '\\']);
+    let extension = extension.trim_start_matches('.');
+
+    if directory.is_empty() {
+        format!("{target}.{extension}")
+    } else {
+        format!("{directory}/{target}.{extension}")
+    }
+}
 
 /// Icon rendering mode.
 ///
@@ -88,5 +135,46 @@ mod tests {
 
         attributes.set("icons".into(), AttributeValue::Bool(false));
         assert_eq!(IconMode::from(&attributes), IconMode::Text);
+    }
+
+    #[test]
+    fn alt_prefers_explicit_text_then_normalizes_the_target() {
+        let target = Source::Name("arrow-left");
+        let mut attributes = ElementAttributes::default();
+
+        assert_eq!(alt(&target, &attributes), "arrow left");
+
+        attributes.set("alt".into(), AttributeValue::String(Cow::Borrowed("Back")));
+        assert_eq!(alt(&target, &attributes), "Back");
+    }
+
+    #[test]
+    fn image_source_honors_directory_and_type_attributes() {
+        let target = Source::Name("arrow-left");
+        let mut attributes = DocumentAttributes::default();
+
+        assert_eq!(
+            image_source(&attributes, &target),
+            "./images/icons/arrow-left.png"
+        );
+
+        attributes.set(
+            "iconsdir".into(),
+            AttributeValue::String(Cow::Borrowed("assets/icons/")),
+        );
+        attributes.set("icons".into(), AttributeValue::String(Cow::Borrowed("svg")));
+        assert_eq!(
+            image_source(&attributes, &target),
+            "assets/icons/arrow-left.svg"
+        );
+
+        attributes.set(
+            "icontype".into(),
+            AttributeValue::String(Cow::Borrowed(".png")),
+        );
+        assert_eq!(
+            image_source(&attributes, &target),
+            "assets/icons/arrow-left.png"
+        );
     }
 }

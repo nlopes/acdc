@@ -143,7 +143,9 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
                 }
                 w.write_char(']')
             }
-            InlineMacro::Icon(icon) => write!(w, "[{}]", icon.target),
+            InlineMacro::Icon(icon) => {
+                write!(w, "[{}]", crate::icon::alt(&icon.target, &icon.attributes))
+            }
             InlineMacro::Footnote(footnote) => write!(w, "[{}]", footnote.number),
             InlineMacro::Stem(stem) => w.write_str(stem.content),
             InlineMacro::IndexTerm(_) | _ => Ok(()),

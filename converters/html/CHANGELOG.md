@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Inline icon macros use their explicit alternative text or a readable form of
+  their target in text and image modes. Image icons honor `iconsdir`,
+  `icontype`, and format values such as `icons=svg`, matching Asciidoctor.
 - Inline passthroughs now honor special-character, quote, attribute,
   replacement, macro, and post-replacement policies, including their written
   order and the `normal` and `verbatim` groups. Escaped delimiters, numeric

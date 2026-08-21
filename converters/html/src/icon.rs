@@ -1,6 +1,7 @@
 use std::fmt::Write as _;
 use std::io::{self, Write};
 
+use acdc_converters_core::icon::{IconMode, alt as icon_alt, image_source as icon_image_source};
 use acdc_parser::{
     AttributeValue, DocumentAttributes, ElementAttributes, ICON_SIZES, Icon, Source,
 };
@@ -47,9 +48,8 @@ pub(crate) fn write_icon<W: Write + ?Sized>(
         None => "icon".to_string(),
     };
 
-    // Determine icon mode based on document attribute
-    if let Some(icons_value) = processor.document_attributes.get("icons") {
-        if icons_value.to_string() == "font" {
+    match IconMode::from(&processor.document_attributes) {
+        IconMode::Font => {
             write_font_icon(
                 w,
                 target,
@@ -57,12 +57,14 @@ pub(crate) fn write_icon<W: Write + ?Sized>(
                 &processor.document_attributes,
                 &span_class,
             )?;
-        } else {
+        }
+        IconMode::Image => {
             write_image_icon(w, processor, target, attrs, &span_class)?;
         }
-    } else {
-        // Text mode: [target]
-        write!(w, "<span class=\"{span_class}\">[{target}]</span>")?;
+        IconMode::Text | _ => {
+            let alt = icon_alt(target, attrs);
+            write!(w, "<span class=\"{span_class}\">[{alt}]</span>")?;
+        }
     }
 
     Ok(())
@@ -157,19 +159,11 @@ fn write_image_icon<W: Write + ?Sized>(
     attrs: &ElementAttributes,
     span_class: &str,
 ) -> io::Result<()> {
-    // Get iconsdir (defaults to "./images/icons")
-    let iconsdir = processor
-        .document_attributes
-        .get("iconsdir")
-        .map_or_else(|| "./images/icons".to_string(), ToString::to_string);
-
-    // Build alt attribute (use custom alt or target name)
-    let alt = attrs
-        .get_string("alt")
-        .map_or_else(|| target.to_string(), std::borrow::Cow::into_owned);
+    let source = icon_image_source(&processor.document_attributes, target);
+    let alt = icon_alt(target, attrs);
 
     // Build img attributes
-    let mut img_attrs = format!("src=\"{iconsdir}/{target}.png\" alt=\"{alt}\"");
+    let mut img_attrs = format!("src=\"{source}\" alt=\"{alt}\"");
 
     if let Some(width) = attrs.get_string("width") {
         let _ = write!(img_attrs, " width=\"{width}\"");
