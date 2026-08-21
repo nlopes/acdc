@@ -76,3 +76,5 @@
 #text("Default text: ")#text("[arrow left]")#text(".")
 
 #text("Custom text: ")#text("[Love]")#text(".")
+
+#text("PDF ignores icon sizing and titles in text mode: ")#text("[heart]")#text(".")

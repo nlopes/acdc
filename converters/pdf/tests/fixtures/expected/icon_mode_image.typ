@@ -75,4 +75,6 @@
 
 #text("Available image: ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Diagram", height: 1em))#text(".")
 
+#text("PDF ignores icon sizing and titles in image mode: ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "inline image dimensions", height: 1em))#text(".")
+
 #text("Missing image: ")#text("[not-a-real-icon]")#text(".")

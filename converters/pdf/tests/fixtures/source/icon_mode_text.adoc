@@ -3,3 +3,5 @@
 Default text: icon:arrow-left[].
 
 Custom text: icon:heart[alt=Love].
+
+PDF ignores icon sizing and titles in text mode: icon:heart[2x,title=Heart tooltip].

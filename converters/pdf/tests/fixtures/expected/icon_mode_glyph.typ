@@ -75,4 +75,24 @@
 
 #text("Supported glyphs: ")#text("♥")#text(" ")#text("←")#text(".")
 
+#text("Default size: ")#text("♥")#text(".")
+
+#text("One times: ")#text("♥")#text(".")
+
+#text("Two times: ")#text(size: 2em)[#text("♥")]#text(".")
+
+#text("Three times: ")#text(size: 3em)[#text("♥")]#text(".")
+
+#text("Four times: ")#text(size: 4em)[#text("♥")]#text(".")
+
+#text("Five times: ")#text(size: 5em)[#text("♥")]#text(".")
+
+#text("Large: ")#text(size: 1.333em)[#text("♥")]#text(".")
+
+#text("Fixed width: A")#box(width: 1em)[#align(center)[#text("←")]]#text("B.")
+
+#text("Named size: ")#text(size: 3em)[#text("♥")]#text(".")
+
+#text("Title is HTML-only: ")#text("♥")#text(".")
+
 #text("Unsupported glyph: ")#text("[Missing]")#text(".")

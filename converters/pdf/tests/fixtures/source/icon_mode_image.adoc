@@ -4,4 +4,6 @@
 
 Available image: icon:inline-image-dimensions[alt=Diagram].
 
+PDF ignores icon sizing and titles in image mode: icon:inline-image-dimensions[2x,title=Diagram tooltip,width=48,height=24].
+
 Missing image: icon:not-a-real-icon[alt=Missing].

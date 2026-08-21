@@ -2216,7 +2216,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         match IconMode::from(self.processor.document_attributes()) {
             IconMode::Font => {
                 if let Some(glyph) = builtin_icon_glyph(&icon.target.to_string()) {
-                    self.write_text_expr(glyph);
+                    match icon.attributes.get_string("size").as_deref() {
+                        Some("2x") => self.write_sized_icon_glyph(glyph, "2em"),
+                        Some("3x") => self.write_sized_icon_glyph(glyph, "3em"),
+                        Some("4x") => self.write_sized_icon_glyph(glyph, "4em"),
+                        Some("5x") => self.write_sized_icon_glyph(glyph, "5em"),
+                        Some("lg") => self.write_sized_icon_glyph(glyph, "1.333em"),
+                        Some("fw") => {
+                            self.writer.raw("#box(width: 1em)[#align(center)[");
+                            self.write_text_expr(glyph);
+                            self.writer.raw("]]");
+                        }
+                        _ => self.write_text_expr(glyph),
+                    }
                 } else {
                     self.write_text_expr(&format!("[{alt}]"));
                 }
@@ -2235,6 +2247,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             IconMode::Text | _ => self.write_text_expr(&format!("[{alt}]")),
         }
+    }
+
+    fn write_sized_icon_glyph(&mut self, glyph: &str, size: &str) {
+        self.writer.raw("#text(size: ");
+        self.writer.raw(size);
+        self.writer.raw(")[");
+        self.write_text_expr(glyph);
+        self.writer.raw("]");
     }
 
     pub(crate) fn write_inline_macro(

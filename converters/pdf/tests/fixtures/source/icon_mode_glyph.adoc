@@ -3,4 +3,24 @@
 
 Supported glyphs: icon:heart[] icon:arrow-left[].
 
+Default size: icon:heart[].
+
+One times: icon:heart[1x].
+
+Two times: icon:heart[2x].
+
+Three times: icon:heart[3x].
+
+Four times: icon:heart[4x].
+
+Five times: icon:heart[5x].
+
+Large: icon:heart[lg].
+
+Fixed width: Aicon:arrow-left[fw]B.
+
+Named size: icon:heart[size=3x].
+
+Title is HTML-only: icon:heart[title=Heart tooltip].
+
 Unsupported glyph: icon:not-a-real-icon[alt=Missing].

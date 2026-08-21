@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline icons now support text, built-in glyph, and image modes. Text and
   missing-glyph fallbacks use the icon alternative text; image mode honors
   `iconsdir` and `icontype`, including `icons=svg` and similar format values.
+  Font icons honor the `1x` through `5x`, `lg`, and `fw` sizes. Asciidoctor
+  PDF ignores icon titles and image dimensions, so ACDC does too.
 - Inline passthroughs now honor special-character, quote, attribute,
   replacement, macro, and post-replacement policies, including their written
   order and the `normal` and `verbatim` groups. Escaped delimiters, numeric
