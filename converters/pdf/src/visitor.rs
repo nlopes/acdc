@@ -122,6 +122,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_section(&mut self, section: &Section<'_>) -> Result<(), Self::Error> {
+        let is_index_section = section.kind == acdc_parser::SectionKind::Index;
+        let id =
+            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
+        if is_index_section && !self.index_section_is_populated(&id) {
+            return Ok(());
+        }
         let in_asciidoc_table_cell = self.in_asciidoc_table_cell();
         if !in_asciidoc_table_cell && self.section_break_before(section) {
             self.writer.raw("#pagebreak(weak: true)\n\n");
@@ -145,9 +151,6 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         });
 
         let heading_level = level.max(1);
-        let id =
-            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
-
         if self.doctype == Doctype::Article && section.kind == acdc_parser::SectionKind::Abstract {
             self.write_abstract_title(&section.title)?;
             if !id.is_empty() {
@@ -182,7 +185,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             let _ = write!(self.writer, " <{}>", encode_label(&id));
         }
         self.writer.raw("\n\n");
-        self.write_blocks(&section.content)
+        if is_index_section {
+            self.write_index_catalog();
+            Ok(())
+        } else {
+            self.write_blocks(&section.content)
+        }
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph<'_>) -> Result<(), Self::Error> {

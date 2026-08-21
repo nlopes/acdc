@@ -1,0 +1,8 @@
+= Index page sequence
+:reproducible:
+:index-pagenum-sequence-style: page
+
+Same-page ((term)) and ((term)).
+
+[index]
+== Index

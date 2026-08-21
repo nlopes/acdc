@@ -1,7 +1,7 @@
 #set document(
-  title: "Book Special Section Numbering",
+  title: "Index range sequence",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Book Special Section Numbering]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Index range sequence]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -68,96 +68,20 @@
   text(weight: 700, body)
 }
 
-#page(header: none, footer: none)[
-#v(30%)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Book Special Section Numbering")]
+#text(size: 22pt, weight: "bold")[#text("Index range sequence")]
 ]
-#counter(page).update(0)
-]
+#v(1em)
 
-#heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
-#let _acdc_toc_entry(target, depth, body) = context {
-  link(
-    target,
-    pad(
-      left: depth * 1.25em,
-      grid(
-        columns: (auto, 1fr, auto),
-        column-gutter: 0.5em,
-        body,
-        repeat[.],
-        str(counter(page).at(target).first()),
-      ),
-    ),
-  )
-}
-#_acdc_toc_entry(<id-5f70726566616365>, 0, [#text("Preface")])
-#_acdc_toc_entry(<id-5f707265666163655f746f706963>, 1, [#text("Preface Topic")])
-#_acdc_toc_entry(<id-5f6162737472616374>, 0, [#text("1. ")#text("Abstract")])
-#_acdc_toc_entry(<id-5f61627374726163745f746f706963>, 1, [#text("1.1. ")#text("Abstract Topic")])
-#_acdc_toc_entry(<id-5f64656469636174696f6e>, 0, [#text("Dedication")])
-#_acdc_toc_entry(<id-5f636f6c6f70686f6e>, 0, [#text("Colophon")])
-#_acdc_toc_entry(<id-5f66697273745f63686170746572>, 0, [#text("2. ")#text("First Chapter")])
-#_acdc_toc_entry(<id-5f66697273745f746f706963>, 1, [#text("2.1. ")#text("First Topic")])
-#_acdc_toc_entry(<id-5f676c6f7373617279>, 0, [#text("Glossary")])
-#_acdc_toc_entry(<id-5f6269626c696f677261706879>, 0, [#text("Bibliography")])
-#_acdc_toc_entry(<id-5f617070656e6469785f6d6174657269616c>, 0, [#text("Appendix A: ")#text("Appendix Material")])
-#_acdc_toc_entry(<id-5f617070656e6469785f746f706963>, 1, [#text("A.1. ")#text("Appendix Topic")])
-#_acdc_toc_entry(<id-5f7365636f6e645f63686170746572>, 0, [#text("3. ")#text("Second Chapter")])
-#_acdc_toc_entry(<id-5f7365636f6e645f746f706963>, 1, [#text("3.1. ")#text("Second Topic")])
-#_acdc_toc_entry(<id-5f696e646578>, 0, [#text("Index")])
+#text("First ")#metadata(none) <__indexterm-1>#text("term")#text(".")
+
 #pagebreak()
 
-#pagebreak(weak: true)
+#text("Second ")#metadata(none) <__indexterm-2>#text("term")#text(".")
 
-#heading(level: 1)[#text("Preface")] <id-5f70726566616365>
+#pagebreak()
 
-#heading(level: 2)[#text("Preface Topic")] <id-5f707265666163655f746f706963>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Chapter 1. ")#text("Abstract")] <id-5f6162737472616374>
-
-#heading(level: 2)[#text("1.1. ")#text("Abstract Topic")] <id-5f61627374726163745f746f706963>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Dedication")] <id-5f64656469636174696f6e>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Colophon")] <id-5f636f6c6f70686f6e>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Chapter 2. ")#text("First Chapter")] <id-5f66697273745f63686170746572>
-
-#heading(level: 2)[#text("2.1. ")#text("First Topic")] <id-5f66697273745f746f706963>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Glossary")] <id-5f676c6f7373617279>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Bibliography")] <id-5f6269626c696f677261706879>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Appendix A: ")#text("Appendix Material")] <id-5f617070656e6469785f6d6174657269616c>
-
-#heading(level: 2)[#text("A.1. ")#text("Appendix Topic")] <id-5f617070656e6469785f746f706963>
-
-#pagebreak(weak: true)
-
-#heading(level: 1)[#text("Chapter 3. ")#text("Second Chapter")] <id-5f7365636f6e645f63686170746572>
-
-#heading(level: 2)[#text("3.1. ")#text("Second Topic")] <id-5f7365636f6e645f746f706963>
-
-#text("A concealed index term ")#metadata(none) <__indexterm-1>#text(".")
-
-#pagebreak(weak: true)
+#text("Third ")#metadata(none) <__indexterm-3>#text("term")#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 
@@ -192,6 +116,6 @@
     [, ] + pages.join[, ]
   }
 }
-#text(weight: "bold")[#text("A")]
+#text(weight: "bold")[#text("T")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("alpha")#_acdc_index_pages((<__indexterm-1>,), "term")]
+#par(hanging-indent: 1em)[#text("term")#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,<__indexterm-3>,), "range")]

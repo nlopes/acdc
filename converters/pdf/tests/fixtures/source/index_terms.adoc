@@ -1,0 +1,36 @@
+= Index term rendering
+:reproducible:
+
+[index]
+== Empty index is omitted
+
+This content is ignored.
+
+== First occurrences
+
+Visible ((Zebra)) and indexterm2:[apple].
+
+Concealed (((Animal, Mammal, Zebra)))indexterm:[Animal, Mammal, Cat]
+and (((42 tools))).
+
+<<<
+
+== Repeated occurrences
+
+Repeated ((Zebra)), lower-case ((animal)), upper-case ((Animal)), and
+indexterm:[Animal, Bird].
+
+<<<
+
+== Same-page occurrences
+
+Same-page repeats: ((Zebra)) and ((Zebra)).
+
+[index]
+== Generated index
+
+This content is also ignored.
+
+== Later terms are not in the earlier index
+
+Later ((After)).

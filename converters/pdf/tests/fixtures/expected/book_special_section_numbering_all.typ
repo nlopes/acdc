@@ -149,8 +149,43 @@
 
 #heading(level: 1)[#text("Chapter 7. ")#text("A Chapter")] <id-5f615f63686170746572>
 
-#text("A concealed index term ")#text(".")
+#text("A concealed index term ")#metadata(none) <__indexterm-1>#text(".")
 
 #pagebreak(weak: true)
 
 #heading(level: 1)[#text("Chapter 8. ")#text("Index")] <id-5f696e646578>
+
+#let _acdc_index_pages(targets, sequence) = context {
+  let occurrences = targets.map(target => (target, counter(page).at(target).first()))
+  if sequence == "page" or sequence == "range" {
+    occurrences = occurrences.dedup(key: occurrence => occurrence.last())
+  }
+  let linked = occurrence => link(
+    occurrence.first(),
+    counter(page).display(at: occurrence.first()),
+  )
+  let pages = if sequence == "range" {
+    let ranges = ()
+    for occurrence in occurrences {
+      if ranges.len() > 0 and occurrence.last() == ranges.last().last().last() + 1 {
+        let previous = ranges.pop()
+        ranges.push((previous.first(), occurrence))
+      } else {
+        ranges.push((occurrence, occurrence))
+      }
+    }
+    ranges.map(range => if range.first().last() == range.last().last() {
+      linked(range.first())
+    } else {
+      linked(range.first()) + [-] + linked(range.last())
+    })
+  } else {
+    occurrences.map(linked)
+  }
+  if pages.len() > 0 {
+    [, ] + pages.join[, ]
+  }
+}
+#text(weight: "bold")[#text("A")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("alpha")#_acdc_index_pages((<__indexterm-1>,), "term")]

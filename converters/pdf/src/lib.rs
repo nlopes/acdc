@@ -9,7 +9,7 @@
 
 use std::{
     cell::Cell,
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, HashSet},
     fmt::Write as _,
     fs::File,
     io::Read,
@@ -41,6 +41,7 @@ use acdc_pdf_typst::{
 
 mod converter;
 mod error;
+mod index;
 mod pdf_visitor;
 mod visitor;
 
@@ -125,7 +126,15 @@ impl Processor<'_> {
         let assets = ImageMap::new();
         let font_dirs = self.pdf_options.font_dirs.clone();
         let emit_options = self.emit_options(doc, None, &font_dirs, diagnostics);
-        self.emit_typst_source(doc, &assets, &theme, &emit_options, diagnostics)
+        let preparation = collect_pdf_preparation(doc);
+        self.emit_typst_source(
+            doc,
+            &assets,
+            &theme,
+            &emit_options,
+            &preparation,
+            diagnostics,
+        )
     }
 
     pub(crate) fn options(&self) -> &Options {
@@ -167,7 +176,14 @@ impl Processor<'_> {
 
         let emit_start = Instant::now();
         let emit_options = self.emit_options(doc, logo, &font_dirs, diagnostics);
-        let typst = self.emit_typst_source(doc, &assets, &theme, &emit_options, diagnostics)?;
+        let typst = self.emit_typst_source(
+            doc,
+            &assets,
+            &theme,
+            &emit_options,
+            &preparation,
+            diagnostics,
+        )?;
         self.write_debug_typst(&typst)?;
         let emit_duration = emit_start.elapsed();
 
@@ -195,6 +211,7 @@ impl Processor<'_> {
         assets: &ImageMap,
         theme: &Theme,
         emit_options: &EmitOptions,
+        preparation: &PdfPreparation,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
@@ -224,7 +241,8 @@ impl Processor<'_> {
             code_wrap_columns(theme, emit_options.page),
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
-        );
+        )
+        .with_populated_index_sections(preparation.populated_index_sections.clone());
         preamble::write(&mut visitor.writer, theme, emit_options);
         visitor.visit_document(doc)?;
         let mut source = visitor.writer.into_string();
@@ -681,6 +699,8 @@ struct PdfPreparation {
     ordinary_image_urls: BTreeSet<String>,
     image_icons: Vec<ImageIconReference>,
     unsupported_font_icons: Vec<String>,
+    has_index_terms: bool,
+    populated_index_sections: HashSet<String>,
 }
 
 struct ImageIconReference {
@@ -711,6 +731,18 @@ fn collect_block_preparation(
     for block in blocks {
         match block {
             Block::Section(section) => {
+                if section.kind == acdc_parser::SectionKind::Index {
+                    collect_inline_preparation(section.title.as_ref(), context, preparation);
+                    if preparation.has_index_terms {
+                        preparation.populated_index_sections.insert(
+                            acdc_parser::Section::generate_id_string(
+                                &section.metadata,
+                                section.title.as_ref(),
+                            ),
+                        );
+                    }
+                    continue;
+                }
                 collect_inline_preparation(section.title.as_ref(), context, preparation);
                 collect_block_preparation(&section.content, context, preparation);
             }
@@ -903,6 +935,9 @@ fn collect_inline_preparation(
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 collect_inline_preparation(&xref.text, context, preparation);
+            }
+            InlineNode::Macro(InlineMacro::IndexTerm(_)) => {
+                preparation.has_index_terms = true;
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -1605,6 +1640,7 @@ mod tests {
             &assets,
             &theme,
             &emit_options,
+            &collect_pdf_preparation(parsed.document()),
             &mut diagnostics,
         )?;
         assert!(

@@ -33,6 +33,7 @@ The backend currently renders:
 * automatic, preamble, and macro-placed tables of contents, including custom titles and depth
 * bold, italic, monospace, highlight, subscript, and superscript text
 * links, cross-references, footnotes, inline anchors, and common UI macros
+* visible and concealed index terms with generated, page-linked index catalogs
 * ordered, unordered, description, checklist, and callout lists
 * tables with widths, page placement, semantic repeating headers, column/row spans, frames, grids, and row stripes
 * admonitions, quotes, thematic breaks, and page breaks
@@ -47,6 +48,10 @@ The backend currently renders:
 The backend is intentionally incomplete.
 Audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
+
+Index term labels currently render as plain text. Inline formatting in a term
+is displayed as source markup, and index catalogs do not yet support
+`%notitle`, theme-controlled columns, or print-specific page sequences.
 
 Inline icons use text when `icons` is unset, bundled Unicode glyphs when
 `icons=font`, and files from `iconsdir` for other set values.
@@ -82,6 +87,19 @@ Native side wrapping is tracked in https://github.com/typst/typst/issues/5181[Ty
 
 Raw inline passthrough content is always emitted through Typst's escaped text boundary.
 Unlike Asciidoctor PDF, backend-specific markup in `+++...+++` or `pass:[]` is displayed literally and cannot execute Typst code.
+
+== Index catalogs
+
+Add an `[index]` section to generate a catalog from all index terms that occur
+before that section. Visible `((term))` and `indexterm2:[term]` forms remain in
+the document. Concealed `(((primary, secondary, tertiary)))` and
+`indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
+
+Each page number links to the exact term occurrence. The default lists every
+occurrence. Set `:index-pagenum-sequence-style: page` to list each page once,
+or set it to `range` to combine consecutive pages. An empty index section is
+omitted, and content inside an index section is ignored, matching Asciidoctor
+PDF.
 
 == Document language
 

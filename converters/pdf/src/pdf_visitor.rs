@@ -34,6 +34,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
+    index::{IndexCatalog, PageSequenceStyle},
 };
 
 #[derive(Clone, Copy, Default)]
@@ -120,7 +121,9 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     text_boundaries: TextBoundaries,
     toc_entries: Vec<TocEntry<'a>>,
     toc_written: bool,
+    populated_index_sections: HashSet<String>,
     bibliography_backlinks_written: HashSet<String>,
+    index_catalog: IndexCatalog,
 }
 
 #[derive(PartialEq, Eq)]
@@ -236,8 +239,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             text_boundaries: TextBoundaries::BOTH,
             toc_entries,
             toc_written: false,
+            populated_index_sections: HashSet::new(),
             bibliography_backlinks_written: HashSet::new(),
+            index_catalog: IndexCatalog::default(),
         }
+    }
+
+    pub(crate) fn with_populated_index_sections(mut self, sections: HashSet<String>) -> Self {
+        self.populated_index_sections = sections;
+        self
+    }
+
+    pub(crate) fn index_section_is_populated(&self, id: &str) -> bool {
+        self.populated_index_sections.contains(id)
+    }
+
+    pub(crate) fn write_index_catalog(&mut self) {
+        let sequence_style = PageSequenceStyle::from_attribute(
+            self.processor
+                .document_attributes()
+                .get_string("index-pagenum-sequence-style")
+                .as_deref(),
+        );
+        self.index_catalog.write(&mut self.writer, sequence_style);
     }
 
     pub(crate) fn section_break_before(&mut self, section: &Section<'_>) -> bool {
@@ -330,6 +354,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 hidden_article_abstract_level = Some(entry.level);
                 continue;
             }
+            if entry.kind == SectionKind::Index && !self.populated_index_sections.contains(entry.id)
+            {
+                continue;
+            }
             if entry.level > config.levels() {
                 continue;
             }
@@ -355,7 +383,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             if let Some(number) = number {
                 self.write_text_expr(&number);
             }
-            self.write_title(&entry.title)?;
+            self.write_title_without_recording_index_terms(&entry.title)?;
             self.writer.raw("])\n");
         }
         self.writer.raw("#pagebreak()\n\n");
@@ -374,6 +402,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_inlines(title.as_ref())?;
         }
         Ok(())
+    }
+
+    fn write_title_without_recording_index_terms(
+        &mut self,
+        title: &Title<'_>,
+    ) -> Result<(), Error> {
+        let previous = self.index_catalog.set_suspended(true);
+        let result = self.write_title(title);
+        self.index_catalog.set_suspended(previous);
+        result
     }
 
     pub(crate) fn write_inlines(&mut self, nodes: &[InlineNode<'_>]) -> Result<(), Error> {
@@ -2330,6 +2368,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_stem_fallback(stem.content, false);
             }
             InlineMacro::IndexTerm(term) => {
+                if let Some(anchor) = self.index_catalog.add(&term.kind) {
+                    let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+                }
                 if let IndexTermKind::Flow(text) = &term.kind {
                     self.write_text_expr(text);
                 }
@@ -2407,31 +2448,33 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         }
 
-        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+        let previous = self.index_catalog.set_suspended(true);
+        let result = match resolve_xref(references.get(xref.target), xref.target, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(inlines))?;
+                self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(inlines))
             }
-            XrefDisplay::Fallback(text) => {
-                self.write_labelled_link(xref.target, |visitor| {
-                    visitor.write_text_expr(&text);
-                    Ok(())
-                })?;
-            }
+            XrefDisplay::Fallback(text) => self.write_labelled_link(xref.target, |visitor| {
+                visitor.write_text_expr(&text);
+                Ok(())
+            }),
             XrefDisplay::Unresolved(text) | XrefDisplay::Nested(text) => {
                 self.write_text_expr(&text);
+                Ok(())
             }
             XrefDisplay::External(target) => {
                 if let Some((target, text)) = self.interdocument_xref(&target) {
                     self.write_external_link(&target, |visitor| {
                         visitor.write_text_expr(&text);
                         Ok(())
-                    })?;
+                    })
                 } else {
                     self.write_text_expr(&target);
+                    Ok(())
                 }
             }
-        }
-        Ok(())
+        };
+        self.index_catalog.set_suspended(previous);
+        result
     }
 
     fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {
