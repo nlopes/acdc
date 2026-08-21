@@ -27,8 +27,8 @@ use acdc_converters_core::{
     xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, CaptionKind, DelimitedBlockType, Document, DocumentAttributes, InlineMacro,
-    InlineNode, ListItem, Reference, SafeMode, Source, Table, TableRow,
+    Author, Block, BlockMetadata, CaptionKind, DelimitedBlockType, Document, DocumentAttributes,
+    InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source, Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -51,7 +51,7 @@ pub use error::Error;
 pub(crate) const BACKEND_TRAITS: BackendTraits =
     BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
-use pdf_visitor::PdfVisitor;
+use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
 
 const MAX_THEME_FILE_BYTES: usize = 1024 * 1024;
 
@@ -156,9 +156,10 @@ impl Processor<'_> {
             .tempdir()?;
 
         let asset_start = Instant::now();
-        let image_urls = collect_image_urls(doc);
+        let preparation = collect_pdf_preparation(doc);
+        Self::report_unsupported_font_icons(&preparation.unsupported_font_icons, diagnostics);
         let mut assets =
-            self.resolve_images(doc, &image_urls, source_file, spool.path(), diagnostics)?;
+            self.resolve_images(doc, &preparation, source_file, spool.path(), diagnostics)?;
         let resolved_document_image_count = assets.images().count();
         let font_dirs = self.pdf_options.font_dirs.clone();
         let logo = self.resolve_logo(&mut assets, spool.path(), diagnostics)?;
@@ -292,12 +293,12 @@ impl Processor<'_> {
     fn resolve_images(
         &self,
         doc: &Document<'_>,
-        image_urls: &[String],
+        preparation: &PdfPreparation,
         source_file: Option<&Path>,
         spool_dir: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<ImageMap, Error> {
-        if image_urls.is_empty() {
+        if preparation.image_urls.is_empty() {
             return Ok(ImageMap::new());
         }
         let base_dir = base_dir_for_source(source_file);
@@ -307,15 +308,66 @@ impl Processor<'_> {
         );
         let mut config = ResolveConfig::new(base_dir, spool_dir);
         config.source_policy = source_policy;
-        let url_refs: Vec<&str> = image_urls.iter().map(String::as_str).collect();
+        let url_refs: Vec<&str> = preparation.image_urls.iter().map(String::as_str).collect();
         let resolved = resolve(&url_refs, &config);
-        self.report_asset_failures(
-            "image",
-            "render fallback text for that image",
-            resolved.failures,
-            diagnostics,
-        )?;
+        self.report_image_failures(preparation, resolved.failures, diagnostics)?;
         Ok(resolved.assets)
+    }
+
+    fn report_unsupported_font_icons(icon_names: &[String], diagnostics: &mut Diagnostics<'_>) {
+        for icon_name in icon_names {
+            diagnostics.warn_with_advice(
+                format!("{icon_name} is not a valid icon name in the built-in icon set"),
+                "The PDF will use the icon's alternative text. Use a supported built-in icon or switch to image icon mode and provide the icon file.",
+            );
+        }
+    }
+
+    fn report_image_failures(
+        &self,
+        preparation: &PdfPreparation,
+        failures: Vec<ResolveFailure>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Error> {
+        if failures.is_empty() {
+            return Ok(());
+        }
+        if self.pdf_options.strict_assets {
+            return self.report_asset_failures(
+                "image",
+                "render fallback text for that image",
+                failures,
+                diagnostics,
+            );
+        }
+
+        let failures_by_url = failures
+            .iter()
+            .map(|failure| (failure.url.as_str(), &failure.error))
+            .collect::<HashMap<_, _>>();
+        for failure in &failures {
+            if preparation.ordinary_image_urls.contains(&failure.url) {
+                diagnostics.warn_with_advice(
+                    format!(
+                        "image {} could not be embedded: {}",
+                        failure.url, failure.error
+                    ),
+                    "The PDF will render fallback text for that image.",
+                );
+            }
+        }
+        for icon in &preparation.image_icons {
+            if let Some(error) = failures_by_url.get(icon.source.as_str()) {
+                diagnostics.warn_with_advice(
+                    format!(
+                        "image icon for '{}' not found or not readable at {}: {error}",
+                        icon.target, icon.source
+                    ),
+                    format!("The PDF will render [{}] instead.", icon.target),
+                );
+            }
+        }
+        Ok(())
     }
 
     fn resolve_logo(
@@ -602,86 +654,120 @@ fn author_name(author: &Author<'_>) -> String {
     .join(" ")
 }
 
-fn collect_image_urls(doc: &Document<'_>) -> Vec<String> {
-    let mut urls = BTreeSet::new();
-    let context = ImageCollectionContext {
+fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
+    let mut preparation = PdfPreparation::default();
+    let context = PreparationContext {
         attributes: &doc.attributes,
         icon_mode: IconMode::from(&doc.attributes),
     };
     if let Some(header) = &doc.header {
-        collect_inline_images(header.title.as_ref(), &context, &mut urls);
+        collect_inline_preparation(header.title.as_ref(), &context, &mut preparation);
         if let Some(subtitle) = &header.subtitle {
-            collect_inline_images(subtitle.as_ref(), &context, &mut urls);
+            collect_inline_preparation(subtitle.as_ref(), &context, &mut preparation);
         }
     }
-    collect_block_images(&doc.blocks, &context, &mut urls);
-    urls.into_iter().collect()
+    collect_block_preparation(&doc.blocks, &context, &mut preparation);
+    preparation
 }
 
-struct ImageCollectionContext<'attributes, 'source> {
+struct PreparationContext<'attributes, 'source> {
     attributes: &'attributes DocumentAttributes<'source>,
     icon_mode: IconMode,
 }
 
-fn collect_block_images(
+#[derive(Default)]
+struct PdfPreparation {
+    image_urls: BTreeSet<String>,
+    ordinary_image_urls: BTreeSet<String>,
+    image_icons: Vec<ImageIconReference>,
+    unsupported_font_icons: Vec<String>,
+}
+
+struct ImageIconReference {
+    source: String,
+    target: String,
+}
+
+impl PdfPreparation {
+    fn insert_image(&mut self, source: String) {
+        self.image_urls.insert(source.clone());
+        self.ordinary_image_urls.insert(source);
+    }
+
+    fn insert_image_icon(&mut self, source: String, target: &Source<'_>) {
+        self.image_urls.insert(source.clone());
+        self.image_icons.push(ImageIconReference {
+            source,
+            target: target.to_string(),
+        });
+    }
+}
+
+fn collect_block_preparation(
     blocks: &[Block<'_>],
-    context: &ImageCollectionContext<'_, '_>,
-    urls: &mut BTreeSet<String>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
 ) {
     for block in blocks {
         match block {
             Block::Section(section) => {
-                collect_inline_images(section.title.as_ref(), context, urls);
-                collect_block_images(&section.content, context, urls);
+                collect_inline_preparation(section.title.as_ref(), context, preparation);
+                collect_block_preparation(&section.content, context, preparation);
             }
             Block::Paragraph(paragraph) => {
-                collect_inline_images(paragraph.title.as_ref(), context, urls);
-                collect_inline_images(&paragraph.content, context, urls);
+                collect_inline_preparation(paragraph.title.as_ref(), context, preparation);
+                collect_metadata_preparation(&paragraph.metadata, context, preparation);
+                collect_inline_preparation(&paragraph.content, context, preparation);
             }
             Block::DelimitedBlock(block) => {
-                collect_inline_images(block.title.as_ref(), context, urls);
-                collect_delimited_block_images(&block.inner, context, urls);
+                collect_inline_preparation(block.title.as_ref(), context, preparation);
+                collect_metadata_preparation(&block.metadata, context, preparation);
+                collect_delimited_block_preparation(&block.inner, context, preparation);
             }
             Block::OrderedList(list) => {
-                collect_inline_images(list.title.as_ref(), context, urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_list_item_images(item, context, urls);
+                    collect_list_item_preparation(item, context, preparation);
                 }
             }
             Block::UnorderedList(list) => {
-                collect_inline_images(list.title.as_ref(), context, urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_list_item_images(item, context, urls);
+                    collect_list_item_preparation(item, context, preparation);
                 }
             }
             Block::DescriptionList(list) => {
-                collect_inline_images(list.title.as_ref(), context, urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_inline_images(&item.term, context, urls);
-                    collect_inline_images(&item.principal_text, context, urls);
-                    collect_block_images(&item.description, context, urls);
+                    collect_inline_preparation(&item.term, context, preparation);
+                    collect_inline_preparation(&item.principal_text, context, preparation);
+                    collect_block_preparation(&item.description, context, preparation);
                 }
             }
             Block::CalloutList(list) => {
-                collect_inline_images(list.title.as_ref(), context, urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_inline_images(&item.principal, context, urls);
-                    collect_block_images(&item.blocks, context, urls);
+                    collect_inline_preparation(&item.principal, context, preparation);
+                    collect_block_preparation(&item.blocks, context, preparation);
                 }
             }
             Block::Admonition(admonition) => {
-                collect_inline_images(admonition.title.as_ref(), context, urls);
-                collect_block_images(&admonition.blocks, context, urls);
+                collect_inline_preparation(admonition.title.as_ref(), context, preparation);
+                collect_block_preparation(&admonition.blocks, context, preparation);
             }
             Block::Image(image) => {
-                collect_inline_images(image.title.as_ref(), context, urls);
-                collect_source(&image.source, urls);
+                collect_inline_preparation(image.title.as_ref(), context, preparation);
+                preparation.insert_image(image.source.to_string());
             }
             Block::DiscreteHeader(header) => {
-                collect_inline_images(header.title.as_ref(), context, urls);
+                collect_inline_preparation(header.title.as_ref(), context, preparation);
             }
-            Block::Audio(audio) => collect_inline_images(audio.title.as_ref(), context, urls),
-            Block::Video(video) => collect_inline_images(video.title.as_ref(), context, urls),
+            Block::Audio(audio) => {
+                collect_inline_preparation(audio.title.as_ref(), context, preparation);
+            }
+            Block::Video(video) => {
+                collect_inline_preparation(video.title.as_ref(), context, preparation);
+            }
             Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
             | Block::ThematicBreak(_)
@@ -692,19 +778,21 @@ fn collect_block_images(
     }
 }
 
-fn collect_delimited_block_images(
+fn collect_delimited_block_preparation(
     block: &DelimitedBlockType<'_>,
-    context: &ImageCollectionContext<'_, '_>,
-    urls: &mut BTreeSet<String>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
 ) {
     match block {
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
         | DelimitedBlockType::DelimitedSidebar(blocks)
         | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_block_images(blocks, context, urls);
+            collect_block_preparation(blocks, context, preparation);
         }
-        DelimitedBlockType::DelimitedTable(table) => collect_table_images(table, context, urls),
+        DelimitedBlockType::DelimitedTable(table) => {
+            collect_table_preparation(table, context, preparation);
+        }
         DelimitedBlockType::DelimitedComment(_)
         | DelimitedBlockType::DelimitedListing(_)
         | DelimitedBlockType::DelimitedLiteral(_)
@@ -715,10 +803,10 @@ fn collect_delimited_block_images(
     }
 }
 
-fn collect_table_images(
+fn collect_table_preparation(
     table: &Table<'_>,
-    context: &ImageCollectionContext<'_, '_>,
-    urls: &mut BTreeSet<String>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
 ) {
     for row in table
         .header
@@ -726,68 +814,95 @@ fn collect_table_images(
         .chain(table.rows.iter())
         .chain(table.footer.iter())
     {
-        collect_table_row_images(row, context, urls);
+        for column in &row.columns {
+            collect_block_preparation(&column.content, context, preparation);
+        }
     }
 }
 
-fn collect_table_row_images(
-    row: &TableRow<'_>,
-    context: &ImageCollectionContext<'_, '_>,
-    urls: &mut BTreeSet<String>,
-) {
-    for column in &row.columns {
-        collect_block_images(&column.content, context, urls);
-    }
-}
-
-fn collect_list_item_images(
+fn collect_list_item_preparation(
     item: &ListItem<'_>,
-    context: &ImageCollectionContext<'_, '_>,
-    urls: &mut BTreeSet<String>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
 ) {
-    collect_inline_images(&item.principal, context, urls);
-    collect_block_images(&item.blocks, context, urls);
+    collect_inline_preparation(&item.principal, context, preparation);
+    collect_block_preparation(&item.blocks, context, preparation);
 }
 
-fn collect_inline_images(
+fn collect_metadata_preparation(
+    metadata: &BlockMetadata<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    if let Some(attribution) = &metadata.attribution {
+        collect_inline_preparation(attribution, context, preparation);
+    }
+    if let Some(citetitle) = &metadata.citetitle {
+        collect_inline_preparation(citetitle, context, preparation);
+    }
+}
+
+fn collect_inline_preparation(
     nodes: &[InlineNode<'_>],
-    context: &ImageCollectionContext<'_, '_>,
-    urls: &mut BTreeSet<String>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
 ) {
     for node in nodes {
         match node {
-            InlineNode::BoldText(text) => collect_inline_images(&text.content, context, urls),
-            InlineNode::ItalicText(text) => collect_inline_images(&text.content, context, urls),
-            InlineNode::MonospaceText(text) => collect_inline_images(&text.content, context, urls),
-            InlineNode::HighlightText(text) => collect_inline_images(&text.content, context, urls),
-            InlineNode::SubscriptText(text) => collect_inline_images(&text.content, context, urls),
+            InlineNode::BoldText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::ItalicText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::MonospaceText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::HighlightText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::SubscriptText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
             InlineNode::SuperscriptText(text) => {
-                collect_inline_images(&text.content, context, urls);
+                collect_inline_preparation(&text.content, context, preparation);
             }
             InlineNode::CurvedQuotationText(text) => {
-                collect_inline_images(&text.content, context, urls);
+                collect_inline_preparation(&text.content, context, preparation);
             }
             InlineNode::CurvedApostropheText(text) => {
-                collect_inline_images(&text.content, context, urls);
+                collect_inline_preparation(&text.content, context, preparation);
             }
-            InlineNode::Macro(InlineMacro::Image(image)) => collect_source(&image.source, urls),
-            InlineNode::Macro(InlineMacro::Icon(icon)) if context.icon_mode == IconMode::Image => {
-                urls.insert(icon_image_source(context.attributes, &icon.target));
+            InlineNode::Macro(InlineMacro::Image(image)) => {
+                preparation.insert_image(image.source.to_string());
             }
+            InlineNode::Macro(InlineMacro::Icon(icon)) => match context.icon_mode {
+                IconMode::Image => preparation.insert_image_icon(
+                    icon_image_source(context.attributes, &icon.target),
+                    &icon.target,
+                ),
+                IconMode::Font => {
+                    let icon_name = icon.target.to_string();
+                    if builtin_icon_glyph(&icon_name).is_none() {
+                        preparation.unsupported_font_icons.push(icon_name);
+                    }
+                }
+                IconMode::Text | _ => {}
+            },
             InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
-                collect_inline_images(&footnote.content, context, urls);
+                collect_inline_preparation(&footnote.content, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Url(url)) => {
-                collect_inline_images(&url.text, context, urls);
+                collect_inline_preparation(&url.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Link(link)) => {
-                collect_inline_images(&link.text, context, urls);
+                collect_inline_preparation(&link.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-                collect_inline_images(&mailto.text, context, urls);
+                collect_inline_preparation(&mailto.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                collect_inline_images(&xref.text, context, urls);
+                collect_inline_preparation(&xref.text, context, preparation);
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -800,10 +915,6 @@ fn collect_inline_images(
             | _ => {}
         }
     }
-}
-
-fn collect_source(source: &Source<'_>, urls: &mut BTreeSet<String>) {
-    urls.insert(source.to_string());
 }
 
 fn encode_label(value: &str) -> String {
@@ -829,7 +940,7 @@ fn encode_footnote_label(value: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use acdc_converters_core::{Converter, WarningSource};
+    use acdc_converters_core::{Converter, Warning, WarningSource};
     use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title};
     use tempfile::NamedTempFile;
 
@@ -841,6 +952,94 @@ mod tests {
             location: Location::default(),
             escaped: false,
         })])
+    }
+
+    fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+            assert!(rendered.pdf.starts_with(b"%PDF-"));
+        }
+        Ok(warnings)
+    }
+
+    #[test]
+    fn inline_icon_failures_warn_for_each_macro_occurrence()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let font_warnings = render_warnings(
+            ":icons: font\n\nicon:not-a-real-icon[] icon:another-missing[alt=Custom,size=2x,title=Title] icon:not-a-real-icon[] icon:heart[alt=Love,size=2x,title=Title]\n",
+        )?;
+        assert_eq!(font_warnings.len(), 3);
+        assert_eq!(
+            font_warnings
+                .iter()
+                .map(|warning| warning.message.as_ref())
+                .collect::<Vec<_>>(),
+            [
+                "not-a-real-icon is not a valid icon name in the built-in icon set",
+                "another-missing is not a valid icon name in the built-in icon set",
+                "not-a-real-icon is not a valid icon name in the built-in icon set",
+            ]
+        );
+
+        let directory = tempfile::tempdir()?;
+        std::fs::write(
+            directory.path().join("heart.svg"),
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0h10v10H0z"/></svg>"#,
+        )?;
+        let image_warnings = render_warnings(&format!(
+            ":icons: svg\n:iconsdir: {}\n\nicon:not-a-real-icon[] icon:another-missing[alt=Custom,size=2x,title=Title] icon:not-a-real-icon[] icon:heart[alt=Love,size=2x,title=Title]\n",
+            directory.path().display()
+        ))?;
+        assert_eq!(image_warnings.len(), 3);
+        assert!(
+            image_warnings
+                .iter()
+                .all(|warning| { warning.message.starts_with("image icon for '") })
+        );
+        assert_eq!(
+            image_warnings
+                .iter()
+                .map(|warning| {
+                    if warning.message.contains("'not-a-real-icon'") {
+                        Some("not-a-real-icon")
+                    } else if warning.message.contains("'another-missing'") {
+                        Some("another-missing")
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            [
+                Some("not-a-real-icon"),
+                Some("another-missing"),
+                Some("not-a-real-icon"),
+            ]
+        );
+
+        let text_warnings = render_warnings(
+            "icon:not-a-real-icon[] icon:not-a-real-icon[alt=Custom,size=2x,title=Title]\n",
+        )?;
+        assert!(text_warnings.is_empty(), "{text_warnings:?}");
+
+        let attribution_warnings = render_warnings(
+            ":icons: font\n\n[quote, 'icon:not-a-real-icon[]', 'icon:another-missing[]']\n____\nQuoted text.\n____\n",
+        )?;
+        assert_eq!(
+            attribution_warnings
+                .iter()
+                .map(|warning| warning.message.as_ref())
+                .collect::<Vec<_>>(),
+            [
+                "not-a-real-icon is not a valid icon name in the built-in icon set",
+                "another-missing is not a valid icon name in the built-in icon set",
+            ]
+        );
+        Ok(())
     }
 
     #[test]
@@ -1451,7 +1650,10 @@ mod tests {
         )?;
 
         assert_eq!(
-            collect_image_urls(parsed.document()),
+            collect_pdf_preparation(parsed.document())
+                .image_urls
+                .into_iter()
+                .collect::<Vec<_>>(),
             vec![
                 "block-title.png",
                 "body.png",

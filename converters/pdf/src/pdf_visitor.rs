@@ -3055,7 +3055,7 @@ fn inline_image_fallback_text(image: &Image<'_>) -> String {
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
 }
 
-fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
+pub(crate) fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
     match name {
         "arrow-down" => Some("↓"),
         "arrow-left" => Some("←"),
