@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Inline icons now support text, built-in glyph, and image modes. Text and
+  missing-glyph fallbacks use the icon alternative text; image mode honors
+  `iconsdir` and `icontype`, including `icons=svg` and similar format values.
 - Inline passthroughs now honor special-character, quote, attribute,
   replacement, macro, and post-replacement policies, including their written
   order and the `normal` and `verbatim` groups. Escaped delimiters, numeric

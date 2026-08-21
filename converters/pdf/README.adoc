@@ -45,8 +45,14 @@ The backend currently renders:
 == Known limitations
 
 The backend is intentionally incomplete.
-Inline icons, audio, video, and stem notation use escaped textual fallbacks.
+Audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
+
+Inline icons use text when `icons` is unset, bundled Unicode glyphs when
+`icons=font`, and files from `iconsdir` for other set values.
+The glyph mode covers common directional and status icons rather than the full
+Font Awesome catalog used by Asciidoctor PDF; an unknown name uses its text
+alternative.
 
 PDF output cannot preserve interactive open and closed states.
 Examples marked `%collapsible` always render expanded with a disclosure marker and their title, or `Details` when untitled.

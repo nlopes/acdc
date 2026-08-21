@@ -1,0 +1,7 @@
+= Image icon mode
+:icons: svg
+:iconsdir: .
+
+Available image: icon:inline-image-dimensions[alt=Diagram].
+
+Missing image: icon:not-a-real-icon[alt=Missing].

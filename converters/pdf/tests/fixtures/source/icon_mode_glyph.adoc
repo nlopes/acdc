@@ -1,0 +1,6 @@
+= Built-in glyph icon mode
+:icons: font
+
+Supported glyphs: icon:heart[] icon:arrow-left[].
+
+Unsupported glyph: icon:not-a-real-icon[alt=Missing].

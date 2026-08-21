@@ -22,11 +22,11 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
-    visitor::Visitor, xref::XrefGuard,
+    icon::IconMode, visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, CaptionKind, DelimitedBlockType, Document, DocumentAttributes, InlineMacro,
-    InlineNode, ListItem, Reference, SafeMode, Source, Table, TableRow,
+    Author, Block, CaptionKind, DelimitedBlockType, Document, DocumentAttributes, Icon,
+    InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source, Table, TableRow,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -602,69 +602,84 @@ fn author_name(author: &Author<'_>) -> String {
 
 fn collect_image_urls(doc: &Document<'_>) -> Vec<String> {
     let mut urls = BTreeSet::new();
+    let context = ImageCollectionContext {
+        attributes: &doc.attributes,
+        icon_mode: IconMode::from(&doc.attributes),
+    };
     if let Some(header) = &doc.header {
-        collect_inline_images(header.title.as_ref(), &mut urls);
+        collect_inline_images(header.title.as_ref(), &context, &mut urls);
         if let Some(subtitle) = &header.subtitle {
-            collect_inline_images(subtitle.as_ref(), &mut urls);
+            collect_inline_images(subtitle.as_ref(), &context, &mut urls);
         }
     }
-    collect_block_images(&doc.blocks, &mut urls);
+    collect_block_images(&doc.blocks, &context, &mut urls);
     urls.into_iter().collect()
 }
 
-fn collect_block_images(blocks: &[Block<'_>], urls: &mut BTreeSet<String>) {
+struct ImageCollectionContext<'attributes, 'source> {
+    attributes: &'attributes DocumentAttributes<'source>,
+    icon_mode: IconMode,
+}
+
+fn collect_block_images(
+    blocks: &[Block<'_>],
+    context: &ImageCollectionContext<'_, '_>,
+    urls: &mut BTreeSet<String>,
+) {
     for block in blocks {
         match block {
             Block::Section(section) => {
-                collect_inline_images(section.title.as_ref(), urls);
-                collect_block_images(&section.content, urls);
+                collect_inline_images(section.title.as_ref(), context, urls);
+                collect_block_images(&section.content, context, urls);
             }
             Block::Paragraph(paragraph) => {
-                collect_inline_images(paragraph.title.as_ref(), urls);
-                collect_inline_images(&paragraph.content, urls);
+                collect_inline_images(paragraph.title.as_ref(), context, urls);
+                collect_inline_images(&paragraph.content, context, urls);
             }
             Block::DelimitedBlock(block) => {
-                collect_inline_images(block.title.as_ref(), urls);
-                collect_delimited_block_images(&block.inner, urls);
+                collect_inline_images(block.title.as_ref(), context, urls);
+                collect_delimited_block_images(&block.inner, context, urls);
             }
             Block::OrderedList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_images(list.title.as_ref(), context, urls);
                 for item in &list.items {
-                    collect_list_item_images(item, urls);
+                    collect_list_item_images(item, context, urls);
                 }
             }
             Block::UnorderedList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_images(list.title.as_ref(), context, urls);
                 for item in &list.items {
-                    collect_list_item_images(item, urls);
+                    collect_list_item_images(item, context, urls);
                 }
             }
             Block::DescriptionList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_images(list.title.as_ref(), context, urls);
                 for item in &list.items {
-                    collect_inline_images(&item.term, urls);
-                    collect_inline_images(&item.principal_text, urls);
-                    collect_block_images(&item.description, urls);
+                    collect_inline_images(&item.term, context, urls);
+                    collect_inline_images(&item.principal_text, context, urls);
+                    collect_block_images(&item.description, context, urls);
                 }
             }
             Block::CalloutList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_images(list.title.as_ref(), context, urls);
                 for item in &list.items {
-                    collect_inline_images(&item.principal, urls);
-                    collect_block_images(&item.blocks, urls);
+                    collect_inline_images(&item.principal, context, urls);
+                    collect_block_images(&item.blocks, context, urls);
                 }
             }
             Block::Admonition(admonition) => {
-                collect_inline_images(admonition.title.as_ref(), urls);
-                collect_block_images(&admonition.blocks, urls);
+                collect_inline_images(admonition.title.as_ref(), context, urls);
+                collect_block_images(&admonition.blocks, context, urls);
             }
             Block::Image(image) => {
-                collect_inline_images(image.title.as_ref(), urls);
+                collect_inline_images(image.title.as_ref(), context, urls);
                 collect_source(&image.source, urls);
             }
-            Block::DiscreteHeader(header) => collect_inline_images(header.title.as_ref(), urls),
-            Block::Audio(audio) => collect_inline_images(audio.title.as_ref(), urls),
-            Block::Video(video) => collect_inline_images(video.title.as_ref(), urls),
+            Block::DiscreteHeader(header) => {
+                collect_inline_images(header.title.as_ref(), context, urls);
+            }
+            Block::Audio(audio) => collect_inline_images(audio.title.as_ref(), context, urls),
+            Block::Video(video) => collect_inline_images(video.title.as_ref(), context, urls),
             Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
             | Block::ThematicBreak(_)
@@ -675,13 +690,19 @@ fn collect_block_images(blocks: &[Block<'_>], urls: &mut BTreeSet<String>) {
     }
 }
 
-fn collect_delimited_block_images(block: &DelimitedBlockType<'_>, urls: &mut BTreeSet<String>) {
+fn collect_delimited_block_images(
+    block: &DelimitedBlockType<'_>,
+    context: &ImageCollectionContext<'_, '_>,
+    urls: &mut BTreeSet<String>,
+) {
     match block {
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
         | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => collect_block_images(blocks, urls),
-        DelimitedBlockType::DelimitedTable(table) => collect_table_images(table, urls),
+        | DelimitedBlockType::DelimitedQuote(blocks) => {
+            collect_block_images(blocks, context, urls);
+        }
+        DelimitedBlockType::DelimitedTable(table) => collect_table_images(table, context, urls),
         DelimitedBlockType::DelimitedComment(_)
         | DelimitedBlockType::DelimitedListing(_)
         | DelimitedBlockType::DelimitedLiteral(_)
@@ -692,50 +713,79 @@ fn collect_delimited_block_images(block: &DelimitedBlockType<'_>, urls: &mut BTr
     }
 }
 
-fn collect_table_images(table: &Table<'_>, urls: &mut BTreeSet<String>) {
+fn collect_table_images(
+    table: &Table<'_>,
+    context: &ImageCollectionContext<'_, '_>,
+    urls: &mut BTreeSet<String>,
+) {
     for row in table
         .header
         .iter()
         .chain(table.rows.iter())
         .chain(table.footer.iter())
     {
-        collect_table_row_images(row, urls);
+        collect_table_row_images(row, context, urls);
     }
 }
 
-fn collect_table_row_images(row: &TableRow<'_>, urls: &mut BTreeSet<String>) {
+fn collect_table_row_images(
+    row: &TableRow<'_>,
+    context: &ImageCollectionContext<'_, '_>,
+    urls: &mut BTreeSet<String>,
+) {
     for column in &row.columns {
-        collect_block_images(&column.content, urls);
+        collect_block_images(&column.content, context, urls);
     }
 }
 
-fn collect_list_item_images(item: &ListItem<'_>, urls: &mut BTreeSet<String>) {
-    collect_inline_images(&item.principal, urls);
-    collect_block_images(&item.blocks, urls);
+fn collect_list_item_images(
+    item: &ListItem<'_>,
+    context: &ImageCollectionContext<'_, '_>,
+    urls: &mut BTreeSet<String>,
+) {
+    collect_inline_images(&item.principal, context, urls);
+    collect_block_images(&item.blocks, context, urls);
 }
 
-fn collect_inline_images(nodes: &[InlineNode<'_>], urls: &mut BTreeSet<String>) {
+fn collect_inline_images(
+    nodes: &[InlineNode<'_>],
+    context: &ImageCollectionContext<'_, '_>,
+    urls: &mut BTreeSet<String>,
+) {
     for node in nodes {
         match node {
-            InlineNode::BoldText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::ItalicText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::MonospaceText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::HighlightText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::SubscriptText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::SuperscriptText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::CurvedQuotationText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::CurvedApostropheText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::Macro(InlineMacro::Image(image)) => collect_source(&image.source, urls),
-            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
-                collect_inline_images(&footnote.content, urls);
+            InlineNode::BoldText(text) => collect_inline_images(&text.content, context, urls),
+            InlineNode::ItalicText(text) => collect_inline_images(&text.content, context, urls),
+            InlineNode::MonospaceText(text) => collect_inline_images(&text.content, context, urls),
+            InlineNode::HighlightText(text) => collect_inline_images(&text.content, context, urls),
+            InlineNode::SubscriptText(text) => collect_inline_images(&text.content, context, urls),
+            InlineNode::SuperscriptText(text) => {
+                collect_inline_images(&text.content, context, urls);
             }
-            InlineNode::Macro(InlineMacro::Url(url)) => collect_inline_images(&url.text, urls),
-            InlineNode::Macro(InlineMacro::Link(link)) => collect_inline_images(&link.text, urls),
+            InlineNode::CurvedQuotationText(text) => {
+                collect_inline_images(&text.content, context, urls);
+            }
+            InlineNode::CurvedApostropheText(text) => {
+                collect_inline_images(&text.content, context, urls);
+            }
+            InlineNode::Macro(InlineMacro::Image(image)) => collect_source(&image.source, urls),
+            InlineNode::Macro(InlineMacro::Icon(icon)) if context.icon_mode == IconMode::Image => {
+                urls.insert(icon_image_source(context.attributes, icon));
+            }
+            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
+                collect_inline_images(&footnote.content, context, urls);
+            }
+            InlineNode::Macro(InlineMacro::Url(url)) => {
+                collect_inline_images(&url.text, context, urls);
+            }
+            InlineNode::Macro(InlineMacro::Link(link)) => {
+                collect_inline_images(&link.text, context, urls);
+            }
             InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-                collect_inline_images(&mailto.text, urls);
+                collect_inline_images(&mailto.text, context, urls);
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                collect_inline_images(&xref.text, urls);
+                collect_inline_images(&xref.text, context, urls);
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -747,6 +797,27 @@ fn collect_inline_images(nodes: &[InlineNode<'_>], urls: &mut BTreeSet<String>) 
             | InlineNode::CalloutRef(_)
             | _ => {}
         }
+    }
+}
+
+fn icon_image_source(attributes: &DocumentAttributes<'_>, icon: &Icon<'_>) -> String {
+    let directory = attributes
+        .get_string("iconsdir")
+        .unwrap_or_else(|| "./images/icons".into());
+    let extension = attributes
+        .get_string("icontype")
+        .or_else(|| {
+            attributes.get_string("icons").filter(|value| {
+                !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
+            })
+        })
+        .unwrap_or_else(|| "png".into());
+    let directory = directory.trim_end_matches(['/', '\\']);
+    let extension = extension.trim_start_matches('.');
+    if directory.is_empty() {
+        format!("{}.{extension}", icon.target)
+    } else {
+        format!("{directory}/{}.{extension}", icon.target)
     }
 }
 

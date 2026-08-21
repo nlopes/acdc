@@ -7,6 +7,7 @@ use acdc_converters_core::substitutions::{SubsFlags, apply_replacements, effecti
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform,
     code::{SourceLineOptions, detect_language, source_line_count},
+    icon::IconMode,
     inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback},
     list::OrderedListNumbering,
@@ -20,8 +21,8 @@ use acdc_converters_core::{
 use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DescriptionList, DescriptionListItem, ElementAttributes,
-    HorizontalAlignment, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu, Paragraph,
-    Raw, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
+    HorizontalAlignment, Icon, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu,
+    Paragraph, Raw, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
     TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
@@ -33,6 +34,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
+    icon_image_source,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -2210,6 +2212,32 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
     }
 
+    fn write_icon(&mut self, icon: &Icon<'_>) {
+        let alt = icon_alt(icon);
+        match IconMode::from(self.processor.document_attributes()) {
+            IconMode::Font => {
+                if let Some(glyph) = builtin_icon_glyph(&icon.target.to_string()) {
+                    self.write_text_expr(glyph);
+                } else {
+                    self.write_text_expr(&format!("[{alt}]"));
+                }
+            }
+            IconMode::Image => {
+                let source = icon_image_source(self.processor.document_attributes(), icon);
+                if let Some(asset) = self.assets.get(&source) {
+                    self.writer.raw("#box(image(");
+                    self.writer.string_literal(&asset.virtual_path);
+                    self.writer.raw(", alt: ");
+                    self.writer.string_literal(&alt);
+                    self.writer.raw(", height: 1em))");
+                } else {
+                    self.write_text_expr(&format!("[{}]", icon.target));
+                }
+            }
+            IconMode::Text | _ => self.write_text_expr(&format!("[{alt}]")),
+        }
+    }
+
     pub(crate) fn write_inline_macro(
         &mut self,
         inline_macro: &InlineMacro<'_>,
@@ -2234,10 +2262,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     }
                 }
             }
-            InlineMacro::Icon(icon) => {
-                self.warn_unsupported("inline icons", "rendering the icon name as text");
-                self.write_text_expr(&format!("[icon: {}]", icon.target));
-            }
+            InlineMacro::Icon(icon) => self.write_icon(icon),
             InlineMacro::Image(image) => self.write_inline_image(image),
             InlineMacro::Keyboard(keyboard) => {
                 for (index, key) in keyboard.keys.iter().enumerate() {
@@ -3009,6 +3034,34 @@ fn inline_image_fallback_text(image: &Image<'_>) -> String {
         .attributes
         .get_string("alt")
         .map_or_else(|| format!("[image: {}]", image.source), Cow::into_owned)
+}
+
+fn icon_alt(icon: &Icon<'_>) -> String {
+    icon.attributes.get_string("alt").map_or_else(
+        || icon.target.to_string().replace(['-', '_'], " "),
+        Cow::into_owned,
+    )
+}
+
+fn builtin_icon_glyph(name: &str) -> Option<&'static str> {
+    match name {
+        "arrow-down" => Some("↓"),
+        "arrow-left" => Some("←"),
+        "arrow-right" => Some("→"),
+        "arrow-up" => Some("↑"),
+        "check" => Some("✓"),
+        "circle-info" | "info-circle" | "info" => Some("ⓘ"),
+        "exclamation-triangle" | "triangle-exclamation" | "warning" => Some("⚠"),
+        "fire" => Some("🔥"),
+        "heart" => Some("♥"),
+        "lightbulb" | "lightbulb-o" => Some("💡"),
+        "minus" => Some("−"),
+        "plus" => Some("+"),
+        "question" | "circle-question" | "question-circle" => Some("?"),
+        "star" => Some("★"),
+        "times" | "xmark" => Some("×"),
+        _ => None,
+    }
 }
 
 fn block_image_default_alt(image: &Image<'_>) -> String {

@@ -1,0 +1,5 @@
+= Text icon mode
+
+Default text: icon:arrow-left[].
+
+Custom text: icon:heart[alt=Love].
