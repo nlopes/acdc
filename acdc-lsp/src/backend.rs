@@ -246,6 +246,10 @@ fn parse_workspace_settings(
 }
 
 impl LanguageServer for Backend {
+    #[allow(
+        clippy::unused_async_trait_impl,
+        reason = "match the LanguageServer trait declaration and the other LSP handlers"
+    )]
     async fn initialize(&self, params: InitializeParams) -> Result<InitializeResult> {
         tracing::info!("Initializing acdc-lsp");
         self.capture_client_features(&params);
@@ -415,6 +419,10 @@ impl LanguageServer for Backend {
         );
     }
 
+    #[allow(
+        clippy::unused_async_trait_impl,
+        reason = "match the LanguageServer trait declaration and the other LSP handlers"
+    )]
     async fn shutdown(&self) -> Result<()> {
         tracing::info!("Shutting down acdc-lsp");
         Ok(())
