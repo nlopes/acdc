@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--watermark`, `--watermark-timestamp`, `--page`, `--theme`, `--plain`,
   `--toc`, and `--emit-typst`; `--strict` now makes unresolved PDF images or
   logos fail instead of falling back with a warning.
+- Builds with the `execute` feature expose placeholder exact-ID, regex-ID,
+  dry-run, stop-on-failure, and parser safe-mode options for a future command
+  block runner. Invoking the command is not supported yet.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the
