@@ -124,6 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Syntax highlighting now uses giallo instead of syntect**, including giallo's
+  built-in grammar aliases and ANSI terminal renderer.
 - Terminal tables truncated to the available width now use a single ellipsis
   (`…`) as the truncation marker, leaving more space for cell content.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed

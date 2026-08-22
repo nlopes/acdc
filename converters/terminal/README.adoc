@@ -45,7 +45,7 @@ TERM=xterm-kitty
 
 ## Syntax Highlighting
 
-Code blocks with the `[source,language]` attribute get automatic syntax highlighting in the terminal using `syntect`. The terminal converter supports 40+ programming languages including:
+Code blocks with the `[source,language]` attribute get automatic syntax highlighting in the terminal using giallo. The built-in grammar set includes:
 
 - Rust, Python, JavaScript, TypeScript, Go, Java, C, C++
 - Bash, Shell scripting, Zsh, Fish

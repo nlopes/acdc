@@ -11,7 +11,7 @@ use theme::{ColorScheme, Theme};
 #[derive(Clone, Debug)]
 pub struct Appearance {
     /// Terminal theme (dark or light background)
-    /// Used by `syntect_theme()` when `highlighting` feature is enabled.
+    /// Used by `highlight_theme()` when `highlighting` feature is enabled.
     #[cfg(feature = "highlighting")]
     pub(crate) theme: Theme,
     /// Terminal capabilities (Unicode, OSC 8, etc.)
