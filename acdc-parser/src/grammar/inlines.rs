@@ -1190,7 +1190,7 @@ peg::parser! {
         = ("latexmath" / "asciimath" / "stem") ":[" ("\\\\" / "\\" ['[' | ']'] / [^(']' | '\\')]+ / "\\")* "]"
 
         rule inline_image() -> InlineNode<'input>
-        = "image:" source:source() attributes:image_macro_attributes()
+        = "image:" source:media_source() attributes:image_macro_attributes()
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
@@ -1248,7 +1248,7 @@ peg::parser! {
 
         /// Match inline image without consuming - for use in negative lookaheads.
         rule inline_image_match()
-        = "image:" source() "[" (!"]" [_])* "]"
+        = "image:" media_source() "[" (!"]" [_])* "]"
 
         /// Parse link macros with custom attribute handling.
         ///
@@ -2356,6 +2356,10 @@ peg::parser! {
         proto:$("https" / "http" / "ftp" / "irc") "://" path:url_path() { Cow::Owned(format!("{proto}://{path}")) }
         / "mailto:" email:email_address() { Cow::Owned(format!("mailto:{email}")) }
 
+        rule media_url() -> Cow<'input, str> =
+        proto:$("https" / "http" / "ftp" / "irc") "://" path:media_url_path() { Cow::Owned(format!("{proto}://{path}")) }
+        / "mailto:" email:email_address() { Cow::Owned(format!("mailto:{email}")) }
+
         /// Email address pattern (RFC 822 simplified)
         ///
         /// Local part: alphanumeric plus . _ % + -
@@ -2406,9 +2410,10 @@ peg::parser! {
             Ok(Cow::Owned(format!("{local}@{domain}")))
         }
 
-        /// URL path component - supports query params, fragments, encoding, etc.
-        /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
-        rule url_path() -> Cow<'input, str> = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
+        /// URL target content following `://`.
+        /// Supports query parameters, fragments, and percent escapes while excluding
+        /// brackets that delimit the macro attributes.
+        rule url_path() -> Cow<'input, str> = path:$(url_path_char()+)
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -2428,6 +2433,30 @@ peg::parser! {
             // from normalizing backslashes to forward slashes
             Ok(Cow::Owned(strip_url_backslash_escapes(&processed.text).into_owned()))
         }
+
+        /// URL target content for an inline media macro.
+        /// Spaces must be internal to the target.
+        rule media_url_path() -> Cow<'input, str> = path:$(url_path_char() (url_path_char() / internal_url_path_spaces())*)
+        {?
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
+                path,
+                state.line_map.clone(),
+                state.input,
+                state.arena,
+            );
+            let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
+            .map_err(|e| {
+                tracing::error!(?e, "could not preprocess media URL path");
+                "could not preprocess media URL path"
+            })?;
+            for warning in inline_state.drain_warnings() {
+                state.add_inline_preprocessor_warning(warning);
+            }
+            Ok(Cow::Owned(strip_url_backslash_escapes(&processed.text).into_owned()))
+        }
+
+        rule url_path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]
+        rule internal_url_path_spaces() = [' ']+ &url_path_char()
 
         /// URL for bare autolinks — avoids capturing trailing sentence punctuation
         /// (., ;, !, etc.) by only consuming punctuation when more URL chars follow.
@@ -2499,7 +2528,7 @@ peg::parser! {
         ///
         /// ASCII input uses a conservative filename set. Non-ASCII Unicode characters
         /// are accepted unchanged, and `{`/`}` permit `AsciiDoc` attribute substitution.
-        pub rule path() -> Cow<'input, str> = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '\u{80}'..='\u{10FFFF}' ]+)
+        pub rule path() -> Cow<'input, str> = path:$(path_char()+)
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -2518,6 +2547,31 @@ peg::parser! {
             Ok(processed.text)
         }
 
+        /// Filesystem path for an inline media target.
+        /// Existing percent escapes and internal spaces are preserved.
+        rule media_path() -> Cow<'input, str> = path:$(media_path_char() (media_path_char() / internal_media_path_spaces())*)
+        {?
+            let inline_state = InlinePreprocessorParserState::new_all_enabled(
+                path,
+                state.line_map.clone(),
+                state.input,
+                state.arena,
+            );
+            let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
+            .map_err(|e| {
+                tracing::error!(?e, "could not preprocess media path");
+                "could not preprocess media path"
+            })?;
+            for warning in inline_state.drain_warnings() {
+                state.add_inline_preprocessor_warning(warning);
+            }
+            Ok(processed.text)
+        }
+
+        rule path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '\u{80}'..='\u{10FFFF}' ]
+        rule media_path_char() = path_char() / "%"
+        rule internal_media_path_spaces() = [' ']+ &media_path_char()
+
         pub rule source() -> Source<'input>
             = source:
         (
@@ -2531,6 +2585,23 @@ peg::parser! {
             / p:path() {?
                 let interned = state.intern_cow(p);
                 Source::from_str_borrowed(interned).map_err(|_| "failed to parse path")
+            }
+        )
+        { source }
+
+        rule media_source() -> Source<'input>
+            = source:
+        (
+            p:passthrough_placeholder() {
+                Source::Name(p)
+            }
+            / u:media_url() {?
+                let interned = state.intern_cow(u);
+                Source::from_str_borrowed(interned).map_err(|_| "failed to parse media URL")
+            }
+            / p:media_path() {?
+                let interned = state.intern_cow(p);
+                Source::from_str_borrowed(interned).map_err(|_| "failed to parse media path")
             }
         )
         { source }

@@ -197,6 +197,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block image, audio, and video macros and inline image macros accept local and
+  remote targets with internal spaces, as well as already percent-encoded local
+  targets. Leading and trailing target whitespace remains invalid, matching
+  Asciidoctor.
 - Index-term inline nodes preserve their source locations inside passthroughs
   and formatted spans.
 - Inline passthroughs apply `c`, `q`, `a`, `r`, `m`, and `p` substitutions in

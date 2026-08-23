@@ -5892,9 +5892,11 @@ peg::parser! {
             Ok(format!("{local}@{domain}"))
         }
 
-        /// URL path component - supports query params, fragments, encoding, etc.
-        /// Excludes '[' and ']' to respect AsciiDoc macro/attribute boundaries
-        rule url_path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]+)
+        /// URL target content following `://`.
+        /// Supports query parameters, fragments, and percent escapes while excluding
+        /// brackets that delimit the macro attributes.
+        /// Spaces must be internal to the target.
+        rule url_path() -> String = path:$(url_path_char() (url_path_char() / internal_url_path_spaces())*)
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -5917,6 +5919,9 @@ peg::parser! {
             }
             Ok(result)
         }
+
+        rule url_path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]
+        rule internal_url_path_spaces() = [' ']+ &url_path_char()
 
         /// URL for bare autolinks — avoids capturing trailing sentence punctuation
         /// (., ;, !, etc.) by only consuming punctuation when more URL chars follow.
@@ -5991,7 +5996,8 @@ peg::parser! {
         ///
         /// ASCII input uses a conservative filename set. Non-ASCII Unicode characters
         /// are accepted unchanged, and `{`/`}` permit `AsciiDoc` attribute substitution.
-        pub rule path() -> String = path:$(['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '\u{80}'..='\u{10FFFF}' ]+)
+        /// Existing percent escapes and internal spaces are preserved.
+        pub rule path() -> String = path:$(path_char() (path_char() / internal_path_spaces())*)
         {?
             let inline_state = InlinePreprocessorParserState::new_all_enabled(
                 path,
@@ -6012,6 +6018,9 @@ peg::parser! {
             }
             Ok(result)
         }
+
+        rule path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '{' | '}' | '_' | '-' | '.' | '/' | '\\' | '%' | '\u{80}'..='\u{10FFFF}' ]
+        rule internal_path_spaces() = [' ']+ &path_char()
 
 
         pub rule source() -> Source<'input>
