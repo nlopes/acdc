@@ -115,8 +115,17 @@ impl IndexCatalog {
         Some(anchor)
     }
 
-    pub(crate) fn write(&self, writer: &mut Writer, sequence_style: PageSequenceStyle) {
+    pub(crate) fn write(
+        &self,
+        writer: &mut Writer,
+        sequence_style: PageSequenceStyle,
+        columns: usize,
+        column_gap_pt: f64,
+    ) {
         writer.raw(INDEX_PAGE_HELPER);
+        if columns > 1 {
+            let _ = writeln!(writer, "#columns({columns}, gutter: {column_gap_pt}pt)[");
+        }
 
         let mut categories: BTreeMap<String, Vec<(&TermKey, &IndexEntry)>> = BTreeMap::new();
         for (term, entry) in &self.terms {
@@ -136,6 +145,9 @@ impl IndexCatalog {
             for (term, entry) in terms {
                 write_entry(writer, term, entry, 0, sequence_style);
             }
+        }
+        if columns > 1 {
+            writer.raw("]\n");
         }
     }
 }

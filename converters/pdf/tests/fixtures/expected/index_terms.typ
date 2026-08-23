@@ -144,6 +144,7 @@
     [, ] + pages.join[, ]
   }
 }
+#columns(2, gutter: 12pt)[
 #text(weight: "bold")[#text("@")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("42 tools")#_acdc_index_pages((<__indexterm-5>,), "term")]
@@ -202,6 +203,7 @@
 #text(weight: "bold")[#text("Z")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Zebra")#_acdc_index_pages((<__indexterm-1>,<__indexterm-6>,<__indexterm-10>,<__indexterm-11>,), "term")]
+]
 #heading(level: 1)[#text("Later terms are not in the earlier index")] <id-5f6c617465725f7465726d735f6172655f6e6f745f696e5f7468655f6561726c6965725f696e646578>
 
 #text("Later ")#metadata(none) <__indexterm-27>#text("After")#text(".")

@@ -1010,6 +1010,86 @@ mod tests {
     }
 
     #[test]
+    fn index_notitle_hides_heading_and_catalog_uses_default_columns()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Index columns\n\nVisible ((alpha)) and ((beta)).\n\n[index%notitle]\n== Hidden Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(!typst.contains("#heading(level: 1)[#text(\"Hidden Index\")]"));
+        assert!(typst.contains(&format!(
+            "#metadata(none) <{}>",
+            encode_label("_hidden_index")
+        )));
+        assert!(typst.contains("#columns(2, gutter: 12pt)["));
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn index_catalog_uses_custom_theme_columns_and_gap() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Visible ((alpha)) and ((beta)).\n\n[index]\n== Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let mut theme = Theme::default();
+        theme.index.columns = 3;
+        theme.index.column_gap_pt = None;
+        theme.typography.body_size_pt = 12.5;
+        let assets = ImageMap::new();
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+
+        let typst_with_default_gap = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &theme,
+            &emit_options,
+            &collect_pdf_preparation(parsed.document()),
+            &mut diagnostics,
+        )?;
+        assert!(typst_with_default_gap.contains("#columns(3, gutter: 12.5pt)["));
+
+        theme.index.column_gap_pt = Some(18.5);
+        let typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &theme,
+            &emit_options,
+            &collect_pdf_preparation(parsed.document()),
+            &mut diagnostics,
+        )?;
+        assert!(typst.contains("#columns(3, gutter: 18.5pt)["));
+        let rendered = render_pdf(&typst, &assets, &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+
+        theme.index.columns = 1;
+        let single_column_typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &theme,
+            &emit_options,
+            &collect_pdf_preparation(parsed.document()),
+            &mut diagnostics,
+        )?;
+        assert!(!single_column_typst.contains("#columns("));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn inline_icon_failures_warn_for_each_macro_occurrence()
     -> Result<(), Box<dyn std::error::Error>> {
         let font_warnings = render_warnings(

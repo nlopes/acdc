@@ -165,26 +165,33 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             return result;
         }
 
-        let _ = write!(self.writer, "#heading(level: {heading_level}");
-        if self.in_article_abstract || in_asciidoc_table_cell {
-            self.writer.raw(", outlined: false, bookmarked: false");
-        }
-        self.writer.raw(")[");
-        if self.in_article_abstract {
-            self.writer.raw("#text(style: \"normal\")[");
-        }
-        if !prefix.is_empty() {
-            self.write_text_expr(&prefix);
-        }
-        self.write_title(&section.title)?;
-        if self.in_article_abstract {
+        if is_index_section && section.metadata.options.contains(&"notitle") {
+            if !id.is_empty() {
+                let _ = writeln!(self.writer, "#metadata(none) <{}>", encode_label(&id));
+            }
+        } else {
+            let _ = write!(self.writer, "#heading(level: {heading_level}");
+            if self.in_article_abstract || in_asciidoc_table_cell {
+                self.writer.raw(", outlined: false, bookmarked: false");
+            }
+            self.writer.raw(")[");
+            if self.in_article_abstract {
+                self.writer.raw("#text(style: \"normal\")[");
+            }
+            if !prefix.is_empty() {
+                self.write_text_expr(&prefix);
+            }
+            self.write_title(&section.title)?;
+            if self.in_article_abstract {
+                self.writer.raw("]");
+            }
             self.writer.raw("]");
+            if !id.is_empty() {
+                let _ = write!(self.writer, " <{}>", encode_label(&id));
+            }
+            self.writer.raw("\n");
         }
-        self.writer.raw("]");
-        if !id.is_empty() {
-            let _ = write!(self.writer, " <{}>", encode_label(&id));
-        }
-        self.writer.raw("\n\n");
+        self.writer.raw("\n");
         if is_index_section {
             self.write_index_catalog();
             Ok(())

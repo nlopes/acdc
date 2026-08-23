@@ -132,6 +132,7 @@
     [, ] + pages.join[, ]
   }
 }
+#columns(2, gutter: 12pt)[
 #text(weight: "bold")[#text("E")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Explicit term")#_acdc_index_pages((<__indexterm-2>,), "term")]
@@ -143,3 +144,4 @@
 #text(weight: "bold")[#text("S")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Source term")#_acdc_index_pages((<__indexterm-1>,), "term")]
+]

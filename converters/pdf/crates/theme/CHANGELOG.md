@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can control the number of index catalog columns and their gap. The
+  bundled defaults are two columns with a 12 pt gap; custom themes without a
+  gap use the body font size, matching Asciidoctor PDF.
 - Themes can place tables at the left, centre, or right of the available page
   width. The default is left.
 - Themes can control table borders, the header divider, row stripes, and header

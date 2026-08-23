@@ -186,6 +186,8 @@
     [, ] + pages.join[, ]
   }
 }
+#columns(2, gutter: 12pt)[
 #text(weight: "bold")[#text("A")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("alpha")#_acdc_index_pages((<__indexterm-1>,), "term")]
+]

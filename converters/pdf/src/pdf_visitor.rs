@@ -124,6 +124,8 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     populated_index_sections: HashSet<String>,
     bibliography_backlinks_written: HashSet<String>,
     index_catalog: IndexCatalog,
+    index_columns: usize,
+    index_column_gap_pt: f64,
 }
 
 #[derive(PartialEq, Eq)]
@@ -242,6 +244,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             populated_index_sections: HashSet::new(),
             bibliography_backlinks_written: HashSet::new(),
             index_catalog: IndexCatalog::default(),
+            index_columns: theme.index.columns,
+            index_column_gap_pt: theme
+                .index
+                .column_gap_pt
+                .unwrap_or(theme.typography.body_size_pt),
         }
     }
 
@@ -261,7 +268,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 .get_string("index-pagenum-sequence-style")
                 .as_deref(),
         );
-        self.index_catalog.write(&mut self.writer, sequence_style);
+        self.index_catalog.write(
+            &mut self.writer,
+            sequence_style,
+            self.index_columns,
+            self.index_column_gap_pt,
+        );
     }
 
     pub(crate) fn section_break_before(&mut self, section: &Section<'_>) -> bool {

@@ -116,6 +116,8 @@
     [, ] + pages.join[, ]
   }
 }
+#columns(2, gutter: 12pt)[
 #text(weight: "bold")[#text("T")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("term")#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,<__indexterm-3>,), "range")]
+]

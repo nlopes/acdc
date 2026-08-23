@@ -49,9 +49,7 @@ The backend is intentionally incomplete.
 Audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
 
-Index term labels currently render as plain text. Inline formatting in a term
-is displayed as source markup, and index catalogs do not yet support
-`%notitle`, theme-controlled columns, or print-specific page sequences.
+Index catalogs do not yet support print-specific page sequences.
 
 Inline icons use text when `icons` is unset, bundled Unicode glyphs when
 `icons=font`, and files from `iconsdir` for other set values.
@@ -90,16 +88,20 @@ Unlike Asciidoctor PDF, backend-specific markup in `+++...+++` or `pass:[]` is d
 
 == Index catalogs
 
-Add an `[index]` section to generate a catalog from all index terms that occur
-before that section. Visible `((term))` and `indexterm2:[term]` forms remain in
-the document. Concealed `(((primary, secondary, tertiary)))` and
-`indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
+Add an `[index]` section to generate a catalog from all index terms that occur before that section.
+Visible `((term))` and `indexterm2:[term]` forms remain in the document.
+Concealed `(((primary, secondary, tertiary)))` and `indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
 
-Each page number links to the exact term occurrence. The default lists every
-occurrence. Set `:index-pagenum-sequence-style: page` to list each page once,
-or set it to `range` to combine consecutive pages. An empty index section is
-omitted, and content inside an index section is ignored, matching Asciidoctor
-PDF.
+Each page number links to the exact term occurrence.
+The default lists every occurrence.
+Set `:index-pagenum-sequence-style: page` to list each page once, or set it to `range` to combine consecutive pages.
+An empty index section is omitted, and content inside an index section is ignored, matching Asciidoctor PDF.
+
+The bundled theme uses two columns with a 12 pt gap.
+Use `[index%notitle]` to hide the visible section heading.
+The `index.columns` and `index.column_gap_pt` theme tokens set the column count and gap.
+Set `index.columns` to `1` for a single-column catalog.
+In a custom theme, a `null` or omitted `index.column_gap_pt` uses the body font size.
 
 == Document language
 
