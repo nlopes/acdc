@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::HashMap,
+    ops::Range,
     rc::Rc,
 };
 
@@ -598,6 +599,28 @@ impl SourceMap {
         }
 
         offsets
+    }
+
+    /// Return attribute-produced spans so nested parsing preserves substitution order.
+    pub(crate) fn attribute_value_ranges(&self, original_start: usize) -> Vec<Range<usize>> {
+        let mut original_cursor = original_start;
+        let mut processed_cursor = 0;
+        let mut ranges = Vec::new();
+
+        for replacement in &self.replacements {
+            if replacement.absolute_start < original_cursor {
+                continue;
+            }
+
+            processed_cursor += replacement.absolute_start - original_cursor;
+            if replacement.kind == ProcessedKind::Attribute && replacement.byte_len != 0 {
+                ranges.push(processed_cursor..processed_cursor + replacement.byte_len);
+            }
+            processed_cursor += replacement.byte_len;
+            original_cursor = replacement.absolute_end;
+        }
+
+        ranges
     }
 
     fn map_position_with_bias(&self, pos: usize, end_bias: bool) -> Result<usize, Error> {

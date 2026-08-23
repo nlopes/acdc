@@ -1,14 +1,20 @@
 use std::borrow::Cow;
+use std::ops::Range;
 
 use crate::{
     Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
     SourceLocation,
     grammar::{inline_preprocessor::SourceMap, utf8_utils},
     inline_preprocessing,
-    model::{SourceRange, substitution::SubsFlags},
+    model::{SourceRange, Substitution},
 };
 
-use super::{ParserState, helpers::BlockParsingMetadata, inlines::inline_parser};
+use super::{
+    ParserState,
+    helpers::BlockParsingMetadata,
+    inlines::inline_parser,
+    state::{InlineContext, InlineRules, ParserScope},
+};
 
 /// Adjust PEG parser error positions to account for substring parsing
 ///
@@ -171,6 +177,48 @@ fn processed_text_as_outer<'a>(
     }
 }
 
+fn attribute_value_ranges(
+    processed: &ProcessedContent<'_>,
+    parent: &ParserState<'_>,
+    location: &Location,
+) -> Vec<Range<usize>> {
+    let mut ranges = processed
+        .source_map
+        .attribute_value_ranges(location.absolute_start);
+    ranges.extend(parent.attribute_value_ranges.iter().filter_map(|range| {
+        let start = range.start.max(location.absolute_start);
+        let end = range.end.min(location.absolute_end.saturating_add(1));
+        (start < end).then(|| {
+            start.saturating_sub(location.absolute_start)
+                ..end.saturating_sub(location.absolute_start)
+        })
+    }));
+    ranges.sort_unstable_by_key(|range| range.start);
+    ranges
+}
+
+fn inline_context(
+    state: &ParserState<'_>,
+    block_metadata: &BlockParsingMetadata<'_>,
+    autolinks: bool,
+) -> InlineContext {
+    let mut rules = state.inline_ctx.rules;
+    rules.set(InlineRules::AUTOLINKS, autolinks);
+    rules.set(
+        InlineRules::HARD_BREAKS,
+        block_metadata.hardbreaks || rules.contains(InlineRules::HARD_BREAKS),
+    );
+    rules.set(
+        InlineRules::EOI_HARD_BREAK,
+        state.scope == ParserScope::Document,
+    );
+    InlineContext {
+        offset: 0,
+        substitutions: block_metadata.substitutions,
+        rules,
+    }
+}
+
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
 pub(crate) fn parse_inlines<'a>(
     processed: &'a ProcessedContent<'a>,
@@ -179,19 +227,12 @@ pub(crate) fn parse_inlines<'a>(
     location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let text: &'a str = processed_text_as_outer(processed, state);
-    let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
+    let inline_ctx = inline_context(state, block_metadata, true);
+    let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
     inline_peg_state.empty_attribute_offsets = processed
         .source_map
         .empty_attribute_offsets(location.absolute_start);
-    inline_peg_state.inline_ctx.offset = 0;
-    inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
-    inline_peg_state.inline_ctx.hardbreaks =
-        block_metadata.hardbreaks || state.inline_ctx.hardbreaks;
-    inline_peg_state.inline_ctx.allow_autolinks = true;
-    // Block-level only when the caller is a top-level block parse, not a nested
-    // span re-parse from inside an inline rule (those run on an inline sub-state).
-    inline_peg_state.inline_ctx.block_level = !state.is_inline_subparse;
-
+    inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
     let inlines = if inline_peg_state.quotes_only {
         inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
     } else {
@@ -221,19 +262,12 @@ pub(crate) fn parse_inlines_no_autolinks<'a>(
     location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let text: &'a str = processed_text_as_outer(processed, state);
-    let mut inline_peg_state = ParserState::for_inline_parsing(text, state);
+    let inline_ctx = inline_context(state, block_metadata, false);
+    let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
     inline_peg_state.empty_attribute_offsets = processed
         .source_map
         .empty_attribute_offsets(location.absolute_start);
-    inline_peg_state.inline_ctx.offset = 0;
-    inline_peg_state.inline_ctx.subs_flags = block_metadata.subs_flags;
-    inline_peg_state.inline_ctx.hardbreaks =
-        block_metadata.hardbreaks || state.inline_ctx.hardbreaks;
-    inline_peg_state.inline_ctx.allow_autolinks = false;
-    // `*_no_autolinks` is only reached from inside link/url/xref macro rules, so
-    // this is always a nested span re-parse, never block-level.
-    inline_peg_state.inline_ctx.block_level = !state.is_inline_subparse;
-
+    inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
     let inlines = match inline_parser::inlines_no_autolinks(text, &mut inline_peg_state) {
         Ok(inlines) => inlines,
         Err(err) => {
@@ -269,8 +303,10 @@ pub(crate) fn process_inlines<'a>(
         end,
         offset,
         content,
-        block_metadata.subs_flags.contains(SubsFlags::MACROS),
-        block_metadata.subs_flags.contains(SubsFlags::ATTRIBUTES),
+        block_metadata.substitutions.enabled(&Substitution::Macros),
+        block_metadata
+            .substitutions
+            .enabled(&Substitution::Attributes),
     )?;
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
@@ -303,8 +339,10 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         end,
         offset,
         content,
-        block_metadata.subs_flags.contains(SubsFlags::MACROS),
-        block_metadata.subs_flags.contains(SubsFlags::ATTRIBUTES),
+        block_metadata.substitutions.enabled(&Substitution::Macros),
+        block_metadata
+            .substitutions
+            .enabled(&Substitution::Attributes),
     )?;
     if processed.text.is_empty() {
         return Ok(Vec::new());

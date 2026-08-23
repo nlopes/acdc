@@ -131,8 +131,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The public `NORMAL` substitution list and parsed `[subs=normal]` metadata now
-  put quotes before attributes, matching Asciidoctor's substitution order.
+- **Breaking:** index terms now expose substituted `InlineNode` collections
+  instead of source strings through `IndexTermKind` and its accessors.
+  `InlineMacro::IndexTerm` now contains a boxed `IndexTerm`, and serialized
+  `term`, `secondary`, and `tertiary` values are inline-node arrays.
+- Substitutions now follow their written order when attribute values introduce
+  formatting or macro syntax. The public `NORMAL` order and `[subs=normal]`
+  now put quotes before attributes, matching Asciidoctor.
 - A trailing `^` in URL, link, and mailto display text now sets
   `window=_blank` and is omitted from the text, matching Asciidoctor.
 - Parsed URL, link, and autolink nodes report whether fallback display text
@@ -192,6 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index-term inline nodes preserve their source locations inside passthroughs
+  and formatted spans.
 - Inline passthroughs apply `c`, `q`, `a`, `r`, `m`, and `p` substitutions in
   the written order. The `n` and `v` groups use Asciidoctor's inline
   passthrough policies. Escaped passthroughs stay literal, ordered substitutions

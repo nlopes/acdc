@@ -1,12 +1,14 @@
-use std::borrow::Cow;
-use std::cell::{Cell, RefCell};
 use std::{
+    borrow::Cow,
+    cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
+    ops::Range,
     path::PathBuf,
     rc::Rc,
     sync::Arc,
 };
 
+use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
@@ -15,15 +17,11 @@ use crate::{
     grammar::LineMap,
     model::{
         LeveloffsetRange, SourceRange, substitute,
-        substitution::{HEADER, SubsFlags},
+        substitution::{HEADER, SubstitutionPlan},
     },
 };
 
 #[derive(Debug)]
-#[allow(
-    clippy::struct_excessive_bools,
-    reason = "independent parser conditions do not form one state machine"
-)]
 pub(crate) struct ParserState<'a> {
     pub(crate) document_attributes: Rc<DocumentAttributes<'a>>,
     /// Attributes inherited by the current nested document. Asciidoctor-style
@@ -34,6 +32,8 @@ pub(crate) struct ParserState<'a> {
     pub(crate) hardbreaks: bool,
     /// Processed-text offsets where an empty attribute reference was removed.
     pub(crate) empty_attribute_offsets: Vec<usize>,
+    /// Attribute-produced spans used to preserve substitution order in nested parsing.
+    pub(crate) attribute_value_ranges: Vec<Range<usize>>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
     /// `for_inline_parsing` sub-state is cheap to construct — the old
@@ -106,11 +106,8 @@ pub(crate) struct ParserState<'a> {
     /// Used to correctly fail boundary checks when the outer delimiter is a
     /// word character (only `_` among the formatting delimiters).
     pub(crate) outer_constrained_delimiter: Option<u8>,
-    /// True when this state was created by `for_inline_parsing`, i.e. it parses
-    /// a nested span re-parsed from inside an inline rule rather than top-level
-    /// block content. Used to decide `InlineContext::block_level` for the inline
-    /// sub-parse it spawns.
-    pub(crate) is_inline_subparse: bool,
+    /// Whether this state parses document content or a nested inline segment.
+    pub(crate) scope: ParserScope,
     /// Context set before entering the PEG inline parser. These fields are
     /// constant within a single `inlines()` call, allowing rules to be
     /// argument-free and thus cacheable by the PEG packrat memoizer.
@@ -129,35 +126,41 @@ pub(crate) struct AtLookahead {
 }
 
 /// Inline parsing context — constant within a single `inlines()` call.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub(crate) struct InlineContext {
     /// Byte offset for location calculation in inline rules.
     pub(crate) offset: usize,
-    /// Per-block substitution toggles propagated from `[subs="…"]`.
-    pub(crate) subs_flags: SubsFlags,
-    pub(crate) hardbreaks: bool,
-    /// Whether bare autolinks (URLs/emails without macro syntax) are matched.
-    /// Independent of `subs_flags`: this is suppressed inside link/url/xref
-    /// macro contents to avoid nested-autolink mis-parses.
-    pub(crate) allow_autolinks: bool,
-    /// Whether this is the outermost (block-content) inline parse, as opposed
-    /// to a nested span re-parse made from inside an inline rule (monospace,
-    /// bold, link, footnote, …). Only the block-content parse may treat a
-    /// trailing ` +` at end-of-input as a hard line break; a nested span ending
-    /// in ` +` stays literal, matching asciidoctor.
-    pub(crate) block_level: bool,
+    /// Enabled substitutions and their source order.
+    pub(crate) substitutions: SubstitutionPlan,
+    /// Independent grammar capabilities for this parse.
+    pub(crate) rules: InlineRules,
 }
 
-impl Default for InlineContext {
-    fn default() -> Self {
-        Self {
-            offset: 0,
-            subs_flags: SubsFlags::default(),
-            hardbreaks: false,
-            allow_autolinks: true,
-            block_level: false,
-        }
+bitflags! {
+    /// Independent grammar capabilities for one inline parse.
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) struct InlineRules: u8 {
+        /// Match bare URLs and email addresses.
+        const AUTOLINKS = 1 << 0;
+        /// Match index-term macros.
+        const INDEX_TERMS = 1 << 1;
+        /// Apply the document or block hard-break option.
+        const HARD_BREAKS = 1 << 2;
+        /// Permit a trailing ` +` to end at end of input.
+        const EOI_HARD_BREAK = 1 << 3;
     }
+}
+
+impl Default for InlineRules {
+    fn default() -> Self {
+        Self::AUTOLINKS | Self::INDEX_TERMS
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ParserScope {
+    Document,
+    Inline,
 }
 
 #[derive(Debug, Clone)]
@@ -356,6 +359,7 @@ impl<'a> ParserState<'a> {
             nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
+            attribute_value_ranges: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -369,7 +373,7 @@ impl<'a> ParserState<'a> {
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: false,
             outer_constrained_delimiter: None,
-            is_inline_subparse: false,
+            scope: ParserScope::Document,
             inline_ctx: InlineContext::default(),
             next_at_sign_cache: Cell::new(None),
         }
@@ -390,6 +394,7 @@ impl<'a> ParserState<'a> {
             nested_parent_attributes: None,
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
+            attribute_value_ranges: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -403,7 +408,7 @@ impl<'a> ParserState<'a> {
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: true,
             outer_constrained_delimiter: None,
-            is_inline_subparse: false,
+            scope: ParserScope::Document,
             inline_ctx: InlineContext::default(),
             next_at_sign_cache: Cell::new(None),
         }
@@ -411,13 +416,18 @@ impl<'a> ParserState<'a> {
 
     /// Lightweight constructor for inline parsing that reuses parent state fields
     /// instead of creating expensive defaults that get immediately overwritten.
-    pub(crate) fn for_inline_parsing(input: &'a str, parent: &ParserState<'a>) -> Self {
+    pub(crate) fn for_inline_parsing(
+        input: &'a str,
+        parent: &ParserState<'a>,
+        inline_ctx: InlineContext,
+    ) -> Self {
         Self {
             options: parent.options.clone(),
             document_attributes: Rc::clone(&parent.document_attributes),
             nested_parent_attributes: parent.nested_parent_attributes.clone(),
             hardbreaks: parent.hardbreaks,
             empty_attribute_offsets: Vec::new(),
+            attribute_value_ranges: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena: parent.arena,
@@ -436,8 +446,8 @@ impl<'a> ParserState<'a> {
             warnings: Rc::clone(&parent.warnings),
             quotes_only: parent.quotes_only,
             outer_constrained_delimiter: parent.outer_constrained_delimiter,
-            is_inline_subparse: true,
-            inline_ctx: parent.inline_ctx,
+            scope: ParserScope::Inline,
+            inline_ctx,
             next_at_sign_cache: Cell::new(None),
         }
     }
@@ -675,7 +685,7 @@ mod tests {
         let parent = ParserState::new_for_test("parent input");
         parent.add_generic_warning("from parent".to_string());
         {
-            let child = ParserState::for_inline_parsing("child input", &parent);
+            let child = ParserState::for_inline_parsing("child input", &parent, parent.inline_ctx);
             child.add_generic_warning("from child".to_string());
         }
         let kinds = warning_kinds(&parent);

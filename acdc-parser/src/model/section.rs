@@ -821,7 +821,7 @@ impl<'a> Section<'a> {
                 }
             }
             InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
-                Self::append_id_text(index_term.term(), out, last_was_underscore);
+                Self::append_id_from_inlines(index_term.term(), out, last_was_underscore);
             }
             InlineMacro::Pass(pass) => {
                 Self::append_id_text(pass.text.unwrap_or_default(), out, last_was_underscore);

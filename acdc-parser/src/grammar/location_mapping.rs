@@ -48,7 +48,7 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
 /// Context for location mapping operations
 pub(crate) struct LocationMappingContext<'a, 'b> {
     pub state: &'a ParserState<'b>,
-    pub processed: &'a ProcessedContent<'b>,
+    pub processed: &'b ProcessedContent<'b>,
     pub base_location: &'a Location,
 }
 
@@ -225,7 +225,7 @@ pub(crate) fn map_inner_content_locations<'a>(
     content: Vec<InlineNode<'a>>,
     map_loc: &LocationMapper<'_>,
     state: &ParserState<'a>,
-    processed: &ProcessedContent<'a>,
+    processed: &'a ProcessedContent<'a>,
     base_location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, crate::Error> {
     content
@@ -268,48 +268,18 @@ pub(crate) fn map_inner_content_locations<'a>(
                     };
                     marked_text.with_location_mapping_context(&mapping_ctx)
                 }
+                InlineNode::Macro(inline_macro) => {
+                    map_inline_macro(&inline_macro, state, processed, base_location, map_loc)
+                }
                 other @ (InlineNode::RawText(_)
                 | InlineNode::VerbatimText(_)
                 | InlineNode::StandaloneCurvedApostrophe(_)
                 | InlineNode::LineBreak(_)
                 | InlineNode::InlineAnchor(_)
-                | InlineNode::CalloutRef(_)
-                | InlineNode::Macro(_)) => Ok(other),
+                | InlineNode::CalloutRef(_)) => Ok(other),
             }
         })
         .collect()
-}
-
-/// Create a location that maps back to original source coordinates when content has been
-/// modified by passthrough replacement.
-///
-/// When we replace passthrough placeholders with their content, we need to map the location
-/// back to the original source text coordinates rather than the preprocessed coordinates.
-pub(crate) fn create_original_source_location(
-    plain_content: &str,
-    plain_location: &Location,
-    processed: &ProcessedContent<'_>,
-    base_location: &Location,
-) -> Location {
-    // Check if this PlainText content actually contains passthrough placeholders
-    let contains_passthroughs = !processed.passthroughs.is_empty()
-        && processed.passthroughs.iter().enumerate().any(|(index, _)| {
-            let placeholder = format!("���{index}���");
-            plain_content.contains(&placeholder)
-        });
-
-    if contains_passthroughs {
-        // For a PlainText that contains passthrough placeholders and spans the entire content,
-        // we should map back to the original source location
-        if plain_location.absolute_start == 0 {
-            // Use the base location which represents the original source coordinates
-            return base_location.clone();
-        }
-    }
-
-    // For other cases, use the existing location mapping
-    // This is a fallback - in practice we might need more sophisticated logic here
-    plain_location.clone()
 }
 
 /// Map inline node locations from preprocessed coordinates to original document coordinates.
@@ -341,8 +311,7 @@ pub(crate) fn map_inline_locations<'a>(
         match inline {
             InlineNode::PlainText(plain) => {
                 // May expand to N nodes (placeholder splits); push in place.
-                let nodes =
-                    map_plain_text_inline_locations(plain, state, processed, location, &map_loc)?;
+                let nodes = map_plain_text_inline_locations(plain, state, processed, &map_loc)?;
                 acc.extend(nodes);
             }
             marked_text @ (InlineNode::ItalicText(_)
@@ -460,7 +429,27 @@ fn map_inline_macro<'a>(
         InlineMacro::Autolink(autolink) => autolink.location = map_loc(&autolink.location)?,
         InlineMacro::Stem(stem) => stem.location = map_loc(&stem.location)?,
         InlineMacro::Pass(pass) => pass.location = map_loc(&pass.location)?,
-        InlineMacro::IndexTerm(index_term) => index_term.location = map_loc(&index_term.location)?,
+        InlineMacro::IndexTerm(index_term) => {
+            index_term.location = map_loc(&index_term.location)?;
+            match &mut index_term.kind {
+                crate::IndexTermKind::Flow(term) => {
+                    *term = map_inline_locations(state, processed, term, location)?;
+                }
+                crate::IndexTermKind::Concealed {
+                    term,
+                    secondary,
+                    tertiary,
+                } => {
+                    *term = map_inline_locations(state, processed, term, location)?;
+                    if let Some(secondary) = secondary {
+                        *secondary = map_inline_locations(state, processed, secondary, location)?;
+                    }
+                    if let Some(tertiary) = tertiary {
+                        *tertiary = map_inline_locations(state, processed, tertiary, location)?;
+                    }
+                }
+            }
+        }
     }
     Ok(InlineNode::Macro(mapped_macro))
 }
@@ -469,7 +458,6 @@ fn map_plain_text_inline_locations<'a>(
     plain: &Plain<'a>,
     state: &ParserState<'a>,
     processed: &'a ProcessedContent<'a>,
-    location: &Location,
     map_loc: &LocationMapper<'_>,
 ) -> Result<Vec<InlineNode<'a>>, crate::Error> {
     // Extract plain text at `'a` so the passthrough-processing path can hand
@@ -483,10 +471,11 @@ fn map_plain_text_inline_locations<'a>(
             original_content.contains(&placeholder)
         });
 
+    let mut mapped_location = map_loc(&plain.location)?;
+
     if contains_passthroughs {
-        // Use multi-pass processing for passthroughs with quote substitutions
-        let base_location =
-            create_original_source_location(original_content, &plain.location, processed, location);
+        // Split only after converting this nested location to document coordinates.
+        // Passthrough processing uses the supplied location as its source base.
 
         tracing::debug!(content = ?original_content, "Processing passthrough placeholders in PlainText");
         Ok(
@@ -494,13 +483,10 @@ fn map_plain_text_inline_locations<'a>(
                 original_content,
                 processed,
                 state,
-                &base_location,
+                &mapped_location,
             ),
         )
     } else {
-        // No passthroughs, handle normally
-        let mut mapped_location = map_loc(&plain.location)?;
-
         // For single-character content, ensure start and end columns are the same
         if original_content.chars().count() == 1 {
             mapped_location.end.column = mapped_location.start.column;

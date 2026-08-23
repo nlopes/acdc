@@ -207,7 +207,7 @@ pub enum InlineMacro<'a> {
     /// Inline math: `stem:[formula]` or `latexmath:[...]` / `asciimath:[...]`
     Stem(Stem<'a>),
     /// Index term: `((term))` (visible) or `(((term)))` (hidden)
-    IndexTerm(IndexTerm<'a>),
+    IndexTerm(Box<IndexTerm<'a>>),
 }
 
 impl InlineMacro<'_> {

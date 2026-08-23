@@ -24,60 +24,98 @@
 
 use std::borrow::Cow;
 
-use bitflags::bitflags;
 use serde::Serialize;
 
 use crate::{AttributeValue, DocumentAttributes};
 
-bitflags! {
-    /// Per-block substitution toggles propagated from `[subs="…"]` into the
-    /// inline parser. Grammar predicates use these to decide whether to
-    /// recognise constructs (macros, attribute references, hard line breaks)
-    /// or leave them as plain text.
-    ///
-    /// Stored as a single byte; defaults to all-on so blocks without an
-    /// explicit `subs=` attribute behave like asciidoctor defaults.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    pub(crate) struct SubsFlags: u8 {
-        /// Macros are recognised in inline grammar rules.
-        const MACROS = 1 << 0;
-        /// `{attr}` references expand during inline preprocessing.
-        const ATTRIBUTES = 1 << 1;
-        /// Trailing-`+` hard line breaks produce a `LineBreak` node.
-        const POST_REPLACEMENTS = 1 << 2;
-        /// Inline formatting markers (`*`, `_`, `` ` ``, `#`, `^`, `~`, `"\``,
-        /// `'\``) are parsed into formatted inline nodes.
-        const QUOTES = 1 << 3;
-        /// Callout markers (`<1>`, `<.>`) in verbatim content produce
-        /// `CalloutRef` nodes.
-        const CALLOUTS = 1 << 4;
-        /// Typography replacements are enabled for this block.
-        const REPLACEMENTS = 1 << 5;
-        /// Replacements run before post replacements in the effective order.
-        const REPLACEMENTS_BEFORE_POST_REPLACEMENTS = 1 << 6;
+const SUBSTITUTION_STAGE_COUNT: usize = 7;
+const DISABLED_SUBSTITUTION: u8 = u8::MAX;
+const DEFAULT_PARSER_SUBSTITUTIONS: &[Substitution] = &[
+    Substitution::SpecialChars,
+    Substitution::Quotes,
+    Substitution::Attributes,
+    Substitution::Replacements,
+    Substitution::Macros,
+    Substitution::PostReplacements,
+    Substitution::Callouts,
+];
+
+/// The enabled structural substitutions and their effective source order.
+///
+/// A disabled stage has the maximum rank. This keeps all ordering decisions in
+/// one value instead of adding a Boolean for every pair of stages.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct SubstitutionPlan {
+    ranks: [u8; SUBSTITUTION_STAGE_COUNT],
+}
+
+impl SubstitutionPlan {
+    pub(crate) fn from_substitutions(substitutions: &[Substitution]) -> Self {
+        let mut ranks = [DISABLED_SUBSTITUTION; SUBSTITUTION_STAGE_COUNT];
+        for (rank, substitution) in substitutions.iter().enumerate() {
+            if let Some(slot) =
+                substitution_stage_index(substitution).and_then(|index| ranks.get_mut(index))
+            {
+                *slot = u8::try_from(rank).unwrap_or(u8::MAX - 1);
+            }
+        }
+        Self { ranks }
+    }
+
+    pub(crate) fn only(substitution: &Substitution) -> Self {
+        Self::from_substitutions(std::slice::from_ref(substitution))
+    }
+
+    #[cfg(feature = "pre-spec-subs")]
+    pub(crate) fn for_block_spec(spec: &SubstitutionSpec) -> Self {
+        let mut substitutions = spec.resolve(NORMAL);
+        if matches!(spec, SubstitutionSpec::Modifiers(_)) {
+            for substitution in DEFAULT_PARSER_SUBSTITUTIONS {
+                if !spec.is_disabled(substitution) && !substitutions.contains(substitution) {
+                    substitutions.push(substitution.clone());
+                }
+            }
+        }
+        Self::from_substitutions(&substitutions)
+    }
+
+    pub(crate) fn enabled(self, substitution: &Substitution) -> bool {
+        substitution_stage_index(substitution)
+            .and_then(|index| self.ranks.get(index))
+            .is_some_and(|rank| *rank != DISABLED_SUBSTITUTION)
+    }
+
+    pub(crate) fn precedes(self, first: &Substitution, second: &Substitution) -> bool {
+        let (Some(first), Some(second)) = (
+            substitution_stage_index(first),
+            substitution_stage_index(second),
+        ) else {
+            return false;
+        };
+        let (Some(first), Some(second)) = (self.ranks.get(first), self.ranks.get(second)) else {
+            return false;
+        };
+        *first != DISABLED_SUBSTITUTION && *second != DISABLED_SUBSTITUTION && first < second
     }
 }
 
-impl Default for SubsFlags {
+impl Default for SubstitutionPlan {
     fn default() -> Self {
-        Self::all()
+        Self::from_substitutions(DEFAULT_PARSER_SUBSTITUTIONS)
     }
 }
 
-#[cfg(feature = "pre-spec-subs")]
-impl SubsFlags {
-    /// One-to-one mapping between flag bits and their corresponding
-    /// [`Substitution`] variants. Used by the grammar to project a
-    /// [`SubstitutionSpec`] into a flag set without enumerating each variant
-    /// at the call site.
-    pub(crate) const FLAG_SUBSTITUTIONS: &'static [(SubsFlags, Substitution)] = &[
-        (SubsFlags::MACROS, Substitution::Macros),
-        (SubsFlags::ATTRIBUTES, Substitution::Attributes),
-        (SubsFlags::POST_REPLACEMENTS, Substitution::PostReplacements),
-        (SubsFlags::QUOTES, Substitution::Quotes),
-        (SubsFlags::CALLOUTS, Substitution::Callouts),
-        (SubsFlags::REPLACEMENTS, Substitution::Replacements),
-    ];
+const fn substitution_stage_index(substitution: &Substitution) -> Option<usize> {
+    match substitution {
+        Substitution::SpecialChars => Some(0),
+        Substitution::Attributes => Some(1),
+        Substitution::Replacements => Some(2),
+        Substitution::Macros => Some(3),
+        Substitution::PostReplacements => Some(4),
+        Substitution::Quotes => Some(5),
+        Substitution::Callouts => Some(6),
+        Substitution::Normal | Substitution::Verbatim => None,
+    }
 }
 
 /// An `AsciiDoc` substitution or named substitution group.
@@ -294,23 +332,12 @@ impl SubstitutionSpec {
         result
     }
 
-    /// Check whether `sub` is disabled by this spec.
-    ///
-    /// A substitution is considered disabled when:
-    /// - the spec is an [`Self::Explicit`] list that does not contain `sub`, or
-    /// - the spec is [`Self::Modifiers`] containing a matching
-    ///   [`SubstitutionOp::Remove`].
-    ///
-    /// Examples: `[subs="specialchars"]` disables every substitution other
-    /// than `specialchars`; `[subs="-macros"]` disables only `macros`;
-    /// `[subs="none"]` disables every substitution.
-    #[must_use]
-    pub(crate) fn is_disabled(&self, sub: &Substitution) -> bool {
+    fn is_disabled(&self, substitution: &Substitution) -> bool {
         match self {
-            Self::Explicit(subs) => !subs.contains(sub),
-            Self::Modifiers(ops) => ops
-                .iter()
-                .any(|op| matches!(op, SubstitutionOp::Remove(s) if s == sub)),
+            Self::Explicit(substitutions) => !substitutions.contains(substitution),
+            Self::Modifiers(operations) => operations.iter().any(
+                |operation| matches!(operation, SubstitutionOp::Remove(removed) if removed == substitution),
+            ),
         }
     }
 

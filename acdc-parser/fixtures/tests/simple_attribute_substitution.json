@@ -12,59 +12,11 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Version ",
+          "value": "Version **1.0** Release Notes",
           "location": [
             {
               "line": 3,
               "col": 4
-            },
-            {
-              "line": 3,
-              "col": 11
-            }
-          ]
-        },
-        {
-          "name": "span",
-          "type": "inline",
-          "variant": "strong",
-          "form": "unconstrained",
-          "inlines": [
-            {
-              "name": "text",
-              "type": "string",
-              "value": "1.0",
-              "location": [
-                {
-                  "line": 3,
-                  "col": 12
-                },
-                {
-                  "line": 3,
-                  "col": 20
-                }
-              ]
-            }
-          ],
-          "location": [
-            {
-              "line": 3,
-              "col": 12
-            },
-            {
-              "line": 3,
-              "col": 20
-            }
-          ]
-        },
-        {
-          "name": "text",
-          "type": "string",
-          "value": " Release Notes",
-          "location": [
-            {
-              "line": 3,
-              "col": 21
             },
             {
               "line": 3,

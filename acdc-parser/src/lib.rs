@@ -522,7 +522,10 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
         state.initialize_hardbreaks();
-        state.inline_ctx.hardbreaks = state.hardbreaks;
+        state
+            .inline_ctx
+            .rules
+            .set(grammar::InlineRules::HARD_BREAKS, state.hardbreaks);
         state.warnings = warnings_for_state;
         let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
             Ok(mut inlines) => {

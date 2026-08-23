@@ -1890,7 +1890,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "primary term",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "primary term",
+                  "location": [
+                    {
+                      "line": 41,
+                      "col": 34
+                    },
+                    {
+                      "line": 41,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -1921,7 +1937,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "visible index term",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "visible index term",
+                  "location": [
+                    {
+                      "line": 42,
+                      "col": 7
+                    },
+                    {
+                      "line": 42,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -1952,7 +1984,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "another term",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "another term",
+                  "location": [
+                    {
+                      "line": 42,
+                      "col": 60
+                    },
+                    {
+                      "line": 42,
+                      "col": 71
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -1983,7 +2031,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term1, term2",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term1, term2",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 22
+                    },
+                    {
+                      "line": 43,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -2014,7 +2078,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "entry three",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "entry three",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 55
+                    },
+                    {
+                      "line": 43,
+                      "col": 65
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -2045,7 +2125,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term A",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term A",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 19
+                    },
+                    {
+                      "line": 44,
+                      "col": 24
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -2076,7 +2172,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term B",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term B",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 36
+                    },
+                    {
+                      "line": 44,
+                      "col": 41
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -2107,7 +2219,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term C",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term C",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 53
+                    },
+                    {
+                      "line": 44,
+                      "col": 58
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -2138,7 +2266,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "alpha",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "alpha",
+                  "location": [
+                    {
+                      "line": 45,
+                      "col": 19
+                    },
+                    {
+                      "line": 45,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -2169,7 +2313,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "beta",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "beta",
+                  "location": [
+                    {
+                      "line": 45,
+                      "col": 33
+                    },
+                    {
+                      "line": 45,
+                      "col": 36
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -2200,7 +2360,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "gamma",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "gamma",
+                  "location": [
+                    {
+                      "line": 45,
+                      "col": 46
+                    },
+                    {
+                      "line": 45,
+                      "col": 50
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -4698,7 +4874,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "index",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "index",
+                  "location": [
+                    {
+                      "line": 69,
+                      "col": 3
+                    },
+                    {
+                      "line": 69,
+                      "col": 7
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -4729,7 +4921,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "concealed",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "concealed",
+                  "location": [
+                    {
+                      "line": 69,
+                      "col": 15
+                    },
+                    {
+                      "line": 69,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -8093,7 +8301,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term1",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term1",
+                  "location": [
+                    {
+                      "line": 109,
+                      "col": 4
+                    },
+                    {
+                      "line": 109,
+                      "col": 8
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -8124,7 +8348,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term2",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term2",
+                  "location": [
+                    {
+                      "line": 109,
+                      "col": 21
+                    },
+                    {
+                      "line": 109,
+                      "col": 25
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -8155,7 +8395,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term3",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term3",
+                  "location": [
+                    {
+                      "line": 109,
+                      "col": 38
+                    },
+                    {
+                      "line": 109,
+                      "col": 42
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -8186,7 +8442,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "term4",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "term4",
+                  "location": [
+                    {
+                      "line": 109,
+                      "col": 55
+                    },
+                    {
+                      "line": 109,
+                      "col": 59
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {
@@ -8217,7 +8489,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "vis1",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "vis1",
+                  "location": [
+                    {
+                      "line": 110,
+                      "col": 3
+                    },
+                    {
+                      "line": 110,
+                      "col": 6
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -8248,7 +8536,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "vis2",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "vis2",
+                  "location": [
+                    {
+                      "line": 110,
+                      "col": 17
+                    },
+                    {
+                      "line": 110,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -8279,7 +8583,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "vis3",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "vis3",
+                  "location": [
+                    {
+                      "line": 110,
+                      "col": 31
+                    },
+                    {
+                      "line": 110,
+                      "col": 34
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -8310,7 +8630,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "vis4",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "vis4",
+                  "location": [
+                    {
+                      "line": 110,
+                      "col": 45
+                    },
+                    {
+                      "line": 110,
+                      "col": 48
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -8341,7 +8677,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "vis5",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "vis5",
+                  "location": [
+                    {
+                      "line": 110,
+                      "col": 59
+                    },
+                    {
+                      "line": 110,
+                      "col": 62
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -8964,7 +9316,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "index",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "index",
+                  "location": [
+                    {
+                      "line": 116,
+                      "col": 30
+                    },
+                    {
+                      "line": 116,
+                      "col": 34
+                    }
+                  ]
+                }
+              ],
               "visible": true,
               "location": [
                 {
@@ -8995,7 +9363,23 @@
             {
               "name": "indexterm",
               "type": "inline",
-              "term": "concealed index",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "concealed index",
+                  "location": [
+                    {
+                      "line": 116,
+                      "col": 42
+                    },
+                    {
+                      "line": 116,
+                      "col": 56
+                    }
+                  ]
+                }
+              ],
               "visible": false,
               "location": [
                 {

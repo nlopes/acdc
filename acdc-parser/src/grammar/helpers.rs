@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use crate::{
     Anchor, AttributeValue, BlockMetadata, Title,
     grammar::ParserState,
-    model::{PositionalAttribute, SectionLevel, substitution::SubsFlags},
+    model::{PositionalAttribute, SectionLevel, substitution::SubstitutionPlan},
 };
 
 #[derive(Debug)]
@@ -41,7 +41,7 @@ pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) metadata: BlockMetadata<'input>,
     pub(crate) title: Title<'input>,
     pub(crate) parent_section_level: Option<SectionLevel>,
-    pub(crate) subs_flags: SubsFlags,
+    pub(crate) substitutions: SubstitutionPlan,
     pub(crate) hardbreaks: bool,
     /// Set when the attribute line marks the block as a discrete heading,
     /// either via the `discrete`/`float` block style (`[discrete]`) or as a

@@ -34,12 +34,12 @@ use crate::{
     model::{
         Caption, CaptionKind, LeveloffsetRange, ListLevel, Locateable, PositionalAttribute,
         SectionKind, SectionLevel, Substitution, caption, section, strip_quotes, substitute,
-        substitution::{HEADER, SubsFlags},
+        substitution::{HEADER, SubstitutionPlan},
     },
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use crate::model::substitution::{NORMAL, parse_subs_attribute};
+use crate::model::substitution::parse_subs_attribute;
 
 use super::helpers::{
     AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, MacroAttributeContext,
@@ -177,44 +177,22 @@ fn finish_block_parsing_metadata<'input>(
     offset: usize,
 ) -> Result<BlockParsingMetadata<'input>, Error> {
     #[cfg(feature = "pre-spec-subs")]
-    let subs_flags = metadata
+    let substitutions = metadata
         .substitutions
         .as_ref()
-        .map_or(SubsFlags::all(), |spec| {
-            let mut flags = SubsFlags::all();
-            for (flag, sub) in SubsFlags::FLAG_SUBSTITUTIONS {
-                flags.set(*flag, !spec.is_disabled(sub));
-            }
-            let resolved = spec.resolve(NORMAL);
-            let replacements = resolved
-                .iter()
-                .position(|sub| sub == &Substitution::Replacements);
-            let post_replacements = resolved
-                .iter()
-                .position(|sub| sub == &Substitution::PostReplacements);
-            flags.set(SubsFlags::REPLACEMENTS, replacements.is_some());
-            flags.set(SubsFlags::POST_REPLACEMENTS, post_replacements.is_some());
-            flags.set(
-            SubsFlags::REPLACEMENTS_BEFORE_POST_REPLACEMENTS,
-            matches!(
-                (replacements, post_replacements),
-                (Some(replacements), Some(post_replacements)) if replacements < post_replacements
-            ),
-        );
-            flags
-        });
+        .map_or_else(SubstitutionPlan::default, SubstitutionPlan::for_block_spec);
     #[cfg(not(feature = "pre-spec-subs"))]
-    let subs_flags = SubsFlags::all();
-    let hardbreaks = subs_flags.contains(SubsFlags::POST_REPLACEMENTS)
+    let substitutions = SubstitutionPlan::default();
+    let hardbreaks = substitutions.enabled(&Substitution::PostReplacements)
         && (state.hardbreaks || metadata.options.contains(&"hardbreaks"));
     extract_source_attributes(state, &mut metadata);
     extract_quote_attributes(&mut metadata);
-    apply_quote_attribute_substitutions(state, &mut metadata, offset, subs_flags)?;
+    apply_quote_attribute_substitutions(state, &mut metadata, offset, substitutions)?;
     Ok(BlockParsingMetadata {
         metadata,
         title,
         parent_section_level,
-        subs_flags,
+        substitutions,
         hardbreaks,
         discrete,
     })
@@ -518,7 +496,9 @@ fn verbatim_inner<'input>(
         state,
         p.content,
         content_location,
-        block_metadata.subs_flags.contains(SubsFlags::CALLOUTS),
+        block_metadata
+            .substitutions
+            .enabled(&Substitution::Callouts),
     );
     state.last_block_was_verbatim = true;
     state.last_verbatim_callouts = callouts;
@@ -1179,10 +1159,10 @@ fn apply_quote_attribute_substitutions<'input>(
     state: &mut ParserState<'input>,
     metadata: &mut BlockMetadata<'input>,
     offset: usize,
-    subs_flags: SubsFlags,
+    substitutions: SubstitutionPlan,
 ) -> Result<(), Error> {
     let block_metadata = BlockParsingMetadata {
-        subs_flags,
+        substitutions,
         ..BlockParsingMetadata::default()
     };
 
@@ -1230,7 +1210,7 @@ fn parse_reference_label<'a>(
         return None;
     }
     let block_metadata = BlockParsingMetadata {
-        subs_flags: SubsFlags::QUOTES,
+        substitutions: SubstitutionPlan::only(&Substitution::Quotes),
         ..BlockParsingMetadata::default()
     };
     match process_inlines(
@@ -2885,7 +2865,8 @@ peg::parser! {
                 tracing::debug!(?author_line, ?substituted, "Processing author line with substitution");
 
                 // Parse the substituted content as authors
-                let mut temp_state = ParserState::for_inline_parsing(substituted, state);
+                let mut temp_state =
+                    ParserState::for_inline_parsing(substituted, state, state.inline_ctx);
 
                 // `asciidoctor` always consumes the line after the title as the author
                 // line; when it doesn't parse as structured "firstname [middle] [last]
@@ -2993,7 +2974,8 @@ peg::parser! {
                 tracing::debug!(?rev_line, ?substituted, "Processing revision line with substitution");
 
                 // Parse the substituted content as revision
-                let mut temp_state = ParserState::for_inline_parsing(substituted, state);
+                let mut temp_state =
+                    ParserState::for_inline_parsing(substituted, state, state.inline_ctx);
 
                 match document_parser::revision(substituted, &mut temp_state) {
                     Ok(()) => {
@@ -7559,7 +7541,12 @@ References.
 
         // Check that the index term was parsed
         let has_index_term = paragraph.content.iter().any(|inline| {
-            matches!(inline, InlineNode::Macro(InlineMacro::IndexTerm(it)) if it.is_visible() && it.term() == "Arthur")
+            matches!(
+                inline,
+                InlineNode::Macro(InlineMacro::IndexTerm(it))
+                    if it.is_visible()
+                        && matches!(it.term(), [InlineNode::PlainText(text)] if text.content == "Arthur")
+            )
         });
 
         assert!(
@@ -7594,7 +7581,12 @@ References.
 
         // Check that the concealed index term was parsed
         let has_concealed_term = paragraph.content.iter().any(|inline| {
-            matches!(inline, InlineNode::Macro(InlineMacro::IndexTerm(it)) if !it.is_visible() && it.term() == "Sword")
+            matches!(
+                inline,
+                InlineNode::Macro(InlineMacro::IndexTerm(it))
+                    if !it.is_visible()
+                        && matches!(it.term(), [InlineNode::PlainText(text)] if text.content == "Sword")
+            )
         });
 
         assert!(

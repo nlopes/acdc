@@ -231,15 +231,18 @@ pub struct Stem<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub enum IndexTermKind<'a> {
-    /// Visible in output, single term only.
-    Flow(&'a str),
+    /// A single term that is visible in the document and included in the index.
+    Flow(Vec<InlineNode<'a>>),
     /// Hidden from output, supports hierarchical entries.
     Concealed {
-        term: &'a str,
+        /// The fully substituted primary term.
+        term: Vec<InlineNode<'a>>,
+        /// The fully substituted secondary term, if present.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        secondary: Option<&'a str>,
+        secondary: Option<Vec<InlineNode<'a>>>,
+        /// The fully substituted tertiary term, if present.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        tertiary: Option<&'a str>,
+        tertiary: Option<Vec<InlineNode<'a>>>,
     },
 }
 
@@ -252,10 +255,10 @@ pub struct IndexTerm<'a> {
     pub location: Location,
 }
 
-impl IndexTerm<'_> {
+impl<'a> IndexTerm<'a> {
     /// Returns the primary term.
     #[must_use]
-    pub fn term(&self) -> &str {
+    pub fn term(&self) -> &[InlineNode<'a>] {
         match &self.kind {
             IndexTermKind::Flow(term) | IndexTermKind::Concealed { term, .. } => term,
         }
@@ -263,19 +266,19 @@ impl IndexTerm<'_> {
 
     /// Returns the secondary term, if any.
     #[must_use]
-    pub fn secondary(&self) -> Option<&str> {
+    pub fn secondary(&self) -> Option<&[InlineNode<'a>]> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
-            IndexTermKind::Concealed { secondary, .. } => *secondary,
+            IndexTermKind::Concealed { secondary, .. } => secondary.as_deref(),
         }
     }
 
     /// Returns the tertiary term, if any.
     #[must_use]
-    pub fn tertiary(&self) -> Option<&str> {
+    pub fn tertiary(&self) -> Option<&[InlineNode<'a>]> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
-            IndexTermKind::Concealed { tertiary, .. } => *tertiary,
+            IndexTermKind::Concealed { tertiary, .. } => tertiary.as_deref(),
         }
     }
 

@@ -193,6 +193,22 @@ fn walk_inline_macro<F: FnMut(&mut Location)>(m: &mut InlineMacro<'_>, visit: &m
         InlineMacro::Url(u) => walk_inlines(&mut u.text, visit),
         InlineMacro::Mailto(m) => walk_inlines(&mut m.text, visit),
         InlineMacro::CrossReference(x) => walk_inlines(&mut x.text, visit),
+        InlineMacro::IndexTerm(term) => match &mut term.kind {
+            crate::IndexTermKind::Flow(term) => walk_inlines(term, visit),
+            crate::IndexTermKind::Concealed {
+                term,
+                secondary,
+                tertiary,
+            } => {
+                walk_inlines(term, visit);
+                if let Some(secondary) = secondary {
+                    walk_inlines(secondary, visit);
+                }
+                if let Some(tertiary) = tertiary {
+                    walk_inlines(tertiary, visit);
+                }
+            }
+        },
         InlineMacro::Icon(_)
         | InlineMacro::Image(_)
         | InlineMacro::Keyboard(_)
@@ -200,8 +216,7 @@ fn walk_inline_macro<F: FnMut(&mut Location)>(m: &mut InlineMacro<'_>, visit: &m
         | InlineMacro::Menu(_)
         | InlineMacro::Autolink(_)
         | InlineMacro::Pass(_)
-        | InlineMacro::Stem(_)
-        | InlineMacro::IndexTerm(_) => {}
+        | InlineMacro::Stem(_) => {}
     }
 }
 

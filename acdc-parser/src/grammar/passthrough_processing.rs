@@ -3,11 +3,16 @@ use bumpalo::Bump;
 use crate::{
     AttributeValue, InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass,
     PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
-    model::substitution::{SubsFlags, resolve_passthrough_substitutions},
+    model::substitution::{SubstitutionPlan, resolve_passthrough_substitutions},
     parsed::OwnedInput,
 };
 
-use super::{ParserState, inlines::inline_parser, location_mapping::clamp_inline_node_locations};
+use super::{
+    ParserState,
+    inlines::inline_parser,
+    location_mapping::clamp_inline_node_locations,
+    state::{InlineContext, InlineRules},
+};
 
 /// Apply an inline passthrough's substitutions in source order.
 fn process_passthrough<'a>(
@@ -405,21 +410,22 @@ fn parse_raw_substitution<'a>(
         return Vec::new();
     }
 
-    let mut child = ParserState::for_inline_parsing(raw.content, state);
-    child.inline_ctx.subs_flags = match substitution {
-        Substitution::Quotes => SubsFlags::QUOTES,
-        Substitution::Macros => SubsFlags::MACROS,
-        Substitution::PostReplacements => SubsFlags::POST_REPLACEMENTS,
-        Substitution::SpecialChars
-        | Substitution::Attributes
-        | Substitution::Replacements
-        | Substitution::Normal
-        | Substitution::Verbatim
-        | Substitution::Callouts => SubsFlags::empty(),
+    let mut rules = state.inline_ctx.rules;
+    rules.set(
+        InlineRules::AUTOLINKS,
+        matches!(substitution, Substitution::Macros),
+    );
+    rules.remove(InlineRules::HARD_BREAKS);
+    rules.set(
+        InlineRules::EOI_HARD_BREAK,
+        matches!(substitution, Substitution::PostReplacements),
+    );
+    let inline_ctx = InlineContext {
+        offset: 0,
+        substitutions: SubstitutionPlan::only(substitution),
+        rules,
     };
-    child.inline_ctx.hardbreaks = false;
-    child.inline_ctx.allow_autolinks = matches!(substitution, Substitution::Macros);
-    child.inline_ctx.block_level = matches!(substitution, Substitution::PostReplacements);
+    let mut child = ParserState::for_inline_parsing(raw.content, state, inline_ctx);
 
     let parsed = if matches!(substitution, Substitution::Quotes) {
         inline_parser::quotes_only_inlines(raw.content, &mut child)

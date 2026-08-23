@@ -78,7 +78,7 @@ pub trait LocationMappable<'a>: Clone {
         &mut self,
         map_loc: &LocationMapper<'_>,
         state: &ParserState<'a>,
-        processed: &ProcessedContent<'a>,
+        processed: &'a ProcessedContent<'a>,
         base_location: &Location,
     ) -> Result<(), crate::Error>;
 }
@@ -89,7 +89,7 @@ impl<'a> LocationMappable<'a> for Vec<InlineNode<'a>> {
         &mut self,
         map_loc: &LocationMapper<'_>,
         state: &ParserState<'a>,
-        processed: &ProcessedContent<'a>,
+        processed: &'a ProcessedContent<'a>,
         base_location: &Location,
     ) -> Result<(), crate::Error> {
         *self = super::location_mapping::map_inner_content_locations(

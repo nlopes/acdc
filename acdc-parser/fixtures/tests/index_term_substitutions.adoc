@@ -1,0 +1,29 @@
+= Index Term Substitutions
+:name: Ada
+:styled: *Ada*
+:linked: https://example.com[Ada]
+:person: Ada
+:styled-person: *Ada Lovelace*
+:close: *
+
+((plain {name}))
+
+((formatted {styled}))
+
+((direct https://example.com[Ada]))
+
+((attribute {linked}))
+
+[subs="attributes,quotes,macros"]
+((formatted {styled}))
+
+[subs="macros,attributes,quotes"]
+((late {person} and {styled-person}))
+
+[subs="macros,attributes,quotes"]
+((macro before attributes {linked}))
+
+((closing marker x *Ada{close} y))
+
+[subs="-quotes"]
+((literal *term*))
