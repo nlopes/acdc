@@ -22,8 +22,9 @@ use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DescriptionList, DescriptionListItem, ElementAttributes,
     HorizontalAlignment, Icon, Image, IndexTerm, InlineMacro, InlineNode, ListItem, Menu,
-    Paragraph, Raw, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
-    TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    Paragraph, Raw, Section, SectionKind, Source, Substitution, Table, TableColumn, TableFrame,
+    TableGrid, TableOfContents, TablePresentation, TableStripes, Title, TocEntry,
+    VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -123,6 +124,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     toc_written: bool,
     populated_index_sections: HashSet<String>,
     bibliography_backlinks_written: HashSet<String>,
+    static_media_warning: StaticMediaWarningState,
     index_catalog: IndexCatalog,
     index_columns: usize,
     index_column_gap_pt: f64,
@@ -133,6 +135,13 @@ enum BookPageBreakState {
     Disabled,
     Enabled,
     AfterPart,
+}
+
+#[derive(Default, PartialEq, Eq)]
+enum StaticMediaWarningState {
+    #[default]
+    Pending,
+    Emitted,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -243,6 +252,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             toc_written: false,
             populated_index_sections: HashSet::new(),
             bibliography_backlinks_written: HashSet::new(),
+            static_media_warning: StaticMediaWarningState::Pending,
             index_catalog: IndexCatalog::default(),
             index_columns: theme.index.columns,
             index_column_gap_pt: theme
@@ -1238,6 +1248,52 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
+    pub(crate) fn warn_static_media_fallback(&mut self) {
+        if self.static_media_warning == StaticMediaWarningState::Emitted {
+            return;
+        }
+        self.static_media_warning = StaticMediaWarningState::Emitted;
+        self.diagnostics.warn_with_advice(
+            "interactive media playback is unavailable in static PDF output; rendering clickable source links",
+            "Use the HTML backend when in-document playback is required.",
+        );
+    }
+
+    pub(crate) fn write_static_media_link(&mut self, target: &str, kind: &str) {
+        self.write_text_expr("►\u{a0}");
+        self.writer.raw("#link(");
+        self.writer.string_literal(target);
+        self.writer.raw(")[");
+        self.write_text_expr(target);
+        self.writer.raw("]");
+        self.write_text_expr(" ");
+        self.writer.raw("#emph[");
+        self.write_text_expr(&format!("({kind})"));
+        self.writer.raw("]");
+    }
+
+    pub(crate) fn static_media_source_target(&self, source: &Source<'_>) -> String {
+        self.static_media_target(source.to_string().as_str())
+    }
+
+    pub(crate) fn static_media_target(&self, target: &str) -> String {
+        acdc_converters_core::media::resolve_target(target, self.processor.document_attributes())
+    }
+
+    pub(crate) fn has_asset(&self, target: &str) -> bool {
+        self.assets.get(target).is_some()
+    }
+
+    pub(crate) fn write_static_media_caption(&mut self, title: &Title<'_>) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        self.writer.raw("#imagecaption[");
+        self.write_title(title)?;
+        self.writer.raw("]\n");
+        Ok(())
+    }
+
     pub(crate) fn write_list_item(
         &mut self,
         marker: &str,
@@ -2033,7 +2089,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if has_caption {
             self.writer.raw("#block(width: 100%, breakable: false)[\n");
         }
-        let source = image.source.to_string();
+        let source = self.static_media_source_target(&image.source);
         let alt = block_image_alt(image);
         let link = image
             .metadata
@@ -2200,7 +2256,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_inline_image(&mut self, image: &Image<'_>) {
-        let source = image.source.to_string();
+        let source = self.static_media_source_target(&image.source);
         let alt = inline_image_alt(image);
         let link = image
             .metadata

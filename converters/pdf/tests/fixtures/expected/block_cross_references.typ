@@ -181,12 +181,14 @@
 ]
 
 #metadata(none) <id-766964656f2d6964>
-#blocktitle[#text("Video Title")]
-#text("[video: video.mp4]")
+#text("► ")#link("video.mp4")[#text("video.mp4")]#text(" ")#emph[#text("(video)")]
+#imagecaption[#text("Video Title")]
+
 
 #metadata(none) <id-617564696f2d6964>
-#blocktitle[#text("Audio Title")]
-#text("[audio: audio.mp3]")
+#text("► ")#link("audio.mp3")[#text("audio.mp3")]#text(" ")#emph[#text("(audio)")]
+#imagecaption[#text("Audio Title")]
+
 
 #metadata(none) <id-7468656d617469632d6964>
 #hr()

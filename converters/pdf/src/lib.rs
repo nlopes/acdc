@@ -23,6 +23,7 @@ use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
     icon::{IconMode, image_source as icon_image_source},
+    media::resolve_target,
     visitor::Visitor,
     xref::XrefGuard,
 };
@@ -38,7 +39,6 @@ use acdc_pdf_theme::Theme;
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, preamble,
 };
-
 mod converter;
 mod error;
 mod index;
@@ -789,7 +789,10 @@ fn collect_block_preparation(
             }
             Block::Image(image) => {
                 collect_inline_preparation(image.title.as_ref(), context, preparation);
-                preparation.insert_image(image.source.to_string());
+                preparation.insert_image(resolve_target(
+                    &image.source.to_string(),
+                    context.attributes,
+                ));
             }
             Block::DiscreteHeader(header) => {
                 collect_inline_preparation(header.title.as_ref(), context, preparation);
@@ -799,6 +802,14 @@ fn collect_block_preparation(
             }
             Block::Video(video) => {
                 collect_inline_preparation(video.title.as_ref(), context, preparation);
+                if let Some(poster) = video
+                    .metadata
+                    .attributes
+                    .get_string("poster")
+                    .filter(|poster| !poster.is_empty())
+                {
+                    preparation.insert_image(resolve_target(&poster, context.attributes));
+                }
             }
             Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
@@ -906,7 +917,10 @@ fn collect_inline_preparation(
                 collect_inline_preparation(&text.content, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Image(image)) => {
-                preparation.insert_image(image.source.to_string());
+                preparation.insert_image(resolve_target(
+                    &image.source.to_string(),
+                    context.attributes,
+                ));
             }
             InlineNode::Macro(InlineMacro::Icon(icon)) => match context.icon_mode {
                 IconMode::Image => preparation.insert_image_icon(
@@ -1007,6 +1021,25 @@ mod tests {
             assert!(rendered.pdf.starts_with(b"%PDF-"));
         }
         Ok(warnings)
+    }
+
+    fn external_link_targets(pdf: &lopdf::Document) -> Vec<String> {
+        let mut targets = pdf
+            .objects
+            .values()
+            .filter_map(|object| {
+                let link = object.as_dict().ok()?;
+                if !matches!(link.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                {
+                    return None;
+                }
+                let action = link.get(b"A").ok()?.as_dict().ok()?;
+                let uri = action.get(b"URI").ok()?.as_str().ok()?;
+                Some(String::from_utf8_lossy(uri).into_owned())
+            })
+            .collect::<Vec<_>>();
+        targets.sort();
+        targets
     }
 
     #[test]
@@ -1122,6 +1155,174 @@ mod tests {
             .count();
         assert_eq!(link_annotations, 0);
         assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn audio_blocks_render_clickable_static_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Audio fallbacks\n:imagesdir: media library\n\n.Local episode\n[[local-audio]]\naudio::clips/demo.mp3[]\n\naudio::https://example.com/podcast.mp3[start=5,end=10,opts=\"autoplay,loop,nocontrols\"]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(
+            "#text(\"►\u{a0}\")#link(\"media%20library/clips/demo.mp3\")[#text(\"media%20library/clips/demo.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
+        ));
+        assert!(typst.contains(
+            "#text(\"►\u{a0}\")#link(\"https://example.com/podcast.mp3\")[#text(\"https://example.com/podcast.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
+        ));
+        assert!(typst.contains("#imagecaption[#text(\"Local episode\")]"));
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing static media fallback warning"))?;
+        assert_eq!(
+            warning.message,
+            "interactive media playback is unavailable in static PDF output; rendering clickable source links",
+        );
+        assert_eq!(
+            warning.advice(),
+            Some("Use the HTML backend when in-document playback is required."),
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(normalized_text.contains("Audio fallbacks"), "{text}");
+        assert!(
+            normalized_text.contains("media%20library/clips/demo.mp3 (audio) Local episode"),
+            "{text}",
+        );
+        assert!(
+            normalized_text.contains("https://example.com/podcast.mp3 (audio)"),
+            "{text}",
+        );
+        let targets = external_link_targets(&pdf);
+        assert_eq!(
+            targets,
+            [
+                "https://example.com/podcast.mp3".to_string(),
+                "media%20library/clips/demo.mp3".to_string(),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn video_blocks_preserve_clickable_static_sources() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Video fallbacks\n:imagesdir: media\n\n.Local formats\n[[local-video]]\nvideo::clips/demo.mp4,clips/demo.webm[]\n\nvideo::https://media.example.test/demo.mp4[]\n\nvideo::dQw4w9WgXcQ[youtube,start=10,end=20,opts=\"autoplay,loop\"]\n\nvideo::76979871[vimeo,start=10,opts=muted]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        for (target, kind) in [
+            ("media/clips/demo.mp4", "video"),
+            ("media/clips/demo.webm", "video"),
+            ("https://media.example.test/demo.mp4", "video"),
+            (
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "YouTube video",
+            ),
+            ("https://vimeo.com/76979871", "Vimeo video"),
+        ] {
+            assert!(
+                typst.contains(&format!(
+                    "#link(\"{target}\")[#text(\"{target}\")]#text(\" \")#emph[#text(\"({kind})\")]"
+                )),
+                "missing {target} in generated Typst",
+            );
+        }
+        assert!(!typst.contains("#t="));
+        assert!(!typst.contains("&t=10"));
+        assert!(typst.contains("#imagecaption[#text(\"Local formats\")]"));
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings.first().map(|warning| warning.message.as_ref()),
+            Some(
+                "interactive media playback is unavailable in static PDF output; rendering clickable source links"
+            ),
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert_eq!(
+            external_link_targets(&pdf),
+            [
+                "https://media.example.test/demo.mp4".to_string(),
+                "https://vimeo.com/76979871".to_string(),
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
+                "media/clips/demo.mp4".to_string(),
+                "media/clips/demo.webm".to_string(),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn video_poster_is_a_linked_static_fallback() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let media_directory = directory.path().join("media library");
+        std::fs::create_dir(&media_directory)?;
+        std::fs::write(
+            media_directory.join("poster file.svg"),
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="#334155"/></svg>"##,
+        )?;
+        let parsed = acdc_parser::parse(
+            "= Video poster\n:imagesdir: media library\n\n.Poster title\n[[poster-video]]\nvideo::demo.mp4[poster=poster file.svg]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let typst_path = directory.path().join("video-poster.typ");
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                emit_typst: Some(typst_path.clone()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(
+            parsed.document(),
+            Some(&directory.path().join("document.adoc")),
+            &mut diagnostics,
+        )?;
+
+        assert_eq!(rendered.resolved_document_image_count, 1);
+        let typst = std::fs::read_to_string(typst_path)?;
+        assert!(
+            typst.contains("alt: \"poster file\", destination: \"media%20library/demo.mp4\")"),
+            "{typst}",
+        );
+        assert!(typst.contains("#imagecaption[#text(\"Poster title\")]"));
+        assert!(!typst.contains("Figure 1."));
+        assert!(!typst.contains("#text(\"demo.mp4\")"));
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings.first().map(|warning| warning.message.as_ref()),
+            Some(
+                "interactive media playback is unavailable in static PDF output; rendering clickable source links"
+            ),
+        );
+
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert_eq!(
+            external_link_targets(&pdf),
+            ["media%20library/demo.mp4".to_string()]
+        );
         Ok(())
     }
 
@@ -1804,7 +2005,7 @@ mod tests {
     fn image_collection_matches_rendered_titles_and_skips_verbatim_content()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            "= Header: image:subtitle.png[] Subtitle\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
+            "= Header: image:subtitle.png[] Subtitle\n:imagesdir: media library\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
             &acdc_parser::Options::default(),
         )?;
 
@@ -1814,12 +2015,12 @@ mod tests {
                 .into_iter()
                 .collect::<Vec<_>>(),
             vec![
-                "block-title.png",
-                "body.png",
-                "list-title.png",
-                "paragraph-title.png",
-                "section.png",
-                "subtitle.png",
+                "media%20library/block-title.png",
+                "media%20library/body.png",
+                "media%20library/list-title.png",
+                "media%20library/paragraph-title.png",
+                "media%20library/section.png",
+                "media%20library/subtitle.png",
             ]
         );
         Ok(())

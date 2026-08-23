@@ -120,10 +120,12 @@
 #text("[Missing image]")#text(" | missing.png")
 
 #metadata(none) <id-766964656f2d6964>
-#text("[video: video.mp4]")
+#text("► ")#link("video.mp4")[#text("video.mp4")]#text(" ")#emph[#text("(video)")]
+
 
 #metadata(none) <id-617564696f2d6964>
-#text("[audio: audio.mp3]")
+#text("► ")#link("audio.mp3")[#text("audio.mp3")]#text(" ")#emph[#text("(audio)")]
+
 
 #metadata(none) <id-7468656d617469632d6964>
 #hr()

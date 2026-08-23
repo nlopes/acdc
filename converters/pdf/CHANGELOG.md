@@ -43,11 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convenience attributes, matching Asciidoctor PDF's backend traits.
 - Initial Typst-backed PDF converter with core AsciiDoc rendering, themed page chrome,
   branding and watermark options, colour emoji, local and remote images, asset warnings
-  and strict mode, plus optional generated-Typst output for debugging. Unsupported icons,
-  audio, and video degrade with warnings or textual fallbacks.
+  and strict mode, plus optional generated-Typst output for debugging. Stem content
+  degrades with a warning and escaped textual fallback.
 
 ### Changed
 
+- Audio and video blocks now render clickable, labelled static fallbacks instead
+  of plain placeholder text. Local targets honor `imagesdir`; video alternatives
+  remain separate links; and an available poster links to the first video source.
+  Titles render below the fallback, playback options do not affect it, and one
+  document-level warning explains that in-document playback requires HTML,
+  matching Asciidoctor PDF without fetching playable media.
 - Inline icons now support text, built-in glyph, and image modes. Text and
   missing-glyph fallbacks use the icon alternative text; image mode honors
   `iconsdir` and `icontype`, including `icons=svg` and similar format values.
@@ -309,6 +315,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block and inline images honor `imagesdir`, normalize relative targets, and
+  encode spaces as `%20`. Percent-encoded local image and poster targets still
+  load from their corresponding filesystem paths, matching Asciidoctor PDF.
 - Checklist-like prefixes in ordered lists now remain visible text instead of
   rendering as checkboxes, matching Asciidoctor PDF. ACDC continues to accept
   `[X]` in unordered checklists as an intentional extension.

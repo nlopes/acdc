@@ -1,4 +1,4 @@
-use std::fmt::Write as _;
+use std::{borrow::Cow, fmt::Write as _};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
@@ -11,9 +11,9 @@ use acdc_converters_core::{
     visitor::Visitor,
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, CaptionKind,
+    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, Caption, CaptionKind,
     DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Header, Image, InlineNode,
-    ListItem, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
+    ListItem, OrderedList, PageBreak, Paragraph, Section, Source, TableOfContents, ThematicBreak,
     UnorderedList, Video,
 };
 
@@ -421,24 +421,77 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_video(&mut self, video: &Video<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&video.metadata);
-        self.warn_unsupported("video blocks", "rendering the video target as text");
-        self.write_block_title(&video.title)?;
+        self.warn_static_media_fallback();
+        let youtube = matches!(
+            video.metadata.attributes.get("youtube"),
+            Some(AttributeValue::Bool(true))
+        );
+        let is_vimeo = matches!(
+            video.metadata.attributes.get("vimeo"),
+            Some(AttributeValue::Bool(true))
+        );
         let sources = video
             .sources
             .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-        self.write_text_expr(&format!("[video: {sources}]"));
+            .map(|source| {
+                if youtube {
+                    (
+                        format!("https://www.youtube.com/watch?v={source}"),
+                        "YouTube video",
+                    )
+                } else if is_vimeo {
+                    (format!("https://vimeo.com/{source}"), "Vimeo video")
+                } else {
+                    (self.static_media_source_target(source), "video")
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let poster = video
+            .metadata
+            .attributes
+            .get_string("poster")
+            .filter(|poster| !poster.is_empty());
+        let poster_target = poster
+            .as_deref()
+            .map(|poster| self.static_media_target(poster));
+        let poster_rendered = if let (Some(poster), Some(poster_target), Some((target, _))) =
+            (poster.as_deref(), poster_target.as_deref(), sources.first())
+            && self.has_asset(poster_target)
+        {
+            let mut metadata = video.metadata.clone();
+            metadata.caption = Some(Caption::Unnumbered);
+            metadata.attributes.set(
+                Cow::Borrowed("link"),
+                AttributeValue::String(Cow::Owned(target.clone())),
+            );
+            let image = Image::new(Source::from_str_borrowed(poster)?, video.location.clone())
+                .with_title(video.title.clone())
+                .with_metadata(metadata);
+            self.write_block_image(&image)?;
+            true
+        } else {
+            false
+        };
+
+        for (target, kind) in sources.iter().skip(usize::from(poster_rendered)) {
+            self.write_static_media_link(target, kind);
+            self.writer.raw("\n");
+        }
+        if !poster_rendered {
+            self.write_static_media_caption(&video.title)?;
+        }
         self.writer.raw("\n\n");
         Ok(())
     }
 
     fn visit_audio(&mut self, audio: &Audio<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&audio.metadata);
-        self.warn_unsupported("audio blocks", "rendering the audio target as text");
-        self.write_block_title(&audio.title)?;
-        self.write_text_expr(&format!("[audio: {}]", audio.source));
+        self.warn_static_media_fallback();
+        let target = self.static_media_source_target(&audio.source);
+        self.write_static_media_link(&target, "audio");
+        self.writer.raw("\n");
+        self.write_static_media_caption(&audio.title)?;
         self.writer.raw("\n\n");
         Ok(())
     }

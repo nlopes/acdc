@@ -41,13 +41,26 @@ The backend currently renders:
 * listing and literal blocks with themed monospace presentation
 * collapsible examples as expanded disclosures with their full content visible
 * local, remote, and `data:` URI images in block and inline positions
+* static audio and video fallbacks with clickable source links and linked video posters
 * a configurable page theme, header logo, watermark, footer, and page size
 
 == Known limitations
 
 The backend is intentionally incomplete.
-Audio, video, and stem notation use escaped textual fallbacks.
+Stem notation uses an escaped textual fallback.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
+
+Audio and video blocks render as static media fallbacks because PDF cannot play
+embedded media through the HTML controls.
+Each source is a clickable link with a media label, and block titles render as
+captions below the fallback, matching Asciidoctor PDF.
+Local media links use `imagesdir`; playback options such as start and end times,
+autoplay, looping, and controls do not affect the static result.
+When a video has an available `poster`, the poster is linked to the first video
+source and any additional sources remain as separate links.
+Poster loading follows the same safe-mode, network, size, and strict-asset rules
+as document images, but playable media is never fetched.
+The converter emits one warning per document when it uses a static media fallback.
 
 Inline icons use text when `icons` is unset, bundled Unicode glyphs when
 `icons=font`, and files from `iconsdir` for other set values.
