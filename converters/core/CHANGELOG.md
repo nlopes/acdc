@@ -84,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Media targets used as URIs resolve relative paths against `imagesdir`, use
+  forward slashes, normalize path segments, and encode spaces as `%20`.
 - Icon mode selection now treats any set `icons` value other than `font` as
   image mode, matching Asciidoctor.
 - Link fallback text distinguishes `link:`, `mailto:`, and automatic links, so

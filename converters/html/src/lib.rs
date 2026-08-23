@@ -1079,6 +1079,40 @@ mod tests {
     }
 
     #[test]
+    fn media_targets_honor_imagesdir_and_encode_spaces() -> TestResult {
+        let parsed = acdc_parser::parse(
+            ":imagesdir: media library\n\nimage::poster.png[]\n\nInline image:poster.png[].\n\naudio::clips/demo.mp3[]\n\nvideo::clips/demo.mp4[poster=poster file.png]\n",
+            &acdc_parser::Options::default(),
+        )?;
+
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor =
+                Processor::new(Options::default(), parsed.document().attributes.clone())
+                    .with_variant(variant);
+            let html = processor.convert_to_string(
+                parsed.document(),
+                &RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                },
+            )?;
+
+            for target in [
+                "src=\"media%20library/poster.png\"",
+                "src=\"media%20library/clips/demo.mp3\"",
+                "src=\"media%20library/clips/demo.mp4\"",
+                "poster=\"media%20library/poster%20file.png\"",
+            ] {
+                assert!(
+                    html.contains(target),
+                    "missing {target} in {variant:?}: {html}"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
     fn test_convert_to_string_embedded_no_document_frame() -> TestResult {
         let content = r"= My Title
 

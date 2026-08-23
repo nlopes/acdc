@@ -24,6 +24,7 @@
 //! - [`code`] - Programming language detection for syntax highlighting
 //! - [`icon`] - Icon rendering mode configuration
 //! - [`inline_text`] - Plain-text extraction from inline nodes
+//! - [`media`] - Media target resolution for URI-producing converters
 //! - [`substitutions`] - Text substitution utilities for escape handling
 //! - [`table`] - Table column width calculations
 //! - [`toc`] - Table of contents configuration
@@ -47,6 +48,7 @@ pub mod icon;
 pub mod inline_text;
 pub mod link;
 pub mod list;
+pub mod media;
 pub mod section;
 pub mod substitutions;
 pub mod table;

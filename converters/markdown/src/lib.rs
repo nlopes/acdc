@@ -241,4 +241,29 @@ mod tests {
             .with_variant(MarkdownVariant::CommonMark);
         assert_eq!(processor.variant(), MarkdownVariant::CommonMark);
     }
+
+    #[test]
+    fn media_targets_honor_imagesdir_and_encode_spaces() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            ":imagesdir: media library\n\nimage::poster.png[]\n\nInline image:poster.png[].\n\naudio::clips/demo.mp3[]\n\nvideo::clips/demo.mp4[]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = processor.warning_source();
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let mut output = Vec::new();
+
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+
+        let markdown = String::from_utf8(output)?;
+        for target in [
+            "![image](media%20library/poster.png)",
+            "[Audio: media%20library/clips/demo.mp3](media%20library/clips/demo.mp3)",
+            "[Video: media%20library/clips/demo.mp4](media%20library/clips/demo.mp4)",
+        ] {
+            assert!(markdown.contains(target), "missing {target}: {markdown}");
+        }
+        Ok(())
+    }
 }

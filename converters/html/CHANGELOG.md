@@ -259,6 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image, audio, video, and video poster targets honor `imagesdir`, normalize
+  relative paths, and encode spaces as `%20`, matching Asciidoctor.
 - Link fallback text keeps `mailto:` for a `link:` target, escapes URL
   ampersands, uses angle brackets only around bracketed email autolinks, and
   maps inter-document references to the HTML output suffix, matching

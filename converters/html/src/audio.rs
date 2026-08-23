@@ -1,9 +1,9 @@
 use std::{fmt::Write as _, io::Write};
 
-use acdc_converters_core::visitor::Visitor;
-use acdc_parser::{AttributeValue, Audio};
+use acdc_converters_core::{media::resolve_target, visitor::Visitor};
+use acdc_parser::{AttributeValue, Audio, DocumentAttributes};
 
-use crate::{Error, HtmlVariant, HtmlVisitor};
+use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_href};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_audio(&mut self, audio: &Audio) -> Result<(), Error> {
@@ -25,22 +25,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         writeln!(self.writer, "<div class=\"content\">")?;
 
-        // Build the src attribute with optional start and end time
-        let mut src = audio.source.to_string();
-        let start = audio.metadata.attributes.get("start");
-        let end = audio.metadata.attributes.get("end");
-
-        match (start, end) {
-            (Some(AttributeValue::String(s)), Some(AttributeValue::String(e))) => {
-                write!(src, "#t={s},{e}")?;
-            }
-            (Some(AttributeValue::String(s)), None) => {
-                write!(src, "#t={s}")?;
-            }
-            _ => {}
-        }
-
-        write!(self.writer, "<audio src=\"{src}\"")?;
+        let src = audio_target(audio, self.processor.document_attributes())?;
+        write!(self.writer, "<audio src=\"{}\"", escape_href(&src))?;
 
         // Add autoplay option if present
         if audio.metadata.options.contains(&"autoplay") {
@@ -67,8 +53,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 }
 
-fn render_audio_element(audio: &Audio, w: &mut dyn std::io::Write) -> Result<(), Error> {
-    let mut src = audio.source.to_string();
+fn audio_target(
+    audio: &Audio<'_>,
+    attributes: &DocumentAttributes<'_>,
+) -> Result<String, std::fmt::Error> {
+    let mut src = resolve_target(&audio.source.to_string(), attributes);
     let start = audio.metadata.attributes.get("start");
     let end = audio.metadata.attributes.get("end");
 
@@ -82,7 +71,17 @@ fn render_audio_element(audio: &Audio, w: &mut dyn std::io::Write) -> Result<(),
         _ => {}
     }
 
-    write!(w, "<audio src=\"{src}\"")?;
+    Ok(src)
+}
+
+fn render_audio_element(
+    audio: &Audio,
+    attributes: &DocumentAttributes<'_>,
+    w: &mut dyn std::io::Write,
+) -> Result<(), Error> {
+    let src = audio_target(audio, attributes)?;
+
+    write!(w, "<audio src=\"{}\"", escape_href(&src))?;
 
     if audio.metadata.options.contains(&"autoplay") {
         write!(w, " autoplay")?;
@@ -116,7 +115,11 @@ fn visit_audio_semantic<W: Write>(
     }
     writeln!(visitor.writer, ">")?;
 
-    render_audio_element(audio, &mut visitor.writer)?;
+    render_audio_element(
+        audio,
+        visitor.processor.document_attributes(),
+        &mut visitor.writer,
+    )?;
 
     if has_title {
         write!(visitor.writer, "<figcaption>")?;

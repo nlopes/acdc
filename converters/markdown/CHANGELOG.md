@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image destinations and audio and video fallback links honor `imagesdir`,
+  normalize relative paths, and encode spaces as `%20`.
 - Markdown output now uses one blank line between blocks and one final newline,
   without redundant spacing around quotes and nested lists.
 - Description-list fallbacks now indent nested levels and preserve repeated

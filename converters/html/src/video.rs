@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::{video::TryUrl, visitor::Visitor};
-use acdc_parser::{AttributeValue, Video};
+use acdc_converters_core::{media::resolve_target, video::TryUrl, visitor::Visitor};
+use acdc_parser::{AttributeValue, DocumentAttributes, Video};
 
-use crate::{Error, HtmlVariant, HtmlVisitor};
+use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_href};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
@@ -44,9 +44,17 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         );
 
         if is_youtube || is_vimeo {
-            render_iframe_video(video, &mut self.writer)?;
+            render_iframe_video(
+                video,
+                self.processor.document_attributes(),
+                &mut self.writer,
+            )?;
         } else {
-            render_local_video(video, &mut self.writer)?;
+            render_local_video(
+                video,
+                self.processor.document_attributes(),
+                &mut self.writer,
+            )?;
         }
 
         writeln!(self.writer, "</div>")?;
@@ -57,8 +65,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 }
 
 /// Render a video as an iframe, suitable for `YouTube` or `Vimeo` embedding.
-fn render_iframe_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(), Error> {
-    let url = video.try_url(true)?;
+fn render_iframe_video<W: Write + ?Sized>(
+    video: &Video,
+    attributes: &DocumentAttributes<'_>,
+    w: &mut W,
+) -> Result<(), Error> {
+    let url = resolve_target(&video.try_url(true)?, attributes);
     let allow_fullscreen = !video.metadata.options.contains(&"nofullscreen");
 
     write!(w, "<iframe")?;
@@ -71,7 +83,7 @@ fn render_iframe_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<()
         write!(w, " height=\"{height}\"")?;
     }
 
-    write!(w, " src=\"{url}\"")?;
+    write!(w, " src=\"{}\"", escape_href(&url))?;
 
     if allow_fullscreen {
         write!(w, " allowfullscreen")?;
@@ -83,10 +95,14 @@ fn render_iframe_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<()
 }
 
 /// Render a local video using the `HTML5` `<video>` tag.
-fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(), Error> {
-    let src = video.try_url(false)?;
+fn render_local_video<W: Write + ?Sized>(
+    video: &Video,
+    attributes: &DocumentAttributes<'_>,
+    w: &mut W,
+) -> Result<(), Error> {
+    let src = resolve_target(&video.try_url(false)?, attributes);
 
-    write!(w, "<video src=\"{src}\"")?;
+    write!(w, "<video src=\"{}\"", escape_href(&src))?;
 
     if let Some(AttributeValue::String(width)) = video.metadata.attributes.get("width") {
         write!(w, " width=\"{width}\"")?;
@@ -97,7 +113,8 @@ fn render_local_video<W: Write + ?Sized>(video: &Video, w: &mut W) -> Result<(),
     }
 
     if let Some(AttributeValue::String(poster)) = video.metadata.attributes.get("poster") {
-        write!(w, " poster=\"{poster}\"")?;
+        let poster = resolve_target(poster, attributes);
+        write!(w, " poster=\"{}\"", escape_href(&poster))?;
     }
 
     if let Some(AttributeValue::String(preload)) = video.metadata.attributes.get("preload") {
@@ -156,9 +173,17 @@ fn visit_video_semantic<W: Write>(
     );
 
     if is_youtube || is_vimeo {
-        render_iframe_video(video, &mut visitor.writer)?;
+        render_iframe_video(
+            video,
+            visitor.processor.document_attributes(),
+            &mut visitor.writer,
+        )?;
     } else {
-        render_local_video(video, &mut visitor.writer)?;
+        render_local_video(
+            video,
+            visitor.processor.document_attributes(),
+            &mut visitor.writer,
+        )?;
     }
 
     if has_title {

@@ -3,16 +3,17 @@
 use std::{io::Write, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics,
+    Converter, Diagnostics,
     code::detect_language,
     list::OrderedListNumbering,
+    media::resolve_target,
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, CrossReference, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem,
-    OrderedList, PageBreak, Paragraph, Section, Table, TableOfContents, ThematicBreak,
+    OrderedList, PageBreak, Paragraph, Section, Source, Table, TableOfContents, ThematicBreak,
     UnorderedList, Video,
 };
 
@@ -49,6 +50,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     /// Get the Markdown variant being used.
     fn variant(&self) -> MarkdownVariant {
         self.processor.variant()
+    }
+
+    fn media_target(&self, source: &Source<'_>) -> String {
+        resolve_target(&source.to_string(), self.processor.document_attributes())
     }
 
     /// Write a warning comment to the output for unsupported features.
@@ -494,7 +499,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             .get_string("alt")
             .unwrap_or(std::borrow::Cow::Borrowed("image"));
 
-        let target = image.source.to_string();
+        let target = self.media_target(&image.source);
 
         // Markdown image syntax: ![alt](url "title")
         if let Some(title) = image.metadata.attributes.get_string("title") {
@@ -509,7 +514,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         // Video embedding not supported in standard Markdown
         self.write_warning("video embedding", "providing link")?;
         if let Some(first_source) = video.sources.first() {
-            let target = first_source.to_string();
+            let target = self.media_target(first_source);
             writeln!(self.writer, "[Video: {target}]({target})")?;
         }
         Ok(())
@@ -518,7 +523,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
         // Audio embedding not supported in standard Markdown
         self.write_warning("audio embedding", "providing link")?;
-        let target = audio.source.to_string();
+        let target = self.media_target(&audio.source);
         writeln!(self.writer, "[Audio: {target}]({target})")?;
         Ok(())
     }
@@ -699,7 +704,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
             }
             InlineMacro::Image(image) => {
                 // Inline image macro
-                let target = image.source.to_string();
+                let target = self.media_target(&image.source);
                 // Use the image alt text or default
                 let alt = "image"; // Inline images don't have attributes field
                 write!(self.writer, "![{alt}]({target})")?;

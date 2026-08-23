@@ -51,6 +51,7 @@ use std::{
 use acdc_converters_core::{
     InlineTextTransform, inlines_to_string,
     link::{autolink_fallback, link_fallback, mailto_fallback},
+    media::resolve_target,
     substitutions::{
         Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
     },
@@ -815,6 +816,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
     fn render_inline_image(&mut self, i: &Image<'_>) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let source = escape_href(&resolve_target(
+            &i.source.to_string(),
+            self.processor.document_attributes(),
+        ));
         let w = self.writer_mut();
         // Inline images use a span wrapper (not in semantic mode)
         if !is_semantic {
@@ -841,7 +846,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             )?;
         }
 
-        write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", i.source)?;
+        write!(w, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
         write_dimension_attributes(w, &i.metadata)?;
         if let Some(title) = i.metadata.attributes.get("title") {
             write!(w, " title=\"{title}\"")?;

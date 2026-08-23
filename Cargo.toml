@@ -54,6 +54,7 @@ lopdf = "0.44"
 mockito = "1"
 pretty_assertions = "1.4"
 rayon = "1.11"
+relative-path = "2.0.1"
 rstest = "0.26"
 rustc-hash = "2"
 serde = { version = "1", features = ["derive"] }

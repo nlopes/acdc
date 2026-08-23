@@ -1,6 +1,6 @@
 use std::{io::Write, string::ToString};
 
-use acdc_converters_core::visitor::WritableVisitor;
+use acdc_converters_core::{media::resolve_target, visitor::WritableVisitor};
 use acdc_parser::{BlockMetadata, Image};
 
 use crate::{
@@ -43,6 +43,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             || alt_text_from_filename(&img.source),
             std::borrow::Cow::into_owned,
         );
+        let source = escape_href(&resolve_target(
+            &img.source.to_string(),
+            self.processor.document_attributes(),
+        ));
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
@@ -55,11 +59,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             )?;
         }
 
-        write!(
-            self.writer,
-            "<img src=\"{}\" alt=\"{alt_text}\"",
-            img.source
-        )?;
+        write!(self.writer, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
         write_dimension_attributes(&mut self.writer, &img.metadata)?;
         write!(self.writer, ">")?;
 
@@ -119,6 +119,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             || alt_text_from_filename(&img.source),
             std::borrow::Cow::into_owned,
         );
+        let source = escape_href(&resolve_target(
+            &img.source.to_string(),
+            self.processor.document_attributes(),
+        ));
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
@@ -152,8 +156,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 );
             write!(
                 self.writer,
-                "<a class=\"image bare\" href=\"{}\"{link_controls} title=\"{label}\" aria-label=\"{label}\">",
-                img.source,
+                "<a class=\"image bare\" href=\"{source}\"{link_controls} title=\"{label}\" aria-label=\"{label}\">",
             )?;
         } else if !is_link_none
             && !is_link_self
@@ -166,11 +169,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             )?;
         }
 
-        write!(
-            self.writer,
-            "<img src=\"{}\" alt=\"{alt_text}\"",
-            img.source
-        )?;
+        write!(self.writer, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
         write_dimension_attributes(&mut self.writer, &img.metadata)?;
 
         // Add loading attribute if present
