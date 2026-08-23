@@ -18,9 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `[index]` sections now generate page-linked catalogs from visible and
   concealed index terms, including secondary and tertiary terms. Empty index
   sections are omitted, and `index-pagenum-sequence-style=page` or `range`
-  consolidates repeated page numbers. Catalogs use two columns by default,
-  support theme-controlled column counts and gaps, and accept `%notitle` to
-  hide the visible heading, matching Asciidoctor PDF.
+  consolidates repeated page numbers. Non-screen media uses unlinked, unique
+  page numbers with contiguous ranges. Catalogs use two columns by default,
+  support theme-controlled column counts and gaps, and accept `%notitle` to hide
+  the visible heading, matching Asciidoctor PDF.
 - Tagged PDFs now include explicit or filename-derived alternative text for
   embedded block and inline images. Asciidoctor PDF 2.3.15 does not emit tagged
   PDF structure.

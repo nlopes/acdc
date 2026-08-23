@@ -1090,6 +1090,42 @@ mod tests {
     }
 
     #[test]
+    fn print_media_index_uses_plain_unique_page_ranges() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Print index\n:media: print\n:index-pagenum-sequence-style: page\n\nFirst ((term)) and same-page ((term)).\n\n<<<\n\nSecond ((term)).\n\n<<<\n\nA page without the indexed term.\n\n<<<\n\nFourth ((term)).\n\n[index]\n== Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(
+            "#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,<__indexterm-3>,<__indexterm-4>,), \"print\")"
+        ));
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(normalized_text.contains("T term , 1-2, 4"), "{text}");
+        let link_annotations = pdf
+            .objects
+            .values()
+            .filter(|object| {
+                object.as_dict().is_ok_and(|dictionary| {
+                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                })
+            })
+            .count();
+        assert_eq!(link_annotations, 0);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn inline_icon_failures_warn_for_each_macro_occurrence()
     -> Result<(), Box<dyn std::error::Error>> {
         let font_warnings = render_warnings(

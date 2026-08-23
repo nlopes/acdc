@@ -57,10 +57,14 @@ pub(crate) enum PageSequenceStyle {
     Term,
     Page,
     Range,
+    Print,
 }
 
 impl PageSequenceStyle {
-    pub(crate) fn from_attribute(value: Option<&str>) -> Self {
+    pub(crate) fn from_attributes(value: Option<&str>, media: Option<&str>) -> Self {
+        if media.is_some_and(|media| media != "screen") {
+            return Self::Print;
+        }
         match value {
             Some("page") => Self::Page,
             Some("range") => Self::Range,
@@ -73,6 +77,7 @@ impl PageSequenceStyle {
             Self::Term => "term",
             Self::Page => "page",
             Self::Range => "range",
+            Self::Print => "print",
         }
     }
 }
@@ -122,7 +127,11 @@ impl IndexCatalog {
         columns: usize,
         column_gap_pt: f64,
     ) {
-        writer.raw(INDEX_PAGE_HELPER);
+        writer.raw(if sequence_style == PageSequenceStyle::Print {
+            INDEX_PRINT_PAGE_HELPER
+        } else {
+            INDEX_PAGE_HELPER
+        });
         if columns > 1 {
             let _ = writeln!(writer, "#columns({columns}, gutter: {column_gap_pt}pt)[");
         }
@@ -228,6 +237,31 @@ const INDEX_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = c
 }
 "#;
 
+const INDEX_PRINT_PAGE_HELPER: &str = r"#let _acdc_index_pages(targets, sequence) = context {
+  let occurrences = targets
+    .map(target => (target, counter(page).at(target).first()))
+    .dedup(key: occurrence => occurrence.last())
+  let ranges = ()
+  for occurrence in occurrences {
+    if ranges.len() > 0 and occurrence.last() == ranges.last().last().last() + 1 {
+      let previous = ranges.pop()
+      ranges.push((previous.first(), occurrence))
+    } else {
+      ranges.push((occurrence, occurrence))
+    }
+  }
+  let displayed = occurrence => counter(page).display(at: occurrence.first())
+  let pages = ranges.map(range => if range.first().last() == range.last().last() {
+    displayed(range.first())
+  } else {
+    displayed(range.first()) + [-] + displayed(range.last())
+  })
+  if pages.len() > 0 {
+    [, ] + pages.join[, ]
+  }
+}
+";
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -235,20 +269,28 @@ mod tests {
     #[test]
     fn sequence_style_defaults_to_each_term_occurrence() {
         assert_eq!(
-            PageSequenceStyle::from_attribute(None),
+            PageSequenceStyle::from_attributes(None, None),
             PageSequenceStyle::Term
         );
         assert_eq!(
-            PageSequenceStyle::from_attribute(Some("unknown")),
+            PageSequenceStyle::from_attributes(Some("unknown"), Some("screen")),
             PageSequenceStyle::Term
         );
         assert_eq!(
-            PageSequenceStyle::from_attribute(Some("page")),
+            PageSequenceStyle::from_attributes(Some("page"), None),
             PageSequenceStyle::Page
         );
         assert_eq!(
-            PageSequenceStyle::from_attribute(Some("range")),
+            PageSequenceStyle::from_attributes(Some("range"), Some("screen")),
             PageSequenceStyle::Range
+        );
+        assert_eq!(
+            PageSequenceStyle::from_attributes(Some("page"), Some("print")),
+            PageSequenceStyle::Print
+        );
+        assert_eq!(
+            PageSequenceStyle::from_attributes(Some("term"), Some("prepress")),
+            PageSequenceStyle::Print
         );
     }
 

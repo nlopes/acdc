@@ -262,10 +262,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_index_catalog(&mut self) {
-        let sequence_style = PageSequenceStyle::from_attribute(
+        let sequence_style = PageSequenceStyle::from_attributes(
             self.processor
                 .document_attributes()
                 .get_string("index-pagenum-sequence-style")
+                .as_deref(),
+            self.processor
+                .document_attributes()
+                .get_string("media")
                 .as_deref(),
         );
         self.index_catalog.write(

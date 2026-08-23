@@ -49,8 +49,6 @@ The backend is intentionally incomplete.
 Audio, video, and stem notation use escaped textual fallbacks.
 Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
 
-Index catalogs do not yet support print-specific page sequences.
-
 Inline icons use text when `icons` is unset, bundled Unicode glyphs when
 `icons=font`, and files from `iconsdir` for other set values.
 The glyph mode covers common directional and status icons rather than the full
@@ -92,9 +90,10 @@ Add an `[index]` section to generate a catalog from all index terms that occur b
 Visible `((term))` and `indexterm2:[term]` forms remain in the document.
 Concealed `(((primary, secondary, tertiary)))` and `indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
 
-Each page number links to the exact term occurrence.
-The default lists every occurrence.
+For screen media, each page number links to the exact term occurrence.
+The default screen sequence lists every occurrence.
 Set `:index-pagenum-sequence-style: page` to list each page once, or set it to `range` to combine consecutive pages.
+For non-screen media, the catalog ignores that sequence setting and emits unlinked, unique page numbers with contiguous ranges, matching Asciidoctor PDF.
 An empty index section is omitted, and content inside an index section is ignored, matching Asciidoctor PDF.
 
 The bundled theme uses two columns with a 12 pt gap.
