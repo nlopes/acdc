@@ -115,6 +115,11 @@ mod tests {
             ("clips/../demo.mp4", Some("/assets"), "/assets/demo.mp4"),
             ("/media/../demo.mp4", Some("assets"), "/demo.mp4"),
             (
+                "already%20encoded.png",
+                Some("media library"),
+                "media%20library/already%20encoded.png",
+            ),
+            (
                 "clips/../demo.mp4",
                 Some("https://cdn.example/media"),
                 "https://cdn.example/media/demo.mp4",

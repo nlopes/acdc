@@ -245,7 +245,7 @@ mod tests {
     #[test]
     fn media_targets_honor_imagesdir_and_encode_spaces() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            ":imagesdir: media library\n\nimage::poster.png[]\n\nInline image:poster.png[].\n\naudio::clips/demo.mp3[]\n\nvideo::clips/demo.mp4[]\n",
+            ":imagesdir: media library\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[]\n",
             &acdc_parser::Options::default(),
         )?;
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
@@ -258,12 +258,18 @@ mod tests {
 
         let markdown = String::from_utf8(output)?;
         for target in [
-            "![image](media%20library/poster.png)",
-            "[Audio: media%20library/clips/demo.mp3](media%20library/clips/demo.mp3)",
-            "[Video: media%20library/clips/demo.mp4](media%20library/clips/demo.mp4)",
+            "](media%20library/poster%20file.png)",
+            "](media%20library/already%20encoded.png)",
+            "](media%20library/inline%20poster.png)",
+            "[Audio: media%20library/clips/demo%20track.mp3](media%20library/clips/demo%20track.mp3)",
+            "[Video: media%20library/clips/demo%20clip.mp4](media%20library/clips/demo%20clip.mp4)",
         ] {
             assert!(markdown.contains(target), "missing {target}: {markdown}");
         }
+        assert!(
+            !markdown.contains("%2520"),
+            "double-encoded target: {markdown}"
+        );
         Ok(())
     }
 }

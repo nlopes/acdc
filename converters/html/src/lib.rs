@@ -1081,7 +1081,7 @@ mod tests {
     #[test]
     fn media_targets_honor_imagesdir_and_encode_spaces() -> TestResult {
         let parsed = acdc_parser::parse(
-            ":imagesdir: media library\n\nimage::poster.png[]\n\nInline image:poster.png[].\n\naudio::clips/demo.mp3[]\n\nvideo::clips/demo.mp4[poster=poster file.png]\n",
+            ":imagesdir: media library\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[poster=poster file.png]\n",
             &acdc_parser::Options::default(),
         )?;
 
@@ -1098,9 +1098,11 @@ mod tests {
             )?;
 
             for target in [
-                "src=\"media%20library/poster.png\"",
-                "src=\"media%20library/clips/demo.mp3\"",
-                "src=\"media%20library/clips/demo.mp4\"",
+                "src=\"media%20library/poster%20file.png\"",
+                "src=\"media%20library/already%20encoded.png\"",
+                "src=\"media%20library/inline%20poster.png\"",
+                "src=\"media%20library/clips/demo%20track.mp3\"",
+                "src=\"media%20library/clips/demo%20clip.mp4\"",
                 "poster=\"media%20library/poster%20file.png\"",
             ] {
                 assert!(
@@ -1108,6 +1110,7 @@ mod tests {
                     "missing {target} in {variant:?}: {html}"
                 );
             }
+            assert!(!html.contains("%2520"), "double-encoded target: {html}");
         }
         Ok(())
     }

@@ -1161,7 +1161,7 @@ mod tests {
     #[test]
     fn audio_blocks_render_clickable_static_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            "= Audio fallbacks\n:imagesdir: media library\n\n.Local episode\n[[local-audio]]\naudio::clips/demo.mp3[]\n\naudio::https://example.com/podcast.mp3[start=5,end=10,opts=\"autoplay,loop,nocontrols\"]\n",
+            "= Audio fallbacks\n:imagesdir: media library\n\n.Local episode\n[[local-audio]]\naudio::clips/demo episode.mp3[]\n\naudio::https://example.com/podcast episode.mp3[start=5,end=10,opts=\"autoplay,loop,nocontrols\"]\n",
             &acdc_parser::Options::default(),
         )?;
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
@@ -1172,10 +1172,10 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(typst.contains(
-            "#text(\"►\u{a0}\")#link(\"media%20library/clips/demo.mp3\")[#text(\"media%20library/clips/demo.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
+            "#text(\"►\u{a0}\")#link(\"media%20library/clips/demo%20episode.mp3\")[#text(\"media%20library/clips/demo%20episode.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
         ));
         assert!(typst.contains(
-            "#text(\"►\u{a0}\")#link(\"https://example.com/podcast.mp3\")[#text(\"https://example.com/podcast.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
+            "#text(\"►\u{a0}\")#link(\"https://example.com/podcast%20episode.mp3\")[#text(\"https://example.com/podcast%20episode.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
         ));
         assert!(typst.contains("#imagecaption[#text(\"Local episode\")]"));
         assert_eq!(warnings.len(), 1);
@@ -1198,19 +1198,20 @@ mod tests {
         let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(normalized_text.contains("Audio fallbacks"), "{text}");
         assert!(
-            normalized_text.contains("media%20library/clips/demo.mp3 (audio) Local episode"),
+            normalized_text
+                .contains("media%20library/clips/demo%20episode.mp3 (audio) Local episode"),
             "{text}",
         );
         assert!(
-            normalized_text.contains("https://example.com/podcast.mp3 (audio)"),
+            normalized_text.contains("https://example.com/podcast%20episode.mp3 (audio)"),
             "{text}",
         );
         let targets = external_link_targets(&pdf);
         assert_eq!(
             targets,
             [
-                "https://example.com/podcast.mp3".to_string(),
-                "media%20library/clips/demo.mp3".to_string(),
+                "https://example.com/podcast%20episode.mp3".to_string(),
+                "media%20library/clips/demo%20episode.mp3".to_string(),
             ]
         );
         Ok(())
@@ -1219,7 +1220,7 @@ mod tests {
     #[test]
     fn video_blocks_preserve_clickable_static_sources() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            "= Video fallbacks\n:imagesdir: media\n\n.Local formats\n[[local-video]]\nvideo::clips/demo.mp4,clips/demo.webm[]\n\nvideo::https://media.example.test/demo.mp4[]\n\nvideo::dQw4w9WgXcQ[youtube,start=10,end=20,opts=\"autoplay,loop\"]\n\nvideo::76979871[vimeo,start=10,opts=muted]\n",
+            "= Video fallbacks\n:imagesdir: media\n\n.Local formats\n[[local-video]]\nvideo::clips/demo clip.mp4,clips/demo clip.webm[]\n\nvideo::https://media.example.test/demo clip.mp4[]\n\nvideo::dQw4w9WgXcQ[youtube,start=10,end=20,opts=\"autoplay,loop\"]\n\nvideo::76979871[vimeo,start=10,opts=muted]\n",
             &acdc_parser::Options::default(),
         )?;
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
@@ -1230,9 +1231,9 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         for (target, kind) in [
-            ("media/clips/demo.mp4", "video"),
-            ("media/clips/demo.webm", "video"),
-            ("https://media.example.test/demo.mp4", "video"),
+            ("media/clips/demo%20clip.mp4", "video"),
+            ("media/clips/demo%20clip.webm", "video"),
+            ("https://media.example.test/demo%20clip.mp4", "video"),
             (
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
                 "YouTube video",
@@ -1262,11 +1263,11 @@ mod tests {
         assert_eq!(
             external_link_targets(&pdf),
             [
-                "https://media.example.test/demo.mp4".to_string(),
+                "https://media.example.test/demo%20clip.mp4".to_string(),
                 "https://vimeo.com/76979871".to_string(),
                 "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
-                "media/clips/demo.mp4".to_string(),
-                "media/clips/demo.webm".to_string(),
+                "media/clips/demo%20clip.mp4".to_string(),
+                "media/clips/demo%20clip.webm".to_string(),
             ]
         );
         Ok(())
