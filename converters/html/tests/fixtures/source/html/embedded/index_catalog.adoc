@@ -1,5 +1,8 @@
 = Index Catalog Test
 :acdc-index:
+:name: Ada
+:styled: *attribute bold*
+:linked: https://example.com[Ada]
 
 == Introduction
 
@@ -20,6 +23,28 @@ Another reference to ((cat)) for multiple occurrences.
 == Feline Behaviour
 
 The ((cat)) appears again in another section.
+
+Direct formatting: ((bold *primary*)), ((italic _primary_)), and
+indexterm2:[mono `primary`].
+
+Attributes: ((plain {name})), ((literal {styled})), and ((linked {linked})).
+
+Direct link: ((direct https://example.com[Ada])).
+
+Replacements: ((copyright (C) -- arrow ->)).
+
+Formatted hierarchy: indexterm:[*Animals*, _Mammals_, `Cats`].
+
+Formatting is identity: ((identity)), ((*identity*)), and ((_identity_)).
+
+[subs="attributes,quotes,macros"]
+Ordered substitutions: ((ordered {styled})).
+
+[subs="macros,attributes,quotes"]
+Late substitutions: ((late {name} and {styled})).
+
+[subs="-quotes"]
+Disabled quotes: ((literal *markers*)).
 
 [index]
 == Index

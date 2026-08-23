@@ -100,7 +100,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         } else {
             text
         };
-        let content = transform_plain(content, self, self.text_boundaries);
+        let mut content = transform_plain(content, self, self.text_boundaries);
+        if self.text_boundaries.at_paragraph_end() && text.ends_with("--") && content.ends_with(' ')
+        {
+            content.to_mut().pop();
+        }
         let content = apply_text_case(content, self.text_case);
         let escaped = manify(&content, EscapeMode::Normalize);
         let w = self.writer_mut();
@@ -503,13 +507,9 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::IndexTerm(it) => {
-                // Flow terms (visible): output the term text
-                // Concealed terms (hidden): output nothing
                 if it.is_visible() {
-                    let w = self.writer_mut();
-                    write!(w, "{}", manify(it.term(), EscapeMode::Normalize))?;
+                    self.visit_inline_nodes(it.term())?;
                 }
-                // Concealed terms produce no output - they're only for index generation
             }
 
             InlineMacro::Footnote(_)

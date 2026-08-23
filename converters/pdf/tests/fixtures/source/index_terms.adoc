@@ -1,5 +1,8 @@
 = Index term rendering
 :reproducible:
+:name: Ada
+:styled: *attribute bold*
+:linked: https://example.com[Ada]
 
 [index]
 == Empty index is omitted
@@ -25,6 +28,31 @@ indexterm:[Animal, Bird].
 == Same-page occurrences
 
 Same-page repeats: ((Zebra)) and ((Zebra)).
+
+== Formatted and substituted terms
+
+Direct formatting: ((bold *primary*)), ((italic _primary_)), and
+indexterm2:[mono `primary`].
+
+Attributes: ((plain {name})), ((literal {styled})), and ((linked {linked})).
+
+Direct link: ((direct https://example.com[Ada])).
+
+Replacements: ((copyright (C) -- arrow ->)).
+
+Formatted hierarchy:
+indexterm:[*Animals*, _Mammals_, `Cats`].
+
+Formatting is identity: ((identity)), ((*identity*)), and ((_identity_)).
+
+[subs="attributes,quotes,macros"]
+Ordered substitutions: ((ordered {styled})).
+
+[subs="macros,attributes,quotes"]
+Late substitutions: ((late {name} and {styled})).
+
+[subs="-quotes"]
+Disabled quotes: ((literal *markers*)).
 
 [index]
 == Generated index

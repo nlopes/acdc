@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Visible index terms and generated catalog labels preserve inline formatting
+  and attribute substitutions. Formatted labels remain distinct catalog terms,
+  matching Asciidoctor PDF.
+- Substitutions ordered after macros update both visible index terms and their
+  catalog labels, matching Asciidoctor DocBook. Asciidoctor PDF leaves the
+  earlier catalog value unchanged.
 - `[index]` sections now generate page-linked catalogs from visible and
   concealed index terms, including secondary and tertiary terms. Empty index
   sections are omitted, and `index-pagenum-sequence-style=page` or `range`

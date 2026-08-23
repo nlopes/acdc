@@ -6,63 +6,49 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::IndexTermKind;
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::{Error, Processor};
+use crate::{Error, IndexTermEntry, IndexTermLabel, Processor};
 
 /// Represents a single primary index entry with nested sub-entries.
 #[derive(Debug, Default)]
 struct IndexEntry {
     /// Nested secondary terms (if any)
-    secondary: BTreeMap<String, SecondaryEntry>,
+    secondary: BTreeMap<IndexTermLabel, SecondaryEntry>,
 }
 
 /// Represents a secondary-level index entry.
 #[derive(Debug, Default)]
 struct SecondaryEntry {
     /// Nested tertiary terms (if any)
-    tertiary: BTreeSet<String>,
+    tertiary: BTreeSet<IndexTermLabel>,
 }
 
 /// Build a hierarchical index structure from collected term kinds.
-fn build_index_structure(entries: &[IndexTermKind]) -> BTreeMap<String, IndexEntry> {
-    let mut index: BTreeMap<String, IndexEntry> = BTreeMap::new();
+fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<IndexTermLabel, IndexEntry> {
+    let mut index: BTreeMap<IndexTermLabel, IndexEntry> = BTreeMap::new();
 
-    for kind in entries {
-        match kind {
-            IndexTermKind::Flow(term) => {
-                index.entry((*term).to_string()).or_default();
+    for entry in entries {
+        let primary_entry = index.entry(entry.primary.clone()).or_default();
+        match (&entry.secondary, &entry.tertiary) {
+            (Some(secondary), Some(tertiary)) => {
+                primary_entry
+                    .secondary
+                    .entry(secondary.clone())
+                    .or_default()
+                    .tertiary
+                    .insert(tertiary.clone());
             }
-            IndexTermKind::Concealed {
-                term,
-                secondary,
-                tertiary,
-            } => {
-                let primary_entry = index.entry((*term).to_string()).or_default();
-
-                match (secondary, tertiary) {
-                    (Some(sec), None) => {
-                        primary_entry
-                            .secondary
-                            .entry((*sec).to_string())
-                            .or_default();
-                    }
-                    (Some(sec), Some(tert)) => {
-                        let secondary_entry = primary_entry
-                            .secondary
-                            .entry((*sec).to_string())
-                            .or_default();
-                        secondary_entry.tertiary.insert((*tert).to_string());
-                    }
-                    // Primary-only or invalid (tertiary without secondary)
-                    (None, _) => {}
-                }
+            (Some(secondary), None) => {
+                primary_entry
+                    .secondary
+                    .entry(secondary.clone())
+                    .or_default();
             }
-            _ => {}
+            (None, _) => {}
         }
     }
 
@@ -71,12 +57,16 @@ fn build_index_structure(entries: &[IndexTermKind]) -> BTreeMap<String, IndexEnt
 
 /// Group index entries by their first letter (case-insensitive).
 fn group_by_letter(
-    index: BTreeMap<String, IndexEntry>,
-) -> BTreeMap<char, BTreeMap<String, IndexEntry>> {
-    let mut grouped: BTreeMap<char, BTreeMap<String, IndexEntry>> = BTreeMap::new();
+    index: BTreeMap<IndexTermLabel, IndexEntry>,
+) -> BTreeMap<char, BTreeMap<IndexTermLabel, IndexEntry>> {
+    let mut grouped: BTreeMap<char, BTreeMap<IndexTermLabel, IndexEntry>> = BTreeMap::new();
 
     for (term, entry) in index {
-        let first_char = term.chars().next().map_or('@', |c| c.to_ascii_uppercase());
+        let first_char = term
+            .plain
+            .chars()
+            .next()
+            .map_or('@', |c| c.to_ascii_uppercase());
         let category = if first_char.is_ascii_alphabetic() {
             first_char
         } else {
@@ -116,15 +106,15 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
         writeln!(w)?;
 
         for (term, entry) in terms {
-            write!(w, "  {term}")?;
+            write!(w, "  {}", term.rendered)?;
             writeln!(w)?;
 
             for (secondary, sec_entry) in &entry.secondary {
-                write!(w, "    {secondary}")?;
+                write!(w, "    {}", secondary.rendered)?;
                 writeln!(w)?;
 
                 for tertiary in &sec_entry.tertiary {
-                    write!(w, "      {tertiary}")?;
+                    write!(w, "      {}", tertiary.rendered)?;
                     writeln!(w)?;
                 }
             }

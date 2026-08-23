@@ -13,8 +13,8 @@ use acdc_converters_core::{
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
-    AttributeValue, BlockMetadata, Document, DocumentAttributes, IndexTermKind, InlineNode,
-    Reference, Substitution, TocEntry, strip_quotes,
+    AttributeValue, BlockMetadata, Document, DocumentAttributes, InlineNode, Reference,
+    Substitution, TocEntry, strip_quotes,
 };
 
 mod admonition;
@@ -110,16 +110,22 @@ impl std::fmt::Display for HtmlVariant {
 }
 
 /// An entry in the index catalog, collected during document traversal.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct IndexTermLabel {
+    pub(crate) plain: String,
+    pub(crate) html: String,
+}
+
 #[derive(Clone, Debug)]
-pub struct IndexTermEntry {
-    /// The index term kind (Flow or Concealed with hierarchy)
-    pub kind: IndexTermKind<'static>,
-    /// Anchor ID for linking back to the term's location
-    pub anchor_id: String,
+pub(crate) struct IndexTermEntry {
+    pub(crate) primary: IndexTermLabel,
+    pub(crate) secondary: Option<IndexTermLabel>,
+    pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) anchor_id: String,
     /// Plain-text title of the section the term occurs in, used as the
     /// back-link label. `None` for terms outside any section (e.g. the
     /// preamble), which fall back to the document title.
-    pub section_title: Option<String>,
+    pub(crate) section_title: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -170,7 +176,7 @@ impl<'a> Processor<'a> {
 
     /// Get a reference to the collected index entries
     #[must_use]
-    pub fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
         &self.index_entries
     }
 
@@ -243,9 +249,11 @@ impl<'a> Processor<'a> {
     /// Generate a unique anchor ID for an index term and collect the entry,
     /// recording the section it occurs in for the back-link label.
     #[must_use]
-    pub fn add_index_entry(
+    pub(crate) fn add_index_entry(
         &self,
-        kind: IndexTermKind<'static>,
+        primary: IndexTermLabel,
+        secondary: Option<IndexTermLabel>,
+        tertiary: Option<IndexTermLabel>,
         section_title: Option<String>,
     ) -> String {
         let count = self.index_term_counter.get();
@@ -253,7 +261,9 @@ impl<'a> Processor<'a> {
         let anchor_id = format!("_indexterm_{count}");
 
         self.index_entries.borrow_mut().push(IndexTermEntry {
-            kind,
+            primary,
+            secondary,
+            tertiary,
             anchor_id: anchor_id.clone(),
             section_title,
         });

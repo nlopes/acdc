@@ -119,7 +119,7 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
             InlineMacro::Autolink(autolink) => write!(w, "{}", autolink.url),
             InlineMacro::CrossReference(xref) => self.write_xref_text(w, xref),
             InlineMacro::IndexTerm(index_term) if index_term.is_visible() => {
-                w.write_str(index_term.term())
+                self.write(w, index_term.term())
             }
             InlineMacro::Pass(pass) => w.write_str(pass.text.unwrap_or_default()),
             InlineMacro::Keyboard(keyboard) => write!(w, "{}", keyboard.keys.join("+")),

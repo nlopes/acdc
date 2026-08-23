@@ -14,7 +14,7 @@ use acdc_converters_core::{
 };
 #[cfg(feature = "emulator")]
 use acdc_parser::BlockMetadata;
-use acdc_parser::{Document, DocumentAttributes, IndexTermKind, InlineNode, Reference, TocEntry};
+use acdc_parser::{Document, DocumentAttributes, InlineNode, Reference, TocEntry};
 
 pub(crate) use appearance::Appearance;
 
@@ -25,13 +25,17 @@ pub(crate) const MAX_TERMINAL_WIDTH: usize = 120;
 const BACKEND_TRAITS: BackendTraits =
     BackendTraits::new("terminal", "terminal", "terminal", ".terminal");
 
-/// Leak a `&str` into a `&'static str`.
-///
-/// Used when caching index term data beyond the parser's arena lifetime.
-/// Leaks are bounded by the number of index entries encountered during a
-/// single document conversion; acceptable for a short-lived converter run.
-fn leak_str(s: &str) -> &'static str {
-    Box::leak(s.to_string().into_boxed_str())
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct IndexTermLabel {
+    pub(crate) plain: String,
+    pub(crate) rendered: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IndexTermEntry {
+    pub(crate) primary: IndexTermLabel,
+    pub(crate) secondary: Option<IndexTermLabel>,
+    pub(crate) tertiary: Option<IndexTermLabel>,
 }
 
 #[derive(Clone, Debug)]
@@ -49,12 +53,8 @@ pub struct Processor<'a> {
     pub(crate) appearance: Appearance,
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
     pub(crate) terminal_width: usize,
-    /// Collected index term kinds for rendering in the index catalog.
-    ///
-    /// Stored as `'static` because entries are collected during visitor
-    /// traversal where the `Visitor` trait erases lifetimes, preventing
-    /// propagation of `'a` through the call chain.
-    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermKind<'static>>>>,
+    /// Collected index terms for rendering in the index catalog.
+    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the document has a valid `[index]` section (last section).
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
@@ -219,21 +219,8 @@ impl Processor<'_> {
     }
 
     /// Collect an index term entry for later rendering in the index catalog.
-    pub(crate) fn add_index_entry(&self, kind: &IndexTermKind<'_>) {
-        let owned: IndexTermKind<'static> = match kind {
-            IndexTermKind::Flow(t) => IndexTermKind::Flow(leak_str(t)),
-            IndexTermKind::Concealed {
-                term,
-                secondary,
-                tertiary,
-            } => IndexTermKind::Concealed {
-                term: leak_str(term),
-                secondary: secondary.map(leak_str),
-                tertiary: tertiary.map(leak_str),
-            },
-            _ => return,
-        };
-        self.index_entries.borrow_mut().push(owned);
+    pub(crate) fn add_index_entry(&self, entry: IndexTermEntry) {
+        self.index_entries.borrow_mut().push(entry);
     }
 
     /// Check if the document has a valid index section (last section with `[index]` style).

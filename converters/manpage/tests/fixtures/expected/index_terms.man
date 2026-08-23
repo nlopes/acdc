@@ -39,3 +39,17 @@ A cat is a domestic animal.
 We also mention a dog in the text.
 .sp
 Concealed terms: visible text after concealed.
+.sp
+Formatted visible terms: bold \fBprimary\fP, italic \fIprimary\fP, and
+mono \f(CRprimary\fP\&.
+.sp
+Substituted visible terms: plain Ada, literal *attribute bold*, and
+linked \c
+.URL "https://example.com" "Ada" ""
+\&.
+.sp
+Direct link: direct \c
+.URL "https://example.com" "Ada" ""
+\&.
+.sp
+Late substitutions: late Ada and \fBattribute bold\fP\&.

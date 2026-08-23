@@ -1,4 +1,7 @@
 = Document with Index
+:name: Ada
+:styled: *attribute bold*
+:linked: https://example.com[Ada]
 
 == Introduction
 
@@ -11,6 +14,20 @@ Advanced topics include (((rendering, output, terminal))) and (((rendering, outp
 == Content
 
 The ((parser)) handles all input processing.
+
+Direct formatting: ((bold *primary*)), ((italic _primary_)), and
+indexterm2:[mono `primary`].
+
+Attributes: ((plain {name})), ((literal {styled})), and ((linked {linked})).
+
+Direct link: ((direct https://example.com[Ada])).
+
+Formatted hierarchy: indexterm:[*Animals*, _Mammals_, `Cats`].
+
+Formatting is identity: ((identity)), ((*identity*)), and ((_identity_)).
+
+[subs="macros,attributes,quotes"]
+Late substitutions: ((late {name} and {styled})).
 
 [index]
 == Index

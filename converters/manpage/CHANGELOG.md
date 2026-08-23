@@ -16,6 +16,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Visible index terms preserve inline formatting, links, and attribute
+  substitutions; concealed terms remain hidden, matching Asciidoctor.
 - Inline icon macros render their explicit alternative text, or a readable
   form of their target when no alternative is set, matching Asciidoctor.
 - Ordered lists honor a positive `start` value, including on nested lists.

@@ -20,9 +20,9 @@
 use std::{collections::BTreeMap, io::Write};
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::{IndexTermKind, Section};
+use acdc_parser::Section;
 
-use crate::{Error, HtmlVisitor, IndexTermEntry};
+use crate::{Error, HtmlVisitor, IndexTermEntry, IndexTermLabel};
 
 /// A single occurrence of a term: the anchor to jump to, and the title of the
 /// section it occurs in (`None` outside any section — falls back to the doc title).
@@ -47,7 +47,7 @@ struct IndexEntry {
     /// Occurrences of this term (for linking)
     occurrences: Vec<Occurrence>,
     /// Nested secondary terms (if any)
-    secondary: BTreeMap<String, SecondaryEntry>,
+    secondary: BTreeMap<IndexTermLabel, SecondaryEntry>,
 }
 
 /// Represents a secondary-level index entry.
@@ -56,57 +56,32 @@ struct SecondaryEntry {
     /// Occurrences of this secondary term
     occurrences: Vec<Occurrence>,
     /// Nested tertiary terms (if any)
-    tertiary: BTreeMap<String, Vec<Occurrence>>,
+    tertiary: BTreeMap<IndexTermLabel, Vec<Occurrence>>,
 }
 
 /// Build a hierarchical index structure from collected entries.
-fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<String, IndexEntry> {
-    let mut index: BTreeMap<String, IndexEntry> = BTreeMap::new();
+fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<IndexTermLabel, IndexEntry> {
+    let mut index: BTreeMap<IndexTermLabel, IndexEntry> = BTreeMap::new();
 
     for entry in entries {
         let occurrence = Occurrence::from_entry(entry);
-        match &entry.kind {
-            IndexTermKind::Flow(term) => {
-                // Flow terms: primary only
-                let primary_entry = index.entry(term.to_string()).or_default();
-                primary_entry.occurrences.push(occurrence);
-            }
-            IndexTermKind::Concealed {
-                term,
-                secondary,
-                tertiary,
-            } => {
-                let primary_entry = index.entry(term.to_string()).or_default();
-
-                match (secondary, tertiary) {
-                    (None, None) => {
-                        // Primary term only
-                        primary_entry.occurrences.push(occurrence);
-                    }
-                    (Some(sec), None) => {
-                        // Primary + secondary
-                        let secondary_entry =
-                            primary_entry.secondary.entry(sec.to_string()).or_default();
-                        secondary_entry.occurrences.push(occurrence);
-                    }
-                    (Some(sec), Some(tert)) => {
-                        // Primary + secondary + tertiary
-                        let secondary_entry =
-                            primary_entry.secondary.entry(sec.to_string()).or_default();
-                        secondary_entry
-                            .tertiary
-                            .entry(tert.to_string())
-                            .or_default()
-                            .push(occurrence);
-                    }
-                    (None, Some(_)) => {
-                        // Invalid: tertiary without secondary - treat as primary only
-                        primary_entry.occurrences.push(occurrence);
-                    }
-                }
-            }
-            // IndexTermKind is non_exhaustive, handle future variants
-            _ => {}
+        let primary_entry = index.entry(entry.primary.clone()).or_default();
+        match (&entry.secondary, &entry.tertiary) {
+            (None, _) => primary_entry.occurrences.push(occurrence),
+            (Some(secondary), None) => primary_entry
+                .secondary
+                .entry(secondary.clone())
+                .or_default()
+                .occurrences
+                .push(occurrence),
+            (Some(secondary), Some(tertiary)) => primary_entry
+                .secondary
+                .entry(secondary.clone())
+                .or_default()
+                .tertiary
+                .entry(tertiary.clone())
+                .or_default()
+                .push(occurrence),
         }
     }
 
@@ -115,12 +90,16 @@ fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<String, IndexEn
 
 /// Group index entries by their first letter (case-insensitive).
 fn group_by_letter(
-    index: BTreeMap<String, IndexEntry>,
-) -> BTreeMap<char, BTreeMap<String, IndexEntry>> {
-    let mut grouped: BTreeMap<char, BTreeMap<String, IndexEntry>> = BTreeMap::new();
+    index: BTreeMap<IndexTermLabel, IndexEntry>,
+) -> BTreeMap<char, BTreeMap<IndexTermLabel, IndexEntry>> {
+    let mut grouped: BTreeMap<char, BTreeMap<IndexTermLabel, IndexEntry>> = BTreeMap::new();
 
     for (term, entry) in index {
-        let first_char = term.chars().next().map_or('@', |c| c.to_ascii_uppercase());
+        let first_char = term
+            .plain
+            .chars()
+            .next()
+            .map_or('@', |c| c.to_ascii_uppercase());
 
         // Use '@' for non-alphabetic terms (symbols, numbers)
         let category = if first_char.is_ascii_alphabetic() {
@@ -196,7 +175,7 @@ pub(crate) fn render<W: Write>(
         writeln!(w, "<dl class=\"indexterms\">")?;
 
         for (term, entry) in terms {
-            writeln!(w, "<dt>{}", escape(term))?;
+            writeln!(w, "<dt>{}", term.html)?;
             if !entry.occurrences.is_empty() {
                 write!(w, " {}", render_links(&entry.occurrences, &fallback))?;
             }
@@ -207,7 +186,7 @@ pub(crate) fn render<W: Write>(
                 writeln!(w, "<dl class=\"indexterms-secondary\">")?;
 
                 for (secondary, sec_entry) in &entry.secondary {
-                    writeln!(w, "<dt>{}", escape(secondary))?;
+                    writeln!(w, "<dt>{}", secondary.html)?;
                     if !sec_entry.occurrences.is_empty() {
                         write!(w, " {}", render_links(&sec_entry.occurrences, &fallback))?;
                     }
@@ -218,7 +197,7 @@ pub(crate) fn render<W: Write>(
                         writeln!(w, "<dl class=\"indexterms-tertiary\">")?;
 
                         for (tertiary, occurrences) in &sec_entry.tertiary {
-                            writeln!(w, "<dt>{}", escape(tertiary))?;
+                            writeln!(w, "<dt>{}", tertiary.html)?;
                             if !occurrences.is_empty() {
                                 write!(w, " {}", render_links(occurrences, &fallback))?;
                             }

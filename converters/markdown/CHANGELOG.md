@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Visible index terms preserve inline formatting, links, and attribute
+  substitutions; concealed terms remain hidden.
 - Ordered lists honor a positive `start` value, including on nested lists.
   Every line of a nested list remains indented. Unsupported alphabetic and
   Roman styles continue to produce a warning and use numeric markers.

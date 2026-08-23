@@ -91,6 +91,26 @@
 
 #text("Same-page repeats: ")#metadata(none) <__indexterm-10>#text("Zebra")#text(" and ")#metadata(none) <__indexterm-11>#text("Zebra")#text(".")
 
+#heading(level: 1)[#text("Formatted and substituted terms")] <id-5f666f726d61747465645f616e645f73756273746974757465645f7465726d73>
+
+#text("Direct formatting: ")#metadata(none) <__indexterm-12>#text("bold ")#strong[#text("primary")]#text(", ")#metadata(none) <__indexterm-13>#text("italic ")#emph[#text("primary")]#text(", and ")#metadata(none) <__indexterm-14>#text("mono ")#raw("primary")#text(".")
+
+#text("Attributes: ")#metadata(none) <__indexterm-15>#text("plain Ada")#text(", ")#metadata(none) <__indexterm-16>#text("literal *attribute bold*")#text(", and ")#metadata(none) <__indexterm-17>#text("linked ")#link("https://example.com")[#text("Ada")]#text(".")
+
+#text("Direct link: ")#metadata(none) <__indexterm-18>#text("direct ")#link("https://example.com")[#text("Ada")]#text(".")
+
+#text("Replacements: ")#metadata(none) <__indexterm-19>#text("copyright © — arrow →")#text(".")
+
+#text("Formatted hierarchy: ")#metadata(none) <__indexterm-20>#text(".")
+
+#text("Formatting is identity: ")#metadata(none) <__indexterm-21>#text("identity")#text(", ")#metadata(none) <__indexterm-22>#strong[#text("identity")]#text(", and ")#metadata(none) <__indexterm-23>#emph[#text("identity")]#text(".")
+
+#text("Ordered substitutions: ")#metadata(none) <__indexterm-24>#text("ordered ")#strong[#text("attribute bold")]#text(".")
+
+#text("Late substitutions: ")#metadata(none) <__indexterm-25>#text("late Ada and ")#strong[#text("attribute bold")]#text(".")
+
+#text("Disabled quotes: ")#metadata(none) <__indexterm-26>#text("literal *markers*")#text(".")
+
 #heading(level: 1)[#text("Generated index")] <id-5f67656e6572617465645f696e646578>
 
 #let _acdc_index_pages(targets, sequence) = context {
@@ -136,11 +156,52 @@
 #pad(left: 2 * 1.25em)[#par(hanging-indent: 1em)[#text("Cat")#_acdc_index_pages((<__indexterm-4>,), "term")]]
 #pad(left: 2 * 1.25em)[#par(hanging-indent: 1em)[#text("Zebra")#_acdc_index_pages((<__indexterm-3>,), "term")]]
 #par(hanging-indent: 1em)[#text("animal")#_acdc_index_pages((<__indexterm-7>,), "term")]
+#par(hanging-indent: 1em)[#strong[#text("Animals")]]
+#pad(left: 1 * 1.25em)[#par(hanging-indent: 1em)[#emph[#text("Mammals")]]]
+#pad(left: 2 * 1.25em)[#par(hanging-indent: 1em)[#raw("Cats")#_acdc_index_pages((<__indexterm-20>,), "term")]]
 #par(hanging-indent: 1em)[#text("apple")#_acdc_index_pages((<__indexterm-2>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("B")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("bold ")#strong[#text("primary")]#_acdc_index_pages((<__indexterm-12>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("C")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("copyright © — arrow →")#_acdc_index_pages((<__indexterm-19>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("D")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("direct ")#link("https://example.com")[#text("Ada")]#_acdc_index_pages((<__indexterm-18>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("I")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#emph[#text("identity")]#_acdc_index_pages((<__indexterm-23>,), "term")]
+#par(hanging-indent: 1em)[#strong[#text("identity")]#_acdc_index_pages((<__indexterm-22>,), "term")]
+#par(hanging-indent: 1em)[#text("identity")#_acdc_index_pages((<__indexterm-21>,), "term")]
+#par(hanging-indent: 1em)[#text("italic ")#emph[#text("primary")]#_acdc_index_pages((<__indexterm-13>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("L")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("late Ada and ")#strong[#text("attribute bold")]#_acdc_index_pages((<__indexterm-25>,), "term")]
+#par(hanging-indent: 1em)[#text("linked ")#link("https://example.com")[#text("Ada")]#_acdc_index_pages((<__indexterm-17>,), "term")]
+#par(hanging-indent: 1em)[#text("literal *attribute bold*")#_acdc_index_pages((<__indexterm-16>,), "term")]
+#par(hanging-indent: 1em)[#text("literal *markers*")#_acdc_index_pages((<__indexterm-26>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("M")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("mono ")#raw("primary")#_acdc_index_pages((<__indexterm-14>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("O")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("ordered ")#strong[#text("attribute bold")]#_acdc_index_pages((<__indexterm-24>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("P")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("plain Ada")#_acdc_index_pages((<__indexterm-15>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("Z")]
 #v(0.25em)
 #par(hanging-indent: 1em)[#text("Zebra")#_acdc_index_pages((<__indexterm-1>,<__indexterm-6>,<__indexterm-10>,<__indexterm-11>,), "term")]
 #heading(level: 1)[#text("Later terms are not in the earlier index")] <id-5f6c617465725f7465726d735f6172655f6e6f745f696e5f7468655f6561726c6965725f696e646578>
 
-#text("Later ")#metadata(none) <__indexterm-12>#text("After")#text(".")
+#text("Later ")#metadata(none) <__indexterm-27>#text("After")#text(".")

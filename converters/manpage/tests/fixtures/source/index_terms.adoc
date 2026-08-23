@@ -3,6 +3,9 @@
 :manmanual: Test Manual
 :mansource: Test 1.0
 :revdate: 2025-06-01
+:name: Ada
+:styled: *attribute bold*
+:linked: https://example.com[Ada]
 
 == Name
 
@@ -19,3 +22,14 @@ A ((cat)) is a domestic animal.
 We also mention a indexterm2:[dog] in the text.
 
 Concealed terms: (((Animals, Mammals, Cats)))visible text after concealed.
+
+Formatted visible terms: ((bold *primary*)), ((italic _primary_)), and
+indexterm2:[mono `primary`].
+
+Substituted visible terms: ((plain {name})), ((literal {styled})), and
+((linked {linked})).
+
+Direct link: ((direct https://example.com[Ada])).
+
+[subs="macros,attributes,quotes"]
+Late substitutions: ((late {name} and {styled})).

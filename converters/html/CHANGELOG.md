@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Visible index terms and opt-in generated index labels preserve inline
+  formatting and attribute substitutions, matching Asciidoctor.
 - Inline icon macros use their explicit alternative text or a readable form of
   their target in text and image modes. Image icons honor `iconsdir`,
   `icontype`, and format values such as `icons=svg`, matching Asciidoctor.

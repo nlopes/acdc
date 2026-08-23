@@ -791,7 +791,11 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 write!(self.writer, "{target}")?;
             }
             InlineMacro::CrossReference(xref) => self.visit_cross_reference(xref)?,
-            InlineMacro::Pass(_) | InlineMacro::Stem(_) | InlineMacro::IndexTerm(_) | _ => {
+            InlineMacro::IndexTerm(term) if term.is_visible() => {
+                self.visit_inline_nodes(term.term())?;
+            }
+            InlineMacro::IndexTerm(_) => {}
+            InlineMacro::Pass(_) | InlineMacro::Stem(_) | _ => {
                 self.diagnostics.warn(format!(
                     "unsupported inline macro in Markdown, skipping macro: {mac:?}"
                 ));

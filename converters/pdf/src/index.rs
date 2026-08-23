@@ -1,6 +1,5 @@
 use std::{cmp::Ordering, collections::BTreeMap, fmt::Write as _};
 
-use acdc_parser::IndexTermKind;
 use acdc_pdf_typst::Writer;
 
 #[derive(Debug, Default)]
@@ -13,14 +12,16 @@ pub(crate) struct IndexCatalog {
 #[derive(Debug, Eq, PartialEq)]
 struct TermKey {
     folded: String,
-    original: String,
+    plain: String,
+    markup: String,
 }
 
 impl TermKey {
-    fn new(value: &str) -> Self {
+    fn new(term: CatalogTerm) -> Self {
         Self {
-            folded: value.to_ascii_lowercase(),
-            original: value.to_owned(),
+            folded: term.plain.to_ascii_lowercase(),
+            plain: term.plain,
+            markup: term.markup,
         }
     }
 }
@@ -29,7 +30,8 @@ impl Ord for TermKey {
     fn cmp(&self, other: &Self) -> Ordering {
         self.folded
             .cmp(&other.folded)
-            .then_with(|| self.original.cmp(&other.original))
+            .then_with(|| self.plain.cmp(&other.plain))
+            .then_with(|| self.markup.cmp(&other.markup))
     }
 }
 
@@ -43,6 +45,11 @@ impl PartialOrd for TermKey {
 struct IndexEntry {
     anchors: Vec<usize>,
     children: BTreeMap<TermKey, IndexEntry>,
+}
+
+pub(crate) struct CatalogTerm {
+    pub(crate) plain: String,
+    pub(crate) markup: String,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -75,44 +82,35 @@ impl IndexCatalog {
         std::mem::replace(&mut self.suspended, suspended)
     }
 
-    pub(crate) fn add(&mut self, kind: &IndexTermKind<'_>) -> Option<usize> {
+    pub(crate) const fn is_suspended(&self) -> bool {
+        self.suspended
+    }
+
+    pub(crate) fn add(
+        &mut self,
+        primary: CatalogTerm,
+        secondary: Option<CatalogTerm>,
+        tertiary: Option<CatalogTerm>,
+    ) -> Option<usize> {
         if self.suspended {
             return None;
         }
         self.next_anchor += 1;
         let anchor = self.next_anchor;
 
-        match kind {
-            IndexTermKind::Flow(primary) => {
-                self.terms
-                    .entry(TermKey::new(primary))
-                    .or_default()
-                    .anchors
-                    .push(anchor);
-            }
-            IndexTermKind::Concealed {
-                term,
-                secondary,
-                tertiary,
-            } => {
-                let primary = self.terms.entry(TermKey::new(term)).or_default();
-                let target = match (secondary, tertiary) {
-                    (Some(secondary), Some(tertiary)) => primary
-                        .children
-                        .entry(TermKey::new(secondary))
-                        .or_default()
-                        .children
-                        .entry(TermKey::new(tertiary))
-                        .or_default(),
-                    (Some(secondary), None) => {
-                        primary.children.entry(TermKey::new(secondary)).or_default()
-                    }
-                    (None, _) => primary,
-                };
-                target.anchors.push(anchor);
-            }
-            _ => {}
-        }
+        let primary = self.terms.entry(TermKey::new(primary)).or_default();
+        let target = match (secondary, tertiary) {
+            (Some(secondary), Some(tertiary)) => primary
+                .children
+                .entry(TermKey::new(secondary))
+                .or_default()
+                .children
+                .entry(TermKey::new(tertiary))
+                .or_default(),
+            (Some(secondary), None) => primary.children.entry(TermKey::new(secondary)).or_default(),
+            (None, _) => primary,
+        };
+        target.anchors.push(anchor);
 
         Some(anchor)
     }
@@ -123,7 +121,7 @@ impl IndexCatalog {
         let mut categories: BTreeMap<String, Vec<(&TermKey, &IndexEntry)>> = BTreeMap::new();
         for (term, entry) in &self.terms {
             categories
-                .entry(category_for(&term.original))
+                .entry(category_for(&term.plain))
                 .or_default()
                 .push((term, entry));
         }
@@ -166,9 +164,7 @@ fn write_entry(
         let _ = write!(writer, "#pad(left: {depth} * 1.25em)[");
     }
     writer.raw("#par(hanging-indent: 1em)[");
-    writer.raw("#text(");
-    writer.string_literal(&term.original);
-    writer.raw(")");
+    writer.raw(&term.markup);
     if !entry.anchors.is_empty() {
         writer.raw("#_acdc_index_pages((");
         for anchor in &entry.anchors {
@@ -246,17 +242,23 @@ mod tests {
 
     #[test]
     fn term_keys_sort_case_insensitively_then_by_original_text() {
+        let term = |plain: &str| {
+            TermKey::new(CatalogTerm {
+                plain: plain.to_owned(),
+                markup: plain.to_owned(),
+            })
+        };
         let mut terms = [
-            TermKey::new("apple"),
-            TermKey::new("Zebra"),
-            TermKey::new("Apple"),
-            TermKey::new("animal"),
-            TermKey::new("Animal"),
+            term("apple"),
+            term("Zebra"),
+            term("Apple"),
+            term("animal"),
+            term("Animal"),
         ];
         terms.sort();
 
         assert_eq!(
-            terms.map(|term| term.original),
+            terms.map(|term| term.plain),
             ["Animal", "animal", "Apple", "apple", "Zebra"]
         );
     }

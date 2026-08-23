@@ -21,7 +21,7 @@ use acdc_converters_core::{
 use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DescriptionList, DescriptionListItem, ElementAttributes,
-    HorizontalAlignment, Icon, Image, IndexTermKind, InlineMacro, InlineNode, ListItem, Menu,
+    HorizontalAlignment, Icon, Image, IndexTerm, InlineMacro, InlineNode, ListItem, Menu,
     Paragraph, Raw, Section, SectionKind, Substitution, Table, TableColumn, TableFrame, TableGrid,
     TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
@@ -34,7 +34,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
-    index::{IndexCatalog, PageSequenceStyle},
+    index::{CatalogTerm, IndexCatalog, PageSequenceStyle},
 };
 
 #[derive(Clone, Copy, Default)]
@@ -2368,16 +2368,46 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_stem_fallback(stem.content, false);
             }
             InlineMacro::IndexTerm(term) => {
-                if let Some(anchor) = self.index_catalog.add(&term.kind) {
-                    let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
-                }
-                if let IndexTermKind::Flow(text) = &term.kind {
-                    self.write_text_expr(text);
-                }
+                self.write_index_term(term)?;
             }
             _ => {}
         }
         Ok(())
+    }
+
+    fn write_index_term(&mut self, term: &IndexTerm<'_>) -> Result<(), Error> {
+        if !self.index_catalog.is_suspended() {
+            let primary = self.render_index_catalog_term(term.term())?;
+            let secondary = term
+                .secondary()
+                .map(|inlines| self.render_index_catalog_term(inlines))
+                .transpose()?;
+            let tertiary = term
+                .tertiary()
+                .map(|inlines| self.render_index_catalog_term(inlines))
+                .transpose()?;
+            if let Some(anchor) = self.index_catalog.add(primary, secondary, tertiary) {
+                let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+            }
+        }
+        if term.is_visible() {
+            self.write_inlines(term.term())?;
+        }
+        Ok(())
+    }
+
+    fn render_index_catalog_term(
+        &mut self,
+        inlines: &[InlineNode<'_>],
+    ) -> Result<CatalogTerm, Error> {
+        let plain = InlineTextTransform::default().to_string(inlines);
+        let output = std::mem::replace(&mut self.writer, Writer::new());
+        let previous = self.index_catalog.set_suspended(true);
+        let result = self.write_inlines(inlines);
+        self.index_catalog.set_suspended(previous);
+        let markup = std::mem::replace(&mut self.writer, output).into_string();
+        result?;
+        Ok(CatalogTerm { plain, markup })
     }
 
     fn write_menu(&mut self, menu: &Menu<'_>) {

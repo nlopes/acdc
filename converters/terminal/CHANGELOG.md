@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Visible index terms and generated catalog labels preserve inline formatting,
+  links, and attribute substitutions.
 - Inline icon labels use their explicit alternative text, or a readable form
   of their target when no alternative is set.
 - Ordered lists honor a positive `start` value, including on nested lists.

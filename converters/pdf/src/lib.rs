@@ -936,8 +936,15 @@ fn collect_inline_preparation(
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 collect_inline_preparation(&xref.text, context, preparation);
             }
-            InlineNode::Macro(InlineMacro::IndexTerm(_)) => {
+            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
                 preparation.has_index_terms = true;
+                collect_inline_preparation(term.term(), context, preparation);
+                if let Some(secondary) = term.secondary() {
+                    collect_inline_preparation(secondary, context, preparation);
+                }
+                if let Some(tertiary) = term.tertiary() {
+                    collect_inline_preparation(tertiary, context, preparation);
+                }
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
