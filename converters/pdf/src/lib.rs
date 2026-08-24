@@ -1023,6 +1023,20 @@ mod tests {
         Ok(warnings)
     }
 
+    fn rendered_page_count(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(pdf.get_pages().len())
+    }
+
     #[test]
     fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -1041,6 +1055,31 @@ mod tests {
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
         assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn page_break_always_option_controls_blank_pages() -> Result<(), Box<dyn std::error::Error>> {
+        let default_breaks = "= Default page breaks\n\nFirst page.\n\n<<<\n\n<<<\n\nSecond page.\n";
+        let forced_break =
+            "= Forced page break\n\nFirst page.\n\n<<<\n\n[%always]\n<<<\n\nSecond page.\n";
+        let separated_breaks = "= Separated page breaks\n\nFirst page.\n\n<<<\n\nSecond page.\n\n[%always]\n<<<\n\nThird page.\n";
+
+        let parsed = acdc_parser::parse(forced_break, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#pagebreak(weak: true)\n\n#pagebreak()\n#pagebreak()"),
+            "{typst}"
+        );
+
+        assert_eq!(rendered_page_count(default_breaks)?, 2);
+        assert_eq!(rendered_page_count(forced_break)?, 3);
+        assert_eq!(rendered_page_count(separated_breaks)?, 3);
         Ok(())
     }
 

@@ -225,6 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Ordered lists honor positive `start` values and the `%reversed` option across
   all supported numbering styles. Nested lists keep style, start, and reversed
   metadata placed directly before their first item, matching Asciidoctor PDF.
+- Consecutive page breaks no longer create blank pages unless the later break
+  has `%always`, matching Asciidoctor PDF.
 - Named footnote references reuse the original footnote and its assigned number.
 - Inline IDs such as `[#term]*Term*` now create PDF link targets on formatted
   text.

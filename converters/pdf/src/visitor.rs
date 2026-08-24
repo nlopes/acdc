@@ -19,7 +19,7 @@ use acdc_parser::{
 
 use crate::{
     Error, PdfVisitor, author_name, encode_label,
-    pdf_visitor::{collapse_source_whitespace, is_collapsible_example},
+    pdf_visitor::{ExplicitPageBreakState, collapse_source_whitespace, is_collapsible_example},
 };
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
@@ -54,6 +54,35 @@ fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<Str
 
 impl Visitor for PdfVisitor<'_, '_, '_> {
     type Error = Error;
+
+    fn visit_block(&mut self, block: &Block<'_>) -> Result<(), Self::Error> {
+        if !matches!(
+            block,
+            Block::PageBreak(_) | Block::DocumentAttribute(_) | Block::Comment(_)
+        ) {
+            self.explicit_page_break_state = ExplicitPageBreakState::Inactive;
+        }
+
+        match block {
+            Block::Section(section) => self.visit_section(section),
+            Block::Paragraph(para) => self.visit_paragraph(para),
+            Block::DelimitedBlock(delimited) => self.visit_delimited_block(delimited),
+            Block::OrderedList(list) => self.visit_ordered_list(list),
+            Block::UnorderedList(list) => self.visit_unordered_list(list),
+            Block::DescriptionList(list) => self.visit_description_list(list),
+            Block::CalloutList(list) => self.visit_callout_list(list),
+            Block::Admonition(admon) => self.visit_admonition(admon),
+            Block::Image(img) => self.visit_image(img),
+            Block::Video(video) => self.visit_video(video),
+            Block::Audio(audio) => self.visit_audio(audio),
+            Block::ThematicBreak(br) => self.visit_thematic_break(br),
+            Block::PageBreak(br) => self.visit_page_break(br),
+            Block::TableOfContents(toc) => self.visit_table_of_contents(toc),
+            Block::DiscreteHeader(header) => self.visit_discrete_header(header),
+            Block::DocumentAttribute(_) | Block::Comment(_) => Ok(()),
+            _ => self.visit_unhandled_block(block),
+        }
+    }
 
     fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
         self.warn_unsupported_parser_variant("block");
@@ -513,7 +542,16 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_page_break(&mut self, br: &PageBreak<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&br.metadata);
-        self.writer.raw("#pagebreak()\n\n");
+        if br.metadata.options.contains(&"always") {
+            if self.explicit_page_break_state == ExplicitPageBreakState::Weak {
+                self.writer.raw("#pagebreak()\n");
+            }
+            self.writer.raw("#pagebreak()\n\n");
+            self.explicit_page_break_state = ExplicitPageBreakState::Inactive;
+        } else {
+            self.writer.raw("#pagebreak(weak: true)\n\n");
+            self.explicit_page_break_state = ExplicitPageBreakState::Weak;
+        }
         Ok(())
     }
 

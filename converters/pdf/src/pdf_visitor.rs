@@ -119,6 +119,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     table_cell_section_state: TableCellSectionState,
     pub(crate) doctype: Doctype,
     book_page_break_state: BookPageBreakState,
+    pub(crate) explicit_page_break_state: ExplicitPageBreakState,
     text_boundaries: TextBoundaries,
     toc_entries: Vec<TocEntry<'a>>,
     toc_written: bool,
@@ -135,6 +136,13 @@ enum BookPageBreakState {
     Disabled,
     Enabled,
     AfterPart,
+}
+
+#[derive(Default, PartialEq, Eq)]
+pub(crate) enum ExplicitPageBreakState {
+    #[default]
+    Inactive,
+    Weak,
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -247,6 +255,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             table_cell_section_state: TableCellSectionState::Outside,
             doctype,
             book_page_break_state,
+            explicit_page_break_state: ExplicitPageBreakState::Inactive,
             text_boundaries: TextBoundaries::BOTH,
             toc_entries,
             toc_written: false,
