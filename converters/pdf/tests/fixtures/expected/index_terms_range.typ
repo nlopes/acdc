@@ -73,7 +73,7 @@
 ]
 #v(1em)
 
-#text("First ")#metadata(none) <__indexterm-1>#text("term")#text(".")
+#text(size: 1.25em)[#text("First ")#metadata(none) <__indexterm-1>#text("term")#text(".")]
 
 #pagebreak(weak: true)
 

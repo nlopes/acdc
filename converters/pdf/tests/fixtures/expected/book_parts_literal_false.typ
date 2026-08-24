@@ -76,7 +76,7 @@
 #counter(page).update(0)
 ]
 
-#text("The part number value is false.")
+#text(size: 1.25em)[#text("The part number value is false.")]
 
 #pagebreak(weak: true)
 

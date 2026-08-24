@@ -359,7 +359,7 @@
 #text("[[not an anchor]] Double-bracket anchor syntax with spaces remains text.")
 
 #metadata(none) <id-6f6e6c792d6964>
-#text("Shorthand-only metadata.")
+#text(size: 1.25em)[#text("Shorthand-only metadata.")]
 
 #raw(block: true, "fn main() {}")
 

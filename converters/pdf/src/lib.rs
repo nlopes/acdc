@@ -1241,6 +1241,58 @@ mod tests {
     }
 
     #[test]
+    fn lead_role_and_automatic_preamble_lead_use_larger_text()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Lead paragraphs\n\nAutomatic lead paragraph.\n\nSecond preamble paragraph.\n\n== Section\n\nNormal section paragraph.\n\n[.lead]\nExplicit lead paragraph.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#text(size: 1.25em)[#text(\"Automatic lead paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#text(size: 1.25em)[#text(\"Explicit lead paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains("#text(size: 1.25em)[#text(\"Second preamble paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains("#text(size: 1.25em)[#text(\"Normal section paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+
+        let parsed = acdc_parser::parse(
+            "= Existing role\n\n[.other]\nRole prevents automatic lead.\n\n== Section\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            !typst.contains("#text(size: 1.25em)[#text(\"Role prevents automatic lead.\")]"),
+            "{typst}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn index_catalog_uses_custom_theme_columns_and_gap() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
             "Visible ((alpha)) and ((beta)).\n\n[index]\n== Index\n",

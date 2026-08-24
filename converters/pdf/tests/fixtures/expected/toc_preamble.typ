@@ -73,7 +73,7 @@
 ]
 #v(1em)
 
-#text("Intro.")
+#text(size: 1.25em)[#text("Intro.")]
 
 #heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
 #let _acdc_toc_entry(target, depth, body) = context {

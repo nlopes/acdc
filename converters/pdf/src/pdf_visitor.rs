@@ -116,6 +116,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) list_depth: usize,
     pub(crate) in_inline_span: bool,
     pub(crate) in_article_abstract: bool,
+    pub(crate) automatic_preamble_lead_state: AutomaticPreambleLeadState,
     table_cell_section_state: TableCellSectionState,
     pub(crate) doctype: Doctype,
     book_page_break_state: BookPageBreakState,
@@ -143,6 +144,13 @@ pub(crate) enum ExplicitPageBreakState {
     #[default]
     Inactive,
     Weak,
+}
+
+#[derive(Default, PartialEq, Eq)]
+pub(crate) enum AutomaticPreambleLeadState {
+    #[default]
+    Inactive,
+    Pending,
 }
 
 #[derive(Default, PartialEq, Eq)]
@@ -252,6 +260,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             list_depth: 0,
             in_inline_span: false,
             in_article_abstract: false,
+            automatic_preamble_lead_state: AutomaticPreambleLeadState::Inactive,
             table_cell_section_state: TableCellSectionState::Outside,
             doctype,
             book_page_break_state,
@@ -710,6 +719,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         &mut self,
         para: &Paragraph<'_>,
         write_title: bool,
+        automatic_lead: bool,
     ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
@@ -745,7 +755,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.write_block_title(&para.title)?;
                 }
             }
-            self.write_paragraph_body(para)
+            self.write_paragraph_body(para, automatic_lead)
         })();
 
         #[cfg(feature = "pre-spec-subs")]
@@ -865,7 +875,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     /// A `[quote]`, `[verse]`, `[literal]`, `[listing]`, `[source]`, or
     /// `[example]` paragraph reads as its delimited counterpart, matching
     /// `asciidoctor`.
-    fn write_paragraph_body(&mut self, para: &Paragraph<'_>) -> Result<(), Error> {
+    fn write_paragraph_body(
+        &mut self,
+        para: &Paragraph<'_>,
+        automatic_lead: bool,
+    ) -> Result<(), Error> {
         match para.metadata.style {
             Some("quote") => self.write_quote_block(&para.metadata, |visitor| {
                 visitor.write_paragraph_alignment(&para.metadata, |visitor| {
@@ -889,9 +903,20 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 visitor.writer.raw("\n]");
                 Ok(())
             }),
-            _ => self.write_aligned_paragraph_body(&para.metadata, |visitor| {
-                visitor.write_inlines(&para.content)
-            }),
+            _ => {
+                let lead = automatic_lead || para.metadata.roles.contains(&"lead");
+                if lead {
+                    self.writer.raw("#text(size: 1.25em)[");
+                }
+                self.write_paragraph_alignment(&para.metadata, |visitor| {
+                    visitor.write_inlines(&para.content)
+                })?;
+                if lead {
+                    self.writer.raw("]");
+                }
+                self.writer.raw("\n\n");
+                Ok(())
+            }
         }
     }
 

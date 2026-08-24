@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Paragraphs with the `.lead` role now use larger text. The first paragraph in
+  a document preamble receives the same presentation automatically unless it
+  has an explicit role, matching Asciidoctor.
 - Ordinary sections marked `%notitle` now hide only their body heading while
   retaining their table-of-contents and outline entries, numbering,
   cross-reference text, destination, and chapter page break. Discrete headings

@@ -73,7 +73,7 @@
 ]
 #v(1em)
 
-#text("An unnamed marker.")#counter(footnote).update(0)#footnote[#text("Anonymous note.")]
+#text(size: 1.25em)[#text("An unnamed marker.")#counter(footnote).update(0)#footnote[#text("Anonymous note.")]]
 
 #text("A single definition.")#counter(footnote).update(1)#footnote[#text("Single note.")] <id-666f6f746e6f74653a73696e676c65>
 

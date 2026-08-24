@@ -19,7 +19,10 @@ use acdc_parser::{
 
 use crate::{
     Error, PdfVisitor, author_name, encode_label,
-    pdf_visitor::{ExplicitPageBreakState, collapse_source_whitespace, is_collapsible_example},
+    pdf_visitor::{
+        AutomaticPreambleLeadState, ExplicitPageBreakState, collapse_source_whitespace,
+        is_collapsible_example,
+    },
 };
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
@@ -56,6 +59,15 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     type Error = Error;
 
     fn visit_block(&mut self, block: &Block<'_>) -> Result<(), Self::Error> {
+        if self.automatic_preamble_lead_state == AutomaticPreambleLeadState::Pending
+            && !matches!(
+                block,
+                Block::Paragraph(_) | Block::DocumentAttribute(_) | Block::Comment(_)
+            )
+        {
+            self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
+        }
+
         if !matches!(
             block,
             Block::PageBreak(_) | Block::DocumentAttribute(_) | Block::Comment(_)
@@ -96,7 +108,16 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         self.render_toc(None, "auto")
     }
 
+    fn visit_preamble_start(
+        &mut self,
+        _doc: &acdc_parser::Document<'_>,
+    ) -> Result<(), Self::Error> {
+        self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Pending;
+        Ok(())
+    }
+
     fn visit_preamble_end(&mut self, _doc: &acdc_parser::Document<'_>) -> Result<(), Self::Error> {
+        self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
         self.render_toc(None, "preamble")
     }
 
@@ -242,8 +263,12 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph<'_>) -> Result<(), Self::Error> {
+        let automatic_lead = self.automatic_preamble_lead_state
+            == AutomaticPreambleLeadState::Pending
+            && para.metadata.roles.is_empty();
+        self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
         self.write_block_anchor(&para.metadata);
-        self.write_paragraph_content(para, true)
+        self.write_paragraph_content(para, true, automatic_lead)
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock<'_>) -> Result<(), Self::Error> {
@@ -449,7 +474,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 // synthetic paragraph. Render that paragraph without its anchor
                 // and title, which the admonition wrapper already wrote, but
                 // through the same content path so `[subs=…]` still applies.
-                self.write_paragraph_content(para, false)?;
+                self.write_paragraph_content(para, false, false)?;
             }
             blocks => self.write_blocks(blocks)?,
         }

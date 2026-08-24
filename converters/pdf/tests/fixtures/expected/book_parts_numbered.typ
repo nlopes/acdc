@@ -76,7 +76,7 @@
 #counter(page).update(0)
 ]
 
-#text("The part signifier remains ")#raw("{part-signifier}")#text(".")
+#text(size: 1.25em)[#text("The part signifier remains ")#raw("{part-signifier}")#text(".")]
 
 #pagebreak(weak: true)
 

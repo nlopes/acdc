@@ -92,7 +92,7 @@
 #_acdc_toc_entry(<id-5f73656374696f6e>, 0, [#text("Section")])
 #pagebreak()
 
-#text("Intro.")
+#text(size: 1.25em)[#text("Intro.")]
 
 #heading(level: 1)[#text("Section")] <id-5f73656374696f6e>
 
