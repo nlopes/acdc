@@ -147,11 +147,12 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
             number: Some(number),
             ..
         } => {
-            let label = match xref.caption_label {
-                XrefCaptionLabel::AtTarget => label.as_ref(),
-                XrefCaptionLabel::AtReference(label) => label,
-                XrefCaptionLabel::NumberOnly => "",
-                _ => label.as_ref(),
+            let label = if let XrefCaptionLabel::AtReference(label) = xref.caption_label {
+                label
+            } else if xref.caption_label == XrefCaptionLabel::NumberOnly {
+                ""
+            } else {
+                label.as_ref()
             };
             if label.is_empty() {
                 Some(number.to_string())
@@ -160,7 +161,7 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
             }
         }
         Caption::Custom(prefix) => Some(prefix.to_string()),
-        _ => None,
+        Caption::Numbered { .. } | Caption::Unnumbered | _ => None,
     }
 }
 
@@ -331,10 +332,12 @@ mod tests {
                 let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
                     return None;
                 };
-                match resolve_xref(references.get(xref.target), xref, &guard) {
-                    XrefDisplay::ShortCaption(prefix) => Some(prefix),
-                    display => panic!("expected a short caption for {}: {display:?}", xref.target),
-                }
+                let XrefDisplay::ShortCaption(prefix) =
+                    resolve_xref(references.get(xref.target), xref, &guard)
+                else {
+                    return None;
+                };
+                Some(prefix)
             })
             .collect::<Vec<_>>();
 

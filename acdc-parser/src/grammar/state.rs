@@ -314,13 +314,13 @@ impl<'a> ParserState<'a> {
             }
         };
         let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
+        let snapshot = NonZeroUsize::MIN.saturating_add(snapshots.len());
         snapshots.push(XrefCaptionLabelSnapshot {
             example: label("example-caption"),
             listing: label("listing-caption"),
             table: label("table-caption"),
         });
-        NonZeroUsize::new(snapshots.len())
-            .expect("a pushed snapshot gives the vector a nonzero length")
+        snapshot
     }
 
     pub(crate) fn xref_caption_label(

@@ -97,10 +97,12 @@ fn xref_text_accepts_a_nested_link_macro() -> Result<(), Error> {
             let InlineNode::Macro(inline) = inline else {
                 return None;
             };
-            match inline {
-                InlineMacro::Link(link) => Some((link.target.to_string(), link.text.as_slice())),
-                InlineMacro::Url(url) => Some((url.target.to_string(), url.text.as_slice())),
-                _ => None,
+            if let InlineMacro::Link(link) = inline {
+                Some((link.target.to_string(), link.text.as_slice()))
+            } else if let InlineMacro::Url(url) = inline {
+                Some((url.target.to_string(), url.text.as_slice()))
+            } else {
+                None
             }
         }) else {
             return Err(unexpected(
@@ -161,21 +163,21 @@ fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
             xref.text
         );
         assert!(
-            xref.text
-                .iter()
-                .any(|inline| match (expected_kind, inline) {
-                    ("anchor", InlineNode::InlineAnchor(_)) | ("raw", InlineNode::RawText(_)) =>
-                        true,
-                    ("mailto", InlineNode::Macro(InlineMacro::Mailto(_)))
-                    | ("image", InlineNode::Macro(InlineMacro::Image(_)))
-                    | ("icon", InlineNode::Macro(InlineMacro::Icon(_)))
-                    | ("indexterm", InlineNode::Macro(InlineMacro::IndexTerm(_)))
-                    | ("stem", InlineNode::Macro(InlineMacro::Stem(_)))
-                    | ("keyboard", InlineNode::Macro(InlineMacro::Keyboard(_)))
-                    | ("button", InlineNode::Macro(InlineMacro::Button(_)))
-                    | ("menu", InlineNode::Macro(InlineMacro::Menu(_))) => true,
-                    _ => false,
-                }),
+            xref.text.iter().any(|inline| {
+                matches!(
+                    (expected_kind, inline),
+                    ("anchor", InlineNode::InlineAnchor(_))
+                        | ("raw", InlineNode::RawText(_))
+                        | ("mailto", InlineNode::Macro(InlineMacro::Mailto(_)))
+                        | ("image", InlineNode::Macro(InlineMacro::Image(_)))
+                        | ("icon", InlineNode::Macro(InlineMacro::Icon(_)))
+                        | ("indexterm", InlineNode::Macro(InlineMacro::IndexTerm(_)))
+                        | ("stem", InlineNode::Macro(InlineMacro::Stem(_)))
+                        | ("keyboard", InlineNode::Macro(InlineMacro::Keyboard(_)))
+                        | ("button", InlineNode::Macro(InlineMacro::Button(_)))
+                        | ("menu", InlineNode::Macro(InlineMacro::Menu(_)))
+                )
+            }),
             "expected a nested {expected_kind} macro in {:?}",
             xref.text
         );
