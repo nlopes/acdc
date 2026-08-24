@@ -129,7 +129,7 @@ pub use model::{
     Substitution, Subtitle, Superscript, Table, TableColumn, TableFrame, TableGrid,
     TableOfContents, TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry,
     UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
-    strip_quotes, substitute,
+    XrefCaptionLabel, XrefStyle, strip_quotes, substitute,
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};

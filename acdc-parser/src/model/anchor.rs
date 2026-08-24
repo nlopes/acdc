@@ -5,10 +5,13 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use super::inlines::InlineNode;
-use super::location::Location;
-use super::section::{SectionKind, SectionNumber};
-use super::title::Title;
+use super::{
+    caption::Caption,
+    inlines::InlineNode,
+    location::Location,
+    section::{SectionKind, SectionNumber},
+    title::Title,
+};
 
 /// Section styles that should not receive automatic numbering.
 ///
@@ -150,8 +153,8 @@ impl Serialize for TocEntry<'_> {
 pub struct Reference<'a> {
     /// Optional cross-reference label (from `[[id,xreflabel]]` syntax), parsed
     /// as inline content: a label carries formatting, so `[[id,*Bold* label]]`
-    /// renders bold. When set, it is the reference text; otherwise `title` is
-    /// used.
+    /// renders bold. When set, it is the reference text; otherwise converters
+    /// use `title` and, for captioned targets, `caption`.
     pub xreflabel: Option<Vec<InlineNode<'a>>>,
     /// The target's title (section or block title), when it has one. `None` for
     /// a referenceable element with no title (e.g. an untitled block with an
@@ -161,6 +164,8 @@ pub struct Reference<'a> {
     pub title: Option<Title<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
     pub location: Location,
+    /// The target block's resolved caption, when it has one.
+    pub caption: Option<Caption<'a>>,
     pub(crate) bibliography: bool,
     pub(crate) automatic_citation: bool,
 }

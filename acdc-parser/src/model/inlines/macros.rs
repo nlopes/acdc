@@ -1,3 +1,5 @@
+use std::{fmt, num::NonZeroUsize};
+
 use serde::Serialize;
 
 use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
@@ -168,13 +170,19 @@ impl<'a> Keyboard<'a> {
 pub type Key<'a> = &'a str;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+#[derive(Clone, Serialize)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
     pub target: &'a str,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub location: Location,
+    #[serde(skip)]
+    pub xrefstyle: XrefStyle,
+    #[serde(skip)]
+    pub caption_label: XrefCaptionLabel<'a>,
+    #[serde(skip)]
+    pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
 }
 
 impl<'a> CrossReference<'a> {
@@ -185,6 +193,9 @@ impl<'a> CrossReference<'a> {
             target,
             text: Vec::new(),
             location,
+            xrefstyle: XrefStyle::Basic,
+            caption_label: XrefCaptionLabel::AtTarget,
+            caption_label_snapshot_id: None,
         }
     }
 
@@ -193,6 +204,65 @@ impl<'a> CrossReference<'a> {
     pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
         self.text = text;
         self
+    }
+}
+
+impl fmt::Debug for CrossReference<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CrossReference")
+            .field("target", &self.target)
+            .field("text", &self.text)
+            .field("location", &self.location)
+            .field("xrefstyle", &self.xrefstyle)
+            .field("caption_label", &self.caption_label)
+            .finish()
+    }
+}
+
+impl PartialEq for CrossReference<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.target == other.target
+            && self.text == other.text
+            && self.location == other.location
+            && self.xrefstyle == other.xrefstyle
+            && self.caption_label == other.caption_label
+    }
+}
+
+/// Selects the label used by an automatic cross-reference to a numbered caption.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum XrefCaptionLabel<'a> {
+    /// Use the caption label recorded on the target.
+    #[default]
+    AtTarget,
+    /// Use the caption label active at the reference position.
+    AtReference(&'a str),
+    /// Omit the label and show only the caption number.
+    NumberOnly,
+}
+
+/// The display style for an automatic cross-reference.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum XrefStyle {
+    /// Use the target title without its caption prefix.
+    #[default]
+    Basic,
+    /// Use only the target's caption label and number or custom prefix.
+    Short,
+    /// Use the caption prefix followed by the target title.
+    Full,
+}
+
+impl XrefStyle {
+    pub(crate) fn from_attribute(value: Option<&str>) -> Self {
+        match value {
+            Some("short") => Self::Short,
+            Some("full") => Self::Full,
+            _ => Self::Basic,
+        }
     }
 }
 

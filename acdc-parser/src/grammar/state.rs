@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
+    num::NonZeroUsize,
     ops::Range,
     path::PathBuf,
     rc::Rc,
@@ -12,14 +13,21 @@ use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
-    AttributeName, AttributeValue, CalloutRef, DocumentAttributes, Footnote, Location, Options,
-    SourceLocation, TocEntry, Warning, WarningKind,
+    AttributeName, AttributeValue, CalloutRef, CaptionKind, DocumentAttributes, Footnote, Location,
+    Options, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel,
     grammar::LineMap,
     model::{
         LeveloffsetRange, SourceRange, substitute,
         substitution::{HEADER, SubstitutionPlan},
     },
 };
+
+#[derive(Clone, Copy, Debug)]
+struct XrefCaptionLabelSnapshot<'a> {
+    example: XrefCaptionLabel<'a>,
+    listing: XrefCaptionLabel<'a>,
+    table: XrefCaptionLabel<'a>,
+}
 
 #[derive(Debug)]
 pub(crate) struct ParserState<'a> {
@@ -61,6 +69,7 @@ pub(crate) struct ParserState<'a> {
     /// `process_inlines` calls, and the prior pattern produced O(N×M) work
     /// where N is footnote count and M is the number of nested parses.
     pub(crate) footnote_tracker: Rc<RefCell<FootnoteTracker<'a>>>,
+    xref_caption_label_snapshots: Rc<RefCell<Vec<XrefCaptionLabelSnapshot<'a>>>>,
     /// TOC entries collected during parsing, in document order. A section pushes its
     /// [`TocEntry`] here as soon as its title is parsed; `numbered` is `false` for
     /// special styles (`[bibliography]`, `[glossary]`, ...) that are not auto-numbered
@@ -285,6 +294,53 @@ impl<'a> ParserState<'a> {
         s.into_bump_str()
     }
 
+    pub(crate) fn capture_xref_caption_labels(&self) -> NonZeroUsize {
+        let label = |name| match self.document_attributes.get(name) {
+            Some(AttributeValue::String(_)) => {
+                let value = self
+                    .document_attributes
+                    .get_string(name)
+                    .map(|value| self.intern_cow(value))
+                    .unwrap_or_default();
+                if value.is_empty() {
+                    XrefCaptionLabel::NumberOnly
+                } else {
+                    XrefCaptionLabel::AtReference(value)
+                }
+            }
+            Some(AttributeValue::Bool(true)) => XrefCaptionLabel::NumberOnly,
+            Some(AttributeValue::Bool(false) | AttributeValue::None) | None => {
+                XrefCaptionLabel::AtTarget
+            }
+        };
+        let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
+        snapshots.push(XrefCaptionLabelSnapshot {
+            example: label("example-caption"),
+            listing: label("listing-caption"),
+            table: label("table-caption"),
+        });
+        NonZeroUsize::new(snapshots.len())
+            .expect("a pushed snapshot gives the vector a nonzero length")
+    }
+
+    pub(crate) fn xref_caption_label(
+        &self,
+        snapshot: NonZeroUsize,
+        kind: CaptionKind,
+    ) -> XrefCaptionLabel<'a> {
+        let labels = self
+            .xref_caption_label_snapshots
+            .borrow()
+            .get(snapshot.get() - 1)
+            .copied();
+        labels.map_or(XrefCaptionLabel::AtTarget, |labels| match kind {
+            CaptionKind::Example => labels.example,
+            CaptionKind::Listing => labels.listing,
+            CaptionKind::Table => labels.table,
+            CaptionKind::Figure => XrefCaptionLabel::AtTarget,
+        })
+    }
+
     /// Apply an attribute entry declared by document content: expand `{attr}`
     /// references at definition time (matching `asciidoctor`), intern the result
     /// for the parse, and store it unless the name is a trusted caller-only
@@ -364,6 +420,7 @@ impl<'a> ParserState<'a> {
             input,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
+            xref_caption_label_snapshots: Rc::new(RefCell::new(Vec::new())),
             toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
@@ -399,6 +456,7 @@ impl<'a> ParserState<'a> {
             input,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
+            xref_caption_label_snapshots: Rc::new(RefCell::new(Vec::new())),
             toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
@@ -432,6 +490,7 @@ impl<'a> ParserState<'a> {
             input,
             arena: parent.arena,
             footnote_tracker: Rc::clone(&parent.footnote_tracker),
+            xref_caption_label_snapshots: Rc::clone(&parent.xref_caption_label_snapshots),
             toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),

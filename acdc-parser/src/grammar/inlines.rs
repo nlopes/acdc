@@ -1377,11 +1377,15 @@ peg::parser! {
                 vec![]
             };
             tracing::debug!(?target_str, ?text, "Found cross-reference shorthand");
-            Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
-                target: target_str,
-                text,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
+            let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
+            xref.xrefstyle = crate::XrefStyle::from_attribute(
+                state.document_attributes.get_string("xrefstyle").as_deref(),
+            );
+            if xref.text.is_empty() {
+                xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
+            }
+            Ok(InlineNode::Macro(InlineMacro::CrossReference(xref)))
         }
 
         /// Pattern for cross-reference shorthand: <<id>> or <<id,custom text>>
@@ -1413,11 +1417,15 @@ peg::parser! {
                     })?
             };
             tracing::debug!(?target_str, ?text, "Found cross-reference macro");
-            Ok(InlineNode::Macro(InlineMacro::CrossReference(crate::model::CrossReference {
-                target: target_str,
-                text,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            })))
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
+            let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
+            xref.xrefstyle = crate::XrefStyle::from_attribute(
+                state.document_attributes.get_string("xrefstyle").as_deref(),
+            );
+            if xref.text.is_empty() {
+                xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
+            }
+            Ok(InlineNode::Macro(InlineMacro::CrossReference(xref)))
         }
 
         /// Parse explicit xref text without balancing arbitrary brackets.
