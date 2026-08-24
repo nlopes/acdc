@@ -12,6 +12,7 @@ use acdc_converters_core::{
     link::{autolink_fallback, link_fallback, mailto_fallback},
     list::OrderedListNumbering,
     section::effective_section_level,
+    shows_block_title,
     substitutions::{Replacements, TextBoundaries},
     table::{CellKind, GridRow, build_grid, determine_column_count},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
@@ -20,11 +21,11 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
-    ColumnWidth, CrossReference, DescriptionList, DescriptionListItem, ElementAttributes,
-    HorizontalAlignment, Icon, Image, IndexTerm, InlineMacro, InlineNode, ListItem, Menu,
-    Paragraph, Raw, Section, SectionKind, Source, Substitution, Table, TableColumn, TableFrame,
-    TableGrid, TableOfContents, TablePresentation, TableStripes, Title, TocEntry,
-    VerticalAlignment,
+    ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
+    DescriptionListItem, ElementAttributes, HorizontalAlignment, Icon, Image, IndexTerm,
+    InlineMacro, InlineNode, ListItem, Menu, Paragraph, Raw, Section, SectionKind, Source,
+    Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation,
+    TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -439,6 +440,96 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.visit_block(block)?;
         }
         Ok(())
+    }
+
+    pub(crate) fn write_delimited_block_content(
+        &mut self,
+        block: &DelimitedBlock<'_>,
+    ) -> Result<(), Error> {
+        let fallback = CaptionKind::for_delimited(&block.inner, block.metadata.style);
+        let collapsible_example = is_collapsible_example(&block.metadata, fallback);
+        let zero_width_table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+            && self.omit_zero_width_table(&block.metadata);
+        if zero_width_table {
+            return Ok(());
+        }
+        let table = matches!(block.inner, DelimitedBlockType::DelimitedTable(_));
+        let intrinsic_table =
+            table && !block.title.is_empty() && Self::table_has_intrinsic_width(&block.metadata);
+        if intrinsic_table {
+            self.write_intrinsic_table_start();
+        }
+        let (sized_table, aligned_table) =
+            self.write_table_wrappers_start(&block.metadata, table && !intrinsic_table);
+        let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
+            || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
+                && block.metadata.style == Some("abstract")
+            || collapsible_example;
+        // A block built through the API carries no resolved caption, so classify it with
+        // the same rules the parser used.
+        let captioned = block.metadata.caption.is_some() || fallback.is_some();
+        if shows_block_title(&block.inner) && !writes_own_title && !intrinsic_table {
+            if captioned {
+                self.write_captioned_title(&block.title, &block.metadata, fallback)?;
+            } else {
+                self.write_block_title(&block.title)?;
+            }
+        }
+        let result = match &block.inner {
+            DelimitedBlockType::DelimitedExample(blocks)
+            | DelimitedBlockType::DelimitedOpen(blocks)
+                if collapsible_example =>
+            {
+                self.write_disclosure(&block.title, |visitor| visitor.write_blocks(blocks))
+            }
+            // Each container reads differently in print: an example takes a
+            // light frame, a sidebar a shaded box, and an open block is a
+            // transparent container that takes neither.
+            DelimitedBlockType::DelimitedExample(blocks) => self.write_example(blocks),
+            DelimitedBlockType::DelimitedSidebar(blocks) => {
+                self.write_sidebar(&block.title, blocks)
+            }
+            DelimitedBlockType::DelimitedOpen(blocks)
+                if block.metadata.style == Some("abstract") =>
+            {
+                self.write_abstract(Some(&block.title), &block.metadata, |visitor| {
+                    visitor.write_blocks(blocks)
+                })
+            }
+            DelimitedBlockType::DelimitedOpen(blocks) => {
+                self.write_framed_blocks(None, None, blocks)
+            }
+            DelimitedBlockType::DelimitedQuote(blocks) => {
+                self.write_quote_block(&block.metadata, |visitor| visitor.write_blocks(blocks))
+            }
+            DelimitedBlockType::DelimitedVerse(nodes) => {
+                self.write_verse_block(nodes, &block.metadata)
+            }
+            DelimitedBlockType::DelimitedListing(nodes)
+            | DelimitedBlockType::DelimitedLiteral(nodes) => {
+                self.write_verbatim_block(nodes, &block.metadata);
+                Ok(())
+            }
+            DelimitedBlockType::DelimitedPass(nodes) => {
+                self.write_passthrough_block(nodes);
+                Ok(())
+            }
+            DelimitedBlockType::DelimitedTable(table) => self.write_table(table, &block.metadata),
+            DelimitedBlockType::DelimitedStem(stem) => {
+                self.write_stem_fallback(stem.content, true);
+                Ok(())
+            }
+            DelimitedBlockType::DelimitedComment(_) => Ok(()),
+            _ => {
+                self.warn_unsupported_parser_variant("delimited block");
+                Ok(())
+            }
+        };
+        if intrinsic_table {
+            self.write_intrinsic_table_end(&block.title, &block.metadata, fallback)?;
+        }
+        self.write_table_wrappers_end(sized_table, aligned_table);
+        result
     }
 
     pub(crate) fn write_title(&mut self, title: &Title<'_>) -> Result<(), Error> {

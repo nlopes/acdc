@@ -52,6 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Admonition, source, listing, literal, example, open, quote, verse, sidebar,
+  stem, and table blocks marked `%unbreakable` now move intact to the next page
+  when they fit there. Blocks taller than a page remain breakable, matching
+  Asciidoctor PDF without clipping content.
 - Paragraphs with the `.lead` role now use larger text. The first paragraph in
   a document preamble receives the same presentation automatically unless it
   has an explicit role, matching Asciidoctor.

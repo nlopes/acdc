@@ -28,8 +28,8 @@ use acdc_converters_core::{
     xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, BlockMetadata, CaptionKind, DelimitedBlockType, Document, DocumentAttributes,
-    InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source, Table,
+    Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, Document,
+    DocumentAttributes, InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source, Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -55,6 +55,22 @@ pub(crate) const BACKEND_TRAITS: BackendTraits =
 use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
 
 const MAX_THEME_FILE_BYTES: usize = 1024 * 1024;
+const UNBREAKABLE_HELPER: &str = r"#let _acdc_unbreakable(body) = layout(size => {
+  let kept = block(
+    width: 100%,
+    breakable: false,
+    above: 0pt,
+    below: 0pt,
+    body,
+  )
+  if measure(kept, width: size.width).height <= size.height {
+    kept
+  } else {
+    body
+  }
+})
+
+";
 
 /// PDF-specific conversion options.
 #[allow(clippy::struct_excessive_bools)]
@@ -244,6 +260,9 @@ impl Processor<'_> {
         )
         .with_populated_index_sections(preparation.populated_index_sections.clone());
         preamble::write(&mut visitor.writer, theme, emit_options);
+        if preparation.has_unbreakable_blocks {
+            visitor.writer.raw(UNBREAKABLE_HELPER);
+        }
         visitor.visit_document(doc)?;
         let mut source = visitor.writer.into_string();
         source.truncate(source.trim_end_matches('\n').len());
@@ -700,6 +719,7 @@ struct PdfPreparation {
     image_icons: Vec<ImageIconReference>,
     unsupported_font_icons: Vec<String>,
     has_index_terms: bool,
+    has_unbreakable_blocks: bool,
     populated_index_sections: HashSet<String>,
 }
 
@@ -747,11 +767,13 @@ fn collect_block_preparation(
                 collect_block_preparation(&section.content, context, preparation);
             }
             Block::Paragraph(paragraph) => {
+                preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
                 collect_inline_preparation(paragraph.title.as_ref(), context, preparation);
                 collect_metadata_preparation(&paragraph.metadata, context, preparation);
                 collect_inline_preparation(&paragraph.content, context, preparation);
             }
             Block::DelimitedBlock(block) => {
+                preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
                 collect_inline_preparation(block.title.as_ref(), context, preparation);
                 collect_metadata_preparation(&block.metadata, context, preparation);
                 collect_delimited_block_preparation(&block.inner, context, preparation);
@@ -784,6 +806,8 @@ fn collect_block_preparation(
                 }
             }
             Block::Admonition(admonition) => {
+                preparation.has_unbreakable_blocks |=
+                    admonition.metadata.options.contains(&"unbreakable");
                 collect_inline_preparation(admonition.title.as_ref(), context, preparation);
                 collect_block_preparation(&admonition.blocks, context, preparation);
             }
@@ -819,6 +843,30 @@ fn collect_block_preparation(
             | _ => {}
         }
     }
+}
+
+fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
+    paragraph.metadata.options.contains(&"unbreakable")
+        && matches!(
+            paragraph.metadata.style,
+            Some("example" | "listing" | "literal" | "quote" | "sidebar" | "source" | "verse")
+        )
+}
+
+fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
+    block.metadata.options.contains(&"unbreakable")
+        && matches!(
+            block.inner,
+            DelimitedBlockType::DelimitedExample(_)
+                | DelimitedBlockType::DelimitedListing(_)
+                | DelimitedBlockType::DelimitedLiteral(_)
+                | DelimitedBlockType::DelimitedOpen(_)
+                | DelimitedBlockType::DelimitedQuote(_)
+                | DelimitedBlockType::DelimitedSidebar(_)
+                | DelimitedBlockType::DelimitedStem(_)
+                | DelimitedBlockType::DelimitedTable(_)
+                | DelimitedBlockType::DelimitedVerse(_)
+        )
 }
 
 fn collect_delimited_block_preparation(
@@ -1037,6 +1085,28 @@ mod tests {
         Ok(pdf.get_pages().len())
     }
 
+    fn rendered_page_texts(input: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                plain: true,
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf
+            .get_pages()
+            .into_keys()
+            .map(|page| pdf.extract_text(&[page]))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(pages)
+    }
+
     #[test]
     fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -1080,6 +1150,90 @@ mod tests {
         assert_eq!(rendered_page_count(default_breaks)?, 2);
         assert_eq!(rendered_page_count(forced_break)?, 3);
         assert_eq!(rendered_page_count(separated_breaks)?, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn unbreakable_option_wraps_only_supported_pdf_block_contexts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let supported = acdc_parser::parse(
+            "[options=unbreakable]\n----\nlisting\n----\n\n[source%unbreakable]\n----\nsource\n----\n\n[%unbreakable]\n....\nliteral\n....\n\n[%unbreakable]\n====\nexample\n====\n\n[%collapsible%unbreakable]\n====\ncollapsible example\n====\n\n[%unbreakable]\n--\nopen\n--\n\n[quote%unbreakable]\n____\nquote\n____\n\n[verse%unbreakable]\n____\nverse\n____\n\n[%unbreakable]\n****\nsidebar\n****\n\n[stem%unbreakable]\n++++\nx\n++++\n\n[%unbreakable]\n|===\n|table\n|===\n\n[%unbreakable]\nNOTE: admonition\n\n[source%unbreakable]\nsource paragraph\n\n[listing%unbreakable]\nlisting paragraph\n\n[literal%unbreakable]\nliteral paragraph\n\n[example%unbreakable]\nexample paragraph\n\n[quote%unbreakable]\nquote paragraph\n\n[verse%unbreakable]\nverse paragraph\n\n[sidebar%unbreakable]\nsidebar paragraph\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let unsupported = acdc_parser::parse(
+            ":unbreakable-option:\n\n[%unbreakable]\nparagraph\n\n[%unbreakable]\n. list item\n\n[pass%unbreakable]\n++++\npassthrough\n++++\n\n----\nlisting without a local option\n----\n",
+            &acdc_parser::Options::default(),
+        )?;
+
+        let render = |document: &Document<'_>| -> Result<String, Box<dyn std::error::Error>> {
+            let processor = Processor::new(Options::default(), document.attributes.clone());
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
+            Ok(typst)
+        };
+
+        let helper = "#let _acdc_unbreakable(body) = layout";
+        let wrapper = "#_acdc_unbreakable[";
+        let supported = render(supported.document())?;
+        let unsupported = render(unsupported.document())?;
+
+        assert!(supported.contains(helper));
+        assert_eq!(supported.matches(wrapper).count(), 19);
+        assert!(!unsupported.contains(helper));
+        assert_eq!(unsupported.matches(wrapper).count(), 0);
+        assert!(
+            render_pdf(&supported, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn unbreakable_option_moves_fitting_listing_and_preserves_oversized_listing()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let prefix = "= ACDC Move probe\n\nFILL01 filler paragraph.\n\nFILL02 filler paragraph.\n\nFILL03 filler paragraph.\n\nFILL04 filler paragraph.\n\nFILL05 filler paragraph.\n\nFILL06 filler paragraph.\n\nFILL07 filler paragraph.\n\nFILL08 filler paragraph.\n\nFILL09 filler paragraph.\n\nFILL10 filler paragraph.\n\nFILL11 filler paragraph.\n\nFILL12 filler paragraph.\n\nFILL13 filler paragraph.\n\nFILL14 filler paragraph.\n\nFILL15 filler paragraph.\n\nFILL16 filler paragraph.\n\nFILL17 filler paragraph.\n\nFILL18 filler paragraph.\n\nFILL19 filler paragraph.\n\nFILL20 filler paragraph.\n\n.Target caption\n[listing%unbreakable]\n----\n";
+        let fitting = format!(
+            "{prefix}CODE01 target line\nCODE02 target line\nCODE03 target line\nCODE04 target line\nCODE05 target line\nCODE06 target line\nCODE07 target line\nCODE08 target line\n----\n\nAFTER target.\n"
+        );
+        let fitting_pages = rendered_page_texts(&fitting)?;
+        let first_page = fitting_pages
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing first page"))?;
+        let second_page = fitting_pages
+            .get(1)
+            .ok_or_else(|| std::io::Error::other("missing second page"))?;
+
+        assert!(first_page.contains("FILL20"), "{fitting_pages:?}");
+        assert!(!first_page.contains("Target caption"), "{fitting_pages:?}");
+        assert!(second_page.contains("Target caption"), "{fitting_pages:?}");
+        assert!(second_page.contains("CODE01"), "{fitting_pages:?}");
+        assert!(second_page.contains("CODE08"), "{fitting_pages:?}");
+
+        let mut oversized = String::from(prefix);
+        for line in 1..=80 {
+            let _ = writeln!(oversized, "CODE{line:02} target line");
+        }
+        oversized.push_str("----\n\nAFTER target.\n");
+        let oversized_pages = rendered_page_texts(&oversized)?;
+        let oversized_first_page = oversized_pages
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing first page"))?;
+
+        assert!(oversized_pages.len() > 1, "{oversized_pages:?}");
+        assert!(
+            oversized_first_page.contains("CODE01"),
+            "{oversized_pages:?}"
+        );
+        assert!(
+            oversized_pages
+                .iter()
+                .skip(1)
+                .any(|page| page.contains("CODE80")),
+            "{oversized_pages:?}"
+        );
         Ok(())
     }
 
