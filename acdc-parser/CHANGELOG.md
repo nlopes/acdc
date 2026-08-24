@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cross-reference macros preserve formatted explicit text through supported
+  nested inline macros and escaped closing brackets.
+
 - Parsed tables expose their resolved `frame`, `grid`, and `stripes`
   presentation. Table-level values override `table-frame`, `table-grid`, and
   `table-stripes`, and document-attribute changes apply in source order. The

@@ -679,7 +679,7 @@ peg::parser! {
 
         /// Match inline pass without consuming - for use in negative lookaheads.
         rule inline_pass_match()
-        = "pass:" ([^(']' | ',')]+ ("," [^(']' | ',')]+)*)? "[" [^']']+ "]"
+        = "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" [^']']* "]"
 
         /// Concealed index term: (((primary, secondary, tertiary)))
         /// Only appears in the index, not in the text.
@@ -1393,7 +1393,7 @@ peg::parser! {
 
         /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro() -> InlineNode<'input>
-        = "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:$((!"]" [_])*) "]"
+        = "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
             let target_str: &'input str = match fragment {
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
@@ -1420,13 +1420,43 @@ peg::parser! {
             })))
         }
 
+        /// Parse explicit xref text without balancing arbitrary brackets.
+        ///
+        /// Asciidoctor protects escaped closing brackets and macros processed
+        /// before xrefs, but an unprotected `]` still ends the xref.
+        rule cross_reference_macro_text() -> &'input str
+        = text:$(cross_reference_macro_text_part()*) { text }
+
+        rule cross_reference_macro_text_part()
+        = "\\]"
+        / protected_cross_reference_text_macro()
+        / !"]" [_]
+
+        rule protected_cross_reference_text_macro()
+        = &['p'] inline_pass_match()
+        / check_macros() (
+            &['['] inline_anchor_match()
+            / &['a' | 's'] inline_stem_match()
+            / &['b'] inline_button_match()
+            / &['f' | 'h'] url_macro_match()
+            / &['i'] (
+                (check_index_terms() index_term_match())
+                / inline_image_match()
+                / inline_icon_match()
+                / url_macro_match()
+            )
+            / &['k'] inline_keyboard_match()
+            / &['l'] (inline_stem_match() / link_macro_match())
+            / &['m'] (inline_menu_match() / mailto_macro_match())
+        )
+
         /// Match cross-reference shorthand syntax without consuming: <<id>> or <<id,text>>
         rule cross_reference_shorthand_match() -> ()
         = "<<" ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']* ("," (!">>" [_])+)? ">>"
 
         /// Match cross-reference macro syntax without consuming: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro_match()
-        = "xref:" source() path_fragment()? "[" (!"]" [_])* "]"
+        = "xref:" source() path_fragment()? "[" cross_reference_macro_text() "]"
 
         rule bold_text_unconstrained() -> InlineNode<'input>
             = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$((!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
