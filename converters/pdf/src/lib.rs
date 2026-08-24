@@ -1552,6 +1552,80 @@ mod tests {
     }
 
     #[test]
+    fn captioned_block_xrefs_honor_source_order_styles() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Caption cross-references\n:figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: basic\n\nBasic: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::missing-reference-image.svg[Missing]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        let mut failures = Vec::new();
+        for expected in [
+            "Forward short: TargetFigure 1 and BeforeTable 1",
+            "Forward full: TargetFigure 1, “A figure title” and BeforeTable 1, “A table title”",
+            "Basic: A figure title and A table title",
+            "Backward short: TargetFigure 1 and AfterTable 1",
+            "Backward full: TargetFigure 1, “A figure title” and AfterTable 1, “A table title”",
+        ] {
+            if !normalized.contains(expected) {
+                failures.push(format!("expected {expected:?} in {text:?}"));
+            }
+        }
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        Ok(())
+    }
+
+    #[test]
+    fn captions_and_cross_reference_text_preserve_inline_formatting()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Formatted captions and references\n:subject-name: Ada\n:xrefstyle: basic\n\nBasic: <<table-target>>.\n\nExplicit: xref:table-target[Own *bold* _italic_ `mono` {subject-name} link:https://example.com[link]].\n\n:xrefstyle: full\n\nFull: <<table-target>>.\n\n[[table-target]]\n.Caption *bold* _italic_ `mono` {subject-name}\n|===\n|Cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for expected in [
+            "#link(<id-7461626c652d746172676574>)[#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
+            "#link(<id-7461626c652d746172676574>)[#text(\"Own \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada \")#link(\"https://example.com\")[#text(\"link\")]]",
+            "#link(<id-7461626c652d746172676574>)[#text(\"Table 1\")#text(\", “\")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")#text(\"”\")]",
+            "#blocktitle[#text(\"Table 1. \")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
+        ] {
+            assert!(typst.contains(expected), "expected {expected:?} in {typst}");
+        }
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for expected in [
+            "Basic: Caption bold italic mono Ada",
+            "Explicit: Own bold italic mono Ada link",
+            "Full: Table 1, “Caption bold italic mono Ada”",
+            "Table 1. Caption bold italic mono Ada",
+        ] {
+            assert!(
+                normalized.contains(expected),
+                "expected {expected:?} in {text:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn labels_are_typst_safe_and_collision_resistant() {
         assert_eq!(encode_label(""), "id");
         assert_eq!(encode_label("a.b"), "id-612e62");

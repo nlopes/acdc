@@ -1032,7 +1032,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         if xref.text.is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
-            // xreflabel (from [[id,Custom Text]]) > target title > fallback `[id]`.
+            // xreflabel (from [[id,Custom Text]]) > caption style or target title >
+            // fallback `[id]`.
             //
             // Reference text — a title or an xreflabel — goes through the inline
             // pipeline, so its formatting (`<code>`, bold, italic, ...) survives
@@ -1045,7 +1046,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             let processor = Rc::clone(&self.processor);
             let display = resolve_xref(
                 processor.references.get(xref.target),
-                xref.target,
+                xref,
                 &processor.xref_guard,
             );
 
@@ -1081,6 +1082,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     for inline in inlines {
                         self.render_inline_node(inline, options, subs)?;
                     }
+                }
+                XrefDisplay::ShortCaption(prefix) => {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&prefix))?;
+                }
+                XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                    write!(self.writer_mut(), "{}, &#8220;", escape_pcdata(&prefix))?;
+                    for inline in inlines {
+                        self.render_inline_node(inline, options, subs)?;
+                    }
+                    write!(self.writer_mut(), "&#8221;")?;
                 }
                 XrefDisplay::Fallback(text)
                 | XrefDisplay::Unresolved(text)

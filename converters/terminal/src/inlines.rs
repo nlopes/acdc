@@ -388,11 +388,23 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
 
         match resolve_xref(
             processor.references.get(xref.target),
-            xref.target,
+            xref,
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                 self.write_link_styled(processor, |visitor| visitor.visit_inline_nodes(inlines))
+            }
+            XrefDisplay::ShortCaption(prefix) => self.write_link_styled(processor, |visitor| {
+                write!(visitor.writer_mut(), "{prefix}")?;
+                Ok(())
+            }),
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    write!(visitor.writer_mut(), "{prefix}, “")?;
+                    visitor.visit_inline_nodes(inlines)?;
+                    write!(visitor.writer_mut(), "”")?;
+                    Ok(())
+                })
             }
             XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
                 self.write_link_styled(processor, |visitor| {
@@ -701,12 +713,17 @@ fn render_cross_reference_to_writer<W: Write + ?Sized>(
     let text = if xref.text.is_empty() {
         match resolve_xref(
             processor.references.get(xref.target),
-            xref.target,
+            xref,
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                 render_inline_nodes_to_owned(inlines, processor)?
             }
+            XrefDisplay::ShortCaption(prefix) => prefix,
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => format!(
+                "{prefix}, “{}”",
+                render_inline_nodes_to_owned(inlines, processor)?
+            ),
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => text,

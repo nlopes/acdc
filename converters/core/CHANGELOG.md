@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatic cross-references to captioned blocks support source-order
+  `xrefstyle=short` and `xrefstyle=full`, including custom and disabled
+  captions. Explicit reference labels still take precedence.
 - Plain-text output uses the visible, substituted text of index terms without
   formatting markers.
 - Link fallback labels can omit Asciidoctor-compatible URI prefixes while

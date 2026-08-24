@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cross-references preserve formatted explicit text through supported nested
+  inline macros. Empty references to captioned blocks honor source-order
+  `xrefstyle=basic`, `short`, and `full`, including custom and disabled
+  captions.
 - Visible index terms preserve inline formatting, links, and attribute
   substitutions; concealed terms remain hidden.
 - Ordered lists honor a positive `start` value, including on nested lists.

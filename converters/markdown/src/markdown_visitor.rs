@@ -813,8 +813,8 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
     ///
     /// Markdown has no cross-reference syntax, so this is a plain link to the
     /// `#id` fragment. Its text is the reference's own text when it has one,
-    /// otherwise the target's reference text (an explicit label or its title),
-    /// falling back to `[id]` as asciidoctor does.
+    /// otherwise the target's reference text (an explicit label, caption-style
+    /// text, or its title), falling back to `[id]` as asciidoctor does.
     fn visit_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
         if !xref.text.is_empty() {
             return self.write_anchor_link(xref.target, |visitor| {
@@ -829,7 +829,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+        match resolve_xref(references.get(xref.target), xref, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
                 .write_anchor_link(xref.target, |visitor| {
                     for node in inlines {
@@ -837,6 +837,20 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                     }
                     Ok(())
                 }),
+            XrefDisplay::ShortCaption(prefix) => self.write_anchor_link(xref.target, |visitor| {
+                write!(visitor.writer, "{prefix}")?;
+                Ok(())
+            }),
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                self.write_anchor_link(xref.target, |visitor| {
+                    write!(visitor.writer, "{prefix}, “")?;
+                    for node in inlines {
+                        visitor.visit_inline_node(node)?;
+                    }
+                    write!(visitor.writer, "”")?;
+                    Ok(())
+                })
+            }
             XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
                 self.write_anchor_link(xref.target, |visitor| {
                     write!(visitor.writer, "{text}")?;

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cross-references preserve formatted explicit text through supported nested
+  inline macros. Empty references to captioned blocks honor source-order
+  `xrefstyle=basic`, `short`, and `full`, including custom and disabled
+  captions, matching Asciidoctor.
 - Visible index terms and opt-in generated index labels preserve inline
   formatting and attribute substitutions, matching Asciidoctor.
 - Inline icon macros use their explicit alternative text or a readable form of

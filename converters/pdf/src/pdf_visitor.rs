@@ -2551,9 +2551,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         let previous = self.index_catalog.set_suspended(true);
-        let result = match resolve_xref(references.get(xref.target), xref.target, &guard) {
+        let result = match resolve_xref(references.get(xref.target), xref, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                 self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(inlines))
+            }
+            XrefDisplay::ShortCaption(prefix) => self.write_labelled_link(xref.target, |visitor| {
+                visitor.write_text_expr(&prefix);
+                Ok(())
+            }),
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                self.write_labelled_link(xref.target, |visitor| {
+                    visitor.write_text_expr(&prefix);
+                    visitor.write_text_expr(", “");
+                    visitor.write_inlines(inlines)?;
+                    visitor.write_text_expr("”");
+                    Ok(())
+                })
             }
             XrefDisplay::Fallback(text) => self.write_labelled_link(xref.target, |visitor| {
                 visitor.write_text_expr(&text);

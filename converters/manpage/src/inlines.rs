@@ -416,7 +416,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+        match resolve_xref(references.get(xref.target), xref, &guard) {
             // A reference to a level-1 section reads as that section's `.SH`
             // heading, which manpages upper-case. An explicit label reads as
             // written.
@@ -429,6 +429,20 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 self.with_text_case(text_case, |visitor| visitor.visit_inline_nodes(inlines))
             }
             XrefDisplay::Label(inlines, _scope) => self.visit_inline_nodes(inlines),
+            XrefDisplay::ShortCaption(prefix) => {
+                let text = manify(&prefix, EscapeMode::Normalize);
+                write!(self.writer_mut(), "{text}")?;
+                Ok(())
+            }
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                let prefix = manify(&prefix, EscapeMode::Normalize);
+                let separator = manify(", “", EscapeMode::Normalize);
+                write!(self.writer_mut(), "{prefix}{separator}")?;
+                self.visit_inline_nodes(inlines)?;
+                let closing_quote = manify("”", EscapeMode::Normalize);
+                write!(self.writer_mut(), "{closing_quote}")?;
+                Ok(())
+            }
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => {

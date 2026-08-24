@@ -16,6 +16,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Cross-references preserve formatted explicit text through supported nested
+  inline macros. Empty references to captioned blocks honor source-order
+  `xrefstyle=basic`, `short`, and `full`, including custom and disabled
+  captions, matching Asciidoctor.
 - Visible index terms preserve inline formatting, links, and attribute
   substitutions; concealed terms remain hidden, matching Asciidoctor.
 - Inline icon macros render their explicit alternative text, or a readable

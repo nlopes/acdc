@@ -182,6 +182,38 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
 }
 
 #[test]
+fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
+    let input = ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n";
+    let parser_options =
+        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("terminal");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "TargetFigure 1",
+        "BeforeTable 1",
+        "TargetFigure 1, “A figure title”",
+        "BeforeTable 1, “A table title”",
+        "AfterTable 1",
+        "AfterTable 1, “A table title”",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let input = ". numbered\n\n[none]\n. unmarked\n";
     let parser_options =
