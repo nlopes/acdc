@@ -11,8 +11,8 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, Caption,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Header, Image, InlineNode,
-    ListItem, OrderedList, PageBreak, Paragraph, Section, Source, TableOfContents, ThematicBreak,
+    DelimitedBlock, DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem,
+    OrderedList, PageBreak, Paragraph, Section, Source, TableOfContents, ThematicBreak,
     UnorderedList, Video,
 };
 
@@ -288,10 +288,10 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             block.metadata.substitutions.as_ref(),
             matches!(
                 block.inner,
-                DelimitedBlockType::DelimitedListing(_)
-                    | DelimitedBlockType::DelimitedLiteral(_)
-                    | DelimitedBlockType::DelimitedPass(_)
-                    | DelimitedBlockType::DelimitedVerse(_)
+                acdc_parser::DelimitedBlockType::DelimitedListing(_)
+                    | acdc_parser::DelimitedBlockType::DelimitedLiteral(_)
+                    | acdc_parser::DelimitedBlockType::DelimitedPass(_)
+                    | acdc_parser::DelimitedBlockType::DelimitedVerse(_)
             ),
         ));
 

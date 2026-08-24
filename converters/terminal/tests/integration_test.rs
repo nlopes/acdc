@@ -73,7 +73,7 @@ generate_tests!([
     (xref_nesting, false),
     (inline_text_extraction, false, requires: feature = "highlighting"),
     (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
-    (index_section, false),
+    (subs_index_section, false),
     (subs_replacements_disabled, false),
     (subs_replacements_explicit, false),
     (subs_hardbreak_dialogue, false),

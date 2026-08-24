@@ -1,0 +1,1 @@
+../../html/embedded/subs_index_catalog.adoc
