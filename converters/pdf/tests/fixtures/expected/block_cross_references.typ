@@ -194,7 +194,7 @@
 #hr()
 
 #metadata(none) <id-706167652d6964>
-#pagebreak()
+#pagebreak(weak: true)
 
 #metadata(none) <id-64697363726574652d6964>
 #heading(level: 2, outlined: false)[#text("Discrete Title")]

@@ -119,7 +119,7 @@
 
 #text("Forward across pages: ")#link(<id-706167652d7461626c65>)[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")
 
-#pagebreak()
+#pagebreak(weak: true)
 
 #metadata(none) <id-706167652d7461626c65>
 #blocktitle[#text("Table 1. ")#text("Page table")]
@@ -127,6 +127,6 @@
 
 ])
 
-#pagebreak()
+#pagebreak(weak: true)
 
 #text("Backward across pages: ")#link(<id-706167652d7461626c65>)[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")

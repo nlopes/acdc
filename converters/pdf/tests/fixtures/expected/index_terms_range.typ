@@ -75,11 +75,11 @@
 
 #text("First ")#metadata(none) <__indexterm-1>#text("term")#text(".")
 
-#pagebreak()
+#pagebreak(weak: true)
 
 #text("Second ")#metadata(none) <__indexterm-2>#text("term")#text(".")
 
-#pagebreak()
+#pagebreak(weak: true)
 
 #text("Third ")#metadata(none) <__indexterm-3>#text("term")#text(".")
 

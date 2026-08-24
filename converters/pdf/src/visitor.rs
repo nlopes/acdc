@@ -199,11 +199,15 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             return result;
         }
 
-        if is_index_section && section.metadata.options.contains(&"notitle") {
+        let hidden_title = section.metadata.options.contains(&"notitle");
+        if is_index_section && hidden_title {
             if !id.is_empty() {
                 let _ = writeln!(self.writer, "#metadata(none) <{}>", encode_label(&id));
             }
         } else {
+            if hidden_title {
+                self.writer.raw("#place[#hide[");
+            }
             let _ = write!(self.writer, "#heading(level: {heading_level}");
             if self.in_article_abstract || in_asciidoc_table_cell {
                 self.writer.raw(", outlined: false, bookmarked: false");
@@ -222,6 +226,9 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             self.writer.raw("]");
             if !id.is_empty() {
                 let _ = write!(self.writer, " <{}>", encode_label(&id));
+            }
+            if hidden_title {
+                self.writer.raw("]]");
             }
             self.writer.raw("\n");
         }

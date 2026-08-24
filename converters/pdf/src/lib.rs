@@ -1146,6 +1146,18 @@ mod tests {
         targets
     }
 
+    fn pdf_contains_outline_title(pdf: &lopdf::Document, expected: &str) -> bool {
+        pdf.objects.values().any(|object| {
+            let Ok(dictionary) = object.as_dict() else {
+                return false;
+            };
+            let Ok(title) = dictionary.get(b"Title").and_then(lopdf::Object::as_str) else {
+                return false;
+            };
+            String::from_utf8_lossy(title) == expected
+        })
+    }
+
     #[test]
     fn index_notitle_hides_heading_and_catalog_uses_default_columns()
     -> Result<(), Box<dyn std::error::Error>> {
@@ -1168,6 +1180,62 @@ mod tests {
         assert!(typst.contains("#columns(2, gutter: 12pt)["));
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn section_notitle_hides_only_the_body_heading() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Section metadata\n:toc:\n:sectnums:\n\nSee <<hidden-section>>.\n\n[#hidden-section%notitle]\n== Hidden *Section*\n\nHidden section body.\n\n=== Child Section\n\nChild body.\n\n[discrete#visible-discrete%notitle]\n=== Visible Discrete\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let label = encode_label("hidden-section");
+
+        assert!(
+            typst.contains(&format!("#_acdc_toc_entry(<{label}>, 0,")),
+            "{typst}"
+        );
+        assert!(typst.contains(&format!("#link(<{label}>)[")), "{typst}");
+        assert!(
+            typst.contains(&format!(
+                "#place[#hide[#heading(level: 1)[#text(\"1. \")#text(\"Hidden \")#strong[#text(\"Section\")]] <{label}>]]"
+            )),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains(&format!("\n#heading(level: 1)[#text(\"1. \")#text(\"Hidden \")#strong[#text(\"Section\")]] <{label}>")),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#heading(level: 2)[#text(\"1.1. \")#text(\"Child Section\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#heading(level: 2, outlined: false)[#text(\"Visible Discrete\")]"),
+            "{typst}"
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert_eq!(
+            normalized_text.matches("1. Hidden Section").count(),
+            1,
+            "{normalized_text}"
+        );
+        assert!(text.contains("Visible Discrete"), "{text}");
+
+        assert!(pdf_contains_outline_title(&pdf, "1. Hidden Section"));
         assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }

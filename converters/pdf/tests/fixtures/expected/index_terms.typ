@@ -79,13 +79,13 @@
 
 #text("Concealed ")#metadata(none) <__indexterm-3>#metadata(none) <__indexterm-4>#text(" and ")#metadata(none) <__indexterm-5>#text(".")
 
-#pagebreak()
+#pagebreak(weak: true)
 
 #heading(level: 1)[#text("Repeated occurrences")] <id-5f72657065617465645f6f6363757272656e636573>
 
 #text("Repeated ")#metadata(none) <__indexterm-6>#text("Zebra")#text(", lower-case ")#metadata(none) <__indexterm-7>#text("animal")#text(", upper-case ")#metadata(none) <__indexterm-8>#text("Animal")#text(", and ")#metadata(none) <__indexterm-9>#text(".")
 
-#pagebreak()
+#pagebreak(weak: true)
 
 #heading(level: 1)[#text("Same-page occurrences")] <id-5f73616d655f706167655f6f6363757272656e636573>
 
