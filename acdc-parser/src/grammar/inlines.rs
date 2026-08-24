@@ -662,9 +662,9 @@ peg::parser! {
 
         rule inline_pass() -> InlineNode<'input>
         = "pass:"
-        substitutions:($([^(']' | ',')]+) ** comma())
+        substitutions:($([^('[' | ']' | ',')]+) ** comma())
         "["
-        content:$([^']']+)
+        content:$([^']']*)
         "]"
         {
             tracing::debug!(?content, "Found pass inline");

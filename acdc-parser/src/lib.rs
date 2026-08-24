@@ -616,6 +616,26 @@ mod tests {
     }
 
     #[test]
+    fn parse_inline_accepts_pass_macros_without_substitution_names() {
+        let parsed = parse_inline("pass:[raw] pass:[]", &Options::default())
+            .expect("parse pass macros without substitution names");
+        let [
+            InlineNode::Macro(InlineMacro::Pass(with_content)),
+            InlineNode::PlainText(separator),
+            InlineNode::Macro(InlineMacro::Pass(empty)),
+        ] = parsed.inlines()
+        else {
+            panic!("expected two pass macros, got {:?}", parsed.inlines());
+        };
+
+        assert_eq!(with_content.text, Some("raw"));
+        assert!(with_content.substitutions.is_empty());
+        assert_eq!(separator.content, " ");
+        assert_eq!(empty.text, Some(""));
+        assert!(empty.substitutions.is_empty());
+    }
+
+    #[test]
     fn indent_include_remaps_columns_to_origin() {
         // A `----` listing including a one-line file with `indent=6`. The remap must
         // report the included token at its ORIGIN columns (1..10) — stripping back the
