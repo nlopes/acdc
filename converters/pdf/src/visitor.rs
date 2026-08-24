@@ -55,6 +55,11 @@ fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<Str
 impl Visitor for PdfVisitor<'_, '_, '_> {
     type Error = Error;
 
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_unsupported_parser_variant("block");
+        Ok(())
+    }
+
     fn visit_body_content_start(
         &mut self,
         _doc: &acdc_parser::Document<'_>,
@@ -235,10 +240,8 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             if intrinsic_table {
                 self.write_intrinsic_table_start();
             }
-            let aligned_table =
-                table && !intrinsic_table && self.write_table_alignment_start(&block.metadata);
-            let sized_table =
-                table && !intrinsic_table && self.write_table_width_start(&block.metadata);
+            let (sized_table, aligned_table) =
+                self.write_table_wrappers_start(&block.metadata, table && !intrinsic_table);
             let writes_own_title = matches!(block.inner, DelimitedBlockType::DelimitedSidebar(_))
                 || matches!(block.inner, DelimitedBlockType::DelimitedOpen(_))
                     && block.metadata.style == Some("abstract")
@@ -299,7 +302,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_stem_fallback(stem.content, true);
                     Ok(())
                 }
-                DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
+                DelimitedBlockType::DelimitedComment(_) => Ok(()),
+                _ => {
+                    self.warn_unsupported_parser_variant("delimited block");
+                    Ok(())
+                }
             };
             if intrinsic_table {
                 self.write_intrinsic_table_end(&block.title, &block.metadata, fallback)?;
@@ -591,7 +598,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 InlineNode::CalloutRef(callout) => {
                     self.write_text_expr(&format!("({})", callout.number));
                 }
-                _ => {}
+                _ => self.warn_unsupported_parser_variant("inline node"),
             }
             Ok(())
         })();

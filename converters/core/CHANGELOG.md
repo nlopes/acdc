@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Converter visitors can report or recover from parser block variants added
+  before their backend supports them, instead of being limited to a tracing
+  event.
 - Automatic cross-references to captioned blocks support source-order
   `xrefstyle=short` and `xrefstyle=full`, including custom and disabled
   captions. Explicit reference labels still take precedence.

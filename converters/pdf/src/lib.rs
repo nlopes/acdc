@@ -1023,6 +1023,50 @@ mod tests {
         Ok(warnings)
     }
 
+    #[test]
+    fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse("text", &acdc_parser::Options::default())?;
+        let block = parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing parsed block"))?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let assets = ImageMap::new();
+        let theme = Theme::default();
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let diagnostics = Diagnostics::new(&source, &mut warnings);
+            let mut visitor = PdfVisitor::new(
+                processor,
+                &assets,
+                &theme,
+                page_width_points(PageSize::A4),
+                code_wrap_columns(&theme, PageSize::A4),
+                Vec::new(),
+                diagnostics,
+            );
+            visitor.visit_unhandled_block(block)?;
+        }
+
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing parser variant warning"))?;
+        assert_eq!(
+            warning.message,
+            "an unsupported parser block variant was omitted from PDF output"
+        );
+        assert_eq!(
+            warning.advice(),
+            Some(
+                "Use the HTML backend or Asciidoctor PDF for this document and report the unsupported construct."
+            )
+        );
+        Ok(())
+    }
+
     fn external_link_targets(pdf: &lopdf::Document) -> Vec<String> {
         let mut targets = pdf
             .objects

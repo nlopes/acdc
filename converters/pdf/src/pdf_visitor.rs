@@ -1248,6 +1248,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         );
     }
 
+    pub(crate) fn warn_unsupported_parser_variant(&mut self, node_kind: &str) {
+        self.diagnostics.warn_with_advice(
+            format!(
+                "an unsupported parser {node_kind} variant was omitted from PDF output"
+            ),
+            "Use the HTML backend or Asciidoctor PDF for this document and report the unsupported construct.",
+        );
+    }
+
     pub(crate) fn warn_static_media_fallback(&mut self) {
         if self.static_media_warning == StaticMediaWarningState::Emitted {
             return;
@@ -1783,6 +1792,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         let _ = writeln!(self.writer, "#align({})[", typst_table_alignment(alignment));
         true
+    }
+
+    pub(crate) fn write_table_wrappers_start(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        enabled: bool,
+    ) -> (bool, bool) {
+        let aligned = enabled && self.write_table_alignment_start(metadata);
+        let sized = enabled && self.write_table_width_start(metadata);
+        (sized, aligned)
     }
 
     pub(crate) fn table_has_intrinsic_width(metadata: &BlockMetadata<'_>) -> bool {
@@ -2442,7 +2461,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             InlineMacro::IndexTerm(term) => {
                 self.write_index_term(term)?;
             }
-            _ => {}
+            _ => self.warn_unsupported_parser_variant("inline macro"),
         }
         Ok(())
     }

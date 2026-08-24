@@ -237,13 +237,22 @@ pub trait Visitor {
             Block::DiscreteHeader(header) => self.visit_discrete_header(header),
             // DocumentAttribute blocks are metadata and comments produce no output
             Block::DocumentAttribute(_) | Block::Comment(_) => Ok(()),
-            // Handle any future block types (Block is marked non-exhaustive)
-            _ => {
-                // Default behavior: ignore unknown blocks
-                tracing::warn!(?block, "Unexpected block");
-                Ok(())
-            }
+            _ => self.visit_unhandled_block(block),
         }
+    }
+
+    /// Visit a block variant that this version of the visitor does not handle.
+    ///
+    /// The default implementation records a tracing event and omits the block. Converters that
+    /// return user-facing diagnostics should override this method.
+    ///
+    /// # Errors
+    ///
+    /// The default implementation never returns an error, but custom implementations may return
+    /// an error while reporting or rendering the block.
+    fn visit_unhandled_block(&mut self, block: &Block) -> Result<(), Self::Error> {
+        tracing::warn!(?block, "Unexpected block");
+        Ok(())
     }
 
     /// Visit the document header (title, authors, metadata).

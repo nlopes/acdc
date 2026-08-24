@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Parser block and inline variants added before PDF support now produce
+  structured warnings when omitted instead of disappearing without a
+  user-visible diagnostic.
 - Audio and video blocks now render clickable, labelled static fallbacks instead
   of plain placeholder text. Local targets honor `imagesdir`; video alternatives
   remain separate links; and an available poster links to the first video source.
