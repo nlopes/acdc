@@ -98,6 +98,8 @@ mod tests {
         let theme = Theme::from_yaml_str(DEFAULT_THEME_YAML)?;
         assert_eq!(theme.palette.page_bg, "#ffffff");
         assert_eq!(theme.typography.body_font.fallback, ["IBM Plex Serif"]);
+        assert!((theme.typography.code_size_em - 0.8).abs() < f64::EPSILON);
+        assert!((theme.typography.code_min_size_em - 0.6).abs() < f64::EPSILON);
         assert_eq!(theme.caption, Caption::default());
         assert_eq!(theme.heading, Heading::default());
         assert_eq!(theme.index.columns, 2);
@@ -240,6 +242,19 @@ mod tests {
     }
 
     #[test]
+    fn defaults_code_sizes_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML
+            .replace("  code_size_em: 0.8\n", "")
+            .replace("  code_min_size_em: 0.6\n", "");
+
+        let theme = Theme::from_yaml_str(&yaml)?;
+
+        assert!((theme.typography.code_size_em - 0.8).abs() < f64::EPSILON);
+        assert!((theme.typography.code_min_size_em - 0.6).abs() < f64::EPSILON);
+        Ok(())
+    }
+
+    #[test]
     fn validates_and_normalizes_caption_style() -> Result<(), Box<dyn std::error::Error>> {
         let yaml = DEFAULT_THEME_YAML
             .replace("font_color: \"#333333\"", "font_color: '#AbC'")
@@ -350,6 +365,21 @@ mod tests {
                 "body_size_pt: 11.0",
                 "body_size_pt: 0",
                 "typography.body_size_pt",
+            ),
+            (
+                "code_size_em: 0.8",
+                "code_size_em: .nan",
+                "typography.code_size_em",
+            ),
+            (
+                "code_min_size_em: 0.6",
+                "code_min_size_em: 0",
+                "typography.code_min_size_em",
+            ),
+            (
+                "code_min_size_em: 0.6",
+                "code_min_size_em: 0.9",
+                "typography.code_min_size_em",
             ),
             (
                 "tracking_em: 0.0",

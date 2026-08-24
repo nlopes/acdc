@@ -37,7 +37,7 @@ use acdc_pdf_images::{
 use acdc_pdf_render::{RenderConfig, render_pdf};
 use acdc_pdf_theme::Theme;
 use acdc_pdf_typst::{
-    DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, preamble,
+    DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
 mod converter;
 mod error;
@@ -55,6 +55,7 @@ pub(crate) const BACKEND_TRAITS: BackendTraits =
 use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
 
 const MAX_THEME_FILE_BYTES: usize = 1024 * 1024;
+const TYPST_RAW_SIZE_EM: f64 = 0.8;
 const UNBREAKABLE_HELPER: &str = r"#let _acdc_unbreakable(body) = layout(size => {
   let kept = block(
     width: 100%,
@@ -262,6 +263,9 @@ impl Processor<'_> {
         preamble::write(&mut visitor.writer, theme, emit_options);
         if preparation.has_unbreakable_blocks {
             visitor.writer.raw(UNBREAKABLE_HELPER);
+        }
+        if preparation.has_autofit_blocks {
+            write_autofit_helper(&mut visitor.writer, theme);
         }
         visitor.visit_document(doc)?;
         let mut source = visitor.writer.into_string();
@@ -496,17 +500,37 @@ impl Processor<'_> {
 )]
 fn code_wrap_columns(theme: &Theme, page: PageSize) -> usize {
     const CM_TO_PT: f64 = 72.0 / 2.54;
-    const RAW_FONT_SIZE_EM: f64 = 0.8;
     const MONOSPACE_CELL_WIDTH_EM: f64 = 0.6;
 
     let page_width_pt = page_width_points(page);
     let content_width_pt = page_width_pt
         - 2.0 * theme.spacing.margin_x_cm * CM_TO_PT
         - 2.0 * theme.spacing.code_pad_pt;
-    let cell_width_pt = theme.typography.body_size_pt * RAW_FONT_SIZE_EM * MONOSPACE_CELL_WIDTH_EM;
+    let cell_width_pt =
+        theme.typography.body_size_pt * theme.typography.code_size_em * MONOSPACE_CELL_WIDTH_EM;
     (content_width_pt / cell_width_pt)
         .floor()
         .clamp(20.0, 160.0) as usize
+}
+
+fn write_autofit_helper(writer: &mut Writer, theme: &Theme) {
+    let code_measure_size = theme.typography.code_size_em / TYPST_RAW_SIZE_EM;
+    let minimum_scale = theme.typography.code_min_size_em / theme.typography.code_size_em;
+    let code_padding = 2.0 * theme.spacing.code_pad_pt;
+    let _ = writeln!(
+        writer,
+        r#"#let _acdc_autofit_code(source, body, language: none, extra-width: 0em) = layout(size => {{
+  let available = calc.max(0pt, size.width - {code_padding}pt)
+  let decoration-width = measure(h(extra-width)).width
+  let widest = source.split("\n").map(line => {{
+    let code = if language == none {{ raw(line) }} else {{ raw(line, lang: language) }}
+    measure(text(size: {code_measure_size}em, code)).width + decoration-width
+  }}).fold(0pt, calc.max)
+  let scale = if widest > available {{ available / widest }} else {{ 1.0 }}
+  text(size: calc.max({minimum_scale}, scale) * 1em, body)
+}})
+"#,
+    );
 }
 
 const fn page_width_points(page: PageSize) -> f64 {
@@ -720,6 +744,7 @@ struct PdfPreparation {
     unsupported_font_icons: Vec<String>,
     has_index_terms: bool,
     has_unbreakable_blocks: bool,
+    has_autofit_blocks: bool,
     populated_index_sections: HashSet<String>,
 }
 
@@ -768,12 +793,16 @@ fn collect_block_preparation(
             }
             Block::Paragraph(paragraph) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
+                preparation.has_autofit_blocks |=
+                    is_autofit_paragraph(paragraph, context.attributes);
                 collect_inline_preparation(paragraph.title.as_ref(), context, preparation);
                 collect_metadata_preparation(&paragraph.metadata, context, preparation);
                 collect_inline_preparation(&paragraph.content, context, preparation);
             }
             Block::DelimitedBlock(block) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
+                preparation.has_autofit_blocks |=
+                    is_autofit_delimited_block(block, context.attributes);
                 collect_inline_preparation(block.title.as_ref(), context, preparation);
                 collect_metadata_preparation(&block.metadata, context, preparation);
                 collect_delimited_block_preparation(&block.inner, context, preparation);
@@ -867,6 +896,30 @@ fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
                 | DelimitedBlockType::DelimitedTable(_)
                 | DelimitedBlockType::DelimitedVerse(_)
         )
+}
+
+fn is_autofit_paragraph(
+    paragraph: &acdc_parser::Paragraph<'_>,
+    attributes: &DocumentAttributes<'_>,
+) -> bool {
+    matches!(
+        paragraph.metadata.style,
+        Some("listing" | "literal" | "source")
+    ) && has_autofit_option(&paragraph.metadata, attributes)
+}
+
+fn is_autofit_delimited_block(
+    block: &DelimitedBlock<'_>,
+    attributes: &DocumentAttributes<'_>,
+) -> bool {
+    matches!(
+        block.inner,
+        DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
+    ) && has_autofit_option(&block.metadata, attributes)
+}
+
+fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &DocumentAttributes<'_>) -> bool {
+    metadata.options.contains(&"autofit") || attributes.contains_key("autofit-option")
 }
 
 fn collect_delimited_block_preparation(
@@ -1188,6 +1241,132 @@ mod tests {
                 .pdf
                 .starts_with(b"%PDF-")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn autofit_option_applies_only_to_listing_source_and_literal_contexts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let local = acdc_parser::parse(
+            ".Listing caption\n[options=autofit]\n----\nlisting\n----\n\n[source%autofit]\n----\nsource\n----\n\n[%autofit]\n....\nliteral\n....\n\n[source%autofit]\nsource paragraph\n\n[listing%autofit]\nlisting paragraph\n\n[literal%autofit]\nliteral paragraph\n\n|===\na|\n[source%autofit]\n----\nnested source\n----\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let global = acdc_parser::parse(
+            ":autofit-option:\n\n----\nlisting\n----\n\n[source]\n----\nsource\n----\n\n....\nliteral\n....\n\n[source]\nsource paragraph\n\n[listing]\nlisting paragraph\n\n[literal]\nliteral paragraph\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let unsupported = acdc_parser::parse(
+            ":autofit-option:\n\nordinary paragraph\n\n[example]\nexample paragraph\n\n[quote]\nquote paragraph\n\n[verse]\nverse paragraph\n\n[sidebar]\nsidebar paragraph\n\n[pass]\n++++\npassthrough\n++++\n\n|===\n\nl|literal table cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+
+        let render = |document: &Document<'_>| -> Result<String, Box<dyn std::error::Error>> {
+            let processor = Processor::new(Options::default(), document.attributes.clone());
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
+            assert!(warnings.is_empty(), "{warnings:?}");
+            Ok(typst)
+        };
+
+        let helper = "#let _acdc_autofit_code";
+        let call = "#_acdc_autofit_code";
+        let local = render(local.document())?;
+        let global = render(global.document())?;
+        let unsupported = render(unsupported.document())?;
+
+        assert!(local.contains(helper), "{local}");
+        assert_eq!(local.matches(call).count(), 7, "{local}");
+        let caption = local
+            .find("Listing caption")
+            .ok_or_else(|| std::io::Error::other("missing listing caption in generated Typst"))?;
+        let first_autofit = local
+            .find(call)
+            .ok_or_else(|| std::io::Error::other("missing autofit call in generated Typst"))?;
+        assert!(caption < first_autofit, "{local}");
+        assert!(global.contains(helper), "{global}");
+        assert_eq!(global.matches(call).count(), 6, "{global}");
+        assert_eq!(unsupported.matches(call).count(), 0, "{unsupported}");
+        assert!(
+            render_pdf(&local, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(
+            render_pdf(&global, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn autofit_preserves_original_lines_and_keeps_minimum_size_fallback_breakable()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let medium_line = format!("medium-{}-end", "0123456789".repeat(10));
+        let oversized_line = format!("oversized-{}-end", "abcdefghij".repeat(40));
+        let input = format!(
+            ":source-highlighter: rouge\n\n[source%autofit,rust,linenums,start=98,highlight=99]\n----\n{medium_line} <1>\nshort line\nthird line\n----\n<1> Callout explanation.\n\n[%autofit]\n....\n{oversized_line}\n....\n"
+        );
+        let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(&medium_line), "{typst}");
+        assert!(typst.contains(&oversized_line), "{typst}");
+        assert!(typst.contains("language: \"rust\""), "{typst}");
+        assert!(typst.contains("extra-width: 2.6em"), "{typst}");
+        assert!(typst.contains(&format!("{medium_line} (1)")), "{typst}");
+        assert_eq!(typst.matches("#_acdc_autofit_code").count(), 2, "{typst}");
+        assert!(
+            render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn autofit_uses_theme_code_sizes_and_padding() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "[%autofit]\n----\na code line that requires the autofit helper\n----\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let mut theme = Theme::default();
+        theme.typography.code_size_em = 0.9;
+        theme.typography.code_min_size_em = 0.45;
+        theme.spacing.code_pad_pt = 12.5;
+        let assets = ImageMap::new();
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+
+        let typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &theme,
+            &emit_options,
+            &collect_pdf_preparation(parsed.document()),
+            &mut diagnostics,
+        )?;
+
+        assert!(typst.contains("text(size: 1.125em, fill:"), "{typst}");
+        assert!(typst.contains("size.width - 25pt"), "{typst}");
+        assert!(typst.contains("calc.max(0.5, scale)"), "{typst}");
+        assert!(
+            render_pdf(&typst, &assets, &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }
 

@@ -36,6 +36,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
+    has_autofit_option,
     index::{CatalogTerm, IndexCatalog, PageSequenceStyle},
 };
 
@@ -1131,11 +1132,38 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     ) {
         let tab_size = self.code_tab_size(metadata);
         let source = self.code_text(nodes, tab_size);
+        let autofit = has_autofit_option(metadata, self.processor.document_attributes());
         let options = if self.source_highlighting_enabled() {
             SourceLineOptions::resolve(metadata, &source)
         } else {
             SourceLineOptions::default()
         };
+        if autofit {
+            if options.is_empty() {
+                self.write_autofit_open(&source, metadata, 0);
+                self.write_raw_block(&source, metadata);
+                self.writer.raw("]\n\n");
+                return;
+            }
+
+            let source_lines = (1..=source_line_count(&source)).collect::<Vec<_>>();
+            if source_lines.is_empty() {
+                self.write_autofit_open(&source, metadata, 0);
+                self.write_raw_block(&source, metadata);
+                self.writer.raw("]\n\n");
+                return;
+            }
+            let extra_width_tenths = if options.line_number_start.is_some() {
+                source_gutter_tenths(&source, &options).saturating_add(8)
+            } else {
+                0
+            };
+            self.write_autofit_open(&source, metadata, extra_width_tenths);
+            self.write_source_block_with_line_options(&source, &source_lines, metadata, &options);
+            self.writer.raw("]\n\n");
+            return;
+        }
+
         let wrap_columns = self
             .table_cell_code_wrap_columns()
             .unwrap_or(self.code_wrap_columns);
@@ -1152,6 +1180,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return;
         }
         self.write_source_block_with_line_options(&source, &source_lines, metadata, &options);
+    }
+
+    fn write_autofit_open(
+        &mut self,
+        source: &str,
+        metadata: &BlockMetadata<'_>,
+        extra_width_tenths: usize,
+    ) {
+        self.writer.raw("#_acdc_autofit_code(");
+        self.writer.string_literal(source);
+        if let Some(language) = self.source_language(metadata) {
+            self.writer.raw(", language: ");
+            self.writer.string_literal(language);
+        }
+        if extra_width_tenths > 0 {
+            let _ = write!(
+                self.writer,
+                ", extra-width: {}.{}em",
+                extra_width_tenths / 10,
+                extra_width_tenths % 10
+            );
+        }
+        self.writer.raw(")[\n");
     }
 
     fn write_raw_block(&mut self, source: &str, metadata: &BlockMetadata<'_>) {
@@ -1181,10 +1232,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
         self.writer.raw(")\n");
 
-        let gutter_tenths = options.line_number_start.map_or(0, |start| {
-            let last = start.saturating_add(source_line_count(source).saturating_sub(1));
-            last.to_string().len().saturating_mul(6)
-        });
+        let gutter_tenths = source_gutter_tenths(source, options);
         let _ = writeln!(
             self.writer,
             "  let gutter = {}.{}em",
@@ -3130,6 +3178,13 @@ fn wrap_code_text(text: &str, max_columns: usize, tab_size: usize) -> Cow<'_, st
         }
     }
     Cow::Owned(wrapped)
+}
+
+fn source_gutter_tenths(source: &str, options: &SourceLineOptions) -> usize {
+    options.line_number_start.map_or(0, |start| {
+        let last = start.saturating_add(source_line_count(source).saturating_sub(1));
+        last.to_string().len().saturating_mul(6)
+    })
 }
 
 fn wrap_code_text_with_line_origins(

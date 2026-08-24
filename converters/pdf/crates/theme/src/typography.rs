@@ -50,7 +50,7 @@ impl FontStack {
     }
 }
 
-/// Font families and the type scale. Sizes are in points.
+/// Font families and the type scale.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Typography {
@@ -59,6 +59,12 @@ pub struct Typography {
     pub mono_font: FontStack,
     /// Base body size, in points.
     pub body_size_pt: f64,
+    /// Normal block-code size, relative to the body size.
+    #[serde(default = "default_code_size_em")]
+    pub code_size_em: f64,
+    /// Smallest block-code size that `%autofit` may select, relative to the body size.
+    #[serde(default = "default_code_min_size_em")]
+    pub code_min_size_em: f64,
     /// Heading sizes H1 through H6, in points.
     pub heading_pt: [f64; 6],
     /// Letter spacing, in em.
@@ -82,6 +88,14 @@ impl Typography {
         self.mono_font.validate("typography.mono_font")?;
 
         positive("typography.body_size_pt", self.body_size_pt)?;
+        positive("typography.code_size_em", self.code_size_em)?;
+        positive("typography.code_min_size_em", self.code_min_size_em)?;
+        if self.code_min_size_em > self.code_size_em {
+            return Err(Error::validation(
+                "typography.code_min_size_em",
+                "expected the minimum code size to be no larger than the normal code size",
+            ));
+        }
         for (index, value) in self.heading_pt.iter().copied().enumerate() {
             positive(format!("typography.heading_pt[{index}]"), value)?;
         }
@@ -103,6 +117,14 @@ impl Typography {
         }
         Ok(())
     }
+}
+
+const fn default_code_size_em() -> f64 {
+    0.8
+}
+
+const fn default_code_min_size_em() -> f64 {
+    0.6
 }
 
 fn positive(field: impl Into<String>, value: f64) -> Result<(), Error> {

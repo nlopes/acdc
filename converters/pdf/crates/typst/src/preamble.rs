@@ -13,6 +13,8 @@ use crate::{
     writer::Writer,
 };
 
+const TYPST_RAW_SIZE_EM: f64 = 0.8;
+
 /// Write the whole preamble (page setup, text/heading rules, and the `#let`
 /// helpers) into `writer`.
 pub fn write(writer: &mut Writer, theme: &Theme, options: &EmitOptions) {
@@ -183,14 +185,26 @@ fn write_code(out: &mut String, theme: &Theme, options: &EmitOptions) {
         font_tuple(&typography.mono_font, options.brand_fonts),
         color(&palette.heading),
     );
-    let _ = writeln!(
-        out,
-        "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(fill: {}, it))",
-        color(&palette.code_bg),
-        spacing.code_radius_pt,
-        spacing.code_pad_pt,
-        color(&palette.code_fg),
-    );
+    if (typography.code_size_em - TYPST_RAW_SIZE_EM).abs() < f64::EPSILON {
+        let _ = writeln!(
+            out,
+            "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(fill: {}, it))",
+            color(&palette.code_bg),
+            spacing.code_radius_pt,
+            spacing.code_pad_pt,
+            color(&palette.code_fg),
+        );
+    } else {
+        let size = typography.code_size_em / TYPST_RAW_SIZE_EM;
+        let _ = writeln!(
+            out,
+            "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(size: {size}em, fill: {}, it))",
+            color(&palette.code_bg),
+            spacing.code_radius_pt,
+            spacing.code_pad_pt,
+            color(&palette.code_fg),
+        );
+    }
 }
 
 /// Write the Typst helpers for quotes, verse, and block containers.
@@ -640,6 +654,17 @@ mod tests {
             "#let tablemonospace(body) = text(font: (\"Test Mono\", ",
             "\"Noto Color Emoji\"), fill: rgb(\"#123456\"), body)",
         )));
+    }
+
+    #[test]
+    fn block_code_uses_the_theme_size() {
+        let mut theme = Theme::default();
+        theme.typography.code_size_em = 0.9;
+        let mut out = String::new();
+
+        write_code(&mut out, &theme, &EmitOptions::default());
+
+        assert!(out.contains("text(size: 1.125em, fill:"), "{out}");
     }
 
     #[test]

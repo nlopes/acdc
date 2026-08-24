@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Listing, source, and literal blocks marked `%autofit` now reduce their code
+  size when needed to avoid wrapping. `options=autofit` and the document-wide
+  `autofit-option` attribute provide the same behavior, with a theme-controlled
+  minimum size, matching Asciidoctor PDF.
 - Cross-references preserve formatted explicit text through supported nested
   inline macros. Empty references to captioned blocks honor source-order
   `xrefstyle=basic`, `short`, and `full`, including custom and disabled

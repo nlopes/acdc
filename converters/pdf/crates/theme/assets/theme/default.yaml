@@ -27,6 +27,8 @@ typography:
     brand: null
     fallback: ["IBM Plex Mono"]
   body_size_pt: 11.0
+  code_size_em: 0.8
+  code_min_size_em: 0.6
   heading_pt: [24.0, 18.0, 14.0, 12.0, 11.0, 10.0]
   tracking_em: 0.0
   body_leading_em: 0.65
