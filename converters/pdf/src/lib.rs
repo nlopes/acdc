@@ -1024,6 +1024,27 @@ mod tests {
     }
 
     #[test]
+    fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = acdc_parser::parse(
+            "[%reversed,start=5]\n. Five\n. Four\n. Three\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(", start: 5, reversed: true)"));
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse("text", &acdc_parser::Options::default())?;
         let block = parsed

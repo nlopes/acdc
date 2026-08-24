@@ -169,6 +169,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         {
             write!(self.writer, " start=\"{start}\"")?;
         }
+        if list.metadata.options.contains(&"reversed") {
+            write!(self.writer, " reversed")?;
+        }
         writeln!(self.writer, ">")?;
         render_nested_list_items(&list.items, self, 1, true, 1, !semantic, semantic)?;
         writeln!(self.writer, "</ol>")?;

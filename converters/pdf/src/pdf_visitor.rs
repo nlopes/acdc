@@ -1662,6 +1662,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         {
             let _ = write!(self.writer, ", start: {start}");
         }
+        if metadata.options.contains(&"reversed") {
+            self.writer.raw(", reversed: true");
+        }
         self.writer.raw(")\n");
     }
 

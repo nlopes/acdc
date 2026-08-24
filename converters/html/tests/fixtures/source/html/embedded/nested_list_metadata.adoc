@@ -1,6 +1,6 @@
 . Parent
 [[nested-child]]
-[loweralpha,start=3,role=child-role]
+[loweralpha,start=3,role=child-role,options=reversed]
 .. Child C
 .. Child D
 

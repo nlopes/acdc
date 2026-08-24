@@ -27,9 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replacement, macro, and post-replacement policies, including their written
   order and the `normal` and `verbatim` groups. Escaped delimiters, numeric
   character references, and hard line breaks match Asciidoctor.
-- Ordered lists honor a positive `start` value, including on nested lists.
-  Standard HTML also keeps roles on unordered-list wrappers, matching
-  Asciidoctor.
+- Ordered lists honor a positive `start` value and the `%reversed` option,
+  including on nested lists. Standard HTML also keeps roles on unordered-list
+  wrappers, matching Asciidoctor.
 - Tables honor source-order changes to `table-frame`, `table-grid`, and
   `table-stripes`. Local `frame`, `grid`, and `stripes` values still override
   the document defaults, including `stripes=hover`, matching Asciidoctor.
