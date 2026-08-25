@@ -83,6 +83,24 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
         );
     }
 
+    if file_name == "parity_kitchen_sink" {
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let rendered = lopdf::Document::load_mem(&pdf)?;
+        let (_, info) = rendered.dereference(rendered.trailer.get(b"Info")?)?;
+        let info = info.as_dict()?;
+        for (key, expected) in [
+            (b"Title".as_slice(), "PDF Parity Kitchen Sink: API Coverage"),
+            (b"Author".as_slice(), "Ada Lovelace, Grace B. Hopper"),
+            (
+                b"Subject".as_slice(),
+                "Representative PDF converter coverage",
+            ),
+            (b"Keywords".as_slice(), "parity, PDF, converter API"),
+        ] {
+            assert_eq!(lopdf::decode_text_string(info.get(key)?)?, expected);
+        }
+    }
+
     assert!(pdf.starts_with(b"%PDF-"));
     let minimum_pages_path = expected_path.with_extension("min-pages");
     if minimum_pages_path.exists() {
