@@ -29,14 +29,14 @@ acdc convert --backend pdf document.adoc \
 
 The backend currently renders:
 
-* document titles, subtitles, title pages with author and revision details, sections, discrete headings, and section numbering
+* document titles, subtitles, title pages with author and revision details, PDF metadata, sections, discrete headings, and section numbering
 * automatic, preamble, and macro-placed tables of contents, including custom titles and depth
 * bold, italic, monospace, highlight, subscript, and superscript text
 * links, cross-references, footnotes, inline anchors, and common UI macros
 * visible and concealed index terms with generated, page-linked index catalogs
 * ordered, unordered, description, checklist, and callout lists
 * tables with widths, page placement, semantic repeating headers, column/row spans, frames, grids, and row stripes
-* admonitions, quotes, thematic breaks, and page breaks
+* admonitions, examples, open blocks, sidebars, abstracts, quotes, verse, passthrough blocks, thematic breaks, and page breaks
 * paragraph and document hard line breaks
 * listing and literal blocks, plus source blocks with bundled syntax highlighting, line numbers, highlighted lines, and callouts
 * collapsible examples as expanded disclosures with their full content visible
@@ -50,36 +50,26 @@ The backend is intentionally incomplete.
 Stem notation uses an escaped textual fallback.
 AsciiMath and LaTeX translation are not yet implemented.
 
-When `source-highlighter` is set, source blocks use the bundled Typst syntax
-theme. PHP source blocks marked `%mixed` use Typst's normal PHP highlighter and
-emit one warning per document because Typst does not support that mixed mode.
+When `source-highlighter` is set, source blocks use the bundled Typst syntax theme.
+PHP source blocks marked `%mixed` use Typst's normal PHP highlighter and emit one warning per document because Typst does not support that mixed mode.
 
-Audio and video blocks render as static media fallbacks because PDF cannot play
-embedded media through the HTML controls.
-Each source is a clickable link with a media label, and block titles render as
-captions below the fallback, matching Asciidoctor PDF.
-Local media links use `imagesdir`; playback options such as start and end times,
-autoplay, looping, and controls do not affect the static result.
-When a video has an available `poster`, the poster is linked to the first video
-source and any additional sources remain as separate links.
-Poster loading follows the same safe-mode, network, size, and strict-asset rules
-as document images, but playable media is never fetched.
+Audio and video blocks render as static media fallbacks because PDF cannot play embedded media through the HTML controls.
+Each source is a clickable link with a media label, and block titles render as captions below the fallback, matching Asciidoctor PDF.
+Local media links use `imagesdir`; playback options such as start and end times, autoplay, looping, and controls do not affect the static result.
+When a video has an available `poster`, the poster is linked to the first video source and any additional sources remain as separate links.
+Poster loading follows the same safe-mode, network, size, and strict-asset rules as document images, but playable media is never fetched.
 The converter emits one warning per document when it uses a static media fallback.
 
-Inline icons use text when `icons` is unset, bundled Unicode glyphs when
-`icons=font`, and files from `iconsdir` for other set values.
-The glyph mode covers common directional and status icons rather than the full
-Font Awesome catalog used by Asciidoctor PDF; an unknown name uses its text
-alternative.
+Inline icons use text when `icons` is unset, bundled Unicode glyphs when `icons=font`, and files from `iconsdir` for other set values.
+The glyph mode covers common directional and status icons rather than the full Font Awesome catalog used by Asciidoctor PDF; an unknown name uses its text alternative.
 
 PDF output cannot preserve interactive open and closed states.
 Examples marked `%collapsible` always render expanded with a disclosure marker and their title, or `Details` when untitled.
 The `%open` and `%closed` options therefore produce the same PDF output.
 
-Normal page breaks do not add a blank page when they occur at an existing page
-boundary; add `%always` to force another page. The `page-layout` attribute and
-the `portrait` and `landscape` roles do not change page orientation. The output
-keeps the configured document layout.
+Normal page breaks do not add a blank page when they occur at an existing page boundary; add `%always` to force another page.
+The `page-layout` attribute and the `portrait` and `landscape` roles do not change page orientation.
+The output keeps the configured document layout.
 
 Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
 ACDC uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
@@ -105,6 +95,38 @@ Native side wrapping is tracked in https://github.com/typst/typst/issues/5181[Ty
 
 Raw inline passthrough content is always emitted through Typst's escaped text boundary.
 Unlike Asciidoctor PDF, backend-specific markup in `+++...+++` or `pass:[]` is displayed literally and cannot execute Typst code.
+
+== PDF substitutions for browser-only behavior
+
+PDF uses static, print-oriented output for features that need a browser or an interactive document.
+The detailed limitations above apply to these substitutions.
+
+[cols="2,3",options="header"]
+|===
+| Browser-only behavior
+| PDF output
+
+| Collapsible open and closed states
+| An expanded disclosure with a marker and title.
+
+| Audio and video playback controls
+| Labelled links to each source, with an available video poster linked to the first source.
+
+| CSS, webfonts, and dark mode
+| The PDF theme, explicitly trusted font directories, and fixed print colours.
+
+| Link windows, targets, tooltips, and relationship metadata
+| A normal clickable PDF link; browser-only attributes do not change it.
+
+| Text wrapping beside floated images
+| The image is aligned to the requested side, following text starts below it, and the converter reports the fallback.
+
+| HTML document frames, docinfo, CSP, and DOM or ARIA choices
+| No direct equivalent. PDF always produces a complete document and adds PDF structure and image alternative text where supported.
+
+| HTML terminal previews and asciicast replay
+| No interactive PDF equivalent; use the HTML backend when the replay is required.
+|===
 
 == Index catalogs
 
