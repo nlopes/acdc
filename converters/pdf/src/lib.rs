@@ -1024,9 +1024,8 @@ fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
         )
 }
 
-fn is_breakable_table(block: &DelimitedBlock<'_>) -> bool {
-    block.metadata.options.contains(&"breakable")
-        && !block.metadata.options.contains(&"unbreakable")
+fn is_page_breakable_table(block: &DelimitedBlock<'_>) -> bool {
+    !block.metadata.options.contains(&"unbreakable")
         && matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
 }
 
@@ -1576,32 +1575,35 @@ mod tests {
     }
 
     #[test]
-    fn breakable_table_keeps_its_caption_with_the_first_row()
+    fn page_breakable_tables_keep_their_caption_with_the_first_row()
     -> Result<(), Box<dyn std::error::Error>> {
-        let mut input = String::from("= Breakable table probe\n\n");
-        for line in 1..=24 {
-            let _ = writeln!(input, "FILL{line:02} filler paragraph.\n");
+        for metadata in ["[#target-table]", "[#target-table%breakable]"] {
+            let mut input = String::from("= Table pagination probe\n\n");
+            for line in 1..=24 {
+                let _ = writeln!(input, "FILL{line:02} filler paragraph.\n");
+            }
+            let _ = writeln!(input, ".TARGET TABLE CAPTION\n{metadata}");
+            input.push_str(
+                "|===\n|FIRST ROW CELL WITH ENOUGH WORDS TO WRAP ACROSS SEVERAL LINES AND REQUIRE MORE VERTICAL SPACE THAN IS LEFT AFTER THE CAPTION\n\n|SECOND ROW\n|===\n\nAFTER TABLE.\n",
+            );
+
+            let pages = rendered_page_texts(&input)?;
+            let caption_page = pages
+                .iter()
+                .position(|page| page.contains("TARGET TABLE CAPTION"))
+                .ok_or_else(|| std::io::Error::other("missing table caption"))?;
+            let first_row_page = pages
+                .iter()
+                .position(|page| page.contains("FIRST ROW CELL"))
+                .ok_or_else(|| std::io::Error::other("missing first table row"))?;
+
+            assert_eq!(caption_page, first_row_page, "{metadata}: {pages:?}");
+            let previous_page = caption_page
+                .checked_sub(1)
+                .and_then(|index| pages.get(index))
+                .ok_or_else(|| std::io::Error::other("missing page before table"))?;
+            assert!(previous_page.contains("FILL24"), "{metadata}: {pages:?}");
         }
-        input.push_str(
-            ".TARGET TABLE CAPTION\n[#target-table%breakable]\n|===\n|FIRST ROW CELL WITH ENOUGH WORDS TO WRAP ACROSS SEVERAL LINES AND REQUIRE MORE VERTICAL SPACE THAN IS LEFT AFTER THE CAPTION\n\n|SECOND ROW\n|===\n\nAFTER TABLE.\n",
-        );
-
-        let pages = rendered_page_texts(&input)?;
-        let caption_page = pages
-            .iter()
-            .position(|page| page.contains("TARGET TABLE CAPTION"))
-            .ok_or_else(|| std::io::Error::other("missing table caption"))?;
-        let first_row_page = pages
-            .iter()
-            .position(|page| page.contains("FIRST ROW CELL"))
-            .ok_or_else(|| std::io::Error::other("missing first table row"))?;
-
-        assert_eq!(caption_page, first_row_page, "{pages:?}");
-        let previous_page = caption_page
-            .checked_sub(1)
-            .and_then(|index| pages.get(index))
-            .ok_or_else(|| std::io::Error::other("missing page before table"))?;
-        assert!(previous_page.contains("FILL24"), "{pages:?}");
         Ok(())
     }
 

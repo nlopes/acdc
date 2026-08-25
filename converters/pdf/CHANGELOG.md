@@ -69,9 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Images now honor `scale` and `scaledwidth` after `pdfwidth`, inline images
   honor `fit=line`, and block images marked `%align-to-page`
   align relative to the physical page. Block-specific admonition image icons
-  resolve through `iconsdir`, `%breakable` tables keep their ID and caption
-  with the first row, and macro table-of-contents blocks honor `%noheader` and
-  `%nofooter`, matching Asciidoctor PDF.
+  resolve through `iconsdir`, ordinary and `%breakable` tables keep their ID
+  and caption with the first row, and macro table-of-contents blocks honor
+  `%noheader` and `%nofooter`, matching Asciidoctor PDF.
 - Inline images marked `fit=none`, PHP source blocks marked `%mixed`, and page
   breaks that request a different `page-layout` now emit one structured
   warning per document. ACDC uses normal intrinsic image sizing, Typst's normal

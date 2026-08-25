@@ -19,7 +19,7 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, PdfVisitor, admonition_icon_source, author_name, encode_label, is_breakable_table,
+    Error, PdfVisitor, admonition_icon_source, author_name, encode_label, is_page_breakable_table,
     is_unbreakable_delimited_block, is_unbreakable_paragraph,
     pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };
@@ -283,7 +283,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
-        let sticky_anchor = is_breakable_table(block)
+        let sticky_anchor = is_page_breakable_table(block)
             && (block.metadata.id.is_some() || !block.metadata.anchors.is_empty());
         if sticky_anchor {
             self.writer

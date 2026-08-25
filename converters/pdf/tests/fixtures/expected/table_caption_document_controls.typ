@@ -73,32 +73,44 @@
 ]
 #v(1em)
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 1. ")#text("Default before controls")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default one")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Data 2. ")#text("Document custom caption")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Document custom")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Document caption unset")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Document unset")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 3. ")#text("Default after unset")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default three")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text(" 4. ")#text("Document caption blank")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Document blank")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 5. ")#text("Default after blank")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Default five")
 
 ])

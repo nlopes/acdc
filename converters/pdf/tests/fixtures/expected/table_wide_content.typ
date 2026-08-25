@@ -73,7 +73,9 @@
 ]
 #v(1em)
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 1. ")#text("Many columns with wrapping prose")]
+]
 #table(columns: (1fr, 1fr, 1fr, 1fr, 1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top, left + top, left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("One two three")
 
 ], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Four five six")
@@ -92,36 +94,48 @@
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 2. ")#text("Long unbreakable token")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Label")
 
 ], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".clusters().map(text).join(box(width: 0pt)))
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 3. ")#text("Formatted long token")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#strong[#("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".clusters().map(text).join(box(width: 0pt)))]
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 4. ")#text("Inline monospace long token")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".clusters().map(value => raw(block: false, value)).join(box(width: 0pt)))
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 5. ")#text("Long URL")]
+]
 #table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Site")
 
 ], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#link("https://example.com/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")[#text("https://example.com/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")]
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 6. ")#text("Literal cell with long token")]
+]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".clusters().map(value => raw(block: false, value)).join(box(width: 0pt)))], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Literal neighbor")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 7. ")#text("Explicit narrow columns")]
+]
 #table(columns: (10fr, 10fr, 10fr, 10fr, 10fr, 10fr, 10fr, 30fr), align: (left + top, left + top, left + top, left + top, left + top, left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("One")
 
 ], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Two")
@@ -140,7 +154,9 @@
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 8. ")#text("Explicit narrow column with long token")]
+]
 #table(columns: (10fr, 90fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".clusters().map(text).join(box(width: 0pt)))
 
 ], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Wide neighbor")
@@ -164,7 +180,9 @@ let acdc-table-body = [
 ]
 align(left, [
 #context block(width: measure(acdc-table-body).width)[
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 9. ")#text("Content-sized autowidth with wide content")]
+]
 ]
 #acdc-table-body
 ])
@@ -183,13 +201,17 @@ let acdc-table-body = [
 ]
 align(left, [
 #context block(width: measure(acdc-table-body).width)[
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 10. ")#text("Content-sized autowidth with long token")]
+]
 ]
 #acdc-table-body
 ])
 }
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 11. ")#text("Wide colspan content")]
+]
 #table(columns: (1fr, 1fr, 1fr, 1fr), align: (left + top, left + top, left + top, left + top), stroke: none, table.cell(x: 0, y: 0, colspan: 4, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("This spanning cell has enough ordinary prose to wrap within the full table width rather than cross the page edge.")
 
 ], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("One")
@@ -202,14 +224,18 @@ align(left, [
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 12. ")#text("Nested AsciiDoc and source content")]
+]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("A paragraph with enough ordinary prose to wrap inside the first table cell without crossing the page edge.")
 
 ], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#raw(block: true, "fn this_long_source_line_should_wrap_\ninside_the_table_cell_without_crossin\ng_the_page_edge() {}")
 
 ])
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 13. ")#text("Nested table with long content")]
+]
 #table(columns: (1fr, 1fr), align: (left + top, left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".clusters().map(text).join(box(width: 0pt)))
 
 ], table.cell(x: 0, y: 1, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Nested neighbor")

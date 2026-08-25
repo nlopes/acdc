@@ -448,7 +448,9 @@ let acdc-table-body = [
 ]
 align(right, [
 #context block(width: measure(acdc-table-body).width)[
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 1. ")#text("Long right-aligned footer")]
+]
 ]
 #acdc-table-body
 ])

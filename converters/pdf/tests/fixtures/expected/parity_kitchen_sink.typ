@@ -120,8 +120,12 @@
 #imagecaption[#text("Figure 1. ")#text("Fixture image")]
 ]
 
+#block(sticky: true, above: 0pt, below: 0pt)[
 #metadata(none) <id-7265666572656e63652d7461626c65>
+]
+#block(sticky: true, above: 0pt, below: 0pt)[
 #blocktitle[#text("Table 1. ")#text("Repeated inventory")]
+]
 #table(columns: (1fr, 2fr), align: (left + top, left + top), stroke: none, table.header(repeat: true, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Item")
 
 ]], table.cell(x: 1, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 1.25pt + rgb("#dddddd"), ))[#tableheader[#text("Description")

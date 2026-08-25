@@ -525,7 +525,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let captioned = block.metadata.caption.is_some() || fallback.is_some();
         if shows_block_title(&block.inner) && !writes_own_title && !intrinsic_table {
             let sticky_title = table
-                && block.metadata.options.contains(&"breakable")
                 && !block.metadata.options.contains(&"unbreakable")
                 && !block.title.is_empty();
             if sticky_title {
@@ -2263,9 +2262,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             "]\nalign({}, [\n#context block(width: measure(acdc-table-body).width)[",
             typst_table_alignment(alignment)
         );
-        let sticky_title = metadata.options.contains(&"breakable")
-            && !metadata.options.contains(&"unbreakable")
-            && !title.is_empty();
+        let sticky_title = !metadata.options.contains(&"unbreakable") && !title.is_empty();
         if sticky_title {
             self.writer
                 .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
