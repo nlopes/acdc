@@ -13,7 +13,7 @@ use acdc_converters_html::HtmlVariant;
 #[cfg(feature = "markdown")]
 use acdc_converters_markdown::MarkdownVariant;
 #[cfg(feature = "pdf")]
-use acdc_converters_pdf::{PageSize, PdfOptions};
+use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions};
 use acdc_parser::{AttributeValue, DocumentAttributes, ParseResult, SafeMode};
 use clap::{ArgAction, Args as ClapArgs};
 use rayon::prelude::*;
@@ -111,6 +111,11 @@ pub struct Args {
     #[arg(long, value_enum, value_name = "SIZE")]
     pub page: Option<PdfPageArg>,
 
+    /// PDF page layout.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_enum, value_name = "LAYOUT")]
+    pub page_layout: Option<PdfPageLayoutArg>,
+
     /// PDF theme YAML file. Defaults to the bundled neutral theme.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
@@ -203,6 +208,7 @@ impl Args {
             || self.watermark.is_some()
             || self.watermark_timestamp
             || self.page.is_some()
+            || self.page_layout.is_some()
             || self.theme.is_some()
             || self.plain
             || self.toc
@@ -336,7 +342,7 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> miette::Result<()> {
     if args.has_pdf_only_options() {
         return Err(miette::miette!(
             "PDF-only options such as --font-dir, --logo, --title, --watermark, \
-             --watermark-timestamp, --page, --theme, --plain, --toc, and \
+             --watermark-timestamp, --page, --page-layout, --theme, --plain, --toc, and \
              --emit-typst require `--backend pdf`"
         ));
     }
@@ -354,6 +360,7 @@ fn pdf_options_from_args(args: &Args) -> PdfOptions {
             .watermark_timestamp
             .then(|| chrono::Local::now().format("%Y-%m-%d %H:%M").to_string()),
         page: args.page.map(PdfPageArg::to_page_size),
+        page_layout: args.page_layout.map(PdfPageLayoutArg::to_page_layout),
         theme: args.theme.clone(),
         plain: args.plain,
         toc: args.toc,
@@ -768,7 +775,9 @@ mod tests {
             "Draft",
             "--watermark-timestamp",
             "--page",
-            "letter",
+            "a3",
+            "--page-layout",
+            "landscape",
             "--theme",
             "theme.yml",
             "--plain",
@@ -791,7 +800,8 @@ mod tests {
         assert_eq!(options.title.as_deref(), Some("Architecture"));
         assert_eq!(options.watermark.as_deref(), Some("Draft"));
         assert!(options.watermark_timestamp.is_some());
-        assert_eq!(options.page, Some(PageSize::Letter));
+        assert_eq!(options.page, Some(PageSize::A3));
+        assert_eq!(options.page_layout, Some(PageLayout::Landscape));
         assert_eq!(options.theme, Some(PathBuf::from("theme.yml")));
         assert!(options.plain);
         assert!(options.toc);
@@ -1196,16 +1206,44 @@ pub enum BackendArg {
 #[cfg(feature = "pdf")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum PdfPageArg {
+    A3,
     A4,
+    A5,
+    Executive,
+    Legal,
     Letter,
+    Tabloid,
 }
 
 #[cfg(feature = "pdf")]
 impl PdfPageArg {
     const fn to_page_size(self) -> PageSize {
         match self {
+            Self::A3 => PageSize::A3,
             Self::A4 => PageSize::A4,
+            Self::A5 => PageSize::A5,
+            Self::Executive => PageSize::Executive,
+            Self::Legal => PageSize::Legal,
             Self::Letter => PageSize::Letter,
+            Self::Tabloid => PageSize::Tabloid,
+        }
+    }
+}
+
+/// PDF page layout parsed from `--page-layout`.
+#[cfg(feature = "pdf")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum PdfPageLayoutArg {
+    Portrait,
+    Landscape,
+}
+
+#[cfg(feature = "pdf")]
+impl PdfPageLayoutArg {
+    const fn to_page_layout(self) -> PageLayout {
+        match self {
+            Self::Portrait => PageLayout::Portrait,
+            Self::Landscape => PageLayout::Landscape,
         }
     }
 }

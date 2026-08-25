@@ -8,7 +8,7 @@ use acdc_pdf_theme::{
 };
 
 use crate::{
-    DocumentMetadata, EmitOptions, PageSize,
+    DocumentMetadata, EmitOptions, PageLayout, PageSize,
     escape::{escape_markup, escape_string},
     writer::Writer,
 };
@@ -73,12 +73,14 @@ fn write_page(out: &mut String, theme: &Theme, options: &EmitOptions) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
 
+    let _ = write!(out, "#set page(paper: \"{}\"", options.page.paper());
+    if options.page_layout == PageLayout::Landscape {
+        out.push_str(", flipped: true");
+    }
     let _ = write!(
         out,
-        "#set page(paper: \"{}\", margin: (x: {}cm, y: {}cm)",
-        options.page.paper(),
-        spacing.margin_x_cm,
-        spacing.margin_y_cm,
+        ", margin: (x: {}cm, y: {}cm)",
+        spacing.margin_x_cm, spacing.margin_y_cm,
     );
     if !options.plain {
         let _ = write!(out, ", fill: {}", color(&palette.page_bg));
@@ -528,8 +530,13 @@ impl PageSize {
     /// The Typst paper name for this page size.
     pub(crate) fn paper(self) -> &'static str {
         match self {
+            PageSize::A3 => "a3",
             PageSize::A4 => "a4",
+            PageSize::A5 => "a5",
+            PageSize::Executive => "us-executive",
+            PageSize::Legal => "us-legal",
             PageSize::Letter => "us-letter",
+            PageSize::Tabloid => "us-tabloid",
         }
     }
 }
@@ -568,6 +575,20 @@ mod tests {
                 ")\n",
             )
         );
+    }
+
+    #[test]
+    fn landscape_page_setup_flips_the_named_paper() {
+        let options = EmitOptions {
+            page: PageSize::Legal,
+            page_layout: PageLayout::Landscape,
+            ..EmitOptions::default()
+        };
+        let mut out = String::new();
+
+        write_page(&mut out, &Theme::default(), &options);
+
+        assert!(out.starts_with("#set page(paper: \"us-legal\", flipped: true, margin:"));
     }
 
     #[test]

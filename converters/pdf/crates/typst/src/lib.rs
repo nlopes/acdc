@@ -108,7 +108,10 @@ pub struct EmitOptions {
     pub metadata: DocumentMetadata,
     /// Language and optional region applied to document text.
     pub locale: DocumentLocale,
+    /// Standard paper size used for every document page.
     pub page: PageSize,
+    /// Portrait or landscape layout used for every document page.
+    pub page_layout: PageLayout,
     /// Strip branding chrome (page background, header, footer).
     pub plain: bool,
     /// Whether brand fonts are available at render time. When set, the brand
@@ -132,6 +135,7 @@ impl Default for EmitOptions {
             metadata: DocumentMetadata::default(),
             locale: DocumentLocale::default(),
             page: PageSize::A4,
+            page_layout: PageLayout::Portrait,
             plain: false,
             brand_fonts: false,
             running_header_title: None,
@@ -145,8 +149,41 @@ impl Default for EmitOptions {
 /// A supported page size.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PageSize {
+    A3,
     A4,
+    A5,
+    Executive,
+    Legal,
     Letter,
+    Tabloid,
+}
+
+/// A supported document page layout.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum PageLayout {
+    #[default]
+    Portrait,
+    Landscape,
+}
+
+impl PageSize {
+    /// Returns the page width after applying `layout`, in PDF points.
+    #[must_use]
+    pub const fn width_points(self, layout: PageLayout) -> f64 {
+        let (width, height) = match self {
+            Self::A3 => (841.89, 1190.551),
+            Self::A4 => (595.276, 841.89),
+            Self::A5 => (419.528, 595.276),
+            Self::Executive => (522.0, 756.0),
+            Self::Legal => (612.0, 1008.0),
+            Self::Letter => (612.0, 792.0),
+            Self::Tabloid => (792.0, 1224.0),
+        };
+        match layout {
+            PageLayout::Portrait => width,
+            PageLayout::Landscape => height,
+        }
+    }
 }
 
 #[cfg(test)]

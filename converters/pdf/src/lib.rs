@@ -47,7 +47,7 @@ mod index;
 mod pdf_visitor;
 mod visitor;
 
-pub use acdc_pdf_typst::PageSize;
+pub use acdc_pdf_typst::{PageLayout, PageSize};
 pub use error::Error;
 
 /// Intrinsic traits for the PDF backend.
@@ -106,6 +106,8 @@ pub struct PdfOptions {
     pub watermark_timestamp: Option<String>,
     /// Optional page size override. Document `:pdf-page-size:` is used next.
     pub page: Option<PageSize>,
+    /// Optional page layout override. Document `:pdf-page-layout:` is used next.
+    pub page_layout: Option<PageLayout>,
     /// Optional theme YAML file. Defaults to the bundled neutral theme.
     pub theme: Option<PathBuf>,
     /// Strip page background, header, and footer chrome.
@@ -271,8 +273,8 @@ impl Processor<'_> {
             processor,
             assets,
             theme,
-            page_width_points(emit_options.page),
-            code_wrap_columns(theme, emit_options.page),
+            emit_options.page.width_points(emit_options.page_layout),
+            code_wrap_columns(theme, emit_options.page, emit_options.page_layout),
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
         )
@@ -322,6 +324,7 @@ impl Processor<'_> {
             metadata,
             locale: document_locale(doc, diagnostics),
             page: self.page_size(doc, diagnostics),
+            page_layout: self.page_layout(doc, diagnostics),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
             running_header_title,
@@ -339,14 +342,39 @@ impl Processor<'_> {
             return PageSize::A4;
         };
         match value.as_ref().to_ascii_lowercase().as_str() {
+            "a3" => PageSize::A3,
             "a4" => PageSize::A4,
+            "a5" => PageSize::A5,
+            "executive" | "us-executive" => PageSize::Executive,
+            "legal" | "us-legal" => PageSize::Legal,
             "letter" | "us-letter" => PageSize::Letter,
+            "tabloid" | "us-tabloid" => PageSize::Tabloid,
             other => {
                 diagnostics.warn_with_advice(
                     format!("unsupported PDF page size '{other}', using A4"),
-                    "Use `--page a4`, `--page letter`, or set `:pdf-page-size:` to `a4` or `letter`.",
+                    "Use `--page` or `:pdf-page-size:` with `a3`, `a4`, `a5`, `executive`, `legal`, `letter`, or `tabloid`.",
                 );
                 PageSize::A4
+            }
+        }
+    }
+
+    fn page_layout(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageLayout {
+        if let Some(layout) = self.pdf_options.page_layout {
+            return layout;
+        }
+        let Some(value) = doc.attributes.get_string("pdf-page-layout") else {
+            return PageLayout::Portrait;
+        };
+        match value.as_ref().to_ascii_lowercase().as_str() {
+            "landscape" => PageLayout::Landscape,
+            "portrait" => PageLayout::Portrait,
+            other => {
+                diagnostics.warn_with_advice(
+                    format!("unsupported PDF page layout '{other}', using portrait"),
+                    "Use `--page-layout` or `:pdf-page-layout:` with `portrait` or `landscape`.",
+                );
+                PageLayout::Portrait
             }
         }
     }
@@ -530,11 +558,11 @@ impl Processor<'_> {
     clippy::cast_sign_loss,
     reason = "validated theme dimensions are clamped before conversion"
 )]
-fn code_wrap_columns(theme: &Theme, page: PageSize) -> usize {
+fn code_wrap_columns(theme: &Theme, page: PageSize, page_layout: PageLayout) -> usize {
     const CM_TO_PT: f64 = 72.0 / 2.54;
     const MONOSPACE_CELL_WIDTH_EM: f64 = 0.6;
 
-    let page_width_pt = page_width_points(page);
+    let page_width_pt = page.width_points(page_layout);
     let content_width_pt = page_width_pt
         - 2.0 * theme.spacing.margin_x_cm * CM_TO_PT
         - 2.0 * theme.spacing.code_pad_pt;
@@ -581,13 +609,6 @@ fn write_admonition_image_helper(writer: &mut Writer, theme: &Theme) {
         ")), inset: (left: {}pt), body))))",
         spacing.callout_pad_x_pt,
     );
-}
-
-const fn page_width_points(page: PageSize) -> f64 {
-    match page {
-        PageSize::A4 => 595.276,
-        PageSize::Letter => 612.0,
-    }
 }
 
 fn read_theme_file(path: &Path) -> Result<String, Error> {
@@ -1376,6 +1397,91 @@ mod tests {
     }
 
     #[test]
+    fn document_page_setup_honors_named_size_and_landscape()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n\nWide content.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a3\", flipped: true"),
+            "{typst}"
+        );
+        assert!(
+            render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn document_page_setup_accepts_supported_named_sizes() -> Result<(), Box<dyn std::error::Error>>
+    {
+        for (attribute, paper) in [
+            ("A3", "a3"),
+            ("A4", "a4"),
+            ("A5", "a5"),
+            ("Executive", "us-executive"),
+            ("Legal", "us-legal"),
+            ("Letter", "us-letter"),
+            ("Tabloid", "us-tabloid"),
+        ] {
+            let input = format!("= Page setup\n:pdf-page-size: {attribute}\n\nContent.\n");
+            let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
+            let processor =
+                Processor::new(Options::default(), parsed.document().attributes.clone());
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+            let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+            assert!(
+                typst.contains(&format!("#set page(paper: \"{paper}\"")),
+                "{attribute}: {typst}"
+            );
+            assert!(warnings.is_empty(), "{attribute}: {warnings:?}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn pdf_options_override_document_page_setup() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                page: Some(PageSize::A5),
+                page_layout: Some(PageLayout::Portrait),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a5\", margin:"),
+            "{typst}"
+        );
+        assert!(!typst.contains("flipped: true"), "{typst}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn unbreakable_option_wraps_only_supported_pdf_block_contexts()
     -> Result<(), Box<dyn std::error::Error>> {
         let supported = acdc_parser::parse(
@@ -1637,8 +1743,8 @@ mod tests {
                 processor,
                 &assets,
                 &theme,
-                page_width_points(PageSize::A4),
-                code_wrap_columns(&theme, PageSize::A4),
+                PageSize::A4.width_points(PageLayout::Portrait),
+                code_wrap_columns(&theme, PageSize::A4, PageLayout::Portrait),
                 Vec::new(),
                 diagnostics,
             );

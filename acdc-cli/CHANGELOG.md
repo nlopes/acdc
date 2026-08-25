@@ -71,8 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enabled. It writes `.pdf` files by default and writes raw PDF bytes when
   `-o -` is selected. PDF runs accept `--font-dir`, `--logo`, `--title`,
   `--watermark`, `--watermark-timestamp`, `--page`, `--theme`, `--plain`,
-  `--toc`, and `--emit-typst`; `--strict` now makes unresolved PDF images or
-  logos fail instead of falling back with a warning.
+  `--page-layout`, `--toc`, and `--emit-typst`; named A3/A4/A5 and common US
+  page sizes can use portrait or landscape output, and `--strict` makes
+  unresolved PDF images or logos fail instead of falling back with a warning.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the

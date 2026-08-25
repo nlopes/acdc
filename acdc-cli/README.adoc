@@ -92,7 +92,8 @@ Build with `pdf` (or `all-backends`) and select `--backend pdf`:
 [source,console]
 ....
 cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
-  --page letter \
+  --page a3 \
+  --page-layout landscape \
   --font-dir fonts \
   --logo assets/logo.svg \
   --title "Internal Architecture" \
@@ -101,6 +102,8 @@ cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
   --toc
 ....
 
+`--page` accepts A3, A4, A5, Executive, Legal, Letter, or Tabloid.
+`--page-layout` accepts `portrait` or `landscape`.
 `--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
 `--strict` makes unresolved PDF images or logos fatal.
 Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.

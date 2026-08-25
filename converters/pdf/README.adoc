@@ -25,6 +25,11 @@ acdc convert --backend pdf document.adoc \
   --watermark-timestamp
 ....
 
+Use `--page` and `--page-layout` to set the document paper and orientation.
+The equivalent document attributes are `pdf-page-size` and `pdf-page-layout`;
+explicit CLI or `PdfOptions` values take precedence.
+Supported named sizes are A3, A4, A5, Executive, Legal, Letter, and Tabloid.
+
 == Current scope
 
 The backend currently renders:
@@ -42,7 +47,7 @@ The backend currently renders:
 * collapsible examples as expanded disclosures with their full content visible
 * local, remote, and `data:` URI images in block and inline positions
 * static audio and video fallbacks with clickable source links and linked video posters
-* a configurable page theme, header logo, watermark, footer, and page size
+* a configurable page theme, header logo, watermark, footer, page size, and portrait or landscape layout
 
 == Known limitations
 
@@ -68,8 +73,9 @@ Examples marked `%collapsible` always render expanded with a disclosure marker a
 The `%open` and `%closed` options therefore produce the same PDF output.
 
 Normal page breaks do not add a blank page when they occur at an existing page boundary; add `%always` to force another page.
-The `page-layout` attribute and the `portrait` and `landscape` roles do not change page orientation.
-The output keeps the configured document layout.
+The document-level `pdf-page-layout` attribute selects portrait or landscape output.
+The `page-layout` attribute and the `portrait` and `landscape` roles on individual page breaks do not switch orientation.
+Those page breaks keep the configured document layout.
 
 Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
 ACDC uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
@@ -214,7 +220,13 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--page`
 | `page`
-| Set A4 or Letter. `:pdf-page-size:` is consulted next; A4 is the fallback.
+| Set A3, A4, A5, Executive, Legal, Letter, or Tabloid.
+  `:pdf-page-size:` is consulted next; A4 is the fallback.
+
+| `--page-layout`
+| `page_layout`
+| Set `portrait` or `landscape`.
+  `:pdf-page-layout:` is consulted next; portrait is the fallback.
 
 | `--theme`
 | `theme`
