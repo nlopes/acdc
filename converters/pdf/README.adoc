@@ -38,7 +38,7 @@ The backend currently renders:
 * tables with widths, page placement, semantic repeating headers, column/row spans, frames, grids, and row stripes
 * admonitions, quotes, thematic breaks, and page breaks
 * paragraph and document hard line breaks
-* listing and literal blocks with themed monospace presentation
+* listing and literal blocks, plus source blocks with bundled syntax highlighting, line numbers, highlighted lines, and callouts
 * collapsible examples as expanded disclosures with their full content visible
 * local, remote, and `data:` URI images in block and inline positions
 * static audio and video fallbacks with clickable source links and linked video posters
@@ -48,7 +48,11 @@ The backend currently renders:
 
 The backend is intentionally incomplete.
 Stem notation uses an escaped textual fallback.
-Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
+AsciiMath and LaTeX translation are not yet implemented.
+
+When `source-highlighter` is set, source blocks use the bundled Typst syntax
+theme. PHP source blocks marked `%mixed` use Typst's normal PHP highlighter and
+emit one warning per document because Typst does not support that mixed mode.
 
 Audio and video blocks render as static media fallbacks because PDF cannot play
 embedded media through the HTML controls.
