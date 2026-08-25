@@ -394,15 +394,14 @@ impl Processor<'_> {
         let Some(value) = doc.attributes.get_string("pdf-page-size") else {
             return PageSize::A4;
         };
-        match parse_page_size(value.as_ref()) {
-            Some(page) => page,
-            None => {
-                diagnostics.warn_with_advice(
-                    format!("unsupported or invalid PDF page size '{value}', using A4"),
-                    "Use a supported name or two positive dimensions, such as `:pdf-page-size: 8.5in x 11in`.",
-                );
-                PageSize::A4
-            }
+        if let Some(page) = parse_page_size(value.as_ref()) {
+            page
+        } else {
+            diagnostics.warn_with_advice(
+                format!("unsupported or invalid PDF page size '{value}', using A4"),
+                "Use a supported name or two positive dimensions, such as `:pdf-page-size: 8.5in x 11in`.",
+            );
+            PageSize::A4
         }
     }
 
@@ -418,15 +417,14 @@ impl Processor<'_> {
         if value.trim().is_empty() {
             return None;
         }
-        match parse_page_margin(value.as_ref()) {
-            Some(margin) => Some(margin),
-            None => {
-                diagnostics.warn_with_advice(
-                    format!("invalid PDF page margin '{value}', using theme margins"),
-                    "Use one to four non-negative measurements, such as `:pdf-page-margin: [1in, 0.75in, 1in, 0.75in]`.",
-                );
-                None
-            }
+        if let Some(margin) = parse_page_margin(value.as_ref()) {
+            Some(margin)
+        } else {
+            diagnostics.warn_with_advice(
+                format!("invalid PDF page margin '{value}', using theme margins"),
+                "Use one to four non-negative measurements, such as `:pdf-page-margin: [1in, 0.75in, 1in, 0.75in]`.",
+            );
+            None
         }
     }
 
