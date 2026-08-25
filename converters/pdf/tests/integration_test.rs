@@ -73,6 +73,14 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
             ]
         );
         assert!(warnings.iter().all(|warning| warning.advice.is_some()));
+        assert_eq!(
+            warnings
+                .iter()
+                .filter_map(|warning| warning.source_location())
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [97, 101, 118]
+        );
     }
 
     assert!(pdf.starts_with(b"%PDF-"));

@@ -22,7 +22,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
+    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration, Warning,
     icon::{IconMode, image_source as icon_image_source},
     media::resolve_target,
     visitor::Visitor,
@@ -30,8 +30,8 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttributes, InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source,
-    Table,
+    Document, DocumentAttributes, InlineMacro, InlineNode, ListItem, Location, Reference, SafeMode,
+    Source, SourceLocation, Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -55,6 +55,21 @@ pub(crate) const BACKEND_TRAITS: BackendTraits =
     BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
 use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
+
+pub(crate) fn warn_with_advice_at(
+    diagnostics: &mut Diagnostics<'_>,
+    location: Option<&Location>,
+    message: impl Into<Cow<'static, str>>,
+    advice: impl Into<Cow<'static, str>>,
+) {
+    let mut warning = Warning::new(diagnostics.source().clone(), message).with_advice(advice);
+    if let Some(location) =
+        location.filter(|location| location.start.file.is_none() && location.end.file.is_none())
+    {
+        warning = warning.at(SourceLocation::at_location(None, location.clone()));
+    }
+    diagnostics.emit(warning);
+}
 
 const MAX_THEME_FILE_BYTES: usize = 1024 * 1024;
 const TYPST_RAW_SIZE_EM: f64 = 0.8;
@@ -360,10 +375,18 @@ impl Processor<'_> {
         Ok(resolved.assets)
     }
 
-    fn report_unsupported_font_icons(icon_names: &[String], diagnostics: &mut Diagnostics<'_>) {
-        for icon_name in icon_names {
-            diagnostics.warn_with_advice(
-                format!("{icon_name} is not a valid icon name in the built-in icon set"),
+    fn report_unsupported_font_icons(
+        icons: &[UnsupportedFontIcon],
+        diagnostics: &mut Diagnostics<'_>,
+    ) {
+        for icon in icons {
+            warn_with_advice_at(
+                diagnostics,
+                Some(&icon.location),
+                format!(
+                    "{} is not a valid icon name in the built-in icon set",
+                    icon.name
+                ),
                 "The PDF will use the icon's alternative text. Use a supported built-in icon or switch to image icon mode and provide the icon file.",
             );
         }
@@ -392,8 +415,10 @@ impl Processor<'_> {
             .map(|failure| (failure.url.as_str(), &failure.error))
             .collect::<HashMap<_, _>>();
         for failure in &failures {
-            if preparation.ordinary_image_urls.contains(&failure.url) {
-                diagnostics.warn_with_advice(
+            if let Some(location) = preparation.ordinary_image_locations.get(&failure.url) {
+                warn_with_advice_at(
+                    diagnostics,
+                    Some(location),
                     format!(
                         "image {} could not be embedded: {}",
                         failure.url, failure.error
@@ -404,7 +429,9 @@ impl Processor<'_> {
         }
         for icon in &preparation.image_icons {
             if let Some(error) = failures_by_url.get(icon.source.as_str()) {
-                diagnostics.warn_with_advice(
+                warn_with_advice_at(
+                    diagnostics,
+                    Some(&icon.location),
                     format!(
                         "image icon for '{}' not found or not readable at {}: {error}",
                         icon.target, icon.source
@@ -762,9 +789,9 @@ struct PreparationContext<'attributes, 'source> {
 #[derive(Default)]
 struct PdfPreparation {
     image_urls: BTreeSet<String>,
-    ordinary_image_urls: BTreeSet<String>,
+    ordinary_image_locations: HashMap<String, Location>,
     image_icons: Vec<ImageIconReference>,
-    unsupported_font_icons: Vec<String>,
+    unsupported_font_icons: Vec<UnsupportedFontIcon>,
     has_index_terms: bool,
     has_unbreakable_blocks: bool,
     has_autofit_blocks: bool,
@@ -775,6 +802,12 @@ struct PdfPreparation {
 struct ImageIconReference {
     source: String,
     target: String,
+    location: Location,
+}
+
+struct UnsupportedFontIcon {
+    name: String,
+    location: Location,
 }
 
 pub(crate) fn admonition_icon_source(attributes: &DocumentAttributes<'_>, target: &str) -> String {
@@ -814,18 +847,24 @@ pub(crate) fn admonition_icon_source(attributes: &DocumentAttributes<'_>, target
 }
 
 impl PdfPreparation {
-    fn insert_image(&mut self, source: String) {
+    fn insert_image(&mut self, source: String, location: &Location) {
         self.image_urls.insert(source.clone());
-        self.ordinary_image_urls.insert(source);
+        self.ordinary_image_locations
+            .entry(source)
+            .or_insert_with(|| location.clone());
     }
 
-    fn insert_image_icon(&mut self, source: String, target: &Source<'_>) {
-        self.insert_named_image_icon(source, target.to_string());
+    fn insert_image_icon(&mut self, source: String, target: &Source<'_>, location: &Location) {
+        self.insert_named_image_icon(source, target.to_string(), location);
     }
 
-    fn insert_named_image_icon(&mut self, source: String, target: String) {
+    fn insert_named_image_icon(&mut self, source: String, target: String, location: &Location) {
         self.image_urls.insert(source.clone());
-        self.image_icons.push(ImageIconReference { source, target });
+        self.image_icons.push(ImageIconReference {
+            source,
+            target,
+            location: location.clone(),
+        });
     }
 }
 
@@ -900,10 +939,10 @@ fn collect_block_preparation(
             }
             Block::Image(image) => {
                 collect_inline_preparation(image.title.as_ref(), context, preparation);
-                preparation.insert_image(resolve_target(
-                    &image.source.to_string(),
-                    context.attributes,
-                ));
+                preparation.insert_image(
+                    resolve_target(&image.source.to_string(), context.attributes),
+                    &image.location,
+                );
             }
             Block::DiscreteHeader(header) => {
                 collect_inline_preparation(header.title.as_ref(), context, preparation);
@@ -919,7 +958,8 @@ fn collect_block_preparation(
                     .get_string("poster")
                     .filter(|poster| !poster.is_empty())
                 {
-                    preparation.insert_image(resolve_target(&poster, context.attributes));
+                    preparation
+                        .insert_image(resolve_target(&poster, context.attributes), &video.location);
                 }
             }
             Block::TableOfContents(_)
@@ -949,6 +989,11 @@ fn collect_admonition_preparation(
         preparation.insert_named_image_icon(
             admonition_icon_source(context.attributes, &icon),
             icon.into_owned(),
+            admonition
+                .metadata
+                .location
+                .as_ref()
+                .unwrap_or(&admonition.location),
         );
     }
     collect_inline_preparation(admonition.title.as_ref(), context, preparation);
@@ -1105,20 +1150,26 @@ fn collect_inline_preparation(
                 collect_inline_preparation(&text.content, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Image(image)) => {
-                preparation.insert_image(resolve_target(
-                    &image.source.to_string(),
-                    context.attributes,
-                ));
+                preparation.insert_image(
+                    resolve_target(&image.source.to_string(), context.attributes),
+                    &image.location,
+                );
             }
             InlineNode::Macro(InlineMacro::Icon(icon)) => match context.icon_mode {
                 IconMode::Image => preparation.insert_image_icon(
                     icon_image_source(context.attributes, &icon.target),
                     &icon.target,
+                    &icon.location,
                 ),
                 IconMode::Font => {
                     let icon_name = icon.target.to_string();
                     if builtin_icon_glyph(&icon_name).is_none() {
-                        preparation.unsupported_font_icons.push(icon_name);
+                        preparation
+                            .unsupported_font_icons
+                            .push(UnsupportedFontIcon {
+                                name: icon_name,
+                                location: icon.location.clone(),
+                            });
                     }
                 }
                 IconMode::Text | _ => {}
@@ -1885,6 +1936,12 @@ mod tests {
             warning.advice(),
             Some("Use the HTML backend when in-document playback is required."),
         );
+        assert_eq!(
+            warning
+                .source_location()
+                .map(|location| location.location.start.line),
+            Some(4)
+        );
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
         let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
@@ -2032,6 +2089,14 @@ mod tests {
         assert_eq!(
             font_warnings
                 .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [3, 3, 3]
+        );
+        assert_eq!(
+            font_warnings
+                .iter()
                 .map(|warning| warning.message.as_ref())
                 .collect::<Vec<_>>(),
             [
@@ -2051,6 +2116,14 @@ mod tests {
             directory.path().display()
         ))?;
         assert_eq!(image_warnings.len(), 3);
+        assert_eq!(
+            image_warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [4, 4, 4]
+        );
         assert!(
             image_warnings
                 .iter()
@@ -2696,6 +2769,14 @@ mod tests {
         let _ = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert_eq!(warnings.len(), 2);
+        assert_eq!(
+            warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [1, 3]
+        );
         for warning in warnings {
             assert_eq!(
                 warning.message,
@@ -2768,6 +2849,75 @@ mod tests {
                 .iter()
                 .all(|warning| warning.message.contains("stem content"))
         );
+        assert_eq!(
+            warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [1, 3]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn zero_width_table_warning_has_source_context_and_advice()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let warnings = render_warnings("[width=0%]\n|===\n|Cell\n|===\n")?;
+
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing zero-width table warning"))?;
+        assert_eq!(
+            warning.message,
+            "cannot fit contents of table cell into a table with a width of 0%; omitting the table"
+        );
+        assert_eq!(
+            warning
+                .source_location()
+                .map(|location| location.location.start.line),
+            Some(1)
+        );
+        assert_eq!(
+            warning.advice(),
+            Some("Set the table width to a value greater than 0% to include it in the PDF.")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn strict_assets_rejects_only_asset_failures() -> Result<(), Box<dyn std::error::Error>> {
+        let fallback = acdc_parser::parse("stem:[x]\n", &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), fallback.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                strict_assets: true,
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let rendered =
+                processor.render_document(fallback.document(), None, &mut diagnostics)?;
+            assert!(rendered.pdf.starts_with(b"%PDF-"));
+        }
+        assert_eq!(warnings.len(), 1);
+
+        let missing = acdc_parser::parse(
+            "image::missing-strict-asset.png[]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), missing.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                strict_assets: true,
+                ..PdfOptions::default()
+            });
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let result = processor.render_document(missing.document(), None, &mut diagnostics);
+
+        assert!(matches!(result, Err(Error::AssetResolution(_))));
+        assert_eq!(warnings.len(), 1);
         Ok(())
     }
 
@@ -2862,6 +3012,13 @@ mod tests {
         )?;
         assert_eq!(rendered.resolved_document_image_count, 1);
         assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings
+                .first()
+                .and_then(Warning::source_location)
+                .map(|location| location.location.start.line),
+            Some(3)
+        );
         Ok(())
     }
 

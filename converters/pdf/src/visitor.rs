@@ -96,7 +96,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
-        self.warn_unsupported_parser_variant("block");
+        self.warn_unsupported_parser_variant("block", None);
         Ok(())
     }
 
@@ -459,7 +459,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_video(&mut self, video: &Video<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&video.metadata);
-        self.warn_static_media_fallback();
+        self.warn_static_media_fallback(&video.location);
         let youtube = matches!(
             video.metadata.attributes.get("youtube"),
             Some(AttributeValue::Bool(true))
@@ -525,7 +525,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_audio(&mut self, audio: &Audio<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&audio.metadata);
-        self.warn_static_media_fallback();
+        self.warn_static_media_fallback(&audio.location);
         let target = self.static_media_source_target(&audio.source);
         self.write_static_media_link(&target, "audio");
         self.writer.raw("\n");
@@ -555,6 +555,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 "page-layout-change",
                 "page-break layout changes are not supported by the PDF backend; keeping the document page layout",
                 "Use Asciidoctor PDF when a document must switch between portrait and landscape pages.",
+                br.metadata.location.as_ref().or(Some(&br.location)),
             );
         }
         if br.metadata.options.contains(&"always") {
@@ -651,7 +652,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 InlineNode::CalloutRef(callout) => {
                     self.write_text_expr(&format!("({})", callout.number));
                 }
-                _ => self.warn_unsupported_parser_variant("inline node"),
+                _ => self.warn_unsupported_parser_variant("inline node", Some(node.location())),
             }
             Ok(())
         })();

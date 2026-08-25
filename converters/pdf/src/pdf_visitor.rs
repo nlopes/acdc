@@ -23,9 +23,9 @@ use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListItem, ElementAttributes, HorizontalAlignment, Icon, Image, IndexTerm,
-    InlineMacro, InlineNode, ListItem, Menu, Paragraph, Raw, Section, SectionKind, Source,
-    Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents, TablePresentation,
-    TableStripes, Title, TocEntry, VerticalAlignment,
+    InlineMacro, InlineNode, ListItem, Location, Menu, Paragraph, Raw, Section, SectionKind,
+    Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
+    TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -38,6 +38,7 @@ use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
     has_autofit_option,
     index::{CatalogTerm, IndexCatalog, PageSequenceStyle},
+    warn_with_advice_at,
 };
 
 #[derive(Clone, Copy, Default)]
@@ -581,12 +582,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             DelimitedBlockType::DelimitedTable(table) => self.write_table(table, &block.metadata),
             DelimitedBlockType::DelimitedStem(stem) => {
-                self.write_stem_fallback(stem.content, true);
+                self.write_stem_fallback(
+                    stem.content,
+                    true,
+                    block.metadata.location.as_ref().or(Some(&block.location)),
+                );
                 Ok(())
             }
             DelimitedBlockType::DelimitedComment(_) => Ok(()),
             _ => {
-                self.warn_unsupported_parser_variant("delimited block");
+                self.warn_unsupported_parser_variant("delimited block", Some(&block.location));
                 Ok(())
             }
         };
@@ -1241,6 +1246,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 "php-mixed-highlighting",
                 "PHP source block mixed-mode highlighting is not supported by the PDF backend; rendering with Typst's normal PHP highlighter",
                 "Use the `html+php` source language when it gives acceptable highlighting, or use Asciidoctor PDF for explicit `%mixed` highlighting.",
+                metadata.location.as_ref(),
             );
         }
         let tab_size = self.code_tab_size(metadata);
@@ -1490,8 +1496,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.string_literal(text);
     }
 
-    pub(crate) fn write_stem_fallback(&mut self, content: &str, block: bool) {
-        self.warn_unsupported("stem content", "rendering it as literal text");
+    pub(crate) fn write_stem_fallback(
+        &mut self,
+        content: &str,
+        block: bool,
+        location: Option<&Location>,
+    ) {
+        self.warn_unsupported("stem content", "rendering it as literal text", location);
         if block {
             self.writer.raw("#block[");
         }
@@ -1527,8 +1538,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    pub(crate) fn warn_unsupported(&mut self, feature: &str, fallback: &str) {
-        self.diagnostics.warn_with_advice(
+    pub(crate) fn warn_unsupported(
+        &mut self,
+        feature: &str,
+        fallback: &str,
+        location: Option<&Location>,
+    ) {
+        warn_with_advice_at(
+            &mut self.diagnostics,
+            location,
             format!("{feature} is not yet supported by the PDF backend, {fallback}"),
             "Use the HTML backend or Asciidoctor PDF for this feature until PDF backend support is added.",
         );
@@ -1539,27 +1557,34 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         key: &'static str,
         message: impl Into<Cow<'static, str>>,
         advice: impl Into<Cow<'static, str>>,
+        location: Option<&Location>,
     ) {
         if self.unsupported_metadata_warnings.insert(key) {
-            self.diagnostics.warn_with_advice(message, advice);
+            warn_with_advice_at(&mut self.diagnostics, location, message, advice);
         }
     }
 
-    pub(crate) fn warn_unsupported_parser_variant(&mut self, node_kind: &str) {
-        self.diagnostics.warn_with_advice(
-            format!(
-                "an unsupported parser {node_kind} variant was omitted from PDF output"
-            ),
+    pub(crate) fn warn_unsupported_parser_variant(
+        &mut self,
+        node_kind: &str,
+        location: Option<&Location>,
+    ) {
+        warn_with_advice_at(
+            &mut self.diagnostics,
+            location,
+            format!("an unsupported parser {node_kind} variant was omitted from PDF output"),
             "Use the HTML backend or Asciidoctor PDF for this document and report the unsupported construct.",
         );
     }
 
-    pub(crate) fn warn_static_media_fallback(&mut self) {
+    pub(crate) fn warn_static_media_fallback(&mut self, location: &Location) {
         if self.static_media_warning == StaticMediaWarningState::Emitted {
             return;
         }
         self.static_media_warning = StaticMediaWarningState::Emitted;
-        self.diagnostics.warn_with_advice(
+        warn_with_advice_at(
+            &mut self.diagnostics,
+            Some(location),
             "interactive media playback is unavailable in static PDF output; rendering clickable source links",
             "Use the HTML backend when in-document playback is required.",
         );
@@ -2269,8 +2294,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if table_width(metadata) != Some(0) {
             return false;
         }
-        self.diagnostics.warn(
+        warn_with_advice_at(
+            &mut self.diagnostics,
+            metadata.location.as_ref(),
             "cannot fit contents of table cell into a table with a width of 0%; omitting the table",
+            "Set the table width to a value greater than 0% to include it in the PDF.",
         );
         true
     }
@@ -2524,6 +2552,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.warn_unsupported(
                 "block image side wrapping",
                 "rendering the image on the requested side with following content below it",
+                Some(&image.location),
             );
         }
         let has_caption = !image.title.is_empty();
@@ -2736,6 +2765,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     "inline-image-fit-none",
                     "inline image `fit=none` page-height sizing is not supported by the PDF backend; rendering with normal intrinsic sizing",
                     "Use `fit=line` to constrain the image to the text line, or use Asciidoctor PDF when the image must use the full page height.",
+                    Some(&image.location),
                 );
             }
             self.writer.raw("#box(");
@@ -2940,12 +2970,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
             InlineMacro::Stem(stem) => {
-                self.write_stem_fallback(stem.content, false);
+                self.write_stem_fallback(stem.content, false, Some(&stem.location));
             }
             InlineMacro::IndexTerm(term) => {
                 self.write_index_term(term)?;
             }
-            _ => self.warn_unsupported_parser_variant("inline macro"),
+            _ => {
+                self.warn_unsupported_parser_variant("inline macro", Some(inline_macro.location()));
+            }
         }
         Ok(())
     }

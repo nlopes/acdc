@@ -56,6 +56,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Structured PDF fallback warnings now identify the affected source construct
+  when a direct primary-source location is available. A zero-width table
+  warning also explains how to restore the omitted table. Document-wide
+  compatibility warnings remain deduplicated, resource failures remain
+  independently actionable, and strict asset mode still affects only asset failures.
 - PDF output now applies the built-in `big`, `small`, `subtitle`, `underline`,
   and `line-through` paragraph roles and preserves repeated spaces in inline
   text marked `.pre-wrap`. Ordered and unordered lists honor the markerless
