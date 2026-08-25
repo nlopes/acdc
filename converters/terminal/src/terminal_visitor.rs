@@ -8,9 +8,9 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
-    Header, Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, SectionKind,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock, DescriptionList,
+    DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
+    Paragraph, Section, SectionKind, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 use crossterm::{
     QueueableCommand,
@@ -53,6 +53,24 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             colors: Vec::new(),
             applied_colors: (None, None),
         }
+    }
+
+    pub(crate) fn render_captioned_title_with_wrapper(
+        &mut self,
+        title: &[InlineNode],
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), crate::Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        let caption = self
+            .processor
+            .caption_prefix(metadata, fallback)
+            .unwrap_or_default();
+        self.render_title_with_wrapper(title, &format!("{prefix}{caption}"), suffix)
     }
 
     /// Open an inline span that sets colours.

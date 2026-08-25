@@ -120,6 +120,14 @@ fn test_html5s_standalone_with_fixtures(
 
 /// Helper: convert an `AsciiDoc` string to full-page HTML with custom attributes.
 fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result<String, Error> {
+    convert_string_with_variant(input, extra_attrs, HtmlVariant::Standard)
+}
+
+fn convert_string_with_variant(
+    input: &str,
+    extra_attrs: &[(&str, AttributeValue)],
+    variant: HtmlVariant,
+) -> Result<String, Error> {
     let mut attrs = acdc_converters_core::default_rendering_attributes();
     for (k, v) in extra_attrs {
         attrs.insert((*k).into(), v.clone());
@@ -130,11 +138,7 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new_with_variant(
-        converter_options,
-        doc.attributes.clone(),
-        HtmlVariant::Standard,
-    );
+    let processor = Processor::new_with_variant(converter_options, doc.attributes.clone(), variant);
     let render_options = RenderOptions::default();
     let mut output = Vec::new();
     let mut warnings = Vec::new();

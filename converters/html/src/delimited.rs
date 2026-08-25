@@ -11,8 +11,8 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
-    StemContent, StemNotation,
+    Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent,
+    StemNotation,
 };
 
 #[cfg(feature = "pre-spec-subs")]
@@ -58,7 +58,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         block: &DelimitedBlock,
         blocks: &[Block],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
         let is_collapsible = block.metadata.options.contains(&"collapsible");
 
         if is_collapsible {
@@ -67,14 +66,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         write_block_div_open(&mut self.writer, &block.metadata, "exampleblock")?;
 
-        // Render title with caption prefix if title exists
-        // Caption can be disabled with :example-caption!:
         if !block.title.is_empty() {
-            let prefix =
-                processor.caption_prefix("example-caption", &processor.example_counter, "Example");
-            self.render_title_with_wrapper(
+            self.render_captioned_title_with_wrapper(
                 &block.title,
-                &format!("<div class=\"title\">{prefix}"),
+                &block.metadata,
+                Some(CaptionKind::Example),
+                "<div class=\"title\">",
                 "</div>\n",
             )?;
         }
@@ -131,7 +128,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         block: &DelimitedBlock,
         blocks: &[Block],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
         let is_collapsible = block.metadata.options.contains(&"collapsible");
         let is_open = block.metadata.options.contains(&"open");
 
@@ -152,14 +148,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 writeln!(self.writer, ">")?;
             }
             if !block.title.is_empty() {
-                let prefix = processor.caption_prefix(
-                    "example-caption",
-                    &processor.example_counter,
-                    "Example",
-                );
-                self.render_title_with_wrapper(
+                self.render_captioned_title_with_wrapper(
                     &block.title,
-                    &format!("<summary>{prefix}"),
+                    &block.metadata,
+                    Some(CaptionKind::Example),
+                    "<summary>",
                     "</summary>\n",
                 )?;
             }
@@ -173,11 +166,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else if !block.title.is_empty() {
             // Titled: use figure/figcaption with inner div.example
             write_semantic_tag_open(&mut self.writer, "figure", &block.metadata, "example-block")?;
-            let prefix =
-                processor.caption_prefix("example-caption", &processor.example_counter, "Example");
-            self.render_title_with_wrapper(
+            self.render_captioned_title_with_wrapper(
                 &block.title,
-                &format!("<figcaption>{prefix}"),
+                &block.metadata,
+                Some(CaptionKind::Example),
+                "<figcaption>",
                 "</figcaption>\n",
             )?;
             writeln!(self.writer, "<div class=\"example\">")?;
@@ -205,6 +198,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     #[allow(clippy::too_many_lines)]
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
         let processor = self.processor.clone();
+        let caption_kind = CaptionKind::for_delimited(&block.inner, block.metadata.style);
         match &block.inner {
             DelimitedBlockType::DelimitedQuote(blocks) => {
                 if processor.variant() == HtmlVariant::Semantic {
@@ -272,8 +266,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                                 write!(self.writer, " id=\"{}\"", anchor.id)?;
                             }
                             writeln!(self.writer, ">")?;
-                            self.render_title_with_wrapper(
+                            self.render_captioned_title_with_wrapper(
                                 &block.title,
+                                &block.metadata,
+                                caption_kind,
                                 "<h6 class=\"block-title\">",
                                 "</h6>\n",
                             )?;
@@ -305,8 +301,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                                 &block.metadata,
                                 "open-block",
                             )?;
-                            self.render_title_with_wrapper(
+                            self.render_captioned_title_with_wrapper(
                                 &block.title,
+                                &block.metadata,
+                                caption_kind,
                                 "<h6 class=\"block-title\">",
                                 "</h6>\n",
                             )?;
@@ -331,8 +329,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     }
                 } else {
                     write_block_div_open(&mut self.writer, &block.metadata, "openblock")?;
-                    self.render_title_with_wrapper(
+                    self.render_captioned_title_with_wrapper(
                         &block.title,
+                        &block.metadata,
+                        caption_kind,
                         "<div class=\"title\">",
                         "</div>\n",
                     )?;
@@ -493,43 +493,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
         if processor.variant() == HtmlVariant::Semantic {
-            return self.render_listing_block_semantic(inlines, title, metadata);
+            return self.render_listing_block_semantic(inlines, title, metadata, caption_kind);
         }
 
         #[cfg(feature = "terminal")]
         if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
-            return self.render_terminal_session_block(inlines, title, metadata);
+            return self.render_terminal_session_block(inlines, title, metadata, caption_kind);
         }
 
         #[cfg(feature = "terminal")]
         if crate::terminal::is_terminal_listing(&processor.document_attributes, metadata)
             && self.terminal_emulator_allowed()
         {
-            return self.render_terminal_listing_block(inlines, title, metadata);
+            return self.render_terminal_listing_block(inlines, title, metadata, caption_kind);
         }
 
         write_block_div_open(&mut self.writer, metadata, "listingblock")?;
 
-        // Check if listing-caption is set and block has a title
-        if !title.is_empty() {
-            if let Some(AttributeValue::String(caption)) =
-                processor.document_attributes.get("listing-caption")
-            {
-                let count = processor.listing_counter.get() + 1;
-                processor.listing_counter.set(count);
-                self.render_title_with_wrapper(
-                    title,
-                    &format!("<div class=\"title\">{caption} {count}. "),
-                    "</div>\n",
-                )?;
-            } else {
-                // No listing-caption, render title without numbering
-                self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
-            }
-        }
+        self.render_captioned_title_with_wrapper(
+            title,
+            metadata,
+            caption_kind,
+            "<div class=\"title\">",
+            "</div>\n",
+        )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
         self.render_listing_code(inlines, metadata)?;
@@ -543,17 +534,28 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         #[cfg(feature = "terminal")]
         if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
-            return self.render_terminal_session_block_semantic(inlines, title, metadata);
+            return self.render_terminal_session_block_semantic(
+                inlines,
+                title,
+                metadata,
+                caption_kind,
+            );
         }
 
         #[cfg(feature = "terminal")]
         if crate::terminal::is_terminal_listing(&self.processor.document_attributes, metadata)
             && self.terminal_emulator_allowed()
         {
-            return self.render_terminal_listing_block_semantic(inlines, title, metadata);
+            return self.render_terminal_listing_block_semantic(
+                inlines,
+                title,
+                metadata,
+                caption_kind,
+            );
         }
 
         if title.is_empty() {
@@ -564,7 +566,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else {
             // Titled: use figure/figcaption
             write_semantic_tag_open(&mut self.writer, "figure", metadata, "listing-block")?;
-            self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+            self.render_captioned_title_with_wrapper(
+                title,
+                metadata,
+                caption_kind,
+                "<figcaption>",
+                "</figcaption>\n",
+            )?;
             self.render_listing_code(inlines, metadata)?;
             writeln!(self.writer, "</figure>")?;
         }
@@ -595,14 +603,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
         write_block_div_open(&mut self.writer, metadata, "terminalblock terminal-block")?;
 
-        if !title.is_empty() {
-            self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
-        }
+        self.render_captioned_title_with_wrapper(
+            title,
+            metadata,
+            caption_kind,
+            "<div class=\"title\">",
+            "</div>\n",
+        )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
         // Direct field access so the writer and diagnostics borrows stay
@@ -626,6 +639,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
@@ -644,7 +658,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "</div>")?;
         } else {
             write_semantic_tag_open(&mut self.writer, "figure", metadata, "terminal-block")?;
-            self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+            self.render_captioned_title_with_wrapper(
+                title,
+                metadata,
+                caption_kind,
+                "<figcaption>",
+                "</figcaption>\n",
+            )?;
             crate::terminal::render_session(
                 &mut self.writer,
                 inlines,
@@ -664,14 +684,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
         write_block_div_open(&mut self.writer, metadata, "listingblock terminal-block")?;
 
-        if !title.is_empty() {
-            self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
-        }
+        self.render_captioned_title_with_wrapper(
+            title,
+            metadata,
+            caption_kind,
+            "<div class=\"title\">",
+            "</div>\n",
+        )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
         crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
@@ -686,6 +711,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         let attrs = self.processor.document_attributes.clone();
         let options = self.processor.options.clone();
@@ -705,7 +731,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 metadata,
                 "listing-block terminal-block",
             )?;
-            self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+            self.render_captioned_title_with_wrapper(
+                title,
+                metadata,
+                caption_kind,
+                "<figcaption>",
+                "</figcaption>\n",
+            )?;
             crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
             writeln!(self.writer, "</figure>")?;
         }
@@ -774,6 +806,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         title: &[InlineNode],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
+        let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
         match inner {
             DelimitedBlockType::DelimitedPass(inlines) => {
                 #[cfg(feature = "pre-spec-subs")]
@@ -786,7 +819,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 self.visit_inline_nodes(inlines)?;
             }
             DelimitedBlockType::DelimitedListing(inlines) => {
-                self.render_listing_block(inlines, title, metadata)?;
+                self.render_listing_block(inlines, title, metadata, caption_kind)?;
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 #[cfg(feature = "terminal")]
@@ -794,9 +827,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     && self.terminal_emulator_allowed()
                 {
                     if self.processor.variant() == HtmlVariant::Semantic {
-                        self.render_terminal_session_block_semantic(inlines, title, metadata)?;
+                        self.render_terminal_session_block_semantic(
+                            inlines,
+                            title,
+                            metadata,
+                            caption_kind,
+                        )?;
                     } else {
-                        self.render_terminal_session_block(inlines, title, metadata)?;
+                        self.render_terminal_session_block(inlines, title, metadata, caption_kind)?;
                     }
                     return Ok(());
                 }
@@ -812,7 +850,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     "literalblock".to_string()
                 };
                 write_block_div_open(&mut self.writer, metadata, &base_class)?;
-                self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+                self.render_captioned_title_with_wrapper(
+                    title,
+                    metadata,
+                    caption_kind,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
                 writeln!(self.writer, "<div class=\"content\">")?;
                 write!(self.writer, "<pre>")?;
                 self.visit_inline_nodes(inlines)?;
@@ -919,6 +963,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         title: &[InlineNode],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
+        let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
         match inner {
             DelimitedBlockType::DelimitedVerse(inlines) => {
                 self.render_verse_block_semantic(inlines, title, metadata)?;
@@ -932,7 +977,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                         metadata,
                         "literal-block",
                     )?;
-                    self.render_title_with_wrapper(title, "<h6 class=\"block-title\">", "</h6>\n")?;
+                    self.render_captioned_title_with_wrapper(
+                        title,
+                        metadata,
+                        caption_kind,
+                        "<h6 class=\"block-title\">",
+                        "</h6>\n",
+                    )?;
                 } else {
                     write_semantic_tag_open(&mut self.writer, "div", metadata, "literal-block")?;
                 }

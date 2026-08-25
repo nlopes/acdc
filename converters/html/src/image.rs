@@ -1,7 +1,7 @@
 use std::{io::Write, string::ToString};
 
-use acdc_converters_core::{media::resolve_target, visitor::WritableVisitor};
-use acdc_parser::{BlockMetadata, Image};
+use acdc_converters_core::media::resolve_target;
+use acdc_parser::{BlockMetadata, CaptionKind, Image};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
@@ -71,11 +71,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Render title with figure caption if title exists
         // Caption can be disabled with :figure-caption!:
         if !img.title.is_empty() {
-            let prefix =
-                processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
-            self.render_title_with_wrapper(
+            self.render_captioned_title_with_wrapper(
                 &img.title,
-                &format!("<div class=\"title\">{prefix}"),
+                &img.metadata,
+                Some(CaptionKind::Figure),
+                "<div class=\"title\">",
                 "</div>",
             )?;
         }
@@ -187,11 +187,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         if has_title {
-            let prefix =
-                processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
-            self.render_title_with_wrapper(
+            self.render_captioned_title_with_wrapper(
                 &img.title,
-                &format!("<figcaption>{prefix}"),
+                &img.metadata,
+                Some(CaptionKind::Figure),
+                "<figcaption>",
                 "</figcaption>\n",
             )?;
         }

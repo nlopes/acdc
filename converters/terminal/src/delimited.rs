@@ -6,7 +6,7 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode,
+    Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode,
 };
 use crossterm::{
     QueueableCommand,
@@ -91,18 +91,25 @@ fn render_boxed_content<V: WritableVisitor<Error = Error>>(
 impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Visit a delimited block in terminal format.
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
+        let caption_kind = CaptionKind::for_delimited(&block.inner, block.metadata.style);
         match &block.inner {
             DelimitedBlockType::DelimitedTable(t) => {
-                self.render_title_if_present(&block.title)?;
+                self.render_captioned_title_with_wrapper(
+                    &block.title,
+                    &block.metadata,
+                    caption_kind,
+                    "  ",
+                    "\n",
+                )?;
                 let processor = self.processor.clone();
                 crate::table::visit_table(t, &block.metadata, self, &processor)
             }
             DelimitedBlockType::DelimitedListing(inlines)
             | DelimitedBlockType::DelimitedLiteral(inlines) => {
-                self.render_preformatted_block(&block.title, inlines, &block.metadata)
+                self.render_preformatted_block(&block.title, inlines, &block.metadata, caption_kind)
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
-                self.render_example_block(&block.title, blocks)
+                self.render_example_block(&block.title, blocks, &block.metadata)
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
                 self.render_quote_block(&block.title, blocks)
@@ -112,7 +119,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
                 // Open blocks are transparent containers
-                self.render_title_if_present(&block.title)?;
+                self.render_captioned_title_with_wrapper(
+                    &block.title,
+                    &block.metadata,
+                    caption_kind,
+                    "  ",
+                    "\n",
+                )?;
                 let blocks = blocks.clone();
                 for nested_block in &blocks {
                     self.visit_block(nested_block)?;
@@ -155,14 +168,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         title: &[InlineNode],
         inlines: &[InlineNode],
         metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
         // Detect language for syntax highlighting
         let language = detect_language(metadata);
 
-        // Title if present
-        if !title.is_empty() {
-            self.render_title_with_wrapper(title, "\n", "\n")?;
-        }
+        self.render_captioned_title_with_wrapper(title, metadata, caption_kind, "\n", "\n")?;
 
         let processor = self.processor.clone();
         let tw = processor.terminal_width;
@@ -249,27 +260,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         title: &[InlineNode],
         blocks: &[Block],
+        metadata: &BlockMetadata,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-
-        let caption = processor
-            .document_attributes
-            .get("example-caption")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.clone().into_owned()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .unwrap_or_else(|| "Example".to_string());
-
-        // Build label
-        let label: String = if title.is_empty() {
-            caption
+        let label = if title.is_empty() {
+            String::new()
         } else {
-            let count = processor.example_counter.get() + 1;
-            processor.example_counter.set(count);
-
+            let caption = processor
+                .caption_prefix(metadata, Some(CaptionKind::Example))
+                .unwrap_or_default();
             let title_text = crate::extract_heading_text(title, &processor.references);
-            format!("{caption} {count}. {title_text}")
+            format!("{caption}{title_text}")
         };
 
         // Render content to buffer
@@ -637,7 +638,10 @@ mod tests {
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
-        assert!(output_str.contains("Example"), "Should have Example label");
+        assert!(
+            !output_str.contains("Example"),
+            "Untitled examples should not have a label"
+        );
         assert!(output_str.contains("┌"), "Should have box top border");
         assert!(output_str.contains("└"), "Should have box bottom border");
         assert!(

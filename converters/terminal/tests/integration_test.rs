@@ -69,6 +69,7 @@ generate_tests!([
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
     (block_attribute_parity, false),
+    (caption_source_order, false),
     (passthrough_xrefs, false),
     (xref_nesting, false),
     (inline_text_extraction, false, requires: feature = "highlighting"),

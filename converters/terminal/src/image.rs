@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::{Image, Source};
+use acdc_parser::{CaptionKind, Image, Source};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -43,6 +43,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 w.queue(PrintStyledContent(format!("[Image: {name}]").italic()))?;
             }
         }
-        Ok(())
+        self.render_captioned_title_with_wrapper(
+            &img.title,
+            &img.metadata,
+            Some(CaptionKind::Figure),
+            "  ",
+            "\n",
+        )
     }
 }

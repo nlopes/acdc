@@ -10,7 +10,7 @@ use acdc_converters_core::{
     inlines_to_string,
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{InlineNode, Paragraph};
+use acdc_parser::{CaptionKind, InlineNode, Paragraph};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -59,7 +59,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         }
 
         // Regular paragraph rendering
-        self.visit_inline_nodes(&para.title)?;
+        self.render_captioned_title_with_wrapper(
+            &para.title,
+            &para.metadata,
+            CaptionKind::for_style(para.metadata.style),
+            "",
+            "",
+        )?;
         self.visit_inline_nodes(&para.content)?;
         let w = self.writer_mut();
         writeln!(w)?;
@@ -129,10 +135,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
     /// Render a literal-styled paragraph with preformatted text.
     fn render_literal_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
-        // Title if present
-        if !para.title.is_empty() {
-            self.render_title_with_wrapper(&para.title, "\n", "\n")?;
-        }
+        self.render_captioned_title_with_wrapper(
+            &para.title,
+            &para.metadata,
+            CaptionKind::for_style(para.metadata.style),
+            "\n",
+            "\n",
+        )?;
 
         let processor = self.processor.clone();
 

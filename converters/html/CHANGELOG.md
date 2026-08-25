@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Figures, tables, examples, listings, and source blocks now honor caption
+  labels at each block's source position. Custom and disabled captions,
+  inner-first numbering, and changes made part-way through a document match
+  Asciidoctor in standard and semantic HTML.
 - Cross-references preserve formatted explicit text through supported nested
   inline macros. Empty references to captioned blocks honor source-order
   `xrefstyle=basic`, `short`, and `full`, including custom and disabled

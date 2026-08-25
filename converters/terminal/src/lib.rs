@@ -12,9 +12,10 @@ use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, InlineTextTransform, Options,
     section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
 };
-#[cfg(feature = "emulator")]
-use acdc_parser::BlockMetadata;
-use acdc_parser::{Document, DocumentAttributes, InlineNode, Reference, TocEntry};
+use acdc_parser::{
+    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode, Reference,
+    TocEntry,
+};
 
 pub(crate) use appearance::Appearance;
 
@@ -46,9 +47,14 @@ pub struct Processor<'a> {
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
-    /// Shared counter for auto-numbering example blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    pub(crate) example_counter: Rc<Cell<usize>>,
+    /// Fallback counter for example captions the parser did not number.
+    pub(crate) example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for figure captions the parser did not number.
+    pub(crate) figure_counter: Rc<Cell<u32>>,
+    /// Fallback counter for listing and source captions the parser did not number.
+    pub(crate) listing_counter: Rc<Cell<u32>>,
+    /// Fallback counter for table captions the parser did not number.
+    pub(crate) table_counter: Rc<Cell<u32>>,
     /// Terminal appearance (theme, capabilities, colors)
     pub(crate) appearance: Appearance,
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
@@ -96,6 +102,9 @@ pub(crate) fn create_test_processor_with(
         references: Rc::new(HashMap::new()),
         xref_guard: XrefGuard::default(),
         example_counter: Rc::new(Cell::new(0)),
+        figure_counter: Rc::new(Cell::new(0)),
+        listing_counter: Rc::new(Cell::new(0)),
+        table_counter: Rc::new(Cell::new(0)),
         appearance,
         terminal_width: FALLBACK_TERMINAL_WIDTH,
         index_entries: Rc::new(RefCell::new(Vec::new())),
@@ -135,6 +144,9 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
+            table_counter: Rc::new(Cell::new(0)),
             appearance,
             terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
@@ -177,7 +189,10 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
             options: self.options.clone(),
-            example_counter: self.example_counter.clone(),
+            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
+            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
+            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
+            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
             appearance: self.appearance.clone(),
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
@@ -196,6 +211,44 @@ impl<'a> Converter<'a> for Processor<'a> {
 }
 
 impl Processor<'_> {
+    /// Return the caption prefix for a titled block.
+    pub(crate) fn caption_prefix(
+        &self,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<String> {
+        let resolved = match (&metadata.caption, fallback) {
+            (Some(caption), _) => caption.clone(),
+            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, None) => return None,
+        };
+        match resolved {
+            Caption::Numbered {
+                label,
+                number,
+                kind,
+            } => {
+                let number = number
+                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
+                Some(format!("{label} {number}. "))
+            }
+            Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::Unnumbered | _ => None,
+        }
+    }
+
+    fn next_caption_number(&self, kind: CaptionKind) -> u32 {
+        let counter = match kind {
+            CaptionKind::Figure => &self.figure_counter,
+            CaptionKind::Listing => &self.listing_counter,
+            CaptionKind::Table => &self.table_counter,
+            CaptionKind::Example | _ => &self.example_counter,
+        };
+        let number = counter.get() + 1;
+        counter.set(number);
+        number
+    }
+
     /// Override the detected terminal width.
     ///
     /// Useful for tests and fixture generation where a deterministic width is needed.

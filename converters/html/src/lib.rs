@@ -13,8 +13,8 @@ use acdc_converters_core::{
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
-    AttributeValue, BlockMetadata, Document, DocumentAttributes, InlineNode, Reference,
-    Substitution, TocEntry, strip_quotes,
+    AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
+    Reference, Substitution, TocEntry,
 };
 
 mod admonition;
@@ -139,19 +139,14 @@ pub struct Processor<'a> {
     references: HashMap<&'a str, Reference<'a>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     xref_guard: XrefGuard,
-    /// Shared counter for auto-numbering example blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    example_counter: Rc<Cell<usize>>,
-    /// Shared counter for auto-numbering table blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    table_counter: Rc<Cell<usize>>,
-    /// Shared counter for auto-numbering figure blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    figure_counter: Rc<Cell<usize>>,
-    /// Shared counter for auto-numbering listing blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    /// Only used when listing-caption attribute is set.
-    listing_counter: Rc<Cell<usize>>,
+    /// Fallback counter for example captions the parser did not number.
+    example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for table captions the parser did not number.
+    table_counter: Rc<Cell<u32>>,
+    /// Fallback counter for figure captions the parser did not number.
+    figure_counter: Rc<Cell<u32>>,
+    /// Fallback counter for listing and source captions the parser did not number.
+    listing_counter: Rc<Cell<u32>>,
     /// Shared counter for generating unique index term anchor IDs.
     index_term_counter: Rc<Cell<usize>>,
     /// Collected index term entries for rendering in the index catalog.
@@ -215,35 +210,42 @@ impl<'a> Processor<'a> {
             .is_some_and(|v| v.to_string() == "font")
     }
 
-    /// Generate a caption prefix based on document attributes.
-    ///
-    /// Returns the caption prefix string. If captions are disabled via `:X-caption!:`,
-    /// returns an empty string. Otherwise increments the counter and returns
-    /// "Caption N. " format.
-    #[must_use]
+    /// Return the caption prefix for a titled block.
     pub(crate) fn caption_prefix(
         &self,
-        attribute_name: &str,
-        counter: &Rc<Cell<usize>>,
-        default_text: &str,
-    ) -> String {
-        match self.document_attributes.get(attribute_name) {
-            Some(AttributeValue::Bool(false)) => {
-                // Disabled via :X-caption!:
-                String::new()
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<String> {
+        let resolved = match (&metadata.caption, fallback) {
+            (Some(caption), _) => caption.clone(),
+            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, None) => return None,
+        };
+        match resolved {
+            Caption::Numbered {
+                label,
+                number,
+                kind,
+            } => {
+                let number = number
+                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
+                Some(format!("{label} {number}. "))
             }
-            Some(AttributeValue::String(s)) => {
-                let count = counter.get() + 1;
-                counter.set(count);
-                let caption = strip_quotes(s);
-                format!("{caption} {count}. ")
-            }
-            _ => {
-                let count = counter.get() + 1;
-                counter.set(count);
-                format!("{default_text} {count}. ")
-            }
+            Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::Unnumbered | _ => None,
         }
+    }
+
+    fn next_caption_number(&self, kind: CaptionKind) -> u32 {
+        let counter = match kind {
+            CaptionKind::Figure => &self.figure_counter,
+            CaptionKind::Listing => &self.listing_counter,
+            CaptionKind::Table => &self.table_counter,
+            CaptionKind::Example | _ => &self.example_counter,
+        };
+        let number = counter.get() + 1;
+        counter.set(number);
+        number
     }
 
     /// Generate a unique anchor ID for an index term and collect the entry,
@@ -293,10 +295,10 @@ impl<'a> Processor<'a> {
             generate_index: index_generation_enabled(&doc.attributes)
                 && last_section_has_style(&doc.blocks, "index"),
             options: self.options.clone(),
-            example_counter: self.example_counter.clone(),
-            table_counter: self.table_counter.clone(),
-            figure_counter: self.figure_counter.clone(),
-            listing_counter: self.listing_counter.clone(),
+            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
+            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
+            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
+            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             index_term_counter: self.index_term_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,

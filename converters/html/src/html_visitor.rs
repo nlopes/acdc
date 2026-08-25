@@ -14,10 +14,10 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
-    InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, AttributeValue, Audio, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote,
+    Header, Image, InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section,
+    Substitution, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
@@ -179,6 +179,24 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             docinfo,
             text_boundaries: TextBoundaries::BOTH,
         }
+    }
+
+    pub(crate) fn render_captioned_title_with_wrapper(
+        &mut self,
+        title: &[InlineNode],
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        let caption = self
+            .processor
+            .caption_prefix(metadata, fallback)
+            .unwrap_or_default();
+        self.render_title_with_wrapper(title, &format!("{prefix}{caption}"), suffix)
     }
 
     /// Consume the visitor and return the writer

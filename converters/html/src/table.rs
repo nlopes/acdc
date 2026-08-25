@@ -1,8 +1,8 @@
 use acdc_converters_core::table::calculate_column_widths;
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::{
-    Block, BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode, Table,
-    TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    Block, BlockMetadata, CaptionKind, ColumnFormat, ColumnStyle, HorizontalAlignment, InlineNode,
+    Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, inlines::escape_pcdata};
@@ -209,14 +209,6 @@ where
     Ok(())
 }
 
-/// Render table caption with number if title exists.
-///
-/// Per-block `[caption="..."]` attribute overrides the prefix entirely and does NOT increment
-/// the table counter (following `AsciiDoc` specification).
-///
-/// Caption can be disabled with:
-/// - `:table-caption!:` at document level (disables for all tables)
-/// - `[caption=""]` at block level (disables for specific table)
 fn render_table_caption<V>(
     visitor: &mut V,
     title: &[InlineNode],
@@ -227,16 +219,9 @@ where
     V: WritableVisitor<Error = Error>,
 {
     if !title.is_empty() {
-        // Check for per-block caption override (does NOT increment counter)
-        let prefix = if let Some(custom_caption) = metadata.attributes.get_string("caption") {
-            if custom_caption.is_empty() {
-                String::new()
-            } else {
-                custom_caption.into_owned()
-            }
-        } else {
-            processor.caption_prefix("table-caption", &processor.table_counter, "Table")
-        };
+        let prefix = processor
+            .caption_prefix(metadata, Some(CaptionKind::Table))
+            .unwrap_or_default();
 
         visitor.render_title_with_wrapper(
             title,

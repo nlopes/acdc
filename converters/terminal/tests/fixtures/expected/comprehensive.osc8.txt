@@ -180,7 +180,7 @@ multiple concepts.
 │[1m Bold content  [0m┆[3m Italic content  [0m│
 │[1m               [0m┆[3m                 [0m│
 ╰───────────────┴─────────────────╯
-  A titled table
+  Table 1. A titled table
 ╭────────┬────────╮
 │ Cell A ┆ Cell B │
 │        ┆        │

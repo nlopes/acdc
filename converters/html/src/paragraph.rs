@@ -6,7 +6,7 @@ use acdc_converters_core::substitutions::baseline_subs;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs;
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{AttributeValue, Paragraph};
+use acdc_parser::{CaptionKind, Paragraph};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_attribution, write_id};
 
@@ -112,8 +112,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write!(self.writer, "<section")?;
                 write_id(&mut self.writer, &para.metadata)?;
                 writeln!(self.writer, " class=\"{class}\">")?;
-                self.render_title_with_wrapper(
+                self.render_captioned_title_with_wrapper(
                     &para.title,
+                    &para.metadata,
+                    CaptionKind::for_style(para.metadata.style),
                     "<h6 class=\"block-title\">",
                     "</h6>\n",
                 )?;
@@ -142,7 +144,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             write!(self.writer, "<div")?;
             write_id(&mut self.writer, &para.metadata)?;
             writeln!(self.writer, " class=\"{class}\">")?;
-            self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+            self.render_captioned_title_with_wrapper(
+                &para.title,
+                &para.metadata,
+                CaptionKind::for_style(para.metadata.style),
+                "<div class=\"title\">",
+                "</div>\n",
+            )?;
             write!(self.writer, "<p>")?;
             self.visit_inline_nodes(&para.content)?;
             writeln!(self.writer, "</p>")?;
@@ -172,7 +180,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write_id(&mut self.writer, &para.metadata)?;
                 let class = build_class("listing-block", &para.metadata.roles);
                 writeln!(self.writer, " class=\"{class}\">")?;
-                self.render_title_with_wrapper(&para.title, "<figcaption>", "</figcaption>\n")?;
+                self.render_captioned_title_with_wrapper(
+                    &para.title,
+                    &para.metadata,
+                    Some(CaptionKind::Listing),
+                    "<figcaption>",
+                    "</figcaption>\n",
+                )?;
                 crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
                 writeln!(self.writer, "</figure>")?;
             }
@@ -182,26 +196,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             let class = build_class("listingblock", &para.metadata.roles);
             writeln!(self.writer, " class=\"{class}\">")?;
 
-            // Title with optional listing-caption numbering
-            if !para.title.is_empty() {
-                if let Some(AttributeValue::String(caption)) =
-                    self.processor.document_attributes.get("listing-caption")
-                {
-                    let count = self.processor.listing_counter.get() + 1;
-                    self.processor.listing_counter.set(count);
-                    self.render_title_with_wrapper(
-                        &para.title,
-                        &format!("<div class=\"title\">{caption} {count}. "),
-                        "</div>\n",
-                    )?;
-                } else {
-                    self.render_title_with_wrapper(
-                        &para.title,
-                        "<div class=\"title\">",
-                        "</div>\n",
-                    )?;
-                }
-            }
+            self.render_captioned_title_with_wrapper(
+                &para.title,
+                &para.metadata,
+                Some(CaptionKind::Listing),
+                "<div class=\"title\">",
+                "</div>\n",
+            )?;
 
             writeln!(self.writer, "<div class=\"content\">")?;
             crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
