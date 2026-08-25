@@ -74,7 +74,7 @@ generate_tests!([
     (xref_nesting, false),
     (inline_text_extraction, false, requires: feature = "highlighting"),
     (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
-    (subs_index_section, false),
+    (subs_index_section, true),
     (index_term_relationships, false),
     (subs_replacements_disabled, false),
     (subs_replacements_explicit, false),
