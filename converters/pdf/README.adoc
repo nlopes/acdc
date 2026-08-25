@@ -134,6 +134,12 @@ Add an `[index]` section to generate a catalog from all index terms that occur b
 Visible `((term))` and `indexterm2:[term]` forms remain in the document.
 Concealed `(((primary, secondary, tertiary)))` and `indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
 
+Use `term >> other term` or `see=other term` to direct readers to a replacement entry.
+The replacement is shown as `(see other term)` and the source entry has no page numbers.
+Use `term &> related term` or `see-also=related term` to add one or more `(see also related term)` entries while keeping the source entry's page numbers.
+For screen media, a relationship target links to an exact primary-term match; a missing target remains text.
+Non-screen media renders relationship targets without links.
+
 For screen media, each page number links to the exact term occurrence.
 The default screen sequence lists every occurrence.
 Set `:index-pagenum-sequence-style: page` to list each page once, or set it to `range` to combine consecutive pages.

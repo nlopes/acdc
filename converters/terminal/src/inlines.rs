@@ -9,13 +9,15 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
-use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
+use acdc_parser::{
+    Button, CrossReference, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
+};
 use crossterm::{
     QueueableCommand,
     style::{Attribute, Color, Print, PrintStyledContent, SetAttribute, Stylize},
 };
 
-use crate::{Error, IndexTermEntry, IndexTermLabel, Processor};
+use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
 /// Apply Unicode typography replacements to a `PlainText` leaf.
 ///
@@ -649,27 +651,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             // Show stem content as-is (terminal can't render math)
             write!(w, "[{}]", stem.content)?;
         }
-        InlineMacro::IndexTerm(it) => {
-            let render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
-                Ok(IndexTermLabel {
-                    plain: InlineTextTransform::default().to_string(inlines),
-                    rendered: render_inline_nodes_with_styles_to_owned(inlines, processor)?,
-                })
-            };
-            processor.add_index_entry(IndexTermEntry {
-                primary: render_label(it.term())?,
-                secondary: it.secondary().map(render_label).transpose()?,
-                tertiary: it.tertiary().map(render_label).transpose()?,
-            });
-
-            if it.is_visible() {
-                write!(
-                    w,
-                    "{}",
-                    render_inline_nodes_with_styles_to_owned(it.term(), processor)?
-                )?;
-            }
-        }
+        InlineMacro::IndexTerm(term) => render_index_term_to_writer(term, w, processor)?,
         _ => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
@@ -677,6 +659,45 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             )
             .into());
         }
+    }
+    Ok(())
+}
+
+fn render_index_term_to_writer<W: Write + ?Sized>(
+    term: &IndexTerm<'_>,
+    w: &mut W,
+    processor: &Processor<'_>,
+) -> Result<(), crate::Error> {
+    let render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
+        Ok(IndexTermLabel {
+            plain: InlineTextTransform::default().to_string(inlines),
+            rendered: render_inline_nodes_with_styles_to_owned(inlines, processor)?,
+        })
+    };
+    processor.add_index_entry(IndexTermEntry {
+        primary: render_label(term.term())?,
+        secondary: term.secondary().map(render_label).transpose()?,
+        tertiary: term.tertiary().map(render_label).transpose()?,
+        relationship: match term.relationship.as_ref() {
+            Some(IndexTermRelationship::See { target }) => {
+                IndexCatalogRelationship::See(render_label(target)?)
+            }
+            Some(IndexTermRelationship::SeeAlso { targets }) => IndexCatalogRelationship::SeeAlso(
+                targets
+                    .iter()
+                    .map(|target| render_label(target))
+                    .collect::<Result<_, _>>()?,
+            ),
+            None | Some(_) => IndexCatalogRelationship::None,
+        },
+    });
+
+    if term.is_visible() {
+        write!(
+            w,
+            "{}",
+            render_inline_nodes_with_styles_to_owned(term.term(), processor)?
+        )?;
     }
     Ok(())
 }

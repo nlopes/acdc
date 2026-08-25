@@ -37,6 +37,14 @@ pub(crate) struct IndexTermEntry {
     pub(crate) primary: IndexTermLabel,
     pub(crate) secondary: Option<IndexTermLabel>,
     pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) relationship: IndexCatalogRelationship,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum IndexCatalogRelationship {
+    None,
+    See(IndexTermLabel),
+    SeeAlso(Vec<IndexTermLabel>),
 }
 
 #[derive(Clone, Debug)]

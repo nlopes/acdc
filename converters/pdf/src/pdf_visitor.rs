@@ -23,9 +23,9 @@ use acdc_parser::{
     Anchor, AttributeValue, Autolink, Block, BlockMetadata, Caption, CaptionKind, ColumnStyle,
     ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
     DescriptionListItem, ElementAttributes, HorizontalAlignment, Icon, Image, IndexTerm,
-    InlineMacro, InlineNode, ListItem, Location, Menu, Paragraph, Raw, Section, SectionKind,
-    Source, Substitution, Table, TableColumn, TableFrame, TableGrid, TableOfContents,
-    TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
+    IndexTermRelationship, InlineMacro, InlineNode, ListItem, Location, Menu, Paragraph, Raw,
+    Section, SectionKind, Source, Substitution, Table, TableColumn, TableFrame, TableGrid,
+    TableOfContents, TablePresentation, TableStripes, Title, TocEntry, VerticalAlignment,
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
@@ -37,7 +37,7 @@ use unicode_width::UnicodeWidthChar;
 use crate::{
     Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
     has_autofit_option,
-    index::{CatalogTerm, IndexCatalog, PageSequenceStyle},
+    index::{CatalogRelationship, CatalogTerm, IndexCatalog, PageSequenceStyle},
     warn_with_advice_at,
 };
 
@@ -2990,7 +2990,22 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 .tertiary()
                 .map(|inlines| self.render_index_catalog_term(inlines))
                 .transpose()?;
-            if let Some(anchor) = self.index_catalog.add(primary, secondary, tertiary) {
+            let relationship = match term.relationship.as_ref() {
+                Some(IndexTermRelationship::See { target }) => {
+                    CatalogRelationship::See(self.render_index_catalog_term(target)?)
+                }
+                Some(IndexTermRelationship::SeeAlso { targets }) => CatalogRelationship::SeeAlso(
+                    targets
+                        .iter()
+                        .map(|target| self.render_index_catalog_term(target))
+                        .collect::<Result<_, _>>()?,
+                ),
+                None | Some(_) => CatalogRelationship::None,
+            };
+            if let Some(anchor) = self
+                .index_catalog
+                .add(primary, secondary, tertiary, relationship)
+            {
                 let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
             }
         }

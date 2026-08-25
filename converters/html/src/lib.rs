@@ -121,11 +121,19 @@ pub(crate) struct IndexTermEntry {
     pub(crate) primary: IndexTermLabel,
     pub(crate) secondary: Option<IndexTermLabel>,
     pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) relationship: IndexCatalogRelationship,
     pub(crate) anchor_id: String,
     /// Plain-text title of the section the term occurs in, used as the
     /// back-link label. `None` for terms outside any section (e.g. the
     /// preamble), which fall back to the document title.
     pub(crate) section_title: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum IndexCatalogRelationship {
+    None,
+    See(IndexTermLabel),
+    SeeAlso(Vec<IndexTermLabel>),
 }
 
 #[derive(Clone, Debug)]
@@ -256,6 +264,7 @@ impl<'a> Processor<'a> {
         primary: IndexTermLabel,
         secondary: Option<IndexTermLabel>,
         tertiary: Option<IndexTermLabel>,
+        relationship: IndexCatalogRelationship,
         section_title: Option<String>,
     ) -> String {
         let count = self.index_term_counter.get();
@@ -266,6 +275,7 @@ impl<'a> Processor<'a> {
             primary,
             secondary,
             tertiary,
+            relationship,
             anchor_id: anchor_id.clone(),
             section_title,
         });

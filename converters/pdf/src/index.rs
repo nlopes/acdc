@@ -1,4 +1,8 @@
-use std::{cmp::Ordering, collections::BTreeMap, fmt::Write as _};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write as _,
+};
 
 use acdc_pdf_typst::Writer;
 
@@ -45,11 +49,25 @@ impl PartialOrd for TermKey {
 struct IndexEntry {
     anchors: Vec<usize>,
     children: BTreeMap<TermKey, IndexEntry>,
+    relationship: Option<IndexRelationship>,
 }
 
+#[derive(Debug)]
 pub(crate) struct CatalogTerm {
     pub(crate) plain: String,
     pub(crate) markup: String,
+}
+
+pub(crate) enum CatalogRelationship {
+    None,
+    See(CatalogTerm),
+    SeeAlso(Vec<CatalogTerm>),
+}
+
+#[derive(Debug)]
+enum IndexRelationship {
+    See(TermKey),
+    SeeAlso(BTreeSet<TermKey>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -96,6 +114,7 @@ impl IndexCatalog {
         primary: CatalogTerm,
         secondary: Option<CatalogTerm>,
         tertiary: Option<CatalogTerm>,
+        relationship: CatalogRelationship,
     ) -> Option<usize> {
         if self.suspended {
             return None;
@@ -116,6 +135,7 @@ impl IndexCatalog {
             (None, _) => primary,
         };
         target.anchors.push(anchor);
+        target.merge_relationship(relationship);
 
         Some(anchor)
     }
@@ -135,6 +155,7 @@ impl IndexCatalog {
         if columns > 1 {
             let _ = writeln!(writer, "#columns({columns}, gutter: {column_gap_pt}pt)[");
         }
+        let definitions = definition_labels(&self.terms);
 
         let mut categories: BTreeMap<String, Vec<(&TermKey, &IndexEntry)>> = BTreeMap::new();
         for (term, entry) in &self.terms {
@@ -152,11 +173,35 @@ impl IndexCatalog {
             writer.string_literal(category);
             writer.raw(")]\n#v(0.25em)\n");
             for (term, entry) in terms {
-                write_entry(writer, term, entry, 0, sequence_style);
+                write_entry(writer, term, entry, 0, sequence_style, &definitions);
             }
         }
         if columns > 1 {
             writer.raw("]\n");
+        }
+    }
+}
+
+impl IndexEntry {
+    fn merge_relationship(&mut self, relationship: CatalogRelationship) {
+        match relationship {
+            CatalogRelationship::None => {}
+            CatalogRelationship::See(target) => {
+                if !matches!(self.relationship, Some(IndexRelationship::See(_))) {
+                    self.relationship = Some(IndexRelationship::See(TermKey::new(target)));
+                }
+            }
+            CatalogRelationship::SeeAlso(targets) => match &mut self.relationship {
+                Some(IndexRelationship::See(_)) => {}
+                Some(IndexRelationship::SeeAlso(existing)) => {
+                    existing.extend(targets.into_iter().map(TermKey::new));
+                }
+                None => {
+                    self.relationship = Some(IndexRelationship::SeeAlso(
+                        targets.into_iter().map(TermKey::new).collect(),
+                    ));
+                }
+            },
         }
     }
 }
@@ -180,18 +225,32 @@ fn write_entry(
     entry: &IndexEntry,
     depth: usize,
     sequence_style: PageSequenceStyle,
+    definitions: &BTreeMap<String, String>,
 ) {
+    let definition = (depth == 0).then(|| definitions.get(&term.plain)).flatten();
+    if let Some(definition) = definition
+        && *definition == definition_label(term)
+    {
+        writer.raw("#metadata(none) <");
+        writer.raw(definition);
+        writer.raw(">\n");
+    }
     if depth > 0 {
         let _ = write!(writer, "#pad(left: {depth} * 1.25em)[");
     }
     writer.raw("#par(hanging-indent: 1em)[");
     writer.raw(&term.markup);
-    if !entry.anchors.is_empty() {
+    if !matches!(entry.relationship, Some(IndexRelationship::See(_))) && !entry.anchors.is_empty() {
         writer.raw("#_acdc_index_pages((");
         for anchor in &entry.anchors {
             let _ = write!(writer, "<__indexterm-{anchor}>,");
         }
         let _ = write!(writer, "), \"{}\")", sequence_style.typst());
+    }
+    if let Some(IndexRelationship::See(target)) = &entry.relationship {
+        writer.raw(" (see ");
+        write_relationship_target(writer, target, sequence_style, definitions);
+        writer.raw(")");
     }
     writer.raw("]");
     if depth > 0 {
@@ -199,9 +258,96 @@ fn write_entry(
     }
     writer.raw("\n");
 
-    for (child, child_entry) in &entry.children {
-        write_entry(writer, child, child_entry, depth + 1, sequence_style);
+    if let Some(IndexRelationship::SeeAlso(targets)) = &entry.relationship {
+        for target in targets {
+            write_see_also(writer, target, depth + 1, sequence_style, definitions);
+        }
     }
+
+    for (child, child_entry) in &entry.children {
+        write_entry(
+            writer,
+            child,
+            child_entry,
+            depth + 1,
+            sequence_style,
+            definitions,
+        );
+    }
+}
+
+fn write_see_also(
+    writer: &mut Writer,
+    target: &TermKey,
+    depth: usize,
+    sequence_style: PageSequenceStyle,
+    definitions: &BTreeMap<String, String>,
+) {
+    let _ = write!(
+        writer,
+        "#pad(left: {depth} * 1.25em)[#par(hanging-indent: 1em)[(see also "
+    );
+    write_relationship_target(writer, target, sequence_style, definitions);
+    writer.raw(")]]\n");
+}
+
+fn write_relationship_target(
+    writer: &mut Writer,
+    target: &TermKey,
+    sequence_style: PageSequenceStyle,
+    definitions: &BTreeMap<String, String>,
+) {
+    if sequence_style != PageSequenceStyle::Print
+        && let Some(definition) = definitions.get(&target.plain)
+    {
+        writer.raw("#link(<");
+        writer.raw(definition);
+        writer.raw(">)[");
+        writer.raw(&target.markup);
+        writer.raw("]");
+    } else {
+        writer.raw(&target.markup);
+    }
+}
+
+fn definition_labels(terms: &BTreeMap<TermKey, IndexEntry>) -> BTreeMap<String, String> {
+    let mut targets = BTreeSet::new();
+    collect_relationship_targets(terms.values(), &mut targets);
+    targets
+        .into_iter()
+        .filter_map(|target| {
+            terms
+                .keys()
+                .find(|term| term.plain == target)
+                .map(|term| (target, definition_label(term)))
+        })
+        .collect()
+}
+
+fn collect_relationship_targets<'a>(
+    entries: impl Iterator<Item = &'a IndexEntry>,
+    targets: &mut BTreeSet<String>,
+) {
+    for entry in entries {
+        match &entry.relationship {
+            Some(IndexRelationship::See(target)) => {
+                targets.insert(target.plain.clone());
+            }
+            Some(IndexRelationship::SeeAlso(related)) => {
+                targets.extend(related.iter().map(|target| target.plain.clone()));
+            }
+            None => {}
+        }
+        collect_relationship_targets(entry.children.values(), targets);
+    }
+}
+
+fn definition_label(term: &TermKey) -> String {
+    let mut label = String::from("__indextermdef-");
+    for byte in term.plain.bytes().chain([0]).chain(term.markup.bytes()) {
+        let _ = write!(label, "{byte:02x}");
+    }
+    label
 }
 
 const INDEX_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = context {

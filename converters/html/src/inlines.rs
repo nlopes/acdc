@@ -61,13 +61,13 @@ use acdc_converters_core::{
 use acdc_parser::{
     AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
     CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
-    InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu, Monospace, Pass, Plain, Raw,
-    Stem, StemNotation, Subscript, Substitution, Superscript, Url, Verbatim, parse_text_for_quotes,
-    strip_quotes, substitute,
+    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu,
+    Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url,
+    Verbatim, parse_text_for_quotes, strip_quotes, substitute,
 };
 
 use crate::{
-    Error, HtmlVisitor, IndexTermLabel, RenderOptions,
+    Error, HtmlVisitor, IndexCatalogRelationship, IndexTermLabel, RenderOptions,
     constants::{encode_html_entities, escape_ampersands},
     icon::write_icon,
     image::image_link_control_attributes,
@@ -1256,10 +1256,25 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 .tertiary()
                 .map(|inlines| self.render_index_term_label(inlines, options, subs))
                 .transpose()?;
+            let relationship = match it.relationship.as_ref() {
+                Some(IndexTermRelationship::See { target }) => IndexCatalogRelationship::See(
+                    self.render_index_term_label(target, options, subs)?,
+                ),
+                Some(IndexTermRelationship::SeeAlso { targets }) => {
+                    IndexCatalogRelationship::SeeAlso(
+                        targets
+                            .iter()
+                            .map(|target| self.render_index_term_label(target, options, subs))
+                            .collect::<Result<_, _>>()?,
+                    )
+                }
+                None | Some(_) => IndexCatalogRelationship::None,
+            };
             let anchor_id = self.processor.clone().add_index_entry(
                 primary,
                 secondary,
                 tertiary,
+                relationship,
                 self.current_section_title.clone(),
             );
             write!(self.writer_mut(), "<a id=\"{anchor_id}\"></a>")?;

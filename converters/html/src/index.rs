@@ -17,12 +17,15 @@
 //! therefore intentionally diverge from asciidoctor; fixtures without the
 //! attribute stay byte-identical.
 
-use std::{collections::BTreeMap, io::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Write,
+};
 
 use acdc_converters_core::visitor::WritableVisitor;
 use acdc_parser::Section;
 
-use crate::{Error, HtmlVisitor, IndexTermEntry, IndexTermLabel};
+use crate::{Error, HtmlVisitor, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel};
 
 /// A single occurrence of a term: the anchor to jump to, and the title of the
 /// section it occurs in (`None` outside any section — falls back to the doc title).
@@ -44,19 +47,15 @@ impl Occurrence {
 /// Represents a single index entry with all its occurrences.
 #[derive(Debug, Default)]
 struct IndexEntry {
-    /// Occurrences of this term (for linking)
     occurrences: Vec<Occurrence>,
-    /// Nested secondary terms (if any)
-    secondary: BTreeMap<IndexTermLabel, SecondaryEntry>,
+    children: BTreeMap<IndexTermLabel, IndexEntry>,
+    relationship: Option<IndexRelationship>,
 }
 
-/// Represents a secondary-level index entry.
-#[derive(Debug, Default)]
-struct SecondaryEntry {
-    /// Occurrences of this secondary term
-    occurrences: Vec<Occurrence>,
-    /// Nested tertiary terms (if any)
-    tertiary: BTreeMap<IndexTermLabel, Vec<Occurrence>>,
+#[derive(Debug)]
+enum IndexRelationship {
+    See(IndexTermLabel),
+    SeeAlso(BTreeSet<IndexTermLabel>),
 }
 
 /// Build a hierarchical index structure from collected entries.
@@ -65,27 +64,42 @@ fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<IndexTermLabel,
 
     for entry in entries {
         let occurrence = Occurrence::from_entry(entry);
-        let primary_entry = index.entry(entry.primary.clone()).or_default();
-        match (&entry.secondary, &entry.tertiary) {
-            (None, _) => primary_entry.occurrences.push(occurrence),
-            (Some(secondary), None) => primary_entry
-                .secondary
-                .entry(secondary.clone())
-                .or_default()
-                .occurrences
-                .push(occurrence),
-            (Some(secondary), Some(tertiary)) => primary_entry
-                .secondary
-                .entry(secondary.clone())
-                .or_default()
-                .tertiary
-                .entry(tertiary.clone())
-                .or_default()
-                .push(occurrence),
+        let mut target = index.entry(entry.primary.clone()).or_default();
+        if let Some(secondary) = &entry.secondary {
+            target = target.children.entry(secondary.clone()).or_default();
         }
+        if let Some(tertiary) = &entry.tertiary {
+            target = target.children.entry(tertiary.clone()).or_default();
+        }
+        target.occurrences.push(occurrence);
+        target.merge_relationship(&entry.relationship);
     }
 
     index
+}
+
+impl IndexEntry {
+    fn merge_relationship(&mut self, relationship: &IndexCatalogRelationship) {
+        match relationship {
+            IndexCatalogRelationship::None => {}
+            IndexCatalogRelationship::See(target) => {
+                if !matches!(self.relationship, Some(IndexRelationship::See(_))) {
+                    self.relationship = Some(IndexRelationship::See(target.clone()));
+                }
+            }
+            IndexCatalogRelationship::SeeAlso(targets) => match &mut self.relationship {
+                Some(IndexRelationship::See(_)) => {}
+                Some(IndexRelationship::SeeAlso(existing)) => {
+                    existing.extend(targets.iter().cloned());
+                }
+                None => {
+                    self.relationship = Some(IndexRelationship::SeeAlso(
+                        targets.iter().cloned().collect(),
+                    ));
+                }
+            },
+        }
+    }
 }
 
 /// Group index entries by their first letter (case-insensitive).
@@ -143,6 +157,123 @@ fn render_links(occurrences: &[Occurrence], fallback: &str) -> String {
         .join(", ")
 }
 
+fn collect_relationship_targets(
+    entries: &BTreeMap<IndexTermLabel, IndexEntry>,
+) -> BTreeSet<String> {
+    let mut targets = BTreeSet::new();
+    for entry in entries.values() {
+        match &entry.relationship {
+            Some(IndexRelationship::See(target)) => {
+                targets.insert(target.plain.clone());
+            }
+            Some(IndexRelationship::SeeAlso(related)) => {
+                targets.extend(related.iter().map(|target| target.plain.clone()));
+            }
+            None => {}
+        }
+        targets.extend(collect_relationship_targets(&entry.children));
+    }
+    targets
+}
+
+fn definition_terms(
+    index: &BTreeMap<IndexTermLabel, IndexEntry>,
+) -> BTreeMap<String, IndexTermLabel> {
+    collect_relationship_targets(index)
+        .into_iter()
+        .filter_map(|target| {
+            index
+                .keys()
+                .find(|term| term.plain == target)
+                .cloned()
+                .map(|term| (target, term))
+        })
+        .collect()
+}
+
+fn definition_id(term: &str) -> String {
+    let mut id = String::from("_indextermdef_");
+    for byte in term.bytes() {
+        id.push(char::from_digit(u32::from(byte >> 4), 16).unwrap_or('0'));
+        id.push(char::from_digit(u32::from(byte & 0x0f), 16).unwrap_or('0'));
+    }
+    id
+}
+
+fn render_relationship_target(
+    target: &IndexTermLabel,
+    definitions: &BTreeMap<String, IndexTermLabel>,
+) -> String {
+    if definitions.contains_key(&target.plain) {
+        format!(
+            "<a href=\"#{}\">{}</a>",
+            definition_id(&target.plain),
+            target.html
+        )
+    } else {
+        target.html.clone()
+    }
+}
+
+fn render_entries<W: Write + ?Sized>(
+    w: &mut W,
+    entries: &BTreeMap<IndexTermLabel, IndexEntry>,
+    depth: usize,
+    fallback: &str,
+    definitions: &BTreeMap<String, IndexTermLabel>,
+) -> Result<(), Error> {
+    for (term, entry) in entries {
+        if depth == 0 && definitions.get(&term.plain) == Some(term) {
+            writeln!(w, "<dt id=\"{}\">{}", definition_id(&term.plain), term.html)?;
+        } else {
+            writeln!(w, "<dt>{}", term.html)?;
+        }
+
+        match &entry.relationship {
+            Some(IndexRelationship::See(target)) => {
+                write!(
+                    w,
+                    " <span class=\"index-see\">(see {})</span>",
+                    render_relationship_target(target, definitions)
+                )?;
+            }
+            Some(IndexRelationship::SeeAlso(_)) | None => {
+                if !entry.occurrences.is_empty() {
+                    write!(w, " {}", render_links(&entry.occurrences, fallback))?;
+                }
+            }
+        }
+        writeln!(w, "</dt>")?;
+
+        let see_also = match &entry.relationship {
+            Some(IndexRelationship::SeeAlso(targets)) => Some(targets),
+            Some(IndexRelationship::See(_)) | None => None,
+        };
+        if see_also.is_some() || !entry.children.is_empty() {
+            let class = match depth {
+                0 => "indexterms-secondary",
+                1 => "indexterms-tertiary",
+                _ => "indexterms-related",
+            };
+            writeln!(w, "<dd>")?;
+            writeln!(w, "<dl class=\"{class}\">")?;
+            if let Some(targets) = see_also {
+                for target in targets {
+                    writeln!(
+                        w,
+                        "<dt><span class=\"index-see-also\">(see also {})</span></dt>",
+                        render_relationship_target(target, definitions)
+                    )?;
+                }
+            }
+            render_entries(w, &entry.children, depth + 1, fallback, definitions)?;
+            writeln!(w, "</dl>")?;
+            writeln!(w, "</dd>")?;
+        }
+    }
+    Ok(())
+}
+
 /// Render the index catalog for a section with `[index]` style.
 ///
 /// This generates nested definition lists organized alphabetically by first letter.
@@ -165,6 +296,7 @@ pub(crate) fn render<W: Write>(
         .map_or_else(|| "top".to_string(), std::borrow::Cow::into_owned);
 
     let index = build_index_structure(&entries);
+    let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);
 
     let w = visitor.writer_mut();
@@ -174,45 +306,7 @@ pub(crate) fn render<W: Write>(
         writeln!(w, "<h3 class=\"indexletter\">{letter}</h3>")?;
         writeln!(w, "<dl class=\"indexterms\">")?;
 
-        for (term, entry) in terms {
-            writeln!(w, "<dt>{}", term.html)?;
-            if !entry.occurrences.is_empty() {
-                write!(w, " {}", render_links(&entry.occurrences, &fallback))?;
-            }
-            writeln!(w, "</dt>")?;
-
-            if !entry.secondary.is_empty() {
-                writeln!(w, "<dd>")?;
-                writeln!(w, "<dl class=\"indexterms-secondary\">")?;
-
-                for (secondary, sec_entry) in &entry.secondary {
-                    writeln!(w, "<dt>{}", secondary.html)?;
-                    if !sec_entry.occurrences.is_empty() {
-                        write!(w, " {}", render_links(&sec_entry.occurrences, &fallback))?;
-                    }
-                    writeln!(w, "</dt>")?;
-
-                    if !sec_entry.tertiary.is_empty() {
-                        writeln!(w, "<dd>")?;
-                        writeln!(w, "<dl class=\"indexterms-tertiary\">")?;
-
-                        for (tertiary, occurrences) in &sec_entry.tertiary {
-                            writeln!(w, "<dt>{}", tertiary.html)?;
-                            if !occurrences.is_empty() {
-                                write!(w, " {}", render_links(occurrences, &fallback))?;
-                            }
-                            writeln!(w, "</dt>")?;
-                        }
-
-                        writeln!(w, "</dl>")?;
-                        writeln!(w, "</dd>")?;
-                    }
-                }
-
-                writeln!(w, "</dl>")?;
-                writeln!(w, "</dd>")?;
-            }
-        }
+        render_entries(w, terms, 0, &fallback, &definitions)?;
 
         writeln!(w, "</dl>")?;
     }

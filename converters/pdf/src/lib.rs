@@ -30,8 +30,8 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttributes, InlineMacro, InlineNode, ListItem, Location, Reference, SafeMode,
-    Source, SourceLocation, Table,
+    Document, DocumentAttributes, IndexTermRelationship, InlineMacro, InlineNode, ListItem,
+    Location, Reference, SafeMode, Source, SourceLocation, Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -1196,6 +1196,17 @@ fn collect_inline_preparation(
                 }
                 if let Some(tertiary) = term.tertiary() {
                     collect_inline_preparation(tertiary, context, preparation);
+                }
+                match term.relationship.as_ref() {
+                    Some(IndexTermRelationship::See { target }) => {
+                        collect_inline_preparation(target, context, preparation);
+                    }
+                    Some(IndexTermRelationship::SeeAlso { targets }) => {
+                        for target in targets {
+                            collect_inline_preparation(target, context, preparation);
+                        }
+                    }
+                    None | Some(_) => {}
                 }
             }
             InlineNode::PlainText(_)
