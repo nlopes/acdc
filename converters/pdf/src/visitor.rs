@@ -3,7 +3,9 @@ use std::{borrow::Cow, fmt::Write as _};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    Doctype, inlines_to_string,
+    Doctype,
+    icon::IconMode,
+    inlines_to_string,
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
@@ -17,9 +19,9 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, PdfVisitor, author_name, encode_label, is_unbreakable_delimited_block,
-    is_unbreakable_paragraph,
-    pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState, collapse_source_whitespace},
+    Error, PdfVisitor, admonition_icon_source, author_name, encode_label, is_breakable_table,
+    is_unbreakable_delimited_block, is_unbreakable_paragraph,
+    pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
@@ -281,7 +283,16 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         if unbreakable {
             self.writer.raw("#_acdc_unbreakable[\n");
         }
+        let sticky_anchor = is_breakable_table(block)
+            && (block.metadata.id.is_some() || !block.metadata.anchors.is_empty());
+        if sticky_anchor {
+            self.writer
+                .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
+        }
         self.write_block_anchor(&block.metadata);
+        if sticky_anchor {
+            self.writer.raw("]\n");
+        }
 
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
@@ -317,6 +328,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         self.list_depth -= 1;
         let indent = "  ".repeat(self.list_depth);
         let _ = writeln!(self.writer, "{indent}]");
+        self.write_ordered_list_end(&list.metadata);
         self.writer.raw("\n");
         Ok(())
     }
@@ -327,11 +339,19 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         if list.metadata.style == Some("bibliography") {
             return self.write_bibliography_list(list);
         }
+        let styled = self.write_unordered_list_start(&list.metadata);
         self.list_depth += 1;
+        self.unordered_list_depth += 1;
         for item in &list.items {
             self.write_list_item("-", item)?;
         }
+        self.unordered_list_depth -= 1;
         self.list_depth -= 1;
+        if styled {
+            let indent = "  ".repeat(self.list_depth);
+            let _ = writeln!(self.writer, "{indent}]");
+            self.write_unordered_list_end();
+        }
         self.writer.raw("\n");
         Ok(())
     }
@@ -390,9 +410,24 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 AdmonitionVariant::Caution => "caution",
                 AdmonitionVariant::Warning => "warning",
             };
-            self.writer.raw("#callout(");
-            self.writer.string_literal(kind);
-            self.writer.raw(")[\n");
+            let image_icon = (IconMode::from(self.processor.document_attributes())
+                != IconMode::Text)
+                .then(|| admon.metadata.attributes.get_string("icon"))
+                .flatten()
+                .filter(|icon| !icon.is_empty())
+                .map(|icon| admonition_icon_source(self.processor.document_attributes(), &icon))
+                .and_then(|source| self.asset_virtual_path(&source));
+            if let Some(path) = image_icon {
+                self.writer.raw("#_acdc_image_callout(image(");
+                self.writer.string_literal(&path);
+                self.writer.raw(", width: 36pt, alt: ");
+                self.writer.string_literal(kind);
+                self.writer.raw("))[\n");
+            } else {
+                self.writer.raw("#callout(");
+                self.writer.string_literal(kind);
+                self.writer.raw(")[\n");
+            }
             if !admon.title.is_empty() {
                 self.writer.raw("#admonitiontitle[");
                 self.write_title(&admon.title)?;
@@ -509,6 +544,19 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_page_break(&mut self, br: &PageBreak<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&br.metadata);
+        if br.metadata.attributes.get_string("page-layout").is_some()
+            || br
+                .metadata
+                .roles
+                .iter()
+                .any(|role| matches!(*role, "landscape" | "portrait"))
+        {
+            self.warn_unsupported_once(
+                "page-layout-change",
+                "page-break layout changes are not supported by the PDF backend; keeping the document page layout",
+                "Use Asciidoctor PDF when a document must switch between portrait and landscape pages.",
+            );
+        }
         if br.metadata.options.contains(&"always") {
             if self.explicit_page_break_state == ExplicitPageBreakState::Weak {
                 self.writer.raw("#pagebreak()\n");
@@ -554,11 +602,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_quoted_span(italic.id, italic.role, "#emph[", &italic.content, "]")?;
                 }
                 InlineNode::MonospaceText(mono) => {
-                    let wrappers = self.write_inline_span_start(mono.id, mono.role);
+                    let state = self.write_inline_span_start(mono.id, mono.role);
                     let text = inlines_to_string(&mono.content);
-                    let text = collapse_source_whitespace(&text);
+                    let text = self.normalize_prose_whitespace(&text);
                     self.write_inline_verbatim(&text);
-                    self.write_inline_span_end(wrappers);
+                    self.write_inline_span_end(state);
                 }
                 InlineNode::HighlightText(highlight) => {
                     let (prefix, suffix) = if highlight.id.is_some() || highlight.role.is_some() {
@@ -581,18 +629,18 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_quoted_span(sup.id, sup.role, "#super[", &sup.content, "]")?;
                 }
                 InlineNode::CurvedQuotationText(quoted) => {
-                    let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
+                    let state = self.write_inline_span_start(quoted.id, quoted.role);
                     self.write_text_expr("\u{201C}");
                     self.write_inlines(&quoted.content)?;
                     self.write_text_expr("\u{201D}");
-                    self.write_inline_span_end(wrappers);
+                    self.write_inline_span_end(state);
                 }
                 InlineNode::CurvedApostropheText(quoted) => {
-                    let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
+                    let state = self.write_inline_span_start(quoted.id, quoted.role);
                     self.write_text_expr("\u{2018}");
                     self.write_inlines(&quoted.content)?;
                     self.write_text_expr("\u{2019}");
-                    self.write_inline_span_end(wrappers);
+                    self.write_inline_span_end(state);
                 }
                 InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
                 InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),

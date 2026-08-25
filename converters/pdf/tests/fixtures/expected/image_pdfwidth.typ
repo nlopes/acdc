@@ -117,7 +117,7 @@
 
 #text("PDF width can scale the intrinsic width:")
 
-#block(width: 100%, radius: 4pt, clip: false)[#scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Intrinsic ratio"))]
+#block(width: 100%, radius: 4pt, clip: false)[#context layout(size => { let body = scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Intrinsic ratio")); let body-width = measure(body).width; if body-width > size.width { let factor = size.width / body-width * 100%; scale(x: factor, y: factor, reflow: true, body) } else { body } })]
 
 #text("PDF width can use the page width:")
 
@@ -149,7 +149,7 @@
 
 #text("PDF width in inches: before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "PDF inches", width: 72pt))#text(" after.")
 
-#text("PDF intrinsic ratio: before ")#box(scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Intrinsic ratio")))#text(" after.")
+#text("PDF intrinsic ratio: before ")#box(context layout(size => { let body = scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Intrinsic ratio")); let body-width = measure(body).width; if body-width > size.width { let factor = size.width / body-width * 100%; scale(x: factor, y: factor, reflow: true, body) } else { body } }))#text(" after.")
 
 #text("Inline PDF viewport units fall back to points: before ")#box(image("/images/de454d7e4e1cfda7.svg", alt: "Viewport fallback", width: 50pt))#text(" after.")
 

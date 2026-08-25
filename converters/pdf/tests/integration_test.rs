@@ -60,6 +60,21 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
         &mut diagnostics,
     )?;
 
+    if file_name == "silent_metadata" {
+        assert_eq!(
+            warnings
+                .iter()
+                .map(|warning| warning.message.as_ref())
+                .collect::<Vec<_>>(),
+            [
+                "inline image `fit=none` page-height sizing is not supported by the PDF backend; rendering with normal intrinsic sizing",
+                "PHP source block mixed-mode highlighting is not supported by the PDF backend; rendering with Typst's normal PHP highlighter",
+                "page-break layout changes are not supported by the PDF backend; keeping the document page layout",
+            ]
+        );
+        assert!(warnings.iter().all(|warning| warning.advice.is_some()));
+    }
+
     assert!(pdf.starts_with(b"%PDF-"));
     let minimum_pages_path = expected_path.with_extension("min-pages");
     if minimum_pages_path.exists() {

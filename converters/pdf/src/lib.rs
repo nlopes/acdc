@@ -8,6 +8,7 @@
 //! always escaped data and is never interpreted as Typst source.
 
 use std::{
+    borrow::Cow,
     cell::Cell,
     collections::{BTreeSet, HashMap, HashSet},
     fmt::Write as _,
@@ -28,8 +29,9 @@ use acdc_converters_core::{
     xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, Document,
-    DocumentAttributes, InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source, Table,
+    Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
+    Document, DocumentAttributes, InlineMacro, InlineNode, ListItem, Reference, SafeMode, Source,
+    Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -266,6 +268,9 @@ impl Processor<'_> {
         }
         if preparation.has_autofit_blocks {
             write_autofit_helper(&mut visitor.writer, theme);
+        }
+        if preparation.admonition_image_icon_count > 0 {
+            write_admonition_image_helper(&mut visitor.writer, theme);
         }
         visitor.visit_document(doc)?;
         let mut source = visitor.writer.into_string();
@@ -533,6 +538,24 @@ fn write_autofit_helper(writer: &mut Writer, theme: &Theme) {
     );
 }
 
+fn write_admonition_image_helper(writer: &mut Writer, theme: &Theme) {
+    let spacing = &theme.spacing;
+    let _ = write!(
+        writer,
+        "#let _acdc_image_callout(label, body) = pad(left: {}pt, block(width: 100%, inset: (x: {}pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: {}pt, align: (x, _) => if x == 0 {{ center + horizon }} else {{ left + top }}, label, grid.cell(stroke: (left: {}pt + rgb(",
+        spacing.callout_indent_pt,
+        spacing.callout_pad_x_pt,
+        spacing.callout_pad_x_pt,
+        spacing.border_pt,
+    );
+    writer.string_literal(&theme.palette.border);
+    let _ = writeln!(
+        writer,
+        ")), inset: (left: {}pt), body))))",
+        spacing.callout_pad_x_pt,
+    );
+}
+
 const fn page_width_points(page: PageSize) -> f64 {
     match page {
         PageSize::A4 => 595.276,
@@ -745,12 +768,49 @@ struct PdfPreparation {
     has_index_terms: bool,
     has_unbreakable_blocks: bool,
     has_autofit_blocks: bool,
+    admonition_image_icon_count: usize,
     populated_index_sections: HashSet<String>,
 }
 
 struct ImageIconReference {
     source: String,
     target: String,
+}
+
+pub(crate) fn admonition_icon_source(attributes: &DocumentAttributes<'_>, target: &str) -> String {
+    let target = if Path::new(target.split(['?', '#']).next().unwrap_or(target))
+        .extension()
+        .is_some()
+    {
+        Cow::Borrowed(target)
+    } else {
+        let extension = attributes
+            .get_string("icontype")
+            .or_else(|| {
+                attributes.get_string("icons").filter(|value| {
+                    !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
+                })
+            })
+            .unwrap_or_else(|| "png".into());
+        Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
+    };
+    if target.starts_with('/') || target.contains("://") {
+        return target.into_owned();
+    }
+    let directory = attributes.get_string("iconsdir").map_or_else(
+        || {
+            attributes.get_string("imagesdir").map_or_else(
+                || "./images/icons".to_string(),
+                |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
+            )
+        },
+        |iconsdir| iconsdir.trim_end_matches(['/', '\\']).to_string(),
+    );
+    if directory.is_empty() {
+        target.into_owned()
+    } else {
+        format!("{directory}/{target}")
+    }
 }
 
 impl PdfPreparation {
@@ -760,11 +820,12 @@ impl PdfPreparation {
     }
 
     fn insert_image_icon(&mut self, source: String, target: &Source<'_>) {
+        self.insert_named_image_icon(source, target.to_string());
+    }
+
+    fn insert_named_image_icon(&mut self, source: String, target: String) {
         self.image_urls.insert(source.clone());
-        self.image_icons.push(ImageIconReference {
-            source,
-            target: target.to_string(),
-        });
+        self.image_icons.push(ImageIconReference { source, target });
     }
 }
 
@@ -835,10 +896,7 @@ fn collect_block_preparation(
                 }
             }
             Block::Admonition(admonition) => {
-                preparation.has_unbreakable_blocks |=
-                    admonition.metadata.options.contains(&"unbreakable");
-                collect_inline_preparation(admonition.title.as_ref(), context, preparation);
-                collect_block_preparation(&admonition.blocks, context, preparation);
+                collect_admonition_preparation(admonition, context, preparation);
             }
             Block::Image(image) => {
                 collect_inline_preparation(image.title.as_ref(), context, preparation);
@@ -874,6 +932,29 @@ fn collect_block_preparation(
     }
 }
 
+fn collect_admonition_preparation(
+    admonition: &Admonition<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
+    if context.icon_mode != IconMode::Text
+        && let Some(icon) = admonition
+            .metadata
+            .attributes
+            .get_string("icon")
+            .filter(|icon| !icon.is_empty())
+    {
+        preparation.admonition_image_icon_count += 1;
+        preparation.insert_named_image_icon(
+            admonition_icon_source(context.attributes, &icon),
+            icon.into_owned(),
+        );
+    }
+    collect_inline_preparation(admonition.title.as_ref(), context, preparation);
+    collect_block_preparation(&admonition.blocks, context, preparation);
+}
+
 fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
     paragraph.metadata.options.contains(&"unbreakable")
         && matches!(
@@ -896,6 +977,12 @@ fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
                 | DelimitedBlockType::DelimitedTable(_)
                 | DelimitedBlockType::DelimitedVerse(_)
         )
+}
+
+fn is_breakable_table(block: &DelimitedBlock<'_>) -> bool {
+    block.metadata.options.contains(&"breakable")
+        && !block.metadata.options.contains(&"unbreakable")
+        && matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
 }
 
 fn is_autofit_paragraph(
@@ -1122,6 +1209,27 @@ mod tests {
             assert!(rendered.pdf.starts_with(b"%PDF-"));
         }
         Ok(warnings)
+    }
+
+    #[test]
+    fn admonition_icon_source_honors_icon_directory_and_type() {
+        let mut attributes = DocumentAttributes::default();
+        attributes.set("imagesdir".into(), "media".into());
+        attributes.set("icons".into(), "svg".into());
+
+        assert_eq!(
+            admonition_icon_source(&attributes, "custom-note"),
+            "media/icons/custom-note.svg"
+        );
+        attributes.set("iconsdir".into(), "assets/icons/".into());
+        assert_eq!(
+            admonition_icon_source(&attributes, "custom-note.png"),
+            "assets/icons/custom-note.png"
+        );
+        assert_eq!(
+            admonition_icon_source(&attributes, "https://example.com/note"),
+            "https://example.com/note.svg"
+        );
     }
 
     fn rendered_page_count(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
@@ -1413,6 +1521,36 @@ mod tests {
                 .any(|page| page.contains("CODE80")),
             "{oversized_pages:?}"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn breakable_table_keeps_its_caption_with_the_first_row()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let mut input = String::from("= Breakable table probe\n\n");
+        for line in 1..=24 {
+            let _ = writeln!(input, "FILL{line:02} filler paragraph.\n");
+        }
+        input.push_str(
+            ".TARGET TABLE CAPTION\n[#target-table%breakable]\n|===\n|FIRST ROW CELL WITH ENOUGH WORDS TO WRAP ACROSS SEVERAL LINES AND REQUIRE MORE VERTICAL SPACE THAN IS LEFT AFTER THE CAPTION\n\n|SECOND ROW\n|===\n\nAFTER TABLE.\n",
+        );
+
+        let pages = rendered_page_texts(&input)?;
+        let caption_page = pages
+            .iter()
+            .position(|page| page.contains("TARGET TABLE CAPTION"))
+            .ok_or_else(|| std::io::Error::other("missing table caption"))?;
+        let first_row_page = pages
+            .iter()
+            .position(|page| page.contains("FIRST ROW CELL"))
+            .ok_or_else(|| std::io::Error::other("missing first table row"))?;
+
+        assert_eq!(caption_page, first_row_page, "{pages:?}");
+        let previous_page = caption_page
+            .checked_sub(1)
+            .and_then(|index| pages.get(index))
+            .ok_or_else(|| std::io::Error::other("missing page before table"))?;
+        assert!(previous_page.contains("FILL24"), "{pages:?}");
         Ok(())
     }
 

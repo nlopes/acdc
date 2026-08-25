@@ -56,6 +56,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PDF output now applies the built-in `big`, `small`, `subtitle`, `underline`,
+  and `line-through` paragraph roles and preserves repeated spaces in inline
+  text marked `.pre-wrap`. Ordered and unordered lists honor the markerless
+  and explicit bullet styles without leaking those styles into nested lists,
+  matching Asciidoctor PDF.
+- Images now honor `scale` and `scaledwidth` after `pdfwidth`, inline images
+  honor `fit=line`, and block images marked `%align-to-page`
+  align relative to the physical page. Block-specific admonition image icons
+  resolve through `iconsdir`, `%breakable` tables keep their ID and caption
+  with the first row, and macro table-of-contents blocks honor `%noheader` and
+  `%nofooter`, matching Asciidoctor PDF.
+- Inline images marked `fit=none`, PHP source blocks marked `%mixed`, and page
+  breaks that request a different `page-layout` now emit one structured
+  warning per document. ACDC uses normal intrinsic image sizing, Typst's normal
+  PHP highlighting, and the document page layout; use Asciidoctor PDF when the
+  full fallback behavior is required.
 - Admonition, source, listing, literal, example, open, quote, verse, sidebar,
   stem, and table blocks marked `%unbreakable` now move intact to the next page
   when they fit there. Blocks taller than a page remain breakable, matching

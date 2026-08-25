@@ -146,6 +146,6 @@
 
 #text("Sized link: ")#box(link("https://example.com/sized")[#image("/images/de454d7e4e1cfda7.svg", alt: "Sized link", width: 75pt)])
 
-#text("Scaled link: ")#box(link("https://example.com/scaled")[#scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Scaled link"))])
+#text("Scaled link: ")#box(link("https://example.com/scaled")[#context layout(size => { let body = scale(x: 50%, y: 50%, reflow: true, image("/images/de454d7e4e1cfda7.svg", alt: "Scaled link")); let body-width = measure(body).width; if body-width > size.width { let factor = size.width / body-width * 100%; scale(x: factor, y: factor, reflow: true, body) } else { body } })])
 
 #link("https://example.com/missing-inline")[#text("Missing linked inline image")]
