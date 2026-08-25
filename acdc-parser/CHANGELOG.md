@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Index terms now parse Asciidoctor's named `see` and `see-also` attributes
+  and the spaced `>>` and `&>` shorthand forms. `IndexTerm::relationship`
+  exposes this data as `IndexTermRelationship`; serialized ASG output includes
+  a `relationship` extension only when a relationship is present.
 - Cross-reference macros preserve formatted explicit text through supported
   nested inline macros and escaped closing brackets. Empty cross-references
   also expose the `xrefstyle` and caption-label selection in effect at their

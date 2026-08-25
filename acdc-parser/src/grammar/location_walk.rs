@@ -217,22 +217,34 @@ where
             InlineMacro::Url(u) => self.inlines(&mut u.text),
             InlineMacro::Mailto(m) => self.inlines(&mut m.text),
             InlineMacro::CrossReference(x) => self.inlines(&mut x.text),
-            InlineMacro::IndexTerm(term) => match &mut term.kind {
-                crate::IndexTermKind::Flow(term) => self.inlines(term),
-                crate::IndexTermKind::Concealed {
-                    term,
-                    secondary,
-                    tertiary,
-                } => {
-                    self.inlines(term);
-                    if let Some(secondary) = secondary {
-                        self.inlines(secondary);
-                    }
-                    if let Some(tertiary) = tertiary {
-                        self.inlines(tertiary);
+            InlineMacro::IndexTerm(term) => {
+                match &mut term.kind {
+                    crate::IndexTermKind::Flow(term) => self.inlines(term),
+                    crate::IndexTermKind::Concealed {
+                        term,
+                        secondary,
+                        tertiary,
+                    } => {
+                        self.inlines(term);
+                        if let Some(secondary) = secondary {
+                            self.inlines(secondary);
+                        }
+                        if let Some(tertiary) = tertiary {
+                            self.inlines(tertiary);
+                        }
                     }
                 }
-            },
+                if let Some(relationship) = &mut term.relationship {
+                    match relationship {
+                        crate::IndexTermRelationship::See { target } => self.inlines(target),
+                        crate::IndexTermRelationship::SeeAlso { targets } => {
+                            for target in targets {
+                                self.inlines(target);
+                            }
+                        }
+                    }
+                }
+            }
             InlineMacro::Icon(_)
             | InlineMacro::Image(_)
             | InlineMacro::Keyboard(_)

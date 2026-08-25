@@ -449,6 +449,18 @@ fn map_inline_macro<'a>(
                     }
                 }
             }
+            if let Some(relationship) = &mut index_term.relationship {
+                match relationship {
+                    crate::IndexTermRelationship::See { target } => {
+                        *target = map_inline_locations(state, processed, target, location)?;
+                    }
+                    crate::IndexTermRelationship::SeeAlso { targets } => {
+                        for target in targets {
+                            *target = map_inline_locations(state, processed, target, location)?;
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(InlineNode::Macro(mapped_macro))

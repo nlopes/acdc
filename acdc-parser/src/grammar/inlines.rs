@@ -1,9 +1,9 @@
 use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
     CurvedQuotation, Footnote, Form, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
-    InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto, Menu, Monospace, Pass,
-    PassthroughKind, Plain, Source, StandaloneCurvedApostrophe, Stem, StemNotation, Subscript,
-    Substitution, Superscript, Url,
+    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto,
+    Menu, Monospace, Pass, PassthroughKind, Plain, Source, StandaloneCurvedApostrophe, Stem,
+    StemNotation, Subscript, Substitution, Superscript, Url,
     grammar::{
         ParserState, inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -27,6 +27,16 @@ const EMAIL_LOCAL_PART_MAX: usize = 64;
 struct IndexTermSegment<'a> {
     text: &'a str,
     start: usize,
+}
+
+enum IndexTermRelationshipSegments<'a> {
+    See(IndexTermSegment<'a>),
+    SeeAlso(Vec<IndexTermSegment<'a>>),
+}
+
+enum IndexTermMacroItem<'a> {
+    Term(IndexTermSegment<'a>),
+    Relationship(IndexTermRelationshipSegments<'a>),
 }
 
 fn trimmed_index_term_segment(text: &str, start: usize) -> IndexTermSegment<'_> {
@@ -90,6 +100,49 @@ fn parse_index_term_inlines<'a>(
         });
     }
     Ok(parsed)
+}
+
+fn parse_index_term_relationship<'a>(
+    state: &mut ParserState<'a>,
+    relationship: Option<IndexTermRelationshipSegments<'a>>,
+) -> Result<Option<IndexTermRelationship<'a>>, &'static str> {
+    match relationship {
+        None => Ok(None),
+        Some(IndexTermRelationshipSegments::See(target)) => Ok(Some(IndexTermRelationship::See {
+            target: parse_index_term_inlines(state, target)?,
+        })),
+        Some(IndexTermRelationshipSegments::SeeAlso(targets)) => {
+            let targets = targets
+                .into_iter()
+                .filter(|target| !target.text.is_empty())
+                .map(|target| parse_index_term_inlines(state, target))
+                .collect::<Result<_, _>>()?;
+            Ok(Some(IndexTermRelationship::SeeAlso { targets }))
+        }
+    }
+}
+
+fn partition_index_term_macro_items(
+    items: Vec<IndexTermMacroItem<'_>>,
+) -> (
+    Vec<IndexTermSegment<'_>>,
+    Option<IndexTermRelationshipSegments<'_>>,
+) {
+    let mut terms = Vec::new();
+    let mut see = None;
+    let mut see_also = None;
+    for item in items {
+        match item {
+            IndexTermMacroItem::Term(term) => terms.push(term),
+            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::See(target)) => {
+                see = Some(IndexTermRelationshipSegments::See(target));
+            }
+            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::SeeAlso(targets)) => {
+                see_also = Some(IndexTermRelationshipSegments::SeeAlso(targets));
+            }
+        }
+    }
+    (terms, see.or(see_also))
 }
 
 /// Check whether a byte is safe for the `plain_text` quick path — i.e., it
@@ -687,6 +740,7 @@ peg::parser! {
         rule index_term_concealed() -> InlineNode<'input>
         = "((("
         terms:index_term_list()
+        relationship:index_term_shorthand_relationship()?
         ")))"
         {?
             let mut iter = terms.into_iter();
@@ -704,6 +758,7 @@ peg::parser! {
                         .map(|segment| parse_index_term_inlines(state, segment))
                         .transpose()?,
                 },
+                relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))))
         }
@@ -714,14 +769,15 @@ peg::parser! {
         rule index_term_flow() -> InlineNode<'input>
         = "(("
         !("(")  // Ensure this is not the start of a concealed term
-        term_start:position!()
-        term:$((!"))" [_])+)
+        term:index_term_flow_segment()
+        whitespace()?
+        relationship:index_term_shorthand_relationship()?
         "))"
         {?
-            let term = trimmed_index_term_segment(term, term_start);
             tracing::debug!(term = %term.text, "Found flow index term");
             Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
                 kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
+                relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))))
         }
@@ -730,9 +786,10 @@ peg::parser! {
         /// Concealed (hidden) form - same as (((primary, secondary, tertiary)))
         rule indexterm_macro() -> InlineNode<'input>
         = "indexterm:["
-        terms:index_term_list()
+        items:index_term_macro_list()
         "]"
         {?
+            let (terms, relationship) = partition_index_term_macro_items(items);
             let mut iter = terms.into_iter();
             let term = iter.next().unwrap_or(IndexTermSegment { text: "", start: span_start + "indexterm:[".len() });
             let secondary = iter.next();
@@ -748,6 +805,7 @@ peg::parser! {
                         .map(|segment| parse_index_term_inlines(state, segment))
                         .transpose()?,
                 },
+                relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))))
         }
@@ -756,16 +814,55 @@ peg::parser! {
         /// Flow (visible) form - same as ((term))
         rule indexterm2_macro() -> InlineNode<'input>
         = "indexterm2:["
-        term_start:position!()
-        term:$([^']']+)
+        content_start:position!()
+        items:index_term_macro_list()
+        content_end:position!()
         "]"
         {?
-            let term = trimmed_index_term_segment(term, term_start);
+            let (terms, relationship) = partition_index_term_macro_items(items);
+            let term = if relationship.is_none() {
+                trimmed_index_term_segment(&state.input[content_start..content_end], content_start)
+            } else {
+                terms.into_iter().next().unwrap_or(IndexTermSegment {
+                    text: "",
+                    start: span_start + "indexterm2:[".len(),
+                })
+            };
             tracing::debug!(term = %term.text, "Found indexterm2 macro");
             Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
                 kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
+                relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
             }))))
+        }
+
+        rule index_term_macro_list() -> Vec<IndexTermMacroItem<'input>>
+        = items:(index_term_macro_item() ** ",") { items }
+
+        rule index_term_macro_item() -> IndexTermMacroItem<'input>
+        = whitespace()* "see-also" "=" targets:index_term_see_also_value() whitespace()* {
+            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::SeeAlso(targets))
+        }
+        / whitespace()* "see" "=" target:index_term_relation_value() whitespace()* {
+            IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::See(target))
+        }
+        / term:index_term_segment() { IndexTermMacroItem::Term(term) }
+
+        rule index_term_relation_value() -> IndexTermSegment<'input>
+        = "\"" start:position!() content:$([^'"']*) "\"" {
+            trimmed_index_term_segment(content, start)
+        }
+        / start:position!() content:$([^(',' | ']')]*) {
+            trimmed_index_term_segment(content, start)
+        }
+
+        rule index_term_see_also_value() -> Vec<IndexTermSegment<'input>>
+        = "\"" targets:(index_term_see_also_target() ** ",") "\"" { targets }
+        / target:index_term_relation_value() { vec![target] }
+
+        rule index_term_see_also_target() -> IndexTermSegment<'input>
+        = whitespace()* start:position!() content:$([^(',' | '"')]*) whitespace()* {
+            trimmed_index_term_segment(content, start)
         }
 
         /// Parse comma-separated index term list with support for quoted segments
@@ -786,7 +883,30 @@ peg::parser! {
 
         /// Unquoted segment: term without comma
         rule index_term_unquoted() -> IndexTermSegment<'input>
-        = start:position!() content:$([^('"' | ',' | ')' | ']')]+) { trimmed_index_term_segment(content, start) }
+        = start:position!() content:$((!(" >> " / " &> ") [^('"' | ',' | ')' | ']')])+) {
+            trimmed_index_term_segment(content, start)
+        }
+
+        rule index_term_flow_segment() -> IndexTermSegment<'input>
+        = start:position!() content:$((!(" >> " / " &> " / "))") [_])+) {
+            trimmed_index_term_segment(content, start)
+        }
+
+        rule index_term_shorthand_relationship() -> IndexTermRelationshipSegments<'input>
+        = ">> " target:index_term_shorthand_see_target() {
+            IndexTermRelationshipSegments::See(target)
+        }
+        / "&> " targets:(index_term_shorthand_see_also_target() ** " &> ") {
+            IndexTermRelationshipSegments::SeeAlso(targets)
+        }
+
+        rule index_term_shorthand_see_target() -> IndexTermSegment<'input>
+        = start:position!() content:$([^')']+) { trimmed_index_term_segment(content, start) }
+
+        rule index_term_shorthand_see_also_target() -> IndexTermSegment<'input>
+        = start:position!() content:$((!(" &> ") [^')'])+) {
+            trimmed_index_term_segment(content, start)
+        }
 
         /// Match index term patterns without consuming (for negative lookahead in plain_text)
         rule index_term_match() -> ()

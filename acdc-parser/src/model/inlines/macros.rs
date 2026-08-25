@@ -316,12 +316,32 @@ pub enum IndexTermKind<'a> {
     },
 }
 
+/// A relationship from an index entry to another index term.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum IndexTermRelationship<'a> {
+    /// Readers should use the target term instead of this entry.
+    See {
+        /// The replacement index term.
+        target: Vec<InlineNode<'a>>,
+    },
+    /// Readers can also consult the related terms.
+    SeeAlso {
+        /// The related index terms.
+        targets: Vec<Vec<InlineNode<'a>>>,
+    },
+}
+
 /// An `IndexTerm` represents an index term in a document.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct IndexTerm<'a> {
     /// The kind and content of this index term.
     pub kind: IndexTermKind<'a>,
+    /// The relationship from this entry to other index terms.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relationship: Option<IndexTermRelationship<'a>>,
     pub location: Location,
 }
 
