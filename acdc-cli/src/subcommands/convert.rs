@@ -361,6 +361,7 @@ fn pdf_options_from_args(args: &Args) -> PdfOptions {
             .then(|| chrono::Local::now().format("%Y-%m-%d %H:%M").to_string()),
         page: args.page.map(PdfPageArg::to_page_size),
         page_layout: args.page_layout.map(PdfPageLayoutArg::to_page_layout),
+        page_margin: None,
         theme: args.theme.clone(),
         plain: args.plain,
         toc: args.toc,

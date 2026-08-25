@@ -30,6 +30,17 @@ pub enum Error {
     },
 }
 
+/// An invalid page dimension or margin.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+pub enum PageGeometryError {
+    /// A custom page width or height is not a finite positive value.
+    #[error("custom page dimensions must be finite positive point values")]
+    InvalidDimensions,
+    /// A page margin is negative or is not finite.
+    #[error("page margins must be finite non-negative point values")]
+    InvalidMargins,
+}
+
 /// Metadata embedded in the generated document.
 #[derive(Debug, Clone, Default)]
 pub struct DocumentMetadata {
@@ -108,10 +119,12 @@ pub struct EmitOptions {
     pub metadata: DocumentMetadata,
     /// Language and optional region applied to document text.
     pub locale: DocumentLocale,
-    /// Standard paper size used for every document page.
+    /// Standard or custom size used for every document page.
     pub page: PageSize,
     /// Portrait or landscape layout used for every document page.
     pub page_layout: PageLayout,
+    /// Page margins that override the theme when set.
+    pub page_margin: Option<PageMargins>,
     /// Strip branding chrome (page background, header, footer).
     pub plain: bool,
     /// Whether brand fonts are available at render time. When set, the brand
@@ -136,6 +149,7 @@ impl Default for EmitOptions {
             locale: DocumentLocale::default(),
             page: PageSize::A4,
             page_layout: PageLayout::Portrait,
+            page_margin: None,
             plain: false,
             brand_fonts: false,
             running_header_title: None,
@@ -146,16 +160,25 @@ impl Default for EmitOptions {
     }
 }
 
-/// A supported page size.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// A standard or custom page size.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PageSize {
+    /// ISO A3 paper.
     A3,
+    /// ISO A4 paper.
     A4,
+    /// ISO A5 paper.
     A5,
+    /// US Executive paper.
     Executive,
+    /// US Legal paper.
     Legal,
+    /// US Letter paper.
     Letter,
+    /// US Tabloid paper.
     Tabloid,
+    /// Validated custom portrait dimensions.
+    Custom(PageDimensions),
 }
 
 /// A supported document page layout.
@@ -167,28 +190,166 @@ pub enum PageLayout {
 }
 
 impl PageSize {
+    /// Creates a custom page size from portrait width and height in PDF points.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when either dimension is not finite or is not positive.
+    pub const fn try_custom(
+        width_points: f64,
+        height_points: f64,
+    ) -> Result<Self, PageGeometryError> {
+        match PageDimensions::try_new(width_points, height_points) {
+            Ok(dimensions) => Ok(Self::Custom(dimensions)),
+            Err(error) => Err(error),
+        }
+    }
+
+    /// Returns the page dimensions after applying `layout`.
+    #[must_use]
+    pub const fn dimensions(self, layout: PageLayout) -> PageDimensions {
+        let dimensions = match self {
+            Self::A3 => PageDimensions::known(841.89, 1190.551),
+            Self::A4 => PageDimensions::known(595.276, 841.89),
+            Self::A5 => PageDimensions::known(419.528, 595.276),
+            Self::Executive => PageDimensions::known(522.0, 756.0),
+            Self::Legal => PageDimensions::known(612.0, 1008.0),
+            Self::Letter => PageDimensions::known(612.0, 792.0),
+            Self::Tabloid => PageDimensions::known(792.0, 1224.0),
+            Self::Custom(dimensions) => dimensions,
+        };
+        match layout {
+            PageLayout::Portrait => dimensions,
+            PageLayout::Landscape => dimensions.flipped(),
+        }
+    }
+
     /// Returns the page width after applying `layout`, in PDF points.
     #[must_use]
     pub const fn width_points(self, layout: PageLayout) -> f64 {
-        let (width, height) = match self {
-            Self::A3 => (841.89, 1190.551),
-            Self::A4 => (595.276, 841.89),
-            Self::A5 => (419.528, 595.276),
-            Self::Executive => (522.0, 756.0),
-            Self::Legal => (612.0, 1008.0),
-            Self::Letter => (612.0, 792.0),
-            Self::Tabloid => (792.0, 1224.0),
-        };
-        match layout {
-            PageLayout::Portrait => width,
-            PageLayout::Landscape => height,
+        self.dimensions(layout).width_points()
+    }
+
+    /// Returns the page height after applying `layout`, in PDF points.
+    #[must_use]
+    pub const fn height_points(self, layout: PageLayout) -> f64 {
+        self.dimensions(layout).height_points()
+    }
+}
+
+/// Validated custom page dimensions in PDF points.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PageDimensions {
+    width: f64,
+    height: f64,
+}
+
+impl PageDimensions {
+    const fn known(width: f64, height: f64) -> Self {
+        Self { width, height }
+    }
+
+    /// Creates custom portrait dimensions.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when either dimension is not finite or is not positive.
+    pub const fn try_new(width_points: f64, height_points: f64) -> Result<Self, PageGeometryError> {
+        if !width_points.is_finite()
+            || width_points <= 0.0
+            || !height_points.is_finite()
+            || height_points <= 0.0
+        {
+            return Err(PageGeometryError::InvalidDimensions);
         }
+        Ok(Self::known(width_points, height_points))
+    }
+
+    /// Returns the width in PDF points.
+    #[must_use]
+    pub const fn width_points(self) -> f64 {
+        self.width
+    }
+
+    /// Returns the height in PDF points.
+    #[must_use]
+    pub const fn height_points(self) -> f64 {
+        self.height
+    }
+
+    const fn flipped(self) -> Self {
+        Self::known(self.height, self.width)
+    }
+}
+
+/// Validated page margins in PDF points.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PageMargins {
+    top: f64,
+    right: f64,
+    bottom: f64,
+    left: f64,
+}
+
+impl PageMargins {
+    /// Creates page margins in top, right, bottom, and left order.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any margin is negative or is not finite.
+    pub const fn try_new(
+        top_points: f64,
+        right_points: f64,
+        bottom_points: f64,
+        left_points: f64,
+    ) -> Result<Self, PageGeometryError> {
+        if !top_points.is_finite()
+            || top_points < 0.0
+            || !right_points.is_finite()
+            || right_points < 0.0
+            || !bottom_points.is_finite()
+            || bottom_points < 0.0
+            || !left_points.is_finite()
+            || left_points < 0.0
+        {
+            return Err(PageGeometryError::InvalidMargins);
+        }
+        Ok(Self {
+            top: top_points,
+            right: right_points,
+            bottom: bottom_points,
+            left: left_points,
+        })
+    }
+
+    /// Returns the top margin in PDF points.
+    #[must_use]
+    pub const fn top_points(self) -> f64 {
+        self.top
+    }
+
+    /// Returns the right margin in PDF points.
+    #[must_use]
+    pub const fn right_points(self) -> f64 {
+        self.right
+    }
+
+    /// Returns the bottom margin in PDF points.
+    #[must_use]
+    pub const fn bottom_points(self) -> f64 {
+        self.bottom
+    }
+
+    /// Returns the left margin in PDF points.
+    #[must_use]
+    pub const fn left_points(self) -> f64 {
+        self.left
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{DocumentLocale, Error};
+    use super::{DocumentLocale, Error, PageDimensions, PageGeometryError, PageMargins, PageSize};
 
     #[test]
     fn document_locale_normalizes_supported_codes() {
@@ -226,5 +387,28 @@ mod tests {
                 }),
             );
         }
+    }
+
+    #[test]
+    fn custom_page_geometry_rejects_invalid_values() {
+        for (width, height) in [
+            (0.0, 1.0),
+            (1.0, -1.0),
+            (f64::INFINITY, 1.0),
+            (1.0, f64::NAN),
+        ] {
+            assert_eq!(
+                PageDimensions::try_new(width, height),
+                Err(PageGeometryError::InvalidDimensions)
+            );
+        }
+        assert_eq!(
+            PageMargins::try_new(1.0, -1.0, 1.0, 1.0),
+            Err(PageGeometryError::InvalidMargins)
+        );
+        assert_eq!(
+            PageSize::try_custom(0.0, 1.0),
+            Err(PageGeometryError::InvalidDimensions)
+        );
     }
 }

@@ -104,6 +104,8 @@ cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
 
 `--page` accepts A3, A4, A5, Executive, Legal, Letter, or Tabloid.
 `--page-layout` accepts `portrait` or `landscape`.
+The `pdf-page-size` document attribute also accepts custom dimensions, and
+`pdf-page-margin` sets one to four margins for that document.
 `--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
 `--strict` makes unresolved PDF images or logos fatal.
 Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.

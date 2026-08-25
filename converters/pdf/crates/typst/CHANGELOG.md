@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Generated documents can use A3, A4, A5, Executive, Legal, Letter, or Tabloid
   paper in portrait or landscape layout.
+- Generated documents can use validated custom page dimensions and margins.
 - Generated documents can place themed image captions below block images.
 - Generated documents can make block images clickable without extending the
   link to their captions or surrounding layout.

@@ -73,15 +73,36 @@ fn write_page(out: &mut String, theme: &Theme, options: &EmitOptions) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
 
-    let _ = write!(out, "#set page(paper: \"{}\"", options.page.paper());
-    if options.page_layout == PageLayout::Landscape {
-        out.push_str(", flipped: true");
+    if let Some(paper_name) = typst_paper_name(options.page) {
+        let _ = write!(out, "#set page(paper: \"{paper_name}\"");
+        if options.page_layout == PageLayout::Landscape {
+            out.push_str(", flipped: true");
+        }
+    } else {
+        let dimensions = options.page.dimensions(options.page_layout);
+        let _ = write!(
+            out,
+            "#set page(width: {}pt, height: {}pt",
+            dimensions.width_points(),
+            dimensions.height_points(),
+        );
     }
-    let _ = write!(
-        out,
-        ", margin: (x: {}cm, y: {}cm)",
-        spacing.margin_x_cm, spacing.margin_y_cm,
-    );
+    if let Some(margin) = options.page_margin {
+        let _ = write!(
+            out,
+            ", margin: (top: {}pt, right: {}pt, bottom: {}pt, left: {}pt)",
+            margin.top_points(),
+            margin.right_points(),
+            margin.bottom_points(),
+            margin.left_points(),
+        );
+    } else {
+        let _ = write!(
+            out,
+            ", margin: (x: {}cm, y: {}cm)",
+            spacing.margin_x_cm, spacing.margin_y_cm,
+        );
+    }
     if !options.plain {
         let _ = write!(out, ", fill: {}", color(&palette.page_bg));
         if let Some(header) = header_content(options, palette) {
@@ -105,6 +126,19 @@ fn write_page(out: &mut String, theme: &Theme, options: &EmitOptions) {
         );
     }
     out.push_str(")\n");
+}
+
+const fn typst_paper_name(page: PageSize) -> Option<&'static str> {
+    match page {
+        PageSize::A3 => Some("a3"),
+        PageSize::A4 => Some("a4"),
+        PageSize::A5 => Some("a5"),
+        PageSize::Executive => Some("us-executive"),
+        PageSize::Legal => Some("us-legal"),
+        PageSize::Letter => Some("us-letter"),
+        PageSize::Tabloid => Some("us-tabloid"),
+        PageSize::Custom(_) => None,
+    }
 }
 
 /// Base text, paragraph, heading, and inline-span styling.
@@ -526,24 +560,10 @@ fn string_literal(value: &str) -> String {
     literal
 }
 
-impl PageSize {
-    /// The Typst paper name for this page size.
-    pub(crate) fn paper(self) -> &'static str {
-        match self {
-            PageSize::A3 => "a3",
-            PageSize::A4 => "a4",
-            PageSize::A5 => "a5",
-            PageSize::Executive => "us-executive",
-            PageSize::Legal => "us-legal",
-            PageSize::Letter => "us-letter",
-            PageSize::Tabloid => "us-tabloid",
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{PageGeometryError, PageMargins, PageSize};
 
     fn stack(brand: Option<&str>, fallback: &[&str]) -> FontStack {
         FontStack {
@@ -589,6 +609,25 @@ mod tests {
         write_page(&mut out, &Theme::default(), &options);
 
         assert!(out.starts_with("#set page(paper: \"us-legal\", flipped: true, margin:"));
+    }
+
+    #[test]
+    fn custom_page_setup_emits_dimensions_and_margins() -> Result<(), PageGeometryError> {
+        let options = EmitOptions {
+            page: PageSize::try_custom(612.0, 792.0)?,
+            page_layout: PageLayout::Landscape,
+            page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
+            ..EmitOptions::default()
+        };
+        let mut out = String::new();
+
+        write_page(&mut out, &Theme::default(), &options);
+
+        assert!(out.starts_with(concat!(
+            "#set page(width: 792pt, height: 612pt, ",
+            "margin: (top: 36pt, right: 54pt, bottom: 72pt, left: 90pt)",
+        )));
+        Ok(())
     }
 
     #[test]

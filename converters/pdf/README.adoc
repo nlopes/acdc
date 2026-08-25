@@ -29,6 +29,14 @@ Use `--page` and `--page-layout` to set the document paper and orientation.
 The equivalent document attributes are `pdf-page-size` and `pdf-page-layout`;
 explicit CLI or `PdfOptions` values take precedence.
 Supported named sizes are A3, A4, A5, Executive, Legal, Letter, and Tabloid.
+`pdf-page-size` also accepts custom dimensions as `[width, height]` or
+`width x height`. Dimensions can use `in`, `cm`, `mm`, `pt`, `px`, or `pc`;
+unitless values are PDF points.
+
+Use `pdf-page-margin` to override the theme margins for one document. It accepts
+one to four measurements in CSS order, such as `[1in, 0.75in, 1in, 0.75in]`.
+Invalid dimensions or margins produce a structured warning and use the standard
+page or theme fallback.
 
 == Current scope
 
@@ -47,7 +55,7 @@ The backend currently renders:
 * collapsible examples as expanded disclosures with their full content visible
 * local, remote, and `data:` URI images in block and inline positions
 * static audio and video fallbacks with clickable source links and linked video posters
-* a configurable page theme, header logo, watermark, footer, page size, and portrait or landscape layout
+* a configurable page theme, header logo, watermark, footer, standard or custom page dimensions, per-document margins, and portrait or landscape layout
 
 == Known limitations
 
@@ -221,7 +229,9 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 | `--page`
 | `page`
 | Set A3, A4, A5, Executive, Legal, Letter, or Tabloid.
-  `:pdf-page-size:` is consulted next; A4 is the fallback.
+  `PageSize::try_custom` also accepts validated dimensions for library callers.
+  `:pdf-page-size:` is consulted next and accepts named or custom sizes; A4 is
+  the fallback.
 
 | `--page-layout`
 | `page_layout`

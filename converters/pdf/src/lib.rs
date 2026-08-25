@@ -47,7 +47,7 @@ mod index;
 mod pdf_visitor;
 mod visitor;
 
-pub use acdc_pdf_typst::{PageLayout, PageSize};
+pub use acdc_pdf_typst::{PageDimensions, PageGeometryError, PageLayout, PageMargins, PageSize};
 pub use error::Error;
 
 /// Intrinsic traits for the PDF backend.
@@ -108,6 +108,8 @@ pub struct PdfOptions {
     pub page: Option<PageSize>,
     /// Optional page layout override. Document `:pdf-page-layout:` is used next.
     pub page_layout: Option<PageLayout>,
+    /// Optional page margin override. Document `:pdf-page-margin:` is used next.
+    pub page_margin: Option<PageMargins>,
     /// Optional theme YAML file. Defaults to the bundled neutral theme.
     pub theme: Option<PathBuf>,
     /// Strip page background, header, and footer chrome.
@@ -118,6 +120,50 @@ pub struct PdfOptions {
     pub strict_assets: bool,
     /// Also write the generated Typst markup to this path for debugging.
     pub emit_typst: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PageSetup {
+    page: PageSize,
+    layout: PageLayout,
+    margin: PageMarginSelection,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum PageMarginSelection {
+    Theme,
+    Override(PageMargins),
+}
+
+impl PageSetup {
+    const fn with_theme_margin(page: PageSize, layout: PageLayout) -> Self {
+        Self {
+            page,
+            layout,
+            margin: PageMarginSelection::Theme,
+        }
+    }
+
+    const fn with_margin(page: PageSize, layout: PageLayout, margin: PageMargins) -> Option<Self> {
+        let dimensions = page.dimensions(layout);
+        if margin.left_points() + margin.right_points() >= dimensions.width_points()
+            || margin.top_points() + margin.bottom_points() >= dimensions.height_points()
+        {
+            return None;
+        }
+        Some(Self {
+            page,
+            layout,
+            margin: PageMarginSelection::Override(margin),
+        })
+    }
+
+    const fn margin_override(self) -> Option<PageMargins> {
+        match self.margin {
+            PageMarginSelection::Theme => None,
+            PageMarginSelection::Override(margin) => Some(margin),
+        }
+    }
 }
 
 /// PDF converter processor.
@@ -274,7 +320,12 @@ impl Processor<'_> {
             assets,
             theme,
             emit_options.page.width_points(emit_options.page_layout),
-            code_wrap_columns(theme, emit_options.page, emit_options.page_layout),
+            code_wrap_columns(
+                theme,
+                emit_options.page,
+                emit_options.page_layout,
+                emit_options.page_margin,
+            ),
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
         )
@@ -320,11 +371,13 @@ impl Processor<'_> {
             .title
             .clone()
             .or_else(|| metadata.title.clone());
+        let page_setup = self.page_setup(doc, diagnostics);
         EmitOptions {
             metadata,
             locale: document_locale(doc, diagnostics),
-            page: self.page_size(doc, diagnostics),
-            page_layout: self.page_layout(doc, diagnostics),
+            page: page_setup.page,
+            page_layout: page_setup.layout,
+            page_margin: page_setup.margin_override(),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
             running_header_title,
@@ -341,22 +394,56 @@ impl Processor<'_> {
         let Some(value) = doc.attributes.get_string("pdf-page-size") else {
             return PageSize::A4;
         };
-        match value.as_ref().to_ascii_lowercase().as_str() {
-            "a3" => PageSize::A3,
-            "a4" => PageSize::A4,
-            "a5" => PageSize::A5,
-            "executive" | "us-executive" => PageSize::Executive,
-            "legal" | "us-legal" => PageSize::Legal,
-            "letter" | "us-letter" => PageSize::Letter,
-            "tabloid" | "us-tabloid" => PageSize::Tabloid,
-            other => {
+        match parse_page_size(value.as_ref()) {
+            Some(page) => page,
+            None => {
                 diagnostics.warn_with_advice(
-                    format!("unsupported PDF page size '{other}', using A4"),
-                    "Use `--page` or `:pdf-page-size:` with `a3`, `a4`, `a5`, `executive`, `legal`, `letter`, or `tabloid`.",
+                    format!("unsupported or invalid PDF page size '{value}', using A4"),
+                    "Use a supported name or two positive dimensions, such as `:pdf-page-size: 8.5in x 11in`.",
                 );
                 PageSize::A4
             }
         }
+    }
+
+    fn page_margin(
+        &self,
+        doc: &Document<'_>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Option<PageMargins> {
+        if let Some(margin) = self.pdf_options.page_margin {
+            return Some(margin);
+        }
+        let value = doc.attributes.get_string("pdf-page-margin")?;
+        if value.trim().is_empty() {
+            return None;
+        }
+        match parse_page_margin(value.as_ref()) {
+            Some(margin) => Some(margin),
+            None => {
+                diagnostics.warn_with_advice(
+                    format!("invalid PDF page margin '{value}', using theme margins"),
+                    "Use one to four non-negative measurements, such as `:pdf-page-margin: [1in, 0.75in, 1in, 0.75in]`.",
+                );
+                None
+            }
+        }
+    }
+
+    fn page_setup(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageSetup {
+        let page = self.page_size(doc, diagnostics);
+        let page_layout = self.page_layout(doc, diagnostics);
+        let Some(page_margin) = self.page_margin(doc, diagnostics) else {
+            return PageSetup::with_theme_margin(page, page_layout);
+        };
+        if let Some(page_setup) = PageSetup::with_margin(page, page_layout, page_margin) {
+            return page_setup;
+        }
+        diagnostics.warn_with_advice(
+            "PDF page margins do not fit the selected page, using theme margins",
+            "Reduce `:pdf-page-margin:` or select a larger `:pdf-page-size:`.",
+        );
+        PageSetup::with_theme_margin(page, page_layout)
     }
 
     fn page_layout(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageLayout {
@@ -553,19 +640,127 @@ impl Processor<'_> {
     }
 }
 
+fn parse_page_size(value: &str) -> Option<PageSize> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "a3" => Some(PageSize::A3),
+        "a4" => Some(PageSize::A4),
+        "a5" => Some(PageSize::A5),
+        "executive" | "us-executive" => Some(PageSize::Executive),
+        "legal" | "us-legal" => Some(PageSize::Legal),
+        "letter" | "us-letter" => Some(PageSize::Letter),
+        "tabloid" | "us-tabloid" => Some(PageSize::Tabloid),
+        _ => parse_custom_page_size(value),
+    }
+}
+
+fn parse_custom_page_size(value: &str) -> Option<PageSize> {
+    let value = value.trim();
+    let dimensions = if let Some(inner) = value
+        .strip_prefix('[')
+        .and_then(|inner| inner.strip_suffix(']'))
+    {
+        let mut parts = inner.split(',');
+        let dimensions = (parts.next(), parts.next());
+        if parts.next().is_some() {
+            return None;
+        }
+        dimensions
+    } else if let Some((width, height)) = value.split_once('x') {
+        if height.contains('x') {
+            return None;
+        }
+        (Some(width), Some(height))
+    } else {
+        return None;
+    };
+    let (Some(width), Some(height)) = dimensions else {
+        return None;
+    };
+    PageSize::try_custom(
+        parse_measurement_points(width)?,
+        parse_measurement_points(height)?,
+    )
+    .ok()
+}
+
+fn parse_page_margin(value: &str) -> Option<PageMargins> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let measurements = if let Some(inner) = value
+        .strip_prefix('[')
+        .and_then(|inner| inner.strip_suffix(']'))
+    {
+        inner.split(',').collect::<Vec<_>>()
+    } else if value.starts_with('[') || value.ends_with(']') {
+        return None;
+    } else {
+        vec![value]
+    };
+    let points = measurements
+        .into_iter()
+        .map(parse_measurement_points)
+        .collect::<Option<Vec<_>>>()?;
+    let (top, right, bottom, left) = match points.as_slice() {
+        [all] => (*all, *all, *all, *all),
+        [vertical, horizontal] => (*vertical, *horizontal, *vertical, *horizontal),
+        [top, horizontal, bottom] => (*top, *horizontal, *bottom, *horizontal),
+        [top, right, bottom, left] => (*top, *right, *bottom, *left),
+        _ => return None,
+    };
+    PageMargins::try_new(top, right, bottom, left).ok()
+}
+
+fn parse_measurement_points(value: &str) -> Option<f64> {
+    let value = value.trim();
+    let (number, factor) = [
+        ("in", 72.0),
+        ("cm", 72.0 / 2.54),
+        ("mm", 72.0 / 25.4),
+        ("pt", 1.0),
+        ("px", 0.75),
+        ("pc", 12.0),
+    ]
+    .into_iter()
+    .find_map(|(unit, factor)| value.strip_suffix(unit).map(|number| (number, factor)))
+    .unwrap_or((value, 1.0));
+    if number.is_empty()
+        || !number.bytes().any(|byte| byte.is_ascii_digit())
+        || number.bytes().filter(|byte| *byte == b'.').count() > 1
+        || !number
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+    {
+        return None;
+    }
+    number
+        .parse::<f64>()
+        .ok()
+        .map(|points| points * factor)
+        .filter(|points| points.is_finite())
+}
+
 #[allow(
     clippy::cast_possible_truncation,
     clippy::cast_sign_loss,
     reason = "validated theme dimensions are clamped before conversion"
 )]
-fn code_wrap_columns(theme: &Theme, page: PageSize, page_layout: PageLayout) -> usize {
+fn code_wrap_columns(
+    theme: &Theme,
+    page: PageSize,
+    page_layout: PageLayout,
+    page_margin: Option<PageMargins>,
+) -> usize {
     const CM_TO_PT: f64 = 72.0 / 2.54;
     const MONOSPACE_CELL_WIDTH_EM: f64 = 0.6;
 
     let page_width_pt = page.width_points(page_layout);
-    let content_width_pt = page_width_pt
-        - 2.0 * theme.spacing.margin_x_cm * CM_TO_PT
-        - 2.0 * theme.spacing.code_pad_pt;
+    let horizontal_margin_pt = page_margin
+        .map_or(2.0 * theme.spacing.margin_x_cm * CM_TO_PT, |margin| {
+            margin.left_points() + margin.right_points()
+        });
+    let content_width_pt = page_width_pt - horizontal_margin_pt - 2.0 * theme.spacing.code_pad_pt;
     let cell_width_pt =
         theme.typography.body_size_pt * theme.typography.code_size_em * MONOSPACE_CELL_WIDTH_EM;
     (content_width_pt / cell_width_pt)
@@ -1455,15 +1650,119 @@ mod tests {
     }
 
     #[test]
+    fn document_page_setup_accepts_custom_dimensions_and_margins()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: [8.5in, 11in]\n:pdf-page-layout: landscape\n:pdf-page-margin: [0.5in, 0.75in, 1in, 1.25in]\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(concat!(
+            "#set page(width: 792pt, height: 612pt, ",
+            "margin: (top: 36pt, right: 54pt, bottom: 72pt, left: 90pt)",
+        )));
+        assert!(
+            render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn page_geometry_parsers_accept_reference_measurement_forms()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let custom = PageSize::try_custom(612.0, 792.0)?;
+        assert_eq!(parse_page_size("8.5in x 11in"), Some(custom));
+        let metric = parse_page_size("[215.9mm, 27.94cm]")
+            .ok_or_else(|| std::io::Error::other("metric custom page size did not parse"))?;
+        assert!((metric.width_points(PageLayout::Portrait) - 612.0).abs() < 1e-9);
+        assert!((metric.height_points(PageLayout::Portrait) - 792.0).abs() < 1e-9);
+        assert_eq!(
+            parse_page_margin("36pt"),
+            Some(PageMargins::try_new(36.0, 36.0, 36.0, 36.0)?)
+        );
+        assert_eq!(
+            parse_page_margin("[36pt, 54pt, 72pt]"),
+            Some(PageMargins::try_new(36.0, 54.0, 72.0, 54.0)?)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_page_geometry_warns_and_uses_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: 0in x 11in\n:pdf-page-margin: [-1in]\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a4\", margin: (x: 2.5cm, y: 2.5cm)"),
+            "{typst}"
+        );
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert!(warnings.iter().any(|warning| {
+            warning
+                .message
+                .starts_with("unsupported or invalid PDF page size")
+        }));
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.message.starts_with("invalid PDF page margin"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn page_setup_warns_when_margins_consume_the_page() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: A5\n:pdf-page-margin: 300pt\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a5\", margin: (x: 2.5cm, y: 2.5cm)"),
+            "{typst}"
+        );
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(
+            warnings.first().map(|warning| warning.message.as_ref()),
+            Some("PDF page margins do not fit the selected page, using theme margins")
+        );
+        Ok(())
+    }
+
+    #[test]
     fn pdf_options_override_document_page_setup() -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n\nContent.\n",
+            "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n:pdf-page-margin: 1in\n\nContent.\n",
             &acdc_parser::Options::default(),
         )?;
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
             .with_pdf_options(PdfOptions {
                 page: Some(PageSize::A5),
                 page_layout: Some(PageLayout::Portrait),
+                page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
                 ..PdfOptions::default()
             });
         let source = WarningSource::new("pdf");
@@ -1473,7 +1772,10 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
 
         assert!(
-            typst.contains("#set page(paper: \"a5\", margin:"),
+            typst.contains(concat!(
+                "#set page(paper: \"a5\", ",
+                "margin: (top: 36pt, right: 54pt, bottom: 72pt, left: 90pt)",
+            )),
             "{typst}"
         );
         assert!(!typst.contains("flipped: true"), "{typst}");
@@ -1744,7 +2046,7 @@ mod tests {
                 &assets,
                 &theme,
                 PageSize::A4.width_points(PageLayout::Portrait),
-                code_wrap_columns(&theme, PageSize::A4, PageLayout::Portrait),
+                code_wrap_columns(&theme, PageSize::A4, PageLayout::Portrait, None),
                 Vec::new(),
                 diagnostics,
             );

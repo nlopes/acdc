@@ -72,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-o -` is selected. PDF runs accept `--font-dir`, `--logo`, `--title`,
   `--watermark`, `--watermark-timestamp`, `--page`, `--theme`, `--plain`,
   `--page-layout`, `--toc`, and `--emit-typst`; named A3/A4/A5 and common US
-  page sizes can use portrait or landscape output, and `--strict` makes
+  page sizes can use portrait or landscape output, `pdf-page-size` accepts
+  custom dimensions, `pdf-page-margin` sets per-document margins, and `--strict` makes
   unresolved PDF images or logos fail instead of falling back with a warning.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
