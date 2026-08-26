@@ -207,6 +207,27 @@ impl PageNumberingPlan {
     }
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct TypstSourceConfig<'a> {
+    theme: &'a Theme,
+    emit_options: &'a EmitOptions,
+    page_numbering: PageNumberingPlan,
+}
+
+impl<'a> TypstSourceConfig<'a> {
+    const fn new(
+        theme: &'a Theme,
+        emit_options: &'a EmitOptions,
+        page_numbering: PageNumberingPlan,
+    ) -> Self {
+        Self {
+            theme,
+            emit_options,
+            page_numbering,
+        }
+    }
+}
+
 impl PageSetup {
     const fn with_theme_margin(page: PageSize, layout: PageLayout) -> Self {
         Self {
@@ -285,10 +306,8 @@ impl Processor<'_> {
         self.emit_typst_source(
             doc,
             &assets,
-            &theme,
-            &emit_options,
             &preparation,
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             diagnostics,
         )
     }
@@ -336,10 +355,8 @@ impl Processor<'_> {
         let typst = self.emit_typst_source(
             doc,
             &assets,
-            &theme,
-            &emit_options,
             &preparation,
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             diagnostics,
         )?;
         self.write_debug_typst(&typst)?;
@@ -372,10 +389,8 @@ impl Processor<'_> {
         &self,
         doc: &Document<'_>,
         assets: &ImageMap,
-        theme: &Theme,
-        emit_options: &EmitOptions,
         preparation: &PdfPreparation,
-        page_numbering: PageNumberingPlan,
+        config: TypstSourceConfig<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
@@ -400,28 +415,20 @@ impl Processor<'_> {
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
-            theme,
-            emit_options.page.width_points(emit_options.page_layout),
-            code_wrap_columns(
-                theme,
-                emit_options.page,
-                emit_options.page_layout,
-                emit_options.page_margin,
-            ),
+            config,
             doc.toc_entries.clone(),
-            page_numbering,
             diagnostics.reborrow(),
         )
         .with_populated_index_sections(preparation.populated_index_sections.clone());
-        preamble::write(&mut visitor.writer, theme, emit_options);
+        preamble::write(&mut visitor.writer, config.theme, config.emit_options);
         if preparation.has_unbreakable_blocks {
             visitor.writer.raw(UNBREAKABLE_HELPER);
         }
         if preparation.has_autofit_blocks {
-            write_autofit_helper(&mut visitor.writer, theme);
+            write_autofit_helper(&mut visitor.writer, config.theme);
         }
         if preparation.admonition_image_icon_count > 0 {
-            write_admonition_image_helper(&mut visitor.writer, theme);
+            write_admonition_image_helper(&mut visitor.writer, config.theme);
         }
         visitor.visit_document(doc)?;
         let mut source = visitor.writer.into_string();
@@ -2238,10 +2245,8 @@ mod tests {
         let typst = processor.emit_typst_source(
             parsed.document(),
             &assets,
-            &theme,
-            &emit_options,
             &collect_pdf_preparation(parsed.document()),
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             &mut diagnostics,
         )?;
 
@@ -2347,6 +2352,11 @@ mod tests {
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
         let assets = ImageMap::new();
         let theme = Theme::default();
+        let emit_options = EmitOptions {
+            page: PageSize::A4,
+            page_layout: PageLayout::Portrait,
+            ..EmitOptions::default()
+        };
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         {
@@ -2354,11 +2364,12 @@ mod tests {
             let mut visitor = PdfVisitor::new(
                 processor,
                 &assets,
-                &theme,
-                PageSize::A4.width_points(PageLayout::Portrait),
-                code_wrap_columns(&theme, PageSize::A4, PageLayout::Portrait, None),
+                TypstSourceConfig::new(
+                    &theme,
+                    &emit_options,
+                    PageNumberingPlan::new(theme.page_numbering_start_at, false, false),
+                ),
                 Vec::new(),
-                PageNumberingPlan::new(theme.page_numbering_start_at, false, false),
                 diagnostics,
             );
             visitor.visit_unhandled_block(block)?;
@@ -2567,10 +2578,8 @@ mod tests {
         let typst_with_default_gap = processor.emit_typst_source(
             parsed.document(),
             &assets,
-            &theme,
-            &emit_options,
             &collect_pdf_preparation(parsed.document()),
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             &mut diagnostics,
         )?;
         assert!(typst_with_default_gap.contains("#columns(3, gutter: 12.5pt)["));
@@ -2579,10 +2588,8 @@ mod tests {
         let typst = processor.emit_typst_source(
             parsed.document(),
             &assets,
-            &theme,
-            &emit_options,
             &collect_pdf_preparation(parsed.document()),
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             &mut diagnostics,
         )?;
         assert!(typst.contains("#columns(3, gutter: 18.5pt)["));
@@ -2593,10 +2600,8 @@ mod tests {
         let single_column_typst = processor.emit_typst_source(
             parsed.document(),
             &assets,
-            &theme,
-            &emit_options,
             &collect_pdf_preparation(parsed.document()),
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             &mut diagnostics,
         )?;
         assert!(!single_column_typst.contains("#columns("));
@@ -3550,10 +3555,8 @@ mod tests {
         let typst = processor.emit_typst_source(
             parsed.document(),
             &assets,
-            &theme,
-            &emit_options,
             &collect_pdf_preparation(parsed.document()),
-            page_numbering,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             &mut diagnostics,
         )?;
         assert!(

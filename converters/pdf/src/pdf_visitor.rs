@@ -29,14 +29,14 @@ use acdc_parser::{
 };
 use acdc_pdf_images::ImageMap;
 use acdc_pdf_theme::{
-    Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, TableAlignment, Theme,
+    Heading, PageBreakBefore, Palette, PartBreakAfter, Table as TableTheme, TableAlignment,
 };
 use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
 
 use crate::{
-    Error, PageNumberingPlan, Processor, encode_bibliography_reference_label,
-    encode_footnote_label, encode_label, has_autofit_option,
+    Error, PageNumberingPlan, Processor, TypstSourceConfig, code_wrap_columns,
+    encode_bibliography_reference_label, encode_footnote_label, encode_label, has_autofit_option,
     index::{CatalogRelationship, CatalogTerm, IndexCatalog, PageSequenceStyle},
     warn_with_advice_at,
 };
@@ -291,13 +291,19 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     pub(crate) fn new(
         processor: Processor<'a>,
         assets: &'m ImageMap,
-        theme: &'m Theme,
-        page_width_pt: f64,
-        code_wrap_columns: usize,
+        config: TypstSourceConfig<'m>,
         toc_entries: Vec<TocEntry<'a>>,
-        page_numbering: PageNumberingPlan,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
+        let theme = config.theme;
+        let emit_options = config.emit_options;
+        let page_width_pt = emit_options.page.width_points(emit_options.page_layout);
+        let code_wrap_columns = code_wrap_columns(
+            theme,
+            emit_options.page,
+            emit_options.page_layout,
+            emit_options.page_margin,
+        );
         let doctype = processor
             .document_attributes()
             .get_string("doctype")
@@ -345,7 +351,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             text_boundaries: TextBoundaries::BOTH,
             toc_entries,
             toc_written: false,
-            page_numbering: PageNumberingState::new(page_numbering),
+            page_numbering: PageNumberingState::new(config.page_numbering),
             populated_index_sections: HashSet::new(),
             bibliography_backlinks_written: HashSet::new(),
             unsupported_metadata_warnings: HashSet::new(),
