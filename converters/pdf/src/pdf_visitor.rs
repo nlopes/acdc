@@ -184,7 +184,7 @@ impl PageNumberingState {
             let _ = writeln!(writer, "#let _acdc_arabic_page_start = {start}");
             let _ = writeln!(
                 writer,
-                "#set page(numbering: n => if n < {start} {{ numbering(\"i\", n) }} else {{ numbering(\"1\", n - {start} + 1) }})"
+                "#set page(numbering: (..nums) => {{\n  let n = nums.pos().first()\n  if n < {start} {{ numbering(\"i\", n) }} else {{ numbering(\"1\", n - {start} + 1) }}\n}})"
             );
         } else {
             writer.raw("#let _acdc_arabic_page_start = none\n#set page(numbering: \"i\")\n");
@@ -437,13 +437,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             } else {
                 config.placement()
             };
-        let should_render = match placement {
-            "auto" => matches!(
-                configured_placement,
-                "auto" | "left" | "right" | "top" | "bottom"
-            ),
-            other => configured_placement == other,
-        };
+        let should_render = placement == configured_placement
+            || placement == "auto"
+                && matches!(configured_placement, "left" | "right" | "top" | "bottom");
         if !should_render {
             return Ok(());
         }

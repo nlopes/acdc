@@ -43,6 +43,7 @@ use acdc_pdf_theme::{PageNumberingStart, Theme};
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
+use lopdf::dictionary;
 mod converter;
 mod error;
 mod index;
@@ -855,14 +856,14 @@ fn apply_pdf_page_labels(pdf: &mut Vec<u8>, arabic_start: NonZeroUsize) -> Resul
         let mut document = lopdf::Document::load_mem(pdf)?;
         let page_count = document.get_pages().len();
         let arabic_index = arabic_start.get() - 1;
-        let roman = lopdf::dictionary! {
+        let roman = dictionary! {
             "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
             "S" => lopdf::Object::Name(b"r".to_vec()),
             "St" => 1,
         };
         let mut nums = vec![0.into(), roman.into()];
         if arabic_index < page_count {
-            let arabic = lopdf::dictionary! {
+            let arabic = dictionary! {
                 "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
                 "S" => lopdf::Object::Name(b"D".to_vec()),
                 "St" => 1,
@@ -872,7 +873,7 @@ fn apply_pdf_page_labels(pdf: &mut Vec<u8>, arabic_start: NonZeroUsize) -> Resul
         }
         document
             .catalog_mut()?
-            .set("PageLabels", lopdf::dictionary! { "Nums" => nums });
+            .set("PageLabels", dictionary! { "Nums" => nums });
         let mut output = Vec::new();
         document.save_to(&mut output)?;
         Ok(output)
@@ -1686,17 +1687,19 @@ mod tests {
         Ok(pages)
     }
 
+    type PageLabelRange = (i64, String, i64);
+
     fn page_label_ranges(
         pdf: &lopdf::Document,
-    ) -> Result<Vec<(i64, String, i64)>, Box<dyn std::error::Error>> {
+    ) -> Result<Vec<PageLabelRange>, Box<dyn std::error::Error>> {
         let labels = pdf.catalog()?.get(b"PageLabels")?;
         let (_, labels) = pdf.dereference(labels)?;
         let nums = labels.as_dict()?.get(b"Nums")?;
         let (_, nums) = pdf.dereference(nums)?;
         let mut ranges = Vec::new();
-        for pair in nums.as_array()?.chunks_exact(2) {
-            let page_index = pair[0].as_i64()?;
-            let (_, label) = pdf.dereference(&pair[1])?;
+        for [page_index, label] in nums.as_array()?.as_chunks::<2>().0 {
+            let page_index = page_index.as_i64()?;
+            let (_, label) = pdf.dereference(label)?;
             let label = label.as_dict()?;
             let style = String::from_utf8(label.get(b"S")?.as_name()?.to_vec())?;
             let start = match label.get(b"St") {
@@ -1845,7 +1848,7 @@ mod tests {
         let text = pdf.extract_text(&pages)?;
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
 
-        assert!(normalized.contains("term, iii, iv, v-3"), "{text}");
+        assert!(normalized.contains("term , iii, iv, v-3"), "{text}");
         assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }
@@ -2230,6 +2233,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
 
         let typst = processor.emit_typst_source(
             parsed.document(),
@@ -2237,6 +2241,7 @@ mod tests {
             &theme,
             &emit_options,
             &collect_pdf_preparation(parsed.document()),
+            page_numbering,
             &mut diagnostics,
         )?;
 
@@ -2557,6 +2562,7 @@ mod tests {
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
 
         let typst_with_default_gap = processor.emit_typst_source(
             parsed.document(),
@@ -2564,6 +2570,7 @@ mod tests {
             &theme,
             &emit_options,
             &collect_pdf_preparation(parsed.document()),
+            page_numbering,
             &mut diagnostics,
         )?;
         assert!(typst_with_default_gap.contains("#columns(3, gutter: 12.5pt)["));
@@ -2575,6 +2582,7 @@ mod tests {
             &theme,
             &emit_options,
             &collect_pdf_preparation(parsed.document()),
+            page_numbering,
             &mut diagnostics,
         )?;
         assert!(typst.contains("#columns(3, gutter: 18.5pt)["));
@@ -2588,6 +2596,7 @@ mod tests {
             &theme,
             &emit_options,
             &collect_pdf_preparation(parsed.document()),
+            page_numbering,
             &mut diagnostics,
         )?;
         assert!(!single_column_typst.contains("#columns("));
@@ -3537,12 +3546,14 @@ mod tests {
 
         let assets = ImageMap::new();
         let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
         let typst = processor.emit_typst_source(
             parsed.document(),
             &assets,
             &theme,
             &emit_options,
             &collect_pdf_preparation(parsed.document()),
+            page_numbering,
             &mut diagnostics,
         )?;
         assert!(

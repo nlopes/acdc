@@ -71,6 +71,10 @@
   text(weight: 700, body)
 }
 
+#let _acdc_arabic_page_start = none
+#set page(numbering: "i")
+#set page(numbering: "1")
+#counter(page).update(1)
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("PDF ")#strong[#text("Parity")]#text(" Kitchen Sink")]
 #v(0.2em)
@@ -89,7 +93,7 @@
         column-gutter: 0.5em,
         body,
         repeat[.],
-        str(counter(page).at(target).first()),
+        counter(page).display(at: target),
       ),
     ),
   )

@@ -68,12 +68,15 @@
   text(weight: 700, body)
 }
 
+#let _acdc_arabic_page_start = none
+#set page(numbering: "i")
 #page(header: none, footer: none)[
 #v(30%)
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("Revision Remark Only")]
 ]
-#counter(page).update(0)
 ]
 
+#set page(numbering: "1")
+#counter(page).update(1)
 #text("Revision remark body.")

@@ -68,14 +68,17 @@
   text(weight: 700, body)
 }
 
+#let _acdc_arabic_page_start = none
+#set page(numbering: "i")
 #page(header: none, footer: none)[
 #v(30%)
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("All Book Special Sections Numbered")]
 ]
-#counter(page).update(0)
 ]
 
+#set page(numbering: "1")
+#counter(page).update(1)
 #heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
 #let _acdc_toc_entry(target, depth, body) = context {
   link(
@@ -87,7 +90,7 @@
         column-gutter: 0.5em,
         body,
         repeat[.],
-        str(counter(page).at(target).first()),
+        counter(page).display(at: target),
       ),
     ),
   )

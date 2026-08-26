@@ -69,6 +69,10 @@
 }
 
 #let _acdc_image_callout(label, body) = pad(left: 0pt, block(width: 100%, inset: (x: 12pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: 12pt, align: (x, _) => if x == 0 { center + horizon } else { left + top }, label, grid.cell(stroke: (left: 0.75pt + rgb("#e5e7eb")), inset: (left: 12pt), body))))
+#let _acdc_arabic_page_start = none
+#set page(numbering: "i")
+#set page(numbering: "1")
+#counter(page).update(1)
 #align(center)[
 #text(size: 22pt, weight: "bold")[#text("Silent Metadata")]
 ]
@@ -86,7 +90,7 @@
         column-gutter: 0.5em,
         body,
         repeat[.],
-        str(counter(page).at(target).first()),
+        counter(page).display(at: target),
       ),
     ),
   )

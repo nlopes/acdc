@@ -388,10 +388,14 @@ const INDEX_PRINT_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequenc
     .map(target => {
       let location = locate(target)
       let page = counter(page).at(location).first()
+      let physical = location.page()
       let arabic = location.page-numbering() == "1" or (
-        _acdc_arabic_page_start != none and location.page() >= _acdc_arabic_page_start
+        _acdc_arabic_page_start != none and physical >= _acdc_arabic_page_start
       )
-      (target, page, if arabic { page } else { 0 })
+      let sequence-page = if arabic or (
+        _acdc_arabic_page_start != none and physical + 1 == _acdc_arabic_page_start
+      ) { physical } else { 0 }
+      (target, page, sequence-page)
     })
     .dedup(key: occurrence => (occurrence.at(1), occurrence.last()))
   let ranges = ()
