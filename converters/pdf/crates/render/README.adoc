@@ -26,9 +26,16 @@ This is the *only* crate that depends on the Typst compiler. Everything upstream
   on each render so changes on disk are observed. Entries are scanned in stable
   path order, and directory symlinks inside the tree are not followed.
 . **Register images** — a custom file resolver maps each `virtual_path` in the `ImageMap` (see `acdc-pdf-images`) to the image's file on disk and reads it only when the compiler asks for it. The renderer retains only paths; ownership of bytes passes to Typst after a read. The small bundled syntax-highlight theme is served in-memory alongside it. The markup's `#image("/images/…")` calls resolve against these.
-. **Compile** the markup and **export** the resulting document to PDF bytes.
+. **Compile** the markup and **export** the resulting document to tagged PDF
+  bytes. Typst maps supported headings, paragraphs, lists, tables, figures,
+  links, and images into the PDF structure tree and records the document
+  language.
 
 Non-fatal Typst diagnostics are returned as `warnings`; a failed compile or export is an `Error`.
+
+The renderer keeps tagged output enabled as an ACDC contract. It does not claim
+PDF/UA-1 conformance. Typst can enforce PDF/UA-1, but that mode rejects
+documents that do not satisfy its metadata and semantic requirements.
 
 == `RenderConfig`
 
@@ -44,8 +51,9 @@ Non-fatal Typst diagnostics are returned as `warnings`; a failed compile or expo
 cargo nextest run -p acdc-pdf-render --all-features
 ....
 
-Tests compile minimal markup and assert the output is a valid PDF (parsed back
-with `lopdf`), verify the bundled font cache reuses static asset storage, load
+Tests compile minimal markup and assert the output is a valid tagged PDF with
+document language and semantic structure roles (parsed back with `lopdf`),
+verify the bundled font cache reuses static asset storage, load
 custom fonts in deterministic order without following directory symlink cycles,
 exercise a resolved image through Typst's real file resolver, load the syntax
 theme through Typst's raw-code consumer, and check that malformed markup

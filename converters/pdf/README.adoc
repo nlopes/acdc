@@ -176,6 +176,18 @@ Missing or empty values use English.
 Values that Typst cannot represent also use English and produce a converter warning.
 Asciidoctor PDF accepts arbitrary `lang` values, but Typst requires separate, valid language and region codes.
 
+== Accessibility
+
+PDF output includes a semantic tag tree and document-language metadata. Typst
+maps supported headings, paragraphs, lists, tables, figures, links, and images
+to PDF structure roles. Image descriptions from AsciiDoc reach the tagged PDF
+as alternative text.
+
+This is baseline tagged PDF output, not a claim of PDF/UA-1 conformance. The
+pinned Typst release can enforce PDF/UA-1, but that mode can reject documents
+that do not meet its metadata and semantic requirements. ACDC does not enable
+that stricter profile automatically.
+
 == Inline IDs and roles
 
 IDs on bold, italic, monospace, highlight, subscript, superscript, and quoted text create PDF link targets.

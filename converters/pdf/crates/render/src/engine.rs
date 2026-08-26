@@ -35,7 +35,11 @@ pub(crate) fn render(
     let result = engine.compile::<PagedDocument>();
     let warnings = collect_warnings(&result.warnings);
     let document = result.output?;
-    let pdf = pdf(&document, &PdfOptions::default())
+    let pdf_options = PdfOptions {
+        tagged: true,
+        ..PdfOptions::default()
+    };
+    let pdf = pdf(&document, &pdf_options)
         .map_err(|diagnostics| Error::Pdf(format_diagnostics(&diagnostics)))?;
     Ok((pdf, warnings))
 }

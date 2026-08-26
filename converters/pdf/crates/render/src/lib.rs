@@ -95,6 +95,45 @@ mod tests {
     }
 
     #[test]
+    fn emits_tagged_pdf_with_document_language_and_semantic_structure()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let markup = concat!(
+            "#set text(font: \"IBM Plex Sans\", lang: \"pt\", region: \"BR\")\n",
+            "= Título\n\nTexto.\n",
+        );
+        let rendered = render_pdf(markup, &ImageMap::new(), &RenderConfig::default())?;
+        let document = lopdf::Document::load_mem(&rendered.pdf)?;
+        let catalog = document.catalog()?;
+        let (_, mark_info) = document.dereference(catalog.get(b"MarkInfo")?)?;
+
+        assert!(mark_info.as_dict()?.get(b"Marked")?.as_bool()?);
+        assert!(catalog.get(b"StructTreeRoot").is_ok());
+        assert_eq!(lopdf::decode_text_string(catalog.get(b"Lang")?)?, "pt-BR");
+
+        let roles = document
+            .objects
+            .values()
+            .filter_map(|object| object.as_dict().ok())
+            .filter(|dictionary| {
+                dictionary
+                    .get(b"Type")
+                    .and_then(lopdf::Object::as_name)
+                    .ok()
+                    == Some(b"StructElem")
+            })
+            .filter_map(|dictionary| dictionary.get(b"S").and_then(lopdf::Object::as_name).ok())
+            .collect::<Vec<_>>();
+
+        for expected in [b"Document".as_slice(), b"H1", b"P"] {
+            assert!(
+                roles.contains(&expected),
+                "missing structure role {expected:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn reports_compile_errors() -> Result<(), Box<dyn std::error::Error>> {
         // `#foo` calls an undefined function.
         let Err(err) = render_pdf(
