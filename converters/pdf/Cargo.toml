@@ -20,13 +20,13 @@ acdc-pdf-images = { path = "crates/images" }
 acdc-pdf-render = { path = "crates/render" }
 acdc-pdf-theme = { path = "crates/theme" }
 acdc-pdf-typst = { path = "crates/typst" }
+lopdf.workspace = true
 tempfile.workspace = true
 thiserror.workspace = true
 unicode-width.workspace = true
 
 [dev-dependencies]
 acdc-converters-dev.workspace = true
-lopdf.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 

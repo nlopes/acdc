@@ -383,10 +383,17 @@ const INDEX_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = c
 }
 "#;
 
-const INDEX_PRINT_PAGE_HELPER: &str = r"#let _acdc_index_pages(targets, sequence) = context {
+const INDEX_PRINT_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = context {
   let occurrences = targets
-    .map(target => (target, counter(page).at(target).first()))
-    .dedup(key: occurrence => occurrence.last())
+    .map(target => {
+      let location = locate(target)
+      let page = counter(page).at(location).first()
+      let arabic = location.page-numbering() == "1" or (
+        _acdc_arabic_page_start != none and location.page() >= _acdc_arabic_page_start
+      )
+      (target, page, if arabic { page } else { 0 })
+    })
+    .dedup(key: occurrence => (occurrence.at(1), occurrence.last()))
   let ranges = ()
   for occurrence in occurrences {
     if ranges.len() > 0 and occurrence.last() == ranges.last().last().last() + 1 {
@@ -406,7 +413,7 @@ const INDEX_PRINT_PAGE_HELPER: &str = r"#let _acdc_index_pages(targets, sequence
     [, ] + pages.join[, ]
   }
 }
-";
+"#;
 
 #[cfg(test)]
 mod tests {

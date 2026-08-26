@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can set `page_numbering_start_at` to `cover`, `title`, `toc`,
+  `after-toc`, `body`, or a positive body-page number. Earlier pages use
+  lower-Roman labels, and Arabic numbering restarts at 1.
 - Themes can control the normal and minimum block-code sizes used by PDF
   autofit. Existing themes retain the current 0.8 em normal size and use a
   0.6 em minimum.

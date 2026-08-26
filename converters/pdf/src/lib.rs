@@ -14,6 +14,7 @@ use std::{
     fmt::Write as _,
     fs::File,
     io::Read,
+    num::NonZeroUsize,
     path::{Path, PathBuf},
     rc::Rc,
     time::{Duration, Instant},
@@ -25,6 +26,7 @@ use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration, Warning,
     icon::{IconMode, image_source as icon_image_source},
     media::resolve_target,
+    toc::Config as TocConfig,
     visitor::Visitor,
     xref::XrefGuard,
 };
@@ -37,7 +39,7 @@ use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
 };
 use acdc_pdf_render::{RenderConfig, render_pdf};
-use acdc_pdf_theme::Theme;
+use acdc_pdf_theme::{PageNumberingStart, Theme};
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
@@ -135,6 +137,75 @@ enum PageMarginSelection {
     Override(PageMargins),
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PageNumberingPlan {
+    start: PageNumberingStart,
+    has_title_page: bool,
+    has_automatic_toc: bool,
+}
+
+impl PageNumberingPlan {
+    const fn new(start: PageNumberingStart, has_title_page: bool, has_automatic_toc: bool) -> Self {
+        Self {
+            start,
+            has_title_page,
+            has_automatic_toc,
+        }
+    }
+
+    pub(crate) const fn has_title_page(self) -> bool {
+        self.has_title_page
+    }
+
+    pub(crate) const fn starts_before_header(self) -> bool {
+        if self.has_title_page {
+            matches!(
+                self.start,
+                PageNumberingStart::Cover | PageNumberingStart::Title
+            )
+        } else {
+            self.starts_at_body()
+        }
+    }
+
+    pub(crate) const fn starts_before_toc(self) -> bool {
+        self.has_automatic_toc
+            && (matches!(self.start, PageNumberingStart::Toc)
+                || !self.has_title_page
+                    && matches!(
+                        self.start,
+                        PageNumberingStart::Cover | PageNumberingStart::Title
+                    ))
+    }
+
+    pub(crate) const fn starts_after_toc(self) -> bool {
+        self.has_automatic_toc && matches!(self.start, PageNumberingStart::AfterToc)
+    }
+
+    pub(crate) const fn starts_at_body(self) -> bool {
+        matches!(self.start, PageNumberingStart::Body)
+            || matches!(self.start, PageNumberingStart::BodyPage(page) if page.get() == 1)
+            || !self.has_automatic_toc
+                && matches!(
+                    self.start,
+                    PageNumberingStart::Cover
+                        | PageNumberingStart::Title
+                        | PageNumberingStart::Toc
+                        | PageNumberingStart::AfterToc
+                )
+    }
+
+    pub(crate) fn conditional_arabic_start(self) -> Option<NonZeroUsize> {
+        let PageNumberingStart::BodyPage(page) = self.start else {
+            return None;
+        };
+        if page.get() == 1 {
+            return None;
+        }
+        NonZeroUsize::new(page.get().saturating_add(usize::from(self.has_title_page)))
+    }
+}
+
 impl PageSetup {
     const fn with_theme_margin(page: PageSize, layout: PageLayout) -> Self {
         Self {
@@ -205,6 +276,7 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let theme = self.load_theme()?;
+        let page_numbering = self.page_numbering_plan(doc, &theme);
         let assets = ImageMap::new();
         let font_dirs = self.pdf_options.font_dirs.clone();
         let emit_options = self.emit_options(doc, None, &font_dirs, diagnostics);
@@ -215,6 +287,7 @@ impl Processor<'_> {
             &theme,
             &emit_options,
             &preparation,
+            page_numbering,
             diagnostics,
         )
     }
@@ -238,6 +311,7 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<RenderedPdf, Error> {
         let theme = self.load_theme()?;
+        let page_numbering = self.page_numbering_plan(doc, &theme);
 
         // Validated image snapshots are spooled here so their bytes are read on
         // demand and cannot change between validation and rendering. The
@@ -264,13 +338,19 @@ impl Processor<'_> {
             &theme,
             &emit_options,
             &preparation,
+            page_numbering,
             diagnostics,
         )?;
         self.write_debug_typst(&typst)?;
         let emit_duration = emit_start.elapsed();
 
         let render_start = Instant::now();
-        let rendered = render_pdf(&typst, &assets, &RenderConfig { font_dirs })?;
+        let mut rendered = render_pdf(&typst, &assets, &RenderConfig { font_dirs })?;
+        if let Some(start) = page_numbering.conditional_arabic_start() {
+            // Typst exports PDF labels only for fixed numbering patterns. A body-relative
+            // transition uses a numbering function, so add its equivalent label ranges here.
+            apply_pdf_page_labels(&mut rendered.pdf, start)?;
+        }
         let render_duration = render_start.elapsed();
         for warning in rendered.warnings {
             diagnostics.warn(format!("Typst warning: {warning}"));
@@ -294,6 +374,7 @@ impl Processor<'_> {
         theme: &Theme,
         emit_options: &EmitOptions,
         preparation: &PdfPreparation,
+        page_numbering: PageNumberingPlan,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
@@ -327,6 +408,7 @@ impl Processor<'_> {
                 emit_options.page_margin,
             ),
             doc.toc_entries.clone(),
+            page_numbering,
             diagnostics.reborrow(),
         )
         .with_populated_index_sections(preparation.populated_index_sections.clone());
@@ -356,6 +438,35 @@ impl Processor<'_> {
             path: path.clone(),
             source,
         })
+    }
+
+    fn page_numbering_plan(&self, doc: &Document<'_>, theme: &Theme) -> PageNumberingPlan {
+        let has_title_page = doc.header.is_some()
+            && (self
+                .document_attributes
+                .get("title-page")
+                .is_some_and(|value| {
+                    !matches!(
+                        value,
+                        acdc_parser::AttributeValue::Bool(false)
+                            | acdc_parser::AttributeValue::None
+                    )
+                })
+                || self.document_attributes.get_string("doctype").as_deref() == Some("book")
+                || self.options.doctype() == acdc_converters_core::Doctype::Book);
+        let toc = TocConfig::from_attributes(None, &self.document_attributes);
+        let placement = if toc.placement() == "none" && self.pdf_options.toc {
+            "auto"
+        } else {
+            toc.placement()
+        };
+        let has_automatic_toc = !doc.toc_entries.is_empty()
+            && matches!(placement, "auto" | "left" | "right" | "top" | "bottom");
+        PageNumberingPlan::new(
+            theme.page_numbering_start_at,
+            has_title_page,
+            has_automatic_toc,
+        )
     }
 
     fn emit_options(
@@ -737,6 +848,38 @@ fn parse_measurement_points(value: &str) -> Option<f64> {
         .ok()
         .map(|points| points * factor)
         .filter(|points| points.is_finite())
+}
+
+fn apply_pdf_page_labels(pdf: &mut Vec<u8>, arabic_start: NonZeroUsize) -> Result<(), Error> {
+    fn update(pdf: &[u8], arabic_start: NonZeroUsize) -> lopdf::Result<Vec<u8>> {
+        let mut document = lopdf::Document::load_mem(pdf)?;
+        let page_count = document.get_pages().len();
+        let arabic_index = arabic_start.get() - 1;
+        let roman = lopdf::dictionary! {
+            "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
+            "S" => lopdf::Object::Name(b"r".to_vec()),
+            "St" => 1,
+        };
+        let mut nums = vec![0.into(), roman.into()];
+        if arabic_index < page_count {
+            let arabic = lopdf::dictionary! {
+                "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
+                "S" => lopdf::Object::Name(b"D".to_vec()),
+                "St" => 1,
+            };
+            nums.push(i64::try_from(arabic_index)?.into());
+            nums.push(arabic.into());
+        }
+        document
+            .catalog_mut()?
+            .set("PageLabels", lopdf::dictionary! { "Nums" => nums });
+        let mut output = Vec::new();
+        document.save_to(&mut output)?;
+        Ok(output)
+    }
+
+    *pdf = update(pdf, arabic_start).map_err(Error::PageLabels)?;
+    Ok(())
 }
 
 #[allow(
@@ -1543,6 +1686,170 @@ mod tests {
         Ok(pages)
     }
 
+    fn page_label_ranges(
+        pdf: &lopdf::Document,
+    ) -> Result<Vec<(i64, String, i64)>, Box<dyn std::error::Error>> {
+        let labels = pdf.catalog()?.get(b"PageLabels")?;
+        let (_, labels) = pdf.dereference(labels)?;
+        let nums = labels.as_dict()?.get(b"Nums")?;
+        let (_, nums) = pdf.dereference(nums)?;
+        let mut ranges = Vec::new();
+        for pair in nums.as_array()?.chunks_exact(2) {
+            let page_index = pair[0].as_i64()?;
+            let (_, label) = pdf.dereference(&pair[1])?;
+            let label = label.as_dict()?;
+            let style = String::from_utf8(label.get(b"S")?.as_name()?.to_vec())?;
+            let start = match label.get(b"St") {
+                Ok(value) => value.as_i64()?,
+                Err(_) => 1,
+            };
+            ranges.push((page_index, style, start));
+        }
+        Ok(ranges)
+    }
+
+    fn page_numbering_theme(start: &str) -> Result<NamedTempFile, Box<dyn std::error::Error>> {
+        let theme = include_str!("../crates/theme/assets/theme/default.yaml").replace(
+            "page_numbering_start_at: body",
+            &format!("page_numbering_start_at: {start}"),
+        );
+        let file = NamedTempFile::new()?;
+        std::fs::write(file.path(), theme)?;
+        Ok(file)
+    }
+
+    #[test]
+    fn page_numbering_plan_resolves_missing_front_matter_boundaries() {
+        let body = PageNumberingPlan::new(PageNumberingStart::Body, false, true);
+        assert!(body.starts_before_header());
+        assert!(body.starts_at_body());
+
+        let title = PageNumberingPlan::new(PageNumberingStart::Title, true, true);
+        assert!(title.starts_before_header());
+        assert!(!title.starts_before_toc());
+
+        let missing_title = PageNumberingPlan::new(PageNumberingStart::Title, false, true);
+        assert!(!missing_title.starts_before_header());
+        assert!(missing_title.starts_before_toc());
+
+        let after_toc = PageNumberingPlan::new(PageNumberingStart::AfterToc, true, true);
+        assert!(after_toc.starts_after_toc());
+        assert!(!after_toc.starts_at_body());
+
+        let missing_toc = PageNumberingPlan::new(PageNumberingStart::Toc, true, false);
+        assert!(missing_toc.starts_at_body());
+    }
+
+    #[test]
+    fn body_page_numbering_uses_roman_title_and_arabic_body_labels()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Numbered document\n:title-page:\n\nBody.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        assert_eq!(
+            page_label_ranges(&pdf)?,
+            [(0, "r".to_owned(), 1), (1, "D".to_owned(), 1)]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn integer_page_numbering_start_labels_body_pages_relative_to_the_body()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let theme = page_numbering_theme("3")?;
+        let parsed = acdc_parser::parse(
+            "= Numbered document\n:title-page:\n\nBody page one.\n\n<<<\n\nBody page two.\n\n<<<\n\nBody page three.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.path().to_path_buf()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        assert_eq!(
+            page_label_ranges(&pdf)?,
+            [(0, "r".to_owned(), 1), (3, "D".to_owned(), 1)]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn after_toc_page_numbering_starts_after_the_automatic_toc()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let theme = page_numbering_theme("after-toc")?;
+        let parsed = acdc_parser::parse(
+            "= Numbered document\n:title-page:\n:toc:\n\n== First section\n\nBody.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.path().to_path_buf()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let toc = typst
+            .find("#let _acdc_toc_entry")
+            .ok_or_else(|| std::io::Error::other("automatic TOC helper was not emitted"))?;
+        let arabic = typst
+            .find("#set page(numbering: \"1\")")
+            .ok_or_else(|| std::io::Error::other("Arabic numbering was not emitted"))?;
+
+        assert!(toc < arabic, "{typst}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn print_index_keeps_roman_pages_separate_and_spans_the_arabic_boundary()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let theme = page_numbering_theme("5")?;
+        let parsed = acdc_parser::parse(
+            "= Mixed index labels\n:title-page:\n:media: print\n\nBody page one.\n\n<<<\n\n((term))Body page two.\n\n<<<\n\n((term))Body page three.\n\n<<<\n\n((term))Body page four.\n\n<<<\n\n((term))Body page five.\n\n<<<\n\n((term))Body page six.\n\n<<<\n\n((term))Body page seven.\n\n[index]\n== Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.path().to_path_buf()),
+                plain: true,
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        assert!(normalized.contains("term, iii, iv, v-3"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
     #[test]
     fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn std::error::Error>>
     {
@@ -2046,6 +2353,7 @@ mod tests {
                 PageSize::A4.width_points(PageLayout::Portrait),
                 code_wrap_columns(&theme, PageSize::A4, PageLayout::Portrait, None),
                 Vec::new(),
+                PageNumberingPlan::new(theme.page_numbering_start_at, false, false),
                 diagnostics,
             );
             visitor.visit_unhandled_block(block)?;

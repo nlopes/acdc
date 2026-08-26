@@ -35,8 +35,8 @@ use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
 
 use crate::{
-    Error, Processor, encode_bibliography_reference_label, encode_footnote_label, encode_label,
-    has_autofit_option,
+    Error, PageNumberingPlan, Processor, encode_bibliography_reference_label,
+    encode_footnote_label, encode_label, has_autofit_option,
     index::{CatalogRelationship, CatalogTerm, IndexCatalog, PageSequenceStyle},
     warn_with_advice_at,
 };
@@ -153,6 +153,7 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     text_boundaries: TextBoundaries,
     toc_entries: Vec<TocEntry<'a>>,
     toc_written: bool,
+    pub(crate) page_numbering: PageNumberingState,
     populated_index_sections: HashSet<String>,
     bibliography_backlinks_written: HashSet<String>,
     unsupported_metadata_warnings: HashSet<&'static str>,
@@ -162,6 +163,41 @@ pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     index_catalog: IndexCatalog,
     index_columns: usize,
     index_column_gap_pt: f64,
+}
+
+pub(crate) struct PageNumberingState {
+    pub(crate) plan: PageNumberingPlan,
+    arabic_started: bool,
+}
+
+impl PageNumberingState {
+    fn new(plan: PageNumberingPlan) -> Self {
+        Self {
+            plan,
+            arabic_started: plan.conditional_arabic_start().is_some(),
+        }
+    }
+
+    pub(crate) fn write_initial(&self, writer: &mut Writer) {
+        if let Some(start) = self.plan.conditional_arabic_start() {
+            let start = start.get();
+            let _ = writeln!(writer, "#let _acdc_arabic_page_start = {start}");
+            let _ = writeln!(
+                writer,
+                "#set page(numbering: n => if n < {start} {{ numbering(\"i\", n) }} else {{ numbering(\"1\", n - {start} + 1) }})"
+            );
+        } else {
+            writer.raw("#let _acdc_arabic_page_start = none\n#set page(numbering: \"i\")\n");
+        }
+    }
+
+    pub(crate) fn start_arabic(&mut self, writer: &mut Writer) {
+        if self.arabic_started {
+            return;
+        }
+        writer.raw("#set page(numbering: \"1\")\n#counter(page).update(1)\n");
+        self.arabic_started = true;
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -259,6 +295,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         page_width_pt: f64,
         code_wrap_columns: usize,
         toc_entries: Vec<TocEntry<'a>>,
+        page_numbering: PageNumberingPlan,
         diagnostics: Diagnostics<'d>,
     ) -> Self {
         let doctype = processor
@@ -308,6 +345,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             text_boundaries: TextBoundaries::BOTH,
             toc_entries,
             toc_written: false,
+            page_numbering: PageNumberingState::new(page_numbering),
             populated_index_sections: HashSet::new(),
             bibliography_backlinks_written: HashSet::new(),
             unsupported_metadata_warnings: HashSet::new(),
@@ -410,6 +448,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return Ok(());
         }
 
+        if placement == "auto" && self.page_numbering.plan.starts_before_toc() {
+            self.page_numbering.start_arabic(&mut self.writer);
+        }
+
         self.toc_written = true;
         let suppress_header =
             toc_macro.is_some_and(|toc| toc.metadata.options.contains(&"noheader"));
@@ -429,7 +471,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         self.writer.raw(
-            "#let _acdc_toc_entry(target, depth, body) = context {\n  link(\n    target,\n    pad(\n      left: depth * 1.25em,\n      grid(\n        columns: (auto, 1fr, auto),\n        column-gutter: 0.5em,\n        body,\n        repeat[.],\n        str(counter(page).at(target).first()),\n      ),\n    ),\n  )\n}\n",
+            "#let _acdc_toc_entry(target, depth, body) = context {\n  link(\n    target,\n    pad(\n      left: depth * 1.25em,\n      grid(\n        columns: (auto, 1fr, auto),\n        column-gutter: 0.5em,\n        body,\n        repeat[.],\n        counter(page).display(at: target),\n      ),\n    ),\n  )\n}\n",
         );
 
         let entries = self.toc_entries.clone();
@@ -486,6 +528,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw("#pagebreak()\n\n");
         if suppress_header || suppress_footer {
             self.writer.raw("]\n\n");
+        }
+        if placement == "auto" && self.page_numbering.plan.starts_after_toc() {
+            self.page_numbering.start_arabic(&mut self.writer);
         }
         Ok(())
     }

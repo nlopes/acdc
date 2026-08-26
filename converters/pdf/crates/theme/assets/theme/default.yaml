@@ -1,6 +1,7 @@
 # The built-in default theme: a bland, neutral look (white page, grayscale,
 # bundled fonts). This file is the single source of truth for `Theme::default()`
 # — it is embedded via `include_str!` and parsed at runtime.
+page_numbering_start_at: body
 palette:
   page_bg: "#ffffff"
   body_text: "#111111"

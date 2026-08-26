@@ -7,6 +7,7 @@ mod error;
 mod fonts;
 mod heading;
 mod index;
+mod numbering;
 mod spacing;
 mod syntax;
 mod table;
@@ -22,6 +23,7 @@ pub use error::Error;
 pub use fonts::{EMOJI_FONT_FAMILY, embedded_fonts};
 pub use heading::{ChapterHeading, Heading, PageBreakBefore, PartBreakAfter, PartHeading};
 pub use index::Index;
+pub use numbering::PageNumberingStart;
 pub use spacing::Spacing;
 pub use syntax::{HIGHLIGHT_THEME_PATH, highlight_theme};
 pub use table::{Table, TableAlignment};
@@ -33,6 +35,9 @@ const DEFAULT_THEME_YAML: &str = include_str!("../assets/theme/default.yaml");
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Theme {
+    /// Page where Arabic numbering starts; earlier pages use lower-Roman labels.
+    #[serde(default)]
+    pub page_numbering_start_at: PageNumberingStart,
     pub palette: Palette,
     pub typography: Typography,
     pub spacing: Spacing,
@@ -104,8 +109,59 @@ mod tests {
         assert_eq!(theme.heading, Heading::default());
         assert_eq!(theme.index.columns, 2);
         assert_eq!(theme.index.column_gap_pt, Some(12.0));
+        assert_eq!(theme.page_numbering_start_at, PageNumberingStart::Body);
         assert_eq!(theme.table, Table::default());
         assert_eq!(Theme::default(), theme);
+        Ok(())
+    }
+
+    #[test]
+    fn accepts_named_and_body_relative_page_numbering_starts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for (value, expected) in [
+            ("cover", PageNumberingStart::Cover),
+            ("title", PageNumberingStart::Title),
+            ("toc", PageNumberingStart::Toc),
+            ("after-toc", PageNumberingStart::AfterToc),
+            ("body", PageNumberingStart::Body),
+            (
+                "3",
+                PageNumberingStart::BodyPage(std::num::NonZeroUsize::try_from(3)?),
+            ),
+        ] {
+            let yaml = DEFAULT_THEME_YAML.replace(
+                "page_numbering_start_at: body",
+                &format!("page_numbering_start_at: {value}"),
+            );
+
+            assert_eq!(
+                Theme::from_yaml_str(&yaml)?.page_numbering_start_at,
+                expected
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_invalid_page_numbering_starts() {
+        for value in ["0", "-1", "chapter"] {
+            let yaml = DEFAULT_THEME_YAML.replace(
+                "page_numbering_start_at: body",
+                &format!("page_numbering_start_at: {value}"),
+            );
+
+            assert!(Theme::from_yaml_str(&yaml).is_err(), "accepted {value}");
+        }
+    }
+
+    #[test]
+    fn defaults_page_numbering_start_when_omitted() -> Result<(), Box<dyn std::error::Error>> {
+        let yaml = DEFAULT_THEME_YAML.replace("page_numbering_start_at: body\n", "");
+
+        assert_eq!(
+            Theme::from_yaml_str(&yaml)?.page_numbering_start_at,
+            PageNumberingStart::Body
+        );
         Ok(())
     }
 
