@@ -125,14 +125,14 @@ pub struct EmitOptions {
     pub page_layout: PageLayout,
     /// Page margins that override the theme when set.
     pub page_margin: Option<PageMargins>,
-    /// Strip branding chrome (page background, header, footer).
+    /// Strip the page background, header, and footer.
     pub plain: bool,
     /// Whether brand fonts are available at render time. When set, the brand
     /// family is named first in each font stack; otherwise only the bundled
     /// fallbacks are named (so Typst is never asked for an absent font).
     pub brand_fonts: bool,
-    /// Text shown in the branded running header when set.
-    pub running_header_title: Option<String>,
+    /// Text shown in the branded page header when set.
+    pub page_header_title: Option<String>,
     /// Virtual path of the header logo (registered with the renderer), if any.
     pub logo: Option<String>,
     /// Diagonal gray watermark text stamped on every page, if set. Shown
@@ -152,7 +152,7 @@ impl Default for EmitOptions {
             page_margin: None,
             plain: false,
             brand_fonts: false,
-            running_header_title: None,
+            page_header_title: None,
             logo: None,
             watermark: None,
             watermark_timestamp: None,

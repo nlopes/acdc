@@ -100,7 +100,7 @@ pub struct PdfOptions {
     pub font_dirs: Vec<PathBuf>,
     /// Optional header logo. Resolved relative to the current working directory.
     pub logo: Option<PathBuf>,
-    /// Optional running-header title. Defaults to the document title when absent.
+    /// Optional page-header title. Defaults to the document title when absent.
     pub title: Option<String>,
     /// Optional diagonal watermark stamped on every page.
     pub watermark: Option<String>,
@@ -114,7 +114,7 @@ pub struct PdfOptions {
     pub page_margin: Option<PageMargins>,
     /// Optional theme YAML file. Defaults to the bundled neutral theme.
     pub theme: Option<PathBuf>,
-    /// Strip page background, header, and footer chrome.
+    /// Strip the page background, header, and footer.
     pub plain: bool,
     /// Emit an automatic table of contents when the document does not set `:toc:`.
     pub toc: bool,
@@ -477,7 +477,7 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> EmitOptions {
         let metadata = document_metadata(doc);
-        let running_header_title = self
+        let page_header_title = self
             .pdf_options
             .title
             .clone()
@@ -491,7 +491,7 @@ impl Processor<'_> {
             page_margin: page_setup.margin_override(),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
-            running_header_title,
+            page_header_title,
             logo,
             watermark: self.pdf_options.watermark.clone(),
             watermark_timestamp: self.pdf_options.watermark_timestamp.clone(),
@@ -3134,7 +3134,7 @@ mod tests {
     }
 
     #[test]
-    fn explicit_running_header_title_does_not_replace_document_metadata()
+    fn explicit_page_header_title_does_not_replace_document_metadata()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
             "= Main *Title*: Subtitle _Part_\n\nBody.\n",
@@ -3152,7 +3152,7 @@ mod tests {
         let options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
 
         assert_eq!(
-            options.running_header_title.as_deref(),
+            options.page_header_title.as_deref(),
             Some("Explicit Header")
         );
         assert_eq!(

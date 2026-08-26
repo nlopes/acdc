@@ -13,7 +13,7 @@ acdc convert --backend pdf document.adoc
 ....
 
 The derived output path is `document.pdf`.
-PDF-specific options can add page chrome and branding:
+PDF-specific options can add page headers, footers, and branding:
 
 [source,console]
 ....
@@ -210,11 +210,11 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--logo`
 | `logo`
-| Add an SVG or raster image to the running header.
+| Add an SVG or raster image to the page header.
 
 | `--title`
 | `title`
-| Override the running-header title.
+| Override the page-header title.
   The full document title, including its subtitle, is the default.
 
 | `--watermark`
@@ -244,7 +244,7 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--plain`
 | `plain`
-| Remove page background, header, and normal footer chrome. Explicit watermark
+| Remove the page background, header, and normal footer. Explicit watermark
   annotations remain visible.
 
 | `--toc`

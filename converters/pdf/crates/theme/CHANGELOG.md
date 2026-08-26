@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can control the page-header alignment, title size and weight, logo
+  height, page-one visibility, footer size, and page-number position. Existing
+  themes retain the previous header and footer appearance.
 - Themes can set `page_numbering_start_at` to `cover`, `title`, `toc`,
   `after-toc`, `body`, or a positive body-page number. Earlier pages use
   lower-Roman labels, and Arabic numbering restarts at 1.

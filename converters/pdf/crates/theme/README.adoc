@@ -17,7 +17,7 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 == What it provides
 
-- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `header`, `footer`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -91,6 +91,47 @@ The `heading` tokens apply to book parts and chapters. By default, each part and
 |`heading.chapter.break_before`
 |`always`
 |`always` starts each chapter on a new page; `auto` lets it follow the preceding content.
+|===
+
+=== Page headers and footers
+
+The `header` and `footer` tokens control the page header and footer produced
+from the document title, optional logo, page number, watermark label, and timestamp.
+`palette.accent` supplies the header colour, and `palette.counter` supplies the
+footer colour.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Values
+
+|`header.align`
+|`left`
+|`left`, `center`, or `right`.
+
+|`header.font_size_pt`
+|`11.0`
+|A positive title size in points.
+
+|`header.font_weight`
+|`500`
+|A Typst font weight from `100` through `900`.
+
+|`header.logo_height_pt`
+|`22.0`
+|A positive logo height in points.
+
+|`header.show_on_page_one`
+|`false`
+|Whether to show the header when the current page counter is `1`.
+
+|`footer.font_size_pt`
+|`9.0`
+|A positive size in points for the page number, watermark label, and timestamp.
+
+|`footer.page_number_position`
+|`center`
+|The `left`, `center`, or `right` footer slot. A page number in an occupied slot
+shares it with the watermark label or timestamp.
 |===
 
 === Index catalogs
