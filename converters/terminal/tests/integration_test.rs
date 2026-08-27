@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_terminal::Processor;
-use acdc_parser::Options as ParserOptions;
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -99,8 +99,7 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
 
     // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
     let doc = parsed.document();
 
@@ -161,8 +160,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     ];
     for (style, expected_markers) in cases {
         let input = format!("[{style}]\n. one\n. two\n. three\n");
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
@@ -186,8 +184,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
 #[test]
 fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
     let input = ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n";
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(input, &parser_options)?;
     let doc = parsed.document();
     let mut output = Vec::new();
@@ -218,8 +215,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 #[test]
 fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let input = ". numbered\n\n[none]\n. unmarked\n";
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(input, &parser_options)?;
     let doc = parsed.document();
     let mut output = Vec::new();
@@ -240,8 +236,7 @@ fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
 fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
     for style in ["no-bullet", "unstyled", "unnumbered"] {
         let input = format!("[{style}]\n. unmarked\n");
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
@@ -262,8 +257,7 @@ fn markerless_ordered_list_styles_suppress_markers() -> Result<(), Error> {
 fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
     for style in ["none", "no-bullet", "unstyled"] {
         let input = format!("[{style}]\n* unmarked\n");
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
@@ -284,8 +278,7 @@ fn markerless_unordered_list_styles_suppress_markers() -> Result<(), Error> {
 fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
     for style in ["none", "no-bullet", "unstyled"] {
         let input = format!("[{style}]\n* [ ] task\n");
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();
@@ -309,8 +302,7 @@ fn markerless_checklist_styles_keep_the_checkbox() -> Result<(), Error> {
 #[cfg(feature = "images")]
 #[test]
 fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse("image::definitely-missing-image.png[]\n", &parser_options)?;
     let doc = parsed.document();
     let processor =

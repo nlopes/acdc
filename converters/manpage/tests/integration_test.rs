@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_manpage::Processor;
-use acdc_parser::Options as ParserOptions;
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -29,8 +29,7 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
     let expected_path = expected_dir.join(file_name).with_extension("man");
 
     // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(path, &parser_options)?;
     let doc = parsed.document();
 
@@ -81,8 +80,7 @@ fn test_embedded_with_fixtures(
 
 #[test]
 fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(
         "= cmd(1)\n:doctype: manpage\n\n== OVERVIEW\n\ntext\n",
         &parser_options,
@@ -106,8 +104,7 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
 #[test]
 fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
     let source_path = Path::new("tests/fixtures/source/manpage_name_front_matter.adoc");
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(source_path, &parser_options)?;
     let doc = parsed.document();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
@@ -123,8 +120,7 @@ fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
 #[test]
 fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
     let input = "= xrefstyle(1)\n:doctype: manpage\n:figure-caption: BeforeFigure\n:table-caption: BeforeTable\n\n== NAME\n\nxrefstyle - test captioned references\n\n== DESCRIPTION\n\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n";
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(input, &parser_options)?;
     let doc = parsed.document();
     let mut output = Vec::new();
@@ -159,8 +155,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     ];
     for (style, expected_tags) in cases {
         let input = format!("[{style}]\n. one\n. two\n. three\n");
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();

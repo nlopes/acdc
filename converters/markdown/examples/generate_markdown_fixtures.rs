@@ -4,6 +4,7 @@ use std::{error::Error, fs, path::Path};
 
 use acdc_converters_core::{Converter, Diagnostics, GeneratorMetadata, Options, WarningSource};
 use acdc_converters_markdown::{MarkdownVariant, Processor};
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let source_dir = Path::new("converters/markdown/tests/fixtures/source");
@@ -24,9 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .file_stem()
             .and_then(|stem| stem.to_str())
             .ok_or("invalid fixture file name")?;
-        let parser_options = acdc_parser::Options::with_attributes(
-            acdc_converters_core::default_rendering_attributes(),
-        );
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
         let doc = parsed.document();
         let variant = if stem.starts_with("commonmark_") {

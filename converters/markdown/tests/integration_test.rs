@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_markdown::{MarkdownVariant, Processor};
-use acdc_parser::Options as ParserOptions;
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -43,8 +43,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .with_extension("md");
 
     // Parse the AsciiDoc input with rendering defaults
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let doc = parsed.document();
 
@@ -94,8 +93,7 @@ fn test_commonmark_variant(
         .with_extension("md");
 
     // Parse the AsciiDoc input
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let doc = parsed.document();
 
@@ -130,8 +128,7 @@ fn test_commonmark_variant(
 
 /// Converts an `AsciiDoc` string to GFM Markdown, returning the output and any warnings.
 fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(input, &parser_options)?;
     let doc = parsed.document();
 
@@ -263,8 +260,7 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 
 #[test]
 fn unsupported_block_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse("++++\n<p>raw</p>\n++++\n", &parser_options)?;
     let doc = parsed.document();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());

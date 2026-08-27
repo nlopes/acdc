@@ -343,8 +343,8 @@ impl<'a> ParserState<'a> {
 
     /// Apply an attribute entry declared by document content: expand `{attr}`
     /// references at definition time (matching `asciidoctor`), intern the result
-    /// for the parse, and store it unless the name is a trusted caller-only
-    /// attribute that content must not be able to change.
+    /// for the parse, and store it unless the built-in policy, parser options, or
+    /// a nested parent lock the name against document changes.
     ///
     /// Returns the substituted value so a caller that also builds an AST node for
     /// the entry keeps the value the document wrote.
@@ -353,21 +353,23 @@ impl<'a> ParserState<'a> {
         key: AttributeName<'a>,
         value: AttributeValue<'a>,
         set: bool,
+        in_header: bool,
     ) -> AttributeValue<'a> {
         let value = self.resolve_document_attribute_value(value, &self.document_attributes);
         if self
-            .nested_parent_attributes
-            .as_ref()
-            .is_some_and(|attributes| attributes.is_explicitly_set(key.as_ref()))
+            .options
+            .is_document_attribute_locked(key.as_ref(), in_header)
+            || self
+                .nested_parent_attributes
+                .as_ref()
+                .is_some_and(|attributes| attributes.contains_explicit(key.as_ref()))
         {
             return value;
         }
         if matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option") {
             self.hardbreaks = set;
         }
-        if !crate::constants::is_trusted_attribute(key.as_ref()) {
-            Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
-        }
+        Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
         value
     }
 

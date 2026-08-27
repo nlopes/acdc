@@ -295,18 +295,19 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
+    let options = options.clone().prepare_for_parse();
     // Shared across the preprocessor and the grammar state so both layers'
     // warnings land in the same `ParseResult::warnings()` slice.
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor::process_reader(reader, options, Rc::clone(&warnings_handle))?
+        Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
         text,
-        options.clone(),
+        options,
         None,
         result.leveloffset_ranges,
         result.source_ranges,
@@ -334,16 +335,17 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
+    let options = options.clone().prepare_for_parse();
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor::process(input, options, Rc::clone(&warnings_handle))?
+        Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
         text,
-        options.clone(),
+        options,
         None,
         result.leveloffset_ranges,
         result.source_ranges,
@@ -375,6 +377,7 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
+    let options = options.clone().prepare_for_parse();
     let path = file_path.as_ref().to_path_buf();
     let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -383,7 +386,7 @@ pub fn parse_file<P: AsRef<Path>>(
         Preprocessor::process_with_file(
             &raw,
             file_path.as_ref(),
-            options,
+            &options,
             Rc::clone(&warnings_handle),
         )?
     };
@@ -391,7 +394,7 @@ pub fn parse_file<P: AsRef<Path>>(
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
         text,
-        options.clone(),
+        options,
         Some(path),
         result.leveloffset_ranges,
         result.source_ranges,
@@ -513,7 +516,7 @@ fn parse_input(
 pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineResult, Error> {
     tracing::trace!(?input, "post preprocessor");
     let owner = parsed::OwnedInput::new(input.into());
-    let options_owned = options.clone().into_static();
+    let options_owned = options.clone().prepare_for_parse().into_static();
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let warnings_for_state = Rc::clone(&warnings_handle);
 

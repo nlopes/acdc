@@ -1,6 +1,6 @@
 use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_terminal::Processor;
-use acdc_parser::Options as ParserOptions;
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 use libghostty_vt::{
     RenderState, Terminal, TerminalOptions,
     render::{CellIterator, RowIterator},
@@ -103,8 +103,7 @@ impl RenderedGrid {
 }
 
 fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(asciidoc, &parser_options)?;
     let doc = parsed.document();
 

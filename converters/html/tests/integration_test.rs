@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode};
+use acdc_parser::{AttributeValue, DocumentAttributes, Options as ParserOptions, SafeMode};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -33,8 +33,7 @@ fn run_fixture_test(
 
     let expected_path = expected_dir.join(file_name).with_extension("html");
 
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(path, &parser_options)?;
     let doc = parsed.document();
 
@@ -128,7 +127,7 @@ fn convert_string_with_variant(
     extra_attrs: &[(&str, AttributeValue)],
     variant: HtmlVariant,
 ) -> Result<String, Error> {
-    let mut attrs = acdc_converters_core::default_rendering_attributes();
+    let mut attrs = DocumentAttributes::default();
     for (k, v) in extra_attrs {
         attrs.insert((*k).into(), v.clone());
     }
@@ -150,8 +149,7 @@ fn convert_string_with_variant(
 
 #[test]
 fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse("[big]#large#\n", &parser_options)?;
     let doc = parsed.document();
     let converter_options = ConverterOptions::builder().embedded(true).build();
@@ -668,7 +666,7 @@ mod copycss {
         let html_path = tmp.path().join("output.html");
 
         let input = "= Title\n:linkcss:\n\nHello.\n";
-        let mut attrs = acdc_converters_core::default_rendering_attributes();
+        let mut attrs = DocumentAttributes::default();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
         attrs.insert(
             "copycss".into(),
@@ -730,7 +728,7 @@ mod copycss {
         std::fs::write(&custom_css_path, "body { color: red; }")?;
 
         let input = "= Title\n:linkcss:\n:stylesheet: target.css\n\nHello.\n";
-        let mut attrs = acdc_converters_core::default_rendering_attributes();
+        let mut attrs = DocumentAttributes::default();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
         attrs.insert(
             "copycss".into(),
@@ -792,7 +790,7 @@ mod copycss {
         let html_path = tmp.path().join("output.html");
 
         let input = ":!stylesheet:\n:linkcss:\n\nHello.\n";
-        let mut attrs = acdc_converters_core::default_rendering_attributes();
+        let mut attrs = DocumentAttributes::default();
         attrs.insert("stylesheet".into(), AttributeValue::Bool(false));
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
         attrs.insert(
@@ -844,7 +842,7 @@ mod copycss {
         let html_path = tmp.path().join("output.html");
 
         let input = "= Title\n:linkcss:\n\nHello.\n";
-        let mut attrs = acdc_converters_core::default_rendering_attributes();
+        let mut attrs = DocumentAttributes::default();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
         attrs.insert(
             "copycss".into(),
@@ -1290,7 +1288,7 @@ mod toc_footnote {
 
     /// Helper: convert an `AsciiDoc` string to embedded HTML (mirrors WASM editor path).
     fn convert_embedded(input: &str) -> Result<String, Error> {
-        let attrs = acdc_converters_core::default_rendering_attributes();
+        let attrs = DocumentAttributes::default();
         let parser_options = ParserOptions::with_attributes(attrs);
         let parsed = acdc_parser::parse(input, &parser_options)?;
         let doc = parsed.document();

@@ -17,20 +17,77 @@ use crate::{AttributeName, AttributeValue};
 pub(crate) const DEFAULT_MAX_INCLUDE_DEPTH: usize = 64;
 pub(crate) const DEFAULT_MAX_INCLUDE_DEPTH_STR: &str = "64";
 
-/// Name of the `max-include-depth` document attribute. It is a trusted,
-/// caller-only attribute — document content must not be able to change it — so
-/// the literal lives here and is referenced at every guard and default site.
+/// Name of the `max-include-depth` document attribute. It is an API-only
+/// attribute, so document content must not be able to change it.
 pub(crate) const MAX_INCLUDE_DEPTH_ATTR: &str = "max-include-depth";
 
 pub(crate) static DEFAULT_MAX_INCLUDE_DEPTH_VALUE: AttributeValue<'static> =
     AttributeValue::String(Cow::Borrowed(DEFAULT_MAX_INCLUDE_DEPTH_STR));
 
-/// Whether `name` is a trusted attribute that only the caller may set through
-/// [`crate::Options`]. Document content that declares one is parsed as syntax but
-/// never stored, so the caller's value (or its built-in default) holds for the
-/// whole parse. One policy site for every guard in the grammar and preprocessor.
-pub(crate) fn is_trusted_attribute(name: &str) -> bool {
-    name == MAX_INCLUDE_DEPTH_ATTR
+/// How document content is allowed to change a built-in attribute.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum DocumentAttributePolicy {
+    /// Document content can set or unset the attribute.
+    Modifiable,
+    /// Only parser options or command-line arguments can set the attribute.
+    ApiOnly,
+    /// The processor owns the attribute value.
+    ReadOnly,
+}
+
+/// Return the modification policy for a document attribute name.
+///
+/// The reserved names come from the `AsciiDoc` document attribute reference and
+/// Asciidoctor's processor identity values. Prefix checks cover the backend,
+/// base-backend, doctype, filetype, and safe mode convenience attributes that
+/// processors generate dynamically.
+pub(crate) fn document_attribute_policy(name: &str) -> DocumentAttributePolicy {
+    if matches!(
+        name,
+        "asciidoctor"
+            | "asciidoctor-version"
+            | "basebackend"
+            | "embedded"
+            | "htmlsyntax"
+            | "outdir"
+            | "outfile"
+            | "user-home"
+    ) || [
+        "backend-",
+        "basebackend-",
+        "doctype-",
+        "filetype-",
+        "safe-mode-",
+    ]
+    .iter()
+    .any(|prefix| name.starts_with(prefix))
+    {
+        DocumentAttributePolicy::ReadOnly
+    } else if matches!(
+        name,
+        "allow-uri-read"
+            | "docdir"
+            | "docfile"
+            | "docfilesuffix"
+            | "docname"
+            | "filetype"
+            | "max-attribute-value-size"
+            | MAX_INCLUDE_DEPTH_ATTR
+    ) {
+        DocumentAttributePolicy::ApiOnly
+    } else {
+        DocumentAttributePolicy::Modifiable
+    }
+}
+
+/// Whether document entries are prohibited from changing a built-in attribute.
+///
+/// This name-based policy protects read-only processor values and API-only
+/// controls in the header and body, even when the caller did not supply the
+/// attribute. `Options::is_document_attribute_locked` combines this policy
+/// with caller-supplied attribute locks.
+pub(crate) fn is_builtin_attribute_protected(name: &str) -> bool {
+    document_attribute_policy(name) != DocumentAttributePolicy::Modifiable
 }
 
 const fn str_attr(
@@ -124,3 +181,42 @@ pub(crate) const DEFAULT_ATTRIBUTE_ENTRIES: &[(AttributeName<'static>, Attribute
         str_attr("attribute-missing", "skip"),
         str_attr("attribute-undefined", "drop-line"),
     ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn documented_attribute_fixture_matches_internal_policy() -> Result<(), String> {
+        let fixture = include_str!("../fixtures/document_attributes/policy.tsv");
+
+        for (index, line) in fixture.lines().enumerate() {
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let Some((policy, name)) = line.split_once('\t') else {
+                return Err(format!("invalid policy fixture line {}", index + 1));
+            };
+            let name = name.replace('*', "probe");
+            let expected = match policy {
+                "read_only" => DocumentAttributePolicy::ReadOnly,
+                "api_only" => DocumentAttributePolicy::ApiOnly,
+                "header" | "body" => DocumentAttributePolicy::Modifiable,
+                _ => {
+                    return Err(format!(
+                        "unknown policy {policy} on fixture line {}",
+                        index + 1
+                    ));
+                }
+            };
+
+            assert_eq!(
+                document_attribute_policy(&name),
+                expected,
+                "fixture line {} ({name})",
+                index + 1
+            );
+        }
+        Ok(())
+    }
+}

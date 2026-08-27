@@ -1273,7 +1273,7 @@ impl Preprocessor {
                 // emit it as its own range anchored at its first line.
                 let continuation_start_line = line_number;
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
-                attribute::parse_line(&mut options.document_attributes, attribute_content.as_str());
+                attribute::parse_line(&mut options, attribute_content.as_str());
                 out.push_chunk(attribute_content, continuation_start_line);
                 scanner.record(line);
                 // `process_continuation` advanced `line_number` over the absorbed
@@ -1283,7 +1283,7 @@ impl Preprocessor {
                 line_number += 1;
                 continue;
             } else if line.starts_with(':') {
-                attribute::parse_line(&mut options.document_attributes, line.trim());
+                attribute::parse_line(&mut options, line.trim());
             }
             if scanner.at_verbatim_delimiter(line) {
                 out.push_source_line(line, line_number);

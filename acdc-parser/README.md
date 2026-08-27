@@ -116,6 +116,9 @@ The implementation here follows from:
 * **Strict mode** - Stricter parsing rules
 * **Base directory** - Entry-input include resolution through
   `Options::builder().with_base_dir(path)`
+* **Document attributes** - Caller attributes passed with `with_attribute` or
+  `with_attributes` cannot be replaced or unset by document entries. The parser
+  also protects the built-in read-only and API-only attribute names internally.
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 

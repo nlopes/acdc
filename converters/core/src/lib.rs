@@ -6,7 +6,6 @@
 //! - [`Converter`] - trait that all converters implement
 //! - [`Visitor`](visitor::Visitor) - visitor pattern for AST traversal
 //! - [`Options`] - configuration for conversion
-//! - [`default_rendering_attributes`] - default document attributes for rendering
 //!
 //! # Example
 //!
@@ -38,7 +37,7 @@ use std::{
     time::Instant,
 };
 
-use acdc_parser::{AttributeValue, DelimitedBlockType, DocumentAttributes, SafeMode};
+use acdc_parser::{DelimitedBlockType, DocumentAttributes, SafeMode};
 
 mod backend;
 /// Source code syntax highlighting and callouts support.
@@ -139,61 +138,6 @@ pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
 
     result.push_str(rest);
     Cow::Owned(result)
-}
-
-/// Return the default document attributes used for rendering.
-///
-/// Universal `AsciiDoc` defaults, including captions, remain available for
-/// substitution without being treated as caller-set values. This function also
-/// sets `lang=en` for output metadata. It does not enable the TOC.
-#[must_use]
-pub fn default_rendering_attributes() -> DocumentAttributes<'static> {
-    let mut attrs = DocumentAttributes::default();
-
-    attrs.set(
-        Cow::Borrowed("lang"),
-        AttributeValue::String(Cow::Borrowed("en")),
-    );
-
-    attrs
-}
-
-#[cfg(test)]
-mod rendering_attribute_tests {
-    use acdc_parser::{Block, InlineNode, Options as ParserOptions, parse};
-
-    use super::*;
-
-    #[test]
-    fn universal_defaults_remain_available_without_becoming_explicit()
-    -> Result<(), acdc_parser::Error> {
-        let mut attributes = default_rendering_attributes();
-        let parsed = parse(
-            "= T\n:toc:\n\n{toclevels}|{example-caption}|{figure-caption}|{table-caption}|{note-caption}\n",
-            &ParserOptions::with_attributes(attributes.clone()),
-        )?;
-        let text = parsed.document().blocks.iter().find_map(|block| {
-            let Block::Paragraph(paragraph) = block else {
-                return None;
-            };
-            paragraph.content.iter().find_map(|inline| {
-                let InlineNode::PlainText(text) = inline else {
-                    return None;
-                };
-                Some(text.content)
-            })
-        });
-
-        assert_eq!(text, Some("{toclevels}|Example|Figure|Table|Note"));
-        assert_eq!(
-            toc::Config::from_attributes(None, &parsed.document().attributes).levels(),
-            2
-        );
-
-        attributes.remove("lang");
-        assert!(attributes.is_empty());
-        Ok(())
-    }
 }
 
 /// Output destination for conversion.
@@ -517,10 +461,10 @@ impl std::fmt::Display for GeneratorMetadata {
 ///
 /// Document attributes follow a layered precedence system (lowest to highest priority):
 ///
-/// 1. **Base rendering defaults** - from [`default_rendering_attributes()`] (captions, labels, and output metadata)
+/// 1. **Base `AsciiDoc` defaults** - from [`DocumentAttributes::default()`]
 /// 2. **Converter-specific defaults** - from [`Converter::document_attributes_defaults()`] (e.g., `man-linkstyle` for manpage)
-/// 3. **CLI attributes** - user-provided via `-a name=value`
-/// 4. **Document attributes** - `:name: value` in document header
+/// 3. **Document attributes** - `:name: value` in document header or body
+/// 4. **CLI attributes** - user-provided via `-a name=value`
 ///
 /// Intrinsic backend attributes are an exception to this precedence: converters
 /// apply their [`BackendTraits`] when constructed, replacing conflicting values.
@@ -529,9 +473,10 @@ impl std::fmt::Display for GeneratorMetadata {
 ///
 /// A converter establishes its full attribute set on construction (base defaults,
 /// converter defaults, backend traits, and doctype). Construct the converter
-/// first, then parse using its [`document_attributes`](Converter::document_attributes)
-/// so preprocessing and attribute substitution see the selected backend and the
-/// converter's defaults (`ifdef::backend-*[]`, `{backend}`, `{outfilesuffix}`, …).
+/// first, then pass its [`document_attributes`](Converter::document_attributes)
+/// to parser options after building them. Preprocessing and attribute
+/// substitution then see the selected backend and converter defaults, while
+/// only attributes present when the options were built remain caller-locked.
 ///
 /// ## Implementation
 ///

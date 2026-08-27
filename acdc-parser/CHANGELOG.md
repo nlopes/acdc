@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Attributes supplied through parser options now take precedence over matching
+  document entries. A document cannot replace a caller value or reverse a
+  caller-requested unset. A caller-set `sectnums` remains flexible after the
+  header, matching Asciidoctor; a caller-requested unset remains locked.
+- Document entries can no longer set or unset the read-only and API-only names
+  in the AsciiDoc document attribute reference, including backend convenience,
+  safe-mode, input-path, and include-security attributes. This follows the
+  documented contract and is intentionally stricter than current Asciidoctor
+  for derived names that its Ruby implementation does not lock consistently.
+
 ### Added
 
 - Index terms now parse Asciidoctor's named `see` and `see-also` attributes

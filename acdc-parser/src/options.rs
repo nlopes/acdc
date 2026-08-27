@@ -7,12 +7,23 @@ pub use crate::safe_mode::SafeMode;
 
 use crate::{AttributeValue, DocumentAttributes};
 
+/// Whether the current explicit attributes have been classified as caller input.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum CallerAttributeLockState {
+    /// Explicit attributes must be marked when parsing starts.
+    #[default]
+    Pending,
+    /// Existing explicit attributes are locked; later merges remain defaults.
+    Initialized,
+}
+
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
     pub safe_mode: SafeMode,
     pub timings: bool,
     pub document_attributes: DocumentAttributes<'a>,
+    pub(crate) caller_attribute_lock_state: CallerAttributeLockState,
     /// Directory used to resolve relative includes from the entry input.
     ///
     /// String and reader input default to the current working directory. File
@@ -64,7 +75,10 @@ impl<'a> Options<'a> {
         Self::default()
     }
 
-    /// Create a new `Options` with the given document attributes.
+    /// Create a new `Options` with locked document attributes.
+    ///
+    /// Explicit attributes in the map cannot be replaced or unset by document
+    /// entries.
     ///
     /// # Example
     ///
@@ -77,11 +91,51 @@ impl<'a> Options<'a> {
     /// let options = Options::with_attributes(attrs);
     /// ```
     #[must_use]
-    pub fn with_attributes(document_attributes: DocumentAttributes<'a>) -> Self {
+    pub fn with_attributes(mut document_attributes: DocumentAttributes<'a>) -> Self {
+        document_attributes.mark_explicit_as_caller_locked();
         Self {
             document_attributes,
+            caller_attribute_lock_state: CallerAttributeLockState::Initialized,
             ..Default::default()
         }
+    }
+
+    /// Lock attributes from directly constructed options before parsing starts.
+    ///
+    /// Builder-created options are already initialized. Skipping a second pass
+    /// keeps attributes merged later, such as converter defaults, unlocked.
+    pub(crate) fn prepare_for_parse(mut self) -> Self {
+        if self.caller_attribute_lock_state == CallerAttributeLockState::Pending {
+            self.document_attributes.mark_explicit_as_caller_locked();
+            self.caller_attribute_lock_state = CallerAttributeLockState::Initialized;
+        }
+        self
+    }
+
+    /// Whether document content must ignore an attribute entry.
+    ///
+    /// This combines the name-based protection for read-only and API-only
+    /// built-ins with locks created from caller-supplied attributes.
+    pub(crate) fn is_document_attribute_locked(&self, name: &str, in_header: bool) -> bool {
+        crate::constants::is_builtin_attribute_protected(name)
+            || self.is_caller_attribute_locked(name, in_header)
+    }
+
+    /// Whether a caller-supplied attribute is locked against document entries.
+    ///
+    /// Builder attributes are marked as caller values when options are built.
+    /// Directly constructed options are marked when parsing starts. Attributes
+    /// merged into built options, such as converter defaults, remain
+    /// document-overridable. A caller-set `sectnums` is locked in the header but
+    /// becomes modifiable in the body; a caller-requested unset remains locked.
+    fn is_caller_attribute_locked(&self, name: &str, in_header: bool) -> bool {
+        let locked = self.document_attributes.is_caller_locked(name);
+
+        if locked && name == "sectnums" && !in_header {
+            return !self.document_attributes.is_set(name);
+        }
+
+        locked
     }
 
     /// Consume the options, producing an independent `'static` copy.
@@ -91,6 +145,7 @@ impl<'a> Options<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
+            caller_attribute_lock_state: self.caller_attribute_lock_state,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
@@ -192,7 +247,9 @@ impl<'a> OptionsBuilder<'a> {
         self
     }
 
-    /// Add a document attribute with a string value.
+    /// Add a locked document attribute.
+    ///
+    /// Document entries cannot replace or unset this value.
     ///
     /// This is a convenience method that accepts various types for the value:
     /// - `&str` becomes `AttributeValue::String`
@@ -215,11 +272,14 @@ impl<'a> OptionsBuilder<'a> {
         name: impl Into<Cow<'a, str>>,
         value: impl Into<AttributeValue<'a>>,
     ) -> Self {
-        self.document_attributes.insert(name.into(), value.into());
+        self.document_attributes.set(name.into(), value.into());
         self
     }
 
-    /// Set all document attributes at once.
+    /// Set all locked document attributes at once.
+    ///
+    /// Explicit attributes in the map cannot be replaced or unset by document
+    /// entries.
     ///
     /// # Example
     ///
@@ -272,11 +332,13 @@ impl<'a> OptionsBuilder<'a> {
     ///     .build();
     /// ```
     #[must_use]
-    pub fn build(self) -> Options<'a> {
+    pub fn build(mut self) -> Options<'a> {
+        self.document_attributes.mark_explicit_as_caller_locked();
         Options {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes,
+            caller_attribute_lock_state: CallerAttributeLockState::Initialized,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]

@@ -77,7 +77,7 @@ fn prepare_manpage_name_attributes<'input>(
     if let Some(section) = section {
         let mut attributes = DocumentAttributes::clone(&state.document_attributes);
         for AttributeEntry { key, value, .. } in section.metadata_attributes {
-            if !crate::constants::is_trusted_attribute(key) {
+            if !state.options.is_document_attribute_locked(key, false) {
                 let value = state.resolve_document_attribute_value(value, &attributes);
                 attributes.set(key.into(), value);
             }
@@ -3044,7 +3044,7 @@ peg::parser! {
         {
             let AttributeEntry{key, value, set} = att;
             tracing::debug!(%set, %key, %value, "Found document attribute in the document header");
-            state.apply_document_attribute(key.into(), value, set);
+            state.apply_document_attribute(key.into(), value, set, true);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
@@ -3057,7 +3057,7 @@ peg::parser! {
                 !matches!(
                     block,
                     Block::DocumentAttribute(attribute)
-                        if crate::constants::is_trusted_attribute(&attribute.name)
+                        if crate::constants::is_builtin_attribute_protected(&attribute.name)
                 )
             });
             Ok(blocks)
@@ -3249,7 +3249,7 @@ peg::parser! {
         = att:document_attribute_match()
         {
             let AttributeEntry{ key, value, set } = att;
-            let value = state.apply_document_attribute(key.into(), value, set);
+            let value = state.apply_document_attribute(key.into(), value, set, false);
             Ok(Block::DocumentAttribute(DocumentAttribute {
                 name: key.into(),
                 value,
@@ -3493,7 +3493,7 @@ peg::parser! {
                     BlockMetadataLine::DocumentAttribute(key, value, set) => {
                         // Set the document attribute immediately so it's available for
                         // subsequent attribute references (e.g., in title lines)
-                        state.apply_document_attribute(key, value, set);
+                        state.apply_document_attribute(key, value, set, false);
                     },
                     BlockMetadataLine::Title(inner) => {
                         title = inner;

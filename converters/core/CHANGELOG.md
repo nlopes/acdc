@@ -90,6 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Parser API and CLI attributes now take precedence over document entries,
+  while document entries can still replace converter defaults.
 - Media targets used as URIs resolve relative paths against `imagesdir`, use
   forward slashes, normalize path segments, and encode spaces as `%20`.
 - Icon mode selection now treats any set `icons` value other than `font` as
@@ -99,7 +101,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inter-document cross-references preserve their external target and let each
   backend use its own output suffix and fallback filename.
 - Universal AsciiDoc defaults passed to parsers no longer act like caller-set
-  attributes, so nested documents can change them locally.
+  attributes, so nested documents can change them locally. Implied converter
+  fallbacks such as `lang=en` are no longer exposed to attribute substitution
+  unless the attribute is explicitly set.
 - Built-in converters now use the parser's section numbers for both headings and
   table-of-contents entries. Source-order changes and nested documents therefore
   use one sequence in every backend.

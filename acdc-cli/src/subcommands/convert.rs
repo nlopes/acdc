@@ -1410,26 +1410,67 @@ impl BackendArg {
 }
 
 fn build_attributes_map(values: &[String]) -> DocumentAttributes<'static> {
-    // Start with rendering defaults (from converters/core)
-    // CLI-provided attributes will override these defaults
-    let mut map = acdc_converters_core::default_rendering_attributes();
+    let mut map = DocumentAttributes::default();
 
-    // Add CLI-provided attributes (these take precedence over defaults)
     for raw_attr in values {
-        let (name, val): (Cow<'static, str>, AttributeValue<'static>) =
-            if let Some(stripped) = raw_attr.strip_suffix('!') {
-                (stripped.to_string().into(), AttributeValue::None)
-            } else if let Some((name, val)) = raw_attr.split_once('=') {
-                (
-                    name.to_string().into(),
-                    AttributeValue::String(val.to_string().into()),
-                )
-            } else {
-                (raw_attr.clone().into(), AttributeValue::Bool(true))
-            };
-        map.set(name, val); // use set() to override defaults
+        let attribute = parse_attribute(raw_attr);
+        map.set(attribute.name, attribute.value);
     }
     map
+}
+
+struct ParsedAttribute {
+    name: Cow<'static, str>,
+    value: AttributeValue<'static>,
+    locked: bool,
+}
+
+fn strip_soft_modifier(value: &str) -> (&str, bool) {
+    value
+        .strip_suffix('@')
+        .map_or((value, false), |value| (value, true))
+}
+
+fn parse_attribute(raw_attr: &str) -> ParsedAttribute {
+    let (name, value, locked) = if let Some((raw_name, raw_value)) = raw_attr.split_once('=') {
+        let (name, name_is_soft) = strip_soft_modifier(raw_name);
+        let (value, value_is_soft) = strip_soft_modifier(raw_value);
+
+        if value_is_soft
+            && value.is_empty()
+            && let Some(name) = name.strip_prefix('!')
+        {
+            (name, AttributeValue::Bool(false), false)
+        } else {
+            (
+                name,
+                AttributeValue::String(value.to_string().into()),
+                !(name_is_soft || value_is_soft),
+            )
+        }
+    } else {
+        let (raw_attr, is_soft) = strip_soft_modifier(raw_attr);
+
+        if let Some(name) = raw_attr
+            .strip_prefix('!')
+            .or_else(|| raw_attr.strip_suffix('!'))
+        {
+            let value = if is_soft {
+                AttributeValue::Bool(false)
+            } else {
+                AttributeValue::None
+            };
+            (name, value, !is_soft)
+        } else {
+            (raw_attr, AttributeValue::Bool(true), !is_soft)
+        }
+    };
+
+    ParsedAttribute {
+        name: name.to_string().into(),
+        value,
+        locked,
+    }
 }
 
 /// Build parser options from CLI args and base options
@@ -1438,9 +1479,14 @@ fn build_parser_options(
     base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
 ) -> acdc_parser::Options<'static> {
-    let mut builder = acdc_parser::Options::builder()
-        .with_safe_mode(base_options.safe_mode())
-        .with_attributes(document_attributes);
+    let mut builder = acdc_parser::Options::builder().with_safe_mode(base_options.safe_mode());
+
+    for raw_attr in &args.attributes {
+        let attribute = parse_attribute(raw_attr);
+        if attribute.locked {
+            builder = builder.with_attribute(attribute.name, attribute.value);
+        }
+    }
 
     if base_options.timings() {
         builder = builder.with_timings();
@@ -1455,5 +1501,7 @@ fn build_parser_options(
         builder = builder.with_setext();
     }
 
-    builder.build()
+    let mut options = builder.build();
+    options.document_attributes.merge(document_attributes);
+    options
 }

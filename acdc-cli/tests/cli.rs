@@ -140,6 +140,124 @@ fn converts_stdin_to_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "html")]
 #[test]
+fn command_line_attributes_cannot_be_changed_by_document_entries()
+-> Result<(), Box<dyn std::error::Error>> {
+    let locked_set = run_acdc(
+        &[
+            "convert",
+            "--embedded",
+            "--stdin",
+            "--out-file",
+            "-",
+            "-a",
+            "experimental",
+        ],
+        Some("Before.\n\n:experimental!:\n\nkbd:[Ctrl+C]\n"),
+    )?;
+    let locked_unset = run_acdc(
+        &[
+            "convert",
+            "--embedded",
+            "--stdin",
+            "--out-file",
+            "-",
+            "-a",
+            "experimental!",
+        ],
+        Some("Before.\n\n:experimental:\n\nkbd:[Ctrl+C]\n"),
+    )?;
+    let set_output = output_text(&locked_set.stdout);
+    let unset_output = output_text(&locked_unset.stdout);
+
+    assert!(
+        locked_set.status.success(),
+        "{}",
+        output_text(&locked_set.stderr)
+    );
+    assert!(
+        locked_unset.status.success(),
+        "{}",
+        output_text(&locked_unset.stderr)
+    );
+    assert!(set_output.contains("<kbd>Ctrl</kbd>+<kbd>C</kbd>"));
+    assert!(unset_output.contains("kbd:[Ctrl+C]"));
+    assert!(!unset_output.contains("<kbd>"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn soft_command_line_attributes_can_be_changed_by_document_entries()
+-> Result<(), Box<dyn std::error::Error>> {
+    let output = run_acdc(
+        &[
+            "convert",
+            "--embedded",
+            "--stdin",
+            "--out-file",
+            "-",
+            "-a",
+            "project@=api",
+            "-a",
+            "team=api@",
+            "-a",
+            "!feature=@",
+            "-a",
+            "!mode@",
+            "-a",
+            "suffix!@",
+            "-a",
+            "removed@=api",
+        ],
+        Some(
+            ":project: document\n\
+             :team: document\n\
+             :feature: document\n\
+             :mode: document\n\
+             :suffix: document\n\
+             :removed!:\n\n\
+             {project}|{team}|{feature}|{mode}|{suffix}|{removed}\n",
+        ),
+    )?;
+    let converted = output_text(&output.stdout);
+
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(converted.contains("document|document|document|document|document|{removed}"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn converter_defaults_remain_document_overridable() -> Result<(), Box<dyn std::error::Error>> {
+    let output = run_acdc(
+        &["convert", "--stdin", "--out-file", "-"],
+        Some("= T\n:lang: fr\n\nBody.\n"),
+    )?;
+    let converted = output_text(&output.stdout);
+
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(converted.contains("<html lang=\"fr\">"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn implied_and_conversion_only_attributes_are_not_seeded_in_the_parser()
+-> Result<(), Box<dyn std::error::Error>> {
+    let output = run_acdc(
+        &["convert", "--stdin", "--out-file", "-"],
+        Some("= T\n\n{lang}|{outdir}|{outfile}\n"),
+    )?;
+    let converted = output_text(&output.stdout);
+
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(converted.contains("<html lang=\"en\">"));
+    assert!(converted.contains("{lang}|{outdir}|{outfile}"));
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
 fn selected_backend_attributes_are_available_during_parsing()
 -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;

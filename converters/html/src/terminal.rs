@@ -1231,7 +1231,7 @@ mod tests {
     use acdc_converters_core::{
         Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning, WarningSource,
     };
-    use acdc_parser::Options as ParserOptions;
+    use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
     use crate::{Processor, RenderOptions};
 
@@ -1257,8 +1257,7 @@ mod tests {
         variant: crate::HtmlVariant,
         safe_mode: acdc_parser::SafeMode,
     ) -> Result<(String, Vec<Warning>), Box<dyn std::error::Error>> {
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(input, &parser_options)?;
         let doc = parsed.document();
         let options = ConverterOptions::builder()

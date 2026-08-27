@@ -27,8 +27,8 @@ pub fn strip_quotes(s: &str) -> &str {
 struct AttributeMap<'a> {
     /// All attributes including defaults
     all: FxHashMap<AttributeName<'a>, AttributeValue<'a>>,
-    /// Only explicitly set attributes (not defaults) - used for serialization
-    explicit: FxHashMap<AttributeName<'a>, AttributeValue<'a>>,
+    /// Explicit names and the caller-lock marker used by document attributes.
+    explicit: FxHashMap<AttributeName<'a>, bool>,
 }
 
 impl Default for AttributeMap<'_> {
@@ -73,14 +73,14 @@ impl<'a> AttributeMap<'a> {
 
     fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
         if !self.contains_key(&name) {
-            self.all.insert(name.clone(), value.clone());
-            self.explicit.insert(name, value); // Track as explicit
+            self.all.insert(name.clone(), value);
+            self.explicit.insert(name, false);
         }
     }
 
     fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
-        self.all.insert(name.clone(), value.clone());
-        self.explicit.insert(name, value); // Track as explicit
+        self.all.insert(name.clone(), value);
+        self.explicit.insert(name, false);
     }
 
     fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {
@@ -112,7 +112,8 @@ impl<'a> AttributeMap<'a> {
     {
         let mut entries: Vec<_> = self
             .explicit
-            .iter()
+            .keys()
+            .filter_map(|key| self.all.get(key.as_ref()).map(|value| (key, value)))
             .filter(|(key, value)| include(key, value))
             .collect();
         entries.sort_by_key(|(key, _)| *key);
@@ -263,9 +264,24 @@ impl<'a> DocumentAttributes<'a> {
         self.attributes.get(name).is_some_and(is_truthy)
     }
 
-    /// Whether document input or parser options explicitly set a truthy value.
-    pub(crate) fn is_explicitly_set(&self, name: &str) -> bool {
-        self.attributes.explicit.get(name).is_some_and(is_truthy)
+    /// Whether an attribute has an explicit value, including an unset value.
+    pub(crate) fn contains_explicit(&self, name: &str) -> bool {
+        self.attributes.explicit.contains_key(name)
+    }
+
+    /// Mark all current explicit attributes as caller values.
+    ///
+    /// Options use this after caller construction is complete. Explicit
+    /// attributes merged later, such as converter defaults, remain unlocked.
+    pub(crate) fn mark_explicit_as_caller_locked(&mut self) {
+        for caller_locked in self.attributes.explicit.values_mut() {
+            *caller_locked = true;
+        }
+    }
+
+    /// Whether the caller supplied and locked an explicit attribute.
+    pub(crate) fn is_caller_locked(&self, name: &str) -> bool {
+        self.attributes.explicit.get(name).copied().unwrap_or(false)
     }
 
     /// Get an attribute value by name.
@@ -346,10 +362,16 @@ impl<'a> DocumentAttributes<'a> {
                 })
                 .collect()
         };
+        let convert_explicit_map =
+            |map: FxHashMap<AttributeName<'a>, bool>| -> FxHashMap<AttributeName<'static>, bool> {
+                map.into_iter()
+                    .map(|(key, caller_locked)| (Cow::Owned(key.into_owned()), caller_locked))
+                    .collect()
+            };
         DocumentAttributes {
             attributes: AttributeMap {
                 all: convert_map(attributes.all),
-                explicit: convert_map(attributes.explicit),
+                explicit: convert_explicit_map(attributes.explicit),
             },
             defaults_enabled,
         }
@@ -568,9 +590,15 @@ impl<'a> ElementAttributes<'a> {
                 })
                 .collect()
         };
+        let convert_explicit_map =
+            |map: FxHashMap<AttributeName<'a>, bool>| -> FxHashMap<AttributeName<'static>, bool> {
+                map.into_iter()
+                    .map(|(key, caller_locked)| (Cow::Owned(key.into_owned()), caller_locked))
+                    .collect()
+            };
         ElementAttributes(AttributeMap {
             all: convert_map(self.0.all),
-            explicit: convert_map(self.0.explicit),
+            explicit: convert_explicit_map(self.0.explicit),
         })
     }
 

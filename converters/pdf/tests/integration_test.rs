@@ -2,9 +2,17 @@ use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_pdf::{PdfOptions, Processor};
-use acdc_parser::Options as ParserOptions;
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
+
+fn parser_options_with_defaults(
+    document_attributes: DocumentAttributes<'static>,
+) -> ParserOptions<'static> {
+    let mut options = ParserOptions::builder().build();
+    options.document_attributes.merge(document_attributes);
+    options
+}
 
 fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<PathBuf> {
     doc.attributes
@@ -31,11 +39,8 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let expected_path = Path::new("tests/fixtures/expected")
         .join(file_name)
         .with_extension("typ");
-    let bootstrap = Processor::new(
-        ConverterOptions::default(),
-        acdc_converters_core::default_rendering_attributes(),
-    );
-    let parser_options = ParserOptions::with_attributes(bootstrap.document_attributes().clone());
+    let bootstrap = Processor::new(ConverterOptions::default(), DocumentAttributes::default());
+    let parser_options = parser_options_with_defaults(bootstrap.document_attributes().clone());
     let parsed = acdc_parser::parse_file(path, &parser_options)?;
     let output_dir = tempfile::tempdir()?;
     let typst_path = output_dir.path().join("actual.typ");
@@ -132,11 +137,8 @@ fn typst_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Res
 #[test]
 fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/image_accessibility_alt_text.adoc");
-    let bootstrap = Processor::new(
-        ConverterOptions::default(),
-        acdc_converters_core::default_rendering_attributes(),
-    );
-    let parser_options = ParserOptions::with_attributes(bootstrap.document_attributes().clone());
+    let bootstrap = Processor::new(ConverterOptions::default(), DocumentAttributes::default());
+    let parser_options = parser_options_with_defaults(bootstrap.document_attributes().clone());
     let parsed = acdc_parser::parse_file(path, &parser_options)?;
     let processor = Processor::new(
         ConverterOptions::default(),

@@ -84,6 +84,10 @@ When `--out-file` is combined with several inputs, only the first input is proce
 `--open` opens converter-reported output files with the system's default application and is ignored for stdout.
 
 Use `--timings` for parse/conversion timings, `--strict` to turn supported fallbacks into errors, `--safe` or `--safe-mode` for parser safety policy, and `--embedded` to suppress enclosing document structure where the backend supports embedded output.
+Values passed with `-a` or `--attribute` take precedence over matching attribute entries in the document.
+Use `-a name`, `-a name=value`, or `-a name!` to set, assign, or unset a locked value.
+Add `@` to the name or value, such as `-a name@=value`, `-a name=value@`, or
+`-a !name=@`, when the document must be allowed to replace that command-line default.
 
 ==== PDF
 
