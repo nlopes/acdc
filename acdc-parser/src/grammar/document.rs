@@ -309,6 +309,7 @@ fn parse_block_content<'input>(
             state,
             content_start + offset,
             block_metadata.parent_section_level,
+            None,
         )
         .unwrap_or_else(|e| {
             adjust_and_log_parse_error(&e, content, content_start + offset, state, error_context);
@@ -625,6 +626,7 @@ fn quote_inner<'input>(
             state,
             p.content_start + p.offset,
             block_metadata.parent_section_level,
+            None,
         )
         .unwrap_or_else(|e| {
             adjust_and_log_parse_error(
@@ -1792,6 +1794,20 @@ fn expected_child_level(level: SectionLevel, kind: SectionKind, is_book: bool) -
     }
 }
 
+fn warn_for_nested_bibliography_section(
+    state: &ParserState<'_>,
+    direct_parent_section_kind: Option<SectionKind>,
+    heading_location: Location,
+) {
+    if direct_parent_section_kind == Some(SectionKind::Bibliography) {
+        let location = state.create_error_source_location(heading_location);
+        state.add_warning(crate::Warning::new(
+            crate::WarningKind::NestedSectionInBibliography,
+            Some(location),
+        ));
+    }
+}
+
 /// How the closing delimiter of a table block was resolved.
 ///
 /// A `Terminated` variant carries the matched close delimiter and its start
@@ -2414,7 +2430,7 @@ peg::parser! {
         // it stands in our current model, it makes no sense to have comments in the
         // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document<'input>, Error>
-        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() blocks:blocks(0, None) end:position!() (eol()* / ![_]) {
+        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
             let header = header_result?;
             let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
@@ -3047,8 +3063,8 @@ peg::parser! {
             state.apply_document_attribute(key.into(), value, set, true);
         }
 
-        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
-        = blocks:block(offset, parent_section_level)*
+        pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
+        = blocks:block(offset, parent_section_level, direct_parent_section_kind)*
         {
             let mut blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
             // A trusted attribute declared in document content is consumed as syntax
@@ -3076,7 +3092,7 @@ peg::parser! {
             blocks.into_iter().collect::<Result<Vec<_>, Error>>()
         }
 
-        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
+        pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = eol()*
         // First check: if we're at a same-or-higher-level section, fail the entire block
         // This prevents section content from consuming sibling/parent sections as paragraphs
@@ -3089,9 +3105,9 @@ peg::parser! {
             // attempt it when the block starts with `[`. The rule itself backtracks
             // to `section`/`block_generic` when the metadata isn't a discrete marker.
             &"[" dh:discrete_header(offset) { dh } /
-            section:section(offset, parent_section_level) { section } /
+            section:section(offset, parent_section_level, direct_parent_section_kind) { section } /
             // Try setext-style sections (only enabled with setext feature + runtime flag)
-            section_setext:section_setext(offset, parent_section_level) { section_setext } /
+            section_setext:section_setext(offset, parent_section_level, direct_parent_section_kind) { section_setext } /
             block_generic(offset, parent_section_level)
         )
         { block }
@@ -3189,7 +3205,7 @@ peg::parser! {
 
             // Check if this is a same-or-higher level section
             if let Some(parent_level) = parent_section_level {
-                if level <= parent_level {
+                if level < parent_level {
                     Ok(()) // This IS a same or higher level setext section
                 } else {
                     Err("not a same or higher level section")
@@ -3257,7 +3273,7 @@ peg::parser! {
             }))
         }
 
-        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
+        pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section");
@@ -3292,13 +3308,19 @@ peg::parser! {
                 location,
             ));
 
+            warn_for_nested_bibliography_section(
+                state,
+                direct_parent_section_kind,
+                state.create_block_location(section_level_start, title_end, offset),
+            );
+
             Ok::<(Title<'input>, &'input str, section::SectionNumbering), Error>((title, section_id, numbering))
         })
         content:section_content(offset, Some(expected_child_level(
             section_level.1,
             SectionKind::from_style(block_metadata.metadata.style),
             is_book_doctype(&state.document_attributes),
-        )))?
+        )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
             let (title, _section_id, numbering) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
@@ -3402,7 +3424,7 @@ peg::parser! {
         /// Parse a setext-style section (title followed by underline).
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
-        pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
+        pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
         = !check_line_is_description_list(offset)
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
@@ -3438,6 +3460,12 @@ peg::parser! {
                         location,
                     ));
 
+                    warn_for_nested_bibliography_section(
+                        state,
+                        direct_parent_section_kind,
+                        state.create_block_location(title_start, title_end, offset),
+                    );
+
                     Ok::<(Title<'input>, &'input str, section::SectionNumbering), Error>((processed_title, section_id, numbering))
                 }
                 Err(e) => Err(e),
@@ -3447,7 +3475,7 @@ peg::parser! {
             setext_level,
             SectionKind::from_style(block_metadata.metadata.style),
             is_book_doctype(&state.document_attributes),
-        )))?
+        )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
             let (title, _section_id, numbering) = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
@@ -3574,8 +3602,8 @@ peg::parser! {
             Ok(Title::new(content))
         }
 
-        rule section_content(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
-        = blocks(offset, parent_section_level) / { Ok(vec![]) }
+        rule section_content(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
+        = blocks(offset, parent_section_level, direct_parent_section_kind) / { Ok(vec![]) }
 
         pub(crate) rule block_generic(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = start:position!()
@@ -5479,7 +5507,7 @@ peg::parser! {
             };
 
             // Parse the quoted content as blocks
-            let blocks = document_parser::blocks(quoted_content, state, content_start + offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+            let blocks = document_parser::blocks(quoted_content, state, content_start + offset, block_metadata.parent_section_level, None).unwrap_or_else(|e| {
                 adjust_and_log_parse_error(&e, quoted_content, content_start + offset, state, "Error parsing content as blocks in quoted paragraph");
                 Ok(Vec::new())
             })?;
@@ -5568,7 +5596,7 @@ peg::parser! {
             let blocks = if content.trim().is_empty() {
                 Vec::new()
             } else {
-                document_parser::blocks(content, state, content_start + offset, block_metadata.parent_section_level).unwrap_or_else(|e| {
+                document_parser::blocks(content, state, content_start + offset, block_metadata.parent_section_level, None).unwrap_or_else(|e| {
                     adjust_and_log_parse_error(&e, content, content_start + offset, state, "Error parsing content as blocks in markdown blockquote");
                     Ok(Vec::new())
                 })?

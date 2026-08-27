@@ -46,6 +46,9 @@ impl Warning {
             WarningKind::SectionLevelOutOfSequence { .. } => Some(
                 "Section levels must increment by at most one. Renumber the heading so it is one level deeper than its parent (the document title counts as level 0).",
             ),
+            WarningKind::NestedSectionInBibliography => Some(
+                "Move the nested section outside the bibliography section or replace its heading with a non-section block.",
+            ),
             WarningKind::UnterminatedTable { .. }
             | WarningKind::UnterminatedDelimitedBlock { .. } => Some(
                 "The opening delimiter was found but no matching closing delimiter was seen before end of document. Add the closing delimiter on its own line, or remove the opening delimiter if not intended.",
@@ -114,6 +117,11 @@ pub enum WarningKind {
         /// The observed section level (e.g. `2` for `===`).
         got: u8,
     },
+
+    /// A bibliography section contains a direct child section. The child is
+    /// retained in the document, matching Asciidoctor's recovery behavior.
+    #[error("bibliography sections do not support nested sections")]
+    NestedSectionInBibliography,
 
     /// A table's opening delimiter was matched but no corresponding
     /// closing delimiter was found before end of input. Matches

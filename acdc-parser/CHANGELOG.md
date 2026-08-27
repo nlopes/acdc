@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Nested sections inside bibliography sections now produce a non-fatal parser
+  warning and remain in the document. Asciidoctor reports the same recoverable
+  condition at error severity; ACDC's recoverable parser diagnostics currently
+  expose only warning severity.
+- Nested Setext sections now remain under their parent section instead of being
+  treated as sibling sections.
 - Attributes supplied through parser options now take precedence over matching
   document entries. A document cannot replace a caller value or reverse a
   caller-requested unset. A caller-set `sectnums` remains flexible after the

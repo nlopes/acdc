@@ -55,7 +55,7 @@ pub(crate) fn parse_table_cell<'a>(
         let outer_last_block_was_verbatim = state.last_block_was_verbatim;
         let outer_last_verbatim_callouts = std::mem::take(&mut state.last_verbatim_callouts);
 
-        let result = document_parser::blocks(content, state, cell_start_offset, None);
+        let result = document_parser::blocks(content, state, cell_start_offset, None, None);
 
         state.document_attributes = outer_attributes;
         state.nested_parent_attributes = outer_parent_attributes;

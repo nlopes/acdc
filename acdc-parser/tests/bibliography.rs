@@ -1,4 +1,4 @@
-use acdc_parser::{Block, InlineNode, Options, SectionKind, parse};
+use acdc_parser::{Block, InlineNode, Options, SectionKind, WarningKind, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -31,6 +31,126 @@ fn bibliography_sections_promote_only_direct_unstyled_lists() -> Result<(), Erro
     assert_eq!(explicit.metadata.style, Some("square"));
     let second = unordered_list(section.content.last().ok_or("missing second direct list")?)?;
     assert_eq!(second.metadata.style, Some("bibliography"));
+    Ok(())
+}
+
+#[test]
+fn bibliography_sections_warn_for_each_direct_child_section() -> Result<(), Error> {
+    let parsed = parse(
+        "= Document\n\n[bibliography]\n== References\n\n[#first]\n=== First\n\n==== Grandchild\n\nText.\n\n=== Second\n\nText.\n\n== Following\n\n=== Allowed child\n",
+        &Options::default(),
+    )?;
+    let warnings = parsed
+        .warnings()
+        .iter()
+        .filter(|warning| matches!(warning.kind, WarningKind::NestedSectionInBibliography))
+        .collect::<Vec<_>>();
+    let [first_warning, second_warning] = warnings.as_slice() else {
+        return Err(format!(
+            "expected two nested bibliography warnings, got {}",
+            warnings.len()
+        )
+        .into());
+    };
+
+    assert_eq!(
+        first_warning
+            .source_location()
+            .ok_or("missing location")?
+            .location
+            .start
+            .line,
+        7
+    );
+    assert_eq!(
+        second_warning
+            .source_location()
+            .ok_or("missing location")?
+            .location
+            .start
+            .line,
+        13
+    );
+    assert_eq!(
+        first_warning.kind.to_string(),
+        "bibliography sections do not support nested sections"
+    );
+
+    let Block::Section(bibliography) = parsed
+        .document()
+        .blocks
+        .first()
+        .ok_or("missing bibliography")?
+    else {
+        return Err("expected a bibliography section".into());
+    };
+    assert_eq!(bibliography.kind, SectionKind::Bibliography);
+    assert_eq!(bibliography.content.len(), 2);
+    let Block::Section(first) = bibliography.content.first().ok_or("missing first child")? else {
+        return Err("expected first child section".into());
+    };
+    assert!(matches!(first.content.first(), Some(Block::Section(_))));
+    assert!(matches!(
+        bibliography.content.get(1),
+        Some(Block::Section(_))
+    ));
+    assert!(matches!(
+        parsed.document().blocks.get(1),
+        Some(Block::Section(_))
+    ));
+    Ok(())
+}
+
+#[cfg(feature = "setext")]
+#[test]
+fn bibliography_sections_warn_for_setext_child_sections() -> Result<(), Error> {
+    let parsed = parse(
+        "[bibliography]\nReferences\n----------\n\nChild\n~~~~~\n",
+        &Options::builder().with_setext().build(),
+    )?;
+    let warning = parsed
+        .warnings()
+        .iter()
+        .find(|warning| matches!(warning.kind, WarningKind::NestedSectionInBibliography))
+        .ok_or("missing nested bibliography warning")?;
+
+    assert_eq!(
+        warning
+            .source_location()
+            .ok_or("missing location")?
+            .location
+            .start
+            .line,
+        5
+    );
+    let Block::Section(bibliography) = parsed
+        .document()
+        .blocks
+        .first()
+        .ok_or("missing bibliography")?
+    else {
+        return Err("expected a bibliography section".into());
+    };
+    assert!(matches!(
+        bibliography.content.as_slice(),
+        [Block::Section(_)]
+    ));
+    Ok(())
+}
+
+#[test]
+fn bibliography_sections_allow_headings_inside_compound_blocks() -> Result<(), Error> {
+    let parsed = parse(
+        "[bibliography]\n== References\n\n--\n=== Heading in open block\n\nText.\n--\n",
+        &Options::default(),
+    )?;
+
+    assert!(
+        !parsed
+            .warnings()
+            .iter()
+            .any(|warning| matches!(warning.kind, WarningKind::NestedSectionInBibliography))
+    );
     Ok(())
 }
 
