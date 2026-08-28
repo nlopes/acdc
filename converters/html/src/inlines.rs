@@ -191,6 +191,12 @@ fn link_class_attr(role: Option<String>, bare: bool) -> String {
     }
 }
 
+fn link_id_attr(attributes: &ElementAttributes<'_>) -> String {
+    attributes
+        .get_string("id")
+        .map_or_else(String::new, |id| format!(" id=\"{id}\""))
+}
+
 /// Extract `target` and `rel` attributes from `window` or `target` attribute values.
 ///
 /// Maps the `AsciiDoc` `window` (preferred) or `target` attribute to HTML:
@@ -887,11 +893,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        let id_attr = link_id_attr(&l.attributes);
         let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
         let target_attr = window_attrs(&l.attributes);
         write!(
             self.writer_mut(),
-            "<a href=\"{}\"{class_attr}{target_attr}>",
+            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
             escape_href(&target_str)
         )?;
         if l.text.is_empty() {
@@ -991,11 +998,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        let id_attr = link_id_attr(&u.attributes);
         let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
         let target_attr = window_attrs(&u.attributes);
         write!(
             self.writer_mut(),
-            "<a href=\"{}\"{class_attr}{target_attr}>",
+            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
             escape_href(&target_str)
         )?;
         if u.text.is_empty() {
@@ -1030,11 +1038,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        let id_attr = link_id_attr(&m.attributes);
         let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
         let target_attr = window_attrs(&m.attributes);
         write!(
             self.writer_mut(),
-            "<a href=\"{}\"{class_attr}{target_attr}>",
+            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
             escape_href(&target_str)
         )?;
         if m.text.is_empty() {

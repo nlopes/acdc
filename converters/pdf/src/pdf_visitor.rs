@@ -2994,17 +2994,35 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             InlineMacro::Url(url) => {
                 let target = url.target.to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
-                self.write_link(&target, &url.text, Some(&url.attributes), fallback)?;
+                self.write_link(
+                    &target,
+                    &url.text,
+                    Some(&url.attributes),
+                    Some(&url.location),
+                    fallback,
+                )?;
             }
             InlineMacro::Link(link) => {
                 let target = link.target.to_string();
                 let fallback = link_fallback(&target, link.hides_uri_scheme());
-                self.write_link(&target, &link.text, Some(&link.attributes), fallback)?;
+                self.write_link(
+                    &target,
+                    &link.text,
+                    Some(&link.attributes),
+                    Some(&link.location),
+                    fallback,
+                )?;
             }
             InlineMacro::Mailto(mailto) => {
                 let target = mailto.target.to_string();
                 let fallback = mailto_fallback(&target);
-                self.write_link(&target, &mailto.text, Some(&mailto.attributes), fallback)?;
+                self.write_link(
+                    &target,
+                    &mailto.text,
+                    Some(&mailto.attributes),
+                    Some(&mailto.location),
+                    fallback,
+                )?;
             }
             InlineMacro::Autolink(autolink) => self.write_autolink(autolink)?,
             InlineMacro::CrossReference(xref) => self.write_cross_reference(xref)?,
@@ -3101,7 +3119,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         if angle_brackets {
             self.write_text_expr("<");
         }
-        self.write_link(&target, &[], None, fallback)?;
+        self.write_link(&target, &[], None, None, fallback)?;
         if angle_brackets {
             self.write_text_expr(">");
         }
@@ -3226,10 +3244,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         target: &str,
         text: &[InlineNode<'_>],
         attributes: Option<&ElementAttributes<'_>>,
+        location: Option<&Location>,
         fallback: &str,
     ) -> Result<(), Error> {
+        let id = attributes
+            .and_then(|attributes| attributes.get_string("id"))
+            .filter(|id| {
+                location.is_some_and(|location| {
+                    self.processor
+                        .references
+                        .get(id.as_ref())
+                        .is_some_and(|reference| reference.location == *location)
+                })
+            });
         let role = attributes.and_then(|attributes| attributes.get_string("role"));
-        let state = self.write_inline_span_start(None, role.as_deref());
+        let state = self.write_inline_span_start(id.as_deref(), role.as_deref());
 
         match text {
             [InlineNode::Macro(InlineMacro::Image(image))]

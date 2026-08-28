@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicit links, direct URL macros, and `mailto:` macros with a named `id`
+  attribute now act as untitled cross-reference targets, including when the
+  attribute list starts with a comma. Automatic references use `[id]`, and
+  `Document::references` exposes the target for navigation. Asciidoctor
+  renders these destinations but does not add them to its public reference
+  catalog; ACDC catalogs them so converters can resolve the references safely.
 - Cross-reference labels that contain inline passthroughs no longer expose
   internal placeholder text in automatic citations. The passthrough source is
   preserved as literal reference text, matching Asciidoctor citations.

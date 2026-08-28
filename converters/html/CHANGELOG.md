@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Explicit links, direct URL macros, and `mailto:` macros now preserve a named
+  `id` attribute on the rendered anchor. References before or after the link
+  target it and use the `[id]` fallback text, matching Asciidoctor.
 - Bibliography entries now show their bracketed default, custom, numeric, and
   formatted reference labels in standard and semantic HTML. Automatic
   citations show the same label and link to the entry, while explicit citation

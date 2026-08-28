@@ -84,6 +84,22 @@ fn quoted_named_attribute_syntax_remains_link_text() -> TestResult {
 }
 
 #[test]
+fn positional_value_without_named_attribute_remains_link_text() -> TestResult {
+    let parsed = parse_inline(
+        "link:https://example.com[Example,positional-id]",
+        &Options::default(),
+    )?;
+    let [InlineNode::Macro(InlineMacro::Link(link))] = parsed.inlines() else {
+        return Err(unexpected("expected one link macro", parsed.inlines()));
+    };
+
+    assert_plain_text(&link.text, "Example,positional-id")?;
+    assert!(link.attributes.is_empty());
+
+    Ok(())
+}
+
+#[test]
 fn link_with_text_and_attributes_parses_both() -> TestResult {
     let parsed = parse_inline(
         "link:https://example.com[Example,role=external,window=_blank]",

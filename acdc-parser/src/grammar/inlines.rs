@@ -978,7 +978,7 @@ peg::parser! {
             title:link_or_url_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
-            attributes:(att:attribute() comma()? { att })* {
+            comma()? attributes:(att:attribute() comma()? { att })* {
                 (None, attributes.into_iter().flatten().collect::<Vec<_>>())
             }
         )
@@ -1040,7 +1040,7 @@ peg::parser! {
             title:link_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
-            attributes:(att:attribute() comma()? { att })* {
+            comma()? attributes:(att:attribute() comma()? { att })* {
                 (None, attributes.into_iter().flatten().collect::<Vec<_>>())
             }
         )
@@ -1411,7 +1411,7 @@ peg::parser! {
             title:link_or_url_title() attributes:("," att:attribute() { att })* {
                 (Some(title), attributes.into_iter().flatten().collect::<Vec<_>>())
             } /
-            attributes:(att:attribute() comma()? { att })* {
+            comma()? attributes:(att:attribute() comma()? { att })* {
                 (None, attributes.into_iter().flatten().collect::<Vec<_>>())
             }
         ) "]"

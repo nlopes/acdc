@@ -12,11 +12,11 @@ use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Block,
     BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, CommentKind,
     DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
-    Document, DocumentAttribute, DocumentAttributes, Error, Header, Image, InlineMacro, InlineNode,
-    ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Plain, Raw,
-    Reference, Section, Source, SourceLocation, StemContent, StemNotation, Subtitle, Table,
-    TableOfContents, TablePresentation, TableRow, ThematicBreak, Title, TocEntry, UnorderedList,
-    Verbatim, Video,
+    Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Error, Header, Image,
+    InlineMacro, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
+    Paragraph, Plain, Raw, Reference, Section, Source, SourceLocation, StemContent, StemNotation,
+    Subtitle, Table, TableOfContents, TablePresentation, TableRow, ThematicBreak, Title, TocEntry,
+    UnorderedList, Verbatim, Video,
     blocks::table::MAX_TABLE_COLUMNS,
     grammar::{
         ParserState,
@@ -1287,6 +1287,21 @@ struct CrossReferenceUse<'a> {
     automatic: bool,
 }
 
+fn insert_untitled_reference<'a>(
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    id: &'a str,
+    location: &Location,
+) {
+    refs.entry(id).or_insert_with(|| Reference {
+        xreflabel: None,
+        title: None,
+        location: location.clone(),
+        caption: None,
+        bibliography: false,
+        automatic_citation: false,
+    });
+}
+
 fn finalize_xref_caption_labels<'a>(state: &ParserState<'a>, document: &mut Document<'a>) {
     let caption_kinds = document
         .references
@@ -1323,20 +1338,27 @@ fn collect_formatted_references<'a, T>(
     T: MarkedText<'a, Content = Vec<InlineNode<'a>>>,
 {
     if let Some(id) = text.id() {
-        refs.entry(id).or_insert_with(|| Reference {
-            xreflabel: None,
-            title: None,
-            location: text.location().clone(),
-            caption: None,
-            bibliography: false,
-            automatic_citation: false,
-        });
+        insert_untitled_reference(refs, id, text.location());
     }
     collect_inline_references(state, text.content(), refs, xrefs);
 }
 
+fn collect_link_references<'a>(
+    state: &mut ParserState<'a>,
+    attributes: &ElementAttributes<'a>,
+    location: &Location,
+    text: &[InlineNode<'a>],
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    xrefs: &mut Vec<CrossReferenceUse<'a>>,
+) {
+    if let Some(id) = attributes.get_string("id") {
+        insert_untitled_reference(refs, state.intern_cow(id), location);
+    }
+    collect_inline_references(state, text, refs, xrefs);
+}
+
 /// Walk the final document tree to (1) populate the cross-reference catalog `refs` with
-/// every anchor (block IDs, inline `[[id]]` anchors, and formatted span IDs) and (2)
+/// every anchor (block IDs, inline `[[id]]` anchors, formatted span IDs, and link IDs) and (2)
 /// collect every `<<id>>` / `xref:id[]` use for unresolved-reference checking and
 /// bibliography citation metadata. A target with no title is still registered (reference
 /// text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than being
@@ -1587,8 +1609,7 @@ fn collect_delimited_references<'a>(
     }
 }
 
-/// Walk inline content for inline `[[id]]` anchors, formatted span IDs, and `<<id>>`
-/// cross-references, recursing into formatted spans.
+/// Walk inline content for target IDs and cross-references, including nested inline content.
 fn collect_inline_references<'a>(
     state: &mut ParserState<'a>,
     inlines: &[InlineNode<'a>],
@@ -1605,6 +1626,30 @@ fn collect_inline_references<'a>(
                     automatic: xref.text.is_empty(),
                 });
             }
+            InlineNode::Macro(InlineMacro::Link(link)) => collect_link_references(
+                state,
+                &link.attributes,
+                &link.location,
+                &link.text,
+                refs,
+                xrefs,
+            ),
+            InlineNode::Macro(InlineMacro::Url(url)) => collect_link_references(
+                state,
+                &url.attributes,
+                &url.location,
+                &url.text,
+                refs,
+                xrefs,
+            ),
+            InlineNode::Macro(InlineMacro::Mailto(mailto)) => collect_link_references(
+                state,
+                &mailto.attributes,
+                &mailto.location,
+                &mailto.text,
+                refs,
+                xrefs,
+            ),
             InlineNode::BoldText(t) => collect_formatted_references(state, t, refs, xrefs),
             InlineNode::ItalicText(t) => collect_formatted_references(state, t, refs, xrefs),
             InlineNode::MonospaceText(t) => collect_formatted_references(state, t, refs, xrefs),
@@ -8167,6 +8212,66 @@ See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id
             )),
             "formatted inline references should resolve: {warnings:?}"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_link_ids_resolve_cross_references_without_using_link_text() -> Result<(), Error> {
+        let input = r"Before: <<link-id>>, <<url-id>>, <<mailto-id>>, and <<bare-id>>.
+
+link:https://example.com[Link text,id=link-id,role=hot]
+
+https://example.org[URL text,id=url-id]
+
+mailto:person@example.com[Mail text,id=mailto-id]
+
+link:https://example.net[,id=bare-id]
+
+After: <<link-id>>, <<url-id>>, <<mailto-id>>, and <<bare-id>>.
+";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+
+        for id in ["link-id", "url-id", "mailto-id", "bare-id"] {
+            let Some(reference) = doc.references.get(id) else {
+                unreachable!("link ID `{id}` must be a reference target");
+            };
+            assert!(reference.xreflabel.is_none());
+            assert!(reference.title.is_none());
+        }
+        let warnings = state.warnings.borrow();
+        assert!(
+            !warnings.iter().any(|warning| matches!(
+                warning.kind,
+                crate::WarningKind::UnresolvedReference { .. }
+            )),
+            "link references should resolve: {warnings:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_link_id_catalog_keeps_first_definition_and_ignores_positional_text() -> Result<(), Error>
+    {
+        let input = r"link:https://example.com[First,id=duplicate]
+
+link:https://example.org[Second,id=duplicate]
+
+link:https://example.net[Text,positional-id]
+";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+
+        assert_eq!(
+            doc.references
+                .get("duplicate")
+                .expect("the first link ID must be catalogued")
+                .location
+                .start
+                .line,
+            1
+        );
+        assert!(!doc.references.contains_key("positional-id"));
         Ok(())
     }
 

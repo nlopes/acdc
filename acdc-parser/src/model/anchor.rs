@@ -143,7 +143,7 @@ impl Serialize for TocEntry<'_> {
     }
 }
 
-/// The resolved text of a cross-reference target (a section or a titled block).
+/// Reference metadata for a cross-reference target.
 ///
 /// Collected during parsing into the `id → Reference` map on
 /// [`Document::references`](crate::Document), so a `<<id>>` reference resolves
@@ -156,11 +156,10 @@ pub struct Reference<'a> {
     /// renders bold. When set, it is the reference text; otherwise converters
     /// use `title` and, for captioned targets, `caption`.
     pub xreflabel: Option<Vec<InlineNode<'a>>>,
-    /// The target's title (section or block title), when it has one. `None` for
-    /// a referenceable element with no title (e.g. an untitled block with an
-    /// `[[id]]`): such a reference exists but has no reference text, so an
-    /// `<<id>>` to it renders the literal `[id]` — distinct from an id that is
-    /// absent from the catalog entirely (an unresolved/broken reference).
+    /// The target's title, when it has one. `None` for a referenceable element
+    /// with no title, such as an untitled block or an inline link with an `id`
+    /// attribute. A reference to such a target renders the literal `[id]`,
+    /// unlike an ID that is absent from the catalog and therefore unresolved.
     pub title: Option<Title<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
     pub location: Location,
