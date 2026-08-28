@@ -81,6 +81,10 @@
 
 #text("See ")#link(<id-626f6c642d6964>)[#text("[bold-id]")]#text(", ")#link(<id-6974616c69632d6964>)[#text("italic link")]#text(", ")#link(<id-6d6f6e6f2d6964>)[#text("mono link")]#text(", ")#link(<id-6d61726b2d6964>)[#text("mark link")]#text(", ")#link(<id-7375622d6964>)[#text("sub link")]#text(", ")#link(<id-73757065722d6964>)[#text("super link")]#text(", ")#link(<id-646f75626c652d6964>)[#text("double link")]#text(", and ")#link(<id-73696e676c652d6964>)[#text("single link")]#text(".")
 
+#highlight[#text("plain highlight")]
+
+#metadata(none) <id-6d61726b2d6f70656e2d6964>#underline[#text("attributed span with an ID and role")]
+
 #strike[#text("line-through")]
 
 #underline[#text("underline")]
@@ -98,6 +102,8 @@
 #highlight(fill: rgb("#000000"))[#text("black-background")]
 
 #highlight(fill: rgb("#fa0000"))[#text("red-background")]
+
+#metadata(none) <id-6261636b67726f756e642d726f6c652d6964>#highlight(fill: rgb("#fa0000"))[#underline[#text("background span with an ID and role")]]
 
 #text(fill: rgb("#bf0000"))[#underline[#text("combined known")]]
 
