@@ -8396,6 +8396,57 @@ See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id
         Ok(())
     }
 
+    #[test]
+    fn test_reference_label_restores_passthrough_syntax() -> Result<(), Error> {
+        let input = "Some [[labelled,+++<mark>Label</mark>+++]]text.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let label = doc
+            .references
+            .get("labelled")
+            .expect("the id is a reference target")
+            .xreflabel
+            .as_ref()
+            .expect("the anchor has a label");
+        assert!(
+            matches!(
+                &label[..],
+                [InlineNode::PlainText(text)]
+                    if text.content == "+++<mark>Label</mark>+++"
+            ),
+            "{label:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_nested_passthrough_retains_substitution_policy() -> Result<(), Error> {
+        let input = "*before +++<mark>nested</mark>+++ after*\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        assert!(
+            matches!(
+                &doc.blocks[..],
+                [Block::Paragraph(paragraph)]
+                    if matches!(
+                        &paragraph.content[..],
+                        [InlineNode::BoldText(bold)]
+                            if matches!(
+                                &bold.content[..],
+                                [InlineNode::PlainText(before), InlineNode::RawText(raw), InlineNode::PlainText(after)]
+                                    if before.content == "before "
+                                        && raw.content == "<mark>nested</mark>"
+                                        && raw.subs.is_empty()
+                                        && after.content == " after"
+                            )
+                    )
+            ),
+            "{:?}",
+            doc.blocks
+        );
+        Ok(())
+    }
+
     /// An author line that doesn't parse as structured authors is kept as a
     /// single author, and the parser warns (acdc-only heads-up; asciidoctor is
     /// silent). The warning points at the author line.

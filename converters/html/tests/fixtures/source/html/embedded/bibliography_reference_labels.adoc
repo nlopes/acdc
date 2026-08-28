@@ -1,0 +1,30 @@
+Cites: <<plain>>, <<custom>>, <<numeric>>, <<formatted>>, <<explicit,Explicit *citation*>>, <<single>>, <<double>>, <<triple>>, and <<nested>>.
+
+[bibliography]
+== References
+
+* [[[plain]]] Plain entry.
+* [[[custom,Custom & <Label>]]] Custom entry.
+* [[[numeric,7]]] Numeric entry.
+* [[[formatted,*Bold* and `mono`]]] Formatted entry.
+* [[[explicit,Entry Label]]] Explicitly cited entry.
+* [[[uncited]]] Uncited entry.
+* [[regular]] Regular anchor.
+* [[[attached]]] Attached entry.
++
+....
+attached block
+....
+* [[[single,+<mark>single</mark>+]]] Single passthrough entry.
+* [[[double,++<mark>double</mark>++]]] Double passthrough entry.
+* [[[triple,+++<mark>triple</mark>+++]]] Triple passthrough entry.
+* [[[nested,*before +++<mark>nested</mark>+++ after*]]] Nested passthrough entry.
+
+== Explicit list
+
+[bibliography]
+* [[[outside,Outside Label]]] Outside entry.
+
+== Ordinary list
+
+* [[[ordinary]]] Ordinary entry.

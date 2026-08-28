@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-reference labels that contain inline passthroughs no longer expose
+  internal placeholder text in automatic citations. The passthrough source is
+  preserved as literal reference text, matching Asciidoctor citations.
+- Inline passthroughs nested inside formatted text now retain their substitution
+  policy instead of becoming plain text.
 - Nested sections inside bibliography sections now produce a non-fatal parser
   warning and remain in the document. Asciidoctor reports the same recoverable
   condition at error severity; ACDC's recoverable parser diagnostics currently

@@ -59,11 +59,12 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
-    CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
-    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu,
-    Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url,
-    Verbatim, parse_text_for_quotes, strip_quotes, substitute,
+    Anchor, AttributeValue, Autolink, Block, Bold, Button, CalloutRef, CrossReference,
+    CurvedApostrophe, CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image,
+    IndexTerm, IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto,
+    Menu, Monospace, Options as ParserOptions, Pass, Plain, Raw, Stem, StemNotation, Subscript,
+    Substitution, Superscript, Url, Verbatim, parse, parse_text_for_quotes, strip_quotes,
+    substitute,
 };
 
 use crate::{
@@ -152,6 +153,10 @@ pub(crate) fn escape_pcdata(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+fn raw_fragment_placeholder(index: usize) -> String {
+    format!("\0{index}\0")
 }
 
 /// Extract the `role` attribute as a non-empty, unquoted string.
@@ -340,14 +345,94 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 Ok(())
             }
             InlineNode::InlineAnchor(anchor) if !options.toc_mode => {
-                write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id)?;
-                Ok(())
+                self.render_inline_anchor(anchor, options, subs)
             }
             // Explicit InlineAnchor arm for TOC mode (no nested anchors) plus a catch-all
             // for future `#[non_exhaustive]` variants — both render nothing, but enumerating
             // the anchor arm keeps `wildcard_enum_match_arm` satisfied.
             InlineNode::InlineAnchor(_) | _ => Ok(()),
         }
+    }
+
+    fn render_inline_anchor(
+        &mut self,
+        anchor: &Anchor<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id)?;
+        if !anchor.is_bibliography() {
+            return Ok(());
+        }
+
+        if let Some(source) = anchor
+            .xreflabel
+            .filter(|source| source.contains('+') || source.contains("pass:"))
+            && let Some(label) =
+                self.render_preprocessed_bibliography_label(source, options, subs)?
+        {
+            write!(self.writer_mut(), "{label}")?;
+            return Ok(());
+        }
+
+        let processor = Rc::clone(&self.processor);
+        let Some(label) = processor
+            .references
+            .get(anchor.id)
+            .and_then(|reference| reference.xreflabel.as_deref())
+        else {
+            write!(self.writer_mut(), "[{}]", escape_pcdata(anchor.id))?;
+            return Ok(());
+        };
+        let html = self.render_bibliography_inline_fragment(label, options, subs)?;
+        write!(self.writer_mut(), "{html}")?;
+        Ok(())
+    }
+
+    fn render_preprocessed_bibliography_label(
+        &mut self,
+        source: &str,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<Option<String>, Error> {
+        let wrapped = format!("({source})");
+        let parser_options =
+            ParserOptions::with_attributes(self.processor.document_attributes().clone());
+        let parsed = parse(&wrapped, &parser_options)?;
+        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            return Ok(None);
+        };
+        let html = self.render_bibliography_inline_fragment(&paragraph.content, options, subs)?;
+        Ok(html
+            .strip_prefix('(')
+            .and_then(|html| html.strip_suffix(')'))
+            .map(|html| format!("[{html}]")))
+    }
+
+    fn render_bibliography_inline_fragment(
+        &mut self,
+        inlines: &[InlineNode<'_>],
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<String, Error> {
+        let mut fragment_options = options.clone();
+        fragment_options.toc_mode = true;
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            Rc::clone(&self.processor),
+            fragment_options,
+            self.diagnostics.reborrow(),
+        );
+        visitor.current_subs = subs.to_vec();
+        visitor.captured_raw_fragments = Some(Vec::new());
+        visitor.visit_inline_nodes(inlines)?;
+        let captured = visitor.captured_raw_fragments.take().unwrap_or_default();
+        let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
+        let mut html = html.replace('<', "&lt;").replace('>', "&gt;");
+        for (index, raw) in captured.iter().enumerate() {
+            html = html.replace(&raw_fragment_placeholder(index), raw);
+        }
+        Ok(html)
     }
 
     /// Render one of the simple inline-formatting nodes (bold, italic, monospace, sup, sub).
@@ -457,7 +542,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else {
             passthrough_substitution_text(content, &r.subs, self.text_boundaries())
         };
-        write!(self.writer_mut(), "{text}")?;
+        if let Some(captured) = self.captured_raw_fragments.as_mut() {
+            let index = captured.len();
+            captured.push(text);
+            write!(self.writer_mut(), "{}", raw_fragment_placeholder(index))?;
+        } else {
+            write!(self.writer_mut(), "{text}")?;
+        }
         Ok(())
     }
 
@@ -1301,13 +1392,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
             Rc::clone(&self.processor),
-            catalog_options.clone(),
+            catalog_options,
             self.diagnostics.reborrow(),
         );
         visitor.current_subs = subs.to_vec();
-        for inline in inlines {
-            visitor.render_inline_node(inline, &catalog_options, subs)?;
-        }
+        visitor.visit_inline_nodes(inlines)?;
         let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
         Ok(IndexTermLabel {
             plain: InlineTextTransform::default().to_string(inlines),

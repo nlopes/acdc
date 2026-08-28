@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Bibliography entries now show their bracketed default, custom, numeric, and
+  formatted reference labels in standard and semantic HTML. Automatic
+  citations show the same label and link to the entry, while explicit citation
+  text remains unbracketed. Passthrough labels follow Asciidoctor's distinct
+  entry and citation substitution behavior.
 - Figures, tables, examples, listings, and source blocks now honor caption
   labels at each block's source position. Custom and disabled captions,
   inner-first numbering, and changes made part-way through a document match
