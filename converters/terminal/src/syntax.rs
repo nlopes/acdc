@@ -1,7 +1,5 @@
 use std::io::Write;
 
-use acdc_parser::InlineNode;
-
 use crate::{Error, Processor};
 
 /// Highlight code and render to terminal.
@@ -9,9 +7,9 @@ use crate::{Error, Processor};
 /// When the `highlighting` feature is enabled, this uses syntect for syntax
 /// highlighting. Otherwise, it outputs plain text.
 #[cfg(feature = "highlighting")]
-pub(crate) fn highlight_code<W: Write + ?Sized>(
+pub(crate) fn highlight_text<W: Write + ?Sized>(
     writer: &mut W,
-    inlines: &[InlineNode],
+    code: &str,
     language: &str,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
@@ -20,7 +18,6 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         easy::HighlightLines, highlighting::ThemeSet, parsing::SyntaxSet, util::LinesWithEndings,
     };
 
-    let code = extract_text_from_inlines(inlines);
     let syntax_set = SyntaxSet::load_defaults_newlines();
     let theme_set = ThemeSet::load_defaults();
 
@@ -34,7 +31,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .or_else(|| syntax_set.find_syntax_by_extension(language))
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
     let mut highlighter = HighlightLines::new(syntax, theme);
-    for line in LinesWithEndings::from(&code) {
+    for line in LinesWithEndings::from(code) {
         let ranges = highlighter
             .highlight_line(line, &syntax_set)
             .map_err(|e| Error::Io(std::io::Error::other(e)))?;
@@ -66,57 +63,28 @@ fn apply_syntect_style(
 /// Fallback implementation when syntax highlighting is disabled.
 /// Outputs plain text without any highlighting.
 #[cfg(not(feature = "highlighting"))]
-pub(crate) fn highlight_code<W: Write + ?Sized>(
+pub(crate) fn highlight_text<W: Write + ?Sized>(
     writer: &mut W,
-    inlines: &[InlineNode],
+    code: &str,
     _language: &str,
     _processor: &Processor<'_>,
 ) -> Result<(), Error> {
-    let code = extract_text_from_inlines(inlines);
     write!(writer, "{code}")?;
     Ok(())
-}
-
-/// Extract text content from inline nodes.
-///
-/// This handles `VerbatimText` (from literal/listing blocks) and `PlainText` nodes.
-/// Source text for the highlighter.
-///
-/// Code blocks hold verbatim text, so this is the shared extraction with
-/// newlines for hard line breaks; a callout marker keeps its `<N>` source form
-/// for the caller to locate.
-fn extract_text_from_inlines(inlines: &[InlineNode]) -> String {
-    crate::extract_inline_text(inlines, "\n")
 }
 
 #[cfg(all(test, feature = "highlighting"))]
 mod tests {
     use super::*;
     use crate::create_test_processor;
-    use acdc_parser::{Location, Verbatim};
-
-    fn create_verbatim_inlines(content: &str) -> Vec<InlineNode<'_>> {
-        vec![InlineNode::VerbatimText(Verbatim {
-            content,
-            location: Location::default(),
-        })]
-    }
-
-    #[test]
-    fn test_extract_text_from_verbatim() {
-        let inlines = create_verbatim_inlines("fn main() {\n    println!(\"Hello\");\n}");
-        let text = extract_text_from_inlines(&inlines);
-        assert_eq!(text, "fn main() {\n    println!(\"Hello\");\n}");
-    }
 
     #[test]
     fn test_highlight_rust_code() -> Result<(), Error> {
         let code = "fn main() {\n    println!(\"Hello, world!\");\n}";
-        let inlines = create_verbatim_inlines(code);
         let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "rust", &processor)?;
+        highlight_text(&mut buffer, code, "rust", &processor)?;
 
         // Just verify it doesn't crash and produces output
         assert!(!buffer.is_empty(), "Should produce highlighted output");
@@ -127,11 +95,10 @@ mod tests {
     #[test]
     fn test_highlight_unknown_language_fallback() -> Result<(), Error> {
         let code = "some code here";
-        let inlines = create_verbatim_inlines(code);
         let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "unknown_lang_xyz", &processor)?;
+        highlight_text(&mut buffer, code, "unknown_lang_xyz", &processor)?;
 
         // Should fall back to plain text and not crash
         assert!(
@@ -145,11 +112,10 @@ mod tests {
     #[test]
     fn test_highlight_python_code() -> Result<(), Error> {
         let code = "def hello():\n    print('Hello, world!')";
-        let inlines = create_verbatim_inlines(code);
         let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "python", &processor)?;
+        highlight_text(&mut buffer, code, "python", &processor)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 
@@ -159,11 +125,10 @@ mod tests {
     #[test]
     fn test_highlight_javascript_code() -> Result<(), Error> {
         let code = "function hello() {\n  console.log('Hello, world!');\n}";
-        let inlines = create_verbatim_inlines(code);
         let processor = create_test_processor();
 
         let mut buffer = Vec::new();
-        highlight_code(&mut buffer, &inlines, "javascript", &processor)?;
+        highlight_text(&mut buffer, code, "javascript", &processor)?;
 
         assert!(!buffer.is_empty(), "Should produce highlighted output");
 

@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_terminal::Processor;
+use acdc_converters_terminal::{Capabilities, Processor};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
@@ -12,13 +12,82 @@ fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
 }
 
-/// Generate a `#[test]` for each fixture. The optional `requires:` clause
-/// gates the test on a cfg predicate so fixtures whose expected output
-/// depends on a specific terminal feature (e.g. `images`, `highlighting`)
-/// are simply absent from the test run when that feature is off, rather
-/// than failing with a stale expected output.
-macro_rules! generate_tests {
-    ( [ $( ($name:ident, $uses_osc8_links:expr $(, requires: $cfg:meta )? ) ),* $(,)? ] ) => {
+fn render_terminal(
+    input: &str,
+    width: usize,
+    capabilities: Capabilities,
+) -> Result<(String, Vec<String>), Error> {
+    crossterm::style::force_color_output(true);
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone())
+        .with_terminal_width(width)
+        .with_dark_mode(true)
+        .with_terminal_capabilities(capabilities);
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("terminal");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    Ok((
+        String::from_utf8(output)?,
+        warnings
+            .into_iter()
+            .map(|warning| warning.message.into_owned())
+            .collect(),
+    ))
+}
+
+const TEXT_TERMINAL: Capabilities = Capabilities {
+    unicode: true,
+    osc8_links: false,
+};
+
+const OSC8_TERMINAL: Capabilities = Capabilities {
+    unicode: true,
+    osc8_links: true,
+};
+
+fn strip_terminal_sequences(input: &str) -> String {
+    let mut output = String::new();
+    let mut chars = input.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character != '\u{1b}' {
+            output.push(character);
+            continue;
+        }
+        match chars.next() {
+            Some('[') => {
+                for control in chars.by_ref() {
+                    if ('@'..='~').contains(&control) {
+                        break;
+                    }
+                }
+            }
+            Some(']') => {
+                while let Some(control) = chars.next() {
+                    if control == '\u{7}' {
+                        break;
+                    }
+                    if control == '\u{1b}' && chars.next_if_eq(&'\\').is_some() {
+                        break;
+                    }
+                }
+            }
+            Some(_) | None => {}
+        }
+    }
+    output
+}
+
+// Generate one test per fixture. `requires:` omits fixtures whose expected
+// output depends on an unavailable terminal feature.
+macro_rules! terminal_fixture_catalog {
+    ( [ $( ($name:ident, $has_osc8_variant:expr $(, requires: $cfg:meta )? ) ),* $(,)? ] ) => {
+        const TERMINAL_FIXTURES: &[(&str, bool)] = &[
+            $((stringify!($name), $has_osc8_variant)),*
+        ];
+
         $(
             $( #[cfg($cfg)] )?
             #[cfg(test)]
@@ -27,65 +96,16 @@ macro_rules! generate_tests {
                 #[test]
                 fn test() -> Result<(), Error> {
                     let fixture_name = stringify!($name);
-                    test_fixture(fixture_name, $uses_osc8_links)
+                    test_fixture_variants(fixture_name, $has_osc8_variant)
                 }
             }
         )*
     };
 }
 
-// List of test fixtures: (fixture_name, uses_osc8_links [, requires: <cfg>])
-generate_tests!([
-    (document, false),
-    (article_special_section_numbering, false),
-    (article_special_section_numbering_all, false),
-    (book_parts_literal_false, false),
-    (book_special_section_numbering, false),
-    (book_special_section_numbering_all, false),
-    (nested_sections, false),
-    (ordered_list, false),
-    (checklist_contexts, false),
-    (nested_list_metadata, false),
-    (unordered_list, false),
-    (description_list_mixed_content, false),
-    (description_list_topology, false),
-    (table_multi_cell_per_line, false),
-    (table_cell_colspan, false),
-    (table_cell_rowspan, false),
-    (table_cell_span_combined, false),
-    (table_combined_span_formatting, false),
-    (table_presentation, false),
-    (delimited_block, false),
-    (quote_block_with_paragraphs, false),
-    (admonition_block, false),
-    (footnotes, false),
-    (url_macro, true),
-    (basic_image_block, false, requires: feature = "images"),
-    (source_block_with_attribute_in_title, false, requires: feature = "highlighting"),
-    (source_block_complete, false, requires: feature = "highlighting"),
-    (source_block_language_slot, false, requires: feature = "highlighting"),
-    (macros_with_quoted_attributes, false, requires: feature = "images"),
-    (icon_names, false),
-    (escaped_superscript_subscript, false),
-    (styled_paragraphs, false),
-    (block_attribute_parity, false),
-    (caption_source_order, false),
-    (passthrough_xrefs, false),
-    (xref_nesting, false),
-    (inline_text_extraction, false, requires: feature = "highlighting"),
-    (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
-    (subs_index_section, true),
-    (index_term_relationships, false),
-    (index_terms_table_header, false),
-    (subs_replacements_disabled, false),
-    (subs_replacements_explicit, false),
-    (subs_hardbreak_dialogue, false),
-]);
+include!("fixtures/catalog.rs");
 
-/// Helper function to run a single integration test.
-///
-/// Parses the input `.adoc` file, converts to Terminal output, and compares with expected output.
-fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
+fn test_fixture_variants(fixture_name: &str, has_osc8_variant: bool) -> Result<(), Error> {
     // Fixtures whose name contains `subs` test `[subs="…"]` behaviour, which
     // only takes effect under the `pre-spec-subs` feature. When the feature
     // is off, skip — the expected output captures the feature-on behaviour
@@ -95,6 +115,14 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         return Ok(());
     }
 
+    test_fixture_variant(fixture_name, false)?;
+    if has_osc8_variant {
+        test_fixture_variant(fixture_name, true)?;
+    }
+    Ok(())
+}
+
+fn test_fixture_variant(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     crossterm::style::force_color_output(true);
 
     let input_path = PathBuf::from("tests/fixtures/source").join(format!("{fixture_name}.adoc"));
@@ -108,7 +136,11 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
     let mut output = Vec::new();
     let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone())
         .with_terminal_width(80)
-        .with_dark_mode(true);
+        .with_dark_mode(true)
+        .with_terminal_capabilities(Capabilities {
+            unicode: true,
+            osc8_links: osc8,
+        });
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
@@ -120,11 +152,6 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         &mut diagnostics,
     )?;
 
-    if osc8 && !processor.terminal_capabilities().osc8_links {
-        // If the fixture name indicates osc8 links but we're running in a terminal that
-        // doesn't support them, we ignore the test.
-        return Ok(());
-    }
     let fixture_name = if osc8 {
         format!("{fixture_name}.osc8.txt")
     } else {
@@ -146,6 +173,25 @@ fn test_fixture(fixture_name: &str, osc8: bool) -> Result<(), Error> {
         "Terminal output mismatch for fixture: {fixture_name}",
     );
 
+    Ok(())
+}
+
+#[test]
+fn osc8_expected_files_match_fixture_catalog() -> Result<(), Error> {
+    use std::collections::BTreeSet;
+
+    let expected_names = PathBuf::from("tests/fixtures/expected")
+        .read_dir()?
+        .filter_map(Result::ok)
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .filter_map(|name| name.strip_suffix(".osc8.txt").map(str::to_string))
+        .collect::<BTreeSet<_>>();
+    let fixture_names = TERMINAL_FIXTURES
+        .iter()
+        .filter_map(|(name, has_osc8_variant)| has_osc8_variant.then_some((*name).to_string()))
+        .collect::<BTreeSet<_>>();
+
+    assert_eq!(fixture_names, expected_names);
     Ok(())
 }
 
@@ -377,5 +423,287 @@ fn image_failure_warning_is_returned_in_conversion_result() -> Result<(), Error>
         warning.source.converter == "terminal"
             && warning.message.contains("definitely-missing-image.png")
     }));
+    Ok(())
+}
+
+#[test]
+fn document_structure_keeps_revision_navigation_and_hidden_section_meaning() -> Result<(), Error> {
+    let input = "= Guide\n:doctype: book\n:toc:\n:toclevels: 3\n:sectnums:\n:partnums:\n:version-label: Release\n:revnumber: v2.1\n:chapter-signifier: Unit\n\n= Part One\n\n== First\n\nSee <<hidden-heading>> and footnote:[Navigation note].\n\n[[hidden-heading]]\n[%notitle]\n=== Hidden Heading\n\nHidden body.\n\n[index]\n== Early Index\n\nIndex body.\n\n== Second\n\nSecond body.\n";
+    let (output, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
+    let plain = strip_terminal_sequences(&output);
+
+    assert!(warnings.is_empty(), "{warnings:?}");
+    for expected in [
+        "Release v2.1",
+        "I: Part One",
+        "1. First",
+        "1.1. Hidden Heading",
+        "Unit 1. First",
+        "Unit 2. Second",
+        "Early Index",
+        "Index body.",
+        "Hidden body.",
+        "[1] Navigation note",
+    ] {
+        assert!(
+            plain.contains(expected),
+            "missing {expected:?} in {output:?}"
+        );
+    }
+    assert_eq!(plain.matches("Hidden Heading").count(), 2, "{output:?}");
+
+    let (osc8, osc8_warnings) = render_terminal(input, 80, OSC8_TERMINAL)?;
+    let osc8_plain = strip_terminal_sequences(&osc8);
+    assert!(osc8_warnings.is_empty(), "{osc8_warnings:?}");
+    assert_eq!(osc8_plain.matches("Hidden Heading").count(), 2, "{osc8:?}");
+    assert!(osc8_plain.contains("[1] Navigation note"), "{osc8:?}");
+    Ok(())
+}
+
+#[test]
+fn unset_chapter_signifier_keeps_only_the_chapter_number() -> Result<(), Error> {
+    let input = "= Guide\n:doctype: book\n:sectnums:\n:chapter-signifier!:\n\n== Start\n";
+    let (output, _) = render_terminal(input, 80, TEXT_TERMINAL)?;
+
+    assert!(output.contains("1. Start"), "{output:?}");
+    assert!(!output.contains("Chapter 1."), "{output:?}");
+    Ok(())
+}
+
+#[test]
+fn blocks_roles_and_admonition_modes_have_terminal_distinctions() -> Result<(), Error> {
+    let input = ".Sample\n[example]\nExample text.\n\n[abstract]\nSummary text.\n\n.Open title\n--\nOpen content.\n--\n\n[quote,Block Poet,Block Work]\n____\nQuoted text.\n____\n\n[verse,Verse Poet,Verse Work]\n____\nVerse text.\n____\n\n[.lead]\nLead text.\n\n[.small]\nSmall text.\n\nNOTE: Pay attention.\n";
+    let (output, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
+    let plain = strip_terminal_sequences(&output);
+
+    assert!(warnings.is_empty(), "{warnings:?}");
+    for expected in [
+        "Sample",
+        "│ Example text.",
+        "ABSTRACT",
+        "Summary text.",
+        "Open title",
+        "Open content.",
+        "Block Poet",
+        "Block Work",
+        "Verse Poet",
+        "Verse Work",
+        "Lead text.",
+        "Small text.",
+        "Note:",
+    ] {
+        assert!(
+            plain.contains(expected),
+            "missing {expected:?} in {output:?}"
+        );
+    }
+    assert!(!output.contains("ℹ️"), "icons are disabled: {output:?}");
+
+    let ascii = Capabilities {
+        unicode: false,
+        osc8_links: false,
+    };
+    let (no_unicode, _) = render_terminal(":icons: font\n\nNOTE: Text.\n", 80, ascii)?;
+    assert!(!no_unicode.contains("ℹ️"), "{no_unicode:?}");
+    assert!(
+        strip_terminal_sequences(&no_unicode).contains("| Note:"),
+        "{no_unicode:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn list_styles_bibliography_and_callout_numbers_are_preserved() -> Result<(), Error> {
+    let input = "[%reversed,start=5]\n. Five\n. Four\n. Three\n\n[%reversed]\n. Default three\n. Default two\n. Default one\n\n[disc]\n* Disc\n\n[circle]\n* Circle\n\n[square]\n* Square\n\n[ordered]\nFirst:: One.\nSecond:: Two.\n\n[unordered]\nAlpha:: A.\nBeta:: B.\n\n[source,rust]\n----\nlet value = 1; // <3>\n----\n<3> Explicit three\n\n[bibliography]\n== References\n\n* [[[ref,Reference Label]]] Entry.\n";
+    let (output, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
+    let plain = strip_terminal_sequences(&output);
+
+    assert!(warnings.is_empty(), "{warnings:?}");
+    for expected in [
+        "5. Five",
+        "4. Four",
+        "3. Three",
+        "3. Default three",
+        "2. Default two",
+        "1. Default one",
+        "• Disc",
+        "◦ Circle",
+        "▪ Square",
+        "1. First",
+        "2. Second",
+        "• Alpha",
+        "• Beta",
+        "<3> Explicit three",
+        "[Reference Label] Entry.",
+    ] {
+        assert!(
+            plain.contains(expected),
+            "missing {expected:?} in {output:?}"
+        );
+    }
+    assert!(!output.contains("// <3>"), "{output:?}");
+
+    let ascii = Capabilities {
+        unicode: false,
+        osc8_links: false,
+    };
+    let (ascii_output, _) = render_terminal(input, 80, ascii)?;
+    let ascii_plain = strip_terminal_sequences(&ascii_output);
+    for marker in ["* Disc", "o Circle", "+ Square"] {
+        assert!(ascii_plain.contains(marker), "{ascii_output:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn source_options_and_mixed_php_fallback_are_visible_and_deduplicated() -> Result<(), Error> {
+    let input = ":project: acdc\n\n[source,rust,linenums,start=10,highlight=11..12]\n----\nlet one = 1; // <1>\nlet two = \"λ\";\nlet long_name = \"abcdefghijklmnopqrstuvwxyz0123456789\";\n----\n<1> First value\n\n[source,unknown-language,subs=\"+attributes\"]\n----\n{project}\n----\n\n[source,rust]\n----\nslash(); // <2>\nhash = 1 # <3>\nSELECT 1; -- <4>\n(def x 1) ;; <5>\nsingle ; <6>\n<tag/> <!--8-->\nmultiple(); // <9> <10>\nauto(); // <.>\n----\n<2> Slash guard\n<3> Hash guard\n<4> Dash guard\n<5> Double-semicolon guard\n<6> Single semicolon remains\n<8> XML guard\n<9> First marker on one line\n<10> Second marker on one line\n<.> Automatic marker\n\n[source,php,options=mixed]\n----\n<?php echo 'one'; ?>\n----\n\n[source,php,options=mixed]\n----\n<?php echo 'two'; ?>\n----\n";
+    let (output, warnings) = render_terminal(input, 48, TEXT_TERMINAL)?;
+
+    for expected in [
+        "10 │",
+        "11 │",
+        "12 │",
+        "<1>",
+        "λ",
+        "long_name",
+        "slash(); <2>",
+        "hash = 1 <3>",
+        "SELECT 1; <4>",
+        "(def x 1) <5>",
+        "single ; <6>",
+        "<tag/> <8>",
+        "multiple(); <9> <10>",
+        "auto(); <1>",
+        "<1> Automatic marker",
+    ] {
+        assert!(
+            strip_terminal_sequences(&output).contains(expected),
+            "missing {expected:?} in {output:?}"
+        );
+    }
+    #[cfg(feature = "pre-spec-subs")]
+    assert!(
+        strip_terminal_sequences(&output).contains("acdc"),
+        "{output:?}"
+    );
+    #[cfg(not(feature = "pre-spec-subs"))]
+    assert!(
+        strip_terminal_sequences(&output).contains("{project}"),
+        "{output:?}"
+    );
+    assert!(!output.contains("// <1>"), "{output:?}");
+    let highlighted_line = output
+        .lines()
+        .find(|line| line.contains("two"))
+        .ok_or("highlighted source line missing")?;
+    assert!(
+        highlighted_line.contains("\u{1b}[48;2;64;64;64m"),
+        "highlight style missing from selected line: {highlighted_line:?}"
+    );
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|warning| warning.contains("mixed-mode highlighting"))
+            .count(),
+        1,
+        "{warnings:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn tables_honor_width_alignment_and_vertical_alignment_metadata() -> Result<(), Error> {
+    let input = "[width=50%,align=right,cols=\".<,.<\"]\n|===\n|Top line +\nsecond line\n.>|Bottom\n|===\n\n[%autowidth]\n|===\n|A |B\n|===\n";
+    let (output, warnings) = render_terminal(input, 60, TEXT_TERMINAL)?;
+
+    assert!(warnings.is_empty(), "{warnings:?}");
+    let plain = strip_terminal_sequences(&output);
+    let border = plain
+        .lines()
+        .find(|line| line.contains('╭'))
+        .ok_or("missing table border")?;
+    assert!(
+        border.starts_with(' '),
+        "table was not right aligned: {output:?}"
+    );
+    assert!(border.chars().count() <= 60, "{border:?}");
+    let bottom_line = plain
+        .lines()
+        .find(|line| line.contains("Bottom"))
+        .ok_or("bottom-aligned cell missing")?;
+    assert!(bottom_line.contains("second line"), "{plain:?}");
+    let autowidth_border = plain
+        .lines()
+        .rev()
+        .find(|line| line.contains('╭'))
+        .ok_or("autowidth table border missing")?;
+    assert!(autowidth_border.chars().count() < 20, "{plain:?}");
+    Ok(())
+}
+
+#[test]
+fn image_media_and_hidden_schemes_keep_static_link_information() -> Result<(), Error> {
+    let input = ":hide-uri-scheme:\n\nimage::https://media.example/photo-file.png[Useful alt,link=https://images.example/view]\n\nInline image:https://media.example/photo-file.png[Inline alt,link=https://images.example/inline].\n\nInner link precedence: link:https://outer.example[image:https://media.example/inner.png[Inner alt,link=https://inner.example]].\n\n.Audio title\naudio::sound.ogg[start=2,end=4]\n\naudio::https://media.example/remote.ogg[]\n\n.Video title\nvideo::first.mp4,second.webm[poster=cover.jpg]\n\nvideo::https://media.example/remote.mp4[]\n\nvideo::[]\n\nlink:https://example.com[] https://example.org[] <https://example.net/path> link:https://window.example[Window link,window=_blank,role=external]\n";
+    let (plain, warnings) = render_terminal(input, 80, TEXT_TERMINAL)?;
+
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|warning| warning.contains("video has no source"))
+            .count(),
+        1,
+        "{warnings:?}"
+    );
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    for expected in [
+        "[Image: Useful alt]",
+        "https://images.example/view",
+        "[Image: Inline alt]",
+        "https://images.example/inline",
+        "[Image: Inner alt]",
+        "https://inner.example",
+        "[Audio: Audio title]",
+        "sound.ogg#t=2,4",
+        "[Audio: remote.ogg]",
+        "https://media.example/remote.ogg",
+        "[Video source 1/2: Video title]",
+        "first.mp4",
+        "[Video source 2/2: Video title]",
+        "second.webm",
+        "[Poster: cover.jpg]",
+        "[Video: remote.mp4]",
+        "https://media.example/remote.mp4",
+        "example.com",
+        "(https://example.com)",
+        "example.org",
+        "(https://example.org)",
+        "example.net/path",
+        "(https://example.net/path)",
+        "Window link",
+        "https://window.example",
+    ] {
+        assert!(
+            plain.contains(expected),
+            "missing {expected:?} in {plain:?}"
+        );
+    }
+
+    let (osc8, _) = render_terminal(input, 80, OSC8_TERMINAL)?;
+    assert!(
+        osc8.contains("\u{1b}]8;;https://images.example/view"),
+        "{osc8:?}"
+    );
+    assert!(
+        osc8.contains("\u{1b}]8;;https://inner.example")
+            && !osc8.contains("\u{1b}]8;;https://outer.example"),
+        "{osc8:?}"
+    );
+    assert!(
+        osc8.contains("\u{1b}]8;;https://media.example/remote.ogg")
+            && osc8.contains("\u{1b}]8;;https://media.example/remote.mp4"),
+        "{osc8:?}"
+    );
+    assert!(osc8.contains("example.com"), "{osc8:?}");
     Ok(())
 }

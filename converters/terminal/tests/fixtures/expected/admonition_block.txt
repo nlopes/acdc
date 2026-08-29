@@ -1,5 +1,5 @@
 
-[38;5;11m│[39m ❗[1mImportant:[0m Feeding the Werewolves
+[38;5;11m│[39m [1mImportant:[0m Feeding the Werewolves
 [38;5;11m│[39m While werewolves are hardy community members, keep in mind the following
 [38;5;11m│[39m dietary concerns:
 [38;5;11m│[39m 

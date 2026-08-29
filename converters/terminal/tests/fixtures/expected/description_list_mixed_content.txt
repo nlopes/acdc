@@ -4,8 +4,8 @@
   Some text here
 A paragraph that follows.
 
-* A list item
-* Another list item
+• A list item
+• Another list item
 Another paragraph.
 
 [1mSecond item[0m

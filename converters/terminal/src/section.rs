@@ -18,6 +18,10 @@ use crate::TerminalVisitor;
 
 impl<W: Write> TerminalVisitor<'_, '_, W> {
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), crate::Error> {
+        if section.metadata.options.contains(&"notitle") {
+            return Ok(());
+        }
+
         let processor = self.processor.clone();
         let w = self.writer_mut();
         writeln!(w)?;
@@ -37,6 +41,21 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                     number,
                     string_attribute(&processor.document_attributes, "part-signifier"),
                 )
+            } else if section.level == 1
+                && section.kind == SectionKind::Normal
+                && processor
+                    .document_attributes
+                    .get_string("doctype")
+                    .is_some_and(|doctype| doctype == "book")
+            {
+                let signifier = match processor.document_attributes.get("chapter-signifier") {
+                    Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
+                        Some(signifier.as_ref())
+                    }
+                    Some(_) => None,
+                    None => Some("Chapter"),
+                };
+                section_number_prefix(number, signifier)
             } else {
                 section_number_prefix(number, None)
             }

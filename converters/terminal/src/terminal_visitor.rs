@@ -166,15 +166,11 @@ impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
         let is_index_section = section.kind == SectionKind::Index;
-
-        // Index sections are only rendered if they're the last section
-        if is_index_section && !self.processor.has_valid_index_section() {
-            return Ok(());
-        }
+        let render_catalog = is_index_section && self.processor.has_valid_index_section();
 
         self.render_section(section)?;
 
-        if is_index_section {
+        if render_catalog {
             // Render the collected index catalog instead of normal content
             let processor = self.processor.clone();
             crate::index::render(self, &processor)?;

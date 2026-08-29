@@ -1,12 +1,12 @@
 [1m[4mArticle Special Section Numbering[0m
 [1mTable of Contents[0m
 Abstract
- Abstract Topic
-First Section
- First Topic
-Appendix Material
- Appendix Topic
-Second Section
+  Abstract Topic
+1. First Section
+  1.1. First Topic
+Appendix A: Appendix Material
+  A.1. Appendix Topic
+2. Second Section
 Bibliography
 Glossary
 Index
@@ -47,7 +47,7 @@ Second body with a concealed index term .
 [38;2;215;0;135m[1mBibliography[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 
-*  Reference
+[1m[ref][0m Reference
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1mGlossary[0m

@@ -1,6 +1,6 @@
 //! Paragraph rendering for terminal output.
 //!
-//! Handles regular paragraphs and styled paragraphs (quote, verse, literal).
+//! Handles regular paragraphs and terminal presentations for styled paragraphs.
 
 use std::io::{BufWriter, Write};
 
@@ -10,16 +10,16 @@ use acdc_converters_core::{
     inlines_to_string,
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{CaptionKind, InlineNode, Paragraph};
+use acdc_parser::{BlockMetadata, CaptionKind, InlineNode, Paragraph};
 use crossterm::{
     QueueableCommand,
-    style::{PrintStyledContent, Stylize},
+    style::{Attribute, PrintStyledContent, SetAttribute, Stylize},
 };
 
 use crate::{Error, TerminalVisitor};
 
 impl<W: Write> TerminalVisitor<'_, '_, W> {
-    /// Visit a paragraph, handling styled paragraphs (quote, verse, literal).
+    /// Render a regular or styled paragraph.
     pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         {
@@ -51,6 +51,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             match style {
                 "quote" => return self.render_quote_paragraph(para),
                 "verse" => return self.render_verse_paragraph(para),
+                "example" => return self.render_example_paragraph(para),
+                "abstract" => return self.render_abstract_paragraph(para),
                 "literal" | "listing" | "source" => {
                     return self.render_literal_paragraph(para);
                 }
@@ -66,7 +68,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             "",
             "",
         )?;
-        self.visit_inline_nodes(&para.content)?;
+        self.render_paragraph_content(para)?;
         let w = self.writer_mut();
         writeln!(w)?;
         Ok(())
@@ -96,7 +98,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(w)?;
 
         // Render attribution if present
-        self.render_para_attribution(para)?;
+        self.render_attribution(&para.metadata)?;
 
         // Add final newline
         let w = self.writer_mut();
@@ -122,7 +124,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(w)?;
 
         // Render attribution if present
-        self.render_para_attribution(para)?;
+        self.render_attribution(&para.metadata)?;
 
         // End marker with three dots
         let w = self.writer_mut();
@@ -133,7 +135,31 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         Ok(())
     }
 
-    /// Render a literal-styled paragraph with preformatted text.
+    fn render_example_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+        self.render_captioned_title_with_wrapper(
+            &para.title,
+            &para.metadata,
+            Some(CaptionKind::Example),
+            "",
+            "\n",
+        )?;
+        self.writer_mut().queue(PrintStyledContent("│ ".cyan()))?;
+        self.render_paragraph_content(para)?;
+        writeln!(self.writer_mut())?;
+        Ok(())
+    }
+
+    fn render_abstract_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+        self.render_title_with_wrapper(&para.title, "", "\n")?;
+        self.writer_mut()
+            .queue(PrintStyledContent("ABSTRACT ".magenta().bold()))?;
+        self.writer_mut().queue(SetAttribute(Attribute::Italic))?;
+        self.render_paragraph_content(para)?;
+        self.writer_mut().queue(SetAttribute(Attribute::NoItalic))?;
+        writeln!(self.writer_mut())?;
+        Ok(())
+    }
+
     fn render_literal_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
         self.render_captioned_title_with_wrapper(
             &para.title,
@@ -143,39 +169,66 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             "\n",
         )?;
 
-        let processor = self.processor.clone();
-
-        // Simple top separator (mdcat style)
-        let color = processor.appearance.colors.label_listing;
-        let separator = "─".repeat(20).with(color);
+        let separator = "─"
+            .repeat(20)
+            .with(self.processor.appearance.colors.label_listing);
         let w = self.writer_mut();
         writeln!(w, "{separator}")?;
-
-        // Render literal content - extract plain text
         let content = extract_plain_text(&para.content);
         write!(w, "{content}")?;
         if !content.ends_with('\n') {
             writeln!(w)?;
         }
-
-        // Bottom separator
         writeln!(w, "{separator}")?;
-
         Ok(())
     }
 
-    /// Render attribution for quote/verse paragraphs.
-    fn render_para_attribution(&mut self, para: &Paragraph) -> Result<(), Error> {
-        let attribution = para
-            .metadata
-            .attribution
-            .as_ref()
-            .map(|a| inlines_to_string(a));
-        let citation = para
-            .metadata
-            .citetitle
-            .as_ref()
-            .map(|c| inlines_to_string(c));
+    fn render_paragraph_content(&mut self, para: &Paragraph) -> Result<(), Error> {
+        let roles = &para.metadata.roles;
+        let strong = roles.iter().any(|role| matches!(*role, "lead" | "big"));
+        let dim = roles.contains(&"small");
+        let italic = roles.contains(&"subtitle");
+        let underline = roles.contains(&"underline");
+        let crossed_out = roles.contains(&"line-through");
+        if strong {
+            self.writer_mut().queue(SetAttribute(Attribute::Bold))?;
+        }
+        if dim {
+            self.writer_mut().queue(SetAttribute(Attribute::Dim))?;
+        }
+        if italic {
+            self.writer_mut().queue(SetAttribute(Attribute::Italic))?;
+        }
+        if underline {
+            self.writer_mut()
+                .queue(SetAttribute(Attribute::Underlined))?;
+        }
+        if crossed_out {
+            self.writer_mut()
+                .queue(SetAttribute(Attribute::CrossedOut))?;
+        }
+        self.visit_inline_nodes(&para.content)?;
+        if crossed_out {
+            self.writer_mut()
+                .queue(SetAttribute(Attribute::NotCrossedOut))?;
+        }
+        if underline {
+            self.writer_mut()
+                .queue(SetAttribute(Attribute::NoUnderline))?;
+        }
+        if italic {
+            self.writer_mut().queue(SetAttribute(Attribute::NoItalic))?;
+        }
+        if strong || dim {
+            self.writer_mut()
+                .queue(SetAttribute(Attribute::NormalIntensity))?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn render_attribution(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
+        let attribution = metadata.attribution.as_ref().map(|a| inlines_to_string(a));
+        let citation = metadata.citetitle.as_ref().map(|c| inlines_to_string(c));
 
         if attribution.is_some() || citation.is_some() {
             let w = self.writer_mut();

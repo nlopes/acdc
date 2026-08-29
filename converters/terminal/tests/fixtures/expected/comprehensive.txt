@@ -1,37 +1,37 @@
 [1m[4mComprehensive Terminal Test: A Subtitle[0m
 [3mby [0m[3mFirst [0m[3mAuthor[0m[3m <first@example.com>[0m, [3mJane [0m[3mM. [0m[3mDoe[0m[3m <jane@example.com>[0m
-[2mversion 1.2[0m[2m, [0m[2m2024-03-15[0m
+[2mVersion 1.2[0m[2m, [0m[2m2024-03-15[0m
 [2m[3mSpring release[0m
 
 [1mTable of Contents[0m
-Inline formatting
-Inline macros
-Lists
- Unordered lists
- Ordered lists
- Checklists
- Description list
- Horizontal description list
- Q&A list
- Callout list
-Tables
- Basic table
- Table with footer
- Table with alignment
- Table with column styles
-Admonitions
-Delimited blocks
- Example block
- Sidebar block
- Quote block
- Verse block
- Source code block
- Literal block
- Open block
-Section levels
- Level 3 section
-Breaks
-Appendix section
+1. Inline formatting
+2. Inline macros
+3. Lists
+  3.1. Unordered lists
+  3.2. Ordered lists
+  3.3. Checklists
+  3.4. Description list
+  3.5. Horizontal description list
+  3.6. Q&A list
+  3.7. Callout list
+4. Tables
+  4.1. Basic table
+  4.2. Table with footer
+  4.3. Table with alignment
+  4.4. Table with column styles
+5. Admonitions
+6. Delimited blocks
+  6.1. Example block
+  6.2. Sidebar block
+  6.3. Quote block
+  6.4. Verse block
+  6.5. Source code block
+  6.6. Literal block
+  6.7. Open block
+7. Section levels
+  7.1. Level 3 section
+8. Breaks
+Appendix A: Appendix section
 Glossary
 
 This is the preamble paragraph with [1mbold[22m, [3mitalic[23m, [38;5;14mmonospace[39m, [38;5;0m[48;5;11mhighlight[39m[49m, [2msuper[22m, [2msub[22m, and [4munderlined[24m text.
@@ -49,15 +49,15 @@ Nested: [1mbold with [3mitalic inside[23m[22m and [3mitalic with *bold insi
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1m2. Inline macros[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
-A link: [38;5;12m]8;;https://example.com\Example Website]8;;\[39m.
-A mailto: [38;5;12m]8;;mailto:user@example.com\Send Email]8;;\[39m.
-An autolink: [38;5;12m]8;;https://rust-lang.org\https://rust-lang.org]8;;\[39m.
+A link: [38;5;12mExample Website[39m[2m (https://example.com)[0m.
+A mailto: [38;5;12mSend Email[39m[2m (mailto:user@example.com)[0m.
+An autolink: [38;5;12mhttps://rust-lang.org[39m.
 A cross-reference: [38;5;12m[4msee Inline Formatting[24m[39m.
 A footnote reference.[38;5;14m[1m[1][0m
 A keyboard shortcut: [Ctrl+C].
 A button: [38;5;15m[1m[OK][0m.
 A  menu:File > Save As... > PDF.
-An inline image: [Image: logo.png].
+An inline image: [Image: Logo].
 An index term: terminal rendering is useful.
 A pass-through: <raw>content</raw>.
 
@@ -68,12 +68,12 @@ A pass-through: <raw>content</raw>.
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m3.1. Unordered lists[0m
 
-* Item 1
-  * Nested item 1.1
-    * Deep nested 1.1.1
-  * Nested item 1.2
-* Item 2
-* Item 3
+• Item 1
+  • Nested item 1.1
+    • Deep nested 1.1.1
+  • Nested item 1.2
+• Item 2
+• Item 3
 
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m3.2. Ordered lists[0m
@@ -88,9 +88,9 @@ A pass-through: <raw>content</raw>.
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m3.3. Checklists[0m
 
-* [1m[✔][0m Completed task
-* [1m[ ][0m Incomplete task
-* [1m[✔][0m Another done task
+• [1m[✔][0m Completed task
+• [1m[ ][0m Incomplete task
+• [1m[✔][0m Another done task
 
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m3.4. Description list[0m
@@ -121,8 +121,8 @@ multiple concepts.
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m3.7. Callout list[0m
 [38;5;8m────────────────────────────────────[ rust ]────────────────────────────────────[39m
-[38;2;38;139;210mfn[39m[38;2;131;148;150m [39m[38;2;181;137;0mmain[39m[38;2;101;123;131m([39m[38;2;101;123;131m)[39m[38;2;131;148;150m [39m[38;2;101;123;131m{[39m[38;2;131;148;150m [39m[38;2;133;153;0m<[39m[38;2;108;113;196m1[39m[38;2;133;153;0m>[39m[38;2;131;148;150m
-[39m[38;2;131;148;150m    [39m[38;2;133;153;0mprintln![39m[38;2;101;123;131m([39m[38;2;131;148;150m"[39m[38;2;42;161;152mHello![39m[38;2;131;148;150m"[39m[38;2;101;123;131m)[39m[38;2;131;148;150m;[39m[38;2;131;148;150m [39m[38;2;131;148;150m<[39m[38;2;131;148;150m2[39m[38;2;131;148;150m>[39m[38;2;131;148;150m
+[38;2;38;139;210mfn[39m[38;2;131;148;150m [39m[38;2;181;137;0mmain[39m[38;2;101;123;131m([39m[38;2;101;123;131m)[39m[38;2;131;148;150m [39m[38;2;101;123;131m{[39m[38;2;131;148;150m [38;5;11m[1m<1>[22m[39m
+[39m[38;2;131;148;150m    [39m[38;2;133;153;0mprintln![39m[38;2;101;123;131m([39m[38;2;131;148;150m"[39m[38;2;42;161;152mHello![39m[38;2;131;148;150m"[39m[38;2;101;123;131m)[39m[38;2;131;148;150m;[39m[38;2;131;148;150m [38;5;11m[1m<2>[22m[39m
 [39m[38;2;101;123;131m}[39m
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 <1> Entry point
@@ -190,27 +190,27 @@ multiple concepts.
 [38;2;215;0;135m[1m5. Admonitions[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 
-[38;5;12m│[39m ℹ️ [1mNote:[0m
+[38;5;12m│[39m [1mNote:[0m
 [38;5;12m│[39m This is a note admonition.
 [38;5;12m│[39m
 
-[38;5;10m│[39m 💡[1mTip:[0m
+[38;5;10m│[39m [1mTip:[0m
 [38;5;10m│[39m This is a tip admonition.
 [38;5;10m│[39m
 
-[38;5;11m│[39m ❗[1mImportant:[0m
+[38;5;11m│[39m [1mImportant:[0m
 [38;5;11m│[39m This is an important admonition.
 [38;5;11m│[39m
 
-[38;5;9m│[39m ⚠️ [1mWarning:[0m
+[38;5;9m│[39m [1mWarning:[0m
 [38;5;9m│[39m This is a warning admonition.
 [38;5;9m│[39m
 
-[38;5;13m│[39m 🔥[1mCaution:[0m
+[38;5;13m│[39m [1mCaution:[0m
 [38;5;13m│[39m This is a caution admonition.
 [38;5;13m│[39m
 
-[38;5;12m│[39m ℹ️ [1mNote:[0m Titled admonition
+[38;5;12m│[39m [1mNote:[0m Titled admonition
 [38;5;12m│[39m This is a note with a title and block content.
 [38;5;12m│[39m It has multiple paragraphs.
 [38;5;12m│[39m
@@ -237,6 +237,7 @@ multiple concepts.
 [38;5;15m[1m6.3. Quote block[0m
 [38;5;10m│ [39m[3mImagination is more important than knowledge.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mA [x] B[0m, [2m[3mNotes[0m
 
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m6.4. Verse block[0m
@@ -244,6 +245,7 @@ multiple concepts.
 [38;5;13m┊ [39mAnd sorry I could not travel both
 [38;5;13m┊ [39mAnd be one traveler, long I stood
 [38;5;13m┊[39m
+[2m—[0m [2m[3mRobert Frost[0m, [2m[3mThe Road Not Taken[0m
 
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m6.5. Source code block[0m
@@ -265,8 +267,10 @@ This is a literal block.
 
 [38;5;15m────────────────────────────────────────[39m
 [38;5;15m[1m6.7. Open block[0m
-This is an open block.
-It can contain any content.
+[38;5;3m╭──────────────────────────────────────────────────────────────────────────────╮[39m
+[38;5;3m│ [39mThis is an open block.                                                      [38;5;3m │[39m
+[38;5;3m│ [39mIt can contain any content.                                                 [38;5;3m │[39m
+[38;5;3m╰──────────────────────────────────────────────────────────────────────────────╯[39m
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1m7. Section levels[0m

@@ -1,8 +1,14 @@
+#[cfg(feature = "pre-spec-subs")]
+use std::borrow::Cow;
 use std::io::{BufWriter, Write};
 
+#[cfg(feature = "pre-spec-subs")]
+use acdc_converters_core::substitutions::{
+    Replacements, SubsFlags, TextBoundaries, apply_replacements, effective_subs_flags,
+};
 use acdc_converters_core::{
-    code::detect_language,
-    decode_numeric_char_refs,
+    InlineTextTransform,
+    code::{SourceLineOptions, default_line_comment, detect_language},
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
@@ -10,7 +16,10 @@ use acdc_parser::{
 };
 use crossterm::{
     QueueableCommand,
-    style::{PrintStyledContent, Stylize},
+    style::{
+        Attribute, Color, PrintStyledContent, SetAttribute, SetBackgroundColor, SetForegroundColor,
+        Stylize,
+    },
 };
 
 use crate::wrap::{pad_to_width, wrap_ansi_text};
@@ -91,8 +100,20 @@ fn render_boxed_content<V: WritableVisitor<Error = Error>>(
 impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Visit a delimited block in terminal format.
     pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
+        #[cfg(feature = "pre-spec-subs")]
+        let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
+            block.metadata.substitutions.as_ref(),
+            matches!(
+                block.inner,
+                DelimitedBlockType::DelimitedListing(_)
+                    | DelimitedBlockType::DelimitedLiteral(_)
+                    | DelimitedBlockType::DelimitedPass(_)
+                    | DelimitedBlockType::DelimitedVerse(_)
+            ),
+        ));
+
         let caption_kind = CaptionKind::for_delimited(&block.inner, block.metadata.style);
-        match &block.inner {
+        let result = match &block.inner {
             DelimitedBlockType::DelimitedTable(t) => {
                 self.render_captioned_title_with_wrapper(
                     &block.title,
@@ -112,28 +133,16 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 self.render_example_block(&block.title, blocks, &block.metadata)
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.render_quote_block(&block.title, blocks)
+                self.render_quote_block(&block.title, blocks, &block.metadata)
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 self.render_sidebar_block(&block.title, blocks)
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
-                // Open blocks are transparent containers
-                self.render_captioned_title_with_wrapper(
-                    &block.title,
-                    &block.metadata,
-                    caption_kind,
-                    "  ",
-                    "\n",
-                )?;
-                let blocks = blocks.clone();
-                for nested_block in &blocks {
-                    self.visit_block(nested_block)?;
-                }
-                Ok(())
+                self.render_open_block(&block.title, blocks)
             }
             DelimitedBlockType::DelimitedVerse(inlines) => {
-                self.render_verse_block(&block.title, inlines)
+                self.render_verse_block(&block.title, inlines, &block.metadata)
             }
             DelimitedBlockType::DelimitedPass(inlines) => {
                 // Passthrough content is rendered as-is
@@ -159,10 +168,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 ));
                 Ok(())
             }
-        }
+        };
+
+        #[cfg(feature = "pre-spec-subs")]
+        self.processor.current_subs.set(previous_subs);
+        result
     }
 
-    /// Render a preformatted block (listing or literal) with optional syntax highlighting.
+    /// Render a listing, literal, or source block with its terminal source options.
     fn render_preformatted_block(
         &mut self,
         title: &[InlineNode],
@@ -172,6 +185,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         // Detect language for syntax highlighting
         let language = detect_language(metadata);
+
+        if metadata.style == Some("source")
+            && language == Some("php")
+            && metadata.options.contains(&"mixed")
+            && self.processor.mark_fallback("php-mixed-highlighting")
+        {
+            self.diagnostics.warn_with_advice(
+                "PHP source block mixed-mode highlighting is not supported by the terminal backend; rendering with the normal PHP highlighter",
+                "Use the `html+php` source language when it gives acceptable highlighting, or use Asciidoctor HTML for explicit `%mixed` highlighting.",
+            );
+        }
 
         self.render_captioned_title_with_wrapper(title, metadata, caption_kind, "\n", "\n")?;
 
@@ -194,55 +218,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let w = self.writer_mut();
         writeln!(w, "{}", top_sep.clone().with(color))?;
 
-        // Render code content to buffer
-        let buffer = Vec::new();
-        let inner = BufWriter::new(buffer);
-        let mut code_buffer = inner;
-
-        if let Some(lang) = language {
-            crate::syntax::highlight_code(&mut code_buffer, inlines, lang, &processor)?;
-        } else {
-            // Fallback to plain text
-            use std::io::Write;
-            for node in inlines {
-                match node {
-                    InlineNode::VerbatimText(v) => {
-                        write!(code_buffer, "{}", v.content)?;
-                    }
-                    InlineNode::RawText(r) => {
-                        write!(code_buffer, "{}", decode_numeric_char_refs(r.content))?;
-                    }
-                    InlineNode::PlainText(p) => {
-                        write!(code_buffer, "{}", p.content)?;
-                    }
-                    InlineNode::LineBreak(_) => {
-                        writeln!(code_buffer)?;
-                    }
-                    InlineNode::CalloutRef(callout) => {
-                        write!(code_buffer, "<{}>", callout.number)?;
-                    }
-                    InlineNode::BoldText(_)
-                    | InlineNode::ItalicText(_)
-                    | InlineNode::HighlightText(_)
-                    | InlineNode::MonospaceText(_)
-                    | InlineNode::SuperscriptText(_)
-                    | InlineNode::SubscriptText(_)
-                    | InlineNode::CurvedQuotationText(_)
-                    | InlineNode::CurvedApostropheText(_)
-                    | InlineNode::StandaloneCurvedApostrophe(_)
-                    | InlineNode::InlineAnchor(_)
-                    | InlineNode::Macro(_)
-                    | _ => {}
-                }
-            }
-        }
-
-        let buffer = code_buffer
-            .into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
-
         // Render code content directly (no left border)
-        let content = String::from_utf8_lossy(&buffer);
+        let content = render_preformatted_content(inlines, metadata, &processor)?;
         let w = self.writer_mut();
         write!(w, "{content}")?;
         if !content.ends_with('\n') {
@@ -301,7 +278,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     }
 
     /// Render a quote block with `│` left border.
-    fn render_quote_block(&mut self, title: &[InlineNode], blocks: &[Block]) -> Result<(), Error> {
+    fn render_quote_block(
+        &mut self,
+        title: &[InlineNode],
+        blocks: &[Block],
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
 
         // Render title if present
@@ -344,7 +326,34 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(w)?;
         }
 
+        self.render_attribution(metadata)?;
+
         Ok(())
+    }
+
+    fn render_open_block(&mut self, title: &[InlineNode], blocks: &[Block]) -> Result<(), Error> {
+        let processor = self.processor.clone();
+        let label = crate::extract_heading_text(title, &processor.references);
+        let buffer = Vec::new();
+        let inner = BufWriter::new(buffer);
+        let mut visitor =
+            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
+        for block in blocks {
+            visitor.visit_block(block)?;
+        }
+        let buffer = visitor
+            .into_writer()
+            .into_inner()
+            .map_err(std::io::IntoInnerError::into_error)?;
+        let content = String::from_utf8_lossy(&buffer);
+        render_boxed_content(
+            self,
+            &label,
+            content.trim_end(),
+            processor.terminal_width,
+            &ROUNDED_BOX,
+            crossterm::style::Color::DarkYellow,
+        )
     }
 
     /// Render a sidebar block with rounded box borders.
@@ -393,6 +402,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         title: &[InlineNode],
         inlines: &[InlineNode],
+        metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
 
@@ -421,6 +431,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         // Closing border
         w.queue(PrintStyledContent("┊".with(color)))?;
         writeln!(w)?;
+
+        self.render_attribution(metadata)?;
 
         Ok(())
     }
@@ -459,6 +471,189 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     fn render_title_if_present(&mut self, title: &[InlineNode]) -> Result<(), Error> {
         self.render_title_with_wrapper(title, "  ", "\n")
     }
+}
+
+pub(crate) fn render_preformatted_content(
+    inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    processor: &crate::Processor<'_>,
+) -> Result<String, Error> {
+    let language = detect_language(metadata);
+    let (source, callouts) = source_with_callout_placeholders(inlines, language);
+    let source = apply_source_substitutions(source, processor);
+    let mut output = Vec::new();
+    if let Some(language) = language {
+        crate::syntax::highlight_text(&mut output, &source, language, processor)?;
+    } else {
+        output.extend_from_slice(source.as_bytes());
+    }
+    let mut output = String::from_utf8(output).unwrap_or_default();
+    for (placeholder, number) in callouts {
+        let marker = format!(
+            "{}{}<{number}>{}{}",
+            SetForegroundColor(Color::Yellow),
+            SetAttribute(Attribute::Bold),
+            SetAttribute(Attribute::NormalIntensity),
+            SetForegroundColor(Color::Reset),
+        );
+        output = output.replace(&placeholder, &marker);
+    }
+    let options = SourceLineOptions::resolve(metadata, &source);
+    Ok(apply_source_line_options(&output, &options))
+}
+
+#[cfg(feature = "pre-spec-subs")]
+fn apply_source_substitutions(mut source: String, processor: &crate::Processor<'_>) -> String {
+    let substitutions = processor.current_subs.get();
+    if substitutions.contains(SubsFlags::ATTRIBUTES)
+        && let Cow::Owned(expanded) = acdc_parser::substitute(
+            &source,
+            &[acdc_parser::Substitution::Attributes],
+            &processor.document_attributes,
+        )
+    {
+        source = expanded;
+    }
+    if let Cow::Owned(replaced) = apply_replacements(
+        &source,
+        substitutions,
+        &Replacements::unicode(),
+        TextBoundaries::BOTH,
+    ) {
+        source = replaced;
+    }
+    source
+}
+
+#[cfg(not(feature = "pre-spec-subs"))]
+fn apply_source_substitutions(source: String, _processor: &crate::Processor<'_>) -> String {
+    source
+}
+
+fn source_with_callout_placeholders(
+    nodes: &[InlineNode<'_>],
+    language: Option<&str>,
+) -> (String, Vec<(String, usize)>) {
+    let mut source = String::new();
+    let mut callouts = Vec::new();
+    let transform = InlineTextTransform::default().line_break("\n");
+    let comment_prefix = default_line_comment(language);
+
+    for (index, node) in nodes.iter().enumerate() {
+        if let InlineNode::VerbatimText(verbatim) = node {
+            let mut content = verbatim.content.to_string();
+            if index
+                .checked_sub(1)
+                .is_some_and(|previous| is_xml_callout(nodes, previous))
+            {
+                content = content.strip_prefix("-->").unwrap_or(&content).to_string();
+            }
+            if index
+                .checked_add(1)
+                .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
+            {
+                if index
+                    .checked_add(1)
+                    .is_some_and(|next| is_xml_callout(nodes, next))
+                {
+                    content = content.strip_suffix("<!--").unwrap_or(&content).to_string();
+                } else {
+                    content = strip_callout_guard(&content, comment_prefix);
+                }
+            }
+            source.push_str(&content);
+        } else if let InlineNode::CalloutRef(callout) = node {
+            let offset = u32::try_from(callouts.len()).unwrap_or(0xFFFD).min(0xFFFD);
+            let placeholder = char::from_u32(0xF0000 + offset)
+                .unwrap_or('\u{F0000}')
+                .to_string();
+            source.push_str(&placeholder);
+            callouts.push((placeholder, callout.number));
+        } else {
+            let _ = transform.write(&mut source, std::slice::from_ref(node));
+        }
+    }
+    (source, callouts)
+}
+
+fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
+    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
+        && index.checked_sub(1).is_some_and(|previous| {
+            matches!(
+                nodes.get(previous),
+                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
+            )
+        })
+        && index.checked_add(1).is_some_and(|next| {
+            matches!(
+                nodes.get(next),
+                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
+            )
+        })
+}
+
+fn strip_callout_guard(text: &str, language_prefix: Option<&str>) -> String {
+    let trimmed = text.trim_end();
+    for prefix in [
+        language_prefix,
+        Some("//"),
+        Some("#"),
+        Some("--"),
+        Some(";;"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Some(content) = trimmed.strip_suffix(prefix) {
+            return format!("{} ", content.trim_end());
+        }
+    }
+    text.to_string()
+}
+
+fn apply_source_line_options(content: &str, options: &SourceLineOptions) -> String {
+    if options.is_empty() {
+        return content.to_string();
+    }
+    let line_count = content.trim_end_matches('\n').split('\n').count();
+    let number_width = options.line_number_start.map_or(0, |start| {
+        start
+            .saturating_add(line_count.saturating_sub(1))
+            .to_string()
+            .len()
+    });
+    let mut output = String::new();
+    for (index, line) in content.trim_end_matches('\n').split('\n').enumerate() {
+        if let Some(start) = options.line_number_start {
+            use std::fmt::Write as _;
+            let number = start.saturating_add(index);
+            let _ = write!(
+                output,
+                "{}{:>number_width$} │ {}",
+                SetAttribute(Attribute::Dim),
+                number,
+                SetAttribute(Attribute::NormalIntensity),
+            );
+        }
+        if options.highlighted_lines.contains(&(index + 1)) {
+            use std::fmt::Write as _;
+            let _ = write!(
+                output,
+                "{}{}{}",
+                SetBackgroundColor(Color::Rgb {
+                    r: 64,
+                    g: 64,
+                    b: 64,
+                }),
+                line,
+                SetBackgroundColor(Color::Reset),
+            );
+        } else {
+            output.push_str(line);
+        }
+        output.push('\n');
+    }
+    output
 }
 
 /// Extract plain text from inline nodes (for labels/titles).

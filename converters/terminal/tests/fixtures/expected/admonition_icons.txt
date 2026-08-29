@@ -1,0 +1,21 @@
+[1m[4mAdmonition icons[0m
+
+[38;5;12m│[39m ℹ️ [1mNote:[0m
+[38;5;12m│[39m Note text.
+[38;5;12m│[39m
+
+[38;5;10m│[39m 💡 [1mTip:[0m
+[38;5;10m│[39m Tip text.
+[38;5;10m│[39m
+
+[38;5;11m│[39m ❗ [1mImportant:[0m
+[38;5;11m│[39m Important text.
+[38;5;11m│[39m
+
+[38;5;9m│[39m ⚠️ [1mWarning:[0m
+[38;5;9m│[39m Warning text.
+[38;5;9m│[39m
+
+[38;5;13m│[39m 🔥 [1mCaution:[0m
+[38;5;13m│[39m Caution text.
+[38;5;13m│[39m

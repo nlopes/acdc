@@ -1,71 +1,83 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{TableOfContents, TocEntry};
+use acdc_converters_core::{
+    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
+    visitor::{Visitor, WritableVisitor},
+};
+use acdc_parser::{AttributeValue, SectionKind, TableOfContents, TocEntry};
 
 use crate::TerminalVisitor;
 
+struct TocRenderConfig<'a> {
+    max_level: u8,
+    section_numbers: &'a [Option<String>],
+    has_real_parts: bool,
+}
+
 impl<W: Write> TerminalVisitor<'_, '_, W> {
+    #[allow(clippy::too_many_arguments)]
     fn render_toc_entries(
         &mut self,
         entries: &[TocEntry],
-        max_level: u8,
+        config: &TocRenderConfig<'_>,
         current_level: u8,
+        base_index: usize,
+        parts_at_current_level: bool,
+        indent: usize,
     ) -> Result<(), crate::Error> {
-        if current_level > max_level {
+        if current_level > config.max_level {
             return Ok(());
         }
 
-        // Filter entries to only process those at the current level
-        let current_level_entries: Vec<(usize, &TocEntry)> = entries
+        let first_real_part = if parts_at_current_level {
+            entries
+                .iter()
+                .position(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
+        } else {
+            None
+        };
+        let current_entries: Vec<(usize, &TocEntry)> = entries
             .iter()
             .enumerate()
-            .filter(|(_, entry)| entry.level == current_level)
+            .filter(|(index, entry)| {
+                let level = effective_level(entry, config.has_real_parts);
+                if level == current_level {
+                    first_real_part.is_none_or(|part| *index < part || entry.level != current_level)
+                } else {
+                    parts_at_current_level && entry.level == 0 && level == 0
+                }
+            })
             .collect();
 
-        if current_level_entries.is_empty() {
-            return Ok(());
-        }
-
-        for (i, (entry_index, entry)) in current_level_entries.iter().enumerate() {
-            write!(
-                self.writer,
-                "{:indent$}",
-                "",
-                indent = current_level as usize - 1
-            )?;
-            for inline in &entry.title {
-                self.visit_inline_node(inline)?;
+        for (position, (entry_index, entry)) in current_entries.iter().enumerate() {
+            write!(self.writer, "{:indent$}", "", indent = indent)?;
+            if let Some(Some(number)) = config.section_numbers.get(base_index + entry_index) {
+                write!(self.writer, "{number}")?;
             }
+            self.visit_inline_nodes(&entry.title)?;
             writeln!(self.writer)?;
 
-            // Find children: entries that come after this one and have level = current_level + 1
-            // but before the next entry at current_level or lower
-            let start_search = entry_index + 1;
-            let end_search = if let Some(next_entry) = current_level_entries.get(i + 1) {
-                next_entry.0 // Next entry at current level
+            let start = entry_index + 1;
+            let end = current_entries
+                .get(position + 1)
+                .map_or(entries.len(), |next| next.0);
+            let child_level = if entry.level == 0 && entry.kind.is_special() {
+                2
             } else {
-                entries.len() // End of all entries
+                effective_level(entry, config.has_real_parts) + 1
             };
-
-            if let Some(children_slice) = entries.get(start_search..end_search) {
-                // Find children: only entries that are direct children (level = current_level + 1)
-                // and stop when we hit another entry at current_level or higher
-                let mut children: Vec<&TocEntry> = Vec::new();
-                for entry in children_slice {
-                    // Stop if we encounter another entry at the same level or higher
-                    // This prevents us from claiming children that belong to later siblings
-                    if entry.level <= current_level {
-                        break;
-                    }
-                    if entry.level == current_level + 1 {
-                        children.push(entry);
-                    }
-                }
-
-                if !children.is_empty() && current_level < max_level {
-                    self.render_toc_entries(children_slice, max_level, current_level + 1)?;
-                }
+            if let Some(children) = entries.get(start..end)
+                && child_level <= config.max_level
+                && children.iter().any(|child| child.level == child_level)
+            {
+                self.render_toc_entries(
+                    children,
+                    config,
+                    child_level,
+                    base_index + start,
+                    false,
+                    indent + 2,
+                )?;
             }
         }
         Ok(())
@@ -76,7 +88,6 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         toc_macro: Option<&TableOfContents>,
         placement: &str,
     ) -> Result<(), crate::Error> {
-        use acdc_converters_core::toc::Config as TocConfig;
         use crossterm::{
             QueueableCommand,
             style::{PrintStyledContent, Stylize},
@@ -84,20 +95,54 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         let processor = self.processor.clone();
         let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
-        if config.placement() == placement && !processor.toc_entries.is_empty() {
-            let w = self.writer_mut();
-            if let Some(title) = config.title() {
-                w.queue(PrintStyledContent(title.bold()))?;
-            } else {
-                w.queue(PrintStyledContent("Table of Contents".bold()))?;
-            }
-            writeln!(w)?;
-            let toc_entries = processor.toc_entries.clone();
-            let levels = config.levels();
-            self.render_toc_entries(&toc_entries, levels, 1)?;
-            let w = self.writer_mut();
-            writeln!(w)?;
+        let should_render = match placement {
+            "auto" => matches!(
+                config.placement(),
+                "auto" | "left" | "right" | "top" | "bottom"
+            ),
+            other => config.placement() == other,
+        };
+        if !should_render || processor.toc_entries.is_empty() {
+            return Ok(());
         }
+
+        let w = self.writer_mut();
+        w.queue(PrintStyledContent(
+            config.title().unwrap_or("Table of Contents").bold(),
+        ))?;
+        writeln!(w)?;
+
+        let part_signifier = match processor.document_attributes.get("part-signifier") {
+            Some(AttributeValue::String(value)) => Some(value.as_ref()),
+            Some(_) | None => None,
+        };
+        let numbering_config = NumberingConfig::new(&processor.document_attributes, part_signifier);
+        let numbers = section_numbers(&processor.toc_entries, &numbering_config);
+        let real_parts = has_real_parts(&processor.toc_entries);
+        let first_level = processor
+            .toc_entries
+            .first()
+            .map_or(1, |entry| effective_level(entry, real_parts));
+        let parts_at_current_level = first_level > 0 && real_parts;
+        let start_level = if parts_at_current_level {
+            1
+        } else {
+            first_level
+        };
+        let render_config = TocRenderConfig {
+            max_level: config.levels(),
+            section_numbers: &numbers,
+            has_real_parts: real_parts,
+        };
+        self.render_toc_entries(
+            &processor.toc_entries,
+            &render_config,
+            start_level,
+            0,
+            parts_at_current_level,
+            0,
+        )?;
+        writeln!(self.writer_mut())?;
         Ok(())
     }
 }

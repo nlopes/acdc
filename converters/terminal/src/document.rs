@@ -69,9 +69,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         if revnumber.is_some() || revdate.is_some() {
             if let Some(AttributeValue::String(revnumber)) = revnumber {
-                // Strip leading "v" if present (asciidoctor behavior)
-                let version = revnumber.strip_prefix('v').unwrap_or(revnumber);
-                w.queue(PrintStyledContent(format!("version {version}").dim()))?;
+                let label = match processor.document_attributes.get("version-label") {
+                    Some(AttributeValue::String(label)) if !label.is_empty() => {
+                        Some(label.as_ref())
+                    }
+                    Some(_) | None => None,
+                };
+                let revision = label.map_or_else(
+                    || revnumber.to_string(),
+                    |label| format!("{label} {revnumber}"),
+                );
+                w.queue(PrintStyledContent(revision.dim()))?;
                 if revdate.is_some() {
                     w.queue(PrintStyledContent(", ".dim()))?;
                 }

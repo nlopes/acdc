@@ -38,7 +38,7 @@ Shared utilities in `core/`:
   - The **html** and **manpage** harnesses use rstest glob discovery and
     early-return in their `run_*_fixture` helper when
     `file_name.contains("subs")`.
-  - The **terminal** harness uses an explicit `generate_tests!` macro list,
+  - The **terminal** harness uses an explicit `terminal_fixture_catalog!` list,
     not glob discovery. Subs fixtures must be registered in that list
     explicitly, and `test_fixture` has the matching `.contains("subs")`
     early-return.
@@ -74,7 +74,12 @@ bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
 
 ### Terminal capability fixtures
 
-- The terminal fixture macro's boolean argument controls whether the test reads `.osc8.txt`. When it is `true`, the generic harness skips the fixture for terminals without OSC 8 support.
-- A plain `.txt` file for that same fixture is unused unless a separate no-OSC8 assertion reads it.
-- If both `.txt` and `.osc8.txt` are retained, add explicit coverage for both outputs.
-- Test terminal capability-dependent behavior with both `TERM=dumb` and `TERM=xterm-ghostty`.
+- Register terminal fixtures and their OSC 8 variants in
+  `terminal/tests/fixtures/catalog.rs`.
+- The terminal generator always writes `.txt` fixtures with OSC 8 disabled,
+  then writes `.osc8.txt` only for fixtures marked with an OSC 8 variant.
+- The terminal fixture harness pins capabilities instead of reading `TERM`. It
+  checks the plain variant for every fixture and both variants for each fixture
+  marked with an OSC 8 variant.
+- Do not copy or edit OSC 8 expected files by hand; run the terminal fixture
+  generator after approval.

@@ -14,6 +14,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document headers, tables of contents, book chapters, hidden section titles,
+  and non-final index sections now preserve their configured labels, numbering,
+  hierarchy, content, and reference text in terminal output.
+- Example and abstract paragraphs, open blocks, quote and verse attributions,
+  admonition icon modes, visible text roles, list marker styles, reversed lists,
+  description-list styles, bibliography labels, and explicit callout numbers now
+  have distinct terminal presentations.
+- Source blocks now honor line numbers, starting values, highlighted ranges,
+  substitutions, and language-appropriate callout guards with or without syntax
+  highlighting. PHP `%mixed` mode reports one warning and uses normal PHP
+  highlighting.
+- Tables now honor requested width, `%autowidth`, horizontal placement, and
+  column or cell vertical alignment while retaining their existing span, frame,
+  grid, stripe, and truncation behavior.
+- Image fallbacks now use useful alternative text and preserve image links.
+  Protocol images use positive integer dimensions and supported alignment.
+  Audio and video macros now render as labeled static links, including titles,
+  time fragments, posters, and every alternative video source.
+- Links and URLs now honor `hide-uri-scheme` in visible text while keeping the
+  complete OSC 8 target or non-OSC 8 suffix. Inline `line-through` text now uses
+  terminal strike-through instead of highlight styling.
 - Title-based shorthand cross-references now resolve generated and explicit
   section IDs before selecting their displayed reference text.
 - Figures, tables, examples, listings, and source blocks now render captions

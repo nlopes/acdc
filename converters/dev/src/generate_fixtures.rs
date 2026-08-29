@@ -28,7 +28,7 @@
 //! }
 //! ```
 
-use std::{error::Error, fs, path::Path, path::PathBuf};
+use std::{collections::HashSet, error::Error, fs, path::Path, path::PathBuf};
 
 use acdc_parser::{Document, DocumentAttributes, Options};
 use crossterm::style::{PrintStyledContent, Stylize};
@@ -41,6 +41,7 @@ pub struct FixtureGenerator {
     converter_name: String,
     output_extension: String,
     subdir: Option<String>,
+    fixture_names: Option<HashSet<String>>,
 }
 
 impl FixtureGenerator {
@@ -56,6 +57,7 @@ impl FixtureGenerator {
             converter_name: converter_name.to_string(),
             output_extension: output_extension.to_string(),
             subdir: None,
+            fixture_names: None,
         }
     }
 
@@ -70,6 +72,26 @@ impl FixtureGenerator {
             converter_name: self.converter_name.clone(),
             output_extension: self.output_extension.clone(),
             subdir: Some(subdir.to_string()),
+            fixture_names: self.fixture_names.clone(),
+        }
+    }
+
+    /// Return a new generator limited to the listed source fixture stems.
+    ///
+    /// Names omit the `.adoc` extension. The filter applies to top-level and
+    /// discovered subdirectory fixtures.
+    #[must_use]
+    pub fn with_fixtures(&self, fixture_names: &[&str]) -> Self {
+        Self {
+            converter_name: self.converter_name.clone(),
+            output_extension: self.output_extension.clone(),
+            subdir: self.subdir.clone(),
+            fixture_names: Some(
+                fixture_names
+                    .iter()
+                    .map(|name| (*name).to_string())
+                    .collect(),
+            ),
         }
     }
 
@@ -163,6 +185,7 @@ impl FixtureGenerator {
             .read_dir()?
             .filter_map(Result::ok)
             .filter(|e| e.path().extension().is_some_and(|ext| ext == "adoc"))
+            .filter(|e| self.includes_fixture(&e.path()))
         {
             let input_path = entry.path();
             let Some(output_path) = input_path
@@ -235,6 +258,14 @@ impl FixtureGenerator {
 
         Ok(())
     }
+
+    fn includes_fixture(&self, path: &Path) -> bool {
+        self.fixture_names.as_ref().is_none_or(|fixture_names| {
+            path.file_stem()
+                .and_then(std::ffi::OsStr::to_str)
+                .is_some_and(|name| fixture_names.contains(name))
+        })
+    }
 }
 
 /// Return sorted directory names found directly inside `dir`.
@@ -247,4 +278,19 @@ fn sorted_subdirs(dir: &Path) -> Result<Vec<String>, Box<dyn Error>> {
         .collect();
     names.sort();
     Ok(names)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixture_filter_matches_only_selected_source_stems() {
+        let generator = FixtureGenerator::new("terminal", "osc8.txt")
+            .with_fixtures(&["comprehensive", "url_macro"]);
+
+        assert!(generator.includes_fixture(Path::new("comprehensive.adoc")));
+        assert!(generator.includes_fixture(Path::new("url_macro.adoc")));
+        assert!(!generator.includes_fixture(Path::new("document.adoc")));
+    }
 }

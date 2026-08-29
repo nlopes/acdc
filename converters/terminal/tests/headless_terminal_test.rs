@@ -30,6 +30,7 @@ enum Decoration {
     Bold,
     Italic,
     Underline,
+    Strikethrough,
     Dim,
 }
 
@@ -103,6 +104,7 @@ impl RenderedGrid {
 }
 
 fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, Error> {
+    crossterm::style::force_color_output(true);
     let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(asciidoc, &parser_options)?;
     let doc = parsed.document();
@@ -120,7 +122,14 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
         rows,
         max_scrollback: 0,
     })?;
-    terminal.vt_write(&output);
+    let mut tty_output = Vec::with_capacity(output.len());
+    for byte in output {
+        if byte == b'\n' {
+            tty_output.push(b'\r');
+        }
+        tty_output.push(byte);
+    }
+    terminal.vt_write(&tty_output);
 
     let mut render_state = RenderState::new()?;
     let snapshot = render_state.update(&terminal)?;
@@ -145,6 +154,9 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
             }
             if style.underline != Underline::None {
                 decorations.push(Decoration::Underline);
+            }
+            if style.strikethrough {
+                decorations.push(Decoration::Strikethrough);
             }
             if style.faint {
                 decorations.push(Decoration::Dim);
@@ -226,7 +238,11 @@ fn smoke_renders_plain_text_into_cells() -> Result<(), Error> {
 
 #[test]
 fn inline_styles_survive_terminal_emulation() -> Result<(), Error> {
-    let grid = render_to_grid("*bold* _italic_ [.underline]#under#\n", 80, 5)?;
+    let grid = render_to_grid(
+        "*bold* _italic_ [.underline]#under# [.line-through]#strike#\n",
+        80,
+        5,
+    )?;
 
     assert_span_style(&grid, "bold", |cell| cell.has_decoration(Decoration::Bold));
     assert_span_style(&grid, "italic", |cell| {
@@ -234,6 +250,35 @@ fn inline_styles_survive_terminal_emulation() -> Result<(), Error> {
     });
     assert_span_style(&grid, "under", |cell| {
         cell.has_decoration(Decoration::Underline)
+    });
+    assert_span_style(&grid, "strike", |cell| {
+        cell.has_decoration(Decoration::Strikethrough)
+    });
+    Ok(())
+}
+
+#[test]
+fn paragraph_roles_survive_terminal_emulation() -> Result<(), Error> {
+    let grid = render_to_grid(
+        "[.lead]\nLead role\n\n[.big]\nBig role\n\n[.small]\nSmall role\n\n[.subtitle]\nSubtitle role\n\n[.underline]\nUnderline role\n\n[.line-through]\nStrike role\n",
+        80,
+        12,
+    )?;
+
+    for text in ["Lead role", "Big role"] {
+        assert_span_style(&grid, text, |cell| cell.has_decoration(Decoration::Bold));
+    }
+    assert_span_style(&grid, "Small role", |cell| {
+        cell.has_decoration(Decoration::Dim)
+    });
+    assert_span_style(&grid, "Subtitle role", |cell| {
+        cell.has_decoration(Decoration::Italic)
+    });
+    assert_span_style(&grid, "Underline role", |cell| {
+        cell.has_decoration(Decoration::Underline)
+    });
+    assert_span_style(&grid, "Strike role", |cell| {
+        cell.has_decoration(Decoration::Strikethrough)
     });
     Ok(())
 }
@@ -246,7 +291,7 @@ fn section_header_is_bold_and_rendered_with_rules() -> Result<(), Error> {
     assert_span_style(&grid, "Document title", |cell| {
         cell.has_decoration(Decoration::Bold) && cell.has_decoration(Decoration::Underline)
     });
-    assert_row_contains(&grid, 4, "First section");
+    assert_grid_contains(&grid, "First section");
     assert_span_style(&grid, "First section", |cell| {
         cell.has_decoration(Decoration::Bold)
     });
@@ -313,5 +358,46 @@ fn main() { // <1>
     assert_grid_contains(&grid, "main()");
     assert_grid_contains(&grid, "<1>");
     assert_grid_contains(&grid, "entry point");
+    Ok(())
+}
+
+#[test]
+fn source_line_options_survive_terminal_emulation() -> Result<(), Error> {
+    let grid = render_to_grid(
+        r"[source,rust,linenums,start=8,highlight=9]
+----
+let first = 1; // <1>
+let second = 2;
+----
+<1> first value
+",
+        60,
+        20,
+    )?;
+
+    assert_grid_contains(&grid, "8 │");
+    assert_grid_contains(&grid, "9 │");
+    assert_grid_contains(&grid, "<1>");
+    assert_span_style(&grid, "<1>", |cell| cell.has_decoration(Decoration::Bold));
+    assert_span_style(&grid, "let second", |cell| cell.bg.is_some());
+    Ok(())
+}
+
+#[test]
+fn narrow_aligned_table_keeps_content_in_the_grid() -> Result<(), Error> {
+    let grid = render_to_grid(
+        r"[width=50%,align=right]
+|===
+|Name |A long value that must fit the narrow table
+|===
+",
+        60,
+        20,
+    )?;
+
+    let (_, border_col) = grid.find_text("╭").ok_or("missing table border")?;
+    assert!(border_col >= 25, "{}", grid.debug_rows());
+    assert_grid_contains(&grid, "Name");
+    assert_grid_contains(&grid, "long value");
     Ok(())
 }

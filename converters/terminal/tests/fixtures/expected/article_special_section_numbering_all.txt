@@ -1,13 +1,13 @@
 [1m[4mAll Article Special Sections Numbered[0m
 [1mTable of Contents[0m
-Abstract
- Abstract Topic
-First Section
-Appendix Material
- Appendix Topic
-Bibliography
-Glossary
-Index
+1. Abstract
+  1.1. Abstract Topic
+2. First Section
+Appendix A: Appendix Material
+  A.1. Appendix Topic
+3. Bibliography
+4. Glossary
+5. Index
 
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
@@ -36,7 +36,7 @@ Appendix topic body.
 [38;2;215;0;135m[1m3. Bibliography[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 
-*  Reference
+[1m[ref][0m Reference
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1m4. Glossary[0m

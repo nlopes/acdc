@@ -7,7 +7,7 @@ use acdc_converters_core::table::{
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{
     BlockMetadata, ColumnStyle, HorizontalAlignment, TableFrame, TableGrid, TablePresentation,
-    TableStripes,
+    TableStripes, VerticalAlignment,
 };
 use comfy_table::{
     Attribute, Cell, CellAlignment, ColumnConstraint, ContentArrangement, Table, Width,
@@ -44,8 +44,22 @@ fn render_cell_content(
         .map_err(io::IntoInnerError::into_error)?;
     let text = String::from_utf8(buffer).unwrap_or_default();
 
-    let mut cell = Cell::new(text);
+    Ok(apply_cell_format(
+        Cell::new(text),
+        col,
+        col_index,
+        columns,
+        processor,
+    ))
+}
 
+fn apply_cell_format(
+    mut cell: Cell,
+    col: &acdc_parser::TableColumn<'_>,
+    col_index: usize,
+    columns: &[acdc_parser::ColumnFormat],
+    processor: &Processor<'_>,
+) -> Cell {
     // Determine effective alignment: cell override > column default
     let effective_halign = col
         .halign
@@ -81,7 +95,69 @@ fn render_cell_content(
         }
     }
 
-    Ok(cell)
+    cell
+}
+
+fn effective_valign(
+    col: &acdc_parser::TableColumn<'_>,
+    col_index: usize,
+    columns: &[acdc_parser::ColumnFormat],
+) -> VerticalAlignment {
+    col.valign
+        .or_else(|| columns.get(col_index).map(|column| column.valign))
+        .unwrap_or_default()
+}
+
+fn pad_cell_vertically(
+    cell: Cell,
+    col: &acdc_parser::TableColumn<'_>,
+    col_index: usize,
+    columns: &[acdc_parser::ColumnFormat],
+    processor: &Processor<'_>,
+    max_lines: usize,
+) -> Cell {
+    let content = cell.content();
+    let line_count = content.lines().count().max(1);
+    let padding = max_lines.saturating_sub(line_count);
+    if padding == 0 {
+        return cell;
+    }
+    let (before, after) = if effective_valign(col, col_index, columns) == VerticalAlignment::Top {
+        (0, padding)
+    } else if effective_valign(col, col_index, columns) == VerticalAlignment::Middle {
+        (padding / 2, padding - padding / 2)
+    } else {
+        (padding, 0)
+    };
+    let padded = format!("{}{}{}", "\n".repeat(before), content, "\n".repeat(after));
+    apply_cell_format(Cell::new(padded), col, col_index, columns, processor)
+}
+
+fn render_row_cells(
+    row: &acdc_parser::TableRow<'_>,
+    columns: &[acdc_parser::ColumnFormat],
+    processor: &Processor<'_>,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<Vec<Cell>, Error> {
+    let cells = row
+        .columns
+        .iter()
+        .enumerate()
+        .map(|(index, col)| render_cell_content(col, index, columns, processor, diagnostics))
+        .collect::<Result<Vec<_>, _>>()?;
+    let max_lines = cells
+        .iter()
+        .map(|cell| cell.content().lines().count().max(1))
+        .max()
+        .unwrap_or(1);
+    Ok(cells
+        .into_iter()
+        .zip(&row.columns)
+        .enumerate()
+        .map(|(index, (cell, col))| {
+            pad_cell_vertically(cell, col, index, columns, processor, max_lines)
+        })
+        .collect())
 }
 
 /// Find the visible-character positions of column boundaries in a table output.
@@ -568,6 +644,42 @@ fn build_comfy_cells_from_grid(
         };
         cells.push(cell);
     }
+    let max_lines = cells
+        .iter()
+        .map(|cell| cell.content().lines().count().max(1))
+        .max()
+        .unwrap_or(1);
+    for (grid_index, kind) in grid_row.cells.iter().enumerate() {
+        let CellKind::Content { cell_index } = kind else {
+            continue;
+        };
+        let Some(col) = grid_row.ast_row.columns.get(*cell_index) else {
+            continue;
+        };
+        let Some(cell) = cells.get_mut(grid_index) else {
+            continue;
+        };
+        *cell = pad_cell_vertically(
+            cell.clone(),
+            col,
+            *cell_index,
+            &tbl.columns,
+            processor,
+            max_lines,
+        );
+        if grid_row.is_header {
+            *cell = cell
+                .clone()
+                .fg(processor.appearance.colors.table_header)
+                .add_attribute(Attribute::Bold);
+        }
+        if grid_row.is_footer {
+            *cell = cell
+                .clone()
+                .fg(processor.appearance.colors.table_footer)
+                .add_attribute(Attribute::Bold);
+        }
+    }
     Ok(cells)
 }
 
@@ -606,58 +718,39 @@ fn render_table_without_spans(
     apply_column_widths(table_widget, tbl, tbl.columns.len());
 
     if let Some(header) = &tbl.header {
-        let header_cells = header
-            .columns
-            .iter()
-            .enumerate()
-            .map(|(i, col)| {
-                let mut cell =
-                    render_cell_content(col, i, &tbl.columns, processor, &mut visitor.diagnostics)?;
-                cell = cell
-                    .fg(processor.appearance.colors.table_header)
-                    .add_attribute(Attribute::Bold);
-                Ok(cell)
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
+        let header_cells: Vec<_> =
+            render_row_cells(header, &tbl.columns, processor, &mut visitor.diagnostics)?
+                .into_iter()
+                .map(|cell| {
+                    cell.fg(processor.appearance.colors.table_header)
+                        .add_attribute(Attribute::Bold)
+                })
+                .collect();
         table_widget.set_header(header_cells);
     }
 
     for (row_idx, row) in tbl.rows.iter().enumerate() {
-        let cells = row
-            .columns
-            .iter()
-            .enumerate()
-            .map(|(col_idx, col)| {
-                let mut cell = render_cell_content(
-                    col,
-                    col_idx,
-                    &tbl.columns,
-                    processor,
-                    &mut visitor.diagnostics,
-                )?;
+        let cells = render_row_cells(row, &tbl.columns, processor, &mut visitor.diagnostics)?
+            .into_iter()
+            .map(|mut cell| {
                 if stripe_row(presentation.stripes(), row_idx) {
                     cell = cell.add_attribute(Attribute::Dim);
                 }
-                Ok(cell)
+                cell
             })
-            .collect::<Result<Vec<_>, Error>>()?;
+            .collect::<Vec<_>>();
         table_widget.add_row(cells);
     }
 
     if let Some(footer) = &tbl.footer {
-        let footer_cells = footer
-            .columns
-            .iter()
-            .enumerate()
-            .map(|(i, col)| {
-                let mut cell =
-                    render_cell_content(col, i, &tbl.columns, processor, &mut visitor.diagnostics)?;
-                cell = cell
-                    .fg(processor.appearance.colors.table_footer)
-                    .add_attribute(Attribute::Bold);
-                Ok(cell)
-            })
-            .collect::<Result<Vec<_>, Error>>()?;
+        let footer_cells: Vec<_> =
+            render_row_cells(footer, &tbl.columns, processor, &mut visitor.diagnostics)?
+                .into_iter()
+                .map(|cell| {
+                    cell.fg(processor.appearance.colors.table_footer)
+                        .add_attribute(Attribute::Bold)
+                })
+                .collect();
         table_widget.add_row(footer_cells);
     }
 
@@ -689,9 +782,11 @@ pub(crate) fn visit_table<W: std::io::Write>(
     let mut table_widget = Table::new();
     table_widget
         .set_content_arrangement(ContentArrangement::Dynamic)
-        .set_width(u16::try_from(terminal_width).unwrap_or(80))
         .load_style(comfy_table::presets::UTF8_FULL.with_rounded_corners())
         .enforce_styling();
+    if let Some(width) = table_width(metadata, terminal_width) {
+        table_widget.set_width(u16::try_from(width).unwrap_or(80));
+    }
 
     if table_has_spans(tbl) {
         let num_cols = determine_column_count(tbl);
@@ -734,6 +829,7 @@ pub(crate) fn visit_table<W: std::io::Write>(
         let result =
             apply_table_presentation(&result, header_set, &boundaries, &line_types, presentation);
 
+        let result = align_table(&result, metadata, terminal_width);
         let w = visitor.writer_mut();
         writeln!(w, "{result}")?;
         return Ok(());
@@ -741,9 +837,52 @@ pub(crate) fn visit_table<W: std::io::Write>(
 
     let rendered =
         render_table_without_spans(&mut table_widget, tbl, visitor, processor, presentation)?;
+    let rendered = align_table(&rendered, metadata, terminal_width);
     let w = visitor.writer_mut();
     writeln!(w, "{rendered}")?;
     Ok(())
+}
+
+fn table_width(metadata: &BlockMetadata<'_>, terminal_width: usize) -> Option<usize> {
+    let constrained = metadata.attributes.get_string("width").and_then(|width| {
+        let width = width.trim().trim_end_matches('%');
+        width.parse::<usize>().ok().filter(|width| *width > 0)
+    });
+    if constrained.is_none()
+        && metadata.options.contains(&"autowidth")
+        && !metadata.roles.contains(&"stretch")
+    {
+        return None;
+    }
+    let percent = constrained.unwrap_or(100).min(100);
+    Some((terminal_width.saturating_mul(percent) / 100).max(1))
+}
+
+fn align_table(output: &str, metadata: &BlockMetadata<'_>, terminal_width: usize) -> String {
+    let alignment = metadata
+        .attributes
+        .get_string("align")
+        .or_else(|| metadata.attributes.get_string("float"))
+        .and_then(|value| matches!(value.as_ref(), "left" | "center" | "right").then_some(value));
+    let Some(alignment) = alignment else {
+        return output.to_string();
+    };
+    let width = output.lines().map(visible_line_len).max().unwrap_or(0);
+    let remaining = terminal_width.saturating_sub(width);
+    let indent = match alignment.as_ref() {
+        "center" => remaining / 2,
+        "right" => remaining,
+        _ => 0,
+    };
+    if indent == 0 {
+        return output.to_string();
+    }
+    let prefix = " ".repeat(indent);
+    output
+        .lines()
+        .map(|line| format!("{prefix}{line}"))
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 #[cfg(test)]

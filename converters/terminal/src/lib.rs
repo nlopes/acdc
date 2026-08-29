@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
     rc::Rc,
@@ -73,6 +73,8 @@ pub struct Processor<'a> {
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
     pub(crate) list_indent: Rc<Cell<usize>>,
+    /// Document-wide fallback warnings already emitted by this converter.
+    pub(crate) warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
     /// Substitutions active for the block currently being rendered, resolved
     /// from `[subs="…"]` (or the block-kind baseline when absent). Lives on
     /// `Processor` so freestanding inline helpers can consult it without
@@ -118,6 +120,7 @@ pub(crate) fn create_test_processor_with(
         index_entries: Rc::new(RefCell::new(Vec::new())),
         has_valid_index_section: false,
         list_indent: Rc::new(Cell::new(0)),
+        warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
         #[cfg(feature = "pre-spec-subs")]
         current_subs: Rc::new(Cell::new(SubsFlags::all())),
     }
@@ -160,6 +163,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: Rc::new(Cell::new(0)),
+            warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }
@@ -206,6 +210,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             list_indent: Rc::new(Cell::new(0)),
+            warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
@@ -273,6 +278,13 @@ impl Processor<'_> {
         self
     }
 
+    /// Sets terminal capabilities instead of using the detected values.
+    #[must_use]
+    pub fn with_terminal_capabilities(mut self, capabilities: Capabilities) -> Self {
+        self.appearance.capabilities = capabilities;
+        self
+    }
+
     /// Returns the terminal capabilities.
     #[must_use]
     pub fn terminal_capabilities(&self) -> &Capabilities {
@@ -288,6 +300,11 @@ impl Processor<'_> {
     #[must_use]
     pub(crate) fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
+    }
+
+    /// Record a document-wide fallback and return whether its warning is new.
+    pub(crate) fn mark_fallback(&self, key: &'static str) -> bool {
+        self.warned_fallbacks.borrow_mut().insert(key)
     }
 }
 
@@ -335,8 +352,8 @@ pub fn render_document_to_ansi(
 pub fn render_listing_to_ansi(
     options: Options,
     document_attributes: DocumentAttributes<'_>,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    inlines: &[acdc_parser::InlineNode<'_>],
+    metadata: &acdc_parser::BlockMetadata<'_>,
     width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
@@ -346,16 +363,18 @@ pub fn render_listing_to_ansi(
     let mut output = Vec::new();
     let color_guard = ColorOutputGuard::force_enabled();
 
-    if let Some(language) = acdc_converters_core::code::detect_language(metadata) {
-        crate::syntax::highlight_code(
-            &mut output,
-            inlines,
-            preview_highlight_language(language),
-            &processor,
-        )?;
-    } else {
-        write!(output, "{}", extract_inline_text(inlines, "\n"))?;
+    let mut metadata = metadata.clone();
+    if let Some(language) =
+        acdc_converters_core::code::detect_language(&metadata).map(str::to_string)
+    {
+        metadata.attributes.set(
+            "language".into(),
+            preview_highlight_language(&language).to_string().into(),
+        );
     }
+    output.extend_from_slice(
+        crate::delimited::render_preformatted_content(inlines, &metadata, &processor)?.as_bytes(),
+    );
 
     drop(color_guard);
     Ok(output)
@@ -416,8 +435,8 @@ impl Drop for ColorOutputGuard {
 ///
 /// `line_break` controls how `LineBreak` nodes are represented: `" "` for
 /// titles, `"\n"` for literal paragraphs.
-pub(crate) fn extract_inline_text(nodes: &[InlineNode], line_break: &str) -> String {
-    InlineTextTransform::default()
+pub(crate) fn extract_inline_text(nodes: &[acdc_parser::InlineNode], line_break: &str) -> String {
+    acdc_converters_core::InlineTextTransform::default()
         .line_break(line_break)
         .decode_char_refs(true)
         .to_string(nodes)

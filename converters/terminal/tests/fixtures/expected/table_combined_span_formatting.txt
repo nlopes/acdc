@@ -26,18 +26,21 @@
 ╭────────────────────────────────┬──────────────────╮
 │[1m Strong [3mitalic[23m[0m              [0m    ┆ Beside strong    │
 │[1m [3m[23m[0m                           [0m    ┆                  │
+│                                ┆                  │
 │                                ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │                                ┆ Below strong     │
 │                                ┆                  │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │[3m        Emphasis [1mbold[22m[0m       [0m    ┆ Beside emphasis  │
 │[3m              [1m[22m[0m              [0m    ┆                  │
+│                                ┆                  │
 │                                ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │                                ┆ Below emphasis   │
 │                                ┆                  │
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │[38;5;10m[1m              Header [3mitalic[23m[0m [0m    ┆ Beside header    │
 │[38;5;10m[1m                           [3m[23m[0m [0m    ┆                  │
+│                                ┆                  │
 │                                ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │                                ┆ Below header     │
 │                                ┆                  │
@@ -50,6 +53,7 @@
 ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┼╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │         Monospace [1mbold[22m Ada[0m     ┆ Beside monospace │
 │                           [1m[22m[0m     ┆                  │
+│                                ┆                  │
 │                                ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │                                ┆ Below monospace  │
 │                                ┆                  │
@@ -61,8 +65,8 @@
 ╭───────────────────────────────────┬─────────────────╮
 │ Paragraph in a combined cell.     ┆ Beside AsciiDoc │
 │                                   ┆                 │
-│             * Nested item one     ┆                 │
-│             * Nested item two     ┆                 │
+│             • Nested item one     ┆                 │
+│             • Nested item two     ┆                 │
 │                                   ┆                 │
 │                                   ├╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌┤
 │                                   ┆ Below AsciiDoc  │

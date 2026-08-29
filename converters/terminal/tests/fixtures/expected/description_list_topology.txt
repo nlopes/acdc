@@ -11,7 +11,7 @@
 [1mRoot two[0m
   Root two description.
 
-[1mNamed ordered[0m
+1. [1mNamed ordered[0m
   Named style is effective.
 
 [1mQ: [0m[1mAnswered question?[0m

@@ -5,64 +5,90 @@
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;5;10m│ [39m[3mBalanced brackets.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mA [x] B[0m, [2m[3mNotes[0m
 [38;5;10m│ [39m[3mUnmatched opening bracket.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mA [x[0m, [2m[3mNotes[0m
 [38;5;10m│ [39m[3mExtra closing bracket.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mA ] B[0m, [2m[3mNotes[0m
 [38;5;10m│ [39m[3mUnquoted comma.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mhttps://example.com[Someone[0m, [2m[3mPart 1][0m
 [38;5;10m│ [39m[3mQuoted comma.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mhttps://example.com[Someone, Part 1][0m, [2m[3mFinal[0m
 [38;5;10m│ [39m[3mQuote-delimited slot.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mQuoted author[0m, [2m[3mAdjacent citation[0m
 [38;5;10m│ [39m[3mEmpty slot.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mEmpty-slot citation[0m
 [38;5;10m│ [39m[3mNamed slot.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mNamed-slot citation[0m
 [38;5;10m│ [39m[3mNamed author.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mNamed Author[0m, [2m[3mPositional Citation[0m
 [38;5;10m│ [39m[3mNamed citation.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mPositional Author[0m, [2m[3mNamed Citation[0m
 [38;5;10m│ [39m[3mBoth fields named.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mNamed Author[0m, [2m[3mNamed Citation[0m
 [38;5;10m│ [39m[3mUnset None value.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mLiteral Value[0m
 [38;5;10m│ [39m[3mQuoted None value.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mNone[0m, [2m[3mQuoted Literal[0m
 [38;5;10m│ [39m[3mPositional None value.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mNone[0m, [2m[3mPositional Literal[0m
 [38;5;10m│ [39m[3mSpaced equals signs.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mComma, Author[0m, [2m[3mWork[0m
 [38;5;10m│ [39m[3mExpanded slots.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mAda Lovelace[0m, [2m[3mNotes[0m
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1mStacked lists[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;5;10m│ [39m[3mNamed-only stack.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mOriginal Author[0m, [2m[3mNamed Citation[0m
 [38;5;10m│ [39m[3mPositional overlay stack.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mReplacement Author[0m, [2m[3mOriginal Citation[0m
 [38;5;13m┊ [39mStyle replacement stack.
 [38;5;13m┊[39m
+[2m—[0m [2m[3mReplacement Poet[0m, [2m[3mReplacement Poem[0m
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1mSubstitutions[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;5;10m│ [39m[3mUnquoted values.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mAda *Lovelace*[0m, [2m[3m`Notes`[0m
 [38;5;10m│ [39m[3mDouble-quoted values.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mGrace *Hopper*[0m, [2m[3m`Compiler`[0m
 [38;5;10m│ [39m[3mSingle-quoted formatting.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mMargaret Hamilton[0m, [2m[3mApollo[0m
 [38;5;10m│ [39m[3mEscaped single quote.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mA'B[0m, [2m[3mNotes[0m
 [38;5;10m│ [39m[3mUnquoted macros.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mhttps://example.com[Literal Author][0m, [2m[3mhttps://example.org[Literal Work][0m
 [38;5;10m│ [39m[3mSingle-quoted macros.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mLinked Author[0m, [2m[3mLinked Work[0m
 [38;5;10m│ [39m[3mNamed substitutions.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mNamed Author[0m, [2m[3mNamed Work[0m
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1mQuote and verse forms[0m
@@ -79,22 +105,24 @@ Styled verse paragraph.
 [38;5;13m[1m• • •[0m
 [38;5;13m┊ [39mDelimited verse block.
 [38;5;13m┊[39m
+[2m—[0m [2m[3mBlock Poet[0m, [2m[3mBlock Poem[0m
 
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;2;215;0;135m[1mStyles and context slots[0m
 [38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
 [38;5;10m│ [39m[3mAdjacent shorthand.[0m
 [38;5;10m│[39m
+[2m—[0m [2m[3mAda[0m
 Spaces disable shorthand.
 Bracketed unknown style.
 [[not an anchor]]
 Double-bracket anchor syntax with spaces remains text.
-Shorthand-only metadata.
+[1mShorthand-only metadata.[22m
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
-slot three is not a language
+[2m1 │ [22mslot three is not a language
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
-empty language slot
+[2m1 │ [22mempty language slot
 [38;5;8m────────────────────────────────────────────────────────────────────────────────[39m
 [38;5;8m────────────────────[39m
 puts "styled source paragraph"

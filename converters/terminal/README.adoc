@@ -33,8 +33,19 @@ image::images/table.adoc.png["Table Example"]
 
 ## Image Rendering
 
-If we can detect your terminal supports images, we'll render the image, assuming you have
-your `TERM` set up correctly.
+With the `images` feature, local block images are sent to `viuer`. If the image
+cannot be displayed, or the feature is disabled, the converter prints useful
+alternative text and the source instead. Remote images are not fetched.
+
+An image `link` is kept as an OSC 8 link when the terminal supports OSC 8. Other
+terminals show the target after the image label. An inline image's own link takes
+precedence over a link around the image.
+
+Positive integer `width` and `height` values are interpreted as terminal-cell
+dimensions for protocol images. `align=center` and `align=right` are applied when
+an integer width is available. Percentage dimensions, page-relative sizing,
+wrapping floats, and alignment without a known cell width have no terminal-image
+equivalent.
 
 If you're using Ghostty or Kitty for example (and you're not overriding your `TERM`) you
 might have it set up to something that allows us to detect support for the right protocol.
@@ -66,6 +77,44 @@ fn main() {
 ....
 
 The highlighted code will display with appropriate colors for your terminal. If a language isn't recognized or no language is specified, the code block renders as plain text.
+
+Source blocks honor `linenums`, `start`, and `highlight`. Callout comment guards
+are removed and the visible callout marker is emphasized. Source substitutions,
+Unicode text, and long lines are preserved. PHP `%mixed` highlighting falls back
+to normal PHP highlighting and reports one warning per document.
+
+## Terminal Semantics
+
+The terminal backend keeps document structure in a static form:
+
+* Table-of-contents entries keep section and part numbering.
+* Book chapters use `chapter-signifier`; `%notitle` hides a heading but keeps its
+  content and reference text.
+* Internal cross-references and footnotes are styled display references. They are
+  not terminal jump targets. Inline and block anchors remain invisible.
+* Example and abstract paragraphs, open blocks, quote and verse attributions,
+  list marker styles, bibliography labels, and supported text roles have distinct
+  terminal presentations.
+* `lead` and `big` use emphasis, `small` is dimmed, `subtitle` is italic,
+  `underline` is underlined, and `line-through` is crossed out. Arbitrary CSS
+  roles have no terminal presentation.
+* Admonitions use their text label when icons are disabled. Emoji icons are used
+  only when icons and Unicode output are enabled.
+
+Tables honor percentage `width`, `%autowidth`, horizontal placement, column and
+cell alignment, vertical alignment, headers, footers, spans, frames, grids, and
+static stripes. Content can still be truncated when it cannot fit the selected
+terminal width.
+
+Links honor `hide-uri-scheme` in their visible text while preserving the complete
+target in OSC 8 metadata or the non-OSC 8 suffix. Browser-window attributes and
+arbitrary CSS roles are HTML-only; they do not change terminal links and do not
+produce warnings.
+
+Audio and video macros are static links in terminal output. They do not provide
+playback. Titles, audio time fragments, video posters, and all alternative video
+sources are kept. Audio or video with no source reports one warning per media
+kind and document.
 
 ## Development
 

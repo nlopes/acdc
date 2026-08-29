@@ -46,9 +46,30 @@ fn render_checked_status<W: Write + ?Sized>(
 
 #[derive(Clone, Copy, Debug)]
 enum ListMarker {
-    Bullet,
+    Bullet(UnorderedMarker),
     Numbered(OrderedListNumbering),
     Hidden,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum UnorderedMarker {
+    Default,
+    Disc,
+    Circle,
+    Square,
+}
+
+impl UnorderedMarker {
+    const fn text(self, unicode: bool) -> &'static str {
+        match (self, unicode) {
+            (Self::Default | Self::Disc, true) => "•",
+            (Self::Circle, true) => "◦",
+            (Self::Square, true) => "▪",
+            (Self::Default | Self::Disc, false) => "*",
+            (Self::Circle, false) => "o",
+            (Self::Square, false) => "+",
+        }
+    }
 }
 
 fn style_suppresses_marker(style: Option<&str>) -> bool {
@@ -95,10 +116,16 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         indent: usize,
         marker: ListMarker,
         start: usize,
+        reversed: bool,
         unicode: bool,
     ) -> Result<(), Error> {
         for (idx, item) in items.iter().enumerate() {
-            self.render_list_item(item, indent, marker, start.saturating_add(idx), unicode)?;
+            let number = if reversed {
+                start.saturating_sub(idx)
+            } else {
+                start.saturating_add(idx)
+            };
+            self.render_list_item(item, indent, marker, number, unicode)?;
         }
         Ok(())
     }
@@ -119,8 +146,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         write_indent(&mut self.writer, indent)?;
 
         let marker_written = match marker {
-            ListMarker::Bullet => {
-                write!(self.writer, "*")?;
+            ListMarker::Bullet(marker) => {
+                write!(self.writer, "{}", marker.text(unicode))?;
                 true
             }
             ListMarker::Numbered(numbering) => {
@@ -159,6 +186,10 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     }
 
     pub(crate) fn render_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Error> {
+        if list.metadata.style == Some("bibliography") {
+            return self.render_bibliography_list(list);
+        }
+
         let indent = self.processor.list_indent.get();
         self.render_styled_title(&list.title)?;
         // Only emit a leading newline for top-level lists (not nested ones)
@@ -170,16 +201,65 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let marker = if style_suppresses_marker(list.metadata.style) {
             ListMarker::Hidden
         } else {
-            ListMarker::Bullet
+            ListMarker::Bullet(match list.metadata.style {
+                Some("disc") => UnorderedMarker::Disc,
+                Some("circle") => UnorderedMarker::Circle,
+                Some("square") => UnorderedMarker::Square,
+                Some(_) | None => UnorderedMarker::Default,
+            })
         };
-        self.render_list_items(&list.items, indent, marker, 1, unicode)?;
+        self.render_list_items(&list.items, indent, marker, 1, false, unicode)?;
+        Ok(())
+    }
+
+    fn render_bibliography_list(&mut self, list: &UnorderedList) -> Result<(), Error> {
+        let indent = self.processor.list_indent.get();
+        self.render_styled_title(&list.title)?;
+        if indent == 0 {
+            writeln!(self.writer)?;
+        }
+        for item in &list.items {
+            write_indent(&mut self.writer, indent)?;
+            let content = if let Some((InlineNode::InlineAnchor(anchor), content)) =
+                item.principal.split_first()
+                && anchor.is_bibliography()
+            {
+                if let Some(label) = self
+                    .processor
+                    .references
+                    .get(anchor.id)
+                    .and_then(|reference| reference.xreflabel.as_deref())
+                    .map(<[_]>::to_vec)
+                {
+                    self.visit_inline_nodes(&label)?;
+                } else {
+                    self.writer
+                        .queue(PrintStyledContent(format!("[{}]", anchor.id).bold()))?;
+                }
+                content
+            } else {
+                item.principal.as_slice()
+            };
+            if content.is_empty() {
+                writeln!(self.writer)?;
+            } else {
+                self.visit_inline_nodes(content)?;
+                writeln!(self.writer)?;
+            }
+            let previous = self.processor.list_indent.replace(indent + 2);
+            for block in &item.blocks {
+                self.visit_block(block)?;
+            }
+            self.processor.list_indent.set(previous);
+        }
         Ok(())
     }
 
     /// Renders an ordered list in terminal format.
     ///
-    /// Items are numbered from 1 by default, and nested lists restart numbering
-    /// at each level. Markerless styles omit the item markers.
+    /// Items are numbered from 1 by default. `start` and `%reversed` change the
+    /// sequence, and nested lists start a new sequence. Markerless styles omit
+    /// the item markers.
     ///
     /// # Format
     /// ```text
@@ -209,14 +289,15 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 .unwrap_or_default();
             ListMarker::Numbered(numbering)
         };
+        let reversed = list.metadata.options.contains(&"reversed");
         let start = list
             .metadata
             .attributes
             .get_string("start")
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
-            .unwrap_or(1);
-        self.render_list_items(&list.items, indent, marker, start, unicode)?;
+            .unwrap_or(if reversed { list.items.len() } else { 1 });
+        self.render_list_items(&list.items, indent, marker, start, reversed, unicode)?;
         Ok(())
     }
 
@@ -237,8 +318,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             writeln!(self.writer)?;
         }
 
-        for (idx, item) in list.items.iter().enumerate() {
-            let item_number = idx + 1;
+        for item in &list.items {
+            let item_number = item.callout.number;
             write!(self.writer, "<{item_number}>")?;
             write!(self.writer, " ")?;
 
@@ -260,10 +341,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
     /// Renders a description list in terminal format.
     ///
-    /// Supports three styles:
+    /// Supports five styles:
     /// - **default**: Terms in bold on one line, definitions indented on next line
     /// - **horizontal**: Terms and definitions on same line separated by `::`
     /// - **qanda**: Terms prefixed with "Q: ", definitions with "A: "
+    /// - **ordered**: Terms use numbered markers
+    /// - **unordered**: Terms use bullet markers
     pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
         self.render_styled_title(&list.title)?;
@@ -273,7 +356,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         let style = list.metadata.style;
 
-        for item in &list.items {
+        for (index, item) in list.items.iter().enumerate() {
             match style {
                 Some("horizontal") => {
                     self.render_horizontal_description_list_item(item)?;
@@ -281,8 +364,19 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 Some("qanda") => {
                     self.render_qanda_description_list_item(item)?;
                 }
+                Some("ordered") => {
+                    self.render_description_list_item(item, Some(&format!("{}.", index + 1)))?;
+                }
+                Some("unordered") => {
+                    let marker = if self.processor.appearance.capabilities.unicode {
+                        "•"
+                    } else {
+                        "*"
+                    };
+                    self.render_description_list_item(item, Some(marker))?;
+                }
                 _ => {
-                    self.render_description_list_item(item)?;
+                    self.render_description_list_item(item, None)?;
                 }
             }
         }
@@ -293,7 +387,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     ///
     /// The term is rendered in bold, followed by the principal text (if present)
     /// indented with 2 spaces, and any additional description blocks.
-    fn render_description_list_item(&mut self, item: &DescriptionListItem) -> Result<(), Error> {
+    fn render_description_list_item(
+        &mut self,
+        item: &DescriptionListItem,
+        marker: Option<&str>,
+    ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
         // Render term in bold
         let processor = self.processor.clone();
@@ -309,6 +407,9 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .map_err(io::IntoInnerError::into_error)?;
 
         write_indent(&mut self.writer, indent)?;
+        if let Some(marker) = marker {
+            write!(self.writer, "{marker} ")?;
+        }
         self.writer.queue(PrintStyledContent(
             String::from_utf8_lossy(&buffer).to_string().bold(),
         ))?;

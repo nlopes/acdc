@@ -5,6 +5,7 @@ use std::io::Write;
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     Diagnostics, InlineTextTransform, WarningSource, decode_numeric_char_refs, inlines_to_string,
+    link::{autolink_fallback, link_fallback},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
@@ -111,7 +112,7 @@ fn try_to_unicode_subscript(text: &str) -> Option<String> {
 
 /// Render super/subscript content: try Unicode conversion first, fall back to
 /// dim-styled text to subtly indicate super/subscript.
-fn render_script_text<W: Write>(
+fn render_script_text<W: Write + ?Sized>(
     nodes: &[InlineNode],
     w: &mut W,
     processor: &Processor<'_>,
@@ -206,7 +207,7 @@ fn render_inline_nodes_with_styles_to_owned(
 
 /// Helper to render a single inline node directly to a writer.
 /// Always called from within inline spans, so `string_boundaries_are_space` is false.
-fn render_inline_node_to_writer<W: Write>(
+fn render_inline_node_to_writer<W: Write + ?Sized>(
     node: &InlineNode,
     w: &mut W,
     processor: &Processor<'_>,
@@ -471,6 +472,12 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                     self.visit_inline_nodes(&h.content)?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NoUnderline))?;
+                } else if h.role == Some("line-through") {
+                    let w = self.writer_mut();
+                    w.queue(SetAttribute(Attribute::CrossedOut))?;
+                    self.visit_inline_nodes(&h.content)?;
+                    let w = self.writer_mut();
+                    w.queue(SetAttribute(Attribute::NotCrossedOut))?;
                 } else {
                     self.push_colors(Some(Color::Black), Some(Color::Yellow))?;
                     self.visit_inline_nodes(&h.content)?;
@@ -548,7 +555,7 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     }
 }
 
-fn maybe_render_osc8_link<W: Write + ?Sized>(
+pub(crate) fn maybe_render_osc8_link<W: Write + ?Sized>(
     target: &str,
     text: &str,
     w: &mut W,
@@ -578,21 +585,34 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
 ) -> Result<(), crate::Error> {
     match inline_macro {
         InlineMacro::Link(l) => {
-            let target = l.target.clone();
-            let text = if l.text.is_empty() {
-                target.to_string()
+            let target = l.target.to_string();
+            if l.text.iter().any(is_self_linked_image) {
+                for node in &l.text {
+                    if is_self_linked_image(node) {
+                        render_inline_node_to_writer(node, w, processor)?;
+                    } else {
+                        let text =
+                            render_inline_nodes_to_string(std::slice::from_ref(node), processor)?;
+                        maybe_render_osc8_link(&target, &text, w, processor)?;
+                    }
+                }
             } else {
-                render_inline_nodes_to_string(&l.text, processor)?
-            };
-            maybe_render_osc8_link(target.clone().to_string().as_ref(), &text, w, processor)?;
+                let text = if l.text.is_empty() {
+                    link_fallback(&target, l.hides_uri_scheme()).to_string()
+                } else {
+                    render_inline_nodes_to_string(&l.text, processor)?
+                };
+                maybe_render_osc8_link(&target, &text, w, processor)?;
+            }
         }
         InlineMacro::Url(u) => {
-            maybe_render_osc8_link(
-                u.target.to_string().as_ref(),
-                &render_inline_nodes_to_string(&u.text, processor)?,
-                w,
-                processor,
-            )?;
+            let target = u.target.to_string();
+            let text = if u.text.is_empty() {
+                link_fallback(&target, u.hides_uri_scheme()).to_string()
+            } else {
+                render_inline_nodes_to_string(&u.text, processor)?
+            };
+            maybe_render_osc8_link(&target, &text, w, processor)?;
         }
         InlineMacro::Mailto(m) => {
             maybe_render_osc8_link(
@@ -604,7 +624,13 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
         }
         InlineMacro::Autolink(a) => {
             let target = a.url.to_string();
-            maybe_render_osc8_link(&target, &target, w, processor)?;
+            let (text, bracketed) = autolink_fallback(&target, a.bracketed, a.hides_uri_scheme());
+            let text = if bracketed {
+                format!("<{text}>")
+            } else {
+                text.to_string()
+            };
+            maybe_render_osc8_link(&target, &text, w, processor)?;
         }
         InlineMacro::Footnote(footnote) => {
             // Render footnote as superscript number in terminal
@@ -622,8 +648,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             }
         }
         InlineMacro::Image(img) => {
-            // Terminal can't display images, show alt text or path
-            write!(w, "[Image: {}]", img.source)?;
+            render_inline_image(img, w, processor)?;
         }
         InlineMacro::Icon(icon) => {
             let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
@@ -661,6 +686,49 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
         }
     }
     Ok(())
+}
+
+fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
+    matches!(
+        node,
+        InlineNode::Macro(InlineMacro::Image(image))
+            if image.metadata.attributes.get_string("link").is_some()
+    )
+}
+
+pub(crate) fn block_image_alt(image: &acdc_parser::Image<'_>) -> String {
+    if let Some(alt) = image.metadata.attributes.get_string("alt") {
+        return alt.into_owned();
+    }
+    image
+        .source
+        .get_filename()
+        .and_then(|filename| std::path::Path::new(filename).file_stem())
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_default()
+        .replace(['-', '_'], " ")
+}
+
+fn inline_image_alt(image: &acdc_parser::Image<'_>) -> String {
+    if image.title.is_empty() {
+        block_image_alt(image)
+    } else {
+        inlines_to_string(&image.title)
+    }
+}
+
+fn render_inline_image<W: Write + ?Sized>(
+    image: &acdc_parser::Image<'_>,
+    w: &mut W,
+    processor: &Processor<'_>,
+) -> Result<(), Error> {
+    let text = format!("[Image: {}]", inline_image_alt(image));
+    if let Some(target) = image.metadata.attributes.get_string("link") {
+        maybe_render_osc8_link(&target, &text, w, processor)
+    } else {
+        write!(w, "{text}")?;
+        Ok(())
+    }
 }
 
 fn render_index_term_to_writer<W: Write + ?Sized>(
@@ -1086,7 +1154,7 @@ mod tests {
 
         let output = render_paragraph(vec![image])?;
         assert!(
-            output.contains("[Image: logo.png]"),
+            output.contains("[Image: logo]"),
             "Should render image placeholder"
         );
         Ok(())
