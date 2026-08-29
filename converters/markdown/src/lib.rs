@@ -32,8 +32,9 @@
 //! - Strikethrough (`~~text~~`)
 //! - Autolinks for URLs and emails
 //!
-//! Both variants preserve section IDs and block anchors as portable HTML
-//! destinations for local cross-references.
+//! Both variants preserve section and block IDs, block and standalone inline
+//! anchors, and IDs on formatted spans as portable HTML destinations for local
+//! cross-references.
 //!
 //! # Limitations
 //!

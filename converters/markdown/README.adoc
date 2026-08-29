@@ -32,9 +32,9 @@ The CLI always uses the GFM variant. To produce plain CommonMark output, consume
 Supported constructs:
 
 - **Headings**: mapped to ATX (`#`, `##`, …). The document title renders as a top-level heading.
-- **Block destinations**: section and discrete-heading IDs, explicit `[#id]`
-  block IDs, and `[[id]]` block anchors render as portable HTML anchors in
-  both variants, so local cross-references have stable destinations.
+- **Cross-reference destinations**: section and discrete-heading IDs, explicit
+  block IDs, block and standalone inline anchors, and IDs on formatted spans
+  render as portable HTML anchors in both variants.
 - **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough (GFM), links, autolinks, images.
 - **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
 - **Code blocks**: fenced with the source language when specified, plus the callout annotations stripped and rendered as trailing references.

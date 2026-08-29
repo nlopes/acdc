@@ -29,6 +29,7 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     pub(crate) heading_level: usize,
     list_depth: usize,
     emitted_anchors: HashSet<String>,
+    suppress_inline_anchors: bool,
     /// Collected footnotes for rendering at document end.
     /// Stored as `(id, pre-rendered markdown content)` so that the visitor
     /// does not need to borrow data from the document being walked.
@@ -45,6 +46,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             heading_level: 0,
             list_depth: 0,
             emitted_anchors: HashSet::new(),
+            suppress_inline_anchors: false,
             footnotes: Vec::new(),
         }
     }
@@ -58,9 +60,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         resolve_target(&source.to_string(), self.processor.document_attributes())
     }
 
-    fn write_anchor(&mut self, id: &str) -> Result<(), Error> {
+    fn write_anchor(&mut self, id: &str) -> Result<bool, Error> {
         if !self.emitted_anchors.insert(id.to_owned()) {
-            return Ok(());
+            return Ok(false);
         }
         write!(self.writer, "<a id=\"")?;
         for character in id.chars() {
@@ -72,13 +74,29 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 _ => write!(self.writer, "{character}")?,
             }
         }
-        writeln!(self.writer, "\"></a>")?;
+        write!(self.writer, "\"></a>")?;
+        Ok(true)
+    }
+
+    fn write_block_anchor(&mut self, id: &str) -> Result<(), Error> {
+        if self.write_anchor(id)? {
+            writeln!(self.writer)?;
+        }
+        Ok(())
+    }
+
+    fn write_inline_anchor(&mut self, id: Option<&str>) -> Result<(), Error> {
+        if !self.suppress_inline_anchors
+            && let Some(id) = id
+        {
+            self.write_anchor(id)?;
+        }
         Ok(())
     }
 
     fn write_metadata_anchor(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
         if let Some(anchor) = metadata.id.as_ref().or_else(|| metadata.anchors.first()) {
-            self.write_anchor(anchor.id)?;
+            self.write_block_anchor(anchor.id)?;
         }
         Ok(())
     }
@@ -288,7 +306,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        self.write_anchor(&Section::generate_id_string(
+        self.write_block_anchor(&Section::generate_id_string(
             &section.metadata,
             &section.title,
         ))?;
@@ -384,7 +402,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {
         if let Some(anchor) = br.anchors.first() {
-            self.write_anchor(anchor.id)?;
+            self.write_block_anchor(anchor.id)?;
         }
         writeln!(self.writer, "---")?;
         Ok(())
@@ -529,7 +547,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
-        self.write_anchor(&Section::generate_id_string(
+        self.write_block_anchor(&Section::generate_id_string(
             &header.metadata,
             &header.title,
         ))?;
@@ -635,26 +653,31 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 write!(self.writer, "{}", Self::escape_markdown(text.content))?;
             }
             InlineNode::BoldText(text) => {
+                self.write_inline_anchor(text.id)?;
                 write!(self.writer, "**")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "**")?;
             }
             InlineNode::ItalicText(text) => {
+                self.write_inline_anchor(text.id)?;
                 write!(self.writer, "*")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "*")?;
             }
             InlineNode::MonospaceText(text) => {
+                self.write_inline_anchor(text.id)?;
                 write!(self.writer, "`")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "`")?;
             }
             InlineNode::HighlightText(text) => {
+                self.write_inline_anchor(text.id)?;
                 // Highlighting not in standard Markdown
                 // Just render as plain text
                 self.visit_inline_nodes(&text.content)?;
             }
             InlineNode::SubscriptText(text) => {
+                self.write_inline_anchor(text.id)?;
                 // Subscript not in standard Markdown
                 // Render with HTML tags (works in most renderers)
                 write!(self.writer, "<sub>")?;
@@ -662,6 +685,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 write!(self.writer, "</sub>")?;
             }
             InlineNode::SuperscriptText(text) => {
+                self.write_inline_anchor(text.id)?;
                 // Superscript not in standard Markdown
                 write!(self.writer, "<sup>")?;
                 self.visit_inline_nodes(&text.content)?;
@@ -680,19 +704,20 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 write!(self.writer, "'")?;
             }
             InlineNode::CurvedQuotationText(text) => {
+                self.write_inline_anchor(text.id)?;
                 // Render with proper quotes
                 write!(self.writer, "\"")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "\"")?;
             }
             InlineNode::CurvedApostropheText(text) => {
+                self.write_inline_anchor(text.id)?;
                 write!(self.writer, "'")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "'")?;
             }
-            InlineNode::InlineAnchor(_anchor) => {
-                // Anchors are not directly supported in Markdown
-                // Could use HTML <a name="..."></a> but skip for now
+            InlineNode::InlineAnchor(anchor) => {
+                self.write_inline_anchor(Some(anchor.id))?;
             }
             InlineNode::Macro(mac) => {
                 self.visit_inline_macro_inner(mac)?;
@@ -956,7 +981,10 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         text: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
         write!(self.writer, "[")?;
-        text(self)?;
+        let previous = std::mem::replace(&mut self.suppress_inline_anchors, true);
+        let result = text(self);
+        self.suppress_inline_anchors = previous;
+        result?;
         write!(self.writer, "]({destination})")?;
         Ok(())
     }

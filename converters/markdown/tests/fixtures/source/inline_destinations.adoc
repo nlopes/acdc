@@ -1,0 +1,10 @@
+Forward: <<section-id>>.
+
+Standalone [[standalone-id]]anchor.
+
+A [#bold-id]*bold*, [#italic-id]_italic_, [#mono-id]`mono`, [#mark-id]#mark#, [#sub-id]~sub~, [#super-id]^super^, [#double-id]"`double`", and [#single-id]'`single`'.
+
+[#section-id]
+== [#title-span-id]*Section*
+
+See <<standalone-id>>, <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id>>, <<double-id>>, and <<single-id>>.

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Standalone inline anchors and IDs on bold, italic, monospace, highlight,
+  subscript, superscript, and curved-quote spans now emit stable destinations
+  in GFM and CommonMark, so local cross-references reach the inline content.
 - Sections, discrete headings, and blocks with `[#id]` or `[[id]]` now emit
   stable HTML destinations in GFM and CommonMark, so generated local
   cross-references reach the referenced content.
