@@ -154,7 +154,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
       - name: Run CLI tests
-        run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn
+        run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
       - name: Smoke-test backend-only CLI builds
         shell: bash
         run: |
