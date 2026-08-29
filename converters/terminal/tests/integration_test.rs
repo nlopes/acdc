@@ -227,10 +227,10 @@ fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Er
     let output = String::from_utf8(output)?;
 
     for expected in [
-        "Empty: \u{1b}[m\u{1b}[4m[Other.adoc]\u{1b}[24m\u{1b}[m.",
-        "Explicit: \u{1b}[m\u{1b}[4mOther\u{1b}[24m\u{1b}[m.",
-        "Shorthand: \u{1b}[m\u{1b}[4mOther.adoc\u{1b}[24m\u{1b}[m.",
-        "Fragment: \u{1b}[m\u{1b}[4m[Foo#Bar]\u{1b}[24m\u{1b}[m.",
+        "\u{1b}[4m[Other.adoc]\u{1b}[24m",
+        "\u{1b}[4mOther\u{1b}[24m",
+        "\u{1b}[4mOther.adoc\u{1b}[24m",
+        "\u{1b}[4m[Foo#Bar]\u{1b}[24m",
     ] {
         assert!(
             output.contains(expected),
