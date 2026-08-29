@@ -351,7 +351,12 @@ fn definition_label(term: &TermKey) -> String {
 }
 
 const INDEX_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = context {
-  let occurrences = targets.map(target => (target, counter(page).at(target).first()))
+  let occurrences = targets
+    .map(target => {
+      let location = query(target).last().location()
+      (location, counter(page).at(location).first())
+    })
+    .sorted(key: occurrence => occurrence.first().page())
   if sequence == "page" or sequence == "range" {
     occurrences = occurrences.dedup(key: occurrence => occurrence.last())
   }
@@ -386,7 +391,7 @@ const INDEX_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = c
 const INDEX_PRINT_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequence) = context {
   let occurrences = targets
     .map(target => {
-      let location = locate(target)
+      let location = query(target).last().location()
       let page = counter(page).at(location).first()
       let physical = location.page()
       let arabic = location.page-numbering() == "1" or (
@@ -395,8 +400,9 @@ const INDEX_PRINT_PAGE_HELPER: &str = r#"#let _acdc_index_pages(targets, sequenc
       let sequence-page = if arabic or (
         _acdc_arabic_page_start != none and physical + 1 == _acdc_arabic_page_start
       ) { physical } else { 0 }
-      (target, page, sequence-page)
+      (location, page, sequence-page)
     })
+    .sorted(key: occurrence => occurrence.first().page())
     .dedup(key: occurrence => (occurrence.at(1), occurrence.last()))
   let ranges = ()
   for occurrence in occurrences {

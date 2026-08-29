@@ -140,7 +140,12 @@
 #heading(level: 1)[#text("5. ")#text("Index")] <id-5f696e646578>
 
 #let _acdc_index_pages(targets, sequence) = context {
-  let occurrences = targets.map(target => (target, counter(page).at(target).first()))
+  let occurrences = targets
+    .map(target => {
+      let location = query(target).last().location()
+      (location, counter(page).at(location).first())
+    })
+    .sorted(key: occurrence => occurrence.first().page())
   if sequence == "page" or sequence == "range" {
     occurrences = occurrences.dedup(key: occurrence => occurrence.last())
   }

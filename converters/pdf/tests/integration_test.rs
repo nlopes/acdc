@@ -25,6 +25,41 @@ fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<PathBuf> {
         })
 }
 
+fn assert_repeated_table_header_index(pdf: &[u8]) -> Result<(), Error> {
+    let rendered = lopdf::Document::load_mem(pdf)?;
+    let pages = rendered.get_pages().keys().copied().collect::<Vec<_>>();
+    let mut repeated_header_pages = Vec::new();
+    for page in &pages {
+        let text = rendered.extract_text(&[*page])?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        if normalized.contains("Description with visible header") {
+            repeated_header_pages.push(*page);
+        }
+    }
+    assert!(
+        repeated_header_pages.len() >= 2,
+        "expected a repeated table header, found it on pages {repeated_header_pages:?}",
+    );
+    let last_header_page = repeated_header_pages
+        .last()
+        .copied()
+        .ok_or("repeated table header page not found")?;
+    let text = rendered.extract_text(&pages)?;
+    let normalized = text
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .replace(" , ", ", ");
+    for term in ["Related header", "shared term", "visible header"] {
+        let expected = format!("{term}, {last_header_page}");
+        assert!(
+            normalized.contains(&expected),
+            "expected index entry `{expected}` in PDF text:\n{text}",
+        );
+    }
+    Ok(())
+}
+
 fn run_typst_fixture(path: &Path) -> Result<(), Error> {
     let file_name = path
         .file_stem()
@@ -104,6 +139,11 @@ fn run_typst_fixture(path: &Path) -> Result<(), Error> {
         ] {
             assert_eq!(lopdf::decode_text_string(info.get(key)?)?, expected);
         }
+    }
+
+    if file_name.starts_with("index_terms_repeated_table_header") {
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_repeated_table_header_index(&pdf)?;
     }
 
     assert!(pdf.starts_with(b"%PDF-"));

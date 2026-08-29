@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- PDF indexes now link index terms in repeated table headers to the last
+  rendered occurrence instead of failing when Typst lays out the header more
+  than once, matching Asciidoctor PDF.
 - Sections with a named `reftext` now link natural references and explicit IDs
   with that display label. Their titles are not retained as second natural
   aliases, and formatted labels keep their PDF styling, matching Asciidoctor

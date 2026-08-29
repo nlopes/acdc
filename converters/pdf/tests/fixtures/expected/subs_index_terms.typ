@@ -118,7 +118,12 @@
 #heading(level: 1)[#text("Generated index")] <id-5f67656e6572617465645f696e646578>
 
 #let _acdc_index_pages(targets, sequence) = context {
-  let occurrences = targets.map(target => (target, counter(page).at(target).first()))
+  let occurrences = targets
+    .map(target => {
+      let location = query(target).last().location()
+      (location, counter(page).at(location).first())
+    })
+    .sorted(key: occurrence => occurrence.first().page())
   if sequence == "page" or sequence == "range" {
     occurrences = occurrences.dedup(key: occurrence => occurrence.last())
   }
