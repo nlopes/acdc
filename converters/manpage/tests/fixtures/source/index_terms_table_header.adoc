@@ -1,0 +1,29 @@
+= index-terms-table-header(1)
+:doctype: manpage
+
+== NAME
+
+index-terms-table-header - index terms in table headers
+
+== DESCRIPTION
+
+.(((table title)))Cataloged table
+[cols="1,3",options="header,footer"]
+|===
+|Key (((Tables, Headers, concealed))) (((shared term)))
+|indexterm:[Related header,see-also=Tables]Description with indexterm2:[visible *header*], ((shared term)), and related material
+
+|1
+|The body contains (((body term))).
+
+|2
+|A second body row.
+
+|Footer (((footer term)))
+|The non-repeating footer contains a concealed term.
+|===
+
+An occurrence after the table (((after table))).
+
+[index]
+== Index

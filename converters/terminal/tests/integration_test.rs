@@ -76,6 +76,7 @@ generate_tests!([
     (comprehensive, true, requires: all(feature = "images", feature = "highlighting")),
     (subs_index_section, true),
     (index_term_relationships, false),
+    (index_terms_table_header, false),
     (subs_replacements_disabled, false),
     (subs_replacements_explicit, false),
     (subs_hardbreak_dialogue, false),
