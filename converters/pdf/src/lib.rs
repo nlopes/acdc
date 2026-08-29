@@ -32,13 +32,13 @@ use acdc_converters_core::{
 };
 use acdc_parser::{
     Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
-    Document, DocumentAttributes, IndexTermRelationship, InlineMacro, InlineNode, ListItem,
-    Location, Reference, SafeMode, Source, SourceLocation, Table,
+    Document, DocumentAttributes, ElementAttributes, IndexTerm, IndexTermRelationship, InlineMacro,
+    InlineNode, ListItem, Location, Reference, SafeMode, Source, SourceLocation, Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
 };
-use acdc_pdf_render::{RenderConfig, render_pdf};
+use acdc_pdf_render::{NamedDestination, RenderConfig, render_pdf};
 use acdc_pdf_theme::{PageNumberingStart, Theme};
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
@@ -363,7 +363,19 @@ impl Processor<'_> {
         let emit_duration = emit_start.elapsed();
 
         let render_start = Instant::now();
-        let mut rendered = render_pdf(&typst, &assets, &RenderConfig { font_dirs })?;
+        let named_destinations = preparation
+            .link_destination_ids
+            .iter()
+            .map(|id| NamedDestination::new(encode_label(id), id))
+            .collect();
+        let mut rendered = render_pdf(
+            &typst,
+            &assets,
+            &RenderConfig {
+                font_dirs,
+                named_destinations,
+            },
+        )?;
         if let Some(start) = page_numbering.conditional_arabic_start() {
             // Typst exports PDF labels only for fixed numbering patterns. A body-relative
             // transition uses a numbering function, so add its equivalent label ranges here.
@@ -1135,6 +1147,7 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
     let context = PreparationContext {
         attributes: &doc.attributes,
         icon_mode: IconMode::from(&doc.attributes),
+        references: &doc.references,
     };
     if let Some(header) = &doc.header {
         collect_inline_preparation(header.title.as_ref(), &context, &mut preparation);
@@ -1149,6 +1162,7 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
 struct PreparationContext<'attributes, 'source> {
     attributes: &'attributes DocumentAttributes<'source>,
     icon_mode: IconMode,
+    references: &'attributes HashMap<&'source str, Reference<'source>>,
 }
 
 #[derive(Default)]
@@ -1162,6 +1176,7 @@ struct PdfPreparation {
     has_autofit_blocks: bool,
     admonition_image_icon_count: usize,
     populated_index_sections: HashSet<String>,
+    link_destination_ids: Vec<String>,
 }
 
 struct ImageIconReference {
@@ -1542,37 +1557,27 @@ fn collect_inline_preparation(
                 collect_inline_preparation(&footnote.content, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Url(url)) => {
+                collect_link_destination(&url.attributes, &url.location, context, preparation);
                 collect_inline_preparation(&url.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Link(link)) => {
+                collect_link_destination(&link.attributes, &link.location, context, preparation);
                 collect_inline_preparation(&link.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
+                collect_link_destination(
+                    &mailto.attributes,
+                    &mailto.location,
+                    context,
+                    preparation,
+                );
                 collect_inline_preparation(&mailto.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 collect_inline_preparation(&xref.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
-                preparation.has_index_terms = true;
-                collect_inline_preparation(term.term(), context, preparation);
-                if let Some(secondary) = term.secondary() {
-                    collect_inline_preparation(secondary, context, preparation);
-                }
-                if let Some(tertiary) = term.tertiary() {
-                    collect_inline_preparation(tertiary, context, preparation);
-                }
-                match term.relationship.as_ref() {
-                    Some(IndexTermRelationship::See { target }) => {
-                        collect_inline_preparation(target, context, preparation);
-                    }
-                    Some(IndexTermRelationship::SeeAlso { targets }) => {
-                        for target in targets {
-                            collect_inline_preparation(target, context, preparation);
-                        }
-                    }
-                    None | Some(_) => {}
-                }
+                collect_index_term_preparation(term, context, preparation);
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -1584,6 +1589,50 @@ fn collect_inline_preparation(
             | InlineNode::CalloutRef(_)
             | _ => {}
         }
+    }
+}
+
+fn collect_index_term_preparation(
+    term: &IndexTerm<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    preparation.has_index_terms = true;
+    collect_inline_preparation(term.term(), context, preparation);
+    if let Some(secondary) = term.secondary() {
+        collect_inline_preparation(secondary, context, preparation);
+    }
+    if let Some(tertiary) = term.tertiary() {
+        collect_inline_preparation(tertiary, context, preparation);
+    }
+    match term.relationship.as_ref() {
+        Some(IndexTermRelationship::See { target }) => {
+            collect_inline_preparation(target, context, preparation);
+        }
+        Some(IndexTermRelationship::SeeAlso { targets }) => {
+            for target in targets {
+                collect_inline_preparation(target, context, preparation);
+            }
+        }
+        None | Some(_) => {}
+    }
+}
+
+fn collect_link_destination(
+    attributes: &ElementAttributes<'_>,
+    location: &Location,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    let Some(id) = attributes.get_string("id") else {
+        return;
+    };
+    if context
+        .references
+        .get(id.as_ref())
+        .is_some_and(|reference| reference.location == *location)
+    {
+        preparation.link_destination_ids.push(id.into_owned());
     }
 }
 

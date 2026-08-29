@@ -39,6 +39,26 @@ pub struct RenderConfig {
     /// here are registered alongside the bundled fonts, so a brand family
     /// supplied at runtime is used wherever the markup asks for it.
     pub font_dirs: Vec<PathBuf>,
+    /// Label-to-name mappings to publish as PDF named destinations.
+    pub named_destinations: Vec<NamedDestination>,
+}
+
+/// A Typst label and its exported PDF destination name.
+#[derive(Debug, Clone)]
+pub struct NamedDestination {
+    label: String,
+    name: String,
+}
+
+impl NamedDestination {
+    /// Create a named destination for a generated Typst label.
+    #[must_use]
+    pub fn new(label: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            name: name.into(),
+        }
+    }
 }
 
 /// A successfully rendered document.
@@ -62,7 +82,8 @@ pub fn render_pdf(
     config: &RenderConfig,
 ) -> Result<Rendered, Error> {
     let fonts = fonts::load(&config.font_dirs)?;
-    let (pdf, warnings) = engine::render(markup.to_owned(), fonts, assets)?;
+    let (pdf, warnings) =
+        engine::render(markup.to_owned(), fonts, assets, &config.named_destinations)?;
     Ok(Rendered { pdf, warnings })
 }
 

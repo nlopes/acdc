@@ -135,6 +135,56 @@ fn typst_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> Res
 }
 
 #[test]
+fn link_macro_ids_are_named_pdf_destinations() -> Result<(), Error> {
+    let path = Path::new("tests/fixtures/source/link_macro_ids.adoc");
+    let bootstrap = Processor::new(ConverterOptions::default(), DocumentAttributes::default());
+    let parser_options = parser_options_with_defaults(bootstrap.document_attributes().clone());
+    let parsed = acdc_parser::parse_file(path, &parser_options)?;
+    let processor = Processor::new(
+        ConverterOptions::default(),
+        parsed.document().attributes.clone(),
+    );
+    let mut pdf = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("pdf");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(
+        parsed.document(),
+        &mut pdf,
+        Some(path),
+        None,
+        &mut diagnostics,
+    )?;
+
+    let rendered = lopdf::Document::load_mem(&pdf)?;
+    let (_, names) = rendered.dereference(rendered.catalog()?.get(b"Names")?)?;
+    let (_, destinations) = rendered.dereference(names.as_dict()?.get(b"Dests")?)?;
+    let (_, entries) = rendered.dereference(destinations.as_dict()?.get(b"Names")?)?;
+    let mut names = entries
+        .as_array()?
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[name, _]| lopdf::decode_text_string(name))
+        .collect::<Result<Vec<_>, _>>()?;
+    names.sort();
+
+    assert_eq!(
+        names,
+        [
+            "bare-link-id",
+            "bare-mailto-id",
+            "duplicate-id",
+            "link-id",
+            "mailto-id",
+            "url-id",
+        ]
+    );
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}
+
+#[test]
 fn image_alt_text_reaches_pdf_structure() -> Result<(), Error> {
     let path = Path::new("tests/fixtures/source/image_accessibility_alt_text.adoc");
     let bootstrap = Processor::new(ConverterOptions::default(), DocumentAttributes::default());

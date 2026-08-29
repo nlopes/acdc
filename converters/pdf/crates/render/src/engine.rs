@@ -1,11 +1,14 @@
 use acdc_pdf_images::ImageMap;
-use typst::text::Font;
+use typst::{comemo::Track, introspection::Introspector, text::Font};
 use typst_as_lib::TypstEngine;
 use typst_layout::PagedDocument;
-use typst_pdf::{PdfOptions, pdf};
+use typst_pdf::{PdfOptions, pdf, pdf_in_bundle};
 
-use crate::error::{Error, format_diagnostics};
 use crate::resolver::ImageFileResolver;
+use crate::{
+    NamedDestination,
+    error::{Error, format_diagnostics},
+};
 
 /// Build a Typst engine for `markup` with `fonts` and `assets` registered,
 /// compile it, and export the laid-out document to PDF bytes.
@@ -21,6 +24,7 @@ pub(crate) fn render(
     markup: String,
     fonts: Vec<Font>,
     assets: &ImageMap,
+    named_destinations: &[NamedDestination],
 ) -> Result<(Vec<u8>, Vec<String>), Error> {
     let engine = TypstEngine::builder()
         .main_file(markup)
@@ -39,8 +43,29 @@ pub(crate) fn render(
         tagged: true,
         ..PdfOptions::default()
     };
-    let pdf = pdf(&document, &pdf_options)
-        .map_err(|diagnostics| Error::Pdf(format_diagnostics(&diagnostics)))?;
+    let pdf = if named_destinations.is_empty() {
+        pdf(&document, &pdf_options)
+    } else {
+        let labelled = document.introspector().query_labelled();
+        let anchors = named_destinations
+            .iter()
+            .filter_map(|destination| {
+                labelled
+                    .iter()
+                    .find(|element| {
+                        element
+                            .label()
+                            .is_some_and(|label| label.resolve().as_str() == destination.label)
+                    })
+                    .and_then(typst::foundations::Content::location)
+                    .map(|location| (location, destination.name.clone().into()))
+            })
+            .collect::<Vec<_>>();
+        let link_resolver =
+            typst::model::LateLinkResolver::new(None, document.introspector().as_ref());
+        pdf_in_bundle(&document, &pdf_options, &anchors, link_resolver.track())
+    }
+    .map_err(|diagnostics| Error::Pdf(format_diagnostics(&diagnostics)))?;
     Ok((pdf, warnings))
 }
 
