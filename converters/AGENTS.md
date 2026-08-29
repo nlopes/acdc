@@ -43,12 +43,22 @@ Shared utilities in `core/`:
     explicitly, and `test_fixture` has the matching `.contains("subs")`
     early-return.
 
+## Test placement
+
+- Use source and expected-output fixtures for rendered HTML, text, Typst, and other snapshot-like converter output.
+- Use integration tests for properties that snapshots cannot prove, including structured diagnostics, PDF annotations, PDF objects and metadata, warnings, and end-to-end behavior.
+
 ## Debugging
 
-- Use `compare-asciidoc-output` agent to diff converter output against asciidoctor
+- Compare the same source with the built `acdc` CLI and the matching asciidoctor backend before using the `compare-asciidoc-output` agent. Compare observable behavior rather than byte-identical output.
 - For fixture mismatches, run `regen-fixtures` skill (ask first)
 
 ## Fixture regeneration
+
+- Get approval before regenerating fixtures.
+- Record `git status --short` before regeneration.
+- Run one generator at a time. Each generator may rewrite its full fixture corpus.
+- Inspect status and the diff immediately afterward. Keep only intended changes or explicitly approved new baselines, and reject environment-only changes.
 
 ```bash
 cargo run -p acdc-converters-html --example generate_html_fixtures --all-features
@@ -61,3 +71,10 @@ bash converters/markdown/tests/regenerate_expected.sh
 # Regenerate a single fixture:
 bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
 ```
+
+### Terminal capability fixtures
+
+- The terminal fixture macro's boolean argument controls whether the test reads `.osc8.txt`. When it is `true`, the generic harness skips the fixture for terminals without OSC 8 support.
+- A plain `.txt` file for that same fixture is unused unless a separate no-OSC8 assertion reads it.
+- If both `.txt` and `.osc8.txt` are retained, add explicit coverage for both outputs.
+- Test terminal capability-dependent behavior with both `TERM=dumb` and `TERM=xterm-ghostty`.

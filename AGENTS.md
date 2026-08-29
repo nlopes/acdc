@@ -3,14 +3,34 @@
 ## Project rules
 
 - **Use nextest**: `cargo nextest run` for tests, `cargo test --doc` for doctests
-- **Always `--all-features`**: all test/build/clippy commands
-- **Clippy pedantic**: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic`
+- **Product spelling**: always write the product name as `acdc`, lowercase. Preserve other casing only in exact external quotations or case-sensitive identifiers and test inputs.
+- **Worktree ownership**: inspect `git status --short` before editing. Preserve unrelated and staged work, and do not stage or commit unless the user explicitly asks.
+- **Feature coverage**: use `--all-features` for standard test/build/clippy commands. When a task changes supported feature-off behavior, also run the applicable documented `--no-default-features` configuration.
+- **Clippy pedantic**: `cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo`
 - **Format before committing**: `cargo fmt --all`
 - **Compact imports**: merge imports from the same crate/module into one `use` with braces, e.g. `use std::{borrow::Cow, io::Write};` — not separate `use std::borrow::Cow;` / `use std::io::Write;` lines
 - **Update changelogs**: each crate has its own `CHANGELOG.md`; update `[Unreleased]` for affected crates. Entries describe what a user sees or is affected by — the new behavior, the attribute/option to reach it, and any divergence from `asciidoctor`. Never regurgitate internal mechanics (function/field names, struct changes, control flow); those belong in code/commits, not the changelog.
 - **Surface converter warnings structurally**: user-relevant converter warnings should use `Warning` / `Diagnostics`, not `tracing::warn!`
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)
-- **asciidoctor is reference**: when output differs, use `compare-asciidoc-output` agent
+- **asciidoctor is reference**: compare one source using the built `acdc` CLI and the matching asciidoctor backend first. Compare observable behavior, not byte-identical output, and avoid temporary Rust harnesses. Use the `compare-asciidoc-output` agent only after a direct comparison confirms a divergence or deeper research is needed. For PDF comparisons, keep clearly named `*-acdc.pdf` and `*-asciidoctor.pdf` outputs; do not create raster previews unless the user asks.
+
+## Validation workflow
+
+- Never run Cargo commands concurrently against the same target directory.
+- During implementation, run the smallest relevant package, test, or stable nextest expression, such as `-E 'test(/name/)'` rather than a generated fixture number.
+- Use `--all-features` for standard validation. When changing feature-off behavior, also run the applicable documented `--no-default-features` checks.
+- At a cross-crate, public-API, checklist, or commit boundary, run:
+
+  ```console
+  cargo fmt --all -- --check
+  cargo nextest run --workspace --all-features
+  cargo test --doc --workspace --all-features
+  cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo
+  git diff --check
+  ```
+
+- Report whether a broad command failed during compilation or after tests began.
+- Do not rerun Rust checks after a documentation-only wording change when the relevant code checks have already passed.
 
 ## Workspace features
 
@@ -32,7 +52,7 @@ New code that gates parsing or rendering on a specific substitution belongs behi
 
 When tests fail, identify the category and follow the appropriate path:
 
-- **Fixture mismatches** → run `regen-fixtures` skill (ask first)
+- **Fixture mismatches** → run the `regen-fixtures` skill (ask first). If the skill is unavailable, ask before using the documented scoped generator.
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
 

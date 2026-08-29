@@ -8,6 +8,13 @@
 
 `setext` is default-on as a build feature and exposes the runtime `--setext` compatibility flag. `highlighting` forwards to whichever of the HTML and terminal backends are selected without enabling either backend itself.
 
+## Attribute overrides
+
+- The CLI owns parsing of `-a` syntax only. Parser `Options` owns protected and caller-locked attribute decisions.
+- Preserve the distinction between locked defaults and soft `@` assignments and unsets.
+- Do not add CLI-only lock exceptions.
+- Changes require CLI tests plus parser policy fixture and API tests.
+
 ## TCK compliance
 
 The CLI supports the AsciiDoc TCK (Test Compatibility Kit) behind a feature flag.

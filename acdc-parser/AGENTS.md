@@ -23,6 +23,14 @@ The default-on `pre-spec-subs` feature governs whether `[subs="..."]` block attr
 
 Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in `converters/AGENTS.md`.
 
+## Document attribute policy
+
+- `constants.rs` owns the static built-in read-only and API-only attribute protection.
+- `Options` combines built-in protection with locks supplied by the caller.
+- The CLI parses attribute assignment syntax, and converters may add unlocked defaults. Neither duplicates the parser's lock policy.
+- Keep the policy internal. The public parser API should expose only stable caller intent, never converter-specific or test-specific fields and functions.
+- When changing the policy, test document entries, parser `Options` and builder input, CLI `-a` input, locked and soft `@` assignments and unsets, and header/body exceptions. Compare both the official attribute documentation and the current asciidoctor implementation.
+
 ## Debugging
 
 - **Grammar failures** → use `trace-parse` skill, then check `src/grammar/`
@@ -39,6 +47,8 @@ Regenerate parser fixtures:
 ```bash
 cargo run -p acdc-parser --example generate_parser_fixtures --all-features
 ```
+
+The generator rewrites all parser JSON fixtures. Record `git status --short` before running it and inspect every changed fixture afterward. Treat the `.adoc` file as the test input and the generated `.json` file as expected output. Use stable nextest expressions instead of generated fixture numbers when running one fixture test.
 
 ## Property tests
 
