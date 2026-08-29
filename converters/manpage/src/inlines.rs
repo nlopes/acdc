@@ -416,12 +416,13 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        match resolve_xref(references.get(xref.target), xref, &guard) {
+        let target = xref.target;
+        match resolve_xref(references.get(target), xref, &guard) {
             // A reference to a level-1 section reads as that section's `.SH`
             // heading, which manpages upper-case. An explicit label reads as
             // written.
             XrefDisplay::Title(inlines, _scope) => {
-                let text_case = if self.processor.top_level_section_ids.contains(xref.target) {
+                let text_case = if self.processor.top_level_section_ids.contains(target) {
                     TextCase::Uppercase
                 } else {
                     TextCase::Preserve

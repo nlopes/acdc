@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Title-based shorthand cross-references now link to the matching generated or
+  explicit section ID, including when the reference supplies custom text.
 - Cross-references preserve formatted explicit text through supported nested
   inline macros. Empty references to captioned blocks honor source-order
   `xrefstyle=basic`, `short`, and `full`, including custom and disabled
@@ -50,6 +52,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Sections with a named `reftext` now use it as the link text and destination
+  alias for natural references and explicit IDs. Their titles are not retained
+  as second natural aliases, and formatted labels keep their Markdown markup.
+- Plain visible shorthand cross-references now match section titles containing
+  `pass:[...]` or `+...+` content. A shorthand target containing a passthrough
+  remains unresolved, and its link displays and retains the visible text.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it keeps its literal fragment and bracketed unresolved fallback. Source-order
+  changes apply only to later references, and explicit local IDs still link to
+  the section title.
+- Interdocument `xref:` macros now link to the corresponding `.md` file and
+  fragment instead of a same-named local section. Empty and explicit link text
+  both keep the external destination.
 - Image destinations and audio and video fallback links honor `imagesdir`,
   normalize relative paths, and encode spaces as `%20`.
 - Markdown output now uses one blank line between blocks and one final newline,

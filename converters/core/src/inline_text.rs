@@ -162,19 +162,20 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         if !xref.text.is_empty() {
             return self.write(w, &xref.text);
         }
+        let target = xref.target;
         let Some(references) = self.references else {
-            return write!(w, "{}", xref.target);
+            return write!(w, "{target}");
         };
         if self.resolving_xref {
-            return write!(w, "[{}]", xref.target);
+            return write!(w, "[{target}]");
         }
-        match references.get(xref.target).and_then(reference_text) {
+        match references.get(target).and_then(reference_text) {
             Some(nodes) => Self {
                 resolving_xref: true,
                 ..self
             }
             .write(w, nodes),
-            None => write!(w, "[{}]", stylized_id(xref.target)),
+            None => write!(w, "[{}]", stylized_id(target)),
         }
     }
 
@@ -318,6 +319,23 @@ mod tests {
                 .references(&doc.references)
                 .to_string(body_inlines(doc)),
             "See A title, A label, [untitled], and [missing]."
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn named_section_reftext_controls_cross_reference_text() -> Result<(), acdc_parser::Error> {
+        let parsed = acdc_parser::parse(
+            "Named: <<Custom Label>>. Explicit: <<Custom Label,Chosen text>>. Title: <<Actual Title>>. ID: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let doc = parsed.document();
+
+        assert_eq!(
+            InlineTextTransform::default()
+                .references(&doc.references)
+                .to_string(body_inlines(doc)),
+            "Named: Custom Label. Explicit: Chosen text. Title: [Actual Title]. ID: Custom Label."
         );
         Ok(())
     }

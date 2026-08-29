@@ -170,9 +170,14 @@ impl<'a> Keyboard<'a> {
 pub type Key<'a> = &'a str;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
+///
+/// Equality and debug output include `target`, `text`, `location`, `xrefstyle`,
+/// and `caption_label`; parser-only state is excluded.
 #[derive(Clone, Serialize)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
+    /// The effective link target. A resolved natural reference contains the
+    /// matching ID; an unresolved reference retains its reference text.
     pub target: &'a str,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
@@ -183,6 +188,8 @@ pub struct CrossReference<'a> {
     pub caption_label: XrefCaptionLabel<'a>,
     #[serde(skip)]
     pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
+    #[serde(skip)]
+    pub(crate) resolve_natural_target: bool,
 }
 
 impl<'a> CrossReference<'a> {
@@ -196,6 +203,7 @@ impl<'a> CrossReference<'a> {
             xrefstyle: XrefStyle::Basic,
             caption_label: XrefCaptionLabel::AtTarget,
             caption_label_snapshot_id: None,
+            resolve_natural_target: false,
         }
     }
 

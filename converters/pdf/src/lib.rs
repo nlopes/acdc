@@ -3094,6 +3094,151 @@ mod tests {
     }
 
     #[test]
+    fn interdocument_xref_macros_link_to_other_pdf_documents()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for expected in [
+            "#link(\"Other.pdf\")[#text(\"Other.pdf\")]".to_string(),
+            "#link(\"Other.pdf\")[#text(\"Other\")]".to_string(),
+            format!(
+                "#link(<{}>)[#text(\"Other.adoc\")]",
+                encode_label("_other_adoc")
+            ),
+            "#link(\"Foo.pdf#Bar\")[#text(\"Foo.pdf\")]".to_string(),
+        ] {
+            assert!(
+                typst.contains(&expected),
+                "expected {expected:?} in {typst}"
+            );
+        }
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert_eq!(
+            external_link_targets(&pdf),
+            ["Foo.pdf#Bar", "Other.pdf", "Other.pdf"]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_keeps_natural_reference_unresolved() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\n\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let section_label = encode_label("_syntax_highlighting");
+        assert!(
+            typst.contains("#text(\"[Syntax Highlighting]\")"),
+            "{typst}"
+        );
+        assert_eq!(
+            typst.matches(&format!("#link(<{section_label}>)")).count(),
+            1
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("Natural: [Syntax Highlighting]."),
+            "{text}"
+        );
+        assert!(
+            normalized.contains("Explicit: Syntax Highlighting"),
+            "{text}"
+        );
+        let link_annotations = pdf
+            .objects
+            .values()
+            .filter(|object| {
+                object.as_dict().is_ok_and(|dictionary| {
+                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                })
+            })
+            .count();
+        assert_eq!(link_annotations, 1);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn passthroughs_are_restored_before_natural_xref_resolution()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for (target, count) in [
+            ("_pass_raw_title", 1),
+            ("_plus_raw_title", 1),
+            ("_control_title", 1),
+        ] {
+            let label = encode_label(target);
+            assert_eq!(typst.matches(&format!("#link(<{label}>)")).count(), count);
+        }
+        assert_eq!(typst.matches("#text(\"[Target raw Title]\")").count(), 2);
+        assert_eq!(typst.matches("#text(\"[Missing raw Title]\")").count(), 2);
+        assert!(!typst.contains('\u{fffd}'), "{typst}");
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for expected in [
+            "Title macro: Pass raw Title",
+            "Title plus: Plus raw Title",
+            "Target macro: [Target raw Title].",
+            "Target plus: [Target raw Title].",
+            "Missing macro: [Missing raw Title].",
+            "Missing plus: [Missing raw Title].",
+            "Control: Control Title",
+        ] {
+            assert!(
+                normalized.contains(expected),
+                "expected {expected:?} in {text:?}"
+            );
+        }
+        let link_annotations = pdf
+            .objects
+            .values()
+            .filter(|object| {
+                object.as_dict().is_ok_and(|dictionary| {
+                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                })
+            })
+            .count();
+        assert_eq!(link_annotations, 3);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
     fn captions_and_cross_reference_text_preserve_inline_formatting()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(

@@ -226,6 +226,50 @@ fn cross_references_render_as_links_to_the_target_anchor() -> Result<(), Error> 
 }
 
 #[test]
+fn interdocument_xref_macros_link_to_other_markdown_documents() -> Result<(), Error> {
+    let (output, _warnings) = convert_str(
+        "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n",
+    )?;
+
+    for expected in [
+        "Empty: [Other.md](Other.md).",
+        "Explicit: [Other](Other.md).",
+        "Shorthand: [Other.adoc](#_other_adoc).",
+        "Fragment: [Foo.md](Foo.md#Bar).",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
+    let (output, _warnings) = convert_str(
+        "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n",
+    )?;
+
+    for expected in [
+        "Title macro: [Pass raw Title](#_pass_raw_title).",
+        "Title plus: [Plus raw Title](#_plus_raw_title).",
+        "Target macro: [[Target raw Title]](#Target raw Title).",
+        "Target plus: [[Target raw Title]](#Target raw Title).",
+        "Missing macro: [[Missing raw Title]](#Missing raw Title).",
+        "Missing plus: [[Missing raw Title]](#Missing raw Title).",
+        "Control: [Control Title](#_control_title).",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    assert!(!output.contains('\u{fffd}'), "{output}");
+    Ok(())
+}
+
+#[test]
 fn a_cross_reference_inside_reference_text_is_not_a_nested_link() -> Result<(), Error> {
     // Markdown links do not nest, and the resolution must terminate.
     let (output, _warnings) =

@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `CrossReference` equality and debug output now depend only on its exposed
+  model state. Equivalent values from standalone and full-document parsing no
+  longer differ because of private parsing state, and debug output does not
+  expose that state.
+- A section's named `reftext` is now its natural cross-reference alias and
+  catalogued reference label. The section title is not retained as a second
+  alias; explicit IDs still resolve, and formatted labels retain their inline
+  content, matching Asciidoctor.
+- Section titles with `pass:[...]` or `+...+` content now participate in
+  title-based cross-reference lookup as their visible text. A shorthand target
+  that contains a passthrough remains unresolved, but `CrossReference::target`
+  and warnings retain its visible text, matching Asciidoctor.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it retains its natural target and produces an unresolved-reference warning
+  instead of resolving to a section ID. Source-order changes apply only to
+  later references, and explicit local IDs still resolve. Asciidoctor also
+  retains the natural target but does not warn.
+- Interdocument `xref:` macros keep their file and fragment targets when a
+  local section has the same title. Natural `<<Title>>` references still
+  resolve to local section IDs, and `CrossReference::target` distinguishes the
+  two forms, matching Asciidoctor.
+- Title-based shorthand cross-references such as `<<Syntax Highlighting>>` now
+  resolve to generated or explicit section IDs. Exact IDs take precedence,
+  custom link text remains intact, and missing titles stay unresolved with a
+  parser warning, matching Asciidoctor. `CrossReference::target` contains the
+  resolved ID when a title-based reference matches.
 - Explicit links, direct URL macros, and `mailto:` macros with a named `id`
   attribute now act as untitled cross-reference targets, including when the
   attribute list starts with a comma. Automatic references use `[id]`, and

@@ -4,7 +4,7 @@
 
 use std::{
     borrow::Cow,
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     rc::Rc,
 };
 
@@ -1177,7 +1177,8 @@ fn apply_quote_attribute_substitutions<'input>(
     {
         let start = plain.location.absolute_start.saturating_sub(offset);
         let end = plain.location.absolute_end.saturating_sub(offset);
-        let inlines = process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
+        let (inlines, _) =
+            process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
         metadata.attribution = Some(Attribution::new(inlines));
     }
     if metadata.citetitle_substitutions
@@ -1188,21 +1189,22 @@ fn apply_quote_attribute_substitutions<'input>(
     {
         let start = plain.location.absolute_start.saturating_sub(offset);
         let end = plain.location.absolute_end.saturating_sub(offset);
-        let inlines = process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
+        let (inlines, _) =
+            process_inlines(state, &block_metadata, start, end, offset, plain.content)?;
         metadata.citetitle = Some(CiteTitle::new(inlines));
     }
     Ok(())
 }
 
-/// Parse an anchor's cross-reference label (`[[id,label]]`) into inline nodes.
+/// Parse a target's cross-reference label into inline nodes.
 ///
 /// A displayed label takes the reference-text substitutions asciidoctor
-/// documents — specialchars, quotes, and replacements — so `[[id,*Bold* label]]`
+/// documents — specialchars, quotes, and replacements — so `*Bold* label`
 /// renders bold while a macro stays literal: a label cannot become a link, and
 /// therefore cannot nest one inside the reference it labels. Only quotes are a
 /// parse-time concern; converters apply specialchars and replacements to the
-/// resulting text nodes. Attribute references were already substituted when the
-/// anchor was parsed.
+/// resulting text nodes. Attribute references were already substituted when
+/// the block metadata was parsed.
 fn parse_reference_label<'a>(
     state: &mut ParserState<'a>,
     label: Option<&'a str>,
@@ -1224,7 +1226,7 @@ fn parse_reference_label<'a>(
         0,
         label,
     ) {
-        Ok(inlines) if !inlines.is_empty() => Some(inlines),
+        Ok((inlines, _)) if !inlines.is_empty() => Some(inlines),
         // A label that does not parse as inline content still reads as its
         // literal text.
         _ => Some(vec![InlineNode::PlainText(Plain {
@@ -1285,6 +1287,7 @@ struct CrossReferenceUse<'a> {
     target: &'a str,
     location: Location,
     automatic: bool,
+    resolve_natural_target: bool,
 }
 
 fn insert_untitled_reference<'a>(
@@ -1302,7 +1305,12 @@ fn insert_untitled_reference<'a>(
     });
 }
 
-fn finalize_xref_caption_labels<'a>(state: &ParserState<'a>, document: &mut Document<'a>) {
+fn finalize_cross_references<'a>(
+    state: &ParserState<'a>,
+    document: &mut Document<'a>,
+    reference_ids: &HashSet<&'a str>,
+    natural_targets: &HashMap<&'a str, &'a str>,
+) {
     let caption_kinds = document
         .references
         .iter()
@@ -1318,6 +1326,12 @@ fn finalize_xref_caption_labels<'a>(state: &ParserState<'a>, document: &mut Docu
         let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
             return;
         };
+        xref.target = resolve_xref_target(
+            xref.target,
+            xref.resolve_natural_target,
+            reference_ids,
+            natural_targets,
+        );
         let Some(snapshot) = xref.caption_label_snapshot_id.take() else {
             return;
         };
@@ -1326,6 +1340,71 @@ fn finalize_xref_caption_labels<'a>(state: &ParserState<'a>, document: &mut Docu
         };
         xref.caption_label = state.xref_caption_label(snapshot, *kind);
     });
+}
+
+fn section_xreflabel<'a>(state: &ParserState<'a>, metadata: &BlockMetadata<'a>) -> Option<&'a str> {
+    if let Some(reftext) = metadata.attributes.get_string("reftext") {
+        return Some(state.intern_cow(reftext));
+    }
+    metadata.anchors.last().and_then(|anchor| anchor.xreflabel)
+}
+
+fn register_section_header<'a>(
+    state: &mut ParserState<'a>,
+    block_metadata: &BlockParsingMetadata<'a>,
+    title: Title<'a>,
+    natural_title: &'a str,
+    level: SectionLevel,
+    location: Location,
+    direct_parent_section_kind: Option<SectionKind>,
+) -> (Title<'a>, section::SectionNumbering) {
+    let section_id = Section::generate_id(state.arena, &block_metadata.metadata, &title)
+        .as_arena_str(state.arena);
+    let xreflabel = section_xreflabel(state, &block_metadata.metadata);
+    let reference_text = xreflabel
+        .filter(|label| !label.trim().is_empty())
+        .unwrap_or(natural_title);
+    if !reference_text.is_empty() {
+        state
+            .natural_xref_targets
+            .entry(reference_text)
+            .or_insert(section_id);
+    }
+
+    let kind = SectionKind::from_style(block_metadata.metadata.style);
+    state.toc_entries.push(TocEntry::for_section(
+        section_id,
+        title.clone(),
+        level,
+        xreflabel,
+        kind,
+        location.clone(),
+    ));
+    warn_for_nested_bibliography_section(state, direct_parent_section_kind, location);
+
+    let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
+    (title, numbering)
+}
+
+/// Finalize a cross-reference target after section IDs and title aliases are known.
+///
+/// Exact IDs are kept. Natural-title lookup applies only when enabled at the
+/// reference's source position. Missing aliases leave the target unchanged.
+fn resolve_xref_target<'a>(
+    target: &'a str,
+    resolve_natural_target: bool,
+    reference_ids: &HashSet<&'a str>,
+    natural_targets: &HashMap<&'a str, &'a str>,
+) -> &'a str {
+    if !resolve_natural_target || reference_ids.contains(target) {
+        return target;
+    }
+    let resembles_reference_text = target.contains(' ') || target.chars().any(char::is_uppercase);
+    if resembles_reference_text {
+        natural_targets.get(target).copied().unwrap_or(target)
+    } else {
+        target
+    }
 }
 
 /// Catalog a formatted span's ID and recurse into its inline content.
@@ -1388,11 +1467,7 @@ fn collect_references<'a>(
                 // but their destinations remain visible to outer xrefs.
                 let id = Section::generate_id(state.arena, &s.metadata, &s.title)
                     .as_arena_str(state.arena);
-                let xreflabel = s
-                    .metadata
-                    .anchors
-                    .last()
-                    .and_then(|anchor| anchor.xreflabel);
+                let xreflabel = section_xreflabel(state, &s.metadata);
                 refs.entry(id).or_insert_with(|| Reference {
                     xreflabel: parse_reference_label(state, xreflabel, &s.location),
                     title: Some(s.title.clone()),
@@ -1624,6 +1699,7 @@ fn collect_inline_references<'a>(
                     target: xref.target,
                     location: xref.location.clone(),
                     automatic: xref.text.is_empty(),
+                    resolve_natural_target: xref.resolve_natural_target,
                 });
             }
             InlineNode::Macro(InlineMacro::Link(link)) => collect_link_references(
@@ -2604,27 +2680,6 @@ peg::parser! {
             let mut xrefs = Vec::new();
             collect_references(state, &blocks, &mut references, &mut xrefs);
 
-            // An internal `<<id>>` whose target is absent from the catalog is an
-            // unresolved (broken) reference. Inter-document/external targets
-            // (those addressing another resource) are not validated here.
-            for xref in xrefs {
-                if xref.automatic
-                    && let Some(reference) = references.get_mut(xref.target)
-                    && reference.is_bibliography()
-                {
-                    reference.automatic_citation = true;
-                }
-                if is_internal_reference(xref.target) && !references.contains_key(xref.target) {
-                    let source_location = state.create_error_source_location(xref.location);
-                    state.add_warning(crate::Warning::new(
-                        crate::WarningKind::UnresolvedReference {
-                            target: xref.target.to_string(),
-                        },
-                        Some(source_location),
-                    ));
-                }
-            }
-
             let mut document = Document {
                 header,
                 // Built in preprocessed coordinates with no `file` on either boundary;
@@ -2646,7 +2701,40 @@ peg::parser! {
                 toc_entries,
                 references,
             };
-            finalize_xref_caption_labels(state, &mut document);
+            let reference_ids = document.references.keys().copied().collect::<HashSet<_>>();
+
+            // An internal `<<id>>` whose target is absent from the catalog is an
+            // unresolved (broken) reference. Inter-document/external targets
+            // (those addressing another resource) are not validated here.
+            for xref in xrefs {
+                let target = resolve_xref_target(
+                    xref.target,
+                    xref.resolve_natural_target,
+                    &reference_ids,
+                    &state.natural_xref_targets,
+                );
+                if xref.automatic
+                    && let Some(reference) = document.references.get_mut(target)
+                    && reference.is_bibliography()
+                {
+                    reference.automatic_citation = true;
+                }
+                if is_internal_reference(target) && !reference_ids.contains(target) {
+                    let source_location = state.create_error_source_location(xref.location);
+                    state.add_warning(crate::Warning::new(
+                        crate::WarningKind::UnresolvedReference {
+                            target: target.to_string(),
+                        },
+                        Some(source_location),
+                    ));
+                }
+            }
+            finalize_cross_references(
+                state,
+                &mut document,
+                &reference_ids,
+                &state.natural_xref_targets,
+            );
             Ok(document)
         }
 
@@ -2841,7 +2929,7 @@ peg::parser! {
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {
                     // Empty subtitle after colon, treat whole text as title
-                    let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
+                    let (inlines, _) = process_inlines(state, &block_metadata, start, end, 0, title)
                         .map_err(|_| "could not process document title")?;
                     (inlines, None)
                 } else {
@@ -2849,7 +2937,7 @@ peg::parser! {
                     let title_raw = &title[..colon_pos];
                     let title_text = title_raw.trim_end();
                     let title_end = start + title_text.len();
-                    let inlines = process_inlines(state, &block_metadata, start, title_end, 0, title_text)
+                    let (inlines, _) = process_inlines(state, &block_metadata, start, title_end, 0, title_text)
                         .map_err(|_| "could not process document title")?;
 
                     // Subtitle: trim leading whitespace after colon
@@ -2860,13 +2948,13 @@ peg::parser! {
                         position: state.line_map.offset_to_position(sub_start_offset, state.input),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
-                    let subtitle_inlines = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
+                    let (subtitle_inlines, _) = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
                         .map_err(|_| "could not process document subtitle")?;
 
                     (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
             } else {
-                let inlines = process_inlines(state, &block_metadata, start, end, 0, title)
+                let (inlines, _) = process_inlines(state, &block_metadata, start, end, 0, title)
                     .map_err(|_| "could not process document title")?;
                 (inlines, None)
             };
@@ -2914,7 +3002,7 @@ peg::parser! {
                 let subtitle_raw = &title[colon_pos + 1..];
                 let subtitle_text = subtitle_raw.trim();
                 if subtitle_text.is_empty() {
-                    let inlines = process_inlines(state, &block_metadata, span_start, end, 0, title)
+                    let (inlines, _) = process_inlines(state, &block_metadata, span_start, end, 0, title)
                         .map_err(|_| "could not process setext document title")?;
                     (inlines, None)
                 } else {
@@ -2922,7 +3010,7 @@ peg::parser! {
                     let title_raw = &title[..colon_pos];
                     let title_text = title_raw.trim_end();
                     let title_end = span_start + title_text.len();
-                    let inlines = process_inlines(state, &block_metadata, span_start, title_end, 0, title_text)
+                    let (inlines, _) = process_inlines(state, &block_metadata, span_start, title_end, 0, title_text)
                         .map_err(|_| "could not process setext document title")?;
 
                     // Subtitle: trim leading whitespace after colon
@@ -2933,13 +3021,13 @@ peg::parser! {
                         position: state.line_map.offset_to_position(sub_start_offset, state.input),
                     };
                     let sub_end = sub_start_offset + subtitle_text.len();
-                    let subtitle_inlines = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
+                    let (subtitle_inlines, _) = process_inlines(state, &block_metadata, subtitle_start.offset, sub_end, 0, subtitle_text)
                         .map_err(|_| "could not process setext document subtitle")?;
 
                     (inlines, Some(Subtitle::new(subtitle_inlines)))
                 }
             } else {
-                let inlines = process_inlines(state, &block_metadata, span_start, end, 0, title)
+                let (inlines, _) = process_inlines(state, &block_metadata, span_start, end, 0, title)
                     .map_err(|_| "could not process setext document title")?;
                 (inlines, None)
             };
@@ -3277,7 +3365,7 @@ peg::parser! {
         section_level:section_level(offset, None) whitespace()
         title_start:position!() title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_])
         {
-            let title = title?;
+            let (title, _) = title?;
             tracing::debug!(?block_metadata, ?title, ?title_start, ?title_end, "parsing discrete header block");
 
             let level = section_level.1;
@@ -3331,35 +3419,17 @@ peg::parser! {
         whitespace()
         title_start:position!()
         section_header:(title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_]) {
-            let title = title?;
-            let section_id: &'input str = Section::generate_id(state.arena, &block_metadata.metadata, &title).as_arena_str(state.arena);
-
-            // Extract xreflabel from the last anchor (same anchor used for section ID)
-            // This matches asciidoctor behavior: [[id,xreflabel]] provides custom cross-reference text
-            let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel);
-
-            // Classify the section by its style (preface, appendix, …).
-            let kind = SectionKind::from_style(block_metadata.metadata.style);
-            let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
-
-            // Register section for TOC immediately after title is parsed, before content
+            let (title, natural_title) = title?;
             let location = state.create_block_location(section_level_start, title_end, offset);
-            state.toc_entries.push(TocEntry::for_section(
-                section_id,
-                title.clone(),
-                section_level.1,
-                xreflabel,
-                kind,
-                location,
-            ));
-
-            warn_for_nested_bibliography_section(
+            Ok::<(Title<'input>, section::SectionNumbering), Error>(register_section_header(
                 state,
+                &block_metadata,
+                title,
+                natural_title,
+                section_level.1,
+                location,
                 direct_parent_section_kind,
-                state.create_block_location(section_level_start, title_end, offset),
-            );
-
-            Ok::<(Title<'input>, &'input str, section::SectionNumbering), Error>((title, section_id, numbering))
+            ))
         })
         content:section_content(offset, Some(expected_child_level(
             section_level.1,
@@ -3367,7 +3437,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let (title, _section_id, numbering) = section_header?;
+            let (title, numbering) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
 
             // Validate section level against parent section level if any is provided.
@@ -3480,41 +3550,19 @@ peg::parser! {
         title_start:position!() title:$([^'\n']+) title_end:position!() eol()
         setext_level:setext_section_level(title.trim().chars().count(), parent_section_level)
         section_header:({
-            // Parse the title using inline processing
-            match process_inlines(state, &block_metadata, title_start, title_end, offset, title) {
-                Ok(processed_title) => {
-                    let processed_title = Title::new(processed_title);
-                    let section_id_str = Section::generate_id(state.arena, &block_metadata.metadata, &processed_title).to_string();
-                    let section_id: &'input str = state.intern_str(&section_id_str);
-
-                    // Extract xreflabel from the last anchor
-                    let xreflabel = block_metadata.metadata.anchors.last().and_then(|a| a.xreflabel);
-
-                    // Classify the section by its style (preface, appendix, …).
-                    let kind = SectionKind::from_style(block_metadata.metadata.style);
-                    let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
-
-                    // Register section for TOC
-                    let location = state.create_block_location(title_start, title_end, offset);
-                    state.toc_entries.push(TocEntry::for_section(
-                        section_id,
-                        processed_title.clone(),
-                        setext_level,
-                        xreflabel,
-                        kind,
-                        location,
-                    ));
-
-                    warn_for_nested_bibliography_section(
-                        state,
-                        direct_parent_section_kind,
-                        state.create_block_location(title_start, title_end, offset),
-                    );
-
-                    Ok::<(Title<'input>, &'input str, section::SectionNumbering), Error>((processed_title, section_id, numbering))
-                }
-                Err(e) => Err(e),
-            }
+            let (processed_title, natural_title) =
+                process_inlines(state, &block_metadata, title_start, title_end, offset, title)?;
+            let title = Title::new(processed_title);
+            let location = state.create_block_location(title_start, title_end, offset);
+            Ok::<(Title<'input>, section::SectionNumbering), Error>(register_section_header(
+                state,
+                &block_metadata,
+                title,
+                natural_title,
+                setext_level,
+                location,
+                direct_parent_section_kind,
+            ))
         })
         content:section_content(offset, Some(expected_child_level(
             setext_level,
@@ -3522,7 +3570,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let (title, _section_id, numbering) = section_header?;
+            let (title, numbering) = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
 
             // Classify the section by its style (see the ATX section rule).
@@ -3594,7 +3642,7 @@ peg::parser! {
         {
             tracing::debug!(?title, ?start, ?end, "Found title line in block metadata");
             let block_metadata = BlockParsingMetadata::default();
-            let title = process_inlines(state, &block_metadata, start, end, offset, title)?;
+            let (title, _) = process_inlines(state, &block_metadata, start, end, offset, title)?;
             Ok(title.into())
         }
 
@@ -3639,12 +3687,19 @@ peg::parser! {
             Ok((level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes)))
         }
 
-        rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Title<'input>, Error>
+        rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(Title<'input>, &'input str), Error>
         = title:$([^'\n']*)
         {
             tracing::debug!(?title, title_start = span_start, title_end = span_end, offset, "Found section title");
-            let content = process_inlines(state, block_metadata, span_start, span_end, offset, title)?;
-            Ok(Title::new(content))
+            let (content, natural_title) = process_inlines(
+                state,
+                block_metadata,
+                span_start,
+                span_end,
+                offset,
+                title,
+            )?;
+            Ok((Title::new(content), natural_title))
         }
 
         rule section_content(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
@@ -4531,7 +4586,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4583,7 +4640,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4632,7 +4691,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4671,7 +4732,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4832,7 +4895,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4883,7 +4948,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4929,7 +4996,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -4967,7 +5036,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             let mut blocks = Vec::new();
@@ -5214,7 +5285,9 @@ peg::parser! {
             let principal = if principal_text.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?
+                let (principal, _) =
+                    process_inlines(state, block_metadata, first_line_start, first_line_end, offset, principal_text)?;
+                principal
             };
 
             // For callout lists, we don't support nested content or attached blocks
@@ -5356,7 +5429,7 @@ peg::parser! {
             let leading_whitespace = term.len() - term.trim_start().len();
             let term_start = term_start + leading_whitespace;
             let term_end = term_end - (term.len() - term.trim_end().len());
-            let term = process_inlines(
+            let (term, _) = process_inlines(
                 state,
                 block_metadata,
                 term_start,
@@ -5370,7 +5443,15 @@ peg::parser! {
                 Vec::new()
             } else {
                 // Parse as inline content with attribute substitution
-                process_inlines(state, block_metadata, principal_start, principal_end, offset, principal_content.trim())?
+                let (principal, _) = process_inlines(
+                    state,
+                    block_metadata,
+                    principal_start,
+                    principal_end,
+                    offset,
+                    principal_content.trim(),
+                )?;
+                principal
             };
 
             // Collect all attached blocks (auto-attached and explicitly continued)
@@ -5522,7 +5603,7 @@ peg::parser! {
 
             // Parse attribution through inline pipeline
             let attr_end_offset = attr_start + attr_str.len();
-            let attr_inlines = process_inlines(
+            let (attr_inlines, _) = process_inlines(
                 state,
                 block_metadata,
                 attr_start,
@@ -5539,14 +5620,15 @@ peg::parser! {
                     offset: cite_raw_start,
                     position: state.line_map.offset_to_position(cite_raw_start, state.input),
                 };
-                Some(process_inlines(
+                let (cite_inlines, _) = process_inlines(
                     state,
                     block_metadata,
                     cite_pos.offset,
                     cite_raw_start + cite.len(),
                     offset,
                     cite,
-                )?)
+                )?;
+                Some(cite_inlines)
             } else {
                 None
             };
@@ -5606,7 +5688,7 @@ peg::parser! {
                     position: state.line_map.offset_to_position(author_start, state.input),
                 };
                 let attr_end_offset = author_start + author.len();
-                let attr_inlines = process_inlines(
+                let (attr_inlines, _) = process_inlines(
                     state,
                     block_metadata,
                     author_pos.offset,
@@ -5623,7 +5705,7 @@ peg::parser! {
                         offset: cite_start,
                         position: state.line_map.offset_to_position(cite_start, state.input),
                     };
-                    let cite_inlines = process_inlines(
+                    let (cite_inlines, _) = process_inlines(
                         state,
                         block_metadata,
                         cite_pos.offset,
@@ -5731,7 +5813,8 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, span_end, offset, block_metadata));
             }
 
-            let content = process_inlines(state, block_metadata, content_start, span_end, offset, content)?;
+            let (content, _) =
+                process_inlines(state, block_metadata, content_start, span_end, offset, content)?;
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
             let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {
@@ -8314,6 +8397,289 @@ link:https://example.net[Text,positional-id]
         );
         // The location points at the anchor on line 1 (for LSP navigation).
         assert_eq!(entry.location.start.line, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn natural_title_cross_references_resolve_to_section_ids() -> Result<(), Error> {
+        let input = "Generated: <<Syntax Highlighting>>.\n\nCustom: <<Syntax Highlighting,section>>.\n\nExplicit: <<explicit-id>>.\n\nExplicit title: <<Explicit Title>>.\n\nMissing: <<Missing Title>>.\n\n== Syntax Highlighting\n\n[#explicit-id]\n== Explicit Title\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let xrefs = doc
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                let Block::Paragraph(paragraph) = block else {
+                    return None;
+                };
+                paragraph.content.iter().find_map(|inline| {
+                    let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                        return None;
+                    };
+                    Some(xref.target)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            xrefs,
+            [
+                "_syntax_highlighting",
+                "_syntax_highlighting",
+                "explicit-id",
+                "explicit-id",
+                "Missing Title",
+            ]
+        );
+        let warnings = state.warnings.borrow();
+        assert_eq!(
+            warnings
+                .iter()
+                .filter_map(|warning| {
+                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                        return None;
+                    };
+                    Some(target.as_str())
+                })
+                .collect::<Vec<_>>(),
+            ["Missing Title"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn named_section_reftext_populates_catalog_toc_and_warnings()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let input =
+            include_str!("../../fixtures/tests/named_section_reftext_cross_references.adoc");
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let reference = doc.references.get("id").ok_or("missing id reference")?;
+        assert!(
+            matches!(
+                reference.xreflabel.as_deref(),
+                Some([InlineNode::PlainText(text)]) if text.content == "Custom Label"
+            ),
+            "{:?}",
+            reference.xreflabel
+        );
+        assert_eq!(
+            doc.toc_entries
+                .iter()
+                .find(|entry| entry.id == "id")
+                .and_then(|entry| entry.xreflabel),
+            Some("Custom Label")
+        );
+        let formatted = doc
+            .references
+            .get("formatted")
+            .ok_or("missing formatted reference")?;
+        assert!(
+            matches!(
+                formatted.xreflabel.as_deref(),
+                Some([
+                    InlineNode::PlainText(prefix),
+                    InlineNode::BoldText(bold),
+                    InlineNode::PlainText(suffix),
+                ]) if prefix.content == "Custom "
+                    && suffix.content == " Label"
+                    && matches!(
+                        &bold.content[..],
+                        [InlineNode::PlainText(text)] if text.content == "Formatted"
+                    )
+            ),
+            "{:?}",
+            formatted.xreflabel
+        );
+        assert_eq!(
+            state
+                .warnings
+                .borrow()
+                .iter()
+                .filter_map(|warning| {
+                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                        return None;
+                    };
+                    Some(target.as_str())
+                })
+                .collect::<Vec<_>>(),
+            ["Actual Title", "Generated Title", "Custom Formatted Label"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn passthrough_xref_warnings_use_restored_targets_and_source_locations() -> Result<(), Error> {
+        let input = include_str!(
+            "../../fixtures/tests/natural_title_cross_references_with_passthrough.adoc"
+        );
+        let result = crate::parse(input, &crate::Options::default())?;
+
+        let warnings = result
+            .warnings()
+            .iter()
+            .filter_map(|warning| {
+                let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                    return None;
+                };
+                let location = warning.source_location()?;
+                Some((
+                    target.as_str(),
+                    location.location.start.line,
+                    location.location.start.column,
+                ))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            warnings,
+            [
+                ("Target raw Title", 3, 15),
+                ("Target raw Title", 4, 14),
+                ("Missing raw Title", 5, 16),
+                ("Missing raw Title", 6, 15),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_skips_natural_title_cross_reference_resolution() -> Result<(), Error> {
+        let input = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\n\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let targets = doc
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                let Block::Paragraph(paragraph) = block else {
+                    return None;
+                };
+                paragraph.content.iter().find_map(|inline| {
+                    let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                        return None;
+                    };
+                    Some(xref.target)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(targets, ["Syntax Highlighting", "_syntax_highlighting"]);
+        assert!(doc.references.contains_key("_syntax_highlighting"));
+        assert_eq!(
+            state
+                .warnings
+                .borrow()
+                .iter()
+                .filter_map(|warning| {
+                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                        return None;
+                    };
+                    Some(target.as_str())
+                })
+                .collect::<Vec<_>>(),
+            ["Syntax Highlighting"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_natural_reference_resolution_follows_source_position() -> Result<(), Error> {
+        let input = "Before set: <<First Natural>>.\n\n:compat-mode:\n\nAfter set: <<Second Natural>>.\n\n:compat-mode!:\n\nAfter unset: <<Third Natural>>.\n\n== First Natural\n\n== Second Natural\n\n== Third Natural\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let targets = doc
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                let Block::Paragraph(paragraph) = block else {
+                    return None;
+                };
+                paragraph.content.iter().find_map(|inline| {
+                    let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                        return None;
+                    };
+                    Some(xref.target)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            targets,
+            ["_first_natural", "Second Natural", "_third_natural"]
+        );
+        assert_eq!(
+            state
+                .warnings
+                .borrow()
+                .iter()
+                .filter_map(|warning| {
+                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                        return None;
+                    };
+                    Some(target.as_str())
+                })
+                .collect::<Vec<_>>(),
+            ["Second Natural"]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn interdocument_xref_macro_targets_are_not_naturally_resolved() -> Result<(), Error> {
+        let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let targets = doc
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                let Block::Paragraph(paragraph) = block else {
+                    return None;
+                };
+                paragraph.content.iter().find_map(|inline| {
+                    let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                        return None;
+                    };
+                    Some(xref.target)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            targets,
+            ["Other.adoc", "Other.adoc", "_other_adoc", "Foo#Bar"]
+        );
+        assert!(
+            state.warnings.borrow().is_empty(),
+            "interdocument targets and the resolved shorthand must not warn"
+        );
+        Ok(())
+    }
+
+    #[cfg(feature = "setext")]
+    #[test]
+    fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Error> {
+        let input = "See <<Setext Title>>.\n\nSetext Title\n------------\n";
+        let mut state = ParserState::new_for_test(input);
+        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        let doc = document_parser::document(input, &mut state)??;
+        let xrefs = doc
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                let Block::Paragraph(paragraph) = block else {
+                    return None;
+                };
+                paragraph.content.iter().find_map(|inline| {
+                    let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
+                        return None;
+                    };
+                    Some(xref.target)
+                })
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(xrefs, ["_setext_title"]);
         Ok(())
     }
 

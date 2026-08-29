@@ -16,6 +16,8 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Title-based shorthand cross-references now resolve generated and explicit
+  section IDs before selecting their displayed reference text.
 - Cross-references preserve formatted explicit text through supported nested
   inline macros. Empty references to captioned blocks honor source-order
   `xrefstyle=basic`, `short`, and `full`, including custom and disabled
@@ -86,6 +88,20 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
+- Sections with a named `reftext` now use it for natural-reference and explicit-ID
+  display text. Their titles are not retained as second natural aliases, and
+  formatted labels keep their roff formatting, matching Asciidoctor.
+- Plain visible shorthand cross-references now match section titles containing
+  `pass:[...]` or `+...+` content. A shorthand target containing a passthrough
+  remains unresolved and displays its visible text, matching the Asciidoctor
+  manpage backend.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it displays its bracketed unresolved fallback. Source-order changes apply
+  only to later references, and explicit local IDs still display the section
+  heading, matching the Asciidoctor manpage backend.
+- Interdocument `xref:` macros no longer display a same-named local section's
+  heading. They keep the manpage converter's bracketed external-reference
+  fallback, while natural shorthand references remain local.
 - Description lists now preserve nested ownership, repeated continuations,
   formatted terms, titled boundaries, named styles, and trailing unanswered
   Q&A items, matching the Asciidoctor manpage backend.

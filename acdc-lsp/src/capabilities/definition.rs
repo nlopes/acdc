@@ -679,6 +679,139 @@ Content.
     }
 
     #[test]
+    fn xref_macro_does_not_resolve_to_a_matching_local_title()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let source_uri = "file:///project/source.adoc".parse::<Uri>()?;
+        let other_uri = "file:///project/Other.adoc".parse::<Uri>()?;
+        workspace.update_document(other_uri.clone(), "= Other\n".to_string(), 1);
+
+        let content = "See xref:Other.adoc[].\n\n== Other.adoc\n";
+        workspace.update_document(source_uri.clone(), content.to_string(), 1);
+        let doc = workspace
+            .get_document(&source_uri)
+            .ok_or("source document not found")?;
+        let position = Position {
+            line: 0,
+            character: 10,
+        };
+
+        let (uri, location) = find_definition_at_position(&doc, &source_uri, &workspace, position)
+            .ok_or("expected cross-file xref to resolve")?;
+        assert_eq!(uri, other_uri);
+        assert_eq!(location.start.line, 1);
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_natural_xref_has_no_definition() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        let content = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let natural = find_definition_at_position(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 3,
+                character: 12,
+            },
+        );
+        assert!(
+            natural.is_none(),
+            "natural reference resolved to {natural:?}"
+        );
+
+        let (target_uri, location) = find_definition_at_position(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 4,
+                character: 12,
+            },
+        )
+        .ok_or("explicit ID did not resolve")?;
+        assert_eq!(target_uri, uri);
+        assert_eq!(location.start.line, 7);
+        Ok(())
+    }
+
+    #[test]
+    fn named_section_reftext_controls_xref_definition() -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        let content = "Named: <<Custom Label>>.\nTitle: <<Actual Title>>.\nExplicit: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let (target_uri, location) = find_definition_at_position(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 0,
+                character: 12,
+            },
+        )
+        .ok_or("named reftext did not resolve")?;
+        assert_eq!(target_uri, uri);
+        assert_eq!(location.start.line, 5);
+        assert!(
+            find_definition_at_position(
+                &doc,
+                &uri,
+                &workspace,
+                Position {
+                    line: 1,
+                    character: 12,
+                },
+            )
+            .is_none()
+        );
+        assert!(
+            find_definition_at_position(
+                &doc,
+                &uri,
+                &workspace,
+                Position {
+                    line: 2,
+                    character: 12,
+                },
+            )
+            .is_some()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn passthroughs_are_restored_before_natural_xref_definition()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        let content = "See <<Pass raw Title>>.\n\n== Pass pass:[raw] Title\n";
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let (target_uri, location) = find_definition_at_position(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 0,
+                character: 8,
+            },
+        )
+        .ok_or("passthrough title did not resolve")?;
+        assert_eq!(target_uri, uri);
+        assert_eq!(location.start.line, 3);
+        Ok(())
+    }
+
+    #[test]
     fn test_collect_media_sources_block_image() -> Result<(), acdc_parser::Error> {
         let content = "= Document\n\nimage::photo.png[Alt text]\n";
         let parsed = acdc_parser::parse(content, &Options::default())?;

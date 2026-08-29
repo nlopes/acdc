@@ -3138,24 +3138,27 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
+        let target = xref.target;
 
         if xref.text.is_empty()
             && references
-                .get(xref.target)
+                .get(target)
                 .is_some_and(acdc_parser::Reference::is_bibliography)
             && self
                 .bibliography_backlinks_written
-                .insert(xref.target.to_string())
+                .insert(target.to_string())
         {
-            let label = encode_bibliography_reference_label(xref.target);
+            let label = encode_bibliography_reference_label(target);
             let _ = write!(self.writer, "#metadata(none) <{label}>");
         }
 
         if !xref.text.is_empty() {
-            if let Some((target, _)) = self.interdocument_xref(xref.target) {
-                self.write_external_link(&target, |visitor| visitor.write_inlines(&xref.text))?;
-            } else if references.contains_key(xref.target) {
-                self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(&xref.text))?;
+            if let Some((external_target, _)) = self.interdocument_xref(target) {
+                self.write_external_link(&external_target, |visitor| {
+                    visitor.write_inlines(&xref.text)
+                })?;
+            } else if references.contains_key(target) {
+                self.write_labelled_link(target, |visitor| visitor.write_inlines(&xref.text))?;
             } else {
                 self.write_inlines(&xref.text)?;
             }
@@ -3163,16 +3166,16 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         let previous = self.index_catalog.set_suspended(true);
-        let result = match resolve_xref(references.get(xref.target), xref, &guard) {
+        let result = match resolve_xref(references.get(target), xref, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                self.write_labelled_link(xref.target, |visitor| visitor.write_inlines(inlines))
+                self.write_labelled_link(target, |visitor| visitor.write_inlines(inlines))
             }
-            XrefDisplay::ShortCaption(prefix) => self.write_labelled_link(xref.target, |visitor| {
+            XrefDisplay::ShortCaption(prefix) => self.write_labelled_link(target, |visitor| {
                 visitor.write_text_expr(&prefix);
                 Ok(())
             }),
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
-                self.write_labelled_link(xref.target, |visitor| {
+                self.write_labelled_link(target, |visitor| {
                     visitor.write_text_expr(&prefix);
                     visitor.write_text_expr(", “");
                     visitor.write_inlines(inlines)?;
@@ -3180,7 +3183,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     Ok(())
                 })
             }
-            XrefDisplay::Fallback(text) => self.write_labelled_link(xref.target, |visitor| {
+            XrefDisplay::Fallback(text) => self.write_labelled_link(target, |visitor| {
                 visitor.write_text_expr(&text);
                 Ok(())
             }),

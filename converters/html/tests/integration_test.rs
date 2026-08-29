@@ -222,6 +222,82 @@ fn a_cross_reference_inside_reference_text_is_not_a_nested_link() -> Result<(), 
 }
 
 #[test]
+fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<(), Error> {
+    let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+        let doc = parsed.document();
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            doc.attributes.clone(),
+            variant,
+        );
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.convert_to_writer(
+            doc,
+            &mut output,
+            &RenderOptions::default(),
+            &mut diagnostics,
+        )?;
+        let html = String::from_utf8(output)?;
+
+        for expected in [
+            "Empty: <a href=\"Other.html\">Other.html</a>.",
+            "Explicit: <a href=\"Other.html\">Other</a>.",
+            "Shorthand: <a href=\"#_other_adoc\">Other.adoc</a>.",
+            "Fragment: <a href=\"Foo.html#Bar\">Foo.html</a>.",
+        ] {
+            assert!(html.contains(expected), "expected {expected:?} in {html}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
+    let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+        let doc = parsed.document();
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            doc.attributes.clone(),
+            variant,
+        );
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = acdc_converters_core::WarningSource::new("html");
+        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        processor.convert_to_writer(
+            doc,
+            &mut output,
+            &RenderOptions::default(),
+            &mut diagnostics,
+        )?;
+        let html = String::from_utf8(output)?;
+
+        for expected in [
+            "Title macro: <a href=\"#_pass_raw_title\">Pass raw Title</a>.",
+            "Title plus: <a href=\"#_plus_raw_title\">Plus raw Title</a>.",
+            "Target macro: <a href=\"#Target raw Title\">[Target raw Title]</a>.",
+            "Target plus: <a href=\"#Target raw Title\">[Target raw Title]</a>.",
+            "Missing macro: <a href=\"#Missing raw Title\">[Missing raw Title]</a>.",
+            "Missing plus: <a href=\"#Missing raw Title\">[Missing raw Title]</a>.",
+            "Control: <a href=\"#_control_title\">Control Title</a>.",
+        ] {
+            assert!(html.contains(expected), "expected {expected:?} in {html}");
+        }
+        assert!(!html.contains('\u{fffd}'), "{html}");
+    }
+    Ok(())
+}
+
+#[test]
 fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
     let html = convert_string(
         ":figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n",

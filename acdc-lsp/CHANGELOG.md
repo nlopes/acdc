@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Title-based shorthand cross-references now use the resolved section ID for
+  go-to-definition, hover, and inlay hints.
 - **Configurable analysis backend** — the LSP now supplies `html5` backend attributes by
   default, matching Asciidoctor, and accepts `initializationOptions.backend` for projects
   targeting PDF, DocBook, manpage, Markdown, terminal, or semantic HTML. Clients with
@@ -26,6 +28,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tracing spans on all `LanguageServer` methods (`lsp/*` naming convention) for request
   timing visibility. Latency-sensitive methods (`completion`, `hover`, `gotoDefinition`,
   `semanticTokensFull`, `formatting`) use `info` level; others use `debug`.
+
+### Fixed
+
+- Go-to-definition, hover, and inlay hints now use a section's named `reftext`
+  as its natural cross-reference alias. Explicit IDs remain available, section
+  titles are not retained as second aliases, and formatted labels produce
+  visible plain-text hints.
+- Go-to-definition, hover, and inlay hints now resolve plain visible shorthand
+  cross-references to section titles that use `pass:[...]` or `+...+` content.
+  A shorthand target containing a passthrough remains unresolved, and its hover
+  shows the visible text.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it remains unresolved in go-to-definition and hover and does not receive a
+  section-title inlay hint. Source-order changes apply only to later references,
+  and explicit local IDs keep all three features.
+- Interdocument `xref:` macros no longer use a same-named local section for
+  go-to-definition, hover, or inlay hints. Their file and fragment targets
+  remain available for cross-file navigation.
 
 ### Changed
 

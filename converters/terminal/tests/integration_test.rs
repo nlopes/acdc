@@ -213,6 +213,66 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 }
 
 #[test]
+fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
+    let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("terminal");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "Empty: \u{1b}[m\u{1b}[4m[Other.adoc]\u{1b}[24m\u{1b}[m.",
+        "Explicit: \u{1b}[m\u{1b}[4mOther\u{1b}[24m\u{1b}[m.",
+        "Shorthand: \u{1b}[m\u{1b}[4mOther.adoc\u{1b}[24m\u{1b}[m.",
+        "Fragment: \u{1b}[m\u{1b}[4m[Foo#Bar]\u{1b}[24m\u{1b}[m.",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output:?}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
+    let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor =
+        Processor::new(ConverterOptions::default(), doc.attributes.clone()).with_terminal_width(80);
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("terminal");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for resolved in ["Pass raw Title", "Plus raw Title"] {
+        assert!(!output.contains(&format!("[{resolved}]")), "{output:?}");
+    }
+    assert_eq!(
+        output.matches("[Target raw Title]").count(),
+        2,
+        "{output:?}"
+    );
+    assert_eq!(
+        output.matches("[Missing raw Title]").count(),
+        2,
+        "{output:?}"
+    );
+    assert!(output.contains("Control Title"), "{output:?}");
+    assert!(!output.contains('\u{fffd}'), "{output:?}");
+    Ok(())
+}
+
+#[test]
 fn none_ordered_list_style_suppresses_marker() -> Result<(), Error> {
     let input = ". numbered\n\n[none]\n. unmarked\n";
     let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());

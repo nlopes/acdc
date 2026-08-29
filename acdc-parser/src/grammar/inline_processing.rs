@@ -220,20 +220,23 @@ fn inline_context(
 }
 
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
-pub(crate) fn parse_inlines<'a>(
+fn parse_processed_inlines<'a>(
     processed: &'a ProcessedContent<'a>,
+    text: &'a str,
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     location: &Location,
+    autolinks: bool,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let text: &'a str = processed_text_as_outer(processed, state);
-    let inline_ctx = inline_context(state, block_metadata, true);
+    let inline_ctx = inline_context(state, block_metadata, autolinks);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
     inline_peg_state.empty_attribute_offsets = processed
         .source_map
         .empty_attribute_offsets(location.absolute_start);
     inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
-    let inlines = if inline_peg_state.quotes_only {
+    let inlines = if !autolinks {
+        inline_parser::inlines_no_autolinks(text, &mut inline_peg_state)
+    } else if inline_peg_state.quotes_only {
         inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
     } else {
         inline_parser::inlines(text, &mut inline_peg_state)
@@ -254,40 +257,10 @@ pub(crate) fn parse_inlines<'a>(
     Ok(inlines)
 }
 
-#[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
-pub(crate) fn parse_inlines_no_autolinks<'a>(
-    processed: &'a ProcessedContent<'a>,
-    state: &mut ParserState<'a>,
-    block_metadata: &BlockParsingMetadata,
-    location: &Location,
-) -> Result<Vec<InlineNode<'a>>, Error> {
-    let text: &'a str = processed_text_as_outer(processed, state);
-    let inline_ctx = inline_context(state, block_metadata, false);
-    let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
-    inline_peg_state.empty_attribute_offsets = processed
-        .source_map
-        .empty_attribute_offsets(location.absolute_start);
-    inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
-    let inlines = match inline_parser::inlines_no_autolinks(text, &mut inline_peg_state) {
-        Ok(inlines) => inlines,
-        Err(err) => {
-            return Err(adjust_peg_error_position(
-                &err,
-                text,
-                location.absolute_start,
-                state,
-            ));
-        }
-    };
-
-    Ok(inlines)
-}
-
-/// Process inlines
+/// Process inline content and retain its preprocessed source without internal placeholders.
 ///
-/// This function processes inline content by first preprocessing it and then parsing it
-/// into inline nodes. Then, it maps the locations of the parsed inline nodes back to their
-/// original positions in the source.
+/// The inline nodes contain the display representation. The returned source restores protected
+/// passthrough content for callers such as natural cross-reference lookup.
 #[tracing::instrument(skip_all, fields(content_start, end, offset))]
 pub(crate) fn process_inlines<'a>(
     state: &mut ParserState<'a>,
@@ -296,7 +269,7 @@ pub(crate) fn process_inlines<'a>(
     end: usize,
     offset: usize,
     content: &'a str,
-) -> Result<Vec<InlineNode<'a>>, Error> {
+) -> Result<(Vec<InlineNode<'a>>, &'a str), Error> {
     let (location, processed) = preprocess_inline_content(
         state,
         content_start,
@@ -308,16 +281,27 @@ pub(crate) fn process_inlines<'a>(
             .substitutions
             .enabled(&Substitution::Attributes),
     )?;
+    // Promote `processed` to `'a` so both the source text and parsed inline nodes can
+    // borrow from the parser arena.
+    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
+    let source = processed_text_as_outer(processed, state);
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
     if processed.text.trim().is_empty() {
-        return Ok(Vec::new());
+        return Ok((Vec::new(), source));
     }
-    // Promote `processed` to `'a` by interning into the parser arena so the
-    // inline parser and location remapper can hand back `InlineNode<'a>`.
-    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
-    let content = parse_inlines(processed, state, block_metadata, &location)?;
-    super::location_mapping::map_inline_locations(state, processed, &content, &location)
+    let content =
+        parse_processed_inlines(processed, source, state, block_metadata, &location, true)?;
+    let inlines =
+        super::location_mapping::map_inline_locations(state, processed, &content, &location)?;
+    let source = if processed.passthroughs.is_empty() {
+        source
+    } else {
+        let restored =
+            super::passthrough_processing::replace_passthrough_placeholders(source, processed);
+        state.intern_str(&restored)
+    };
+    Ok((inlines, source))
 }
 
 /// Process inlines with autolinks suppressed.
@@ -362,6 +346,8 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
     }
     // Promote `processed` to `'a` by interning into the parser arena.
     let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
-    let content = parse_inlines_no_autolinks(processed, state, block_metadata, &location)?;
+    let source = processed_text_as_outer(processed, state);
+    let content =
+        parse_processed_inlines(processed, source, state, block_metadata, &location, false)?;
     super::location_mapping::map_inline_locations(state, processed, &content, &location)
 }

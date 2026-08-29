@@ -1130,6 +1130,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
+        let target = xref.target;
         if xref.text.is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > caption style or target title >
@@ -1145,7 +1146,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // the resolution guard both outlive the `&mut self` render calls.
             let processor = Rc::clone(&self.processor);
             let display = resolve_xref(
-                processor.references.get(xref.target),
+                processor.references.get(target),
                 xref,
                 &processor.xref_guard,
             );
@@ -1175,7 +1176,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 || options.toc_mode
                 || matches!(display, XrefDisplay::Nested(_)));
             if linked {
-                write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
+                write!(self.writer_mut(), "<a href=\"#{target}\">")?;
             }
             match display {
                 XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
@@ -1215,8 +1216,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
-        if let Some((target, _)) = self.interdocument_xref(xref.target) {
-            write!(self.writer_mut(), "<a href=\"{}\">", escape_href(&target))?;
+        if let Some((external_target, _)) = self.interdocument_xref(target) {
+            write!(
+                self.writer_mut(),
+                "<a href=\"{}\">",
+                escape_href(&external_target)
+            )?;
             for inline in &xref.text {
                 self.render_inline_node(inline, options, subs)?;
             }
@@ -1224,7 +1229,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
-        write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
+        write!(self.writer_mut(), "<a href=\"#{target}\">")?;
         for inline in &xref.text {
             self.render_inline_node(inline, options, subs)?;
         }

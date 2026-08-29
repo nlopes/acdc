@@ -1,0 +1,19 @@
+Named: <<Custom Label>>.
+Title: <<Actual Title>>.
+ID: <<id>>.
+Generated: <<Generated Label>>.
+Generated title: <<Generated Title>>.
+Generated ID: <<_generated_title>>.
+Formatted: <<Custom *Formatted* Label>>.
+Visible: <<Custom Formatted Label>>.
+Formatted ID: <<formatted>>.
+
+[[id,Anchor Label]]
+[#id,reftext="Custom Label"]
+== Actual Title
+
+[reftext="Generated Label"]
+== Generated Title
+
+[#formatted,reftext="Custom *Formatted* Label"]
+== Formatted Title

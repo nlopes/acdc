@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Title-based shorthand cross-references now resolve generated and explicit
+  section IDs before selecting their displayed reference text.
 - Figures, tables, examples, listings, and source blocks now render captions
   with the labels active at each block's source position. Custom and disabled
   captions, inner-first numbering, and changes made part-way through a document
@@ -103,6 +105,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Sections with a named `reftext` now use it for natural-reference and explicit-ID
+  display text. Their titles are not retained as second natural aliases, and
+  formatted labels keep their terminal styling.
+- Plain visible shorthand cross-references now match section titles containing
+  `pass:[...]` or `+...+` content. A shorthand target containing a passthrough
+  remains unresolved and displays its visible text.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it displays its bracketed unresolved fallback instead of a same-titled
+  section. Source-order changes apply only to later references, and explicit
+  local IDs still display the section title.
+- Interdocument `xref:` macros no longer display a same-named local section's
+  title. They keep the terminal converter's bracketed external-reference
+  fallback; natural shorthand references remain local.
 - Description lists now indent nested levels and preserve repeated
   continuations, formatted terms, titled boundaries, named styles, and
   trailing unanswered Q&A items.

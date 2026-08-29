@@ -14,9 +14,8 @@ pub enum XrefDisplay<'r, 'a> {
     /// The scope marks the resolution as in progress: hold it while rendering
     /// the nodes so that a cross-reference inside them falls back to `[id]`.
     Title(&'r [InlineNode<'a>], XrefScope<'r>),
-    /// An explicit reference label (`[[id,label]]`), to render through the
-    /// converter's inline pipeline as written. Carries the same scope as
-    /// [`XrefDisplay::Title`].
+    /// The target's reference label, rendered through the converter's inline
+    /// pipeline as written. Carries the same scope as [`XrefDisplay::Title`].
     Label(&'r [InlineNode<'a>], XrefScope<'r>),
     /// A caption label and number or custom prefix, without the target title.
     ShortCaption(String),

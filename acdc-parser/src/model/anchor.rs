@@ -81,7 +81,7 @@ pub struct TocEntry<'a> {
     pub title: Title<'a>,
     /// Section level (1 for top-level, 2 for subsection, etc.)
     pub level: u8,
-    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax)
+    /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`.
     pub xreflabel: Option<&'a str>,
     /// The section's structural category (special-section style, or `Normal`).
     /// Converters use it for presentation, such as appendix labels.
@@ -151,8 +151,8 @@ impl Serialize for TocEntry<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
-    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax), parsed
-    /// as inline content: a label carries formatting, so `[[id,*Bold* label]]`
+    /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
+    /// parsed as inline content. A label carries formatting, so `*Bold* label`
     /// renders bold. When set, it is the reference text; otherwise converters
     /// use `title` and, for captioned targets, `caption`.
     pub xreflabel: Option<Vec<InlineNode<'a>>>,

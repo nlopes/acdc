@@ -1,6 +1,6 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::{io::Write, rc::Rc};
+use std::{borrow::Cow, io::Write, rc::Rc};
 
 use acdc_converters_core::{
     Converter, Diagnostics,
@@ -8,7 +8,7 @@ use acdc_converters_core::{
     list::OrderedListNumbering,
     media::resolve_target,
     visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, CrossReference, DelimitedBlock, DelimitedBlockType,
@@ -17,7 +17,7 @@ use acdc_parser::{
     UnorderedList, Video,
 };
 
-use crate::{Error, MarkdownVariant, Processor};
+use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
 
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
 pub struct MarkdownVisitor<'a, 'd, W: Write> {
@@ -809,15 +809,23 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    /// Render a cross-reference as a link to the target's anchor.
+    /// Render a cross-reference as a local anchor or interdocument link.
     ///
-    /// Markdown has no cross-reference syntax, so this is a plain link to the
-    /// `#id` fragment. Its text is the reference's own text when it has one,
-    /// otherwise the target's reference text (an explicit label, caption-style
-    /// text, or its title), falling back to `[id]` as asciidoctor does.
+    /// Local references link to the `#id` fragment. Interdocument references
+    /// link to the corresponding Markdown output. The text is the reference's
+    /// own text when it has one, otherwise the target's reference text.
     fn visit_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
+        let target = xref.target;
         if !xref.text.is_empty() {
-            return self.write_anchor_link(xref.target, |visitor| {
+            if let Some((destination, _)) = self.interdocument_xref(target) {
+                return self.write_link(&destination, |visitor| {
+                    for node in &xref.text {
+                        visitor.visit_inline_node(node)?;
+                    }
+                    Ok(())
+                });
+            }
+            return self.write_anchor_link(target, |visitor| {
                 for node in &xref.text {
                     visitor.visit_inline_node(node)?;
                 }
@@ -829,20 +837,20 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        match resolve_xref(references.get(xref.target), xref, &guard) {
+        match resolve_xref(references.get(target), xref, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
-                .write_anchor_link(xref.target, |visitor| {
+                .write_anchor_link(target, |visitor| {
                     for node in inlines {
                         visitor.visit_inline_node(node)?;
                     }
                     Ok(())
                 }),
-            XrefDisplay::ShortCaption(prefix) => self.write_anchor_link(xref.target, |visitor| {
+            XrefDisplay::ShortCaption(prefix) => self.write_anchor_link(target, |visitor| {
                 write!(visitor.writer, "{prefix}")?;
                 Ok(())
             }),
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
-                self.write_anchor_link(xref.target, |visitor| {
+                self.write_anchor_link(target, |visitor| {
                     write!(visitor.writer, "{prefix}, “")?;
                     for node in inlines {
                         visitor.visit_inline_node(node)?;
@@ -852,15 +860,22 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 })
             }
             XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
-                self.write_anchor_link(xref.target, |visitor| {
+                self.write_anchor_link(target, |visitor| {
                     write!(visitor.writer, "{text}")?;
                     Ok(())
                 })
             }
-            XrefDisplay::External(target) => self.write_anchor_link(&target, |visitor| {
-                write!(visitor.writer, "[{target}]")?;
-                Ok(())
-            }),
+            XrefDisplay::External(target) => {
+                if let Some((destination, text)) = self.interdocument_xref(&target) {
+                    self.write_link(&destination, |visitor| {
+                        write!(visitor.writer, "{text}")?;
+                        Ok(())
+                    })
+                } else {
+                    write!(self.writer, "{target}")?;
+                    Ok(())
+                }
+            }
             // Markdown links do not nest, so a reference inside another one's
             // text is text alone.
             XrefDisplay::Nested(text) => {
@@ -876,10 +891,27 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         target: &str,
         text: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
+        self.write_link(&format!("#{target}"), text)
+    }
+
+    fn write_link(
+        &mut self,
+        destination: &str,
+        text: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
         write!(self.writer, "[")?;
         text(self)?;
-        write!(self.writer, "](#{target})")?;
+        write!(self.writer, "]({destination})")?;
         Ok(())
+    }
+
+    fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {
+        let attributes = self.processor.document_attributes();
+        let extension = attributes
+            .get_string("relfilesuffix")
+            .or_else(|| attributes.get_string("outfilesuffix"))
+            .unwrap_or_else(|| Cow::Borrowed(BACKEND_TRAITS.outfilesuffix()));
+        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(&extension))
     }
 
     fn write_list_indent(&mut self) -> Result<(), Error> {

@@ -621,10 +621,11 @@ peg::parser! {
             let content = if content_str.trim().is_empty() {
                 vec![]
             } else {
-                process_inlines_or_err!(
+                let (content, _) = process_inlines_or_err!(
                     process_inlines(state, &bm, content_start, end, state.inline_ctx.offset, content_str),
                     "could not process footnote content"
-                )?
+                )?;
+                content
             };
 
             let mut footnote = Footnote {
@@ -1350,10 +1351,11 @@ peg::parser! {
                     offset: title_start,
                     position: state.line_map.offset_to_position(title_start, state.input),
                 };
-                title = crate::Title::new(process_inlines_or_err!(
+                let (title_inlines, _) = process_inlines_or_err!(
                     process_inlines(state, &bm, title_start_pos.offset, title_end, state.inline_ctx.offset, content),
                     "could not process title in inline image macro"
-                )?);
+                )?;
+                title = crate::Title::new(title_inlines);
             }
             // Note: We do NOT remove the title attribute - it's needed for the HTML title attribute
 
@@ -1466,7 +1468,7 @@ peg::parser! {
         = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
-            let target_str: &'input str = target.trim();
+            let target_str: &'input str = target;
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -1499,6 +1501,7 @@ peg::parser! {
             tracing::debug!(?target_str, ?text, "Found cross-reference shorthand");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
+            xref.resolve_natural_target = !state.document_attributes.is_set("compat-mode");
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state.document_attributes.get_string("xrefstyle").as_deref(),
             );
@@ -1508,11 +1511,19 @@ peg::parser! {
             Ok(InlineNode::Macro(InlineMacro::CrossReference(xref)))
         }
 
-        /// Pattern for cross-reference shorthand: <<id>> or <<id,custom text>>
+        /// Pattern for cross-reference shorthand: <<id>> or <<reference text,custom text>>
         rule cross_reference_shorthand_pattern() -> (&'input str, Option<(usize, &'input str)>)
-        = "<<" target:$(['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']*) content:("," content_start:position!() text:$((!">>" [_])+) { (content_start, text) })? ">>"
-        {
-            (target, content)
+        = "<<" target:$((!("," / ">>") [_])+) content:("," content_start:position!() text:$((!">>" [_])+) { (content_start, text) })? ">>"
+        {?
+            if target
+                .chars()
+                .next()
+                .is_some_and(|character| character.is_alphanumeric() || character == '_')
+            {
+                Ok((target, content))
+            } else {
+                Err("cross-reference shorthand must start with a word character")
+            }
         }
 
         /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
@@ -1578,9 +1589,9 @@ peg::parser! {
             / &['m'] (inline_menu_match() / mailto_macro_match())
         )
 
-        /// Match cross-reference shorthand syntax without consuming: <<id>> or <<id,text>>
+        /// Match cross-reference shorthand syntax without consuming.
         rule cross_reference_shorthand_match() -> ()
-        = "<<" ['a'..='z' | 'A'..='Z' | '_'] ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']* ("," (!">>" [_])+)? ">>"
+        = cross_reference_shorthand_pattern() {}
 
         /// Match cross-reference macro syntax without consuming: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro_match()
@@ -1603,7 +1614,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained bold text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained bold text content"
             )?;
@@ -1688,7 +1699,7 @@ peg::parser! {
                 "could not process constrained bold text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
-            let content = result?;
+            let (content, _) = result?;
 
             Ok(InlineNode::BoldText(Bold {
                 content,
@@ -1761,7 +1772,7 @@ peg::parser! {
                 "could not process constrained italic text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
-            let content = result?;
+            let (content, _) = result?;
             Ok(InlineNode::ItalicText(Italic {
                 content,
                 role,
@@ -1805,7 +1816,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained italic text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained italic text content"
             )?;
@@ -1839,7 +1850,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained monospace text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained monospace text content"
             )?;
@@ -1902,7 +1913,7 @@ peg::parser! {
                 "could not process constrained monospace text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
-            let content = result?;
+            let (content, _) = result?;
             Ok(InlineNode::MonospaceText(Monospace {
                 content,
                 role,
@@ -1946,7 +1957,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found unconstrained highlight text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process unconstrained highlight text content"
             )?;
@@ -2010,7 +2021,7 @@ peg::parser! {
                 "could not process constrained highlight text content"
             );
             state.outer_constrained_delimiter = saved_delimiter;
-            let content = result?;
+            let (content, _) = result?;
             Ok(InlineNode::HighlightText(Highlight {
                 content,
                 role,
@@ -2055,7 +2066,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found superscript text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process superscript text content"
             )?;
@@ -2090,7 +2101,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found subscript text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 1, state.inline_ctx.offset, content),
                 "could not process subscript text content"
             )?;
@@ -2125,7 +2136,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved quotation text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved quotation text content"
             )?;
@@ -2160,7 +2171,7 @@ peg::parser! {
                 ..BlockParsingMetadata::default()
             };
             tracing::debug!(?start, ?content_start, ?end, offset = ?state.inline_ctx.offset, ?content, ?role, "Found curved apostrophe text inline");
-            let content = process_inlines_or_err!(
+            let (content, _) = process_inlines_or_err!(
                 process_inlines(state, &bm, content_start, end - 2, state.inline_ctx.offset, content),
                 "could not process curved apostrophe text content"
             )?;

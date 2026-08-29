@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Plain-text and shared converter output now resolve title-based shorthand
+  references to matching section IDs while preserving written text for
+  unresolved targets.
 - Converter visitors can report or recover from parser block variants added
   before their backend supports them, instead of being limited to a tracing
   event.
@@ -90,6 +93,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic references to sections with a named `reftext` now display that
+  label for both its natural alias and explicit ID. The section title is no
+  longer accepted as a second natural alias, matching Asciidoctor.
 - Parser API and CLI attributes now take precedence over document entries,
   while document entries can still replace converter defaults.
 - Media targets used as URIs resolve relative paths against `imagesdir`, use

@@ -1,0 +1,445 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Title macro: ",
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 1,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "_pass_raw_title",
+          "location": [
+            {
+              "line": 1,
+              "col": 14
+            },
+            {
+              "line": 1,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nTitle plus: ",
+          "location": [
+            {
+              "line": 1,
+              "col": 32
+            },
+            {
+              "line": 2,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "_plus_raw_title",
+          "location": [
+            {
+              "line": 2,
+              "col": 13
+            },
+            {
+              "line": 2,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nTarget macro: ",
+          "location": [
+            {
+              "line": 2,
+              "col": 31
+            },
+            {
+              "line": 3,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Target raw Title",
+          "location": [
+            {
+              "line": 3,
+              "col": 15
+            },
+            {
+              "line": 3,
+              "col": 41
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nTarget plus: ",
+          "location": [
+            {
+              "line": 3,
+              "col": 42
+            },
+            {
+              "line": 4,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Target raw Title",
+          "location": [
+            {
+              "line": 4,
+              "col": 14
+            },
+            {
+              "line": 4,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nMissing macro: ",
+          "location": [
+            {
+              "line": 4,
+              "col": 36
+            },
+            {
+              "line": 5,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Missing raw Title",
+          "location": [
+            {
+              "line": 5,
+              "col": 16
+            },
+            {
+              "line": 5,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nMissing plus: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 44
+            },
+            {
+              "line": 6,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "Missing raw Title",
+          "location": [
+            {
+              "line": 6,
+              "col": 15
+            },
+            {
+              "line": 6,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nControl: ",
+          "location": [
+            {
+              "line": 6,
+              "col": 38
+            },
+            {
+              "line": 7,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "_control_title",
+          "location": [
+            {
+              "line": 7,
+              "col": 10
+            },
+            {
+              "line": 7,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 7,
+              "col": 27
+            },
+            {
+              "line": 7,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Pass ",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "raw",
+          "location": [
+            {
+              "line": 9,
+              "col": 15
+            },
+            {
+              "line": 9,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Title",
+          "location": [
+            {
+              "line": 9,
+              "col": 19
+            },
+            {
+              "line": 9,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 9,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Plus ",
+          "location": [
+            {
+              "line": 11,
+              "col": 4
+            },
+            {
+              "line": 11,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "raw",
+          "location": [
+            {
+              "line": 11,
+              "col": 10
+            },
+            {
+              "line": 11,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " Title",
+          "location": [
+            {
+              "line": 11,
+              "col": 14
+            },
+            {
+              "line": 11,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Target raw Title",
+          "location": [
+            {
+              "line": 13,
+              "col": 4
+            },
+            {
+              "line": 13,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Control Title",
+          "location": [
+            {
+              "line": 15,
+              "col": 4
+            },
+            {
+              "line": 15,
+              "col": 16
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "location": [
+        {
+          "line": 15,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 16
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 15,
+      "col": 16
+    }
+  ]
+}

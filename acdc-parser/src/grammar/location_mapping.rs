@@ -471,6 +471,16 @@ fn map_inline_macro<'a>(
         InlineMacro::CrossReference(xref) => {
             xref.location = map_loc(&xref.location)?;
             xref.text = map_inline_locations(state, processed, &xref.text, location)?;
+            if !processed.passthroughs.is_empty() {
+                let restored = super::passthrough_processing::replace_passthrough_placeholders(
+                    xref.target,
+                    processed,
+                );
+                if restored != xref.target {
+                    xref.target = state.intern_str(&restored);
+                    xref.resolve_natural_target = false;
+                }
+            }
         }
         InlineMacro::Autolink(autolink) => autolink.location = map_loc(&autolink.location)?,
         InlineMacro::Stem(stem) => stem.location = map_loc(&stem.location)?,

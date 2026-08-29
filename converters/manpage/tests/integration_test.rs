@@ -146,6 +146,64 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 }
 
 #[test]
+fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
+    let input = "= xref-targets(1)\n:doctype: manpage\n\n== NAME\n\nxref-targets - verify xref targets\n\n== SYNOPSIS\n\nEmpty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "Empty: [Other.adoc]\\&.",
+        "Explicit: Other\\&.",
+        "Shorthand: OTHER.ADOC\\&.",
+        "Fragment: [Foo#Bar]\\&.",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
+    let input = "= passthrough-xrefs(1)\n:doctype: manpage\n\n== NAME\n\npassthrough-xrefs - verify passthrough natural references\n\n== SYNOPSIS\n\nTitle macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "Title macro: PASS RAW TITLE\\&.",
+        "Title plus: PLUS RAW TITLE\\&.",
+        "Target macro: [Target raw Title]\\&.",
+        "Target plus: [Target raw Title]\\&.",
+        "Missing macro: [Missing raw Title]\\&.",
+        "Missing plus: [Missing raw Title]\\&.",
+        "Control: CONTROL TITLE\\&.",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    assert!(!output.contains('\u{fffd}'), "{output}");
+    Ok(())
+}
+
+#[test]
 fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     // An explicit `[<style>]` on an ordered list drives the `.IP` tag text.
     let cases = [
