@@ -491,9 +491,9 @@ dependencies = [
 
 [[package]]
 name = "asciicast-rs"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fc0ba000776cf478263576bca61217ca5557749c55a8a2d2daf973047188be03"
+checksum = "f91d1d5676e5213c96a153a81992b996a62ce03928322b4c724006d4f22147f8"
 dependencies = [
  "rgb",
  "ruzstd",
@@ -4097,9 +4097,9 @@ dependencies = [
 
 [[package]]
 name = "ruzstd"
-version = "0.8.3"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7c1c839d570d835527c9a5e4db7cb2198683a988cb9d7293fc8674e6bd58fc8"
+checksum = "a252f5e20f038fe7b4ea53e073e65398d652c864cc162fc77c56c2f13717b888"
 
 [[package]]
 name = "ryu"
