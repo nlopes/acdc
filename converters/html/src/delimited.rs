@@ -93,10 +93,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let is_open = block.metadata.options.contains(&"open");
 
         write!(self.writer, "<details")?;
-        if let Some(id) = &block.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
-        } else if let Some(anchor) = block.metadata.anchors.first() {
-            write!(self.writer, " id=\"{}\"", anchor.id)?;
+        crate::write_id(&mut self.writer, &block.metadata)?;
+        if !block.metadata.roles.is_empty() {
+            write!(self.writer, " class=\"{}\"", block.metadata.roles.join(" "))?;
         }
         if is_open {
             writeln!(self.writer, " open>")?;

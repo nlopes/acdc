@@ -1,0 +1,48 @@
+Targets: <<abstract-id,abstract>>, <<example-id,example>>, <<admon-anchor,admonition>>, <<audio-anchor,audio>>, <<video-anchor,video>>, <<callout-anchor,callouts>>, and <<details-anchor,details>>.
+
+[abstract#abstract-id.abstract-role]
+.Abstract *Title*
+Abstract _content_.
+
+[abstract]
+Untitled abstract _content_.
+
+[example#example-id.example-role]
+.Example *Title*
+Example _content_.
+
+[example]
+Untitled example _content_.
+
+[[admon-anchor]]
+[.admon-role]
+.Note *Title*
+NOTE: Admon _content_.
+
+[[audio-anchor]]
+[.media-role]
+.Audio *Title*
+audio::sound.ogg[]
+
+[[video-anchor]]
+[.media-role]
+.Video *Title*
+video::movie.mp4[]
+
+[source,ruby]
+----
+puts "hi" # <1>
+----
+
+[[callout-anchor]]
+[.callout-role]
+.Callout *Title*
+<1> Explain _marker_.
+
+[[details-anchor]]
+[.details-role]
+.Details *Title*
+[%collapsible]
+====
+Details _content_.
+====

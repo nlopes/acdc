@@ -59,6 +59,11 @@ Supports all major AsciiDoc constructs:
 - **Attributes**: Document-level attribute substitution
 - **Index terms**: Visible `((term))` and concealed `\(((term,secondary,tertiary)))` with catalog generation
 
+Styled `[abstract]` and `[example]` paragraphs use the same visible block
+presentation as their delimited forms. Block IDs, first anchors, roles, titles,
+captions, and inline formatting remain available in both the standard and
+semantic backends, so cross-references can reach the rendered wrappers.
+
 === Section Numbering
 
 Documents with `:sectnums:` render numbered section headings (e.g., "1. Introduction", "1.1. Overview"). Control numbering depth with `:sectnumlevels:` (default 3, max 5).
@@ -647,7 +652,8 @@ Key differences from the standard backend:
 - **Images** use `<figure>` and `<figcaption>` instead of `<div class="imageblock">`
 - **Example blocks** use `<figure>` instead of `<div class="exampleblock">`
 - **Sidebars** use `<aside>` instead of `<div class="sidebarblock">`
-- **Callout lists** use `<ol>` instead of a table layout
+- **Callout lists** use `<ol>` instead of a table layout; a titled list uses a
+  semantic section wrapper
 - **Titled paragraphs** are wrapped in `<section>` with `<h6 class="block-title">`
 - **Block titles** use `<h6 class="block-title">` instead of `<div class="title">`
 
@@ -665,6 +671,10 @@ Set document attributes via command line:
 ....
 acdc convert -a toc=left -a toclevels=3 -a icons=font document.adoc
 ....
+
+Standalone output maps the `description` and `keywords` document attributes to
+escaped `<meta>` elements. An explicitly empty attribute produces an empty
+`content` value; an unset attribute produces no matching element.
 
 === Performance Timing
 
@@ -731,6 +741,8 @@ The HTML converter:
 - Handles Unicode correctly
 - Auto-numbers example blocks
 - Generates unique IDs for sections and anchors
+- Reports structured converter warnings if a future parser variant has no HTML
+  representation
 - Embeds the Asciidoctor CSS stylesheet for consistent styling
 - Includes file modification timestamps in metadata
 

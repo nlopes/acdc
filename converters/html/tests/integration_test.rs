@@ -1,8 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
+use acdc_converters_core::{
+    Converter, GeneratorMetadata, Options as ConverterOptions, visitor::Visitor,
+};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
+use acdc_converters_html::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
 use acdc_parser::{AttributeValue, DocumentAttributes, Options as ParserOptions, SafeMode};
 
 type Error = Box<dyn std::error::Error>;
@@ -119,6 +121,14 @@ fn test_html5s_standalone_with_fixtures(
 
 /// Helper: convert an `AsciiDoc` string to full-page HTML with custom attributes.
 fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result<String, Error> {
+    convert_string_with_variant(input, extra_attrs, HtmlVariant::Standard)
+}
+
+fn convert_string_with_variant(
+    input: &str,
+    extra_attrs: &[(&str, AttributeValue)],
+    variant: HtmlVariant,
+) -> Result<String, Error> {
     let mut attrs = DocumentAttributes::default();
     for (k, v) in extra_attrs {
         attrs.insert((*k).into(), v.clone());
@@ -129,11 +139,7 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new_with_variant(
-        converter_options,
-        doc.attributes.clone(),
-        HtmlVariant::Standard,
-    );
+    let processor = Processor::new_with_variant(converter_options, doc.attributes.clone(), variant);
     let render_options = RenderOptions::default();
     let mut output = Vec::new();
     let mut warnings = Vec::new();
@@ -141,6 +147,81 @@ fn convert_string(input: &str, extra_attrs: &[(&str, AttributeValue)]) -> Result
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
     processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
     Ok(String::from_utf8(output)?)
+}
+
+#[test]
+fn standalone_description_and_keywords_are_escaped_when_present() -> Result<(), Error> {
+    let populated = "= Metadata Test\n:description: Five < six & \"quoted\"\n:keywords: alpha, <beta>, gamma & delta\n\nBody.\n";
+    let empty = "= Empty Metadata\n:description:\n:keywords:\n\nBody.\n";
+    let unset = "= Unset Metadata\n\nBody.\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = convert_string_with_variant(populated, &[], variant)?;
+        assert!(
+            html.contains(
+                "<meta name=\"description\" content=\"Five &lt; six &amp; &quot;quoted&quot;\">"
+            ),
+            "{variant}: {html}"
+        );
+        assert!(
+            html.contains(
+                "<meta name=\"keywords\" content=\"alpha, &lt;beta&gt;, gamma &amp; delta\">"
+            ),
+            "{variant}: {html}"
+        );
+
+        let html = convert_string_with_variant(empty, &[], variant)?;
+        assert!(
+            html.contains("<meta name=\"description\" content=\"\">")
+                && html.contains("<meta name=\"keywords\" content=\"\">"),
+            "{variant}: {html}"
+        );
+
+        let html = convert_string_with_variant(unset, &[], variant)?;
+        assert!(
+            !html.contains("<meta name=\"description\""),
+            "{variant}: {html}"
+        );
+        assert!(
+            !html.contains("<meta name=\"keywords\""),
+            "{variant}: {html}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
+    let parsed = acdc_parser::parse("text", &ParserOptions::default())?;
+    let block = parsed
+        .document()
+        .blocks
+        .first()
+        .ok_or("missing parsed block")?;
+    let processor = Processor::new_with_variant(
+        ConverterOptions::default(),
+        parsed.document().attributes.clone(),
+        HtmlVariant::Standard,
+    );
+    let source = acdc_converters_core::WarningSource::new("html").with_variant("standard");
+    let mut warnings = Vec::new();
+    {
+        let diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            std::rc::Rc::new(processor),
+            RenderOptions::default(),
+            diagnostics,
+        );
+        visitor.visit_unhandled_block(block)?;
+    }
+
+    let warning = warnings.first().ok_or("missing unhandled block warning")?;
+    assert_eq!(warning.source.converter, "html");
+    assert_eq!(warning.source.variant.as_deref(), Some("standard"));
+    assert!(warning.message.contains("omitted from HTML output"));
+    assert!(warning.advice().is_some());
+    Ok(())
 }
 
 #[test]

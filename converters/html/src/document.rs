@@ -1,11 +1,32 @@
 use std::io::Write;
 
 use acdc_converters_core::{inlines_to_string, visitor::WritableVisitor};
-use acdc_parser::{Author, Header};
+use acdc_parser::{AttributeValue, Author, Header};
 
-use crate::{Error, HtmlVisitor};
+use crate::{Error, HtmlVisitor, inlines::escape_attribute};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
+    pub(crate) fn render_document_metadata(&mut self) -> Result<(), Error> {
+        for name in ["description", "keywords"] {
+            let value =
+                self.processor
+                    .document_attributes()
+                    .get(name)
+                    .and_then(|value| match value {
+                        AttributeValue::String(value) => Some(escape_attribute(value.as_ref())),
+                        AttributeValue::Bool(true) => Some(String::new()),
+                        AttributeValue::Bool(false) | AttributeValue::None | _ => None,
+                    });
+            if let Some(value) = value {
+                writeln!(
+                    self.writer_mut(),
+                    "<meta name=\"{name}\" content=\"{value}\">"
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     /// Render header metadata for HTML head (<title> and <meta> tags)
     ///
     /// This generates HTML-specific metadata tags for the `<head>` element.

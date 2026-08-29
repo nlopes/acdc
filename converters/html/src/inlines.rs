@@ -155,6 +155,11 @@ pub(crate) fn escape_pcdata(text: &str) -> String {
         .replace('>', "&gt;")
 }
 
+/// Escape literal text for a double-quoted HTML attribute value.
+pub(crate) fn escape_attribute(text: &str) -> String {
+    escape_pcdata(text).replace('"', "&quot;")
+}
+
 fn raw_fragment_placeholder(index: usize) -> String {
     format!("\0{index}\0")
 }
@@ -353,10 +358,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             InlineNode::InlineAnchor(anchor) if !options.toc_mode => {
                 self.render_inline_anchor(anchor, options, subs)
             }
-            // Explicit InlineAnchor arm for TOC mode (no nested anchors) plus a catch-all
-            // for future `#[non_exhaustive]` variants — both render nothing, but enumerating
-            // the anchor arm keeps `wildcard_enum_match_arm` satisfied.
-            InlineNode::InlineAnchor(_) | _ => Ok(()),
+            // TOC links cannot contain nested anchors.
+            InlineNode::InlineAnchor(_) => Ok(()),
+            _unsupported => {
+                self.diagnostics.warn_with_advice(
+                    "an unsupported parser inline variant was omitted from HTML output",
+                    "Use another backend for this document and report the unsupported construct.",
+                );
+                Ok(())
+            }
         }
     }
 

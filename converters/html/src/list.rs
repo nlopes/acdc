@@ -184,7 +184,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_callout_list_semantic(list, self);
         }
 
-        writeln!(self.writer, "<div class=\"colist arabic\">")?;
+        let class = build_class("colist arabic", &list.metadata.roles);
+        write!(self.writer, "<div")?;
+        crate::write_id(&mut self.writer, &list.metadata)?;
+        writeln!(self.writer, " class=\"{class}\">")?;
         self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
 
         if self.processor.is_font_icons_mode() {
@@ -233,9 +236,23 @@ fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
     list: &CalloutList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let writer = visitor.writer_mut();
-    writeln!(writer, "<ol class=\"callout-list arabic\">")?;
-    let _ = writer;
+    let has_title = !list.title.is_empty();
+    if has_title {
+        let writer = visitor.writer_mut();
+        let class = build_class("colist arabic", &list.metadata.roles);
+        write!(writer, "<section")?;
+        crate::write_id(writer, &list.metadata)?;
+        writeln!(writer, " class=\"{class}\">")?;
+        let _ = writer;
+        visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+        writeln!(visitor.writer_mut(), "<ol class=\"callout-list arabic\">")?;
+    } else {
+        let writer = visitor.writer_mut();
+        let class = build_class("callout-list arabic", &list.metadata.roles);
+        write!(writer, "<ol")?;
+        crate::write_id(writer, &list.metadata)?;
+        writeln!(writer, " class=\"{class}\">")?;
+    }
 
     for item in &list.items {
         let writer = visitor.writer_mut();
@@ -251,6 +268,9 @@ fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
 
     let writer = visitor.writer_mut();
     writeln!(writer, "</ol>")?;
+    if has_title {
+        writeln!(writer, "</section>")?;
+    }
     Ok(())
 }
 

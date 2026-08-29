@@ -3,7 +3,7 @@ use std::io::Write;
 use acdc_converters_core::{media::resolve_target, video::TryUrl, visitor::Visitor};
 use acdc_parser::{AttributeValue, DocumentAttributes, Video};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_href};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
@@ -12,10 +12,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         write!(self.writer, "<div")?;
-        if let Some(id) = &video.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
-        }
-        writeln!(self.writer, " class=\"videoblock\">")?;
+        write_id(&mut self.writer, &video.metadata)?;
+        let class = build_class("videoblock", &video.metadata.roles);
+        writeln!(self.writer, " class=\"{class}\">")?;
 
         if !video.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
@@ -152,10 +151,10 @@ fn visit_video_semantic<W: Write>(
     let has_title = !video.title.is_empty();
 
     let tag = if has_title { "figure" } else { "div" };
-    write!(visitor.writer, "<{tag} class=\"video-block\"")?;
-    if let Some(id) = &video.metadata.id {
-        write!(visitor.writer, " id=\"{}\"", id.id)?;
-    }
+    let class = build_class("video-block", &video.metadata.roles);
+    write!(visitor.writer, "<{tag}")?;
+    write_id(&mut visitor.writer, &video.metadata)?;
+    write!(visitor.writer, " class=\"{class}\"")?;
     writeln!(visitor.writer, ">")?;
 
     if video.sources.is_empty() {

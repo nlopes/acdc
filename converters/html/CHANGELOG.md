@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Abstract and example styled paragraphs now use their matching block
+  presentation in standard and semantic HTML. Their titles, captions, IDs,
+  anchors, roles, and inline formatting are preserved.
+- Admonitions, audio, video, callout lists, and collapsible examples now keep
+  block anchors and roles on their HTML wrappers. Semantic callout lists also
+  keep their titles.
+- Standalone output now emits escaped `description` and `keywords` metadata,
+  including explicitly empty values, when those document attributes are set.
+- Unsupported non-empty parser block and inline variants now produce structured
+  converter warnings instead of disappearing silently.
 - Title-based shorthand cross-references such as `<<Syntax Highlighting>>` now
   link to the matching generated or explicit section ID, including when the
   reference supplies custom text, matching Asciidoctor.

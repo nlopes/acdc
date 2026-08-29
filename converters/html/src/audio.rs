@@ -3,7 +3,7 @@ use std::{fmt::Write as _, io::Write};
 use acdc_converters_core::{media::resolve_target, visitor::Visitor};
 use acdc_parser::{AttributeValue, Audio, DocumentAttributes};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, inlines::escape_href};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_audio(&mut self, audio: &Audio) -> Result<(), Error> {
@@ -12,10 +12,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         write!(self.writer, "<div")?;
-        if let Some(id) = &audio.metadata.id {
-            write!(self.writer, " id=\"{}\"", id.id)?;
-        }
-        writeln!(self.writer, " class=\"audioblock\">")?;
+        write_id(&mut self.writer, &audio.metadata)?;
+        let class = build_class("audioblock", &audio.metadata.roles);
+        writeln!(self.writer, " class=\"{class}\">")?;
 
         if !audio.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
@@ -109,10 +108,10 @@ fn visit_audio_semantic<W: Write>(
     let has_title = !audio.title.is_empty();
 
     let tag = if has_title { "figure" } else { "div" };
-    write!(visitor.writer, "<{tag} class=\"audio-block\"")?;
-    if let Some(id) = &audio.metadata.id {
-        write!(visitor.writer, " id=\"{}\"", id.id)?;
-    }
+    let class = build_class("audio-block", &audio.metadata.roles);
+    write!(visitor.writer, "<{tag}")?;
+    write_id(&mut visitor.writer, &audio.metadata)?;
+    write!(visitor.writer, " class=\"{class}\"")?;
     writeln!(visitor.writer, ">")?;
 
     render_audio_element(

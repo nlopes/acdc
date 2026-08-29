@@ -34,12 +34,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        if para.metadata.style == Some("abstract") {
+            return self.render_abstract_paragraph(para);
+        }
+
         // Check if this paragraph should be rendered as a collapsible example block
         if para.metadata.style == Some("example") && para.metadata.options.contains(&"collapsible")
         {
             let is_open = para.metadata.options.contains(&"open");
             write!(self.writer, "<details")?;
             write_id(&mut self.writer, &para.metadata)?;
+            if !para.metadata.roles.is_empty() {
+                write!(self.writer, " class=\"{}\"", para.metadata.roles.join(" "))?;
+            }
             if is_open {
                 writeln!(self.writer, " open>")?;
             } else {
@@ -60,6 +67,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</details>")?;
             return Ok(());
+        }
+
+        if para.metadata.style == Some("example") {
+            return self.render_example_paragraph(para);
         }
 
         if let Some(style) = para.metadata.style {
@@ -156,6 +167,81 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "</p>")?;
             writeln!(self.writer, "</div>")?;
         }
+        Ok(())
+    }
+
+    fn render_abstract_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let has_title = !para.title.is_empty();
+        let tag = if semantic && has_title {
+            "section"
+        } else {
+            "div"
+        };
+        let base_class = if semantic {
+            "quote-block abstract"
+        } else {
+            "quoteblock abstract"
+        };
+        let class = build_class(base_class, &para.metadata.roles);
+
+        write!(self.writer, "<{tag}")?;
+        write_id(&mut self.writer, &para.metadata)?;
+        writeln!(self.writer, " class=\"{class}\">")?;
+        if has_title {
+            let (open, close) = if semantic {
+                ("<h6 class=\"block-title\">", "</h6>\n")
+            } else {
+                ("<div class=\"title\">", "</div>\n")
+            };
+            self.render_title_with_wrapper(&para.title, open, close)?;
+        }
+        writeln!(self.writer, "<blockquote>")?;
+        self.visit_inline_nodes(&para.content)?;
+        writeln!(self.writer)?;
+        writeln!(self.writer, "</blockquote>")?;
+        writeln!(self.writer, "</{tag}>")?;
+        Ok(())
+    }
+
+    fn render_example_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+        let semantic = self.processor.variant() == HtmlVariant::Semantic;
+        let has_title = !para.title.is_empty();
+        let tag = if semantic && has_title {
+            "figure"
+        } else {
+            "div"
+        };
+        let base_class = if semantic {
+            "example-block"
+        } else {
+            "exampleblock"
+        };
+        let class = build_class(base_class, &para.metadata.roles);
+
+        write!(self.writer, "<{tag}")?;
+        write_id(&mut self.writer, &para.metadata)?;
+        writeln!(self.writer, " class=\"{class}\">")?;
+        if has_title {
+            let (open, close) = if semantic {
+                ("<figcaption>", "</figcaption>\n")
+            } else {
+                ("<div class=\"title\">", "</div>\n")
+            };
+            self.render_captioned_title_with_wrapper(
+                &para.title,
+                &para.metadata,
+                Some(CaptionKind::Example),
+                open,
+                close,
+            )?;
+        }
+        let content_class = if semantic { "example" } else { "content" };
+        writeln!(self.writer, "<div class=\"{content_class}\">")?;
+        self.visit_inline_nodes(&para.content)?;
+        writeln!(self.writer)?;
+        writeln!(self.writer, "</div>")?;
+        writeln!(self.writer, "</{tag}>")?;
         Ok(())
     }
 
