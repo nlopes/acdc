@@ -126,8 +126,10 @@ fn test_commonmark_variant(
     Ok(())
 }
 
-/// Converts an `AsciiDoc` string to GFM Markdown, returning the output and any warnings.
-fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
+fn convert_str_with_variant(
+    input: &str,
+    variant: MarkdownVariant,
+) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
     let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(input, &parser_options)?;
     let doc = parsed.document();
@@ -136,14 +138,17 @@ fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone())
-        .with_variant(MarkdownVariant::GitHubFlavored);
+    let processor = Processor::new(converter_options, doc.attributes.clone()).with_variant(variant);
     let mut warnings = Vec::new();
     let source = acdc_converters_core::WarningSource::new("markdown");
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
     processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
+}
+
+fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
+    convert_str_with_variant(input, MarkdownVariant::GitHubFlavored)
 }
 
 fn has_numbering_style_warning(warnings: &[acdc_converters_core::Warning]) -> bool {
@@ -162,7 +167,10 @@ fn markdown_block_spacing_and_final_newline_are_canonical() -> Result<(), Error>
         ("First.\n\nSecond.\n", "First.\n\nSecond.\n"),
         ("= Title\n", "# Title\n"),
         ("= Title\n\nBody.\n", "# Title\n\nBody.\n"),
-        ("[discrete]\n== Heading\n", "## Heading\n"),
+        (
+            "[discrete]\n== Heading\n",
+            "<a id=\"_heading\"></a>\n## Heading\n",
+        ),
     ] {
         let (output, _warnings) = convert_str(input)?;
         pretty_assertions::assert_eq!(output, expected, "input: {input:?}");
@@ -222,6 +230,90 @@ fn cross_references_render_as_links_to_the_target_anchor() -> Result<(), Error> 
         ),
         "output was: {output}"
     );
+    Ok(())
+}
+
+#[test]
+fn block_cross_references_have_stable_destinations_in_both_variants() -> Result<(), Error> {
+    let input = ":toc: macro\n\n\
+                 == Generated Section\n\n\
+                 [#explicit-section]\n=== Explicit Section\n\n\
+                 [#discrete-id,discrete]\n==== Discrete Heading\n\n\
+                 [[paragraph-id]]\nParagraph.\n\n\
+                 [#list-id]\n* Item\n\n\
+                 [[ordered-list-id]]\n. Item\n\n\
+                 [#description-list-id]\nTerm:: Definition\n\n\
+                 [[admonition-id]]\nNOTE: Note.\n\n\
+                 [[listing-id]]\n----\ncode\n----\n\n\
+                 [#image-id]\nimage::image.png[]\n\n\
+                 [[audio-id]]\naudio::audio.mp3[]\n\n\
+                 [#video-id]\nvideo::video.mp4[]\n\n\
+                 [[table-id]]\n|===\n|Cell\n|===\n\n\
+                 [#toc-id]\ntoc::[]\n\n\
+                 [source]\n----\ncallout <1>\n----\n\
+                 [[callout-list-id]]\n<1> Explanation.\n\n\
+                 [#page-id]\n<<<\n\n\
+                 [[thematic-id]]\n'''\n\n\
+                 See <<Generated Section>>, <<explicit-section>>, <<discrete-id>>, \
+                 <<paragraph-id>>, <<list-id>>, <<ordered-list-id>>, <<description-list-id>>, \
+                 <<admonition-id>>, <<listing-id>>, <<image-id>>, <<audio-id>>, <<video-id>>, \
+                 <<table-id>>, <<toc-id>>, <<callout-list-id>>, <<page-id>>, and \
+                 <<thematic-id>>.\n";
+
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (output, _warnings) = convert_str_with_variant(input, variant)?;
+
+        for id in [
+            "_generated_section",
+            "explicit-section",
+            "discrete-id",
+            "paragraph-id",
+            "list-id",
+            "ordered-list-id",
+            "description-list-id",
+            "admonition-id",
+            "listing-id",
+            "image-id",
+            "audio-id",
+            "video-id",
+            "table-id",
+            "toc-id",
+            "callout-list-id",
+            "page-id",
+            "thematic-id",
+        ] {
+            let anchor = format!(r#"<a id="{id}"></a>"#);
+            assert_eq!(
+                output.matches(&anchor).count(),
+                1,
+                "expected one {anchor:?} in {output}"
+            );
+        }
+        for destination in [
+            "#_generated_section",
+            "#explicit-section",
+            "#discrete-id",
+            "#paragraph-id",
+            "#list-id",
+            "#ordered-list-id",
+            "#description-list-id",
+            "#admonition-id",
+            "#listing-id",
+            "#image-id",
+            "#audio-id",
+            "#video-id",
+            "#table-id",
+            "#toc-id",
+            "#callout-list-id",
+            "#page-id",
+            "#thematic-id",
+        ] {
+            assert!(
+                output.contains(&format!("]({destination})")),
+                "missing link to {destination:?} in {output}"
+            );
+        }
+    }
     Ok(())
 }
 

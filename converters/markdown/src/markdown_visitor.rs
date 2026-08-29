@@ -1,6 +1,6 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::{borrow::Cow, io::Write, rc::Rc};
+use std::{borrow::Cow, collections::HashSet, io::Write, rc::Rc};
 
 use acdc_converters_core::{
     Converter, Diagnostics,
@@ -11,10 +11,10 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Admonition, Audio, Block, CalloutList, CrossReference, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem,
-    OrderedList, PageBreak, Paragraph, Section, Source, Table, TableOfContents, ThematicBreak,
-    UnorderedList, Video,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, CrossReference, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro,
+    InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, Source, Table,
+    TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
@@ -28,6 +28,7 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     /// Current heading level (for nested sections).
     pub(crate) heading_level: usize,
     list_depth: usize,
+    emitted_anchors: HashSet<String>,
     /// Collected footnotes for rendering at document end.
     /// Stored as `(id, pre-rendered markdown content)` so that the visitor
     /// does not need to borrow data from the document being walked.
@@ -43,6 +44,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             diagnostics,
             heading_level: 0,
             list_depth: 0,
+            emitted_anchors: HashSet::new(),
             footnotes: Vec::new(),
         }
     }
@@ -54,6 +56,31 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn media_target(&self, source: &Source<'_>) -> String {
         resolve_target(&source.to_string(), self.processor.document_attributes())
+    }
+
+    fn write_anchor(&mut self, id: &str) -> Result<(), Error> {
+        if !self.emitted_anchors.insert(id.to_owned()) {
+            return Ok(());
+        }
+        write!(self.writer, "<a id=\"")?;
+        for character in id.chars() {
+            match character {
+                '&' => write!(self.writer, "&amp;")?,
+                '"' => write!(self.writer, "&quot;")?,
+                '<' => write!(self.writer, "&lt;")?,
+                '>' => write!(self.writer, "&gt;")?,
+                _ => write!(self.writer, "{character}")?,
+            }
+        }
+        writeln!(self.writer, "\"></a>")?;
+        Ok(())
+    }
+
+    fn write_metadata_anchor(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
+        if let Some(anchor) = metadata.id.as_ref().or_else(|| metadata.anchors.first()) {
+            self.write_anchor(anchor.id)?;
+        }
+        Ok(())
     }
 
     /// Write a warning comment to the output for unsupported features.
@@ -261,6 +288,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
+        self.write_anchor(&Section::generate_id_string(
+            &section.metadata,
+            &section.title,
+        ))?;
+
         let level = section.level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6
         let level = level.min(6); // Markdown only supports 6 heading levels
 
@@ -291,6 +323,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_paragraph(&mut self, paragraph: &Paragraph) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&paragraph.metadata)?;
+
         if paragraph.metadata.style == Some("example")
             && paragraph.metadata.options.contains(&"collapsible")
         {
@@ -308,10 +342,13 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&list.metadata)?;
         self.visit_list_items(&list.items, "-", 1)
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&list.metadata)?;
+
         // Markdown (CommonMark/GFM) can only express numeric ordered markers.
         // An explicit numbering style that isn't already numeric (arabic/decimal)
         // is rendered numerically, with a warning.
@@ -345,19 +382,24 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {
+    fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {
+        if let Some(anchor) = br.anchors.first() {
+            self.write_anchor(anchor.id)?;
+        }
         writeln!(self.writer, "---")?;
         Ok(())
     }
 
-    fn visit_page_break(&mut self, _pb: &PageBreak) -> Result<(), Self::Error> {
+    fn visit_page_break(&mut self, page_break: &PageBreak) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&page_break.metadata)?;
         // Page breaks don't exist in Markdown; use thematic break as fallback
         self.write_warning("page breaks", "using horizontal rule")?;
         writeln!(self.writer, "---")?;
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, _toc: &TableOfContents) -> Result<(), Self::Error> {
+    fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&toc.metadata)?;
         // TOC must be manually generated in Markdown
         self.write_warning(
             "automatic table of contents",
@@ -367,6 +409,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&block.metadata)?;
+
         match &block.inner {
             DelimitedBlockType::DelimitedListing(content) => {
                 // Use fenced code block
@@ -438,6 +482,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_admonition(&mut self, admonition: &Admonition) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&admonition.metadata)?;
+
         // GitHub Flavored Markdown supports Alerts syntax (> [!TYPE])
         // CommonMark falls back to blockquote with bold label
         let alert_type = match admonition.variant {
@@ -483,6 +529,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
+        self.write_anchor(&Section::generate_id_string(
+            &header.metadata,
+            &header.title,
+        ))?;
+
         // Discrete headers are just headings without section structure
         let level = (header.level + 1).min(6);
         let hashes = "#".repeat(level as usize);
@@ -493,6 +544,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_image(&mut self, image: &Image) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&image.metadata)?;
+
         let alt = image
             .metadata
             .attributes
@@ -511,6 +564,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&video.metadata)?;
         // Video embedding not supported in standard Markdown
         self.write_warning("video embedding", "providing link")?;
         if let Some(first_source) = video.sources.first() {
@@ -521,6 +575,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&audio.metadata)?;
         // Audio embedding not supported in standard Markdown
         self.write_warning("audio embedding", "providing link")?;
         let target = self.media_target(&audio.source);
@@ -529,6 +584,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&list.metadata)?;
         // Description lists (definition lists) not in standard Markdown
         self.write_list_indent()?;
         self.write_warning("description lists", "using regular list")?;
@@ -566,7 +622,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_callout_list(&mut self, _list: &CalloutList) -> Result<(), Self::Error> {
+    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
+        self.write_metadata_anchor(&list.metadata)?;
         // Callout lists not supported in Markdown
         self.write_warning("callout lists", "skipping")?;
         Ok(())
@@ -741,14 +798,13 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                         // the document being walked.
                         let mut buffer: Vec<u8> = Vec::new();
                         {
-                            let mut tmp = MarkdownVisitor {
-                                writer: &mut buffer,
-                                processor: self.processor.clone(),
-                                diagnostics: self.diagnostics.reborrow(),
-                                heading_level: self.heading_level,
-                                list_depth: self.list_depth,
-                                footnotes: Vec::new(),
-                            };
+                            let mut tmp = MarkdownVisitor::new(
+                                &mut buffer,
+                                self.processor.clone(),
+                                self.diagnostics.reborrow(),
+                            );
+                            tmp.heading_level = self.heading_level;
+                            tmp.list_depth = self.list_depth;
                             for node in &footnote.content {
                                 tmp.visit_inline_node(node)?;
                             }

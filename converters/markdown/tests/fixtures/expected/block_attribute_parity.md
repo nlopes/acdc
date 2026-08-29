@@ -1,5 +1,6 @@
 # Block Attribute Parity
 
+<a id="_delimiters_and_slots"></a>
 ## Delimiters and slots
 
 > Balanced brackets.
@@ -34,6 +35,7 @@
 
 > Expanded slots.
 
+<a id="_stacked_lists"></a>
 ## Stacked lists
 
 > Named-only stack.
@@ -42,6 +44,7 @@
 
 > Style replacement stack.
 
+<a id="_substitutions"></a>
 ## Substitutions
 
 > Unquoted values.
@@ -58,6 +61,7 @@
 
 > Named substitutions.
 
+<a id="_quote_and_verse_forms"></a>
 ## Quote and verse forms
 
 Styled quote paragraph.
@@ -68,8 +72,10 @@ Styled verse paragraph.
 
 > Delimited verse block.
 
+<a id="_styles_and_context_slots"></a>
 ## Styles and context slots
 
+<a id="styled-quote"></a>
 > Adjacent shorthand.
 
 Spaces disable shorthand.
@@ -79,6 +85,7 @@ Bracketed unknown style.
 \[\[not an anchor\]\]
 Double-bracket anchor syntax with spaces remains text.
 
+<a id="only-id"></a>
 Shorthand-only metadata.
 
 ```rust

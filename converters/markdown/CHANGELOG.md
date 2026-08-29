@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Sections, discrete headings, and blocks with `[#id]` or `[[id]]` now emit
+  stable HTML destinations in GFM and CommonMark, so generated local
+  cross-references reach the referenced content.
 - Title-based shorthand cross-references now link to the matching generated or
   explicit section ID, including when the reference supplies custom text.
 - Cross-references preserve formatted explicit text through supported nested

@@ -32,6 +32,9 @@ The CLI always uses the GFM variant. To produce plain CommonMark output, consume
 Supported constructs:
 
 - **Headings**: mapped to ATX (`#`, `##`, …). The document title renders as a top-level heading.
+- **Block destinations**: section and discrete-heading IDs, explicit `[#id]`
+  block IDs, and `[[id]]` block anchors render as portable HTML anchors in
+  both variants, so local cross-references have stable destinations.
 - **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough (GFM), links, autolinks, images.
 - **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
 - **Code blocks**: fenced with the source language when specified, plus the callout annotations stripped and rendered as trailing references.
@@ -52,7 +55,9 @@ Some `AsciiDoc` features have no faithful Markdown equivalent. When the converte
 - **Callouts inside source blocks** - Markdown has no native equivalent; rendered as plain text.
 - **Table cell spanning** (`2+|`, `.2+|`) - GFM tables are single-cell only.
 - **Complex tables** (nested, AsciiDoc-content cells) - flattened to the extent possible.
-- **Arbitrary block metadata** (roles, options) - dropped.
+- **Arbitrary block roles and options** - dropped when they have no portable
+  Markdown representation. Block IDs and anchors remain available as HTML
+  destinations.
 
 See the crate's `src/lib.rs` module docs for the full list.
 
@@ -71,7 +76,7 @@ Markdown fixtures live in `tests/fixtures/source/` (inputs) and `tests/fixtures/
 
 [source,console]
 ....
-bash converters/markdown/tests/regenerate_expected.sh
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features
 # or for a single fixture:
-bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features -- <fixture_name>
 ....

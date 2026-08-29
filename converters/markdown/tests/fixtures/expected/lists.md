@@ -1,5 +1,6 @@
 # Lists Test
 
+<a id="_unordered_lists"></a>
 ## Unordered Lists
 
 - Item 1
@@ -9,6 +10,7 @@
     - Nested item 2
 - Item 4
 
+<a id="_ordered_lists"></a>
 ## Ordered Lists
 
 1. First item
@@ -18,6 +20,7 @@
     2. Nested item B
 4. Fourth item
 
+<a id="_mixed_lists"></a>
 ## Mixed Lists
 
 - Unordered item
@@ -25,6 +28,7 @@
     2. Another ordered item
 - Back to unordered
 
+<a id="_checklist_task_list"></a>
 ## Checklist (Task List)
 
 - [x] Completed task

@@ -1,5 +1,6 @@
 # Index Terms in Table Headers
 
+<a id="_cataloged_table"></a>
 ## Cataloged table
 
 | Key   | Description with visible **header**, shared term, and related material |
@@ -9,4 +10,5 @@
 
 An occurrence after the table .
 
+<a id="_index"></a>
 ## Index

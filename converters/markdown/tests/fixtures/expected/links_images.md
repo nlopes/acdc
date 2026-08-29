@@ -1,5 +1,6 @@
 # Links and Images Test
 
+<a id="_external_links"></a>
 ## External Links
 
 This is a link to [Example Website](https://example.com).
@@ -8,6 +9,7 @@ Link without text: https://example.com
 
 Email link: [Contact Us](mailto:mailto:user@example.com)
 
+<a id="_images"></a>
 ## Images
 
 Block image:

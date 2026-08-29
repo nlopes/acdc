@@ -32,6 +32,9 @@
 //! - Strikethrough (`~~text~~`)
 //! - Autolinks for URLs and emails
 //!
+//! Both variants preserve section IDs and block anchors as portable HTML
+//! destinations for local cross-references.
+//!
 //! # Limitations
 //!
 //! `AsciiDoc` features that cannot be fully represented in Markdown:

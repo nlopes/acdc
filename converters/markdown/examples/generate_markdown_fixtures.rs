@@ -7,6 +7,12 @@ use acdc_converters_markdown::{MarkdownVariant, Processor};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    let mut arguments = std::env::args_os().skip(1);
+    let requested_fixture = arguments.next();
+    if arguments.next().is_some() {
+        return Err("usage: generate_markdown_fixtures [fixture-name]".into());
+    }
+
     let source_dir = Path::new("converters/markdown/tests/fixtures/source");
     let expected_dir = Path::new("converters/markdown/tests/fixtures/expected");
     let mut fixtures = source_dir
@@ -16,9 +22,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         .filter(|path| {
             path.extension()
                 .is_some_and(|extension| extension == "adoc")
+                && requested_fixture
+                    .as_deref()
+                    .is_none_or(|requested| path.file_stem() == Some(requested))
         })
         .collect::<Vec<_>>();
     fixtures.sort();
+
+    if fixtures.is_empty()
+        && let Some(requested) = requested_fixture
+    {
+        return Err(format!("unknown Markdown fixture: {}", requested.to_string_lossy()).into());
+    }
 
     for input_path in fixtures {
         let stem = input_path
