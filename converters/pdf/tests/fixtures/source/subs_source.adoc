@@ -1,6 +1,6 @@
 = Source substitutions
 :source-highlighter: rouge
-:project-name: ACDC
+:project-name: acdc
 
 .Default source substitutions
 [source,rust]

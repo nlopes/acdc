@@ -1,5 +1,5 @@
 = Asciicast Replay Sample
-:author: ACDC
+:author: acdc
 :toc:
 
 This document demonstrates replaying an https://docs.asciinema.org[asciicast]

@@ -1,4 +1,4 @@
-//! Property-based tests for the ACDC parser
+//! Property-based tests for the acdc parser
 //!
 //! These tests verify invariants that should hold for ANY input, not just
 //! specific fixtures. They complement the fixture-based tests by finding

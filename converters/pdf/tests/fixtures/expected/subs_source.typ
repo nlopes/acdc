@@ -85,7 +85,7 @@
 )
 
 #blocktitle[#text("Attributes added")]
-#raw(block: true, lang: "rust", "let value = \"ACDC\";")
+#raw(block: true, lang: "rust", "let value = \"acdc\";")
 
 #blocktitle[#text("Replacements added")]
 #raw(block: true, lang: "rust", "// © … → — ")
@@ -97,7 +97,7 @@
 #raw(block: true, lang: "rust", "let value = \"{project-name}\"; // (C) ... -> *bold*")
 
 #blocktitle[#text("Explicit substitution set")]
-#raw(block: true, lang: "rust", "let value = \"ACDC\"; // © … → *bold* (1)")
+#raw(block: true, lang: "rust", "let value = \"acdc\"; // © … → *bold* (1)")
 
 #grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
 [#text("(1)")], [#text("Explicit callout.")],

@@ -1,5 +1,5 @@
 = Terminal Replay Sample
-:author: ACDC
+:author: acdc
 :toc:
 
 This document demonstrates an HTML terminal replay block. The block contains

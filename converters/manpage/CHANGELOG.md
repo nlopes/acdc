@@ -25,7 +25,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 - Inline icon macros render their explicit alternative text, or a readable
   form of their target when no alternative is set, matching Asciidoctor.
 - Ordered lists honor a positive `start` value, including on nested lists.
-  Explicit alphabetic and Roman styles remain an ACDC extension; Asciidoctor's
+  Explicit alphabetic and Roman styles remain an acdc extension; Asciidoctor's
   manpage backend uses decimal markers for those styles.
 - Manpage conversion attributes now include the `manpage` backend and
   base-backend, `man` file type, `.man` default output suffix, implied manpage
@@ -90,7 +90,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
   formatted terms, titled boundaries, named styles, and trailing unanswered
   Q&A items, matching the Asciidoctor manpage backend.
 - Table cells now apply strong, emphasis, literal, and monospace styles,
-  matching the Asciidoctor manpage backend. ACDC's span and alignment extension
+  matching the Asciidoctor manpage backend. acdc's span and alignment extension
   now applies column alignment by source-cell order after spans.
 - A custom title on the first manpage name section now gets the same special
   spacing, embedded-output handling, and section-order validation as `NAME`,

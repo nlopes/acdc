@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Explicit links, direct URL macros, and `mailto:` macros with a named `id`
   attribute now create PDF destinations. References before or after the link
   target that destination and use the `[id]` fallback text. For duplicate link
-  IDs, ACDC keeps the first link destination so the PDF remains valid;
+  IDs, acdc keeps the first link destination so the PDF remains valid;
   Asciidoctor PDF writes duplicate destination names and leaves selection to
   the viewer.
 - PDF output includes a semantic tag tree, document language, and image

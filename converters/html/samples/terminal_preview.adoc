@@ -1,5 +1,5 @@
 = Terminal Preview Sample
-:author: ACDC
+:author: acdc
 :toc:
 :sectnums:
 :acdc-terminal:

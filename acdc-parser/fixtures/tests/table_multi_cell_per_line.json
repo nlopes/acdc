@@ -149,7 +149,7 @@
                         {
                           "name": "text",
                           "type": "string",
-                          "value": "ACDC",
+                          "value": "acdc",
                           "location": [
                             {
                               "line": 7,

@@ -445,7 +445,7 @@ impl CellSpecifier {
             pos += 1;
 
             // Asciidoctor places alignment after the span operator. Keep
-            // accepting the older ACDC alignment-first order as well.
+            // accepting the older acdc alignment-first order as well.
             let (after_span_horizontal, after_span_vertical, alignment_end) =
                 Self::parse_alignments(bytes, pos);
             pos = alignment_end;

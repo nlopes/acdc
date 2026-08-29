@@ -33,7 +33,7 @@ This is the *only* crate that depends on the Typst compiler. Everything upstream
 
 Non-fatal Typst diagnostics are returned as `warnings`; a failed compile or export is an `Error`.
 
-The renderer keeps tagged output enabled as an ACDC contract. It does not claim
+The renderer keeps tagged output enabled as an acdc contract. It does not claim
 PDF/UA-1 conformance. Typst can enforce PDF/UA-1, but that mode rejects
 documents that do not satisfy its metadata and semantic requirements.
 

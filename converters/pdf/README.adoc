@@ -86,15 +86,15 @@ The `page-layout` attribute and the `portrait` and `landscape` roles on individu
 Those page breaks keep the configured document layout.
 
 Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
-ACDC uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
+acdc uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
 This limitation is tracked in https://linear.app/silly-muppets/issue/SC-290/match-asciidoctor-pdf-abstract-first-line-emphasis[SC-290].
 
 Source callout references use parenthesized numbers such as `(1)`.
 Asciidoctor PDF instead uses circled number glyphs such as `①`.
 
-ACDC treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
+acdc treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
 Asciidoctor PDF leaves `[X]` in the item text.
-This is an intentional parser extension shared by all ACDC converters.
+This is an intentional parser extension shared by all acdc converters.
 
 Table row stripes continue by logical row number when a table crosses a page.
 Asciidoctor PDF restarts the stripe cycle after each repeated header.
@@ -185,7 +185,7 @@ as alternative text.
 
 This is baseline tagged PDF output, not a claim of PDF/UA-1 conformance. The
 pinned Typst release can enforce PDF/UA-1, but that mode can reject documents
-that do not meet its metadata and semantic requirements. ACDC does not enable
+that do not meet its metadata and semantic requirements. acdc does not enable
 that stricter profile automatically.
 
 == Inline IDs and roles

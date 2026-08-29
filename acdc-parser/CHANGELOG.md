@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute list starts with a comma. Automatic references use `[id]`, and
   `Document::references` exposes the target for navigation. Asciidoctor
   renders these destinations but does not add them to its public reference
-  catalog; ACDC catalogs them so converters can resolve the references safely.
+  catalog; acdc catalogs them so converters can resolve the references safely.
 - Cross-reference labels that contain inline passthroughs no longer expose
   internal placeholder text in automatic citations. The passthrough source is
   preserved as literal reference text, matching Asciidoctor citations.
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   policy instead of becoming plain text.
 - Nested sections inside bibliography sections now produce a non-fatal parser
   warning and remain in the document. Asciidoctor reports the same recoverable
-  condition at error severity; ACDC's recoverable parser diagnostics currently
+  condition at error severity; acdc's recoverable parser diagnostics currently
   expose only warning severity.
 - Nested Setext sections now remain under their parent section instead of being
   treated as sibling sections.
@@ -254,7 +254,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   when `link=` appears more than once, matching Asciidoctor.
 - Checklist markers now apply only to unordered list items. `[ ]`, `[x]`,
   `[X]`, and `[*]` remain visible text in ordered items, matching Asciidoctor.
-  ACDC continues to accept `[X]` in unordered checklists as an intentional
+  acdc continues to accept `[X]` in unordered checklists as an intentional
   extension.
 - Unindented ordered and unordered markers now nest automatically when the
   marker type changes, while metadata after a blank line still starts a new
@@ -332,7 +332,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery.
 - Builds without the `network` feature now emit a located warning, preserve an
   authorized HTTP(S) include as literal unresolved text, and continue parsing
-  instead of removing the directive. This is an ACDC-specific capability
+  instead of removing the directive. This is an acdc-specific capability
   fallback because Asciidoctor has no equivalent compile-time network setting;
   URI includes that lack caller authority continue to use the no-warning link
   fallback.

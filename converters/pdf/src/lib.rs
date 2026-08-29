@@ -2265,7 +2265,7 @@ mod tests {
     #[test]
     fn unbreakable_option_moves_fitting_listing_and_preserves_oversized_listing()
     -> Result<(), Box<dyn std::error::Error>> {
-        let prefix = "= ACDC Move probe\n\nFILL01 filler paragraph.\n\nFILL02 filler paragraph.\n\nFILL03 filler paragraph.\n\nFILL04 filler paragraph.\n\nFILL05 filler paragraph.\n\nFILL06 filler paragraph.\n\nFILL07 filler paragraph.\n\nFILL08 filler paragraph.\n\nFILL09 filler paragraph.\n\nFILL10 filler paragraph.\n\nFILL11 filler paragraph.\n\nFILL12 filler paragraph.\n\nFILL13 filler paragraph.\n\nFILL14 filler paragraph.\n\nFILL15 filler paragraph.\n\nFILL16 filler paragraph.\n\nFILL17 filler paragraph.\n\nFILL18 filler paragraph.\n\nFILL19 filler paragraph.\n\nFILL20 filler paragraph.\n\n.Target caption\n[listing%unbreakable]\n----\n";
+        let prefix = "= acdc Move probe\n\nFILL01 filler paragraph.\n\nFILL02 filler paragraph.\n\nFILL03 filler paragraph.\n\nFILL04 filler paragraph.\n\nFILL05 filler paragraph.\n\nFILL06 filler paragraph.\n\nFILL07 filler paragraph.\n\nFILL08 filler paragraph.\n\nFILL09 filler paragraph.\n\nFILL10 filler paragraph.\n\nFILL11 filler paragraph.\n\nFILL12 filler paragraph.\n\nFILL13 filler paragraph.\n\nFILL14 filler paragraph.\n\nFILL15 filler paragraph.\n\nFILL16 filler paragraph.\n\nFILL17 filler paragraph.\n\nFILL18 filler paragraph.\n\nFILL19 filler paragraph.\n\nFILL20 filler paragraph.\n\n.Target caption\n[listing%unbreakable]\n----\n";
         let fitting = format!(
             "{prefix}CODE01 target line\nCODE02 target line\nCODE03 target line\nCODE04 target line\nCODE05 target line\nCODE06 target line\nCODE07 target line\nCODE08 target line\n----\n\nAFTER target.\n"
         );
