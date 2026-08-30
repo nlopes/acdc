@@ -1,0 +1,6 @@
+= Styled source paragraph callouts
+
+[source,ruby]
+puts "hello" # <.>
+
+<.> Prints a greeting.

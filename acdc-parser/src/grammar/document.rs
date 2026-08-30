@@ -5795,7 +5795,13 @@ peg::parser! {
             ) [_]
         )+)
         {
-            // Reset the verbatim flag since paragraph is not a verbatim block
+            let is_styled_verbatim = matches!(
+                block_metadata.metadata.style,
+                Some("source" | "listing" | "literal")
+            );
+
+            // Reset the verbatim flag unless this paragraph establishes a new
+            // callout scope below.
             state.last_block_was_verbatim = false;
 
             // A `[comment]`-styled paragraph is a comment that produces no
@@ -5821,8 +5827,44 @@ peg::parser! {
                 return Ok(get_literal_paragraph(state, content, start, span_end, offset, block_metadata));
             }
 
-            let (content, _) =
-                process_inlines(state, block_metadata, content_start, span_end, offset, content)?;
+            let content = if is_styled_verbatim {
+                let content_location =
+                    state.create_block_location(content_start, span_end, offset);
+                let (verbatim_content, callouts) = resolve_verbatim_callouts(
+                    state,
+                    content,
+                    content_location,
+                    block_metadata
+                        .substitutions
+                        .enabled(&Substitution::Callouts),
+                );
+                let content = if callouts.is_empty() {
+                    process_inlines(
+                        state,
+                        block_metadata,
+                        content_start,
+                        span_end,
+                        offset,
+                        content,
+                    )?
+                    .0
+                } else {
+                    verbatim_content
+                };
+                state.last_block_was_verbatim = true;
+                state.last_verbatim_callouts = callouts;
+                content
+            } else {
+                process_inlines(
+                    state,
+                    block_metadata,
+                    content_start,
+                    span_end,
+                    offset,
+                    content,
+                )?
+                .0
+            };
 
             // Title should either be an attribute named title, or the title parsed from the block metadata
             let title: Title = if let Some(AttributeValue::String(title)) = block_metadata.metadata.attributes.get("title") {

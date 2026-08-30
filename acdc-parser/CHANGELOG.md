@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Styled source, listing, and literal paragraphs now expose trailing callout
+  markers and their following callout lists as structured nodes, matching
+  delimited verbatim blocks and Asciidoctor.
 - Explicit `+` continuations on callout-list items now attach the following
   block to that item instead of folding the marker and block text into the
   explanation, matching Asciidoctor.
