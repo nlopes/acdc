@@ -11,6 +11,7 @@ use acdc_parser::{BlockMetadata, Paragraph};
 
 use crate::{
     Error, ManpageVisitor,
+    delimited::source_content,
     document::extract_verbatim_text,
     escape::{EscapeMode, manify},
 };
@@ -190,9 +191,12 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".fam C")?;
 
         // Extract and write content preserving whitespace
-        let content = extract_verbatim_text(&para.content);
-        let escaped = manify(&content, EscapeMode::Preserve);
-        for line in escaped.lines() {
+        let content = if matches!(para.metadata.style, Some("source" | "listing")) {
+            source_content(&para.content, &para.metadata)
+        } else {
+            manify(&extract_verbatim_text(&para.content), EscapeMode::Preserve).into_owned()
+        };
+        for line in content.lines() {
             writeln!(w, "{line}")?;
         }
 

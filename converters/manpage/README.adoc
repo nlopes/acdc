@@ -95,6 +95,9 @@ The manpage converter:
 - Preserves unsupported strikeout and overline meaning as `[deleted: ...]` and
   `[overlined: ...]`. Unknown and color roles retain their text without added
   formatting.
+- Renders explicit and automatic source callouts as bold `(N)` labels in both
+  code and explanation lists. Language-appropriate and XML comment guards are
+  removed from delimited blocks and styled source paragraphs.
 
 == Differences from Asciidoctor
 

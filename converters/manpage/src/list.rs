@@ -301,10 +301,9 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a callout list.
     pub(crate) fn render_callout_list(&mut self, list: &CalloutList) -> Result<(), Error> {
         self.with_list_scope(&list.title, |visitor| {
-            for (i, item) in list.items.iter().enumerate() {
+            for item in &list.items {
                 let w = visitor.writer_mut();
-                // Callout number in bold (use index since ListItem doesn't have ordinal)
-                writeln!(w, ".IP \\fB({})\\fP 4", i + 1)?;
+                writeln!(w, ".IP \\fB({})\\fP 4", item.callout.number)?;
 
                 // Visit principal text
                 if !item.principal.is_empty() {

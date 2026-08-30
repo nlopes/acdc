@@ -34,8 +34,8 @@ callout\-list\-continuation \- verify attached callout content
 \fBcallout\-list\-continuation\fP
 .SH "DESCRIPTION"
 .EX
-first <1>
-second <2>
+first \fB(1)\fP
+second \fB(2)\fP
 .EE
 .RS 0
 .IP \fB(1)\fP 4

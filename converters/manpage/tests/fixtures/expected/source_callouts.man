@@ -1,0 +1,83 @@
+'\" t
+.\"     Title: source-callouts
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: Source callout checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "SOURCE\-CALLOUTS" "1" "2026-08-30" "acdc" "Source callout checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+source\-callouts \- verify source callout presentation
+.SH "SYNOPSIS"
+.sp
+source\-callouts
+.SH "DESCRIPTION"
+.SS "Explicit C-style guard"
+.EX
+let value = 1; \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Defines the value.
+.RE
+.SS "Automatic hash guards"
+.EX
+print("one") \fB(1)\fP
+print("two") \fB(2)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Prints one.
+.IP \fB(2)\fP 4
+Prints two.
+.RE
+.SS "SQL guard"
+.EX
+SELECT 1; \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Selects one.
+.RE
+.SS "XML callout"
+.EX
+<value>one</value> \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Describes the element.
+.RE
+.SS "Styled source paragraph"
+.sp
+.if n .RS 4
+.nf
+.fam C
+puts "paragraph" \fB(1)\fP
+.fam
+.fi
+.if n .RE
+.RS 0
+.IP \fB(1)\fP 4
+Prints from a source paragraph.
+.RE

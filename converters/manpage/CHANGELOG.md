@@ -16,6 +16,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Source and listing blocks, including styled paragraphs, now remove
+  language-appropriate or XML comment guards and render callout markers as
+  bold `(N)` labels that match their explanation lists.
 - `%notitle` sections now omit their heading while retaining their body and
   cross-reference text.
 - `hide-uri-scheme` now removes the scheme from the visible text of URL,

@@ -135,8 +135,8 @@ A \fIstyled\fP definition.
 .RE
 .SS "Callout List"
 .EX
-echo "hello" <1>
-echo "world" <2>
+echo "hello" \fB(1)\fP
+echo "world" \fB(2)\fP
 .EE
 .RS 0
 .IP \fB(1)\fP 4

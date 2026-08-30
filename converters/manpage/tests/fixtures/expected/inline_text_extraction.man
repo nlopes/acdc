@@ -90,8 +90,8 @@ Character body.
 .sp
 Recursive body.
 .EX
-echo hi <1>
-echo bye <2>
+echo hi \fB(1)\fP
+echo bye \fB(2)\fP
 .EE
 .RS 0
 .IP \fB(1)\fP 4
