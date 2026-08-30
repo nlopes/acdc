@@ -88,6 +88,10 @@ The manpage converter:
   and `see` relationships in a final `[index]` section
 - Omits a section heading for `%notitle` while retaining its body and
   cross-reference text
+- Omits automatic and macro tables of contents, matching Asciidoctor's manpage
+  backend; section headings remain visible
+- Renders cross-references as display text. Roff manpages do not provide
+  in-document jump targets, so standalone anchors remain non-visible
 - Honors `hide-uri-scheme` in visible URL, `link:`, and automatic-link text
   without changing the full link target
 - Applies the same portable role presentation to inline spans and link labels:
