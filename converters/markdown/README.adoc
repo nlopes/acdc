@@ -25,7 +25,9 @@ Stream from stdin to stdout:
 cat document.adoc | acdc convert --backend markdown --stdin
 ....
 
-The CLI always uses the GFM variant. To produce plain CommonMark output, consume the crate as a library and call `Processor::with_variant(MarkdownVariant::CommonMark)`.
+The CLI defaults to GFM. Pass `--variant commonmark` for plain CommonMark
+output. Library users can select the same behavior with
+`Processor::with_variant(MarkdownVariant::CommonMark)`.
 
 == Features
 
@@ -62,13 +64,15 @@ Supported constructs:
   layouts; other description styles use a content-preserving regular-list
   fallback.
 - **Code blocks**: fenced with the source language when specified. Source
-  callouts render as numbered markers beside the code and as an explanation
-  list, including content attached with `+` continuations.
+  callouts use readable `(n)` markers beside the code and bold numbered list
+  labels for their explanations, including content attached with `+`
+  continuations.
 - **Blockquotes** and quote/verse blocks, including attribution and citation
   titles.
 - **Passthrough blocks**: raw content remains available as embedded HTML. Its
   display depends on whether the Markdown renderer accepts and sanitizes HTML.
-- **Tables**: GFM tables preserve column alignment and every source row.
+- **Tables**: GFM tables preserve column-level horizontal alignment and every
+  source row.
   Headerless tables use an empty header row, and footers become final body
   rows. Cell spans reserve empty positions, supported cell styles remain
   visible, and nested blocks use HTML line breaks. CommonMark skips tables
@@ -85,10 +89,19 @@ Supported constructs:
   and playback degradation emits one structured warning per document.
 - **Thematic breaks** and page breaks (rendered as `---`).
 - **Collapsible example blocks** (`[%collapsible]`, `[%collapsible%open]`): rendered as embedded `<details>/<summary>` HTML. Works in GitHub, GitLab, and most Markdown renderers that allow inline HTML.
+- **Index catalogs**: `:acdc-index:` plus a final `[index]` section generates an
+  alphabetized, linked catalog with hierarchical and `see` / `see-also` terms.
+  Without both opt-ins, visible terms stay in the body, concealed terms remain
+  hidden, and the index section stays empty, matching the HTML converter's
+  policy.
 
 == Limitations
 
-Some `AsciiDoc` features have no faithful Markdown equivalent. When the converter hits one of these, it records a structured warning (surfaced as a diagnostic) and falls back — usually leaving an inline `<!-- Warning: ... -->` marker in the output:
+Some `AsciiDoc` features have no faithful Markdown equivalent. When the
+converter hits one of these, it records a structured warning and uses a
+documented fallback. Document-wide capability warnings appear once per
+capability; any resource-specific failures remain separate. Some block
+fallbacks also leave an inline `<!-- Warning: ... -->` marker in the output:
 
 - **Include directives** - not expanded at render time (the preprocessor handles them before conversion).
 - **Substitution control** (`subs=...`) - no way to express this in Markdown.

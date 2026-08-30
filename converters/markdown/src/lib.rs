@@ -43,7 +43,8 @@
 //! verse credits remain visible.
 //! Styled paragraphs use blockquotes or fenced code as appropriate. Raw
 //! passthrough blocks remain available to HTML-capable Markdown renderers, and
-//! source callouts retain their markers, explanations, and attached blocks.
+//! source callouts retain readable `(n)` markers, bold numbered explanation
+//! labels, and attached blocks.
 //! Inline UI macros, passthroughs, STEM expressions, and roles retain readable
 //! content through native Markdown, embedded HTML, or inline-code fallbacks.
 //! Link fallback text honors `hide-uri-scheme`, bracketed email autolinks stay
@@ -53,13 +54,17 @@
 //! `CommonMark` retains checklist state as visible text. Horizontal and Q&A
 //! description lists have distinct layouts. Bibliography entries retain their
 //! anchors and visible bracketed labels.
-//! GFM tables retain column alignment and every source row. Headerless tables
-//! use an empty header, footers become final body rows, and unsupported spans,
-//! styles, widths, local alignment, and nested blocks use content-preserving
-//! fallbacks with structured warnings.
+//! GFM tables retain column-level horizontal alignment and every source row.
+//! Headerless tables use an empty header, footers become final body rows, and
+//! unsupported spans, styles, widths, local alignment, and nested blocks use
+//! content-preserving fallbacks with structured warnings.
 //! Images retain alternative text, titles, dimensions, and links. Video
 //! posters render as static images, and every audio or video source remains
 //! available as a labeled link, with one playback warning per document.
+//! With `:acdc-index:` and a final `[index]` section, index terms produce an
+//! alphabetized catalog with occurrence links, hierarchy, and `see` /
+//! `see-also` relationships. This extension uses the same opt-in policy as the
+//! HTML converter.
 //!
 //! # Limitations
 //!
@@ -86,24 +91,30 @@
 //! - Collect a structured converter warning
 //! - Provide a reasonable fallback (e.g., blockquote for admonitions)
 //! - Preserve content as appropriate (e.g., raw text, URL/path)
+//!
+//! Document-wide fallback warnings are emitted once per capability. Any
+//! warnings about individual resources remain distinct so each failed resource
+//! can be identified.
 
 use std::{
-    cell::Cell,
-    collections::HashMap,
+    cell::{Cell, RefCell},
+    collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
     rc::Rc,
 };
 
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
-    xref::XrefGuard,
+    BackendTraits, Converter, Diagnostics, Options, WarningSource, section::last_section_has_style,
+    visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
-    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Reference, TocEntry,
+    AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Reference,
+    TocEntry,
 };
 
 mod error;
+mod index;
 mod markdown_visitor;
 
 pub use error::Error;
@@ -151,6 +162,29 @@ impl MarkdownVariant {
 /// Intrinsic traits for the Markdown backend.
 const BACKEND_TRAITS: BackendTraits = BackendTraits::new("markdown", "markdown", "md", ".md");
 
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct IndexTermLabel {
+    pub(crate) plain: String,
+    pub(crate) rendered: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IndexTermEntry {
+    pub(crate) primary: IndexTermLabel,
+    pub(crate) secondary: Option<IndexTermLabel>,
+    pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) relationship: IndexCatalogRelationship,
+    pub(crate) anchor_id: String,
+    pub(crate) section_title: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum IndexCatalogRelationship {
+    None,
+    See(IndexTermLabel),
+    SeeAlso(Vec<IndexTermLabel>),
+}
+
 impl std::fmt::Display for MarkdownVariant {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.as_str())
@@ -172,6 +206,10 @@ pub struct Processor<'a> {
     pub(crate) figure_counter: Rc<Cell<u32>>,
     pub(crate) listing_counter: Rc<Cell<u32>>,
     pub(crate) table_counter: Rc<Cell<u32>>,
+    index_term_counter: Rc<Cell<usize>>,
+    index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
+    generate_index: bool,
+    warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
     variant: MarkdownVariant,
 }
 
@@ -188,6 +226,30 @@ impl Processor<'_> {
     #[must_use]
     pub fn variant(&self) -> MarkdownVariant {
         self.variant
+    }
+
+    #[must_use]
+    pub(crate) fn generate_index(&self) -> bool {
+        self.generate_index
+    }
+
+    #[must_use]
+    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+        &self.index_entries
+    }
+
+    #[must_use]
+    pub(crate) fn add_index_entry(&self, mut entry: IndexTermEntry) -> String {
+        let count = self.index_term_counter.get();
+        self.index_term_counter.set(count + 1);
+        let anchor_id = format!("_indexterm_{count}");
+        entry.anchor_id.clone_from(&anchor_id);
+        self.index_entries.borrow_mut().push(entry);
+        anchor_id
+    }
+
+    pub(crate) fn mark_fallback(&self, key: &'static str) -> bool {
+        self.warned_fallbacks.borrow_mut().insert(key)
     }
 
     pub(crate) fn caption_prefix(
@@ -243,6 +305,10 @@ impl<'a> Converter<'a> for Processor<'a> {
             figure_counter: Rc::new(Cell::new(0)),
             listing_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
+            index_term_counter: Rc::new(Cell::new(0)),
+            index_entries: Rc::new(RefCell::new(Vec::new())),
+            generate_index: false,
+            warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             variant: MarkdownVariant::default(),
         }
     }
@@ -287,6 +353,11 @@ impl<'a> Converter<'a> for Processor<'a> {
             figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
             listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
+            index_term_counter: Rc::new(Cell::new(0)),
+            index_entries: Rc::new(RefCell::new(Vec::new())),
+            generate_index: index_generation_enabled(&doc.attributes)
+                && last_section_has_style(&doc.blocks, "index"),
+            warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             variant: self.variant,
         };
         let mut visitor = MarkdownVisitor::new(writer, processor, diagnostics.reborrow());
@@ -300,6 +371,12 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn warning_source(&self) -> WarningSource {
         WarningSource::new("markdown").with_variant(self.variant.as_str())
     }
+}
+
+fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
+    attributes
+        .get("acdc-index")
+        .is_some_and(|value| !matches!(value, AttributeValue::Bool(false) | AttributeValue::None))
 }
 
 #[cfg(test)]

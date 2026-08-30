@@ -3,7 +3,7 @@
 use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
-    Converter, Diagnostics,
+    Converter, Diagnostics, Warning,
     code::{SourceLineOptions, default_line_comment, detect_language},
     icon,
     inline_text::InlineTextTransform,
@@ -24,12 +24,16 @@ use acdc_parser::{
     Admonition, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList,
     CaptionKind, ColumnStyle, ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Footnote, Header, HorizontalAlignment, Image,
-    InlineMacro, InlineNode, Link, ListItem, ListItemCheckedStatus, OrderedList, PageBreak,
-    Paragraph, Section, SectionKind, Source, Substitution, Table, TableColumn, TableOfContents,
-    ThematicBreak, Title, TocEntry, UnorderedList, VerticalAlignment, Video,
+    IndexTerm, IndexTermRelationship, InlineMacro, InlineNode, Link, ListItem,
+    ListItemCheckedStatus, Location, OrderedList, PageBreak, Paragraph, Section, SectionKind,
+    Source, SourceLocation, Substitution, Table, TableColumn, TableOfContents, ThematicBreak,
+    Title, TocEntry, UnorderedList, VerticalAlignment, Video,
 };
 
-use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
+use crate::{
+    BACKEND_TRAITS, Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel,
+    MarkdownVariant, Processor,
+};
 
 struct TocRenderConfig<'a> {
     max_level: u8,
@@ -221,8 +225,34 @@ fn is_linked_image(node: &InlineNode<'_>) -> bool {
     )
 }
 
-fn raw_content(nodes: &[InlineNode<'_>]) -> String {
+fn block_location<'block>(block: &'block Block<'_>) -> Option<&'block Location> {
+    match block {
+        Block::TableOfContents(block) => Some(&block.location),
+        Block::Admonition(block) => Some(&block.location),
+        Block::DiscreteHeader(block) => Some(&block.location),
+        Block::DocumentAttribute(block) => Some(&block.location),
+        Block::ThematicBreak(block) => Some(&block.location),
+        Block::PageBreak(block) => Some(&block.location),
+        Block::UnorderedList(block) => Some(&block.location),
+        Block::OrderedList(block) => Some(&block.location),
+        Block::CalloutList(block) => Some(&block.location),
+        Block::DescriptionList(block) => Some(&block.location),
+        Block::Section(block) => Some(&block.location),
+        Block::DelimitedBlock(block) => Some(&block.location),
+        Block::Paragraph(block) => Some(&block.location),
+        Block::Image(block) => Some(&block.location),
+        Block::Audio(block) => Some(&block.location),
+        Block::Video(block) => Some(&block.location),
+        Block::Comment(block) => Some(&block.location),
+        _ => None,
+    }
+}
+
+fn raw_content<'nodes, 'source>(
+    nodes: &'nodes [InlineNode<'source>],
+) -> (String, Option<&'nodes InlineNode<'source>>) {
     let mut output = String::new();
+    let mut unknown = None;
     for node in nodes {
         match node {
             InlineNode::VerbatimText(text) => output.push_str(text.content),
@@ -242,15 +272,25 @@ fn raw_content(nodes: &[InlineNode<'_>]) -> String {
             | InlineNode::CurvedApostropheText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | _ => {}
+            | InlineNode::Macro(_) => {
+                let _ = InlineTextTransform::default()
+                    .line_break("\n")
+                    .write(&mut output, std::slice::from_ref(node));
+            }
+            _ => {
+                unknown.get_or_insert(node);
+            }
         }
     }
-    output
+    (output, unknown)
 }
 
-fn source_content(nodes: &[InlineNode<'_>], language: Option<&str>) -> String {
+fn source_content<'nodes, 'source>(
+    nodes: &'nodes [InlineNode<'source>],
+    language: Option<&str>,
+) -> (String, Option<&'nodes InlineNode<'source>>) {
     let mut output = String::new();
+    let mut unknown = None;
     let comment_prefix = default_line_comment(language);
     for (index, node) in nodes.iter().enumerate() {
         match node {
@@ -294,11 +334,17 @@ fn source_content(nodes: &[InlineNode<'_>], language: Option<&str>) -> String {
             | InlineNode::CurvedApostropheText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::Macro(_)
-            | _ => {}
+            | InlineNode::Macro(_) => {
+                let _ = InlineTextTransform::default()
+                    .line_break("\n")
+                    .write(&mut output, std::slice::from_ref(node));
+            }
+            _ => {
+                unknown.get_or_insert(node);
+            }
         }
     }
-    output
+    (output, unknown)
 }
 
 fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
@@ -346,8 +392,9 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     pub(crate) heading_level: usize,
     list_depth: usize,
     emitted_anchors: HashSet<String>,
-    warned_fallbacks: HashSet<&'static str>,
     in_link_text: bool,
+    collect_index_terms: bool,
+    current_section_title: Option<String>,
     /// Footnotes collected for document-end output as `(id, number, rendered content)`.
     pub(crate) footnotes: Vec<(String, u32, String)>,
 }
@@ -362,8 +409,9 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             heading_level: 0,
             list_depth: 0,
             emitted_anchors: HashSet::new(),
-            warned_fallbacks: HashSet::new(),
             in_link_text: false,
+            collect_index_terms: true,
+            current_section_title: None,
             footnotes: Vec::new(),
         }
     }
@@ -589,7 +637,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         content: &[InlineNode<'_>],
     ) -> Result<(), Error> {
         let language = detect_language(metadata);
-        let content = source_content(content, language);
+        let (content, unknown) = source_content(content, language);
+        if let Some(node) = unknown {
+            self.warn_unknown_inline_node(node);
+        }
         self.warn_source_options(metadata, &content, language);
 
         writeln!(self.writer, "```{}", language.unwrap_or_default())?;
@@ -635,9 +686,48 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 
     fn warn_once(&mut self, key: &'static str, message: &'static str, advice: &'static str) {
-        if self.warned_fallbacks.insert(key) {
+        if self.processor.mark_fallback(key) {
             self.diagnostics.warn_with_advice(message, advice);
         }
+    }
+
+    fn warn_once_at(
+        &mut self,
+        key: &'static str,
+        message: impl Into<Cow<'static, str>>,
+        advice: &'static str,
+        location: Option<&Location>,
+    ) {
+        if self.processor.mark_fallback(key) {
+            let mut warning =
+                Warning::new(self.diagnostics.source().clone(), message).with_advice(advice);
+            if let Some(location) = location {
+                warning = warning.at(SourceLocation::at_location(None, location.clone()));
+            }
+            self.diagnostics.emit(warning);
+        }
+    }
+
+    fn warn_unknown_inline_node(&mut self, node: &InlineNode<'_>) {
+        self.warn_once_at(
+            "unknown-inline-node",
+            format!(
+                "unknown inline feature is not supported by the Markdown backend; skipping content: {node:?}"
+            ),
+            "Use a backend that supports this inline feature, or replace it with portable inline content.",
+            Some(node.location()),
+        );
+    }
+
+    fn with_index_collection<T>(
+        &mut self,
+        enabled: bool,
+        render: impl FnOnce(&mut Self) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        let previous = std::mem::replace(&mut self.collect_index_terms, enabled);
+        let result = render(self);
+        self.collect_index_terms = previous;
+        result
     }
 
     fn write_code_span(&mut self, content: &str) -> Result<(), Error> {
@@ -755,6 +845,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             );
             visitor.heading_level = self.heading_level;
             visitor.list_depth = self.list_depth;
+            visitor.collect_index_terms = self.collect_index_terms;
+            visitor
+                .current_section_title
+                .clone_from(&self.current_section_title);
             for node in &footnote.content {
                 visitor.visit_inline_node(node)?;
             }
@@ -764,8 +858,80 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(id)
     }
 
+    fn render_index_term_label(
+        &mut self,
+        inlines: &[InlineNode<'_>],
+    ) -> Result<IndexTermLabel, Error> {
+        let plain = InlineTextTransform::default()
+            .references(&self.processor.references)
+            .to_string(inlines);
+        let mut output = Vec::new();
+        {
+            let mut visitor = MarkdownVisitor::new(
+                &mut output,
+                self.processor.clone(),
+                self.diagnostics.reborrow(),
+            );
+            visitor.collect_index_terms = false;
+            visitor.in_link_text = true;
+            visitor
+                .current_section_title
+                .clone_from(&self.current_section_title);
+            visitor.visit_inline_nodes(inlines)?;
+        }
+        Ok(IndexTermLabel {
+            plain,
+            rendered: String::from_utf8(output)?,
+        })
+    }
+
+    fn visit_index_term(&mut self, term: &IndexTerm<'_>) -> Result<(), Error> {
+        if self.collect_index_terms && self.processor.generate_index() {
+            let primary = self.render_index_term_label(term.term())?;
+            let secondary = term
+                .secondary()
+                .map(|inlines| self.render_index_term_label(inlines))
+                .transpose()?;
+            let tertiary = term
+                .tertiary()
+                .map(|inlines| self.render_index_term_label(inlines))
+                .transpose()?;
+            let relationship = match term.relationship.as_ref() {
+                Some(IndexTermRelationship::See { target }) => {
+                    IndexCatalogRelationship::See(self.render_index_term_label(target)?)
+                }
+                Some(IndexTermRelationship::SeeAlso { targets }) => {
+                    IndexCatalogRelationship::SeeAlso(
+                        targets
+                            .iter()
+                            .map(|target| self.render_index_term_label(target))
+                            .collect::<Result<_, _>>()?,
+                    )
+                }
+                None | Some(_) => IndexCatalogRelationship::None,
+            };
+            let anchor_id = self.processor.add_index_entry(IndexTermEntry {
+                primary,
+                secondary,
+                tertiary,
+                relationship,
+                anchor_id: String::new(),
+                section_title: self.current_section_title.clone(),
+            });
+            self.write_anchor(&anchor_id)?;
+        }
+
+        if term.is_visible() {
+            self.visit_inline_nodes(term.term())?;
+        }
+        Ok(())
+    }
+
     fn write_raw_block_content(&mut self, content: &[InlineNode<'_>]) -> Result<(), Error> {
-        let content = raw_content(content);
+        let (content, unknown) = raw_content(content);
+        if let Some(node) = unknown {
+            self.warn_unknown_inline_node(node);
+        }
         write!(self.writer, "{content}")?;
         if !content.ends_with('\n') {
             writeln!(self.writer)?;
@@ -821,12 +987,19 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    /// Write a warning comment to the output for unsupported features.
-    fn write_warning(&mut self, feature: &str, fallback: &str) -> Result<(), Error> {
-        self.diagnostics.warn_with_advice(
-            format!("{feature} not natively supported in Markdown, {fallback}"),
-            "Check whether the selected Markdown variant can represent this construct, or use a backend that preserves it.",
-        );
+    /// Write a fallback marker and record its structured warning once per document.
+    fn write_warning(
+        &mut self,
+        key: &'static str,
+        feature: &str,
+        fallback: &str,
+    ) -> Result<(), Error> {
+        if self.processor.mark_fallback(key) {
+            self.diagnostics.warn_with_advice(
+                format!("{feature} not natively supported in Markdown, {fallback}"),
+                "Check whether the selected Markdown variant can represent this construct, or use a backend that preserves it.",
+            );
+        }
         // Markdown comments are not standard, but HTML comments work in most renderers
         writeln!(
             self.writer,
@@ -1023,7 +1196,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if has_output {
             writeln!(self.writer)?;
         }
-        self.render_toc(toc_macro, placement)?;
+        self.with_index_collection(false, |visitor| visitor.render_toc(toc_macro, placement))?;
         Ok(true)
     }
 
@@ -1042,20 +1215,22 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                         || !table.rows.is_empty()
                         || table.footer.is_some()
                 }
+                DelimitedBlockType::DelimitedComment(_) => false,
                 DelimitedBlockType::DelimitedExample(_)
                 | DelimitedBlockType::DelimitedListing(_)
                 | DelimitedBlockType::DelimitedLiteral(_)
                 | DelimitedBlockType::DelimitedSidebar(_)
                 | DelimitedBlockType::DelimitedPass(_)
                 | DelimitedBlockType::DelimitedVerse(_)
-                | DelimitedBlockType::DelimitedStem(_) => true,
-                DelimitedBlockType::DelimitedComment(_) | _ => false,
+                | DelimitedBlockType::DelimitedStem(_)
+                | _ => true,
             },
             Block::TableOfContents(toc) => {
                 toc.metadata.id.is_some()
                     || !toc.metadata.anchors.is_empty()
                     || self.toc_will_render(Some(toc), "macro")
             }
+            Block::Comment(_) | Block::DocumentAttribute(_) => false,
             Block::Admonition(_)
             | Block::DiscreteHeader(_)
             | Block::ThematicBreak(_)
@@ -1068,8 +1243,8 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             | Block::Paragraph(_)
             | Block::Image(_)
             | Block::Audio(_)
-            | Block::Video(_) => true,
-            Block::Comment(_) | Block::DocumentAttribute(_) | _ => false,
+            | Block::Video(_)
+            | _ => true,
         }
     }
 
@@ -1116,6 +1291,18 @@ impl<W: Write> WritableVisitor for MarkdownVisitor<'_, '_, W> {
 
 impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     type Error = Error;
+
+    fn visit_unhandled_block(&mut self, block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_once_at(
+            "unknown-parser-block",
+            format!(
+                "unknown parser block feature is not supported by the Markdown backend; skipping content: {block:?}"
+            ),
+            "Use a backend that supports this block feature, or replace it with a portable AsciiDoc construct.",
+            block_location(block),
+        );
+        Ok(())
+    }
 
     fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
         self.visit_document_start(doc)?;
@@ -1225,40 +1412,52 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        self.write_block_anchor(&Section::generate_id_string(
-            &section.metadata,
-            &section.title,
-        ))?;
+        let section_title = InlineTextTransform::default()
+            .references(&self.processor.references)
+            .to_string(section.title.as_ref());
+        let previous_section_title = self.current_section_title.replace(section_title);
 
-        let effective_level = effective_section_level(section.level, section.kind);
-        let level = effective_level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6
-        let level = level.min(6); // Markdown only supports 6 heading levels
+        let result = (|| {
+            self.write_block_anchor(&Section::generate_id_string(
+                &section.metadata,
+                &section.title,
+            ))?;
 
-        if effective_level >= 6 {
-            self.diagnostics.warn_with_advice(
-                format!(
-                    "section level {} exceeds Markdown maximum 6, capping at level 6",
-                    effective_level + 1
-                ),
+            let effective_level = effective_section_level(section.level, section.kind);
+            let level = effective_level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6
+            let level = level.min(6); // Markdown only supports 6 heading levels
+
+            if effective_level >= 6 {
+                self.warn_once(
+                "section-heading-depth",
+                "section levels deeper than Markdown maximum 6 are capped at level 6",
                 "Markdown only has six heading levels. Reduce the source section depth if the distinction matters.",
             );
-        }
+            }
 
-        if !section.metadata.options.contains(&"notitle") {
-            let hashes = "#".repeat(level as usize);
-            write!(self.writer, "{hashes} {}", self.section_prefix(section))?;
-            self.visit_inline_nodes(section.title.as_ref())?;
-            writeln!(self.writer)?;
-        }
+            if !section.metadata.options.contains(&"notitle") {
+                let hashes = "#".repeat(level as usize);
+                write!(self.writer, "{hashes} {}", self.section_prefix(section))?;
+                self.visit_inline_nodes(section.title.as_ref())?;
+                writeln!(self.writer)?;
+            }
 
-        // Visit section content
-        let prev_level = self.heading_level;
-        self.heading_level = level as usize;
+            // Render the section body or its generated index catalog.
+            let prev_level = self.heading_level;
+            self.heading_level = level as usize;
 
-        self.visit_separated_blocks(&section.content, true)?;
+            if section.kind == SectionKind::Index && self.processor.generate_index() {
+                let processor = self.processor.clone();
+                crate::index::render(self, &processor, self.heading_level + 1)?;
+            } else {
+                self.visit_separated_blocks(&section.content, true)?;
+            }
 
-        self.heading_level = prev_level;
-        Ok(())
+            self.heading_level = prev_level;
+            Ok(())
+        })();
+        self.current_section_title = previous_section_title;
+        result
     }
 
     fn visit_paragraph(&mut self, paragraph: &Paragraph) -> Result<(), Self::Error> {
@@ -1290,7 +1489,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_fenced_code_block(&paragraph.metadata, &paragraph.content)?;
             }
             Some("example") => {
-                self.write_warning("example paragraphs", "using blockquote")?;
+                self.write_warning(
+                    "example-blockquotes",
+                    "example paragraphs",
+                    "using blockquote",
+                )?;
                 self.write_blockquote_inlines(&paragraph.content)?;
             }
             _ => {
@@ -1331,6 +1534,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         {
             self.write_list_indent()?;
             self.write_warning(
+                "ordered-list-numbering",
                 "non-numeric ordered list numbering styles",
                 "rendering numerically",
             )?;
@@ -1361,14 +1565,14 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_page_break(&mut self, page_break: &PageBreak) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&page_break.metadata)?;
         // Page breaks don't exist in Markdown; use thematic break as fallback
-        self.write_warning("page breaks", "using horizontal rule")?;
+        self.write_warning("page-breaks", "page breaks", "using horizontal rule")?;
         writeln!(self.writer, "---")?;
         Ok(())
     }
 
     fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&toc.metadata)?;
-        self.render_toc(Some(toc), "macro")?;
+        self.with_index_collection(false, |visitor| visitor.render_toc(Some(toc), "macro"))?;
         Ok(())
     }
 
@@ -1406,13 +1610,17 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 } else {
                     // Examples don't have a direct Markdown equivalent
                     // Use blockquote as fallback
-                    self.write_warning("example blocks", "using blockquote")?;
+                    self.write_warning(
+                        "example-blockquotes",
+                        "example blocks",
+                        "using blockquote",
+                    )?;
                     self.visit_blockquote_blocks(blocks)?;
                 }
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 // Sidebars don't have a direct Markdown equivalent
-                self.write_warning("sidebar blocks", "using blockquote")?;
+                self.write_warning("sidebar-blocks", "sidebar blocks", "using blockquote")?;
                 self.visit_blockquote_blocks(blocks)?;
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
@@ -1434,11 +1642,22 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedStem(_stem) => {
                 // Math blocks - not supported in standard Markdown
-                self.write_warning("STEM/math blocks", "skipping (use LaTeX-enabled renderer)")?;
+                self.write_warning(
+                    "stem-blocks",
+                    "STEM/math blocks",
+                    "skipping (use LaTeX-enabled renderer)",
+                )?;
             }
             _ => {
-                self.diagnostics
-                    .warn("unsupported delimited block type in Markdown, skipping content");
+                self.warn_once_at(
+                    "unknown-delimited-block",
+                    format!(
+                        "unknown delimited block feature is not supported by the Markdown backend; skipping content: {:?}",
+                        block.inner
+                    ),
+                    "Use a backend that supports this block type, or replace it with a portable AsciiDoc construct.",
+                    Some(&block.location),
+                );
             }
         }
         Ok(())
@@ -1471,6 +1690,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 acdc_parser::AdmonitionVariant::Caution => "Caution",
             };
             self.write_warning(
+                "commonmark-admonitions",
                 &format!("{label} admonitions"),
                 "using blockquote with label",
             )?;
@@ -1719,11 +1939,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             InlineNode::CalloutRef(callout) => {
                 write!(self.writer, "({})", callout.number)?;
             }
-            _ => {
-                self.diagnostics.warn(format!(
-                    "unsupported inline node in Markdown, skipping node: {node:?}"
-                ));
-            }
+            _ => self.warn_unknown_inline_node(node),
         }
         Ok(())
     }
@@ -1736,7 +1952,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 impl<W: Write> MarkdownVisitor<'_, '_, W> {
     fn visit_regular_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Error> {
         self.write_list_indent()?;
-        self.write_warning("description lists", "using regular list")?;
+        self.write_warning(
+            "description-list-fallback",
+            "description lists",
+            "using regular list",
+        )?;
         for item in &list.items {
             self.write_list_indent()?;
             write!(self.writer, "- **")?;
@@ -1953,10 +2173,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 })?;
             }
             InlineMacro::CrossReference(xref) => self.visit_cross_reference(xref)?,
-            InlineMacro::IndexTerm(term) if term.is_visible() => {
-                self.visit_inline_nodes(term.term())?;
-            }
-            InlineMacro::IndexTerm(_) => {}
+            InlineMacro::IndexTerm(term) => self.visit_index_term(term)?,
             InlineMacro::Pass(pass) => {
                 if let Some(text) = pass.text {
                     self.write_passthrough(text, &pass.substitutions)?;
@@ -1971,9 +2188,14 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 self.write_code_span(stem.content)?;
             }
             _ => {
-                self.diagnostics.warn(format!(
-                    "unsupported inline macro in Markdown, skipping macro: {mac:?}"
-                ));
+                self.warn_once_at(
+                    "unknown-inline-macro",
+                    format!(
+                        "unknown inline macro feature is not supported by the Markdown backend; skipping content: {mac:?}"
+                    ),
+                    "Use a backend that supports this inline macro, or replace it with portable inline content.",
+                    Some(mac.location()),
+                );
             }
         }
         Ok(())
@@ -2007,52 +2229,54 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        match resolve_xref(references.get(target), xref, &guard) {
-            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
-                .write_anchor_link(target, |visitor| {
-                    for node in inlines {
-                        visitor.visit_inline_node(node)?;
-                    }
-                    Ok(())
-                }),
-            XrefDisplay::ShortCaption(prefix) => self.write_anchor_link(target, |visitor| {
-                write!(visitor.writer, "{prefix}")?;
-                Ok(())
-            }),
-            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
-                self.write_anchor_link(target, |visitor| {
-                    write!(visitor.writer, "{prefix}, “")?;
-                    for node in inlines {
-                        visitor.visit_inline_node(node)?;
-                    }
-                    write!(visitor.writer, "”")?;
-                    Ok(())
-                })
-            }
-            XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
-                self.write_anchor_link(target, |visitor| {
-                    write!(visitor.writer, "{text}")?;
-                    Ok(())
-                })
-            }
-            XrefDisplay::External(target) => {
-                if let Some((destination, text)) = self.interdocument_xref(&target) {
-                    self.write_link(&destination, |visitor| {
-                        write!(visitor.writer, "{text}")?;
+        self.with_index_collection(false, |visitor| {
+            match resolve_xref(references.get(target), xref, &guard) {
+                XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
+                    visitor.write_anchor_link(target, |visitor| {
+                        for node in inlines {
+                            visitor.visit_inline_node(node)?;
+                        }
                         Ok(())
                     })
-                } else {
-                    write!(self.writer, "{target}")?;
+                }
+                XrefDisplay::ShortCaption(prefix) => visitor.write_anchor_link(target, |visitor| {
+                    write!(visitor.writer, "{prefix}")?;
+                    Ok(())
+                }),
+                XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                    visitor.write_anchor_link(target, |visitor| {
+                        write!(visitor.writer, "{prefix}, “")?;
+                        for node in inlines {
+                            visitor.visit_inline_node(node)?;
+                        }
+                        write!(visitor.writer, "”")?;
+                        Ok(())
+                    })
+                }
+                XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => visitor
+                    .write_anchor_link(target, |visitor| {
+                        write!(visitor.writer, "{text}")?;
+                        Ok(())
+                    }),
+                XrefDisplay::External(target) => {
+                    if let Some((destination, text)) = visitor.interdocument_xref(&target) {
+                        visitor.write_link(&destination, |visitor| {
+                            write!(visitor.writer, "{text}")?;
+                            Ok(())
+                        })
+                    } else {
+                        write!(visitor.writer, "{target}")?;
+                        Ok(())
+                    }
+                }
+                // Markdown links do not nest, so a reference inside another one's
+                // text is text alone.
+                XrefDisplay::Nested(text) => {
+                    write!(visitor.writer, "{text}")?;
                     Ok(())
                 }
             }
-            // Markdown links do not nest, so a reference inside another one's
-            // text is text alone.
-            XrefDisplay::Nested(text) => {
-                write!(self.writer, "{text}")?;
-                Ok(())
-            }
-        }
+        })
     }
 
     /// Write `text` as a link to an `#id` fragment.
@@ -2232,7 +2456,11 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
         if self.variant() == MarkdownVariant::CommonMark {
-            self.write_warning("tables", "not supported in CommonMark, skipping")?;
+            self.write_warning(
+                "commonmark-tables",
+                "tables",
+                "not supported in CommonMark, skipping",
+            )?;
             return Ok(());
         }
 
@@ -2383,7 +2611,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         style: Option<ColumnStyle>,
     ) -> Result<(), Error> {
         let mut buffer = Vec::new();
-        let (result, emitted_anchors, warned_fallbacks, footnotes) = {
+        let (result, emitted_anchors, footnotes) = {
             let mut visitor = MarkdownVisitor::new(
                 &mut buffer,
                 self.processor.clone(),
@@ -2391,18 +2619,15 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
             );
             visitor.heading_level = self.heading_level;
             visitor.emitted_anchors = std::mem::take(&mut self.emitted_anchors);
-            visitor.warned_fallbacks = std::mem::take(&mut self.warned_fallbacks);
+            visitor.collect_index_terms = self.collect_index_terms;
+            visitor
+                .current_section_title
+                .clone_from(&self.current_section_title);
             visitor.footnotes = std::mem::take(&mut self.footnotes);
             let result = visitor.visit_separated_blocks(&cell.content, false);
-            (
-                result,
-                visitor.emitted_anchors,
-                visitor.warned_fallbacks,
-                visitor.footnotes,
-            )
+            (result, visitor.emitted_anchors, visitor.footnotes)
         };
         self.emitted_anchors = emitted_anchors;
-        self.warned_fallbacks = warned_fallbacks;
         self.footnotes = footnotes;
         let _ = result?;
         let content = flatten_table_cell(&String::from_utf8(buffer)?);

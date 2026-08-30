@@ -1,8 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
+use acdc_converters_core::{
+    Converter, GeneratorMetadata, Options as ConverterOptions, visitor::Visitor,
+};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_markdown::{MarkdownVariant, Processor};
+use acdc_converters_markdown::{MarkdownVariant, MarkdownVisitor, Processor};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
@@ -507,5 +509,91 @@ fn inline_stem_fallback_warning_is_deduplicated() -> Result<(), Error> {
             "expected {expected:?} in {output}"
         );
     }
+    Ok(())
+}
+
+#[test]
+fn linked_index_catalog_requires_both_opt_ins() -> Result<(), Error> {
+    let body = "== Terms\n\nVisible ((Cats)) and concealed (((Animals, Mammals))).\n";
+    let index = "\n[index]\n== Index\n";
+
+    let (section_only, _) = convert_str(&format!("= Doc\n\n{body}{index}"))?;
+    let (attribute_only, _) = convert_str(&format!("= Doc\n:acdc-index:\n\n{body}"))?;
+    for output in [&section_only, &attribute_only] {
+        assert!(!output.contains("_indexterm_"), "{output}");
+        assert!(!output.contains("### A"), "{output}");
+    }
+
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (enabled, _) =
+            convert_str_with_variant(&format!("= Doc\n:acdc-index:\n\n{body}{index}"), variant)?;
+        for expected in [
+            "<a id=\"_indexterm_0\"></a>Cats",
+            "<a id=\"_indexterm_1\"></a>",
+            "### A",
+            "- Animals",
+            "  - Mammals — [Terms](#_indexterm_1)",
+            "### C",
+            "- Cats — [Terms](#_indexterm_0)",
+        ] {
+            assert!(
+                enabled.contains(expected),
+                "missing {expected:?} for {variant}: {enabled}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Result<(), Error> {
+    let input = "stem:[body]\n\nFootnotes footnote:[stem:[first]] and footnote:[stem:[second]].\n\n<<<\n\n<<<\n\n[upperalpha]\n. One\n\nParagraph.\n\n[lowerroman]\n. Two\n";
+    let (_output, warnings) = convert_str(input)?;
+
+    for message in [
+        "inline STEM is not supported",
+        "page breaks not natively supported",
+        "non-numeric ordered list numbering styles not natively supported",
+    ] {
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|warning| warning.message.contains(message))
+                .count(),
+            1,
+            "{warnings:?}"
+        );
+    }
+    assert_eq!(warnings.len(), 3, "{warnings:?}");
+    assert!(
+        warnings.iter().all(|warning| warning.advice().is_some()),
+        "{warnings:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<(), Error> {
+    let parsed = acdc_parser::parse("Paragraph.\n", &ParserOptions::default())?;
+    let doc = parsed.document();
+    let block = doc.blocks.first().ok_or("missing test block")?;
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("markdown");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    {
+        let mut visitor = MarkdownVisitor::new(&mut output, processor, diagnostics.reborrow());
+        visitor.visit_unhandled_block(block)?;
+    }
+
+    assert!(output.is_empty());
+    let warning = warnings.first().ok_or("missing fallback warning")?;
+    assert!(
+        warning.message.contains("unknown parser block feature"),
+        "{warnings:?}"
+    );
+    assert!(warning.advice().is_some(), "{warnings:?}");
+    assert!(warning.source_location().is_some(), "{warnings:?}");
     Ok(())
 }

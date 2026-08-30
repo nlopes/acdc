@@ -56,6 +56,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   captions.
 - Visible index terms preserve inline formatting, links, and attribute
   substitutions; concealed terms remain hidden.
+- Documents with `:acdc-index:` and a final `[index]` section now produce an
+  alphabetized Markdown index with occurrence links, hierarchical terms, and
+  linked `see` / `see-also` relationships. Index terms copied into TOCs and
+  automatic cross-reference text do not create duplicate entries.
 - Ordered lists honor positive `start` values and the `reversed` option,
   including on nested lists. Markerless ordered and unordered styles use a
   readable marker-free layout, and CommonMark keeps visible checked and
@@ -85,6 +89,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable Markdown conversion fallbacks such as skipped unsupported blocks,
   unsupported inline constructs, and capped heading levels.
+- Document-wide fallback diagnostics now appear once per unsupported
+  capability, including fallbacks rendered through footnotes and table cells.
+  Resource-specific failures remain separate, and unknown AST features include
+  available source context.
 - **`MarkdownVariant` enum** (`CommonMark` / `GitHubFlavored`) with `FromStr`
   and `Display`. `Processor::new` defaults to `GitHubFlavored`; use
   `Processor::with_variant` for another flavour.
