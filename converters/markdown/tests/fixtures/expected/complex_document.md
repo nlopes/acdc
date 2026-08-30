@@ -1,5 +1,8 @@
 # Complex Document Title
 
+By Author Name <author@example.com>
+Version 1.0, 2024-01-15
+
 This is the preamble with an introduction paragraph.
 
 <a id="_introduction"></a>
@@ -57,6 +60,7 @@ Simple table:
 ### Blockquote
 
 > Don't Panic.
+> — Douglas Adams, <cite>The Hitchhiker's Guide to the Galaxy</cite>
 
 <a id="_admonition"></a>
 ### Admonition

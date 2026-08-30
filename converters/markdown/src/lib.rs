@@ -38,6 +38,9 @@
 //! Parser-assigned section numbers are preserved, while `%notitle` hides only
 //! the section heading. Tables of contents render as nested section links at
 //! the configured automatic, preamble, or macro position.
+//! Document headers retain subtitles, authors, revision details, and explicit
+//! IDs. Block titles retain resolved caption labels and numbers, and quote and
+//! verse credits remain visible.
 //!
 //! # Limitations
 //!
@@ -59,6 +62,7 @@
 //! - Preserve content as appropriate (e.g., raw text, URL/path)
 
 use std::{
+    cell::Cell,
     collections::HashMap,
     io::Write,
     path::{Path, PathBuf},
@@ -69,7 +73,9 @@ use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
     xref::XrefGuard,
 };
-use acdc_parser::{Document, DocumentAttributes, Reference, TocEntry};
+use acdc_parser::{
+    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Reference, TocEntry,
+};
 
 mod error;
 mod markdown_visitor;
@@ -136,6 +142,10 @@ pub struct Processor<'a> {
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) example_counter: Rc<Cell<u32>>,
+    pub(crate) figure_counter: Rc<Cell<u32>>,
+    pub(crate) listing_counter: Rc<Cell<u32>>,
+    pub(crate) table_counter: Rc<Cell<u32>>,
     variant: MarkdownVariant,
 }
 
@@ -153,6 +163,43 @@ impl Processor<'_> {
     pub fn variant(&self) -> MarkdownVariant {
         self.variant
     }
+
+    pub(crate) fn caption_prefix(
+        &self,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<String> {
+        let resolved = match (&metadata.caption, fallback) {
+            (Some(caption), _) => caption.clone(),
+            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, None) => return None,
+        };
+        match resolved {
+            Caption::Numbered {
+                label,
+                number,
+                kind,
+            } => {
+                let number = number
+                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
+                Some(format!("{label} {number}. "))
+            }
+            Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::Unnumbered | _ => None,
+        }
+    }
+
+    fn next_caption_number(&self, kind: CaptionKind) -> u32 {
+        let counter = match kind {
+            CaptionKind::Figure => &self.figure_counter,
+            CaptionKind::Listing => &self.listing_counter,
+            CaptionKind::Table => &self.table_counter,
+            CaptionKind::Example | _ => &self.example_counter,
+        };
+        let number = counter.get() + 1;
+        counter.set(number);
+        number
+    }
 }
 
 impl<'a> Converter<'a> for Processor<'a> {
@@ -166,6 +213,10 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             toc_entries: Vec::new(),
+            example_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
+            table_counter: Rc::new(Cell::new(0)),
             variant: MarkdownVariant::default(),
         }
     }
@@ -206,6 +257,10 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
             toc_entries: doc.toc_entries.clone(),
+            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
+            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
+            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
+            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
             variant: self.variant,
         };
         let mut visitor = MarkdownVisitor::new(writer, processor, diagnostics.reborrow());

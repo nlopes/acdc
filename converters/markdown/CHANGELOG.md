@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document headers now preserve explicit IDs, subtitles, authors and email
+  addresses, and revision numbers, dates, and remarks as readable Markdown.
+- Paragraph, list, delimited-block, admonition, image, audio, video, and table
+  titles now remain visible as strong title lines. Figure, table, example, and
+  listing titles retain their numbered, custom, or disabled caption prefixes.
+- Quote and verse paragraphs and blocks now preserve their attribution and
+  citation titles, including supported inline formatting.
 - Sections now render parser-assigned numbers for ordinary sections, book
   parts, appendices, and numbered special sections. The `%notitle` option hides
   only the Markdown heading while keeping its destination and body; unlike

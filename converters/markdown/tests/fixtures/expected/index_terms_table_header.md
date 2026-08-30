@@ -3,6 +3,8 @@
 <a id="_cataloged_table"></a>
 ## Cataloged table
 
+<strong>Table 1. Cataloged table</strong>
+
 | Key   | Description with visible **header**, shared term, and related material |
 | --- | --- |
 | 1 | The body contains . |

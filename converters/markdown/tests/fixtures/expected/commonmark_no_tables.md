@@ -7,6 +7,8 @@ This document tests CommonMark output where tables are not supported.
 
 Tables are not supported in CommonMark:
 
+<strong>Table 1. Skipped Table Title</strong>
+
 <!-- Warning: tables not natively supported in Markdown, not supported in CommonMark, skipping -->
 
 The table above should be skipped with a warning.

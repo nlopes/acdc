@@ -35,6 +35,13 @@ Supported constructs:
   top-level heading. Sections preserve parser-assigned section, part, and
   appendix numbers. `%notitle` hides only the section heading and keeps its
   destination and body.
+- **Document metadata**: explicit header IDs, subtitles, authors and email
+  addresses, and revision numbers, dates, and remarks remain visible beneath
+  the document title.
+- **Block titles and captions**: paragraph, list, delimited-block, admonition,
+  image, audio, video, and table titles render as strong title lines adjacent
+  to their content. Numbered, custom, and disabled figure, table, example, and
+  listing captions are preserved.
 - **Cross-reference destinations**: section and discrete-heading IDs, explicit
   block IDs, block and standalone inline anchors, and IDs on formatted spans
   render as portable HTML anchors in both variants.
@@ -44,7 +51,8 @@ Supported constructs:
 - **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough (GFM), links, autolinks, images.
 - **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
 - **Code blocks**: fenced with the source language when specified, plus the callout annotations stripped and rendered as trailing references.
-- **Blockquotes** and quote/verse blocks.
+- **Blockquotes** and quote/verse blocks, including attribution and citation
+  titles.
 - **Tables**: GFM tables with column alignment. Skipped with a warning in CommonMark mode.
 - **Admonitions** (NOTE, TIP, IMPORTANT, WARNING, CAUTION): GitHub Alerts (`> [!NOTE]`) in GFM; plain blockquotes with a bold label in CommonMark.
 - **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected at document end; HTML superscript fallback in CommonMark.

@@ -10,15 +10,17 @@ use acdc_converters_core::{
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
+    shows_block_title,
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, Block, BlockMetadata, CalloutList, CrossReference,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Header, Image,
-    InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, SectionKind,
-    Source, Table, TableOfContents, ThematicBreak, TocEntry, UnorderedList, Video,
+    Admonition, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList, CaptionKind,
+    CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document,
+    Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
+    SectionKind, Source, Table, TableOfContents, ThematicBreak, Title, TocEntry, UnorderedList,
+    Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
@@ -135,6 +137,121 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     fn write_metadata_anchor(&mut self, metadata: &BlockMetadata<'_>) -> Result<(), Error> {
         if let Some(anchor) = metadata.id.as_ref().or_else(|| metadata.anchors.first()) {
             self.write_block_anchor(anchor.id)?;
+        }
+        Ok(())
+    }
+
+    fn write_block_title_line(
+        &mut self,
+        title: &Title<'_>,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        let caption = self.processor.caption_prefix(metadata, fallback);
+        write!(self.writer, "<strong>")?;
+        if let Some(caption) = caption {
+            write!(self.writer, "{}", Self::escape_markdown(&caption))?;
+        }
+        self.visit_inline_nodes(title.as_ref())?;
+        writeln!(self.writer, "</strong>")?;
+        Ok(())
+    }
+
+    fn write_block_title(
+        &mut self,
+        title: &Title<'_>,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        self.write_block_title_line(title, metadata, fallback)?;
+        writeln!(self.writer)?;
+        Ok(())
+    }
+
+    fn write_attribution(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        line_prefix: &str,
+    ) -> Result<(), Error> {
+        let attribution = metadata
+            .attribution
+            .as_ref()
+            .filter(|value| !value.is_empty());
+        let citation = metadata
+            .citetitle
+            .as_ref()
+            .filter(|value| !value.is_empty());
+        if attribution.is_none() && citation.is_none() {
+            return Ok(());
+        }
+
+        write!(self.writer, "{line_prefix}")?;
+        if let Some(attribution) = attribution {
+            write!(self.writer, "— ")?;
+            self.visit_inline_nodes(attribution)?;
+        }
+        if let Some(citation) = citation {
+            if attribution.is_some() {
+                write!(self.writer, ", ")?;
+            }
+            write!(self.writer, "<cite>")?;
+            self.visit_inline_nodes(citation)?;
+            write!(self.writer, "</cite>")?;
+        }
+        writeln!(self.writer)?;
+        Ok(())
+    }
+
+    fn write_author(&mut self, author: &Author<'_>) -> Result<(), Error> {
+        write!(self.writer, "{} ", Self::escape_markdown(author.first_name))?;
+        if let Some(middle_name) = author.middle_name {
+            write!(self.writer, "{} ", Self::escape_markdown(middle_name))?;
+        }
+        write!(self.writer, "{}", Self::escape_markdown(author.last_name))?;
+        if let Some(email) = author.email {
+            write!(self.writer, " <{}>", Self::escape_markdown(email))?;
+        }
+        Ok(())
+    }
+
+    fn write_revision(&mut self) -> Result<(), Error> {
+        let attributes = self.processor.document_attributes();
+        let number = attributes.get_string("revnumber").map(Cow::into_owned);
+        let date = attributes.get_string("revdate").map(Cow::into_owned);
+        let remark = attributes.get_string("revremark").map(Cow::into_owned);
+        let label = attributes
+            .get_string("version-label")
+            .filter(|label| !label.is_empty())
+            .map(Cow::into_owned);
+        if number.is_none() && date.is_none() && remark.is_none() {
+            return Ok(());
+        }
+
+        let has_number = number.is_some();
+        let has_date = date.is_some();
+        if let Some(number) = number {
+            if let Some(label) = label {
+                write!(self.writer, "{} ", Self::escape_markdown(&label))?;
+            }
+            write!(self.writer, "{}", Self::escape_markdown(&number))?;
+            if has_date {
+                write!(self.writer, ", ")?;
+            }
+        }
+        if let Some(date) = date {
+            write!(self.writer, "{}", Self::escape_markdown(&date))?;
+        }
+        if has_number || has_date {
+            writeln!(self.writer)?;
+        }
+        if let Some(remark) = remark {
+            writeln!(self.writer, "{}", Self::escape_markdown(&remark))?;
         }
         Ok(())
     }
@@ -495,15 +612,37 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
-        // Render document title as top-level heading
+        self.write_metadata_anchor(&header.metadata)?;
         if !header.title.is_empty() {
             write!(self.writer, "# ")?;
             self.visit_inline_nodes(header.title.as_ref())?;
+            if let Some(subtitle) = &header.subtitle {
+                write!(self.writer, ": ")?;
+                self.visit_inline_nodes(subtitle)?;
+            }
             writeln!(self.writer)?;
         }
 
-        // Document attributes and metadata are not directly representable in Markdown
-        // Skip author, revision, etc. for now
+        let has_revision = ["revnumber", "revdate", "revremark"].iter().any(|name| {
+            self.processor
+                .document_attributes()
+                .get_string(name)
+                .is_some()
+        });
+        if !header.authors.is_empty() || has_revision {
+            writeln!(self.writer)?;
+        }
+        if !header.authors.is_empty() {
+            write!(self.writer, "By ")?;
+            for (index, author) in header.authors.iter().enumerate() {
+                if index > 0 {
+                    write!(self.writer, "; ")?;
+                }
+                self.write_author(author)?;
+            }
+            writeln!(self.writer)?;
+        }
+        self.write_revision()?;
         Ok(())
     }
 
@@ -558,18 +697,28 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             });
         }
 
+        self.write_block_title(
+            &paragraph.title,
+            &paragraph.metadata,
+            CaptionKind::for_style(paragraph.metadata.style),
+        )?;
         self.visit_inline_nodes(&paragraph.content)?;
         writeln!(self.writer)?;
+        if matches!(paragraph.metadata.style, Some("quote" | "verse")) {
+            self.write_attribution(&paragraph.metadata, "")?;
+        }
         Ok(())
     }
 
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
+        self.write_block_title(&list.title, &list.metadata, None)?;
         self.visit_list_items(&list.items, "-", 1)
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
+        self.write_block_title(&list.title, &list.metadata, None)?;
 
         // Markdown (CommonMark/GFM) can only express numeric ordered markers.
         // An explicit numbering style that isn't already numeric (arabic/decimal)
@@ -629,6 +778,19 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&block.metadata)?;
 
+        let collapsible = matches!(block.inner, DelimitedBlockType::DelimitedExample(_))
+            && block.metadata.options.contains(&"collapsible");
+        if !collapsible
+            && !matches!(block.inner, DelimitedBlockType::DelimitedComment(_))
+            && shows_block_title(&block.inner)
+        {
+            self.write_block_title(
+                &block.title,
+                &block.metadata,
+                CaptionKind::for_delimited(&block.inner, block.metadata.style),
+            )?;
+        }
+
         match &block.inner {
             DelimitedBlockType::DelimitedListing(content) => {
                 // Use fenced code block
@@ -646,6 +808,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
                 self.visit_blockquote_blocks(blocks)?;
+                self.write_attribution(&block.metadata, "> ")?;
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
                 if block.metadata.options.contains(&"collapsible") {
@@ -683,6 +846,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                     self.visit_inline_node(node)?;
                 }
                 writeln!(self.writer)?;
+                self.write_attribution(&block.metadata, "> ")?;
             }
             DelimitedBlockType::DelimitedComment(_) => {
                 // Comments don't get rendered
@@ -701,6 +865,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_admonition(&mut self, admonition: &Admonition) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&admonition.metadata)?;
+        self.write_block_title(&admonition.title, &admonition.metadata, None)?;
 
         // GitHub Flavored Markdown supports Alerts syntax (> [!TYPE])
         // CommonMark falls back to blockquote with bold label
@@ -778,11 +943,16 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         } else {
             writeln!(self.writer, "![{alt}]({target})")?;
         }
+        if !image.title.is_empty() {
+            writeln!(self.writer)?;
+            self.write_block_title_line(&image.title, &image.metadata, Some(CaptionKind::Figure))?;
+        }
         Ok(())
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&video.metadata)?;
+        self.write_block_title(&video.title, &video.metadata, None)?;
         // Video embedding not supported in standard Markdown
         self.write_warning("video embedding", "providing link")?;
         if let Some(first_source) = video.sources.first() {
@@ -794,6 +964,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&audio.metadata)?;
+        self.write_block_title(&audio.title, &audio.metadata, None)?;
         // Audio embedding not supported in standard Markdown
         self.write_warning("audio embedding", "providing link")?;
         let target = self.media_target(&audio.source);
@@ -803,6 +974,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
+        self.write_block_title(&list.title, &list.metadata, None)?;
         // Description lists (definition lists) not in standard Markdown
         self.write_list_indent()?;
         self.write_warning("description lists", "using regular list")?;
@@ -842,6 +1014,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
+        self.write_block_title(&list.title, &list.metadata, None)?;
         // Callout lists not supported in Markdown
         self.write_warning("callout lists", "skipping")?;
         Ok(())
