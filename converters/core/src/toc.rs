@@ -19,13 +19,18 @@ use crate::section::{appendix_number_prefix, part_number_prefix, section_number_
 #[derive(Debug, Clone, Copy)]
 pub struct NumberingConfig<'a> {
     part_signifier: Option<&'a str>,
+    chapter_signifier: Option<&'a str>,
     appendix_caption: Option<&'a str>,
 }
 
 impl<'a> NumberingConfig<'a> {
-    /// Builds TOC numbering settings from document attributes.
+    /// Builds TOC numbering settings from document attributes and backend signifiers.
     #[must_use]
-    pub fn new(attributes: &'a DocumentAttributes<'_>, part_signifier: Option<&'a str>) -> Self {
+    pub fn new(
+        attributes: &'a DocumentAttributes<'_>,
+        part_signifier: Option<&'a str>,
+        chapter_signifier: Option<&'a str>,
+    ) -> Self {
         let appendix_caption = match attributes.get("appendix-caption") {
             Some(AttributeValue::String(caption)) => Some(caption.as_ref()),
             Some(AttributeValue::Bool(false)) => None,
@@ -33,6 +38,7 @@ impl<'a> NumberingConfig<'a> {
         };
         Self {
             part_signifier,
+            chapter_signifier,
             appendix_caption,
         }
     }
@@ -70,6 +76,8 @@ pub fn section_numbers(
                 appendix_number_prefix(number, config.appendix_caption)
             } else if entry.level == 0 && entry.kind == SectionKind::Normal {
                 part_number_prefix(number, config.part_signifier)
+            } else if entry.level == 1 && entry.kind == SectionKind::Normal {
+                section_number_prefix(number, config.chapter_signifier)
             } else {
                 section_number_prefix(number, None)
             })

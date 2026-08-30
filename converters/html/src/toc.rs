@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    section::book_chapter_signifier,
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::WritableVisitor,
 };
@@ -149,7 +150,8 @@ fn section_number_config<'p>(processor: &'p crate::Processor<'_>) -> NumberingCo
         Some(AttributeValue::String(value)) => Some(value.as_ref()),
         Some(_) | None => None,
     };
-    NumberingConfig::new(attributes, part_signifier)
+    let chapter_signifier = book_chapter_signifier(attributes, None);
+    NumberingConfig::new(attributes, part_signifier, chapter_signifier)
 }
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {

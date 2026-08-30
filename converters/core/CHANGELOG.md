@@ -93,6 +93,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numbered book TOCs can now retain a configured `chapter-signifier` on
+  chapter entries without adding it to nested sections.
 - Automatic references to sections with a named `reftext` now display that
   label for both its natural alias and explicit ID. The section title is no
   longer accepted as a second natural alias, matching Asciidoctor.

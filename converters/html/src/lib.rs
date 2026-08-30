@@ -1828,6 +1828,34 @@ Content.
         Ok(())
     }
 
+    #[test]
+    fn test_book_chapter_signifier_labels_headings_and_toc_entries() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+:toc:
+:sectnums:
+:chapter-signifier: Unit
+
+== First Chapter
+
+=== Detail
+";
+        let parser_options = acdc_parser::Options::default();
+        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let doc = parsed.document();
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+
+        assert_eq!(html.matches("Unit 1. First Chapter").count(), 2, "{html}");
+        assert_eq!(html.matches("1.1. Detail").count(), 2, "{html}");
+        assert!(!html.contains("Unit 1.1. Detail"), "{html}");
+        Ok(())
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Appendix rendering tests
     // ─────────────────────────────────────────────────────────────────────────

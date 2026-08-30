@@ -291,6 +291,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numbered book chapters now honor a configured `chapter-signifier` in both
+  headings and TOC entries. An absent or unset signifier keeps the number-only
+  form, matching Asciidoctor HTML.
 - Sections with a named `reftext` now link natural references and explicit IDs
   with that display label in standard and semantic HTML. Their titles are not
   retained as second natural aliases, and formatted labels keep their inline

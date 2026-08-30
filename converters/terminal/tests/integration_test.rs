@@ -436,10 +436,7 @@ fn document_structure_keeps_revision_navigation_and_hidden_section_meaning() -> 
     for expected in [
         "Release v2.1",
         "I: Part One",
-        "1. First",
         "1.1. Hidden Heading",
-        "Unit 1. First",
-        "Unit 2. Second",
         "Early Index",
         "Index body.",
         "Hidden body.",
@@ -450,6 +447,8 @@ fn document_structure_keeps_revision_navigation_and_hidden_section_meaning() -> 
             "missing {expected:?} in {output:?}"
         );
     }
+    assert_eq!(plain.matches("Unit 1. First").count(), 2, "{output:?}");
+    assert_eq!(plain.matches("Unit 2. Second").count(), 2, "{output:?}");
     assert_eq!(plain.matches("Hidden Heading").count(), 2, "{output:?}");
 
     let (osc8, osc8_warnings) = render_terminal(input, 80, OSC8_TERMINAL)?;
@@ -462,11 +461,22 @@ fn document_structure_keeps_revision_navigation_and_hidden_section_meaning() -> 
 
 #[test]
 fn unset_chapter_signifier_keeps_only_the_chapter_number() -> Result<(), Error> {
-    let input = "= Guide\n:doctype: book\n:sectnums:\n:chapter-signifier!:\n\n== Start\n";
+    let input = "= Guide\n:doctype: book\n:toc:\n:sectnums:\n:chapter-signifier!:\n\n== Start\n";
     let (output, _) = render_terminal(input, 80, TEXT_TERMINAL)?;
+    let plain = strip_terminal_sequences(&output);
 
-    assert!(output.contains("1. Start"), "{output:?}");
-    assert!(!output.contains("Chapter 1."), "{output:?}");
+    assert_eq!(plain.matches("1. Start").count(), 2, "{output:?}");
+    assert!(!plain.contains("Chapter 1."), "{output:?}");
+    Ok(())
+}
+
+#[test]
+fn default_chapter_signifier_labels_heading_and_toc_entry() -> Result<(), Error> {
+    let input = "= Guide\n:doctype: book\n:toc:\n:sectnums:\n\n== Start\n";
+    let (output, _) = render_terminal(input, 80, TEXT_TERMINAL)?;
+    let plain = strip_terminal_sequences(&output);
+
+    assert_eq!(plain.matches("Chapter 1. Start").count(), 2, "{output:?}");
     Ok(())
 }
 

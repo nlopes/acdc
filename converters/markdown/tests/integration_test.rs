@@ -213,6 +213,23 @@ fn document_title_uses_last_stacked_anchor_as_destination() -> Result<(), Error>
     Ok(())
 }
 
+#[test]
+fn book_chapter_signifier_labels_headings_and_toc_entries() -> Result<(), Error> {
+    let (output, warnings) = convert_str(
+        "= Book Title\n:doctype: book\n:toc:\n:sectnums:\n:chapter-signifier: Unit\n\n== First Chapter\n\n=== Detail\n",
+    )?;
+
+    assert_eq!(
+        output.matches("Unit 1. First Chapter").count(),
+        2,
+        "{output}"
+    );
+    assert_eq!(output.matches("1.1. Detail").count(), 2, "{output}");
+    assert!(!output.contains("Unit 1.1. Detail"), "{output}");
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}
+
 fn markdown_parser_options(variant: MarkdownVariant) -> MarkdownParserOptions {
     let mut options = MarkdownParserOptions::empty();
     if variant == MarkdownVariant::GitHubFlavored {

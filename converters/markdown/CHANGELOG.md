@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numbered book chapters now honor a configured `chapter-signifier` in both
+  headings and TOC entries. An absent or unset signifier keeps the number-only
+  form.
 - When multiple anchors precede a document title, Markdown now emits the last
   one as the title destination, matching Asciidoctor. Automatic references use
   the full title and subtitle.

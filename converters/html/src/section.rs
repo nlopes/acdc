@@ -2,7 +2,8 @@ use std::io::Write;
 
 use acdc_converters_core::{
     section::{
-        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+        appendix_number_prefix, book_chapter_signifier, effective_section_level,
+        part_number_prefix, section_number_prefix,
     },
     visitor::{Visitor, WritableVisitor},
 };
@@ -89,7 +90,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                         string_attribute(processor.document_attributes(), "appendix-caption"),
                     )
                 } else {
-                    section_number_prefix(number, None)
+                    let signifier = (section.level == 1 && section.kind == SectionKind::Normal)
+                        .then(|| book_chapter_signifier(processor.document_attributes(), None))
+                        .flatten();
+                    section_number_prefix(number, signifier)
                 };
                 write!(self.writer, "{prefix}")?;
             }

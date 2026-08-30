@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    section::book_chapter_signifier,
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
 };
@@ -116,7 +117,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             Some(AttributeValue::String(value)) => Some(value.as_ref()),
             Some(_) | None => None,
         };
-        let numbering_config = NumberingConfig::new(&processor.document_attributes, part_signifier);
+        let chapter_signifier =
+            book_chapter_signifier(&processor.document_attributes, Some("Chapter"));
+        let numbering_config = NumberingConfig::new(
+            &processor.document_attributes,
+            part_signifier,
+            chapter_signifier,
+        );
         let numbers = section_numbers(&processor.toc_entries, &numbering_config);
         let real_parts = has_real_parts(&processor.toc_entries);
         let first_level = processor

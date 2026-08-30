@@ -11,7 +11,8 @@ use acdc_converters_core::{
     list::OrderedListNumbering,
     media::resolve_target,
     section::{
-        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+        appendix_number_prefix, book_chapter_signifier, effective_section_level,
+        part_number_prefix, section_number_prefix,
     },
     shows_block_title,
     substitutions::{Replacements, TextBoundaries, strip_backslash_escapes},
@@ -440,7 +441,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 };
                 part_number_prefix(number, signifier)
             } else {
-                section_number_prefix(number, None)
+                let signifier = (section.level == 1 && section.kind == SectionKind::Normal)
+                    .then(|| book_chapter_signifier(self.processor.document_attributes(), None))
+                    .flatten();
+                section_number_prefix(number, signifier)
             }
         })
     }
@@ -1161,10 +1165,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             Some(AttributeValue::String(signifier)) => Some(signifier.as_ref()),
             Some(_) | None => None,
         };
-        let numbers = section_numbers(
-            &processor.toc_entries,
-            &NumberingConfig::new(processor.document_attributes(), part_signifier),
+        let chapter_signifier = book_chapter_signifier(processor.document_attributes(), None);
+        let numbering_config = NumberingConfig::new(
+            processor.document_attributes(),
+            part_signifier,
+            chapter_signifier,
         );
+        let numbers = section_numbers(&processor.toc_entries, &numbering_config);
         let real_parts = has_real_parts(&processor.toc_entries);
         let first_level = processor
             .toc_entries

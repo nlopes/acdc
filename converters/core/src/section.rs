@@ -1,6 +1,6 @@
 //! Section presentation utilities shared by converters.
 
-use acdc_parser::{Block, SectionKind};
+use acdc_parser::{AttributeValue, Block, DocumentAttributes, SectionKind};
 
 /// Whether the last section in `blocks` is tagged with the requested style.
 ///
@@ -28,6 +28,28 @@ pub fn effective_section_level(level: u8, kind: SectionKind) -> u8 {
         1
     } else {
         level
+    }
+}
+
+/// Returns the chapter signifier for a numbered level-one book section.
+///
+/// An explicit empty or unset `chapter-signifier` suppresses the backend's
+/// default.
+#[must_use]
+pub fn book_chapter_signifier<'a>(
+    attributes: &'a DocumentAttributes<'_>,
+    default: Option<&'a str>,
+) -> Option<&'a str> {
+    if attributes.get_string("doctype").as_deref() != Some("book") {
+        return None;
+    }
+
+    match attributes.get("chapter-signifier") {
+        Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
+            Some(signifier.as_ref())
+        }
+        Some(_) => None,
+        None => default,
     }
 }
 

@@ -479,7 +479,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let entries = self.toc_entries.clone();
         let numbers = section_numbers(
             &entries,
-            &NumberingConfig::new(self.processor.document_attributes(), None),
+            &NumberingConfig::new(self.processor.document_attributes(), None, None),
         );
         let has_parts = has_real_parts(&entries);
         let mut root = TocRoot::None;

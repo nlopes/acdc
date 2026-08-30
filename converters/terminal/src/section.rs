@@ -2,7 +2,8 @@ use std::io::Write;
 
 use acdc_converters_core::{
     section::{
-        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+        appendix_number_prefix, book_chapter_signifier, effective_section_level,
+        part_number_prefix, section_number_prefix,
     },
     visitor::WritableVisitor,
 };
@@ -41,20 +42,9 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                     number,
                     string_attribute(&processor.document_attributes, "part-signifier"),
                 )
-            } else if section.level == 1
-                && section.kind == SectionKind::Normal
-                && processor
-                    .document_attributes
-                    .get_string("doctype")
-                    .is_some_and(|doctype| doctype == "book")
-            {
-                let signifier = match processor.document_attributes.get("chapter-signifier") {
-                    Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
-                        Some(signifier.as_ref())
-                    }
-                    Some(_) => None,
-                    None => Some("Chapter"),
-                };
+            } else if section.level == 1 && section.kind == SectionKind::Normal {
+                let signifier =
+                    book_chapter_signifier(&processor.document_attributes, Some("Chapter"));
                 section_number_prefix(number, signifier)
             } else {
                 section_number_prefix(number, None)

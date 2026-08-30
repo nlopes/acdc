@@ -126,6 +126,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Book TOC entries now use the same default, configured, or unset
+  `chapter-signifier` as their chapter headings.
 - Sections with a named `reftext` now use it for natural-reference and explicit-ID
   display text. Their titles are not retained as second natural aliases, and
   formatted labels keep their terminal styling.
