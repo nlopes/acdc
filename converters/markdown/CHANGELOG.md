@@ -10,8 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Inline UI macros, passthroughs, STEM expressions, and roles now retain
-  readable content. GFM uses native strikethrough for `line-through`; other
-  roles use portable HTML fallbacks when Markdown has no equivalent.
+  readable content. Inline STEM uses inline code and block STEM uses
+  notation-labeled fenced code, with structured fallback warnings. GFM uses
+  native strikethrough for `line-through`; other roles use portable HTML
+  fallbacks when Markdown has no equivalent.
 - Link and autolink fallback text now honors `hide-uri-scheme`, bracketed email
   autolinks remain visible, and CommonMark footnotes keep their complete bodies
   in a linked endnote list.

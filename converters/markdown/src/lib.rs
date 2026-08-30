@@ -46,7 +46,7 @@
 //! source callouts retain readable `(n)` markers, bold numbered explanation
 //! labels, and attached blocks.
 //! Inline UI macros, passthroughs, STEM expressions, and roles retain readable
-//! content through native Markdown, embedded HTML, or inline-code fallbacks.
+//! content through native Markdown, embedded HTML, or code fallbacks.
 //! Link fallback text honors `hide-uri-scheme`, bracketed email autolinks stay
 //! visible, and link destinations escape Markdown-sensitive characters.
 //! Ordered lists retain reversed numbering, and ordered and unordered lists
@@ -83,7 +83,8 @@
 //!   source as a labeled link, with one warning per document
 //! - **Complex tables** - GFM cannot preserve spans, structural footers,
 //!   widths, local alignment, or nested block structure exactly
-//! - **Inline STEM** - preserved as inline code with a warning
+//! - **STEM** - inline expressions use inline code and block expressions use
+//!   fenced code, with one warning for each fallback
 //! - **Inline roles and passthroughs** - use embedded HTML where Markdown has
 //!   no equivalent, so rendering depends on HTML support and sanitization
 //!

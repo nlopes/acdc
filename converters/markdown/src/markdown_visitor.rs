@@ -643,12 +643,21 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         }
         self.warn_source_options(metadata, &content, language);
 
-        writeln!(self.writer, "```{}", language.unwrap_or_default())?;
+        self.write_raw_fenced_code_block(language, &content)
+    }
+
+    fn write_raw_fenced_code_block(
+        &mut self,
+        language: Option<&str>,
+        content: &str,
+    ) -> Result<(), Error> {
+        let fence = "`".repeat(max_backtick_run(content).saturating_add(1).max(3));
+        writeln!(self.writer, "{fence}{}", language.unwrap_or_default())?;
         write!(self.writer, "{content}")?;
         if !content.ends_with('\n') {
             writeln!(self.writer)?;
         }
-        writeln!(self.writer, "```")?;
+        writeln!(self.writer, "{fence}")?;
         Ok(())
     }
 
@@ -1640,13 +1649,14 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             DelimitedBlockType::DelimitedComment(_) => {
                 // Comments don't get rendered
             }
-            DelimitedBlockType::DelimitedStem(_stem) => {
-                // Math blocks - not supported in standard Markdown
-                self.write_warning(
+            DelimitedBlockType::DelimitedStem(stem) => {
+                self.warn_once(
                     "stem-blocks",
-                    "STEM/math blocks",
-                    "skipping (use LaTeX-enabled renderer)",
-                )?;
+                    "block STEM is not supported by the Markdown backend; preserving the expression as fenced code",
+                    "Use a Markdown renderer with a math extension, or use a backend that supports STEM rendering.",
+                );
+                let notation = stem.notation.to_string();
+                self.write_raw_fenced_code_block(Some(&notation), stem.content)?;
             }
             _ => {
                 self.warn_once_at(

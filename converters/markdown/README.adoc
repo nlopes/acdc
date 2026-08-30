@@ -117,8 +117,9 @@ fallbacks also leave an inline `<!-- Warning: ... -->` marker in the output:
 - **Arbitrary block roles and options** - dropped when they have no portable
   Markdown representation. Block IDs and anchors remain available as HTML
   destinations.
-- **Inline STEM** - preserved as inline code with a warning until Markdown math
-  extensions are supported.
+- **STEM** - inline expressions use inline code and block expressions use
+  notation-labeled fenced code. Each fallback emits one structured warning
+  until Markdown math extensions are supported.
 - **Inline roles and passthroughs** - use embedded HTML where Markdown has no
   equivalent. Arbitrary roles remain as HTML classes, but their appearance and
   raw passthrough behavior depend on the renderer's HTML support and

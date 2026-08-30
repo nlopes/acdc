@@ -135,4 +135,6 @@ empty language slot
 puts "styled source paragraph"
 ```
 
-<!-- Warning: STEM/math blocks not natively supported in Markdown, skipping (use LaTeX-enabled renderer) -->
+```asciimath
+sqrt(4) = 2
+```

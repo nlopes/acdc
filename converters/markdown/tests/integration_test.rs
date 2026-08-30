@@ -4,10 +4,36 @@ use acdc_converters_core::{
     Converter, GeneratorMetadata, Options as ConverterOptions, visitor::Visitor,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
+use acdc_converters_html::Processor as HtmlProcessor;
 use acdc_converters_markdown::{MarkdownVariant, MarkdownVisitor, Processor};
 use acdc_parser::{DocumentAttributes, Options as ParserOptions};
+use pulldown_cmark::{
+    Alignment, CodeBlockKind, Event, Options as MarkdownParserOptions, Parser as MarkdownParser,
+    Tag, TagEnd,
+};
 
 type Error = Box<dyn std::error::Error>;
+
+const ACCEPTANCE_SEMANTICS: &str = include_str!("fixtures/source/acceptance_semantics.adoc");
+const ACCEPTANCE_DESTINATIONS: &[&str] = &[
+    "_generated_section",
+    "explicit-section",
+    "discrete-id",
+    "paragraph-id",
+    "list-id",
+    "ordered-list-id",
+    "description-list-id",
+    "admonition-id",
+    "listing-id",
+    "image-id",
+    "audio-id",
+    "video-id",
+    "table-id",
+    "toc-id",
+    "callout-list-id",
+    "page-id",
+    "thematic-id",
+];
 
 fn assert_canonical_final_newline(output: &str, fixture: &str) {
     assert!(
@@ -149,6 +175,104 @@ fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning
     convert_str_with_variant(input, MarkdownVariant::GitHubFlavored)
 }
 
+fn convert_html_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let doc = parsed.document();
+
+    let mut output = Vec::new();
+    let converter_options = ConverterOptions::builder()
+        .embedded(false)
+        .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
+        .build();
+    let processor = HtmlProcessor::new(converter_options, doc.attributes.clone());
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("html");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+
+    Ok((String::from_utf8(output)?, warnings))
+}
+
+fn markdown_parser_options(variant: MarkdownVariant) -> MarkdownParserOptions {
+    let mut options = MarkdownParserOptions::empty();
+    if variant == MarkdownVariant::GitHubFlavored {
+        options.insert(MarkdownParserOptions::ENABLE_GFM);
+        options.insert(MarkdownParserOptions::ENABLE_TABLES);
+        options.insert(MarkdownParserOptions::ENABLE_FOOTNOTES);
+        options.insert(MarkdownParserOptions::ENABLE_STRIKETHROUGH);
+        options.insert(MarkdownParserOptions::ENABLE_TASKLISTS);
+    }
+    options
+}
+
+fn parse_markdown(output: &str, variant: MarkdownVariant) -> Vec<Event<'_>> {
+    MarkdownParser::new_ext(output, markdown_parser_options(variant)).collect()
+}
+
+fn parsed_text(events: &[Event<'_>]) -> String {
+    let mut text = String::new();
+    for event in events {
+        match event {
+            Event::Text(content) | Event::Code(content) => text.push_str(content),
+            Event::End(_) | Event::SoftBreak | Event::HardBreak => text.push(' '),
+            Event::Start(_)
+            | Event::InlineMath(_)
+            | Event::DisplayMath(_)
+            | Event::Html(_)
+            | Event::InlineHtml(_)
+            | Event::FootnoteReference(_)
+            | Event::Rule
+            | Event::TaskListMarker(_) => {}
+        }
+    }
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn has_parsed_link(events: &[Event<'_>], destination: &str) -> bool {
+    events.iter().any(|event| {
+        matches!(
+            event,
+            Event::Start(Tag::Link { dest_url, .. }) if dest_url.as_ref() == destination
+        )
+    })
+}
+
+fn has_parsed_anchor(events: &[Event<'_>], id: &str) -> bool {
+    let attribute = format!("id=\"{id}\"");
+    events.iter().any(|event| {
+        matches!(event, Event::Html(html) | Event::InlineHtml(html) if html.contains(&attribute))
+    })
+}
+
+fn maximum_list_depth(events: &[Event<'_>]) -> usize {
+    let mut depth: usize = 0;
+    let mut maximum = 0;
+    for event in events {
+        match event {
+            Event::Start(Tag::List(_)) => {
+                depth += 1;
+                maximum = maximum.max(depth);
+            }
+            Event::End(TagEnd::List(_)) => depth = depth.saturating_sub(1),
+            Event::Start(_)
+            | Event::End(_)
+            | Event::Text(_)
+            | Event::Code(_)
+            | Event::InlineMath(_)
+            | Event::DisplayMath(_)
+            | Event::Html(_)
+            | Event::InlineHtml(_)
+            | Event::FootnoteReference(_)
+            | Event::SoftBreak
+            | Event::HardBreak
+            | Event::Rule
+            | Event::TaskListMarker(_) => {}
+        }
+    }
+    maximum
+}
+
 fn has_numbering_style_warning(warnings: &[acdc_converters_core::Warning]) -> bool {
     warnings.iter().any(|warning| {
         warning
@@ -233,85 +357,287 @@ fn cross_references_render_as_links_to_the_target_anchor() -> Result<(), Error> 
 
 #[test]
 fn block_cross_references_have_stable_destinations_in_both_variants() -> Result<(), Error> {
-    let input = ":toc: macro\n\n\
-                 == Generated Section\n\n\
-                 [#explicit-section]\n=== Explicit Section\n\n\
-                 [#discrete-id,discrete]\n==== Discrete Heading\n\n\
-                 [[paragraph-id]]\nParagraph.\n\n\
-                 [#list-id]\n* Item\n\n\
-                 [[ordered-list-id]]\n. Item\n\n\
-                 [#description-list-id]\nTerm:: Definition\n\n\
-                 [[admonition-id]]\nNOTE: Note.\n\n\
-                 [[listing-id]]\n----\ncode\n----\n\n\
-                 [#image-id]\nimage::image.png[]\n\n\
-                 [[audio-id]]\naudio::audio.mp3[]\n\n\
-                 [#video-id]\nvideo::video.mp4[]\n\n\
-                 [[table-id]]\n|===\n|Cell\n|===\n\n\
-                 [#toc-id]\ntoc::[]\n\n\
-                 [source]\n----\ncallout <1>\n----\n\
-                 [[callout-list-id]]\n<1> Explanation.\n\n\
-                 [#page-id]\n<<<\n\n\
-                 [[thematic-id]]\n'''\n\n\
-                 See <<Generated Section>>, <<explicit-section>>, <<discrete-id>>, \
-                 <<paragraph-id>>, <<list-id>>, <<ordered-list-id>>, <<description-list-id>>, \
-                 <<admonition-id>>, <<listing-id>>, <<image-id>>, <<audio-id>>, <<video-id>>, \
-                 <<table-id>>, <<toc-id>>, <<callout-list-id>>, <<page-id>>, and \
-                 <<thematic-id>>.\n";
-
     for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-        let (output, _warnings) = convert_str_with_variant(input, variant)?;
+        let (output, _warnings) = convert_str_with_variant(ACCEPTANCE_SEMANTICS, variant)?;
+        let events = parse_markdown(&output, variant);
 
-        for id in [
-            "_generated_section",
-            "explicit-section",
-            "discrete-id",
-            "paragraph-id",
-            "list-id",
-            "ordered-list-id",
-            "description-list-id",
-            "admonition-id",
-            "listing-id",
-            "image-id",
-            "audio-id",
-            "video-id",
-            "table-id",
-            "toc-id",
-            "callout-list-id",
-            "page-id",
-            "thematic-id",
-        ] {
+        for id in ACCEPTANCE_DESTINATIONS {
             let anchor = format!(r#"<a id="{id}"></a>"#);
             assert_eq!(
                 output.matches(&anchor).count(),
                 1,
                 "expected one {anchor:?} in {output}"
             );
-        }
-        for destination in [
-            "#_generated_section",
-            "#explicit-section",
-            "#discrete-id",
-            "#paragraph-id",
-            "#list-id",
-            "#ordered-list-id",
-            "#description-list-id",
-            "#admonition-id",
-            "#listing-id",
-            "#image-id",
-            "#audio-id",
-            "#video-id",
-            "#table-id",
-            "#toc-id",
-            "#callout-list-id",
-            "#page-id",
-            "#thematic-id",
-        ] {
             assert!(
-                output.contains(&format!("]({destination})")),
-                "missing link to {destination:?} in {output}"
+                has_parsed_anchor(&events, id),
+                "Markdown parser did not retain anchor {id:?}: {events:?}"
+            );
+            let destination = format!("#{id}");
+            assert!(
+                has_parsed_link(&events, &destination),
+                "Markdown parser did not retain link to {destination:?}: {events:?}"
             );
         }
     }
+    Ok(())
+}
+
+#[test]
+fn gfm_output_parses_with_expected_extended_structure() -> Result<(), Error> {
+    let (table_output, _warnings) =
+        convert_str(include_str!("fixtures/source/table_fallbacks.adoc"))?;
+    let table_events = parse_markdown(&table_output, MarkdownVariant::GitHubFlavored);
+    assert!(
+        table_events.iter().any(|event| {
+            matches!(
+                event,
+                Event::Start(Tag::Table(alignments))
+                    if alignments == &[Alignment::Left, Alignment::Center, Alignment::Right]
+            )
+        }),
+        "missing parsed aligned table: {table_events:?}"
+    );
+    assert!(
+        table_events
+            .iter()
+            .filter(|event| matches!(event, Event::Start(Tag::TableCell)))
+            .count()
+            >= 15,
+        "missing parsed table cells: {table_events:?}"
+    );
+    let table_text = parsed_text(&table_events);
+    for text in [
+        "Table 1. Aligned records",
+        "Nested one",
+        "Second paragraph.",
+    ] {
+        assert!(
+            table_text.contains(text),
+            "missing {text:?}: {table_events:?}"
+        );
+    }
+
+    let (inline_output, _warnings) =
+        convert_str(include_str!("fixtures/source/inline_meaning_links.adoc"))?;
+    let inline_events = parse_markdown(&inline_output, MarkdownVariant::GitHubFlavored);
+    assert_eq!(
+        inline_events
+            .iter()
+            .filter(|event| {
+                matches!(event, Event::FootnoteReference(label) if label.as_ref() == "named")
+            })
+            .count(),
+        2,
+        "missing parsed footnote references: {inline_events:?}"
+    );
+    assert_eq!(
+        inline_events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    Event::Start(Tag::FootnoteDefinition(label)) if label.as_ref() == "named"
+                )
+            })
+            .count(),
+        1,
+        "missing parsed footnote definition: {inline_events:?}"
+    );
+    assert!(
+        inline_events
+            .iter()
+            .any(|event| matches!(event, Event::Code(code) if code.as_ref() == "tick ` inside")),
+        "hostile code delimiters did not parse: {inline_events:?}"
+    );
+    assert!(
+        has_parsed_link(&inline_events, "https://example.com/a_(b)"),
+        "hostile link destination did not parse: {inline_events:?}"
+    );
+
+    let (list_output, _warnings) =
+        convert_str(include_str!("fixtures/source/checklist_contexts.adoc"))?;
+    let list_events = parse_markdown(&list_output, MarkdownVariant::GitHubFlavored);
+    assert!(
+        maximum_list_depth(&list_events) >= 3,
+        "nested GFM lists did not parse: {list_events:?}"
+    );
+    assert!(
+        list_events
+            .iter()
+            .any(|event| matches!(event, Event::TaskListMarker(true))),
+        "GFM task-list state did not parse: {list_events:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn commonmark_output_parses_with_expected_portable_structure() -> Result<(), Error> {
+    let (inline_output, _warnings) = convert_str_with_variant(
+        include_str!("fixtures/source/commonmark_inline_meaning_links.adoc"),
+        MarkdownVariant::CommonMark,
+    )?;
+    let inline_events = parse_markdown(&inline_output, MarkdownVariant::CommonMark);
+    assert_eq!(
+        inline_events
+            .iter()
+            .filter(|event| {
+                matches!(
+                    event,
+                    Event::Start(Tag::Link { dest_url, .. })
+                        if dest_url.as_ref() == "#_footnote_named"
+                )
+            })
+            .count(),
+        2,
+        "CommonMark footnote links did not parse: {inline_events:?}"
+    );
+    assert!(
+        inline_events
+            .iter()
+            .any(|event| matches!(event, Event::Code(code) if code.as_ref() == "tick ` inside")),
+        "hostile code delimiters did not parse: {inline_events:?}"
+    );
+    assert!(
+        has_parsed_link(&inline_events, "https://example.com/a_(b)"),
+        "hostile link destination did not parse: {inline_events:?}"
+    );
+    assert!(
+        parsed_text(&inline_events).contains("Body with bold and code"),
+        "CommonMark footnote body was not retained: {inline_events:?}"
+    );
+
+    let (list_output, _warnings) = convert_str_with_variant(
+        include_str!("fixtures/source/commonmark_checklist_contexts.adoc"),
+        MarkdownVariant::CommonMark,
+    )?;
+    let list_events = parse_markdown(&list_output, MarkdownVariant::CommonMark);
+    assert!(
+        maximum_list_depth(&list_events) >= 3,
+        "nested CommonMark lists did not parse: {list_events:?}"
+    );
+    assert!(
+        !list_events
+            .iter()
+            .any(|event| matches!(event, Event::TaskListMarker(_))),
+        "CommonMark unexpectedly parsed GFM task-list syntax: {list_events:?}"
+    );
+    assert!(
+        parsed_text(&list_events).contains("[x] Checked sibling"),
+        "CommonMark checklist state was not visible: {list_events:?}"
+    );
+
+    let (caption_output, _warnings) = convert_str_with_variant(
+        include_str!("fixtures/source/header_titles_captions.adoc"),
+        MarkdownVariant::CommonMark,
+    )?;
+    let caption_events = parse_markdown(&caption_output, MarkdownVariant::CommonMark);
+    let caption_text = parsed_text(&caption_events);
+    for text in [
+        "Figure 1. Image Title",
+        "Table 1. Table Title",
+        "Example 1. Example Title",
+        "Listing 1. Listing Title",
+    ] {
+        assert!(
+            caption_text.contains(text),
+            "missing {text:?}: {caption_events:?}"
+        );
+    }
+
+    let (table_output, warnings) = convert_str_with_variant(
+        include_str!("fixtures/source/commonmark_no_tables.adoc"),
+        MarkdownVariant::CommonMark,
+    )?;
+    let table_events = parse_markdown(&table_output, MarkdownVariant::CommonMark);
+    assert!(
+        !table_events
+            .iter()
+            .any(|event| matches!(event, Event::Start(Tag::Table(_)))),
+        "CommonMark unexpectedly parsed a table: {table_events:?}"
+    );
+    assert!(
+        parsed_text(&table_events).contains("Table 1. Skipped Table Title"),
+        "CommonMark lost the table caption: {table_events:?}"
+    );
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|warning| warning.message.contains("tables not natively supported"))
+            .count(),
+        1,
+        "unexpected CommonMark table diagnostics: {warnings:?}"
+    );
+    Ok(())
+}
+
+#[test]
+fn markdown_and_html_preserve_shared_source_meaning() -> Result<(), Error> {
+    let (markdown, markdown_warnings) = convert_str(ACCEPTANCE_SEMANTICS)?;
+    let (html, html_warnings) = convert_html_str(ACCEPTANCE_SEMANTICS)?;
+
+    for visible in [
+        "Acceptance Semantics",
+        "Generated Section",
+        "Explicit Section",
+        "Overview image",
+        "Scenic view",
+        "Records",
+        "Name",
+        "Value",
+        "Ada",
+        "Parent",
+        "Child",
+        "Footnote body.",
+        "Concept",
+        "Details",
+    ] {
+        assert!(
+            markdown.contains(visible),
+            "Markdown lost {visible:?}: {markdown}"
+        );
+        assert!(html.contains(visible), "HTML lost {visible:?}: {html}");
+    }
+    for id in ["_generated_section", "image-id", "table-id", "_index"] {
+        assert!(markdown.contains(&format!("id=\"{id}\"")), "{markdown}");
+        assert!(html.contains(&format!("id=\"{id}\"")), "{html}");
+    }
+    for destination in ["#image-id", "#table-id"] {
+        assert!(
+            markdown.contains(&format!("]({destination})")),
+            "{markdown}"
+        );
+        assert!(html.contains(&format!("href=\"{destination}\"")), "{html}");
+    }
+
+    assert!(markdown.contains("![Scenic view](photo.png)"), "{markdown}");
+    assert!(
+        html.contains("<img src=\"photo.png\" alt=\"Scenic view\""),
+        "{html}"
+    );
+    assert!(markdown.contains("| Name | Value |"), "{markdown}");
+    assert!(html.contains("<table"), "{html}");
+    assert!(markdown.contains("[^1]"), "{markdown}");
+    assert!(html.contains("class=\"footnote\""), "{html}");
+    assert!(markdown.contains("_indexterm_0"), "{markdown}");
+    assert!(html.contains("_indexterm_0"), "{html}");
+    for message in [
+        "audio and video playback are not supported",
+        "page breaks not natively supported",
+    ] {
+        assert!(
+            markdown_warnings
+                .iter()
+                .any(|warning| warning.message.contains(message)),
+            "missing {message:?}: {markdown_warnings:?}"
+        );
+    }
+    assert!(
+        markdown_warnings
+            .iter()
+            .all(|warning| warning.advice().is_some()),
+        "{markdown_warnings:?}"
+    );
+    assert!(html_warnings.is_empty(), "{html_warnings:?}");
     Ok(())
 }
 
@@ -477,36 +803,75 @@ fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
 }
 
 #[test]
-fn inline_stem_fallback_warning_is_deduplicated() -> Result<(), Error> {
-    let input = ":experimental:\n\nUI: kbd:[Ctrl+C], btn:[Save], menu:File[Open], icon:heart[].\n\nMath: stem:[x < y] and latexmath:[a_b].\n";
-    let (output, warnings) = convert_str(input)?;
-
-    assert_eq!(
-        warnings
+fn stem_fixtures_preserve_expressions_and_structured_warnings() -> Result<(), Error> {
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (inline_output, inline_warnings) = convert_str_with_variant(
+            include_str!("fixtures/source/inline_meaning_links.adoc"),
+            variant,
+        )?;
+        let inline_stem_warnings = inline_warnings
             .iter()
             .filter(|warning| warning.message.contains("inline STEM is not supported"))
-            .count(),
-        1,
-        "{warnings:?}"
-    );
-    assert_eq!(warnings.len(), 1, "{warnings:?}");
-    assert!(
-        warnings
-            .first()
-            .is_some_and(|warning| warning.advice().is_some()),
-        "{warnings:?}"
-    );
-    for expected in [
-        "<kbd>Ctrl</kbd>+<kbd>C</kbd>",
-        "**[Save]**",
-        "File > Open",
-        "[heart]",
-        "`x < y`",
-        "`a_b`",
-    ] {
+            .collect::<Vec<_>>();
+        assert_eq!(
+            inline_stem_warnings.len(),
+            1,
+            "{variant}: {inline_warnings:?}"
+        );
         assert!(
-            output.contains(expected),
-            "expected {expected:?} in {output}"
+            inline_stem_warnings
+                .iter()
+                .all(|warning| warning.advice().is_some()),
+            "{variant}: {inline_warnings:?}"
+        );
+        for expected in [
+            "<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>",
+            "**[Save]**",
+            "File > Open > Recent",
+            "[Back]",
+            "`x < y`",
+            "`a_b`",
+        ] {
+            assert!(
+                inline_output.contains(expected),
+                "expected {expected:?} for {variant} in {inline_output}"
+            );
+        }
+
+        let (block_output, block_warnings) = convert_str_with_variant(
+            include_str!("fixtures/source/block_attribute_parity.adoc"),
+            variant,
+        )?;
+        let block_stem_warnings = block_warnings
+            .iter()
+            .filter(|warning| warning.message.contains("block STEM is not supported"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            block_stem_warnings.len(),
+            1,
+            "{variant}: {block_warnings:?}"
+        );
+        assert!(
+            block_stem_warnings
+                .iter()
+                .all(|warning| warning.advice().is_some()),
+            "{variant}: {block_warnings:?}"
+        );
+        assert!(
+            block_output.contains("sqrt(4) = 2"),
+            "{variant}: {block_output}"
+        );
+
+        let events = parse_markdown(&block_output, variant);
+        assert!(
+            events.iter().any(|event| {
+                matches!(
+                    event,
+                    Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(info)))
+                        if info.as_ref() == "asciimath"
+                )
+            }),
+            "missing parsed asciimath block for {variant}: {events:?}"
         );
     }
     Ok(())
