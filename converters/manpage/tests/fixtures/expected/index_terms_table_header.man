@@ -34,11 +34,11 @@ index\-terms\-table\-header \- index terms in table headers
 \fBTable 1. Cataloged table\fP
 .br
 .TS
-allbox tab(:);
-ltB ltB
-lt lt
-lt lt
-lt lt.
+allbox expand tab(:);
+ltBw(15n) ltBw(45n)
+ltw(15n) ltw(45n)
+ltw(15n) ltw(45n)
+ltw(15n) ltw(45n).
 Key  :T{
 Description with visible \fBheader\fP, shared term, and related material
 T}

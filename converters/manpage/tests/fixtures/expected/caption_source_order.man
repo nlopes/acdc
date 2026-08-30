@@ -42,7 +42,7 @@ caption\-source\-order
 .br
 .TS
 allbox tab(:);
-lt.
+ltx.
 Before table cell
 .TE
 .sp
@@ -76,7 +76,7 @@ let before = 1;
 .br
 .TS
 allbox tab(:);
-lt.
+ltx.
 After table cell
 .TE
 .sp
@@ -101,7 +101,7 @@ let after = 2;
 .br
 .TS
 allbox tab(:);
-lt.
+ltx.
 Disabled table cell
 .TE
 .sp
@@ -126,7 +126,7 @@ disabled listing content
 .br
 .TS
 allbox tab(:);
-lt.
+ltx.
 Custom table cell
 .TE
 .sp
@@ -151,7 +151,7 @@ custom listing content
 .br
 .TS
 allbox tab(:);
-lt.
+ltx.
 Document table cell
 .TE
 .sp
@@ -176,7 +176,7 @@ document listing content
 .br
 .TS
 allbox tab(:);
-lt.
+ltx.
 Restored table cell
 .TE
 .sp

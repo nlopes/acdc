@@ -98,12 +98,20 @@ The manpage converter:
 - Renders explicit and automatic source callouts as bold `(N)` labels in both
   code and explanation lists. Language-appropriate and XML comment guards are
   removed from delimited blocks and styled source paragraphs.
+- Maps table frames and grids to portable `tbl` borders and rules. Proportional
+  and percentage column widths become minimum-width hints; automatic columns
+  and `%autowidth` remain content-determined. Explicit table widths, left or
+  centered placement, and top, middle, or bottom cell alignment are retained.
 
 == Differences from Asciidoctor
 
 The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage backend, but some features may differ:
 
-- Some advanced table features not yet implemented
+- Portable `tbl` has no row background fills or true floating tables. Row
+  stripes render without shading, and floats or right alignment fall back to
+  non-wrapping left alignment with structured warnings. Content can expand a
+  table beyond requested minimum widths. Mandoc may center vertically aligned
+  cell content because it ignores `tbl`'s top and bottom modifiers.
 - Interactive audio and video playback is unavailable. The converter emits one
   structured warning and preserves the media as static links.
 - Unlike Asciidoctor's manpage backend, which drops bibliography labels and

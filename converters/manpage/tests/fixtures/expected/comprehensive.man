@@ -241,9 +241,9 @@ This is important.
 .br
 .TS
 allbox tab(:);
-ltB ltB ltB
-lt lt lt
-lt lt lt.
+ltBx ltBx ltBx
+ltx ltx ltx
+ltx ltx ltx.
 Name:Description:Status
 Alpha:T{
 First item with \fBbold\fP

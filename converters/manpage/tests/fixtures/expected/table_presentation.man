@@ -1,0 +1,74 @@
+'\" t
+.\"     Title: table-presentation
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: Table presentation checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "TABLE\-PRESENTATION" "1" "2026-08-30" "acdc" "Table presentation checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+table\-presentation \- verify table presentation
+.SH "SYNOPSIS"
+.sp
+table\-presentation
+.SH "DESCRIPTION"
+.sp
+\fBTable 1. Ends frame, row grid, proportional columns, header, and footer\fP
+.br
+.TS
+expand tab(:);
+ltBw(15n) ltBw(45n)
+ltw(15n) ltw(45n)
+ltw(15n) ltw(45n)
+ltw(15n) ltw(45n).
+_
+Name:Description
+_
+one:first
+_
+two:second
+_
+Total:two rows
+_
+.TE
+.sp
+\fBTable 2. Sides frame, column grid, percentage widths, and centered table\fP
+.br
+.TS
+center tab(:);
+| ltw(9n) | ltw(27n) |
+| ltw(9n) | ltw(27n) |.
+one:first
+two:second
+.TE
+.sp
+\fBTable 3. Content\-determined columns without rules\fP
+.br
+.TS
+tab(:);
+lt lt
+lt lt.
+short:a longer value
+tail:end
+.TE

@@ -16,6 +16,11 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Tables now honor frame and grid rules, proportional, percentage, and
+  content-determined column widths, explicit table width, `autowidth`, table
+  alignment, and cell vertical alignment using portable `tbl` output.
+  Unsupported row stripes, floats, and right alignment produce deduplicated
+  structured warnings with readable fallbacks.
 - Source and listing blocks, including styled paragraphs, now remove
   language-appropriate or XML comment guards and render callout markers as
   bold `(N)` labels that match their explanation lists.

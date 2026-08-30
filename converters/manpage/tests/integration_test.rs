@@ -143,6 +143,61 @@ fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
 }
 
 #[test]
+fn table_fallback_warnings_are_deduplicated() -> Result<(), Error> {
+    let input = r"= table-warnings(1)
+:doctype: manpage
+
+== NAME
+
+table-warnings - test table fallbacks
+
+== SYNOPSIS
+
+table-warnings
+
+== DESCRIPTION
+
+[stripes=odd,float=right]
+|===
+| one
+|===
+
+[stripes=even,float=right]
+|===
+| two
+|===
+
+[align=right]
+|===
+| three
+|===
+";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+
+    assert_eq!(warnings.len(), 3, "unexpected warnings: {warnings:?}");
+    for expected in [
+        "table row stripes are not supported",
+        "table floats are not supported",
+        "right table alignment is not supported",
+    ] {
+        let warning = warnings
+            .iter()
+            .find(|warning| warning.message.contains(expected))
+            .ok_or_else(|| format!("missing warning containing {expected:?}: {warnings:?}"))?;
+        assert!(warning.advice().is_some(), "missing advice: {warning:?}");
+    }
+    Ok(())
+}
+
+#[test]
 fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
     let input = r"= xrefstyle(1)
 :doctype: manpage
