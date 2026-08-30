@@ -1,0 +1,194 @@
+'\" t
+.\"     Title: caption-source-order
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: Caption checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "CAPTION\-SOURCE\-ORDER" "1" "2026-08-30" "acdc" "Caption checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+caption\-source\-order \- verify source\-position caption behavior
+.SH "SYNOPSIS"
+.sp
+caption\-source\-order
+.SH "DESCRIPTION"
+.sp
+\fBBefore Figure 1. Before figure\fP
+.br
+[before]
+.sp
+\fBBefore Table 1. Before table\fP
+.br
+.TS
+allbox tab(:);
+lt.
+Before table cell
+.TE
+.sp
+\fBBefore Example 2. Before outer example\fP
+.br
+.RS 4
+.sp
+\fBBefore Example 1. Before inner example\fP
+.br
+.RS 4
+.sp
+Before inner example content.
+.RE
+.RE
+.sp
+\fBBefore Listing 1. Before listing paragraph\fP
+.br
+.if n .RS 4
+.nf
+.fam C
+let before = 1;
+.fam
+.fi
+.if n .RE
+.sp
+\fBAfter Figure 2. After figure\fP
+.br
+[after]
+.sp
+\fBAfter Table 2. After table\fP
+.br
+.TS
+allbox tab(:);
+lt.
+After table cell
+.TE
+.sp
+\fBAfter Example 3. After example\fP
+.br
+.RS 4
+.sp
+After example content.
+.RE
+.sp
+\fBAfter Listing 2. After listing block\fP
+.br
+.EX
+let after = 2;
+.EE
+.sp
+\fBDisabled figure\fP
+.br
+[disabled]
+.sp
+\fBDisabled table\fP
+.br
+.TS
+allbox tab(:);
+lt.
+Disabled table cell
+.TE
+.sp
+\fBDisabled example\fP
+.br
+.RS 4
+.sp
+Disabled example content.
+.RE
+.sp
+\fBDisabled listing\fP
+.br
+.EX
+disabled listing content
+.EE
+.sp
+\fBCustom Figure: Custom figure\fP
+.br
+[custom]
+.sp
+\fBCustom Table: Custom table\fP
+.br
+.TS
+allbox tab(:);
+lt.
+Custom table cell
+.TE
+.sp
+\fBCustom Example: Custom example\fP
+.br
+.RS 4
+.sp
+Custom example content.
+.RE
+.sp
+\fBCustom Listing: Custom listing\fP
+.br
+.EX
+custom listing content
+.EE
+.sp
+\fBDocument:Document figure\fP
+.br
+[document]
+.sp
+\fBDocument:Document table\fP
+.br
+.TS
+allbox tab(:);
+lt.
+Document table cell
+.TE
+.sp
+\fBDocument:Document example\fP
+.br
+.RS 4
+.sp
+Document example content.
+.RE
+.sp
+\fBDocument:Document listing\fP
+.br
+.EX
+document listing content
+.EE
+.sp
+\fBRestored Figure 3. Restored figure\fP
+.br
+[restored]
+.sp
+\fBRestored Table 3. Restored table\fP
+.br
+.TS
+allbox tab(:);
+lt.
+Restored table cell
+.TE
+.sp
+\fBRestored Example 4. Restored example\fP
+.br
+.RS 4
+.sp
+Restored example content.
+.RE
+.sp
+\fBRestored Listing 3. Restored listing\fP
+.br
+.EX
+restored listing content
+.EE

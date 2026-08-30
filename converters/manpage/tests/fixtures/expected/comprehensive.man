@@ -148,6 +148,7 @@ Prints world to stdout
 .SS "Code Block"
 .sp
 \fBExample script\fP
+.br
 .EX
 #!/bin/bash
 set \-euo pipefail
@@ -171,7 +172,8 @@ On Simplicity \(em Albert Einstein
 .ll
 .SS "Example Block"
 .sp
-\fBExample title\fP
+\fBExample 1. Example title\fP
+.br
 .RS 4
 .sp
 This is an example block.
@@ -235,7 +237,8 @@ This is important.
 .RE
 .SH "TABLES"
 .sp
-\fBSimple table\fP
+\fBTable 1. Simple table\fP
+.br
 .TS
 allbox tab(:);
 ltB ltB ltB

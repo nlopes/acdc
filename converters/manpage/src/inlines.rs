@@ -464,14 +464,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     fn render_ui_inline_macro(&mut self, macro_node: &InlineMacro) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Image(img) => {
-                // Inline image - show title as alt text
-                if img.title.is_empty() {
-                    write!(self.writer_mut(), "[IMAGE]")?;
-                } else {
-                    write!(self.writer_mut(), "[")?;
-                    self.visit_inline_nodes(&img.title)?;
-                    write!(self.writer_mut(), "]")?;
-                }
+                self.render_inline_image(img)?;
             }
 
             InlineMacro::Icon(icon) => {

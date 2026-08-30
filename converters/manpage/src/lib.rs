@@ -26,10 +26,9 @@
 //! - `.TS`/`.TE` for tables (tbl preprocessor format)
 //! - `\fB`, `\fI`, `\fP` for inline formatting
 
-#[cfg(feature = "pre-spec-subs")]
-use std::cell::Cell;
 use std::{
     borrow::Cow,
+    cell::Cell,
     collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
@@ -52,6 +51,7 @@ mod escape;
 mod inlines;
 mod list;
 mod manpage_visitor;
+mod media;
 mod paragraph;
 mod section;
 mod table;
@@ -72,6 +72,7 @@ pub struct Processor<'a> {
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
     pub(crate) top_level_section_ids: Rc<HashSet<&'a str>>,
+    pub(crate) static_media_warning: Rc<Cell<bool>>,
     /// Substitutions active for the block currently being rendered, resolved
     /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
     /// across clones so sub-visitors inherit the outer block's effective
@@ -121,6 +122,7 @@ impl Processor<'_> {
                     .map(|entry| entry.id)
                     .collect(),
             ),
+            static_media_warning: Rc::new(Cell::new(false)),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
@@ -168,6 +170,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(HashSet::new()),
+            static_media_warning: Rc::new(Cell::new(false)),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }

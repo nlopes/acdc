@@ -16,6 +16,14 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Image fallbacks now show explicit or filename-derived alternative text and
+  preserve configured links. Audio and video blocks render titled static links,
+  including every video source and poster, and report one playback warning per
+  document.
+- Figure, table, example, and listing titles now use their parser-resolved
+  captions, including custom or disabled captions and source-order label
+  changes. Styled example, listing, and source paragraphs use the same caption
+  behavior as their delimited forms.
 - Title-based shorthand cross-references now resolve generated and explicit
   section IDs before selecting their displayed reference text.
 - Cross-references preserve formatted explicit text through supported nested

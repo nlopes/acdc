@@ -35,7 +35,8 @@ table\-combined\-span\-formatting \- test combined table span formatting
 .SH "DESCRIPTION"
 .SS "Column defaults"
 .sp
-\fBDefaults follow source cells\fP
+\fBTable 1. Defaults follow source cells\fP
+.br
 .TS
 allbox tab(:);
 ct s lt
@@ -58,7 +59,8 @@ Third \fIitalic\fP
 T}
 .TE
 .sp
-\fBDuplicates use each column\fP
+\fBTable 2. Duplicates use each column\fP
+.br
 .TS
 allbox tab(:);
 rt lt ct.

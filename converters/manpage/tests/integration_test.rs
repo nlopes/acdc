@@ -118,8 +118,82 @@ fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
 }
 
 #[test]
+fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/video_audio.adoc");
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+
+    assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
+    let warning = warnings.first().ok_or("missing playback warning")?;
+    assert!(
+        warning
+            .message
+            .contains("audio and video playback are not available"),
+        "unexpected warning: {warnings:?}"
+    );
+    assert!(warning.advice().is_some(), "missing advice: {warnings:?}");
+    Ok(())
+}
+
+#[test]
 fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
-    let input = "= xrefstyle(1)\n:doctype: manpage\n:figure-caption: BeforeFigure\n:table-caption: BeforeTable\n\n== NAME\n\nxrefstyle - test captioned references\n\n== DESCRIPTION\n\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::figure.svg[]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n";
+    let input = r"= xrefstyle(1)
+:doctype: manpage
+:figure-caption: BeforeFigure
+:table-caption: BeforeTable
+
+== NAME
+
+xrefstyle - test captioned references
+
+== DESCRIPTION
+
+:xrefstyle: basic
+
+Forward basic: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: short
+
+Forward short: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: full
+
+Forward full: <<figure-target>> and <<table-target>>.
+
+:figure-caption: TargetFigure
+:table-caption: TargetTable
+
+[[figure-target]]
+.A figure title
+image::figure.svg[]
+
+[[table-target]]
+.A table title
+|===
+|Cell
+|===
+
+:figure-caption: AfterFigure
+:table-caption: AfterTable
+:xrefstyle: basic
+
+Backward basic: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: short
+
+Backward short: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: full
+
+Backward full: <<figure-target>> and <<table-target>>.
+";
     let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(input, &parser_options)?;
     let doc = parsed.document();
@@ -132,8 +206,12 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
     let output = String::from_utf8(output)?;
 
     for expected in [
+        "Forward basic: A figure title and A table title",
         "Forward short: TargetFigure 1 and BeforeTable 1",
         "Forward full: TargetFigure 1, \\(lqA figure title\\(rq and BeforeTable 1, \\(lqA table title\\(rq",
+        "\\fBTargetFigure 1. A figure title\\fP",
+        "\\fBTargetTable 1. A table title\\fP",
+        "Backward basic: A figure title and A table title",
         "Backward short: TargetFigure 1 and AfterTable 1",
         "Backward full: TargetFigure 1, \\(lqA figure title\\(rq and AfterTable 1, \\(lqA table title\\(rq",
     ] {

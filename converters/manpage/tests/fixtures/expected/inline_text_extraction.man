@@ -34,13 +34,15 @@ inline\-text \- verify plain inline text extraction
 \fBinline\-text\fP
 .SH "DESCRIPTION"
 .sp
-\fBTarget \fBTitle\fP\fP
+\fBExample 1. Target \fBTitle\fP\fP
+.br
 .RS 4
 .sp
 Target body.
 .RE
 .sp
-\fBIgnored title\fP
+\fBExample 2. Ignored title\fP
+.br
 .RS 4
 .sp
 Labelled body.
@@ -52,9 +54,10 @@ Untitled body.
 .sp
 Before the recursive section: SEE [recursive] AGAIN\&.
 .sp
-\fBCaption with Target \fBTitle\fP and \c
+\fBExample 3. Caption with Target \fBTitle\fP and \c
 .URL "https://example.com" "a link" ""
 \fP
+.br
 .RS 4
 .sp
 Caption body.

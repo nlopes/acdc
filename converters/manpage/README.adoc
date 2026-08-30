@@ -72,10 +72,18 @@ The manpage converter:
 - Uses left-alignment only (`.ad l`) as is standard for manpages
 - Includes the tbl preprocessor directive (`'\" t`) when tables are present
 - Preserves inline formatting (bold, italic, monospace) using roff font escapes
+- Renders figure, table, example, and listing captions with their source-position
+  label, number, custom prefix, or disabled-prefix behavior
+- Renders images as readable alternative text and preserves configured image
+  links with `.URL`
+- Renders audio and video as titled static links, including every video source
+  and poster
 
 == Differences from Asciidoctor
 
 The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage backend, but some features may differ:
 
 - Some advanced table features not yet implemented
+- Interactive audio and video playback is unavailable. The converter emits one
+  structured warning and preserves the media as static links.
 - Custom macro extensions not supported

@@ -16,7 +16,7 @@ use crate::{
 };
 
 impl<W: Write> ManpageVisitor<'_, '_, W> {
-    /// Visit a paragraph, handling styled paragraphs (quote, verse, literal).
+    /// Render a paragraph with its style-specific manpage layout.
     pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         {
@@ -48,6 +48,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             match style {
                 "quote" => return self.render_quote_paragraph(para),
                 "verse" => return self.render_verse_paragraph(para),
+                "example" => return self.render_example_paragraph(para),
                 "literal" | "listing" | "source" => return self.render_literal_paragraph(para),
                 _ => {}
             }
@@ -60,14 +61,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             writeln!(w, ".sp")?;
         }
 
-        // Optional title (rendered as bold)
-        if !para.title.is_empty() {
-            write!(w, "\\fB")?;
-            self.visit_inline_nodes(&para.title)?;
-            let w = self.writer_mut();
-            writeln!(w, "\\fP")?;
-            writeln!(w, ".br")?;
-        }
+        self.render_captioned_title(&para.title, &para.metadata)?;
 
         // Paragraph content
         self.visit_inline_nodes(&para.content)?;
@@ -75,6 +69,20 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         let w = self.writer_mut();
         writeln!(w)?;
 
+        Ok(())
+    }
+
+    fn render_example_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+        self.write_sp()?;
+        self.render_captioned_title(&para.title, &para.metadata)?;
+
+        let w = self.writer_mut();
+        writeln!(w, ".RS 4")?;
+        writeln!(w, ".sp")?;
+        self.visit_inline_nodes(&para.content)?;
+        let w = self.writer_mut();
+        writeln!(w)?;
+        writeln!(w, ".RE")?;
         Ok(())
     }
 
@@ -160,7 +168,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    /// Render a literal-styled paragraph (asciidoctor-compatible).
+    /// Render a literal, listing, or source paragraph as preformatted text.
     ///
     /// Output format:
     /// ```roff
@@ -174,9 +182,9 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// .if n .RE
     /// ```
     fn render_literal_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+        self.write_sp()?;
+        self.render_captioned_title(&para.title, &para.metadata)?;
         let w = self.writer_mut();
-
-        writeln!(w, ".sp")?;
         writeln!(w, ".if n .RS 4")?;
         writeln!(w, ".nf")?;
         writeln!(w, ".fam C")?;

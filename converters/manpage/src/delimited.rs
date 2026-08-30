@@ -22,10 +22,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         if shows_block_title(&block.inner) && !block.title.is_empty() {
             let w = self.writer_mut();
             writeln!(w, ".sp")?;
-            write!(w, "\\fB")?;
-            self.visit_inline_nodes(&block.title)?;
-            let w = self.writer_mut();
-            writeln!(w, "\\fP")?;
+            self.render_captioned_title(&block.title, &block.metadata)?;
         }
 
         match &block.inner {

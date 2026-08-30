@@ -8,9 +8,9 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
-    Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, BlockMetadata, CalloutList, Caption, DelimitedBlock, DescriptionList,
+    DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
 use crate::escape::{EscapeMode, manify};
@@ -115,6 +115,39 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Write a blank line for spacing.
     pub(crate) fn write_sp(&mut self) -> Result<(), Error> {
         writeln!(self.writer, ".sp")?;
+        Ok(())
+    }
+
+    /// Render a block title with the caption resolved by the parser.
+    pub(crate) fn render_captioned_title(
+        &mut self,
+        title: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+
+        write!(self.writer_mut(), "\\fB")?;
+        let prefix = match metadata.caption.as_ref() {
+            Some(Caption::Numbered {
+                label,
+                number: Some(number),
+                ..
+            }) => Some(format!("{label} {number}. ")),
+            Some(Caption::Custom(prefix)) => Some(prefix.to_string()),
+            Some(_) | None => None,
+        };
+        if let Some(prefix) = prefix {
+            write!(
+                self.writer_mut(),
+                "{}",
+                manify(&prefix, EscapeMode::Normalize)
+            )?;
+        }
+        self.visit_inline_nodes(title)?;
+        writeln!(self.writer_mut(), "\\fP")?;
+        writeln!(self.writer_mut(), ".br")?;
         Ok(())
     }
 
@@ -316,35 +349,15 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        // Images cannot be embedded in man pages - show title as alt text
-        self.write_sp()?;
-        if img.title.is_empty() {
-            writeln!(self.writer, "[IMAGE]")?;
-        } else {
-            write!(self.writer, "[")?;
-            self.visit_inline_nodes(&img.title)?;
-            writeln!(self.writer, "]")?;
-        }
-        Ok(())
+        self.render_image(img)
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        // Videos cannot be embedded in man pages - show placeholder
-        // Video has multiple sources, use the first one or empty
-        self.write_sp()?;
-        if let Some(first_source) = video.sources.first() {
-            writeln!(self.writer, "[VIDEO: {first_source}]")?;
-        } else {
-            writeln!(self.writer, "[VIDEO]")?;
-        }
-        Ok(())
+        self.render_video(video)
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        // Audio cannot be embedded in man pages - show placeholder
-        self.write_sp()?;
-        writeln!(self.writer, "[AUDIO: {}]", audio.source)?;
-        Ok(())
+        self.render_audio(audio)
     }
 
     fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {

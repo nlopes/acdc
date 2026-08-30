@@ -6,7 +6,7 @@
 
 == Name
 
-inline-image-test - test image placeholders
+inline-image-test - test image fallbacks
 
 == Synopsis
 
@@ -18,7 +18,14 @@ An inline image: image:logo.png[Company Logo].
 
 An inline image without alt text: image:icon.png[].
 
+A linked inline image: image:status-badge.svg[Build status,link=https://example.com/status].
+
+A linked inline image without alt text: image:release-badge.svg[link=https://example.com/release].
+
 .A block image
 image::sunset.jpg[Sunset photo]
 
 image::untitled.png[]
+
+.A linked block image
+image::architecture-diagram.svg[System architecture,link=https://example.com/architecture]

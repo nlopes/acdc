@@ -18,6 +18,10 @@ pub enum Error {
     #[error("Parsing error: {0}")]
     Parse(#[from] acdc_parser::Error),
 
+    /// Video link generation failed.
+    #[error(transparent)]
+    VideoUrl(#[from] acdc_converters_core::video::UrlError),
+
     /// Input and output file paths are the same.
     #[error("input file and output file cannot be the same: {0}")]
     OutputPathSameAsInput(PathBuf),

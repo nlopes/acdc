@@ -7,8 +7,8 @@ An inline image: [Logo]\&.
 .sp
 [star] rating.
 .sp
-[VIDEO: demo.mp4]
+.URL "demo.mp4" "[Video: demo.mp4]" ""
 .sp
-[AUDIO: clip.mp3]
+.URL "clip.mp3" "[Audio: clip.mp3]" ""
 .sp
 Inline math: e = mc^2\&.

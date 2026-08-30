@@ -31,7 +31,8 @@
 index\-terms\-table\-header \- index terms in table headers
 .SH "DESCRIPTION"
 .sp
-\fBCataloged table\fP
+\fBTable 1. Cataloged table\fP
+.br
 .TS
 allbox tab(:);
 ltB ltB
