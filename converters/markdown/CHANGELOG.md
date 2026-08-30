@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Inline UI macros, passthroughs, STEM expressions, and roles now retain
+  readable content. GFM uses native strikethrough for `line-through`; other
+  roles use portable HTML fallbacks when Markdown has no equivalent.
+- Link and autolink fallback text now honors `hide-uri-scheme`, bracketed email
+  autolinks remain visible, and CommonMark footnotes keep their complete bodies
+  in a linked endnote list.
+- Inline code, source escapes, link text, and link destinations now remain
+  valid when their content contains Markdown delimiters, backticks, brackets,
+  whitespace, or parentheses.
 - Quote, verse, literal, listing, source, example, and abstract paragraph
   styles now retain distinct Markdown treatments. Verse, literal, listing,
   and source whitespace remains visible.
@@ -82,6 +91,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `mailto:` macros no longer produce destinations with a duplicate `mailto:`
+  scheme.
 - Sections with a named `reftext` now use it as the link text and destination
   alias for natural references and explicit IDs. Their titles are not retained
   as second natural aliases, and formatted labels keep their Markdown markup.

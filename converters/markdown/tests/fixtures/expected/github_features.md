@@ -25,7 +25,7 @@ Alerts are GitHub's native admonition syntax.
 <a id="_footnotes"></a>
 ## Footnotes
 
-GitHub supports footnotes using the `\[^1\]` syntax.
+GitHub supports footnotes using the `[^1]` syntax.
 
 Here is a simple footnote.[^1]
 

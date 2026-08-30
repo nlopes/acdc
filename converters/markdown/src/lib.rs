@@ -21,7 +21,7 @@
 //! ## `CommonMark`
 //! - Standard Markdown specification (spec.commonmark.org)
 //! - Basic features: headings, lists, links, images, code blocks, blockquotes
-//! - No tables, task lists, or strikethrough
+//! - No native tables, task lists, or strikethrough syntax
 //!
 //! ## GitHub Flavored Markdown (GFM)
 //! - Extends `CommonMark` with GitHub-specific features
@@ -44,12 +44,17 @@
 //! Styled paragraphs use blockquotes or fenced code as appropriate. Raw
 //! passthrough blocks remain available to HTML-capable Markdown renderers, and
 //! source callouts retain their markers, explanations, and attached blocks.
+//! Inline UI macros, passthroughs, STEM expressions, and roles retain readable
+//! content through native Markdown, embedded HTML, or inline-code fallbacks.
+//! Link fallback text honors `hide-uri-scheme`, bracketed email autolinks stay
+//! visible, and link destinations escape Markdown-sensitive characters.
 //!
 //! # Limitations
 //!
 //! `AsciiDoc` features that cannot be fully represented in Markdown:
 //! - **Admonitions** (NOTE, TIP, etc.) - Native GitHub Alerts in GFM, blockquotes in `CommonMark`
-//! - **Footnotes** - Native GFM syntax `[^1]`, HTML superscript in `CommonMark`
+//! - **Footnotes** - Native GFM syntax `[^1]`, linked superscripts and a
+//!   readable endnote list in `CommonMark`
 //! - **Tables** - Supported in GFM only, skipped in `CommonMark` with warning
 //! - **Task lists** - Supported in GFM only, converted to regular lists in `CommonMark`
 //! - **Include directives** - not supported (Markdown is single-file oriented)
@@ -59,6 +64,9 @@
 //! - **Table cell spanning** - GFM tables don't support rowspan/colspan
 //! - **Video/audio embedding** - converted to links with warning
 //! - **Complex tables** - GFM tables are simpler than `AsciiDoc` tables
+//! - **Inline STEM** - preserved as inline code with a warning
+//! - **Inline roles and passthroughs** - use embedded HTML where Markdown has
+//!   no equivalent, so rendering depends on HTML support and sanitization
 //!
 //! When unsupported features are encountered, the converter will:
 //! - Collect a structured converter warning
@@ -312,9 +320,10 @@ mod tests {
     }
 
     #[test]
-    fn media_targets_honor_imagesdir_and_encode_spaces() -> Result<(), Box<dyn std::error::Error>> {
+    fn media_targets_honor_imagesdir_and_escape_destinations()
+    -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            ":imagesdir: media library\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[]\n",
+            ":imagesdir: media (library)\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[]\n",
             &acdc_parser::Options::default(),
         )?;
         let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
@@ -327,11 +336,11 @@ mod tests {
 
         let markdown = String::from_utf8(output)?;
         for target in [
-            "](media%20library/poster%20file.png)",
-            "](media%20library/already%20encoded.png)",
-            "](media%20library/inline%20poster.png)",
-            "[Audio: media%20library/clips/demo%20track.mp3](media%20library/clips/demo%20track.mp3)",
-            "[Video: media%20library/clips/demo%20clip.mp4](media%20library/clips/demo%20clip.mp4)",
+            "](media%20\\(library\\)/poster%20file.png)",
+            "](media%20\\(library\\)/already%20encoded.png)",
+            "](media%20\\(library\\)/inline%20poster.png)",
+            "[Audio: media%20(library)/clips/demo%20track.mp3](media%20\\(library\\)/clips/demo%20track.mp3)",
+            "[Video: media%20(library)/clips/demo%20clip.mp4](media%20\\(library\\)/clips/demo%20clip.mp4)",
         ] {
             assert!(markdown.contains(target), "missing {target}: {markdown}");
         }

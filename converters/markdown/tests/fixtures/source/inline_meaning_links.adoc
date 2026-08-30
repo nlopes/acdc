@@ -1,0 +1,29 @@
+= Inline Meaning and Links
+:experimental:
+:tick: `
+
+== UI macros and literal fallbacks
+
+UI: kbd:[Ctrl+Shift+P], btn:[Save], menu:File[Open > Recent], icon:arrow-left[alt=Back].
+
+Passthrough: pass:[<mark>raw</mark>], pass:c[<tag> & &#169;], and pass:r[(C) -> ... --].
+
+STEM: stem:[x < y] and latexmath:[a_b].
+
+== Roles
+
+Roles: [.line-through]#removed#, [.highlight]#marked#, [.underline]#underlined#, [.big]#large#, [.small]#small#, [.subtitle]#subtitle#, [.pre-wrap]#two  spaces#, [.custom]#custom#, and [.custom.line-through]#combined#.
+
+== Links and footnotes
+
+Visible links: https://example.com/path[]; link:https://example.com/a_(b)[label [part]]; mailto:user@example.com[Email]; <user@example.com>; <https://example.com/bracketed>.
+
+:hide-uri-scheme:
+
+Hidden schemes: https://example.com/hidden[]; link:https://example.com/linked[]; <https://example.com/auto>.
+
+Footnote body is retained.footnote:named[Body with *bold* and `code`.] The same note is referenced again.footnote:named[]
+
+== Delimiters
+
+Delimiter text: `tick {tick} inside`, `*nested formatting*`, *bold _nested emphasis_*, \*literal stars\*, \[literal brackets\], and link:https://example.com/a_(b)[label [part]].

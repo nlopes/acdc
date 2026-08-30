@@ -342,10 +342,10 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     for expected in [
         "Title macro: [Pass raw Title](#_pass_raw_title).",
         "Title plus: [Plus raw Title](#_plus_raw_title).",
-        "Target macro: [[Target raw Title]](#Target raw Title).",
-        "Target plus: [[Target raw Title]](#Target raw Title).",
-        "Missing macro: [[Missing raw Title]](#Missing raw Title).",
-        "Missing plus: [[Missing raw Title]](#Missing raw Title).",
+        "Target macro: [[Target raw Title]](#Target%20raw%20Title).",
+        "Target plus: [[Target raw Title]](#Target%20raw%20Title).",
+        "Missing macro: [[Missing raw Title]](#Missing%20raw%20Title).",
+        "Missing plus: [[Missing raw Title]](#Missing%20raw%20Title).",
         "Control: [Control Title](#_control_title).",
     ] {
         assert!(
@@ -425,6 +425,42 @@ fn source_presentation_fallback_warnings_are_deduplicated() -> Result<(), Error>
         assert!(
             output.contains(source_line),
             "missing {source_line:?} in {output}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn inline_stem_fallback_warning_is_deduplicated() -> Result<(), Error> {
+    let input = ":experimental:\n\nUI: kbd:[Ctrl+C], btn:[Save], menu:File[Open], icon:heart[].\n\nMath: stem:[x < y] and latexmath:[a_b].\n";
+    let (output, warnings) = convert_str(input)?;
+
+    assert_eq!(
+        warnings
+            .iter()
+            .filter(|warning| warning.message.contains("inline STEM is not supported"))
+            .count(),
+        1,
+        "{warnings:?}"
+    );
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings
+            .first()
+            .is_some_and(|warning| warning.advice().is_some()),
+        "{warnings:?}"
+    );
+    for expected in [
+        "<kbd>Ctrl</kbd>+<kbd>C</kbd>",
+        "**[Save]**",
+        "File > Open",
+        "[heart]",
+        "`x < y`",
+        "`a_b`",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
         );
     }
     Ok(())

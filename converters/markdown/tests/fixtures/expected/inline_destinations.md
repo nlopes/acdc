@@ -2,7 +2,7 @@ Forward: [**Section**](#section-id).
 
 Standalone <a id="standalone-id"></a>anchor.
 
-A <a id="bold-id"></a>**bold**, <a id="italic-id"></a>*italic*, <a id="mono-id"></a>`mono`, <a id="mark-id"></a>mark, <a id="sub-id"></a><sub>sub</sub>, <a id="super-id"></a><sup>super</sup>, <a id="double-id"></a>"double", and <a id="single-id"></a>'single'.
+A <a id="bold-id"></a>**bold**, <a id="italic-id"></a>*italic*, <a id="mono-id"></a>`mono`, <a id="mark-id"></a><mark>mark</mark>, <a id="sub-id"></a><sub>sub</sub>, <a id="super-id"></a><sup>super</sup>, <a id="double-id"></a>"double", and <a id="single-id"></a>'single'.
 
 <a id="section-id"></a>
 ## <a id="title-span-id"></a>**Section**

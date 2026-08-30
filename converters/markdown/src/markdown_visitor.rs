@@ -5,12 +5,16 @@ use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, rc::Rc}
 use acdc_converters_core::{
     Converter, Diagnostics,
     code::{SourceLineOptions, default_line_comment, detect_language},
+    icon,
+    inline_text::InlineTextTransform,
+    link::{autolink_fallback, link_fallback, mailto_fallback},
     list::OrderedListNumbering,
     media::resolve_target,
     section::{
         appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
     },
     shows_block_title,
+    substitutions::{Replacements, TextBoundaries, strip_backslash_escapes},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
@@ -18,9 +22,9 @@ use acdc_converters_core::{
 use acdc_parser::{
     Admonition, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList, CaptionKind,
     CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document,
-    Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
-    SectionKind, Source, Table, TableOfContents, ThematicBreak, Title, TocEntry, UnorderedList,
-    Video,
+    Footnote, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph,
+    Section, SectionKind, Source, Substitution, Table, TableOfContents, ThematicBreak, Title,
+    TocEntry, UnorderedList, Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
@@ -37,6 +41,92 @@ struct TocRenderPosition {
     base_index: usize,
     parts_at_current_level: bool,
     indent: usize,
+}
+
+#[derive(Clone, Copy)]
+enum RoleClose {
+    MarkdownStrike,
+    Html(&'static str),
+}
+
+fn escape_html_text(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for character in text.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            _ => output.push(character),
+        }
+    }
+    output
+}
+
+fn escape_html_attribute(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    for character in text.chars() {
+        match character {
+            '&' => output.push_str("&amp;"),
+            '"' => output.push_str("&quot;"),
+            '\'' => output.push_str("&#39;"),
+            '<' => output.push_str("&lt;"),
+            '>' => output.push_str("&gt;"),
+            _ => output.push(character),
+        }
+    }
+    output
+}
+
+fn escape_link_destination(destination: &str) -> String {
+    let mut output = String::with_capacity(destination.len());
+    for character in destination.chars() {
+        match character {
+            '\\' => output.push_str("%5C"),
+            '(' | ')' => {
+                output.push('\\');
+                output.push(character);
+            }
+            '<' => output.push_str("%3C"),
+            '>' => output.push_str("%3E"),
+            character if character.is_ascii_whitespace() || character.is_ascii_control() => {
+                let _ = write!(output, "%{:02X}", u32::from(character));
+            }
+            _ => output.push(character),
+        }
+    }
+    output
+}
+
+fn escape_link_title(title: &str) -> String {
+    title.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn passthrough_content(text: &str, substitutions: &[Substitution]) -> String {
+    let mut output = text.to_owned();
+    for substitution in substitutions {
+        match substitution {
+            Substitution::SpecialChars => output = escape_html_text(&output),
+            Substitution::Replacements => {
+                output = Replacements::unicode().transform(&output, TextBoundaries::BOTH);
+            }
+            Substitution::Attributes
+            | Substitution::Macros
+            | Substitution::PostReplacements
+            | Substitution::Normal
+            | Substitution::Verbatim
+            | Substitution::Quotes
+            | Substitution::Callouts
+            | _ => {}
+        }
+    }
+    output
+}
+
+fn max_backtick_run(text: &str) -> usize {
+    text.split(|character| character != '`')
+        .map(str::len)
+        .max()
+        .unwrap_or(0)
 }
 
 fn raw_content(nodes: &[InlineNode<'_>]) -> String {
@@ -166,10 +256,8 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     emitted_anchors: HashSet<String>,
     warned_fallbacks: HashSet<&'static str>,
     in_link_text: bool,
-    /// Collected footnotes for rendering at document end.
-    /// Stored as `(id, pre-rendered markdown content)` so that the visitor
-    /// does not need to borrow data from the document being walked.
-    pub(crate) footnotes: Vec<(String, String)>,
+    /// Footnotes collected for document-end output as `(id, number, rendered content)`.
+    pub(crate) footnotes: Vec<(String, u32, String)>,
 }
 
 impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
@@ -362,7 +450,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         let mut lines = text.split('\n').peekable();
         while let Some(line) = lines.next() {
             if escape {
-                write!(self.writer, "{}", Self::escape_markdown(line))?;
+                write!(
+                    self.writer,
+                    "{}",
+                    Self::escape_markdown(&strip_backslash_escapes(line))
+                )?;
             } else {
                 write!(self.writer, "{line}")?;
             }
@@ -434,6 +526,130 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if self.warned_fallbacks.insert(key) {
             self.diagnostics.warn_with_advice(message, advice);
         }
+    }
+
+    fn write_code_span(&mut self, content: &str) -> Result<(), Error> {
+        if content.contains('\n')
+            || content.starts_with(char::is_whitespace)
+            || content.ends_with(char::is_whitespace)
+        {
+            write!(self.writer, "<code>{}</code>", escape_html_text(content))?;
+            return Ok(());
+        }
+
+        let fence = "`".repeat(max_backtick_run(content).saturating_add(1));
+        let padded = content.starts_with('`') || content.ends_with('`');
+        write!(self.writer, "{fence}")?;
+        if padded {
+            write!(self.writer, " ")?;
+        }
+        write!(self.writer, "{content}")?;
+        if padded {
+            write!(self.writer, " ")?;
+        }
+        write!(self.writer, "{fence}")?;
+        Ok(())
+    }
+
+    fn write_escaped_text(&mut self, text: &str) -> Result<(), Error> {
+        write!(
+            self.writer,
+            "{}",
+            Self::escape_markdown(&strip_backslash_escapes(text))
+        )?;
+        Ok(())
+    }
+
+    fn write_passthrough(
+        &mut self,
+        text: &str,
+        substitutions: &[Substitution],
+    ) -> Result<(), Error> {
+        write!(self.writer, "{}", passthrough_content(text, substitutions))?;
+        Ok(())
+    }
+
+    fn write_role_start(&mut self, role: Option<&str>) -> Result<Option<RoleClose>, Error> {
+        let Some(role) = role.filter(|role| !role.trim().is_empty()) else {
+            return Ok(None);
+        };
+        let only_line_through = role.split_whitespace().eq(["line-through"]);
+        if only_line_through && self.variant() == MarkdownVariant::GitHubFlavored {
+            write!(self.writer, "~~")?;
+            return Ok(Some(RoleClose::MarkdownStrike));
+        }
+
+        let contains = |name| role.split_whitespace().any(|candidate| candidate == name);
+        let tag = if contains("line-through") {
+            "s"
+        } else if contains("underline") {
+            "u"
+        } else if contains("highlight") {
+            "mark"
+        } else if contains("small") {
+            "small"
+        } else {
+            "span"
+        };
+        write!(
+            self.writer,
+            "<{tag} class=\"{}\"",
+            escape_html_attribute(role)
+        )?;
+        let style = if contains("pre-wrap") {
+            Some("white-space: pre-wrap")
+        } else if contains("big") {
+            Some("font-size: larger")
+        } else if contains("subtitle") {
+            Some("font-size: smaller")
+        } else {
+            None
+        };
+        if let Some(style) = style {
+            write!(self.writer, " style=\"{style}\"")?;
+        }
+        write!(self.writer, ">")?;
+        Ok(Some(RoleClose::Html(tag)))
+    }
+
+    fn write_role_end(&mut self, close: Option<RoleClose>) -> Result<(), Error> {
+        match close {
+            Some(RoleClose::MarkdownStrike) => write!(self.writer, "~~")?,
+            Some(RoleClose::Html(tag)) => write!(self.writer, "</{tag}>")?,
+            None => {}
+        }
+        Ok(())
+    }
+
+    fn record_footnote(&mut self, footnote: &Footnote<'_>) -> Result<String, Error> {
+        let id = footnote
+            .id
+            .map_or_else(|| footnote.number.to_string(), str::to_owned);
+        if footnote.content.is_empty()
+            || self
+                .footnotes
+                .iter()
+                .any(|(existing_id, _, _)| existing_id == &id)
+        {
+            return Ok(id);
+        }
+
+        let mut buffer = Vec::new();
+        {
+            let mut visitor = MarkdownVisitor::new(
+                &mut buffer,
+                self.processor.clone(),
+                self.diagnostics.reborrow(),
+            );
+            visitor.heading_level = self.heading_level;
+            visitor.list_depth = self.list_depth;
+            for node in &footnote.content {
+                visitor.visit_inline_node(node)?;
+            }
+        }
+        let rendered = String::from_utf8(buffer).unwrap_or_default();
+        self.footnotes.push((id.clone(), footnote.number, rendered));
+        Ok(id)
     }
 
     fn write_raw_block_content(&mut self, content: &[InlineNode<'_>]) -> Result<(), Error> {
@@ -825,13 +1041,23 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         has_output = self.visit_separated_blocks(remaining, has_output)?;
 
         self.visit_document_supplements(doc)?;
-        if self.variant() == MarkdownVariant::GitHubFlavored && !self.footnotes.is_empty() {
+        if !self.footnotes.is_empty() {
             if has_output {
                 writeln!(self.writer)?;
             }
             let footnotes = std::mem::take(&mut self.footnotes);
-            for (id, content) in footnotes {
-                writeln!(self.writer, "[^{id}]: {content}")?;
+            if self.variant() == MarkdownVariant::GitHubFlavored {
+                for (id, _, content) in footnotes {
+                    writeln!(self.writer, "[^{id}]: {content}")?;
+                }
+            } else {
+                writeln!(self.writer, "<strong>Footnotes</strong>")?;
+                writeln!(self.writer)?;
+                for (id, number, content) in footnotes {
+                    write!(self.writer, "{number}. ")?;
+                    self.write_anchor(&format!("_footnote_{id}"))?;
+                    writeln!(self.writer, "{content}")?;
+                }
             }
             has_output = true;
         }
@@ -1170,9 +1396,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             .unwrap_or(std::borrow::Cow::Borrowed("image"));
 
         let target = self.media_target(&image.source);
+        let target = escape_link_destination(&target);
+        let alt = Self::escape_markdown(&alt);
 
-        // Markdown image syntax: ![alt](url "title")
         if let Some(title) = image.metadata.attributes.get_string("title") {
+            let title = escape_link_title(&title);
             writeln!(self.writer, r#"![{alt}]({target} "{title}")"#)?;
         } else {
             writeln!(self.writer, "![{alt}]({target})")?;
@@ -1191,7 +1419,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         self.write_warning("video embedding", "providing link")?;
         if let Some(first_source) = video.sources.first() {
             let target = self.media_target(first_source);
-            writeln!(self.writer, "[Video: {target}]({target})")?;
+            self.write_link(&target, |visitor| {
+                write!(visitor.writer, "Video: {}", Self::escape_markdown(&target))?;
+                Ok(())
+            })?;
+            writeln!(self.writer)?;
         }
         Ok(())
     }
@@ -1202,7 +1434,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         // Audio embedding not supported in standard Markdown
         self.write_warning("audio embedding", "providing link")?;
         let target = self.media_target(&audio.source);
-        writeln!(self.writer, "[Audio: {target}]({target})")?;
+        self.write_link(&target, |visitor| {
+            write!(visitor.writer, "Audio: {}", Self::escape_markdown(&target))?;
+            Ok(())
+        })?;
+        writeln!(self.writer)?;
         Ok(())
     }
 
@@ -1278,71 +1514,84 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
         match node {
             InlineNode::PlainText(text) => {
-                write!(self.writer, "{}", Self::escape_markdown(text.content))?;
+                self.write_escaped_text(text.content)?;
             }
             InlineNode::BoldText(text) => {
                 self.write_inline_anchor(text.id)?;
+                let role = self.write_role_start(text.role)?;
                 write!(self.writer, "**")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "**")?;
+                self.write_role_end(role)?;
             }
             InlineNode::ItalicText(text) => {
                 self.write_inline_anchor(text.id)?;
+                let role = self.write_role_start(text.role)?;
                 write!(self.writer, "*")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "*")?;
+                self.write_role_end(role)?;
             }
             InlineNode::MonospaceText(text) => {
                 self.write_inline_anchor(text.id)?;
-                write!(self.writer, "`")?;
-                self.visit_inline_nodes(&text.content)?;
-                write!(self.writer, "`")?;
+                let role = self.write_role_start(text.role)?;
+                let content = InlineTextTransform::default()
+                    .line_break("\n")
+                    .to_string(&text.content);
+                self.write_code_span(&content)?;
+                self.write_role_end(role)?;
             }
             InlineNode::HighlightText(text) => {
                 self.write_inline_anchor(text.id)?;
-                // Highlighting not in standard Markdown
-                // Just render as plain text
+                let role = self.write_role_start(text.role)?;
+                if role.is_none() {
+                    write!(self.writer, "<mark>")?;
+                }
                 self.visit_inline_nodes(&text.content)?;
+                if role.is_none() {
+                    write!(self.writer, "</mark>")?;
+                }
+                self.write_role_end(role)?;
             }
             InlineNode::SubscriptText(text) => {
                 self.write_inline_anchor(text.id)?;
-                // Subscript not in standard Markdown
-                // Render with HTML tags (works in most renderers)
+                let role = self.write_role_start(text.role)?;
                 write!(self.writer, "<sub>")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "</sub>")?;
+                self.write_role_end(role)?;
             }
             InlineNode::SuperscriptText(text) => {
                 self.write_inline_anchor(text.id)?;
-                // Superscript not in standard Markdown
+                let role = self.write_role_start(text.role)?;
                 write!(self.writer, "<sup>")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "</sup>")?;
+                self.write_role_end(role)?;
             }
-            InlineNode::LineBreak(_) => {
-                writeln!(self.writer, "  ")?; // Two spaces for line break in Markdown
-            }
+            InlineNode::LineBreak(_) => writeln!(self.writer, "  ")?,
             InlineNode::RawText(text) => {
-                write!(self.writer, "{}", text.content)?;
+                self.write_passthrough(text.content, &text.subs)?;
             }
-            InlineNode::VerbatimText(text) => {
-                write!(self.writer, "`{}`", text.content)?;
-            }
+            InlineNode::VerbatimText(text) => self.write_code_span(text.content)?,
             InlineNode::StandaloneCurvedApostrophe(_) => {
                 write!(self.writer, "'")?;
             }
             InlineNode::CurvedQuotationText(text) => {
                 self.write_inline_anchor(text.id)?;
-                // Render with proper quotes
+                let role = self.write_role_start(text.role)?;
                 write!(self.writer, "\"")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "\"")?;
+                self.write_role_end(role)?;
             }
             InlineNode::CurvedApostropheText(text) => {
                 self.write_inline_anchor(text.id)?;
+                let role = self.write_role_start(text.role)?;
                 write!(self.writer, "'")?;
                 self.visit_inline_nodes(&text.content)?;
                 write!(self.writer, "'")?;
+                self.write_role_end(role)?;
             }
             InlineNode::InlineAnchor(anchor) => {
                 self.write_inline_anchor(Some(anchor.id))?;
@@ -1363,8 +1612,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
-        write!(self.writer, "{}", Self::escape_markdown(text))?;
-        Ok(())
+        self.write_escaped_text(text)
     }
 }
 
@@ -1377,7 +1625,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         self.write_link(destination, |visitor| {
             if label.is_empty() {
-                write!(visitor.writer, "{default_label}")?;
+                write!(visitor.writer, "{}", Self::escape_markdown(default_label))?;
             } else {
                 for node in label {
                     visitor.visit_inline_node(node)?;
@@ -1387,97 +1635,115 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         })
     }
 
-    /// Handle inline macros.
+    fn write_keyboard(&mut self, keys: &[&str]) -> Result<(), Error> {
+        for (index, key) in keys.iter().enumerate() {
+            if index > 0 {
+                write!(self.writer, "+")?;
+            }
+            write!(self.writer, "<kbd>{}</kbd>", escape_html_text(key))?;
+        }
+        Ok(())
+    }
+
+    fn write_menu(&mut self, target: &str, items: &[&str]) -> Result<(), Error> {
+        write!(self.writer, "{}", Self::escape_markdown(target))?;
+        for item in items {
+            write!(self.writer, " > {}", Self::escape_markdown(item))?;
+        }
+        Ok(())
+    }
+
     fn visit_inline_macro_inner(&mut self, mac: &InlineMacro) -> Result<(), Error> {
         match mac {
             InlineMacro::Link(link) => {
                 let target = link.target.to_string();
-                self.write_macro_link(&target, &target, &link.text)?;
+                let fallback = link_fallback(&target, link.hides_uri_scheme());
+                self.write_macro_link(&target, fallback, &link.text)?;
             }
             InlineMacro::Image(image) => {
-                // Inline image macro
                 let target = self.media_target(&image.source);
-                // Use the image alt text or default
-                let alt = "image"; // Inline images don't have attributes field
+                let target = escape_link_destination(&target);
+                let alt = "image";
                 write!(self.writer, "![{alt}]({target})")?;
             }
-            InlineMacro::Icon(_icon) => {
-                // Icons not supported in Markdown - skip silently
+            InlineMacro::Icon(icon_macro) => {
+                let alt = icon::alt(&icon_macro.target, &icon_macro.attributes);
+                write!(self.writer, "[{}]", Self::escape_markdown(&alt))?;
             }
-            InlineMacro::Keyboard(_kbd) => {
-                // Keyboard shortcuts - skip for now
+            InlineMacro::Keyboard(keyboard) => {
+                self.write_keyboard(&keyboard.keys)?;
             }
-            InlineMacro::Button(_btn) => {
-                // Button formatting - skip for now
+            InlineMacro::Button(button) => {
+                write!(self.writer, "**[{}]**", Self::escape_markdown(button.label))?;
             }
-            InlineMacro::Menu(_menu) => {
-                // Menu navigation - skip for now
+            InlineMacro::Menu(menu) => {
+                self.write_menu(menu.target, &menu.items)?;
             }
             InlineMacro::Footnote(footnote) => {
+                let id = self.record_footnote(footnote)?;
                 if self.in_link_text {
                     write!(self.writer, "[{}]", footnote.number)?;
                 } else if self.variant() == MarkdownVariant::GitHubFlavored {
-                    // GFM supports footnotes
-                    let id: String = footnote
-                        .id
-                        .as_ref()
-                        .map_or_else(|| footnote.number.to_string(), |c| (*c).to_string());
-
-                    // Store footnote for later rendering (only if not already stored)
-                    if !footnote.content.is_empty()
-                        && !self
-                            .footnotes
-                            .iter()
-                            .any(|(existing_id, _)| existing_id == &id)
-                    {
-                        // Pre-render the footnote content into a markdown string
-                        // using a temporary visitor so we don't hold borrows from
-                        // the document being walked.
-                        let mut buffer: Vec<u8> = Vec::new();
-                        {
-                            let mut tmp = MarkdownVisitor::new(
-                                &mut buffer,
-                                self.processor.clone(),
-                                self.diagnostics.reborrow(),
-                            );
-                            tmp.heading_level = self.heading_level;
-                            tmp.list_depth = self.list_depth;
-                            for node in &footnote.content {
-                                tmp.visit_inline_node(node)?;
-                            }
-                        }
-                        let rendered = String::from_utf8(buffer).unwrap_or_default();
-                        self.footnotes.push((id.clone(), rendered));
-                    }
-
-                    // Render inline reference
                     write!(self.writer, "[^{id}]")?;
                 } else {
-                    // CommonMark: render footnote inline with superscript number
-                    write!(self.writer, "<sup>{}</sup>", footnote.number)?;
+                    write!(self.writer, "<sup>")?;
+                    self.write_anchor_link(&format!("_footnote_{id}"), |visitor| {
+                        write!(visitor.writer, "[{}]", footnote.number)?;
+                        Ok(())
+                    })?;
+                    write!(self.writer, "</sup>")?;
                 }
             }
             InlineMacro::Url(url) => {
-                // URL macro - text is Vec<InlineNode>
                 let target = url.target.to_string();
-                self.write_macro_link(&target, &target, &url.text)?;
+                let fallback = link_fallback(&target, url.hides_uri_scheme());
+                self.write_macro_link(&target, fallback, &url.text)?;
             }
             InlineMacro::Mailto(mailto) => {
-                // Email link - text is Vec<InlineNode>
                 let target = mailto.target.to_string();
-                self.write_macro_link(&format!("mailto:{target}"), &target, &mailto.text)?;
+                let destination = if target.starts_with("mailto:") {
+                    target.clone()
+                } else {
+                    format!("mailto:{target}")
+                };
+                self.write_macro_link(&destination, mailto_fallback(&target), &mailto.text)?;
             }
             InlineMacro::Autolink(autolink) => {
-                // Auto-detected link
                 let target = autolink.url.to_string();
-                write!(self.writer, "{target}")?;
+                let (fallback, angle_brackets) =
+                    autolink_fallback(&target, autolink.bracketed, autolink.hides_uri_scheme());
+                self.write_link(&target, |visitor| {
+                    if angle_brackets {
+                        write!(
+                            visitor.writer,
+                            "&lt;{}&gt;",
+                            Self::escape_markdown(fallback)
+                        )?;
+                    } else {
+                        write!(visitor.writer, "{}", Self::escape_markdown(fallback))?;
+                    }
+                    Ok(())
+                })?;
             }
             InlineMacro::CrossReference(xref) => self.visit_cross_reference(xref)?,
             InlineMacro::IndexTerm(term) if term.is_visible() => {
                 self.visit_inline_nodes(term.term())?;
             }
             InlineMacro::IndexTerm(_) => {}
-            InlineMacro::Pass(_) | InlineMacro::Stem(_) | _ => {
+            InlineMacro::Pass(pass) => {
+                if let Some(text) = pass.text {
+                    self.write_passthrough(text, &pass.substitutions)?;
+                }
+            }
+            InlineMacro::Stem(stem) => {
+                self.warn_once(
+                    "inline-stem",
+                    "inline STEM is not supported by the Markdown backend; preserving the expression as code",
+                    "Use a Markdown renderer with a math extension, or use a backend that supports STEM rendering.",
+                );
+                self.write_code_span(stem.content)?;
+            }
+            _ => {
                 self.diagnostics.warn(format!(
                     "unsupported inline macro in Markdown, skipping macro: {mac:?}"
                 ));
@@ -1584,7 +1850,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         let result = text(self);
         self.in_link_text = previous;
         result?;
-        write!(self.writer, "]({destination})")?;
+        write!(self.writer, "]({})", escape_link_destination(destination))?;
         Ok(())
     }
 

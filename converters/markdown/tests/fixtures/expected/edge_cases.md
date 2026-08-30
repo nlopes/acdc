@@ -3,7 +3,7 @@
 <a id="_special_characters"></a>
 ## Special Characters
 
-Text with special chars: **asterisk**, *underscore*, `backtick`, hash, \[bracket\].
+Text with special chars: **asterisk**, *underscore*, `backtick`, <mark>hash</mark>, \[bracket\].
 
 Escaped chars: \*not bold\*, \_not italic\_.
 
@@ -28,9 +28,9 @@ This has multiple blank lines above.
 <a id="_urls_and_emails"></a>
 ## URLs and Emails
 
-Auto-linked: https://example.com
+Auto-linked: [https://example.com](https://example.com)
 
-Email: mailto:user@example.com
+Email: [user@example.com](mailto:user@example.com)
 
 <a id="_mixed_nesting"></a>
 ## Mixed Nesting

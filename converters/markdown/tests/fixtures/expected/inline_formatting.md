@@ -1,10 +1,10 @@
 # Inline Formatting Test
 
-This paragraph contains **bold text**, *italic text*, `monospace code`, and highlighted text.
+This paragraph contains **bold text**, *italic text*, `monospace code`, and <mark>highlighted text</mark>.
 
 You can also use **bold**, *italic*, and `monospace` with double markers.
 
-Mix and match: **bold with *italic inside*** and `code with **bold**`.
+Mix and match: **bold with *italic inside*** and `code with bold`.
 
 Subscript: H<sub>2</sub>O and superscript: E=mc<sup>2</sup>.
 

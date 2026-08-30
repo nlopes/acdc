@@ -48,8 +48,10 @@ Supported constructs:
 - **Table of contents**: rendered as a nested Markdown list of section links at
   the configured automatic, preamble, or macro position. Custom titles and
   depth limits are preserved.
-- **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough
-  (GFM), links, autolinks, and images. Quote, verse, literal, listing, source,
+- **Paragraphs** and inline formatting: bold, italic, robust monospace,
+  strikethrough (GFM), links, autolinks, footnotes, roles, passthroughs, UI
+  macros, and images. Link fallback text honors `hide-uri-scheme`; bracketed
+  email autolinks remain visible. Quote, verse, literal, listing, source,
   example, and abstract paragraph styles retain distinct blockquote or
   preformatted treatments.
 - **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
@@ -62,7 +64,9 @@ Supported constructs:
   display depends on whether the Markdown renderer accepts and sanitizes HTML.
 - **Tables**: GFM tables with column alignment. Skipped with a warning in CommonMark mode.
 - **Admonitions** (NOTE, TIP, IMPORTANT, WARNING, CAUTION): GitHub Alerts (`> [!NOTE]`) in GFM; plain blockquotes with a bold label in CommonMark.
-- **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected at document end; HTML superscript fallback in CommonMark.
+- **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected
+  at document end; linked superscripts and a readable endnote list in
+  CommonMark.
 - **Images / videos / audio**: images render natively; video and audio degrade to links with a warning.
 - **Thematic breaks** and page breaks (rendered as `---`).
 - **Collapsible example blocks** (`[%collapsible]`, `[%collapsible%open]`): rendered as embedded `<details>/<summary>` HTML. Works in GitHub, GitLab, and most Markdown renderers that allow inline HTML.
@@ -82,6 +86,12 @@ Some `AsciiDoc` features have no faithful Markdown equivalent. When the converte
 - **Arbitrary block roles and options** - dropped when they have no portable
   Markdown representation. Block IDs and anchors remain available as HTML
   destinations.
+- **Inline STEM** - preserved as inline code with a warning until Markdown math
+  extensions are supported.
+- **Inline roles and passthroughs** - use embedded HTML where Markdown has no
+  equivalent. Arbitrary roles remain as HTML classes, but their appearance and
+  raw passthrough behavior depend on the renderer's HTML support and
+  sanitization policy.
 
 See the crate's `src/lib.rs` module docs for the full list.
 
