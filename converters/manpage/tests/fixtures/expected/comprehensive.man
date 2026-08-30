@@ -38,7 +38,7 @@ This is the main description paragraph.
 .SS "Basic Formatting"
 .sp
 This tests \fBbold\fP, \fIitalic\fP, \f(CRmonospace\fP, \fBhighlight\fP, ^(superscript), _(subscript),
-and \fBunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe\(cqs\fP text.
+and \fIunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe\(cqs\fP text.
 .SS "Links and Cross References"
 .sp
 Visit \c

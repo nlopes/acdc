@@ -84,6 +84,17 @@ The manpage converter:
   lists distinct text layouts
 - Shows bibliography labels and renders concealed index terms, nested terms,
   and `see` relationships in a final `[index]` section
+- Omits a section heading for `%notitle` while retaining its body and
+  cross-reference text
+- Honors `hide-uri-scheme` in visible URL, `link:`, and automatic-link text
+  without changing the full link target
+- Applies the same portable role presentation to inline spans and link labels:
+  `underline` and `subtitle` use italics, and `big` and `small` use relative
+  type sizes. Unattributed highlights and the `highlight` role use bold;
+  ID-only and custom-role spans keep plain text.
+- Preserves unsupported strikeout and overline meaning as `[deleted: ...]` and
+  `[overlined: ...]`. Unknown and color roles retain their text without added
+  formatting.
 
 == Differences from Asciidoctor
 
@@ -94,4 +105,7 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
   structured warning and preserves the media as static links.
 - Unlike Asciidoctor's manpage backend, which drops bibliography labels and
   index catalogs, acdc preserves both as portable roff text.
+- Unlike Asciidoctor's manpage backend, which ignores `%notitle` and inline
+  roles, acdc preserves their backend-neutral meaning with portable roff
+  fallbacks.
 - Custom macro extensions not supported

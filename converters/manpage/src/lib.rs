@@ -178,8 +178,9 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn document_attributes_defaults() -> DocumentAttributes<'static> {
         let mut attrs: DocumentAttributes<'static> = DocumentAttributes::default();
         // man-linkstyle controls how links are rendered in the manpage
-        // Format: "color style <text>" - blue R <> means blue, regular, angle brackets
-        attrs.insert("man-linkstyle".into(), "blue R <>".into());
+        // Format: "color style prefix suffix" - blue R < > means blue, regular,
+        // with the target in angle brackets.
+        attrs.insert("man-linkstyle".into(), "blue R < >".into());
         attrs
     }
 
@@ -272,6 +273,13 @@ mod tests {
                 .get_string("doctype")
                 .as_deref(),
             Some("manpage")
+        );
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("man-linkstyle")
+                .as_deref(),
+            Some("blue R < >")
         );
         assert!(
             processor

@@ -16,6 +16,15 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- `%notitle` sections now omit their heading while retaining their body and
+  cross-reference text.
+- `hide-uri-scheme` now removes the scheme from the visible text of URL,
+  `link:`, and automatic links without changing their destination.
+- Built-in inline and link roles now use portable roff fallbacks: `underline`
+  and `subtitle` use italics, `big` and `small` change the text size,
+  `line-through` uses `[deleted: ...]`, and `overline` uses
+  `[overlined: ...]`. ID-only spans and unknown or color roles keep their text
+  without adding unsupported presentation.
 - Unordered `[none]`, `[no-bullet]`, and `[unstyled]` lists now omit bullets;
   ordered lists also support `[unnumbered]`. The `%reversed` option counts down
   from the list length or an explicit `start`, without changing nested lists.

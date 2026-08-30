@@ -1,0 +1,49 @@
+= sections-inline-roles(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: Section and inline checks
+
+== NAME
+
+sections-inline-roles - verify section and inline presentation
+
+== SYNOPSIS
+
+sections-inline-roles
+
+== DESCRIPTION
+
+See <<hidden-section>> and <<visible-child>>.
+
+[#hidden-section%notitle]
+=== Hidden *Section*
+
+The hidden section body remains visible.
+
+[#visible-child]
+==== Visible Child
+
+The child body remains visible.
+
+=== Link display
+
+Before: https://before.example/path[] and link:https://before.example/linked[].
+
+:hide-uri-scheme:
+
+Hidden schemes: https://hidden.example/path[], link:https://hidden.example/linked[], and https://hidden.example/auto.
+
+Explicit text: link:https://hidden.example/label[visible label].
+
+:hide-uri-scheme!:
+
+After: https://after.example/path[].
+
+=== Link roles
+
+Roles: https://example.com/underline[underlined,role=underline], link:https://example.com/deleted[removed,role=line-through], link:https://example.com/large[large,role=big], mailto:person@example.com[small,role=small], and link:https://example.com/combined[combined,role="underline line-through"].
+
+=== Inline roles
+
+Roles: #highlighted#, [#targeted]#targeted#, [.underline]#underlined#, [.line-through]#removed#, [.big]#large#, [.small]#small#, [.subtitle]#subtitle#, [.overline]#overlined#, [.custom]#custom#, and [.underline.line-through]#combined#.

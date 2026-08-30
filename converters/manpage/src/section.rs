@@ -37,27 +37,29 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             return Ok(());
         }
 
-        // Level 1 sections use .SH, level 2+ use .SS
-        // Manpage convention: uppercase section titles for level 1
-        let w = self.writer_mut();
-
-        if section.level == 1 {
-            // Main section - .SH with uppercase title
-            writeln!(
-                w,
-                ".SH \"{}\"",
-                escape_quoted(&uppercase_title(&title_text))
-            )?;
-        } else if section.level <= 2 {
-            // Subsection - .SS (preserve original case, matching asciidoctor)
-            writeln!(w, ".SS \"{}\"", escape_quoted(&title_text))?;
-        } else {
-            // Levels 3+ - no roff section macro exists; render as bold paragraph heading
-            writeln!(w, ".sp")?;
-            write!(w, "\\fB")?;
-            self.visit_inline_nodes(&section.title)?;
+        if !section.metadata.options.contains(&"notitle") {
+            // Level 1 sections use .SH, level 2+ use .SS
+            // Manpage convention: uppercase section titles for level 1
             let w = self.writer_mut();
-            writeln!(w, "\\fP")?;
+
+            if section.level == 1 {
+                // Main section - .SH with uppercase title
+                writeln!(
+                    w,
+                    ".SH \"{}\"",
+                    escape_quoted(&uppercase_title(&title_text))
+                )?;
+            } else if section.level <= 2 {
+                // Subsection - .SS (preserve original case, matching asciidoctor)
+                writeln!(w, ".SS \"{}\"", escape_quoted(&title_text))?;
+            } else {
+                // Levels 3+ - no roff section macro exists; render as bold paragraph heading
+                writeln!(w, ".sp")?;
+                write!(w, "\\fB")?;
+                self.visit_inline_nodes(&section.title)?;
+                let w = self.writer_mut();
+                writeln!(w, "\\fP")?;
+            }
         }
 
         if is_name_section {
