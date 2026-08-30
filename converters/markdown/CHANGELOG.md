@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- When multiple anchors precede a document title, Markdown now emits the last
+  one as the title destination, matching Asciidoctor. Automatic references use
+  the full title and subtitle.
+
 ### Added
 
 - Inline UI macros, passthroughs, STEM expressions, and roles now retain

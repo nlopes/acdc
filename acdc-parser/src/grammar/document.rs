@@ -1436,12 +1436,40 @@ fn collect_link_references<'a>(
     collect_inline_references(state, text, refs, xrefs);
 }
 
+fn header_reference_title<'a>(header: &Header<'a>) -> Title<'a> {
+    let mut inlines = header.title.clone().into_inlines();
+    if let Some(subtitle) = &header.subtitle {
+        inlines.push(InlineNode::PlainText(Plain {
+            content: ": ",
+            location: header.location.clone(),
+            escaped: false,
+        }));
+        inlines.extend(subtitle.clone().into_inlines());
+    }
+    Title::new(inlines)
+}
+
+fn collect_metadata_references<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockMetadata<'a>,
+    refs: &mut HashMap<&'a str, Reference<'a>>,
+    xrefs: &mut Vec<CrossReferenceUse<'a>>,
+) {
+    if let Some(attribution) = &metadata.attribution {
+        collect_inline_references(state, attribution, refs, xrefs);
+    }
+    if let Some(citetitle) = &metadata.citetitle {
+        collect_inline_references(state, citetitle, refs, xrefs);
+    }
+}
+
 /// Walk the final document tree to (1) populate the cross-reference catalog `refs` with
 /// every anchor (block IDs, inline `[[id]]` anchors, formatted span IDs, and link IDs) and (2)
 /// collect every `<<id>>` / `xref:id[]` use for unresolved-reference checking and
-/// bibliography citation metadata. A target with no title is still registered (reference
-/// text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than being
-/// treated as unresolved. Top-level section IDs are seeded from `toc_entries`; this walk
+/// bibliography citation metadata. Titles and quote credits are part of this walk because
+/// converters render their inline content too. A target with no title is still registered
+/// (reference text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than
+/// being treated as unresolved. Top-level section IDs are seeded from `toc_entries`; this walk
 /// also catalogs nested-document sections that do not belong in the outer table of contents.
 fn collect_references<'a>(
     state: &mut ParserState<'a>,
@@ -1457,6 +1485,12 @@ fn collect_references<'a>(
                 .metadata()
                 .and_then(|metadata| metadata.caption.clone());
             insert_reference(state, refs, anchor, block.title().cloned(), caption);
+        }
+        if let Some(title) = block.title() {
+            collect_inline_references(state, title, refs, xrefs);
+        }
+        if let Some(metadata) = block.metadata() {
+            collect_metadata_references(state, metadata, refs, xrefs);
         }
 
         match block {
@@ -1701,6 +1735,10 @@ fn collect_inline_references<'a>(
                     automatic: xref.text.is_empty(),
                     resolve_natural_target: xref.resolve_natural_target,
                 });
+                collect_inline_references(state, &xref.text, refs, xrefs);
+            }
+            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
+                collect_inline_references(state, &footnote.content, refs, xrefs);
             }
             InlineNode::Macro(InlineMacro::Link(link)) => collect_link_references(
                 state,
@@ -2661,8 +2699,48 @@ peg::parser! {
             // anchors, and formatted span IDs). The same walk collects every
             // cross-reference so unresolved ones can be reported.
             let toc_entries = state.toc_entries.clone();
+            let header_has_anchor = header.as_ref().is_some_and(|header| {
+                header.metadata.id.is_some() || !header.metadata.anchors.is_empty()
+            });
             let mut references: HashMap<&str, Reference<'_>> =
-                HashMap::with_capacity(toc_entries.len());
+                HashMap::with_capacity(toc_entries.len() + usize::from(header_has_anchor));
+            let mut xrefs = Vec::new();
+            if let Some(header) = &header {
+                if let Some(anchor) = header
+                    .metadata
+                    .id
+                    .as_ref()
+                    .or_else(|| header.metadata.anchors.last())
+                {
+                    insert_reference(
+                        state,
+                        &mut references,
+                        anchor,
+                        Some(header_reference_title(header)),
+                        None,
+                    );
+                }
+                collect_inline_references(
+                    state,
+                    header.title.as_ref(),
+                    &mut references,
+                    &mut xrefs,
+                );
+                if let Some(subtitle) = &header.subtitle {
+                    collect_inline_references(
+                        state,
+                        subtitle.as_ref(),
+                        &mut references,
+                        &mut xrefs,
+                    );
+                }
+                collect_metadata_references(
+                    state,
+                    &header.metadata,
+                    &mut references,
+                    &mut xrefs,
+                );
+            }
             for entry in &toc_entries {
                 let xreflabel = parse_reference_label(state, entry.xreflabel, &entry.location);
                 references.insert(
@@ -2677,7 +2755,6 @@ peg::parser! {
                     },
                 );
             }
-            let mut xrefs = Vec::new();
             collect_references(state, &blocks, &mut references, &mut xrefs);
 
             let mut document = Document {

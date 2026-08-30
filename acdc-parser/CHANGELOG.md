@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document-title IDs now enter the reference catalog and use the full title
+  and subtitle as automatic reference text. Anchors and cross-references in
+  rendered block titles, quote credits, and footnote bodies are also
+  cataloged and validated.
 - Styled source, listing, and literal paragraphs now expose trailing callout
   markers and their following callout lists as structured nodes, matching
   delimited verbatim blocks and Asciidoctor.

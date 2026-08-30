@@ -136,6 +136,15 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_header(&mut self, header: &Header<'_>) -> Result<(), Self::Error> {
         let title_page = self.page_numbering.plan.has_title_page();
 
+        if let Some(anchor) = header
+            .metadata
+            .id
+            .as_ref()
+            .or_else(|| header.metadata.anchors.last())
+        {
+            self.write_anchor_target(anchor);
+        }
+
         if self.page_numbering.plan.starts_before_header() {
             self.page_numbering.start_arabic(&mut self.writer);
         }

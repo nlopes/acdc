@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Document-title IDs now create named PDF destinations, and automatic
+  references to them use the full formatted title and subtitle. With stacked
+  title anchors, the last one is retained, matching Asciidoctor PDF.
 - PDF indexes now link index terms in repeated table headers to the last
   rendered occurrence instead of failing when Typst lays out the header more
   than once, matching Asciidoctor PDF.

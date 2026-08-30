@@ -84,3 +84,42 @@ fn cross_reference_model_full_document_resolves_caption_label() -> Result<(), Er
     );
     Ok(())
 }
+
+#[test]
+fn reference_catalog_covers_rendered_header_title_credits_and_footnotes() -> Result<(), Error> {
+    let parsed = parse(
+        concat!(
+            include_str!("../fixtures/tests/document_title_anchor_reference.adoc"),
+            "\n.Target [[title-anchor]]\nParagraph body.\n\n[quote, 'Author [[attribution-anchor]]', 'Work [[citation-anchor]]']\n____\nQuote body.\n____\n\nA note.footnote:[Footnote [[footnote-anchor]] body.]\n\nSee <<title-anchor>>, <<attribution-anchor>>, <<citation-anchor>>, and <<footnote-anchor>>.\n"
+        ),
+        &Options::default(),
+    )?;
+    let document = parsed.document();
+
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    assert!(!document.references.contains_key("unused-header-anchor"));
+    for id in [
+        "document-header",
+        "title-anchor",
+        "attribution-anchor",
+        "citation-anchor",
+        "footnote-anchor",
+    ] {
+        assert!(
+            document.references.contains_key(id),
+            "missing reference {id}"
+        );
+    }
+
+    let title = document
+        .references
+        .get("document-header")
+        .and_then(|reference| reference.title.as_ref())
+        .ok_or("missing document-title reference text")?;
+    assert!(
+        title
+            .iter()
+            .any(|inline| matches!(inline, InlineNode::PlainText(text) if text.content == ": "))
+    );
+    Ok(())
+}

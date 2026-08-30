@@ -364,7 +364,7 @@ impl Processor<'_> {
 
         let render_start = Instant::now();
         let named_destinations = preparation
-            .link_destination_ids
+            .named_destination_ids
             .iter()
             .map(|id| NamedDestination::new(encode_label(id), id))
             .collect();
@@ -1150,6 +1150,14 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
         references: &doc.references,
     };
     if let Some(header) = &doc.header {
+        if let Some(anchor) = header
+            .metadata
+            .id
+            .as_ref()
+            .or_else(|| header.metadata.anchors.last())
+        {
+            preparation.named_destination_ids.push(anchor.id.to_owned());
+        }
         collect_inline_preparation(header.title.as_ref(), &context, &mut preparation);
         if let Some(subtitle) = &header.subtitle {
             collect_inline_preparation(subtitle.as_ref(), &context, &mut preparation);
@@ -1176,7 +1184,7 @@ struct PdfPreparation {
     has_autofit_blocks: bool,
     admonition_image_icon_count: usize,
     populated_index_sections: HashSet<String>,
-    link_destination_ids: Vec<String>,
+    named_destination_ids: Vec<String>,
 }
 
 struct ImageIconReference {
@@ -1632,7 +1640,7 @@ fn collect_link_destination(
         .get(id.as_ref())
         .is_some_and(|reference| reference.location == *location)
     {
-        preparation.link_destination_ids.push(id.into_owned());
+        preparation.named_destination_ids.push(id.into_owned());
     }
 }
 
@@ -3325,6 +3333,52 @@ mod tests {
                 "expected {expected:?} in {text:?}"
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn document_title_id_is_a_pdf_destination_and_reference_target()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "[[unused-header-anchor]]\n[[document-header]]\n= Main *Title*: Subtitle _Details_\n\nSee <<document-header>>.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        let (_, names) = pdf.dereference(pdf.catalog()?.get(b"Names")?)?;
+        let (_, destinations) = pdf.dereference(names.as_dict()?.get(b"Dests")?)?;
+        let (_, entries) = pdf.dereference(destinations.as_dict()?.get(b"Names")?)?;
+        let destination_names = entries
+            .as_array()?
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|[name, _]| lopdf::decode_text_string(name))
+            .collect::<Result<Vec<_>, _>>()?;
+        assert!(
+            destination_names.contains(&"document-header".to_owned()),
+            "{destination_names:?}"
+        );
+        assert!(
+            !destination_names.contains(&"unused-header-anchor".to_owned()),
+            "{destination_names:?}"
+        );
+
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("See Main Title : Subtitle Details ."),
+            "{text}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
         Ok(())
     }
 

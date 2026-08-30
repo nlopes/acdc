@@ -194,6 +194,25 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Wa
     Ok((String::from_utf8(output)?, warnings))
 }
 
+#[test]
+fn document_title_uses_last_stacked_anchor_as_destination() -> Result<(), Error> {
+    let (output, warnings) = convert_str(
+        "[[unused-header-anchor]]\n[[document-header]]\n= Main *Title*: Subtitle _Details_\n\nSee <<document-header>>.\n",
+    )?;
+
+    assert!(
+        output.starts_with("<a id=\"document-header\"></a>\n"),
+        "{output}"
+    );
+    assert!(!output.contains("id=\"unused-header-anchor\""), "{output}");
+    assert!(
+        output.contains("[Main **Title**: Subtitle *Details*](#document-header)"),
+        "{output}"
+    );
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(())
+}
+
 fn markdown_parser_options(variant: MarkdownVariant) -> MarkdownParserOptions {
     let mut options = MarkdownParserOptions::empty();
     if variant == MarkdownVariant::GitHubFlavored {

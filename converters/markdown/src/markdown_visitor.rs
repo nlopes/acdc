@@ -1386,7 +1386,14 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     }
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
-        self.write_metadata_anchor(&header.metadata)?;
+        if let Some(anchor) = header
+            .metadata
+            .id
+            .as_ref()
+            .or_else(|| header.metadata.anchors.last())
+        {
+            self.write_block_anchor(anchor.id)?;
+        }
         if !header.title.is_empty() {
             write!(self.writer, "# ")?;
             self.visit_inline_nodes(header.title.as_ref())?;

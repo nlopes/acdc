@@ -1,0 +1,5 @@
+[[unused-header-anchor]]
+[[document-header]]
+= Main *Title*: Subtitle _Details_
+
+See <<document-header>>.
