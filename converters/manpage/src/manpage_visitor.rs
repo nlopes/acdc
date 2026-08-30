@@ -23,6 +23,12 @@ pub(crate) enum TextCase {
     Uppercase,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum IndexCollection {
+    Enabled,
+    Disabled,
+}
+
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
 pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
@@ -39,6 +45,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
+    pub(crate) index_collection: IndexCollection,
     pub(crate) text_boundaries: TextBoundaries,
     /// Text casing applied while preserving inline markup.
     pub(crate) text_case: TextCase,
@@ -59,6 +66,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             in_name_section: false,
             strip_next_leading_space: false,
             in_inline_span: false,
+            index_collection: IndexCollection::Enabled,
             text_boundaries: TextBoundaries::BOTH,
             text_case: TextCase::Preserve,
             first_section_title: None,
@@ -94,6 +102,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         let processor = self.processor.clone();
         let mut visitor = ManpageVisitor::new(writer, processor, self.diagnostics.reborrow());
         visitor.text_case = self.text_case;
+        visitor.index_collection = self.index_collection;
         visitor
     }
 

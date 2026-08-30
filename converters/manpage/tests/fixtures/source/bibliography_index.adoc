@@ -1,0 +1,36 @@
+= bibliography-index(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: Special section checks
+
+== NAME
+
+bibliography-index - verify bibliography labels and index catalogs
+
+== SYNOPSIS
+
+bibliography-index
+
+== DESCRIPTION
+
+See <<ref-one>> and <<custom-ref>>.
+
+=== Terms
+
+Text has (((Animals, Mammals, Cats))) and (((Zoology))).
+
+Named redirect: indexterm2:[Shockwave,see=*Standards*].
+
+The ((Standards)) term is the redirect target.
+
+Named relationship: indexterm:[Related material,Web,see-also="Standards, Missing Term"].
+
+[bibliography]
+== REFERENCES
+
+* [[[ref-one]]] First reference.
+* [[[custom-ref,Custom label]]] Second reference.
+
+[index]
+== INDEX

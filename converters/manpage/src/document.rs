@@ -104,6 +104,10 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// - `manpurpose`: From NAME section (after ` - `)
     /// - `_manpage_title_conforming`: Whether the title conforms to name(volume) format
     pub(crate) fn render_document_start(&mut self, doc: &Document) -> Result<(), Error> {
+        if let Some(header) = &doc.header {
+            self.collect_index_terms_from_inlines(&header.title)?;
+        }
+
         // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
         // This matches asciidoctor's --embedded behavior for manpages
         if self.processor.options.embedded() {

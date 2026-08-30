@@ -1,0 +1,115 @@
+'\" t
+.\"     Title: list-styles
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: List checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "LIST\-STYLES" "1" "2026-08-30" "acdc" "List checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+list\-styles \- verify list presentation
+.SH "SYNOPSIS"
+.sp
+list\-styles
+.SH "DESCRIPTION"
+.RS 0
+.IP "" 2
+Unordered none
+.RE
+.RS 0
+.IP "" 2
+Unordered no bullet
+.RE
+.RS 0
+.IP "" 2
+Unordered unstyled
+.RE
+.RS 0
+.IP "" 4
+Ordered none
+.RE
+.RS 0
+.IP "" 4
+Ordered no bullet
+.RE
+.RS 0
+.IP "" 4
+Ordered unstyled
+.RE
+.RS 0
+.IP "" 4
+Ordered unnumbered
+.RE
+.RS 0
+.IP 3. 4
+Default three
+.IP 2. 4
+Default two
+.IP 1. 4
+Default one
+.RE
+.RS 0
+.IP 5. 4
+Explicit five
+.RS 0
+.RS 4
+.IP 1. 4
+Nested one
+.IP 2. 4
+Nested two
+.RE
+.RE
+.IP 4. 4
+Explicit four
+.RE
+.RS 0
+.sp
+\fBCPU\fP \(en Central processor
+.sp
+\fBRAM\fP \(en Working memory
+.RE
+.RS 0
+.TP
+\fBQ: What is acdc?\fP
+\fBA:\fP An AsciiDoc converter.
+.TP
+\fBQ: What does it preserve?\fP
+\fBA:\fP Document meaning.
+.RE
+.RS 0
+.TP
+\fB1. First term\fP
+First definition
+.TP
+\fB2. Second term\fP
+Second definition
+.RE
+.RS 0
+.TP
+\fB\(bu Alpha term\fP
+Alpha definition
+.TP
+\fB\(bu Beta term\fP
+Beta definition
+.RE

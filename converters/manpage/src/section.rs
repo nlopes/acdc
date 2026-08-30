@@ -5,7 +5,7 @@
 use std::io::Write;
 
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::Section;
+use acdc_parser::{Section, SectionKind};
 
 use crate::{
     Error, ManpageVisitor,
@@ -16,6 +16,7 @@ use crate::{
 impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Visit a section and its content.
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
+        self.collect_index_terms_from_inlines(&section.title)?;
         let title_text = extract_heading_text(&section.title, &self.processor.references);
 
         // Track level-1 section titles for convention validation
@@ -63,9 +64,12 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             self.in_name_section = true;
         }
 
-        // Visit section content
-        for block in &section.content.clone() {
-            self.visit_block(block)?;
+        if section.kind == SectionKind::Index && self.processor.has_valid_index_section {
+            self.render_index_catalog()?;
+        } else {
+            for block in &section.content.clone() {
+                self.visit_block(block)?;
+            }
         }
 
         if is_name_section {

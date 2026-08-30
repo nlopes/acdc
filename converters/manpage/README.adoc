@@ -78,6 +78,12 @@ The manpage converter:
   links with `.URL`
 - Renders audio and video as titled static links, including every video source
   and poster
+- Omits markers for `[none]`, `[no-bullet]`, and `[unstyled]` lists, plus
+  `[unnumbered]` ordered lists, and honors `%reversed` with optional `start`
+- Gives `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description
+  lists distinct text layouts
+- Shows bibliography labels and renders concealed index terms, nested terms,
+  and `see` relationships in a final `[index]` section
 
 == Differences from Asciidoctor
 
@@ -86,4 +92,6 @@ The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage b
 - Some advanced table features not yet implemented
 - Interactive audio and video playback is unavailable. The converter emits one
   structured warning and preserves the media as static links.
+- Unlike Asciidoctor's manpage backend, which drops bibliography labels and
+  index catalogs, acdc preserves both as portable roff text.
 - Custom macro extensions not supported

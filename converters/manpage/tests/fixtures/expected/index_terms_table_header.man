@@ -49,3 +49,52 @@ Footer :The non\-repeating footer contains a concealed term.
 .sp
 An occurrence after the table \&.
 .SH "INDEX"
+.SS "A"
+.RS 4
+after table
+.br
+.RE
+.SS "B"
+.RS 4
+body term
+.br
+.RE
+.SS "F"
+.RS 4
+footer term
+.br
+.RE
+.SS "R"
+.RS 4
+Related header
+.br
+.RS 4
+(see also Tables)
+.br
+.RE
+.RE
+.SS "S"
+.RS 4
+shared term
+.br
+.RE
+.SS "T"
+.RS 4
+Tables
+.br
+.RS 4
+Headers
+.br
+.RS 4
+concealed
+.br
+.RE
+.RE
+table title
+.br
+.RE
+.SS "V"
+.RS 4
+visible \fBheader\fP
+.br
+.RE

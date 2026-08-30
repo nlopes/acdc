@@ -515,9 +515,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::IndexTerm(it) => {
-                if it.is_visible() {
-                    self.visit_inline_nodes(it.term())?;
-                }
+                self.render_index_term(it)?;
             }
 
             InlineMacro::Footnote(_)

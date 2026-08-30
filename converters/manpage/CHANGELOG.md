@@ -16,6 +16,14 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- Unordered `[none]`, `[no-bullet]`, and `[unstyled]` lists now omit bullets;
+  ordered lists also support `[unnumbered]`. The `%reversed` option counts down
+  from the list length or an explicit `start`, without changing nested lists.
+- `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description lists
+  now use distinct readable layouts.
+- Bibliography entries now show their reference labels. A valid final `[index]`
+  section renders an alphabetized catalog with nested terms and `see` and
+  `see-also` relationships.
 - Image fallbacks now show explicit or filename-derived alternative text and
   preserve configured links. Audio and video blocks render titled static links,
   including every video source and poster, and report one playback warning per
