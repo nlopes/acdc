@@ -59,20 +59,20 @@ Open block body.
 
 <strong>Verse Block Title</strong>
 
-> First line
-Second line
+> First line\
+> Second line
 > — Emily **Dickinson**, <cite>`Poem 1`</cite>
 
 <strong>Quote Paragraph Title</strong>
 
-Quoted paragraph body.
-— Paragraph **Author**, <cite>`Paragraph Work`</cite>
+> Quoted paragraph body.
+> — Paragraph **Author**, <cite>`Paragraph Work`</cite>
 
 <strong>Verse Paragraph Title</strong>
 
-First paragraph line
-Second paragraph line
-— Paragraph **Poet**, <cite>`Paragraph Poem`</cite>
+> First paragraph line\
+> Second paragraph line
+> — Paragraph **Poet**, <cite>`Paragraph Poem`</cite>
 
 <a id="example"></a>
 <strong>Example 1. Example Title</strong>

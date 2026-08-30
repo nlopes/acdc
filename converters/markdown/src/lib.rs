@@ -41,6 +41,9 @@
 //! Document headers retain subtitles, authors, revision details, and explicit
 //! IDs. Block titles retain resolved caption labels and numbers, and quote and
 //! verse credits remain visible.
+//! Styled paragraphs use blockquotes or fenced code as appropriate. Raw
+//! passthrough blocks remain available to HTML-capable Markdown renderers, and
+//! source callouts retain their markers, explanations, and attached blocks.
 //!
 //! # Limitations
 //!
@@ -51,7 +54,8 @@
 //! - **Task lists** - Supported in GFM only, converted to regular lists in `CommonMark`
 //! - **Include directives** - not supported (Markdown is single-file oriented)
 //! - **Substitutions** - no control over text substitutions
-//! - **Callouts** - code annotations not supported in standard Markdown
+//! - **Source line presentation** - line numbers, selected-line highlighting,
+//!   and PHP mixed-mode highlighting retain code and produce warnings
 //! - **Table cell spanning** - GFM tables don't support rowspan/colspan
 //! - **Video/audio embedding** - converted to links with warning
 //! - **Complex tables** - GFM tables are simpler than `AsciiDoc` tables

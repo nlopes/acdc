@@ -48,11 +48,18 @@ Supported constructs:
 - **Table of contents**: rendered as a nested Markdown list of section links at
   the configured automatic, preamble, or macro position. Custom titles and
   depth limits are preserved.
-- **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough (GFM), links, autolinks, images.
+- **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough
+  (GFM), links, autolinks, and images. Quote, verse, literal, listing, source,
+  example, and abstract paragraph styles retain distinct blockquote or
+  preformatted treatments.
 - **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
-- **Code blocks**: fenced with the source language when specified, plus the callout annotations stripped and rendered as trailing references.
+- **Code blocks**: fenced with the source language when specified. Source
+  callouts render as numbered markers beside the code and as an explanation
+  list, including content attached with `+` continuations.
 - **Blockquotes** and quote/verse blocks, including attribution and citation
   titles.
+- **Passthrough blocks**: raw content remains available as embedded HTML. Its
+  display depends on whether the Markdown renderer accepts and sanitizes HTML.
 - **Tables**: GFM tables with column alignment. Skipped with a warning in CommonMark mode.
 - **Admonitions** (NOTE, TIP, IMPORTANT, WARNING, CAUTION): GitHub Alerts (`> [!NOTE]`) in GFM; plain blockquotes with a bold label in CommonMark.
 - **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected at document end; HTML superscript fallback in CommonMark.
@@ -66,7 +73,10 @@ Some `AsciiDoc` features have no faithful Markdown equivalent. When the converte
 
 - **Include directives** - not expanded at render time (the preprocessor handles them before conversion).
 - **Substitution control** (`subs=...`) - no way to express this in Markdown.
-- **Callouts inside source blocks** - Markdown has no native equivalent; rendered as plain text.
+- **Source line presentation** - line numbering, selected-line highlighting,
+  and PHP `%mixed` highlighting are not portable Markdown. The source remains
+  in its code fence and each active option emits one structured warning per
+  document.
 - **Table cell spanning** (`2+|`, `.2+|`) - GFM tables are single-cell only.
 - **Complex tables** (nested, AsciiDoc-content cells) - flattened to the extent possible.
 - **Arbitrary block roles and options** - dropped when they have no portable

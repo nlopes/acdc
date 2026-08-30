@@ -18,10 +18,6 @@ fn assert_canonical_final_newline(output: &str, fixture: &str) {
     );
 }
 
-fn temp_output_path(name: &str, extension: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
-}
-
 /// Parses the input `.adoc` file, converts to Markdown (GFM), and compares with expected output.
 /// Excludes commonmark_* files which have their own test function.
 #[rstest::rstest]
@@ -395,21 +391,41 @@ fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error
 }
 
 #[test]
-fn unsupported_block_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
-    let parsed = acdc_parser::parse("++++\n<p>raw</p>\n++++\n", &parser_options)?;
-    let doc = parsed.document();
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
-    let output_path = temp_output_path("markdown-warning", "md");
+fn source_presentation_fallback_warnings_are_deduplicated() -> Result<(), Error> {
+    let input = "[source,rust,linenums,highlight=2]\n----\none\ntwo\n----\n\n[source,rust,linenums,highlight=2]\n----\nrepeat one\nrepeat two\n----\n\n[source,php,options=mixed]\n----\n<?php echo 'one'; ?>\n----\n\n[source,php,options=mixed]\n----\n<?php echo 'two'; ?>\n----\n";
+    let (output, warnings) = convert_str(input)?;
 
-    let result = processor.convert_to_file(doc, None, &output_path)?;
-    let _ = std::fs::remove_file(&output_path);
-
-    assert!(result.warnings().iter().any(|warning| {
-        warning.source.converter == "markdown"
-            && warning
-                .message
-                .contains("passthrough blocks not natively supported")
-    }));
+    for message in [
+        "source line numbering is not supported",
+        "selected source-line highlighting is not supported",
+        "PHP source block mixed-mode highlighting is not supported",
+    ] {
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|warning| warning.message.contains(message))
+                .count(),
+            1,
+            "{warnings:?}"
+        );
+    }
+    assert_eq!(warnings.len(), 3, "{warnings:?}");
+    assert!(
+        warnings.iter().all(|warning| {
+            warning.source.converter == "markdown" && warning.advice().is_some()
+        })
+    );
+    for source_line in [
+        "one",
+        "two",
+        "repeat one",
+        "repeat two",
+        "<?php echo 'one'; ?>",
+    ] {
+        assert!(
+            output.contains(source_line),
+            "missing {source_line:?} in {output}"
+        );
+    }
     Ok(())
 }

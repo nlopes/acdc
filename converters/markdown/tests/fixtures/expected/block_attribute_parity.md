@@ -90,14 +90,14 @@
 <a id="_quote_and_verse_forms"></a>
 ## Quote and verse forms
 
-Styled quote paragraph.
-— Paragraph **Author**, <cite>`Paragraph Work`</cite>
+> Styled quote paragraph.
+> — Paragraph **Author**, <cite>`Paragraph Work`</cite>
 
-Citation-only quote paragraph.
-<cite>Paragraph citation only</cite>
+> Citation-only quote paragraph.
+> <cite>Paragraph citation only</cite>
 
-Styled verse paragraph.
-— Paragraph **Poet**, <cite>`Paragraph Poem`</cite>
+> Styled verse paragraph.
+> — Paragraph **Poet**, <cite>`Paragraph Poem`</cite>
 
 > Delimited verse block.
 > — Block **Poet**, <cite>`Block Poem`</cite>
@@ -131,6 +131,8 @@ slot three is not a language
 empty language slot
 ```
 
+```ruby
 puts "styled source paragraph"
+```
 
 <!-- Warning: STEM/math blocks not natively supported in Markdown, skipping (use LaTeX-enabled renderer) -->

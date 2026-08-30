@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Quote, verse, literal, listing, source, example, and abstract paragraph
+  styles now retain distinct Markdown treatments. Verse, literal, listing,
+  and source whitespace remains visible.
+- Passthrough blocks now preserve their raw content for Markdown renderers that
+  accept embedded HTML.
+- Source callout markers now remain visible beside the code and their complete
+  explanation lists, including attached blocks, render below it.
+- Source line numbering, selected-line highlighting, and PHP `%mixed`
+  highlighting now preserve the code and emit one structured fallback warning
+  per option per document.
 - Document headers now preserve explicit IDs, subtitles, authors and email
   addresses, and revision numbers, dates, and remarks as readable Markdown.
 - Paragraph, list, delimited-block, admonition, image, audio, video, and table

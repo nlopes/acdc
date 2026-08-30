@@ -1,0 +1,54 @@
+= Styled Blocks and Source Annotations
+
+.Quote Paragraph
+[quote, Ada Lovelace, Notes]
+Quoted *paragraph* text.
+
+.Verse Paragraph
+[verse, Emily Dickinson, Poem]
+First verse line
+Second verse line
+
+.Literal Paragraph
+[literal]
+literal <text>
+  indented literal line
+
+.Listing Paragraph
+[listing]
+listing <text>
+  indented listing line
+
+.Source Paragraph
+[source,rust]
+fn paragraph() {
+    println!("source");
+}
+
+.Example Paragraph
+[example]
+Example *paragraph* text.
+
+.Abstract Paragraph
+[abstract]
+Abstract *paragraph* text.
+
+.Passthrough Block
+++++
+<div class="raw">raw & exact</div>
+++++
+
+[source,rust,linenums,highlight="11",start=10]
+----
+fn repeat() {}
+----
+
+[source,php,options=mixed]
+----
+<p><?php echo "hello"; ?></p>
+----
+
+[source,php,options=mixed]
+----
+<p><?php echo "again"; ?></p>
+----

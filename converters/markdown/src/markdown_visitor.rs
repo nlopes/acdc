@@ -1,10 +1,10 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::{borrow::Cow, collections::HashSet, io::Write, rc::Rc};
+use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, rc::Rc};
 
 use acdc_converters_core::{
     Converter, Diagnostics,
-    code::detect_language,
+    code::{SourceLineOptions, default_line_comment, detect_language},
     list::OrderedListNumbering,
     media::resolve_target,
     section::{
@@ -39,6 +39,121 @@ struct TocRenderPosition {
     indent: usize,
 }
 
+fn raw_content(nodes: &[InlineNode<'_>]) -> String {
+    let mut output = String::new();
+    for node in nodes {
+        match node {
+            InlineNode::VerbatimText(text) => output.push_str(text.content),
+            InlineNode::RawText(text) => output.push_str(text.content),
+            InlineNode::PlainText(text) => output.push_str(text.content),
+            InlineNode::LineBreak(_) => output.push('\n'),
+            InlineNode::CalloutRef(callout) => {
+                let _ = write!(output, "({})", callout.number);
+            }
+            InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | _ => {}
+        }
+    }
+    output
+}
+
+fn source_content(nodes: &[InlineNode<'_>], language: Option<&str>) -> String {
+    let mut output = String::new();
+    let comment_prefix = default_line_comment(language);
+    for (index, node) in nodes.iter().enumerate() {
+        match node {
+            InlineNode::VerbatimText(text) => {
+                let mut content = text.content.to_owned();
+                if index.checked_sub(1).is_some_and(|previous| {
+                    matches!(nodes.get(previous), Some(InlineNode::CalloutRef(_)))
+                }) {
+                    let stripped = content.strip_prefix("-->").unwrap_or(&content).to_owned();
+                    content = stripped;
+                }
+                if index
+                    .checked_add(1)
+                    .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
+                {
+                    let stripped = if index
+                        .checked_add(1)
+                        .is_some_and(|next| is_xml_callout(nodes, next))
+                    {
+                        content.strip_suffix("<!--").unwrap_or(&content).to_owned()
+                    } else {
+                        strip_callout_guard(&content, comment_prefix).into_owned()
+                    };
+                    content = stripped;
+                }
+                output.push_str(&content);
+            }
+            InlineNode::RawText(text) => output.push_str(text.content),
+            InlineNode::PlainText(text) => output.push_str(text.content),
+            InlineNode::LineBreak(_) => output.push('\n'),
+            InlineNode::CalloutRef(callout) => {
+                let _ = write!(output, "({})", callout.number);
+            }
+            InlineNode::BoldText(_)
+            | InlineNode::ItalicText(_)
+            | InlineNode::MonospaceText(_)
+            | InlineNode::HighlightText(_)
+            | InlineNode::SubscriptText(_)
+            | InlineNode::SuperscriptText(_)
+            | InlineNode::CurvedQuotationText(_)
+            | InlineNode::CurvedApostropheText(_)
+            | InlineNode::StandaloneCurvedApostrophe(_)
+            | InlineNode::InlineAnchor(_)
+            | InlineNode::Macro(_)
+            | _ => {}
+        }
+    }
+    output
+}
+
+fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {
+    matches!(nodes.get(index), Some(InlineNode::CalloutRef(_)))
+        && index.checked_sub(1).is_some_and(|previous| {
+            matches!(
+                nodes.get(previous),
+                Some(InlineNode::VerbatimText(text)) if text.content.ends_with("<!--")
+            )
+        })
+        && index.checked_add(1).is_some_and(|next| {
+            matches!(
+                nodes.get(next),
+                Some(InlineNode::VerbatimText(text)) if text.content.starts_with("-->")
+            )
+        })
+}
+
+fn strip_callout_guard<'a>(text: &'a str, language_prefix: Option<&str>) -> Cow<'a, str> {
+    let trimmed = text.trim_end();
+    for prefix in [
+        language_prefix,
+        Some("//"),
+        Some("#"),
+        Some("--"),
+        Some(";;"),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if let Some(content) = trimmed.strip_suffix(prefix) {
+            return Cow::Owned(format!("{} ", content.trim_end()));
+        }
+    }
+    Cow::Borrowed(text)
+}
+
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
 pub struct MarkdownVisitor<'a, 'd, W: Write> {
     writer: W,
@@ -49,6 +164,7 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     pub(crate) heading_level: usize,
     list_depth: usize,
     emitted_anchors: HashSet<String>,
+    warned_fallbacks: HashSet<&'static str>,
     in_link_text: bool,
     /// Collected footnotes for rendering at document end.
     /// Stored as `(id, pre-rendered markdown content)` so that the visitor
@@ -66,6 +182,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             heading_level: 0,
             list_depth: 0,
             emitted_anchors: HashSet::new(),
+            warned_fallbacks: HashSet::new(),
             in_link_text: false,
             footnotes: Vec::new(),
         }
@@ -205,6 +322,126 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             write!(self.writer, "</cite>")?;
         }
         writeln!(self.writer)?;
+        Ok(())
+    }
+
+    fn write_blockquote_inlines(&mut self, content: &[InlineNode<'_>]) -> Result<(), Error> {
+        write!(self.writer, "> ")?;
+        for node in content {
+            match node {
+                InlineNode::PlainText(text) => {
+                    self.write_blockquote_text(text.content, true)?;
+                }
+                InlineNode::RawText(text) => {
+                    self.write_blockquote_text(text.content, false)?;
+                }
+                InlineNode::VerbatimText(text) => {
+                    self.write_blockquote_text(text.content, false)?;
+                }
+                InlineNode::LineBreak(_) => self.write_blockquote_break()?,
+                InlineNode::BoldText(_)
+                | InlineNode::ItalicText(_)
+                | InlineNode::MonospaceText(_)
+                | InlineNode::HighlightText(_)
+                | InlineNode::SubscriptText(_)
+                | InlineNode::SuperscriptText(_)
+                | InlineNode::CurvedQuotationText(_)
+                | InlineNode::CurvedApostropheText(_)
+                | InlineNode::StandaloneCurvedApostrophe(_)
+                | InlineNode::InlineAnchor(_)
+                | InlineNode::Macro(_)
+                | InlineNode::CalloutRef(_)
+                | _ => self.visit_inline_node(node)?,
+            }
+        }
+        writeln!(self.writer)?;
+        Ok(())
+    }
+
+    fn write_blockquote_text(&mut self, text: &str, escape: bool) -> Result<(), Error> {
+        let mut lines = text.split('\n').peekable();
+        while let Some(line) = lines.next() {
+            if escape {
+                write!(self.writer, "{}", Self::escape_markdown(line))?;
+            } else {
+                write!(self.writer, "{line}")?;
+            }
+            if lines.peek().is_some() {
+                self.write_blockquote_break()?;
+            }
+        }
+        Ok(())
+    }
+
+    fn write_blockquote_break(&mut self) -> Result<(), Error> {
+        writeln!(self.writer, "\\")?;
+        write!(self.writer, "> ")?;
+        Ok(())
+    }
+
+    fn write_fenced_code_block(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        content: &[InlineNode<'_>],
+    ) -> Result<(), Error> {
+        let language = detect_language(metadata);
+        let content = source_content(content, language);
+        self.warn_source_options(metadata, &content, language);
+
+        writeln!(self.writer, "```{}", language.unwrap_or_default())?;
+        write!(self.writer, "{content}")?;
+        if !content.ends_with('\n') {
+            writeln!(self.writer)?;
+        }
+        writeln!(self.writer, "```")?;
+        Ok(())
+    }
+
+    fn warn_source_options(
+        &mut self,
+        metadata: &BlockMetadata<'_>,
+        content: &str,
+        language: Option<&str>,
+    ) {
+        let options = SourceLineOptions::resolve(metadata, content);
+        if options.line_number_start.is_some() {
+            self.warn_once(
+                "source-line-numbers",
+                "source line numbering is not supported by the Markdown backend; preserving the source without line numbers",
+                "Use a Markdown renderer extension for line numbers, or use a backend that supports this source presentation option.",
+            );
+        }
+        if !options.highlighted_lines.is_empty() {
+            self.warn_once(
+                "source-highlighted-lines",
+                "selected source-line highlighting is not supported by the Markdown backend; preserving the source without highlighted lines",
+                "Use a Markdown renderer extension for selected-line highlighting, or use a backend that supports this source presentation option.",
+            );
+        }
+        if metadata.style == Some("source")
+            && language == Some("php")
+            && metadata.options.contains(&"mixed")
+        {
+            self.warn_once(
+                "php-mixed-highlighting",
+                "PHP source block mixed-mode highlighting is not supported by the Markdown backend; rendering a normal PHP code fence",
+                "Use the `html+php` source language when it gives acceptable highlighting, or use Asciidoctor HTML for explicit `%mixed` highlighting.",
+            );
+        }
+    }
+
+    fn warn_once(&mut self, key: &'static str, message: &'static str, advice: &'static str) {
+        if self.warned_fallbacks.insert(key) {
+            self.diagnostics.warn_with_advice(message, advice);
+        }
+    }
+
+    fn write_raw_block_content(&mut self, content: &[InlineNode<'_>]) -> Result<(), Error> {
+        let content = raw_content(content);
+        write!(self.writer, "{content}")?;
+        if !content.ends_with('\n') {
+            writeln!(self.writer)?;
+        }
         Ok(())
     }
 
@@ -702,10 +939,23 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             &paragraph.metadata,
             CaptionKind::for_style(paragraph.metadata.style),
         )?;
-        self.visit_inline_nodes(&paragraph.content)?;
-        writeln!(self.writer)?;
-        if matches!(paragraph.metadata.style, Some("quote" | "verse")) {
-            self.write_attribution(&paragraph.metadata, "")?;
+        match paragraph.metadata.style {
+            Some("quote" | "verse") => {
+                self.write_blockquote_inlines(&paragraph.content)?;
+                self.write_attribution(&paragraph.metadata, "> ")?;
+            }
+            Some("abstract") => self.write_blockquote_inlines(&paragraph.content)?,
+            Some("literal" | "listing" | "source") => {
+                self.write_fenced_code_block(&paragraph.metadata, &paragraph.content)?;
+            }
+            Some("example") => {
+                self.write_warning("example paragraphs", "using blockquote")?;
+                self.write_blockquote_inlines(&paragraph.content)?;
+            }
+            _ => {
+                self.visit_inline_nodes(&paragraph.content)?;
+                writeln!(self.writer)?;
+            }
         }
         Ok(())
     }
@@ -792,19 +1042,9 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         }
 
         match &block.inner {
-            DelimitedBlockType::DelimitedListing(content) => {
-                // Use fenced code block
-                let language = detect_language(&block.metadata).unwrap_or_default();
-
-                writeln!(self.writer, "```{language}")?;
-                self.write_code_block_content(content)?;
-                writeln!(self.writer, "```")?;
-            }
-            DelimitedBlockType::DelimitedLiteral(content) => {
-                // Use fenced code block without syntax highlighting
-                writeln!(self.writer, "```")?;
-                self.write_code_block_content(content)?;
-                writeln!(self.writer, "```")?;
+            DelimitedBlockType::DelimitedListing(content)
+            | DelimitedBlockType::DelimitedLiteral(content) => {
+                self.write_fenced_code_block(&block.metadata, content)?;
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
                 self.visit_blockquote_blocks(blocks)?;
@@ -832,20 +1072,14 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 // Open blocks are just containers, render contents normally
                 self.visit_separated_blocks(blocks, false)?;
             }
-            DelimitedBlockType::DelimitedPass(_content) => {
-                // Passthrough blocks - skip for now
-                self.write_warning("passthrough blocks", "skipping content")?;
+            DelimitedBlockType::DelimitedPass(content) => {
+                self.write_raw_block_content(content)?;
             }
             DelimitedBlockType::DelimitedTable(table) => {
                 self.visit_table_inner(table)?;
             }
             DelimitedBlockType::DelimitedVerse(content) => {
-                // Verse blocks - use blockquote with line breaks preserved
-                write!(self.writer, "> ")?;
-                for node in content {
-                    self.visit_inline_node(node)?;
-                }
-                writeln!(self.writer)?;
+                self.write_blockquote_inlines(content)?;
                 self.write_attribution(&block.metadata, "> ")?;
             }
             DelimitedBlockType::DelimitedComment(_) => {
@@ -1015,8 +1249,29 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
         self.write_block_title(&list.title, &list.metadata, None)?;
-        // Callout lists not supported in Markdown
-        self.write_warning("callout lists", "skipping")?;
+        for item in &list.items {
+            self.write_list_indent()?;
+            write!(self.writer, "- **({})** ", item.callout.number)?;
+            self.visit_inline_nodes(&item.principal)?;
+            writeln!(self.writer)?;
+
+            if !item.blocks.is_empty() {
+                writeln!(self.writer)?;
+                self.list_depth += 1;
+                let result: Result<(), Error> = (|| {
+                    for (index, block) in item.blocks.iter().enumerate() {
+                        if index > 0 {
+                            writeln!(self.writer)?;
+                        }
+                        self.write_list_indent()?;
+                        self.visit_block(block)?;
+                    }
+                    Ok(())
+                })();
+                self.list_depth -= 1;
+                result?;
+            }
+        }
         Ok(())
     }
 
@@ -1095,9 +1350,8 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             InlineNode::Macro(mac) => {
                 self.visit_inline_macro_inner(mac)?;
             }
-            InlineNode::CalloutRef(_) => {
-                // Callout references not supported
-                // Skip silently
+            InlineNode::CalloutRef(callout) => {
+                write!(self.writer, "({})", callout.number)?;
             }
             _ => {
                 self.diagnostics.warn(format!(
@@ -1115,33 +1369,6 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 }
 
 impl<W: Write> MarkdownVisitor<'_, '_, W> {
-    /// Write code block content as raw text (no inline formatting).
-    fn write_code_block_content(&mut self, content: &[InlineNode]) -> Result<(), Error> {
-        for node in content {
-            match node {
-                InlineNode::VerbatimText(text) => write!(self.writer, "{}", text.content)?,
-                InlineNode::RawText(text) => write!(self.writer, "{}", text.content)?,
-                InlineNode::PlainText(text) => write!(self.writer, "{}", text.content)?,
-                InlineNode::LineBreak(_) => writeln!(self.writer)?,
-                InlineNode::BoldText(_)
-                | InlineNode::ItalicText(_)
-                | InlineNode::MonospaceText(_)
-                | InlineNode::HighlightText(_)
-                | InlineNode::SubscriptText(_)
-                | InlineNode::SuperscriptText(_)
-                | InlineNode::CurvedQuotationText(_)
-                | InlineNode::CurvedApostropheText(_)
-                | InlineNode::StandaloneCurvedApostrophe(_)
-                | InlineNode::InlineAnchor(_)
-                | InlineNode::Macro(_)
-                | InlineNode::CalloutRef(_)
-                | _ => {}
-            }
-        }
-        writeln!(self.writer)?;
-        Ok(())
-    }
-
     fn write_macro_link(
         &mut self,
         destination: &str,

@@ -1,0 +1,9 @@
+```
+first (1)
+second (2)
+```
+
+- **(1)** First **explanation**.
+
+    Attached paragraph.
+- **(2)** Second explanation.

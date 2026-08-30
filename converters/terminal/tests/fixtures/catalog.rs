@@ -11,6 +11,7 @@ terminal_fixture_catalog!([
     (checklist_contexts, false),
     (nested_list_metadata, false),
     (unordered_list, false),
+    (callout_list_continuation, false),
     (description_list_mixed_content, false),
     (description_list_topology, false),
     (table_multi_cell_per_line, false),

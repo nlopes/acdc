@@ -1,0 +1,22 @@
+= callout-list-continuation(1)
+:doctype: manpage
+:revdate: 2026-08-30
+
+== Name
+
+callout-list-continuation - verify attached callout content
+
+== Synopsis
+
+*callout-list-continuation*
+
+== Description
+
+----
+first <1>
+second <2>
+----
+<1> First *explanation*.
++
+Attached paragraph.
+<2> Second explanation.
