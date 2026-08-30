@@ -66,6 +66,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Horizontal description lists render as term-and-definition lines, while Q&A
   lists render as numbered questions and answers. Other styles retain the
   content-preserving regular-list fallback.
+- GFM tables now preserve left, center, and right column alignment. Headerless
+  tables use an empty header row so every source row remains data, and table
+  footers render as final body rows instead of disappearing.
+- GFM table spans now reserve their logical positions, supported cell styles
+  remain visible, and nested cell blocks retain readable line boundaries.
+  Unsupported spans, cell styles, nested blocks, widths, and local alignment
+  emit one structured warning per capability.
 - Markdown conversion attributes now include the `markdown` backend and
   base-backend, `md` file type, `.md` output suffix, and their conditional
   convenience attributes.

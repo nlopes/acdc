@@ -68,7 +68,11 @@ Supported constructs:
   titles.
 - **Passthrough blocks**: raw content remains available as embedded HTML. Its
   display depends on whether the Markdown renderer accepts and sanitizes HTML.
-- **Tables**: GFM tables with column alignment. Skipped with a warning in CommonMark mode.
+- **Tables**: GFM tables preserve column alignment and every source row.
+  Headerless tables use an empty header row, and footers become final body
+  rows. Cell spans reserve empty positions, supported cell styles remain
+  visible, and nested blocks use HTML line breaks. CommonMark skips tables
+  with a warning.
 - **Admonitions** (NOTE, TIP, IMPORTANT, WARNING, CAUTION): GitHub Alerts (`> [!NOTE]`) in GFM; plain blockquotes with a bold label in CommonMark.
 - **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected
   at document end; linked superscripts and a readable endnote list in
@@ -87,8 +91,11 @@ Some `AsciiDoc` features have no faithful Markdown equivalent. When the converte
   and PHP `%mixed` highlighting are not portable Markdown. The source remains
   in its code fence and each active option emits one structured warning per
   document.
-- **Table cell spanning** (`2+|`, `.2+|`) - GFM tables are single-cell only.
-- **Complex tables** (nested, AsciiDoc-content cells) - flattened to the extent possible.
+- **Table presentation** - GFM cannot represent cell spans, structural
+  footers, table and column widths, table-level alignment, per-cell alignment,
+  or nested block structure exactly. The converter preserves all cell text,
+  flattens these features to readable rows and line breaks, and emits one
+  structured warning for each affected capability.
 - **Arbitrary block roles and options** - dropped when they have no portable
   Markdown representation. Block IDs and anchors remain available as HTML
   destinations.

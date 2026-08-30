@@ -1,0 +1,51 @@
+= GFM Table Fallbacks
+
+See <<aligned-table>>.
+
+[[aligned-table]]
+.Aligned records
+[cols="<1,^2,>1",width=75%,float=right,options="header,footer"]
+|===
+|Left |Center |Right
+
+|A |B |C
+
+|Footer |Summary |Done
+|===
+
+== Headerless data
+
+[%noheader]
+|===
+|First A |First B
+|Second A |Second B
+|===
+
+== Spans and cell formats
+
+[cols="3*",options=header]
+|===
+|One |Two |Three
+
+2+|Across two |Beside
+
+.2+|Down two |Upper middle |Upper right
+|Lower middle |Lower right
+
+s|Strong cell
+e|Emphasis cell
+m|Monospace cell
+|===
+
+== Nested cell blocks
+
+[cols="1a,1"]
+|===
+|First paragraph.
+
+* Nested one
+* Nested two
+
+Second paragraph.
+|Adjacent cell
+|===

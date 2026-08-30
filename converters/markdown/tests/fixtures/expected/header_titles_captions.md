@@ -103,8 +103,9 @@ Open block body.
 <a id="table"></a>
 <strong>Table 1. Table Title</strong>
 
+|  |
+| :--- |
 | Cell |
-| --- |
 
 <a id="custom-figure"></a>
 ![image](custom.png)

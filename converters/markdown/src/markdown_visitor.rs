@@ -15,16 +15,18 @@ use acdc_converters_core::{
     },
     shows_block_title,
     substitutions::{Replacements, TextBoundaries, strip_backslash_escapes},
+    table::{CellKind, GridRow, build_grid, determine_column_count, table_has_spans},
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
     Admonition, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList,
-    CaptionKind, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
-    DiscreteHeader, Document, Footnote, Header, Image, InlineMacro, InlineNode, ListItem,
-    ListItemCheckedStatus, OrderedList, PageBreak, Paragraph, Section, SectionKind, Source,
-    Substitution, Table, TableOfContents, ThematicBreak, Title, TocEntry, UnorderedList, Video,
+    CaptionKind, ColumnStyle, ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType,
+    DescriptionList, DiscreteHeader, Document, Footnote, Header, HorizontalAlignment, Image,
+    InlineMacro, InlineNode, ListItem, ListItemCheckedStatus, OrderedList, PageBreak, Paragraph,
+    Section, SectionKind, Source, Substitution, Table, TableColumn, TableOfContents, ThematicBreak,
+    Title, TocEntry, UnorderedList, VerticalAlignment, Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
@@ -143,6 +145,47 @@ fn list_sequence(metadata: &BlockMetadata<'_>, item_count: usize) -> (usize, boo
         .filter(|start| *start > 0)
         .unwrap_or(if reversed { item_count } else { 1 });
     (start, reversed)
+}
+
+fn table_cells<'table, 'source>(
+    table: &'table Table<'source>,
+) -> impl Iterator<Item = &'table TableColumn<'source>> {
+    table
+        .header
+        .iter()
+        .chain(table.rows.iter())
+        .chain(table.footer.iter())
+        .flat_map(|row| row.columns.iter())
+}
+
+fn escape_unescaped_table_pipes(text: &str) -> String {
+    let mut output = String::with_capacity(text.len());
+    let mut preceding_backslashes = 0;
+    for character in text.chars() {
+        if character == '|' {
+            if preceding_backslashes % 2 == 0 {
+                output.push('\\');
+            }
+            output.push(character);
+            preceding_backslashes = 0;
+        } else {
+            output.push(character);
+            if character == '\\' {
+                preceding_backslashes += 1;
+            } else {
+                preceding_backslashes = 0;
+            }
+        }
+    }
+    output
+}
+
+fn flatten_table_cell(text: &str) -> String {
+    text.lines()
+        .map(str::trim)
+        .map(escape_unescaped_table_pipes)
+        .collect::<Vec<_>>()
+        .join("<br>")
 }
 
 fn raw_content(nodes: &[InlineNode<'_>]) -> String {
@@ -961,7 +1004,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                     blocks.iter().any(|block| self.block_has_output(block))
                 }
                 DelimitedBlockType::DelimitedTable(table) => {
-                    self.variant() == MarkdownVariant::CommonMark || !table.rows.is_empty()
+                    self.variant() == MarkdownVariant::CommonMark
+                        || table.header.is_some()
+                        || !table.rows.is_empty()
+                        || table.footer.is_some()
                 }
                 DelimitedBlockType::DelimitedExample(_)
                 | DelimitedBlockType::DelimitedListing(_)
@@ -1344,7 +1390,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_raw_block_content(content)?;
             }
             DelimitedBlockType::DelimitedTable(table) => {
-                self.visit_table_inner(table)?;
+                self.visit_table_inner(table, &block.metadata)?;
             }
             DelimitedBlockType::DelimitedVerse(content) => {
                 self.write_blockquote_inlines(content)?;
@@ -2052,91 +2098,199 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    /// Render a table (handles both GFM and fallback).
-    fn visit_table_inner(&mut self, table: &Table) -> Result<(), Error> {
+    fn visit_table_inner(
+        &mut self,
+        table: &Table,
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
         if self.variant() == MarkdownVariant::CommonMark {
             self.write_warning("tables", "not supported in CommonMark, skipping")?;
             return Ok(());
         }
 
-        // GFM tables
-        self.render_gfm_table(table)?;
-        Ok(())
+        self.warn_gfm_table_fallbacks(table, metadata);
+        self.render_gfm_table(table)
     }
 
-    /// Render a GFM table.
+    fn warn_gfm_table_fallbacks(&mut self, table: &Table<'_>, metadata: &BlockMetadata<'_>) {
+        if table.header.is_none() && (!table.rows.is_empty() || table.footer.is_some()) {
+            self.warn_once(
+                "gfm-headerless-tables",
+                "headerless tables are not supported by GFM; adding an empty header row and preserving every source row as data",
+                "Use an explicit header row when the destination requires strict GFM table semantics.",
+            );
+        }
+        if table.footer.is_some() {
+            self.warn_once(
+                "gfm-table-footers",
+                "table footers are not supported by GFM; rendering each footer as the final body row",
+                "Use an HTML-capable backend when the footer must remain structurally distinct.",
+            );
+        }
+        if table_has_spans(table) {
+            self.warn_once(
+                "gfm-table-spans",
+                "table cell spans are not supported by GFM; leaving spanned positions empty while preserving cell text",
+                "Use an HTML-capable backend when merged cells are required.",
+            );
+        }
+        if table
+            .columns
+            .iter()
+            .any(|column| column.style != ColumnStyle::Default)
+            || table_cells(table).any(|cell| {
+                cell.style
+                    .is_some_and(|style| style != ColumnStyle::Default)
+            })
+        {
+            self.warn_once(
+                "gfm-table-cell-styles",
+                "non-default table cell styles are not fully supported by GFM; preserving supported emphasis and code styling",
+                "Use an HTML-capable backend when table cell styling must remain exact.",
+            );
+        }
+        if table_cells(table).any(|cell| {
+            cell.content.len() > 1
+                || cell
+                    .content
+                    .iter()
+                    .any(|block| !matches!(block, Block::Paragraph(_)))
+        }) {
+            self.warn_once(
+                "gfm-nested-table-blocks",
+                "nested table cell blocks are not supported by GFM; flattening block boundaries with HTML line breaks",
+                "Use an HTML-capable backend when cells must retain nested block structure.",
+            );
+        }
+        if metadata.attributes.get("width").is_some()
+            || metadata.options.contains(&"autowidth")
+            || table
+                .columns
+                .iter()
+                .any(|column| column.width != ColumnWidth::default())
+        {
+            self.warn_once(
+                "gfm-table-widths",
+                "table width metadata is not supported by GFM; preserving the table without fixed widths",
+                "Use an HTML-capable backend when table or column widths must remain exact.",
+            );
+        }
+        if metadata.attributes.get("align").is_some()
+            || metadata.attributes.get("float").is_some()
+            || table
+                .columns
+                .iter()
+                .any(|column| column.valign != VerticalAlignment::Top)
+            || table_cells(table).any(|cell| cell.halign.is_some() || cell.valign.is_some())
+        {
+            self.warn_once(
+                "gfm-table-local-alignment",
+                "table-level and per-cell alignment are not supported by GFM; preserving column-level horizontal alignment",
+                "Use column alignment for GFM, or an HTML-capable backend for table-level and per-cell alignment.",
+            );
+        }
+    }
+
     fn render_gfm_table(&mut self, table: &Table) -> Result<(), Error> {
-        // Note: GFM tables don't support cell spanning, but we render what we can
-
-        // GFM tables: | Header 1 | Header 2 |
-        //             |----------|----------|
-        //             | Cell 1   | Cell 2   |
-
-        let rows = &table.rows;
-        if rows.is_empty() {
+        if table.header.is_none() && table.rows.is_empty() && table.footer.is_none() {
             return Ok(());
         }
 
-        // Check if table has a header
-        let has_header = table.header.is_some();
-
-        // Render header row if present
-        if let Some(ref header) = table.header {
+        let column_count = determine_column_count(table);
+        let grid = build_grid(table, column_count);
+        if let Some(header) = grid.iter().find(|row| row.is_header) {
+            self.write_gfm_table_row(header, table)?;
+        } else {
             write!(self.writer, "|")?;
-            for column in &header.columns {
-                write!(self.writer, " ")?;
-                for block in &column.content {
-                    // Tables cells can only contain inline content in Markdown
-                    if let Block::Paragraph(para) = block {
-                        self.visit_inline_nodes(&para.content)?;
-                    }
-                }
-                write!(self.writer, " |")?;
-            }
-            writeln!(self.writer)?;
-
-            // Add delimiter row
-            write!(self.writer, "|")?;
-            for _ in &header.columns {
-                write!(self.writer, " --- |")?;
-            }
-            writeln!(self.writer)?;
-        } else if let Some(first_row) = rows.first() {
-            // No explicit header, use first row as header
-            write!(self.writer, "|")?;
-            for column in &first_row.columns {
-                write!(self.writer, " ")?;
-                for block in &column.content {
-                    if let Block::Paragraph(para) = block {
-                        self.visit_inline_nodes(&para.content)?;
-                    }
-                }
-                write!(self.writer, " |")?;
-            }
-            writeln!(self.writer)?;
-
-            // Add delimiter row
-            write!(self.writer, "|")?;
-            for _ in &first_row.columns {
-                write!(self.writer, " --- |")?;
+            for _ in 0..column_count {
+                write!(self.writer, "  |")?;
             }
             writeln!(self.writer)?;
         }
 
-        // Render body rows (skip first if it was used as header)
-        let start_idx = usize::from(!has_header);
-        for row in rows.iter().skip(start_idx) {
-            write!(self.writer, "|")?;
-            for column in &row.columns {
-                write!(self.writer, " ")?;
-                for block in &column.content {
-                    if let Block::Paragraph(para) = block {
-                        self.visit_inline_nodes(&para.content)?;
-                    }
-                }
-                write!(self.writer, " |")?;
+        write!(self.writer, "|")?;
+        for column_index in 0..column_count {
+            let alignment = table
+                .columns
+                .get(column_index)
+                .map_or(HorizontalAlignment::Left, |column| column.halign);
+            let marker = match alignment {
+                HorizontalAlignment::Left => ":---",
+                HorizontalAlignment::Center => ":---:",
+                HorizontalAlignment::Right => "---:",
+            };
+            write!(self.writer, " {marker} |")?;
+        }
+        writeln!(self.writer)?;
+
+        for row in grid.iter().filter(|row| !row.is_header) {
+            self.write_gfm_table_row(row, table)?;
+        }
+        Ok(())
+    }
+
+    fn write_gfm_table_row(&mut self, row: &GridRow<'_>, table: &Table<'_>) -> Result<(), Error> {
+        write!(self.writer, "|")?;
+        for (column_index, cell_kind) in row.cells.iter().enumerate() {
+            write!(self.writer, " ")?;
+            if let CellKind::Content { cell_index } = cell_kind
+                && let Some(cell) = row.ast_row.columns.get(*cell_index)
+            {
+                let style = cell.style.or_else(|| {
+                    table.columns.get(column_index).and_then(|column| {
+                        (column.style != ColumnStyle::Default).then_some(column.style)
+                    })
+                });
+                self.write_gfm_table_cell(cell, style)?;
             }
-            writeln!(self.writer)?;
+            write!(self.writer, " |")?;
+        }
+        writeln!(self.writer)?;
+        Ok(())
+    }
+
+    fn write_gfm_table_cell(
+        &mut self,
+        cell: &TableColumn<'_>,
+        style: Option<ColumnStyle>,
+    ) -> Result<(), Error> {
+        let mut buffer = Vec::new();
+        let (result, emitted_anchors, warned_fallbacks, footnotes) = {
+            let mut visitor = MarkdownVisitor::new(
+                &mut buffer,
+                self.processor.clone(),
+                self.diagnostics.reborrow(),
+            );
+            visitor.heading_level = self.heading_level;
+            visitor.emitted_anchors = std::mem::take(&mut self.emitted_anchors);
+            visitor.warned_fallbacks = std::mem::take(&mut self.warned_fallbacks);
+            visitor.footnotes = std::mem::take(&mut self.footnotes);
+            let result = visitor.visit_separated_blocks(&cell.content, false);
+            (
+                result,
+                visitor.emitted_anchors,
+                visitor.warned_fallbacks,
+                visitor.footnotes,
+            )
+        };
+        self.emitted_anchors = emitted_anchors;
+        self.warned_fallbacks = warned_fallbacks;
+        self.footnotes = footnotes;
+        let _ = result?;
+        let content = flatten_table_cell(&String::from_utf8(buffer)?);
+        match style {
+            Some(ColumnStyle::Strong | ColumnStyle::Header) => {
+                write!(self.writer, "<strong>{content}</strong>")?;
+            }
+            Some(ColumnStyle::Emphasis) => {
+                write!(self.writer, "<em>{content}</em>")?;
+            }
+            Some(ColumnStyle::Monospace | ColumnStyle::Literal) => {
+                write!(self.writer, "<code>{content}</code>")?;
+            }
+            None | Some(ColumnStyle::AsciiDoc | ColumnStyle::Default | _) => {
+                write!(self.writer, "{content}")?;
+            }
         }
         Ok(())
     }

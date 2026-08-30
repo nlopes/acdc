@@ -53,6 +53,10 @@
 //! `CommonMark` retains checklist state as visible text. Horizontal and Q&A
 //! description lists have distinct layouts. Bibliography entries retain their
 //! anchors and visible bracketed labels.
+//! GFM tables retain column alignment and every source row. Headerless tables
+//! use an empty header, footers become final body rows, and unsupported spans,
+//! styles, widths, local alignment, and nested blocks use content-preserving
+//! fallbacks with structured warnings.
 //!
 //! # Limitations
 //!
@@ -60,15 +64,16 @@
 //! - **Admonitions** (NOTE, TIP, etc.) - Native GitHub Alerts in GFM, blockquotes in `CommonMark`
 //! - **Footnotes** - Native GFM syntax `[^1]`, linked superscripts and a
 //!   readable endnote list in `CommonMark`
-//! - **Tables** - Supported in GFM only, skipped in `CommonMark` with warning
+//! - **Tables** - GFM preserves content through readable fallbacks;
+//!   `CommonMark` skips tables with a warning
 //! - **Task lists** - Native in GFM; `CommonMark` uses visible literal markers
 //! - **Include directives** - not supported (Markdown is single-file oriented)
 //! - **Substitutions** - no control over text substitutions
 //! - **Source line presentation** - line numbers, selected-line highlighting,
 //!   and PHP mixed-mode highlighting retain code and produce warnings
-//! - **Table cell spanning** - GFM tables don't support rowspan/colspan
 //! - **Video/audio embedding** - converted to links with warning
-//! - **Complex tables** - GFM tables are simpler than `AsciiDoc` tables
+//! - **Complex tables** - GFM cannot preserve spans, structural footers,
+//!   widths, local alignment, or nested block structure exactly
 //! - **Inline STEM** - preserved as inline code with a warning
 //! - **Inline roles and passthroughs** - use embedded HTML where Markdown has
 //!   no equivalent, so rendering depends on HTML support and sanitization

@@ -431,6 +431,33 @@ fn source_presentation_fallback_warnings_are_deduplicated() -> Result<(), Error>
 }
 
 #[test]
+fn gfm_table_fallbacks_report_each_unsupported_capability() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/table_fallbacks.adoc");
+    let (_output, warnings) = convert_str(input)?;
+
+    for message in [
+        "headerless tables are not supported",
+        "table footers are not supported",
+        "table cell spans are not supported",
+        "non-default table cell styles are not fully supported",
+        "nested table cell blocks are not supported",
+        "table width metadata is not supported",
+        "table-level and per-cell alignment are not supported",
+    ] {
+        assert_eq!(
+            warnings
+                .iter()
+                .filter(|warning| warning.message.contains(message))
+                .count(),
+            1,
+            "expected one {message:?} warning, got: {warnings:?}"
+        );
+    }
+    assert_eq!(warnings.len(), 7, "unexpected warnings: {warnings:?}");
+    Ok(())
+}
+
+#[test]
 fn inline_stem_fallback_warning_is_deduplicated() -> Result<(), Error> {
     let input = ":experimental:\n\nUI: kbd:[Ctrl+C], btn:[Save], menu:File[Open], icon:heart[].\n\nMath: stem:[x < y] and latexmath:[a_b].\n";
     let (output, warnings) = convert_str(input)?;

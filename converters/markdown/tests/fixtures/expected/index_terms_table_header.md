@@ -5,10 +5,11 @@
 
 <strong>Table 1. Cataloged table</strong>
 
-| Key   | Description with visible **header**, shared term, and related material |
-| --- | --- |
+| Key | Description with visible **header**, shared term, and related material |
+| :--- | :--- |
 | 1 | The body contains . |
 | 2 | A second body row. |
+| Footer | The non-repeating footer contains a concealed term. |
 
 An occurrence after the table .
 

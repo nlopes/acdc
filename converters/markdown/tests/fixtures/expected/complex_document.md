@@ -49,7 +49,7 @@ Task list:
 Simple table:
 
 | Name | Language | Year |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | Rust | Systems | 2015 |
 | Python | Scripting | 1991 |
 
