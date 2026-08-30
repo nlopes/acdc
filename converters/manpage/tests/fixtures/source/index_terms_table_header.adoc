@@ -1,5 +1,6 @@
 = index-terms-table-header(1)
 :doctype: manpage
+:revdate: 2026-08-29
 
 == NAME
 
