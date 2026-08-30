@@ -1,0 +1,15 @@
+= Macro TOC
+:toc: macro
+:toc-title: Navigation
+:toclevels: 1
+
+Preamble before the macro.
+
+[#contents]
+toc::[levels=3]
+
+== Section with https://example.com[link] and *bold*
+
+=== Included Child
+
+==== Included Grandchild

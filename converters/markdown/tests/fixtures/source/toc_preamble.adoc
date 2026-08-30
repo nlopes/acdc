@@ -1,0 +1,11 @@
+= Preamble TOC
+:toc: preamble
+:toclevels: 2
+
+Preamble before the TOC.
+
+== First Section
+
+=== Included Child
+
+== Second Section

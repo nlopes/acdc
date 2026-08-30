@@ -1,0 +1,31 @@
+= Section Structure
+:doctype: book
+:sectnums: all
+:partnums:
+:toc:
+:toclevels: 3
+
+See <<hidden-topic>>.
+
+[preface]
+= Preface
+
+Preface body.
+
+[#hidden-topic%notitle]
+=== Hidden *Topic*
+
+Hidden topic body.
+
+==== Visible Child
+
+Visible child body.
+
+[appendix]
+= Appendix Material
+
+=== Appendix Topic
+
+= A Real Part
+
+== A Chapter

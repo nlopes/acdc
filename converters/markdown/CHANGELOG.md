@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Sections now render parser-assigned numbers for ordinary sections, book
+  parts, appendices, and numbered special sections. The `%notitle` option hides
+  only the Markdown heading while keeping its destination and body; unlike
+  Asciidoctor HTML, Markdown applies this option to section headings.
+- Tables of contents now render as nested Markdown links at the configured
+  automatic, preamble, or macro position. `toc-title`, `toclevels`, macro
+  `levels`, section numbers, and formatted section titles are preserved.
 - Standalone inline anchors and IDs on bold, italic, monospace, highlight,
   subscript, superscript, and curved-quote spans now emit stable destinations
   in GFM and CommonMark, so local cross-references reach the inline content.

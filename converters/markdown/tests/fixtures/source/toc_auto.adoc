@@ -1,0 +1,13 @@
+= Automatic TOC
+:toc:
+:toc-title: Contents
+:toclevels: 1
+:sectnums:
+
+Preamble before sections.
+
+== First *Section*
+
+=== Excluded Child
+
+== Second Section

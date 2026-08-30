@@ -35,6 +35,9 @@
 //! Both variants preserve section and block IDs, block and standalone inline
 //! anchors, and IDs on formatted spans as portable HTML destinations for local
 //! cross-references.
+//! Parser-assigned section numbers are preserved, while `%notitle` hides only
+//! the section heading. Tables of contents render as nested section links at
+//! the configured automatic, preamble, or macro position.
 //!
 //! # Limitations
 //!
@@ -66,7 +69,7 @@ use acdc_converters_core::{
     BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
     xref::XrefGuard,
 };
-use acdc_parser::{Document, DocumentAttributes, Reference};
+use acdc_parser::{Document, DocumentAttributes, Reference, TocEntry};
 
 mod error;
 mod markdown_visitor;
@@ -132,6 +135,7 @@ pub struct Processor<'a> {
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
+    pub(crate) toc_entries: Vec<TocEntry<'a>>,
     variant: MarkdownVariant,
 }
 
@@ -161,6 +165,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes,
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
+            toc_entries: Vec::new(),
             variant: MarkdownVariant::default(),
         }
     }
@@ -200,6 +205,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes: doc.attributes.clone(),
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
+            toc_entries: doc.toc_entries.clone(),
             variant: self.variant,
         };
         let mut visitor = MarkdownVisitor::new(writer, processor, diagnostics.reborrow());

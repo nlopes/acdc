@@ -7,17 +7,35 @@ use acdc_converters_core::{
     code::detect_language,
     list::OrderedListNumbering,
     media::resolve_target,
+    section::{
+        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+    },
+    toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Admonition, Audio, Block, BlockMetadata, CalloutList, CrossReference, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Header, Image, InlineMacro,
-    InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, Source, Table,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, AttributeValue, Audio, Block, BlockMetadata, CalloutList, CrossReference,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Header, Image,
+    InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, SectionKind,
+    Source, Table, TableOfContents, ThematicBreak, TocEntry, UnorderedList, Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
+
+struct TocRenderConfig<'a> {
+    max_level: u8,
+    section_numbers: &'a [Option<String>],
+    has_real_parts: bool,
+}
+
+#[derive(Clone, Copy)]
+struct TocRenderPosition {
+    current_level: u8,
+    base_index: usize,
+    parts_at_current_level: bool,
+    indent: usize,
+}
 
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
 pub struct MarkdownVisitor<'a, 'd, W: Write> {
@@ -29,7 +47,7 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
     pub(crate) heading_level: usize,
     list_depth: usize,
     emitted_anchors: HashSet<String>,
-    suppress_inline_anchors: bool,
+    in_link_text: bool,
     /// Collected footnotes for rendering at document end.
     /// Stored as `(id, pre-rendered markdown content)` so that the visitor
     /// does not need to borrow data from the document being walked.
@@ -46,7 +64,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             heading_level: 0,
             list_depth: 0,
             emitted_anchors: HashSet::new(),
-            suppress_inline_anchors: false,
+            in_link_text: false,
             footnotes: Vec::new(),
         }
     }
@@ -58,6 +76,26 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn media_target(&self, source: &Source<'_>) -> String {
         resolve_target(&source.to_string(), self.processor.document_attributes())
+    }
+
+    fn section_prefix(&self, section: &Section<'_>) -> String {
+        section.number().map_or_else(String::new, |number| {
+            if section.kind == SectionKind::Appendix {
+                let caption = match self.processor.document_attributes().get("appendix-caption") {
+                    Some(AttributeValue::String(caption)) => Some(caption.as_ref()),
+                    Some(_) | None => None,
+                };
+                appendix_number_prefix(number, caption)
+            } else if section.level == 0 && section.kind == SectionKind::Normal {
+                let signifier = match self.processor.document_attributes().get("part-signifier") {
+                    Some(AttributeValue::String(signifier)) => Some(signifier.as_ref()),
+                    Some(_) | None => None,
+                };
+                part_number_prefix(number, signifier)
+            } else {
+                section_number_prefix(number, None)
+            }
+        })
     }
 
     fn write_anchor(&mut self, id: &str) -> Result<bool, Error> {
@@ -86,7 +124,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     }
 
     fn write_inline_anchor(&mut self, id: Option<&str>) -> Result<(), Error> {
-        if !self.suppress_inline_anchors
+        if !self.in_link_text
             && let Some(id) = id
         {
             self.write_anchor(id)?;
@@ -149,6 +187,164 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
+    fn toc_will_render(&self, toc_macro: Option<&TableOfContents<'_>>, placement: &str) -> bool {
+        if self.processor.toc_entries.is_empty() {
+            return false;
+        }
+        let config = TocConfig::from_attributes(toc_macro, self.processor.document_attributes());
+        match placement {
+            "auto" => matches!(
+                config.placement(),
+                "auto" | "left" | "right" | "top" | "bottom"
+            ),
+            other => config.placement() == other,
+        }
+    }
+
+    fn render_toc_entries(
+        &mut self,
+        entries: &[TocEntry<'_>],
+        config: &TocRenderConfig<'_>,
+        position: TocRenderPosition,
+    ) -> Result<(), Error> {
+        if position.current_level > config.max_level {
+            return Ok(());
+        }
+
+        let first_real_part = if position.parts_at_current_level {
+            entries
+                .iter()
+                .position(|entry| entry.level == 0 && entry.kind == SectionKind::Normal)
+        } else {
+            None
+        };
+        let current_entries = entries
+            .iter()
+            .enumerate()
+            .filter(|(index, entry)| {
+                let level = effective_level(entry, config.has_real_parts);
+                if level == position.current_level {
+                    first_real_part
+                        .is_none_or(|part| *index < part || entry.level != position.current_level)
+                } else {
+                    position.parts_at_current_level && entry.level == 0 && level == 0
+                }
+            })
+            .collect::<Vec<_>>();
+
+        for (entry_position, (entry_index, entry)) in current_entries.iter().enumerate() {
+            write!(self.writer, "{:indent$}- ", "", indent = position.indent)?;
+            self.write_anchor_link(entry.id, |visitor| {
+                if let Some(Some(number)) = config
+                    .section_numbers
+                    .get(position.base_index + entry_index)
+                {
+                    write!(visitor.writer, "{number}")?;
+                }
+                visitor.visit_inline_nodes(&entry.title)
+            })?;
+            writeln!(self.writer)?;
+
+            let child_start = entry_index + 1;
+            let child_end = current_entries
+                .get(entry_position + 1)
+                .map_or(entries.len(), |next| next.0);
+            let child_level = if entry.level == 0 && entry.kind.is_special() {
+                2
+            } else {
+                effective_level(entry, config.has_real_parts) + 1
+            };
+            if let Some(children) = entries.get(child_start..child_end)
+                && child_level <= config.max_level
+                && children.iter().any(|child| child.level == child_level)
+            {
+                self.render_toc_entries(
+                    children,
+                    config,
+                    TocRenderPosition {
+                        current_level: child_level,
+                        base_index: position.base_index + child_start,
+                        parts_at_current_level: false,
+                        indent: position.indent + 2,
+                    },
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn render_toc(
+        &mut self,
+        toc_macro: Option<&TableOfContents<'_>>,
+        placement: &str,
+    ) -> Result<(), Error> {
+        if !self.toc_will_render(toc_macro, placement) {
+            return Ok(());
+        }
+
+        let processor = self.processor.clone();
+        let config = TocConfig::from_attributes(toc_macro, processor.document_attributes());
+        let title = config.title().or_else(|| {
+            (!processor.document_attributes().contains_key("toc-title"))
+                .then_some("Table of Contents")
+        });
+        if let Some(title) = title.filter(|title| !title.is_empty()) {
+            writeln!(self.writer, "## {}", Self::escape_markdown(title))?;
+            writeln!(self.writer)?;
+        }
+
+        let part_signifier = match processor.document_attributes().get("part-signifier") {
+            Some(AttributeValue::String(signifier)) => Some(signifier.as_ref()),
+            Some(_) | None => None,
+        };
+        let numbers = section_numbers(
+            &processor.toc_entries,
+            &NumberingConfig::new(processor.document_attributes(), part_signifier),
+        );
+        let real_parts = has_real_parts(&processor.toc_entries);
+        let first_level = processor
+            .toc_entries
+            .first()
+            .map_or(1, |entry| effective_level(entry, real_parts));
+        let parts_at_current_level = first_level > 0 && real_parts;
+        let start_level = if parts_at_current_level {
+            1
+        } else {
+            first_level
+        };
+        self.render_toc_entries(
+            &processor.toc_entries,
+            &TocRenderConfig {
+                max_level: config.levels(),
+                section_numbers: &numbers,
+                has_real_parts: real_parts,
+            },
+            TocRenderPosition {
+                current_level: start_level,
+                base_index: 0,
+                parts_at_current_level,
+                indent: 0,
+            },
+        )?;
+        Ok(())
+    }
+
+    fn render_placed_toc(
+        &mut self,
+        toc_macro: Option<&TableOfContents<'_>>,
+        placement: &str,
+        has_output: bool,
+    ) -> Result<bool, Error> {
+        if !self.toc_will_render(toc_macro, placement) {
+            return Ok(has_output);
+        }
+        if has_output {
+            writeln!(self.writer)?;
+        }
+        self.render_toc(toc_macro, placement)?;
+        Ok(true)
+    }
+
     fn block_has_output(&self, block: &Block) -> bool {
         match block {
             Block::DelimitedBlock(block) => match &block.inner {
@@ -170,8 +366,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | DelimitedBlockType::DelimitedStem(_) => true,
                 DelimitedBlockType::DelimitedComment(_) | _ => false,
             },
-            Block::TableOfContents(_)
-            | Block::Admonition(_)
+            Block::TableOfContents(toc) => {
+                toc.metadata.id.is_some()
+                    || !toc.metadata.anchors.is_empty()
+                    || self.toc_will_render(Some(toc), "macro")
+            }
+            Block::Admonition(_)
             | Block::DiscreteHeader(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
@@ -244,6 +444,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         }
 
         self.visit_body_content_start(doc)?;
+        has_output = self.render_placed_toc(None, "auto", has_output)?;
 
         let first_section = doc
             .blocks
@@ -265,6 +466,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         has_output = self.visit_separated_blocks(preamble, has_output)?;
         if emit_preamble {
             self.visit_preamble_end(doc)?;
+            has_output = self.render_placed_toc(None, "preamble", has_output)?;
         }
         has_output = self.visit_separated_blocks(remaining, has_output)?;
 
@@ -311,24 +513,26 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             &section.title,
         ))?;
 
-        let level = section.level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6
+        let effective_level = effective_section_level(section.level, section.kind);
+        let level = effective_level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6
         let level = level.min(6); // Markdown only supports 6 heading levels
 
-        if section.level >= 6 {
+        if effective_level >= 6 {
             self.diagnostics.warn_with_advice(
                 format!(
                     "section level {} exceeds Markdown maximum 6, capping at level 6",
-                    section.level + 1
+                    effective_level + 1
                 ),
                 "Markdown only has six heading levels. Reduce the source section depth if the distinction matters.",
             );
         }
 
-        // Write heading
-        let hashes = "#".repeat(level as usize);
-        write!(self.writer, "{hashes} ")?;
-        self.visit_inline_nodes(section.title.as_ref())?;
-        writeln!(self.writer)?;
+        if !section.metadata.options.contains(&"notitle") {
+            let hashes = "#".repeat(level as usize);
+            write!(self.writer, "{hashes} {}", self.section_prefix(section))?;
+            self.visit_inline_nodes(section.title.as_ref())?;
+            writeln!(self.writer)?;
+        }
 
         // Visit section content
         let prev_level = self.heading_level;
@@ -418,11 +622,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&toc.metadata)?;
-        // TOC must be manually generated in Markdown
-        self.write_warning(
-            "automatic table of contents",
-            "skipping (must be generated manually)",
-        )?;
+        self.render_toc(Some(toc), "macro")?;
         Ok(())
     }
 
@@ -769,20 +969,30 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
+    fn write_macro_link(
+        &mut self,
+        destination: &str,
+        default_label: &str,
+        label: &[InlineNode<'_>],
+    ) -> Result<(), Error> {
+        self.write_link(destination, |visitor| {
+            if label.is_empty() {
+                write!(visitor.writer, "{default_label}")?;
+            } else {
+                for node in label {
+                    visitor.visit_inline_node(node)?;
+                }
+            }
+            Ok(())
+        })
+    }
+
     /// Handle inline macros.
     fn visit_inline_macro_inner(&mut self, mac: &InlineMacro) -> Result<(), Error> {
         match mac {
             InlineMacro::Link(link) => {
                 let target = link.target.to_string();
-                if link.text.is_empty() {
-                    write!(self.writer, "[{target}]({target})")?;
-                } else {
-                    write!(self.writer, "[")?;
-                    for node in &link.text {
-                        self.visit_inline_node(node)?;
-                    }
-                    write!(self.writer, "]({target})")?;
-                }
+                self.write_macro_link(&target, &target, &link.text)?;
             }
             InlineMacro::Image(image) => {
                 // Inline image macro
@@ -804,7 +1014,9 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 // Menu navigation - skip for now
             }
             InlineMacro::Footnote(footnote) => {
-                if self.variant() == MarkdownVariant::GitHubFlavored {
+                if self.in_link_text {
+                    write!(self.writer, "[{}]", footnote.number)?;
+                } else if self.variant() == MarkdownVariant::GitHubFlavored {
                     // GFM supports footnotes
                     let id: String = footnote
                         .id
@@ -848,28 +1060,12 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
             InlineMacro::Url(url) => {
                 // URL macro - text is Vec<InlineNode>
                 let target = url.target.to_string();
-                if url.text.is_empty() {
-                    write!(self.writer, "[{target}]({target})")?;
-                } else {
-                    write!(self.writer, "[")?;
-                    for node in &url.text {
-                        self.visit_inline_node(node)?;
-                    }
-                    write!(self.writer, "]({target})")?;
-                }
+                self.write_macro_link(&target, &target, &url.text)?;
             }
             InlineMacro::Mailto(mailto) => {
                 // Email link - text is Vec<InlineNode>
                 let target = mailto.target.to_string();
-                if mailto.text.is_empty() {
-                    write!(self.writer, "[{target}](mailto:{target})")?;
-                } else {
-                    write!(self.writer, "[")?;
-                    for node in &mailto.text {
-                        self.visit_inline_node(node)?;
-                    }
-                    write!(self.writer, "](mailto:{target})")?;
-                }
+                self.write_macro_link(&format!("mailto:{target}"), &target, &mailto.text)?;
             }
             InlineMacro::Autolink(autolink) => {
                 // Auto-detected link
@@ -980,10 +1176,13 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         destination: &str,
         text: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
+        if self.in_link_text {
+            return text(self);
+        }
         write!(self.writer, "[")?;
-        let previous = std::mem::replace(&mut self.suppress_inline_anchors, true);
+        let previous = std::mem::replace(&mut self.in_link_text, true);
         let result = text(self);
-        self.suppress_inline_anchors = previous;
+        self.in_link_text = previous;
         result?;
         write!(self.writer, "]({destination})")?;
         Ok(())
