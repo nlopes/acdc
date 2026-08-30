@@ -57,6 +57,9 @@
 //! use an empty header, footers become final body rows, and unsupported spans,
 //! styles, widths, local alignment, and nested blocks use content-preserving
 //! fallbacks with structured warnings.
+//! Images retain alternative text, titles, dimensions, and links. Video
+//! posters render as static images, and every audio or video source remains
+//! available as a labeled link, with one playback warning per document.
 //!
 //! # Limitations
 //!
@@ -71,7 +74,8 @@
 //! - **Substitutions** - no control over text substitutions
 //! - **Source line presentation** - line numbers, selected-line highlighting,
 //!   and PHP mixed-mode highlighting retain code and produce warnings
-//! - **Video/audio embedding** - converted to links with warning
+//! - **Video/audio embedding** - video posters render as images and every
+//!   source as a labeled link, with one warning per document
 //! - **Complex tables** - GFM cannot preserve spans, structural footers,
 //!   widths, local alignment, or nested block structure exactly
 //! - **Inline STEM** - preserved as inline code with a warning
@@ -349,8 +353,8 @@ mod tests {
             "](media%20\\(library\\)/poster%20file.png)",
             "](media%20\\(library\\)/already%20encoded.png)",
             "](media%20\\(library\\)/inline%20poster.png)",
-            "[Audio: media%20(library)/clips/demo%20track.mp3](media%20\\(library\\)/clips/demo%20track.mp3)",
-            "[Video: media%20(library)/clips/demo%20clip.mp4](media%20\\(library\\)/clips/demo%20clip.mp4)",
+            "[Audio: demo track.mp3](media%20\\(library\\)/clips/demo%20track.mp3)",
+            "[Video: demo clip.mp4](media%20\\(library\\)/clips/demo%20clip.mp4)",
         ] {
             assert!(markdown.contains(target), "missing {target}: {markdown}");
         }

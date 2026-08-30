@@ -73,6 +73,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remain visible, and nested cell blocks retain readable line boundaries.
   Unsupported spans, cell styles, nested blocks, widths, and local alignment
   emit one structured warning per capability.
+- Inline and block images now preserve alternative text, hover titles,
+  dimensions, and image links. An image link takes precedence when the image
+  appears inside another link.
+- Video posters now render as static images, and every video source renders as
+  a labeled link. Audio and video titles and IDs remain visible, and playback
+  degradation emits one structured warning per document.
 - Markdown conversion attributes now include the `markdown` backend and
   base-backend, `md` file type, `.md` output suffix, and their conditional
   convenience attributes.

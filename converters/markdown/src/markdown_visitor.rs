@@ -1,6 +1,6 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, rc::Rc};
+use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
     Converter, Diagnostics,
@@ -24,9 +24,9 @@ use acdc_parser::{
     Admonition, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList,
     CaptionKind, ColumnStyle, ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Footnote, Header, HorizontalAlignment, Image,
-    InlineMacro, InlineNode, ListItem, ListItemCheckedStatus, OrderedList, PageBreak, Paragraph,
-    Section, SectionKind, Source, Substitution, Table, TableColumn, TableOfContents, ThematicBreak,
-    Title, TocEntry, UnorderedList, VerticalAlignment, Video,
+    InlineMacro, InlineNode, Link, ListItem, ListItemCheckedStatus, OrderedList, PageBreak,
+    Paragraph, Section, SectionKind, Source, Substitution, Table, TableColumn, TableOfContents,
+    ThematicBreak, Title, TocEntry, UnorderedList, VerticalAlignment, Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
@@ -186,6 +186,39 @@ fn flatten_table_cell(text: &str) -> String {
         .map(escape_unescaped_table_pipes)
         .collect::<Vec<_>>()
         .join("<br>")
+}
+
+fn image_filename_alt(source: &Source<'_>) -> String {
+    source
+        .get_filename()
+        .and_then(|filename| Path::new(filename).file_stem())
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_default()
+        .replace(['-', '_'], " ")
+}
+
+fn block_image_alt(image: &Image<'_>) -> String {
+    image
+        .metadata
+        .attributes
+        .get_string("alt")
+        .map_or_else(|| image_filename_alt(&image.source), Cow::into_owned)
+}
+
+fn inline_image_alt(image: &Image<'_>) -> String {
+    if image.title.is_empty() {
+        block_image_alt(image)
+    } else {
+        InlineTextTransform::default().to_string(image.title.as_ref())
+    }
+}
+
+fn is_linked_image(node: &InlineNode<'_>) -> bool {
+    matches!(
+        node,
+        InlineNode::Macro(InlineMacro::Image(image))
+            if image.metadata.attributes.get_string("link").is_some()
+    )
 }
 
 fn raw_content(nodes: &[InlineNode<'_>]) -> String {
@@ -1476,23 +1509,9 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
     fn visit_image(&mut self, image: &Image) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&image.metadata)?;
-
-        let alt = image
-            .metadata
-            .attributes
-            .get_string("alt")
-            .unwrap_or(std::borrow::Cow::Borrowed("image"));
-
-        let target = self.media_target(&image.source);
-        let target = escape_link_destination(&target);
-        let alt = Self::escape_markdown(&alt);
-
-        if let Some(title) = image.metadata.attributes.get_string("title") {
-            let title = escape_link_title(&title);
-            writeln!(self.writer, r#"![{alt}]({target} "{title}")"#)?;
-        } else {
-            writeln!(self.writer, "![{alt}]({target})")?;
-        }
+        let alt = block_image_alt(image);
+        self.write_image(image, &alt)?;
+        writeln!(self.writer)?;
         if !image.title.is_empty() {
             writeln!(self.writer)?;
             self.write_block_title_line(&image.title, &image.metadata, Some(CaptionKind::Figure))?;
@@ -1503,12 +1522,45 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&video.metadata)?;
         self.write_block_title(&video.title, &video.metadata, None)?;
-        // Video embedding not supported in standard Markdown
-        self.write_warning("video embedding", "providing link")?;
-        if let Some(first_source) = video.sources.first() {
-            let target = self.media_target(first_source);
+        self.warn_static_media_fallback();
+
+        let title = if video.title.is_empty() {
+            video
+                .sources
+                .first()
+                .and_then(Source::get_filename)
+                .map_or_else(|| "video".to_owned(), str::to_owned)
+        } else {
+            InlineTextTransform::default().to_string(video.title.as_ref())
+        };
+        if let Some(poster) = video.metadata.attributes.get_string("poster") {
+            let poster = resolve_target(&poster, self.processor.document_attributes());
+            write!(
+                self.writer,
+                "![{}]({})",
+                Self::escape_markdown(&format!("Video poster: {title}")),
+                escape_link_destination(&poster)
+            )?;
+            writeln!(self.writer)?;
+            if !video.sources.is_empty() {
+                writeln!(self.writer)?;
+            }
+        }
+        for (index, source) in video.sources.iter().enumerate() {
+            let target = self.media_target(source);
+            let source_count = video.sources.len();
             self.write_link(&target, |visitor| {
-                write!(visitor.writer, "Video: {}", Self::escape_markdown(&target))?;
+                if source_count == 1 {
+                    write!(visitor.writer, "Video: {}", Self::escape_markdown(&title))?;
+                } else {
+                    write!(
+                        visitor.writer,
+                        "Video source {}/{}: {}",
+                        index + 1,
+                        source_count,
+                        Self::escape_markdown(&title)
+                    )?;
+                }
                 Ok(())
             })?;
             writeln!(self.writer)?;
@@ -1519,11 +1571,18 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&audio.metadata)?;
         self.write_block_title(&audio.title, &audio.metadata, None)?;
-        // Audio embedding not supported in standard Markdown
-        self.write_warning("audio embedding", "providing link")?;
+        self.warn_static_media_fallback();
         let target = self.media_target(&audio.source);
+        let title = if audio.title.is_empty() {
+            audio
+                .source
+                .get_filename()
+                .map_or_else(|| audio.source.to_string(), str::to_owned)
+        } else {
+            InlineTextTransform::default().to_string(audio.title.as_ref())
+        };
         self.write_link(&target, |visitor| {
-            write!(visitor.writer, "Audio: {}", Self::escape_markdown(&target))?;
+            write!(visitor.writer, "Audio: {}", Self::escape_markdown(&title))?;
             Ok(())
         })?;
         writeln!(self.writer)?;
@@ -1792,6 +1851,23 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         })
     }
 
+    fn write_link_macro_node(&mut self, link: &Link<'_>) -> Result<(), Error> {
+        let target = link.target.to_string();
+        if link.text.iter().any(is_linked_image) {
+            for node in &link.text {
+                if is_linked_image(node) {
+                    self.visit_inline_node(node)?;
+                } else {
+                    self.write_link(&target, |visitor| visitor.visit_inline_node(node))?;
+                }
+            }
+            return Ok(());
+        }
+
+        let fallback = link_fallback(&target, link.hides_uri_scheme());
+        self.write_macro_link(&target, fallback, &link.text)
+    }
+
     fn write_keyboard(&mut self, keys: &[&str]) -> Result<(), Error> {
         for (index, key) in keys.iter().enumerate() {
             if index > 0 {
@@ -1812,16 +1888,10 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
 
     fn visit_inline_macro_inner(&mut self, mac: &InlineMacro) -> Result<(), Error> {
         match mac {
-            InlineMacro::Link(link) => {
-                let target = link.target.to_string();
-                let fallback = link_fallback(&target, link.hides_uri_scheme());
-                self.write_macro_link(&target, fallback, &link.text)?;
-            }
+            InlineMacro::Link(link) => self.write_link_macro_node(link)?,
             InlineMacro::Image(image) => {
-                let target = self.media_target(&image.source);
-                let target = escape_link_destination(&target);
-                let alt = "image";
-                write!(self.writer, "![{alt}]({target})")?;
+                let alt = inline_image_alt(image);
+                self.write_image(image, &alt)?;
             }
             InlineMacro::Icon(icon_macro) => {
                 let alt = icon::alt(&icon_macro.target, &icon_macro.attributes);
@@ -2009,6 +2079,64 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         result?;
         write!(self.writer, "]({})", escape_link_destination(destination))?;
         Ok(())
+    }
+
+    fn write_image(&mut self, image: &Image<'_>, alt: &str) -> Result<(), Error> {
+        if let Some(link) = image.metadata.attributes.get_string("link") {
+            self.write_link(&link, |visitor| visitor.write_image_markup(image, alt))
+        } else {
+            self.write_image_markup(image, alt)
+        }
+    }
+
+    fn write_image_markup(&mut self, image: &Image<'_>, alt: &str) -> Result<(), Error> {
+        let target = self.media_target(&image.source);
+        let title = image.metadata.attributes.get_string("title");
+        let width = image.metadata.attributes.get_string("width");
+        let height = image.metadata.attributes.get_string("height");
+        if width.is_some() || height.is_some() {
+            write!(
+                self.writer,
+                "<img src=\"{}\" alt=\"{}\"",
+                escape_html_attribute(&target),
+                escape_html_attribute(alt)
+            )?;
+            if let Some(title) = title {
+                write!(self.writer, " title=\"{}\"", escape_html_attribute(&title))?;
+            }
+            if let Some(width) = width {
+                write!(self.writer, " width=\"{}\"", escape_html_attribute(&width))?;
+            }
+            if let Some(height) = height {
+                write!(
+                    self.writer,
+                    " height=\"{}\"",
+                    escape_html_attribute(&height)
+                )?;
+            }
+            write!(self.writer, ">")?;
+            return Ok(());
+        }
+
+        write!(
+            self.writer,
+            "![{}]({}",
+            Self::escape_markdown(alt),
+            escape_link_destination(&target)
+        )?;
+        if let Some(title) = title {
+            write!(self.writer, " \"{}\"", escape_link_title(&title))?;
+        }
+        write!(self.writer, ")")?;
+        Ok(())
+    }
+
+    fn warn_static_media_fallback(&mut self) {
+        self.warn_once(
+            "static-media-playback",
+            "audio and video playback are not supported by the Markdown backend; rendering static links",
+            "Use an HTML-capable backend when embedded playback controls are required.",
+        );
     }
 
     fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {

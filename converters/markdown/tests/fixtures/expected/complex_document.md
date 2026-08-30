@@ -71,9 +71,9 @@ Simple table:
 <a id="_images"></a>
 ### Images
 
-![System Diagram](diagram.png)
+<img src="diagram.png" alt="System Diagram" width="600">
 
-Inline image:![image](icon.png) in text.
+Inline image:![Icon](icon.png) in text.
 
 <a id="_conclusion"></a>
 ## Conclusion

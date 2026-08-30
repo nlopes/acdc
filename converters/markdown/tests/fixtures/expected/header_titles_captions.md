@@ -92,13 +92,11 @@ Open block body.
 
 <strong>Audio Title</strong>
 
-<!-- Warning: audio embedding not natively supported in Markdown, providing link -->
-[Audio: sound.mp3](sound.mp3)
+[Audio: Audio Title](sound.mp3)
 
 <strong>Video Title</strong>
 
-<!-- Warning: video embedding not natively supported in Markdown, providing link -->
-[Video: movie.mp4](movie.mp4)
+[Video: Video Title](movie.mp4)
 
 <a id="table"></a>
 <strong>Table 1. Table Title</strong>
@@ -108,7 +106,7 @@ Open block body.
 | Cell |
 
 <a id="custom-figure"></a>
-![image](custom.png)
+![custom](custom.png)
 
 <strong>Exhibit: Custom Figure</strong>
 

@@ -16,7 +16,7 @@ Block image:
 
 ![Alt text for image](path/to/image.png)
 
-Inline image: ![image](small-icon.png) in text.
+Inline image: ![Icon](small-icon.png) in text.
 
 Image with title:
 

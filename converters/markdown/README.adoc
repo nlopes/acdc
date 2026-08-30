@@ -77,7 +77,12 @@ Supported constructs:
 - **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected
   at document end; linked superscripts and a readable endnote list in
   CommonMark.
-- **Images / videos / audio**: images render natively; video and audio degrade to links with a warning.
+- **Images / videos / audio**: images preserve alternative text, hover titles,
+  dimensions, and links. Native Markdown is used when possible; dimensions
+  use embedded HTML. An image's own link takes precedence over an outer link.
+  Video posters render as static Markdown images, and every video source
+  renders as a labeled link. Audio and video IDs and titles remain visible,
+  and playback degradation emits one structured warning per document.
 - **Thematic breaks** and page breaks (rendered as `---`).
 - **Collapsible example blocks** (`[%collapsible]`, `[%collapsible%open]`): rendered as embedded `<details>/<summary>` HTML. Works in GitHub, GitLab, and most Markdown renderers that allow inline HTML.
 
@@ -105,6 +110,9 @@ Some `AsciiDoc` features have no faithful Markdown equivalent. When the converte
   equivalent. Arbitrary roles remain as HTML classes, but their appearance and
   raw passthrough behavior depend on the renderer's HTML support and
   sanitization policy.
+- **Media playback** - audio and video controls cannot be represented in
+  portable Markdown. Posters and labeled source links remain available, with
+  one structured warning per document.
 
 See the crate's `src/lib.rs` module docs for the full list.
 

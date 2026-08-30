@@ -458,6 +458,23 @@ fn gfm_table_fallbacks_report_each_unsupported_capability() -> Result<(), Error>
 }
 
 #[test]
+fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/static_media_fallbacks.adoc");
+    let (_output, warnings) = convert_str(input)?;
+
+    assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
+    let warning = warnings.first().ok_or("missing playback warning")?;
+    assert!(
+        warning
+            .message
+            .contains("audio and video playback are not supported"),
+        "unexpected warning: {warnings:?}"
+    );
+    assert!(warning.advice().is_some(), "missing advice: {warnings:?}");
+    Ok(())
+}
+
+#[test]
 fn inline_stem_fallback_warning_is_deduplicated() -> Result<(), Error> {
     let input = ":experimental:\n\nUI: kbd:[Ctrl+C], btn:[Save], menu:File[Open], icon:heart[].\n\nMath: stem:[x < y] and latexmath:[a_b].\n";
     let (output, warnings) = convert_str(input)?;
