@@ -13,7 +13,7 @@ use acdc_parser::{
     PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
-use crate::escape::{EscapeMode, manify};
+use crate::escape::{EscapeMode, escape_roff_macro_argument, manify};
 
 use crate::{Error, Processor};
 
@@ -188,16 +188,13 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                     // If text contains whitespace, render only up to it and stop
                     if let Some(ws_pos) = text.content.find(char::is_whitespace) {
                         let partial = &text.content[..ws_pos];
-                        // For trailing content inside quotes, only escape hyphens
-                        // (don't escape leading periods - they won't be interpreted as macros)
-                        let escaped = partial.replace('-', "\\-");
+                        let escaped = manify(partial, EscapeMode::Collapse);
                         write!(trailing_visitor.writer, "{escaped}")?;
                         // Record how many bytes we consumed from this node
                         partial_bytes = ws_pos;
                         break;
                     }
-                    // Render entire PlainText - only escape hyphens for trailing content
-                    let escaped = text.content.replace('-', "\\-");
+                    let escaped = manify(text.content, EscapeMode::Collapse);
                     write!(trailing_visitor.writer, "{escaped}")?;
                     skip_count += 1;
                 }
@@ -272,7 +269,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
                 let name = crate::document::format_author_name(author);
                 write!(w, "\\fB{}\\fP", manify(&name, EscapeMode::Normalize))?;
                 if let Some(email) = &author.email {
-                    let escaped_email = email.replace('@', "\\(at");
+                    let escaped_email = escape_roff_macro_argument(email).replace('@', "\\(at");
                     writeln!(w, " \\c\n.MTO \"{escaped_email}\" \"\" \"\"")?;
                 } else {
                     writeln!(w)?;

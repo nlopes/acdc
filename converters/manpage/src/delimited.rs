@@ -51,6 +51,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 self.render_verse_delimited_block(block, inlines)
             }
             DelimitedBlockType::DelimitedPass(inlines) => {
+                // Passthrough blocks contain backend-native roff by definition.
                 let w = self.writer_mut();
                 let content = extract_verbatim_text(inlines);
                 writeln!(w, "{content}")?;
@@ -62,7 +63,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             DelimitedBlockType::DelimitedStem(stem) => {
                 let w = self.writer_mut();
                 writeln!(w, ".sp")?;
-                writeln!(w, "{}", stem.content)?;
+                writeln!(w, "{}", manify(stem.content, EscapeMode::Preserve))?;
                 Ok(())
             }
             // Comments and any future variants produce no output

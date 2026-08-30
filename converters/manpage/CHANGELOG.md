@@ -16,6 +16,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Added
 
+- UI labels, STEM fallback text, and link and media targets now keep hostile
+  roff characters literal. Explicit passthrough blocks remain backend-native
+  content. Inline roles without an exact portable presentation produce one
+  structured fallback warning per document.
 - Tables now honor frame and grid rules, proportional, percentage, and
   content-determined column widths, explicit table width, `autowidth`, table
   alignment, and cell vertical alignment using portable `tbl` output.

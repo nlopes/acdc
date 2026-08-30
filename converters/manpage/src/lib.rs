@@ -96,6 +96,7 @@ pub struct Processor<'a> {
     pub(crate) xref_guard: XrefGuard,
     pub(crate) top_level_section_ids: Rc<HashSet<&'a str>>,
     pub(crate) static_media_warning: Rc<Cell<bool>>,
+    pub(crate) inline_role_warning: Rc<Cell<bool>>,
     pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     pub(crate) has_valid_index_section: bool,
     /// Substitutions active for the block currently being rendered, resolved
@@ -148,6 +149,7 @@ impl Processor<'_> {
                     .collect(),
             ),
             static_media_warning: Rc::new(Cell::new(false)),
+            inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             #[cfg(feature = "pre-spec-subs")]
@@ -199,6 +201,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(HashSet::new()),
             static_media_warning: Rc::new(Cell::new(false)),
+            inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             #[cfg(feature = "pre-spec-subs")]

@@ -36,4 +36,4 @@ stem\-test \- test stem/math rendering
 .sp
 An inline formula: x^2 + y^2 = z^2\&.
 .sp
-x = (-b +- sqrt(b^2 - 4ac)) / (2a)
+x = (\-b +\- sqrt(b^2 \- 4ac)) / (2a)

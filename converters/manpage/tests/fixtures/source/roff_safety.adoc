@@ -1,0 +1,42 @@
+= roff-safety(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: Roff safety checks
+:experimental:
+:unsafe-target: https://example.invalid/.target'part"quote\path
+
+== NAME
+
+roff-safety - verify untrusted roff text remains literal
+
+== SYNOPSIS
+
+roff-safety
+
+== DESCRIPTION
+
+UI labels: kbd:[.sp+\fB+a"quote], btn:['break \fI a"quote], and menu:.ce['break > \fB > a"quote].
+
+Inline STEM: stem:[.sp 'break \fB a"quote].
+
+.A "quoted" \path image
+image::status.svg[status,link={unsafe-target}]
+
+.A "quoted" \path audio
+audio::{unsafe-target}[]
+
+.A "quoted" \path video
+video::{unsafe-target}[]
+
+[stem]
++++
+.sp
+'break
+\fB
+a"quote
++++
+
+++++
+.B "Raw passthrough"
+++++

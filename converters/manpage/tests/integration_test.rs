@@ -198,6 +198,31 @@ table-warnings
 }
 
 #[test]
+fn inline_role_fallback_warning_is_deduplicated() -> Result<(), Error> {
+    let source_path = Path::new("tests/fixtures/source/sections_inline_roles.adoc");
+    let parsed = acdc_parser::parse_file(source_path, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+
+    processor.write_to(doc, &mut output, Some(source_path), None, &mut diagnostics)?;
+
+    assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
+    let warning = warnings.first().ok_or("missing inline role warning")?;
+    assert!(
+        warning
+            .message
+            .contains("inline roles have no exact portable roff styling"),
+        "unexpected warning: {warning:?}"
+    );
+    assert!(warning.advice().is_some(), "missing advice: {warning:?}");
+    Ok(())
+}
+
+#[test]
 fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
     let input = r"= xrefstyle(1)
 :doctype: manpage

@@ -255,6 +255,23 @@ pub(crate) fn escape_quoted(text: &str) -> Cow<'_, str> {
     Cow::Owned(result)
 }
 
+/// Escape untrusted text for a double-quoted roff macro argument.
+#[must_use]
+pub(crate) fn escape_roff_macro_argument(text: &str) -> String {
+    let rendered = manify(text, EscapeMode::Collapse);
+    escape_rendered_roff_macro_argument(&rendered).into_owned()
+}
+
+/// Keep converter-produced roff escapes while making a quoted argument atomic.
+#[must_use]
+pub(crate) fn escape_rendered_roff_macro_argument(text: &str) -> Cow<'_, str> {
+    if !text.contains(['"', '\n', '\r']) {
+        return Cow::Borrowed(text);
+    }
+
+    Cow::Owned(text.replace('"', "\\(dq").replace(['\n', '\r'], " "))
+}
+
 /// Convert text to uppercase for section titles.
 ///
 /// Manpage convention is to uppercase level-1 section titles (NAME, SYNOPSIS, etc.).
@@ -331,6 +348,23 @@ mod tests {
     fn test_escape_quoted() {
         assert_eq!(escape_quoted("simple"), "simple");
         assert_eq!(escape_quoted("has \"quotes\""), "has \\\"quotes\\\"");
+    }
+
+    #[test]
+    fn roff_macro_argument_escapes_hostile_text() {
+        assert_eq!(
+            escape_roff_macro_argument(".target\n\"quote\\path"),
+            "\\&.target \\(dqquote\\epath"
+        );
+        assert_eq!(escape_roff_macro_argument("'break"), "\\&'break");
+    }
+
+    #[test]
+    fn rendered_roff_macro_argument_preserves_converter_escapes() {
+        assert_eq!(
+            escape_rendered_roff_macro_argument("\\fB\"label\"\n\\fP"),
+            "\\fB\\(dqlabel\\(dq \\fP"
+        );
     }
 
     #[test]

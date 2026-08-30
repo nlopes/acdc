@@ -67,7 +67,9 @@ groff -t -man mycommand.1 -T utf8 | less
 
 The manpage converter:
 
-- Escapes special roff characters (backslash, period at line start, apostrophe)
+- Escapes special roff characters in prose, UI labels, STEM fallback text, and
+  link and media arguments. Explicit passthrough blocks remain unescaped so
+  they can contain backend-native roff.
 - Disables hyphenation (`.nh`) for consistent formatting
 - Uses left-alignment only (`.ad l`) as is standard for manpages
 - Includes the tbl preprocessor directive (`'\" t`) when tables are present
@@ -77,7 +79,7 @@ The manpage converter:
 - Renders images as readable alternative text and preserves configured image
   links with `.URL`
 - Renders audio and video as titled static links, including every video source
-  and poster
+  and poster, with one playback-fallback warning per document
 - Omits markers for `[none]`, `[no-bullet]`, and `[unstyled]` lists, plus
   `[unnumbered]` ordered lists, and honors `%reversed` with optional `start`
 - Gives `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description
@@ -94,7 +96,7 @@ The manpage converter:
   ID-only and custom-role spans keep plain text.
 - Preserves unsupported strikeout and overline meaning as `[deleted: ...]` and
   `[overlined: ...]`. Unknown and color roles retain their text without added
-  formatting.
+  formatting. These role fallbacks produce one structured warning per document.
 - Renders explicit and automatic source callouts as bold `(N)` labels in both
   code and explanation lists. Language-appropriate and XML comment guards are
   removed from delimited blocks and styled source paragraphs.

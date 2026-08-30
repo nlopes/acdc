@@ -9,7 +9,7 @@ use acdc_parser::{AttributeValue, Audio, Image, InlineNode, Source, Video};
 
 use crate::{
     Error, ManpageVisitor,
-    escape::{EscapeMode, manify},
+    escape::{EscapeMode, escape_rendered_roff_macro_argument, escape_roff_macro_argument, manify},
 };
 
 fn image_filename_alt(source: &Source<'_>) -> String {
@@ -164,7 +164,8 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         if inline {
             writeln!(self.writer_mut(), "\\c")?;
         }
-        let target = manify(target, EscapeMode::Collapse);
+        let target = escape_roff_macro_argument(target);
+        let label = escape_rendered_roff_macro_argument(&label);
         let suffix = if inline { "\\c" } else { "" };
         writeln!(
             self.writer_mut(),

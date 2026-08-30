@@ -1,0 +1,59 @@
+'\" t
+.\"     Title: roff-safety
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: Roff safety checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "ROFF\-SAFETY" "1" "2026-08-30" "acdc" "Roff safety checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+roff\-safety \- verify untrusted roff text remains literal
+.SH "SYNOPSIS"
+.sp
+roff\-safety
+.SH "DESCRIPTION"
+.sp
+UI labels: \fB\&.sp+\efB+a"quote\fP, [\fB\&'break \efI a"quote\fP], and \fB\&.ce\fP \(ra \fB\&'break\fP \(ra \fB\efB\fP \(ra \fBa"quote\fP\&.
+.sp
+Inline STEM: \&.sp 'break \efB a"quote\&.
+.sp
+\fBFigure 1. A "quoted" \epath image\fP
+.br
+.URL "https://example.invalid/.target'part\(dqquote\epath" "[status]" ""
+.sp
+\fBA "quoted" \epath audio\fP
+.br
+.URL "https://example.invalid/.target'part\(dqquote\epath" "[Audio: A \(dqquoted\(dq \epath audio]" ""
+.sp
+\fBA "quoted" \epath video\fP
+.br
+.URL "https://example.invalid/.target'part\(dqquote\epath" "[Video: A \(dqquoted\(dq \epath video]" ""
+.sp
+
+\&.sp
+\&'break
+\efB
+a"quote
+
+.B "Raw passthrough"
