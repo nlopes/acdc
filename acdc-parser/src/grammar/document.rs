@@ -5252,14 +5252,20 @@ peg::parser! {
         // Parse first line (principal text)
         first_line:$((!(eol()) [_])*)
         // Parse continuation lines that are part of the same paragraph
-        // Stop at: list markers, blank lines, section headers, or block attributes
+        // Stop at list markers, explicit continuations, blank lines, section
+        // headers, or block attributes.
         continuation_lines:(
             eol()
-            !(whitespace()* (callout_list_marker() / unordered_list_marker() / ordered_list_marker() / section_level_marker() whitespace() / "[" / eol()))
+            !(whitespace()* (callout_list_marker() / unordered_list_marker() / ordered_list_marker() / section_level_marker() whitespace() / "[" / "+" whitespace()* eol() / eol()))
             line:$((!(eol()) [_])*)
             { line }
         )*
         first_line_end:position!()
+        explicit_continuations:(!at_list_separator() cont:(
+            list_explicit_continuation_immediate(offset, block_metadata)
+            / list_explicit_continuation_ancestor(offset, block_metadata)
+        ) { cont })*
+        list_dangling_continuation()?
         {
             // Combine first line and continuation lines
             let principal_text_owned = if continuation_lines.is_empty() {
@@ -5290,8 +5296,7 @@ peg::parser! {
                 principal
             };
 
-            // For callout lists, we don't support nested content or attached blocks
-            let blocks = vec![];
+            let blocks = explicit_continuations.into_iter().flatten().collect::<Vec<_>>();
 
             let location = state.create_location(span_start+offset, item_end+offset);
 
@@ -5304,12 +5309,14 @@ peg::parser! {
                 CalloutRef::explicit(number, location.clone())
             };
 
+            let actual_end = if blocks.is_empty() { item_end } else { span_end.saturating_sub(1) };
+
             Ok((CalloutListItem {
                 callout,
                 principal,
                 blocks,
-                location,
-            }, marker.to_string(), item_end))
+                location: state.create_location(span_start+offset, actual_end+offset),
+            }, marker.to_string(), actual_end))
         }
 
         rule checklist_item() -> ListItemCheckedStatus
@@ -5781,6 +5788,7 @@ peg::parser! {
             / eol() markdown_code_delimiter()
             / eol() comment_delimiter()
             / eol() open_delimiter() &(whitespace()* eol())
+            / eol() !not_after_verbatim_block() &(whitespace()* callout_list_marker() whitespace())
             / eol() list(start, offset, block_metadata)
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
             / eol()* &((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
@@ -8374,6 +8382,31 @@ link:https://example.net[Text,positional-id]
                 .any(|w| matches!(&w.kind, crate::WarningKind::UnresolvedReference { .. })),
             "a reference to an anchor inside a callout item must not warn"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_callout_item_explicit_continuation_attaches_block() -> Result<(), Error> {
+        let input = "----\nfirst <1>\nsecond <2>\n----\n<1> First explanation.\n+\nAttached paragraph.\n<2> Second explanation.\n";
+        let mut state = ParserState::new_for_test(input);
+        let doc = document_parser::document(input, &mut state)??;
+        let list = doc
+            .blocks
+            .iter()
+            .find_map(|block| {
+                if let Block::CalloutList(list) = block {
+                    Some(list)
+                } else {
+                    None
+                }
+            })
+            .expect("callout list must be parsed");
+
+        assert_eq!(list.items.len(), 2);
+        assert_eq!(list.items[0].blocks.len(), 1);
+        assert!(matches!(list.items[0].blocks[0], Block::Paragraph(_)));
+        assert!(list.items[1].blocks.is_empty());
+        assert!(state.warnings.borrow().is_empty());
         Ok(())
     }
 

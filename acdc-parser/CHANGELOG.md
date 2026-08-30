@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicit `+` continuations on callout-list items now attach the following
+  block to that item instead of folding the marker and block text into the
+  explanation, matching Asciidoctor.
 - `CrossReference` equality and debug output now depend only on its exposed
   model state. Equivalent values from standalone and full-document parsing no
   longer differ because of private parsing state, and debug output does not
