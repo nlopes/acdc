@@ -21,7 +21,7 @@
 //! ## `CommonMark`
 //! - Standard Markdown specification (spec.commonmark.org)
 //! - Basic features: headings, lists, links, images, code blocks, blockquotes
-//! - No native tables, task lists, or strikethrough syntax
+//! - No native tables, task-list, or strikethrough syntax
 //!
 //! ## GitHub Flavored Markdown (GFM)
 //! - Extends `CommonMark` with GitHub-specific features
@@ -48,6 +48,11 @@
 //! content through native Markdown, embedded HTML, or inline-code fallbacks.
 //! Link fallback text honors `hide-uri-scheme`, bracketed email autolinks stay
 //! visible, and link destinations escape Markdown-sensitive characters.
+//! Ordered lists retain reversed numbering, and ordered and unordered lists
+//! retain markerless presentation. GFM uses native task-list syntax, while
+//! `CommonMark` retains checklist state as visible text. Horizontal and Q&A
+//! description lists have distinct layouts. Bibliography entries retain their
+//! anchors and visible bracketed labels.
 //!
 //! # Limitations
 //!
@@ -56,7 +61,7 @@
 //! - **Footnotes** - Native GFM syntax `[^1]`, linked superscripts and a
 //!   readable endnote list in `CommonMark`
 //! - **Tables** - Supported in GFM only, skipped in `CommonMark` with warning
-//! - **Task lists** - Supported in GFM only, converted to regular lists in `CommonMark`
+//! - **Task lists** - Native in GFM; `CommonMark` uses visible literal markers
 //! - **Include directives** - not supported (Markdown is single-file oriented)
 //! - **Substitutions** - no control over text substitutions
 //! - **Source line presentation** - line numbers, selected-line highlighting,
@@ -101,7 +106,7 @@ pub use markdown_visitor::MarkdownVisitor;
 /// defaults to [`MarkdownVariant::GitHubFlavored`].
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum MarkdownVariant {
-    /// `CommonMark` Markdown (basic features only — no tables/task lists).
+    /// `CommonMark` Markdown (basic features only; no native tables or task lists).
     CommonMark,
     /// GitHub Flavored Markdown (extends `CommonMark` with tables, task
     /// lists, alerts, footnotes, strikethrough, autolinks).

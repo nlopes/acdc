@@ -20,11 +20,11 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList, CaptionKind,
-    CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document,
-    Footnote, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph,
-    Section, SectionKind, Source, Substitution, Table, TableOfContents, ThematicBreak, Title,
-    TocEntry, UnorderedList, Video,
+    Admonition, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList,
+    CaptionKind, CrossReference, DelimitedBlock, DelimitedBlockType, DescriptionList,
+    DiscreteHeader, Document, Footnote, Header, Image, InlineMacro, InlineNode, ListItem,
+    ListItemCheckedStatus, OrderedList, PageBreak, Paragraph, Section, SectionKind, Source,
+    Substitution, Table, TableOfContents, ThematicBreak, Title, TocEntry, UnorderedList, Video,
 };
 
 use crate::{BACKEND_TRAITS, Error, MarkdownVariant, Processor};
@@ -127,6 +127,22 @@ fn max_backtick_run(text: &str) -> usize {
         .map(str::len)
         .max()
         .unwrap_or(0)
+}
+
+fn suppresses_list_marker(style: Option<&str>, ordered: bool) -> bool {
+    matches!(style, Some("none" | "no-bullet" | "unstyled"))
+        || (ordered && style == Some("unnumbered"))
+}
+
+fn list_sequence(metadata: &BlockMetadata<'_>, item_count: usize) -> (usize, bool) {
+    let reversed = metadata.options.contains(&"reversed");
+    let start = metadata
+        .attributes
+        .get_string("start")
+        .and_then(|start| start.parse::<usize>().ok())
+        .filter(|start| *start > 0)
+        .unwrap_or(if reversed { item_count } else { 1 });
+    (start, reversed)
 }
 
 fn raw_content(nodes: &[InlineNode<'_>]) -> String {
@@ -335,6 +351,26 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             && let Some(id) = id
         {
             self.write_anchor(id)?;
+        }
+        Ok(())
+    }
+
+    fn write_inline_anchor_node(&mut self, anchor: &Anchor<'_>) -> Result<(), Error> {
+        self.write_inline_anchor(Some(anchor.id))?;
+        if !anchor.is_bibliography() {
+            return Ok(());
+        }
+
+        let label = self
+            .processor
+            .references
+            .get(anchor.id)
+            .and_then(|reference| reference.xreflabel.as_deref())
+            .map(<[_]>::to_vec);
+        if let Some(label) = label {
+            self.visit_inline_nodes(&label)?;
+        } else {
+            write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id))?;
         }
         Ok(())
     }
@@ -1189,7 +1225,13 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
         self.write_block_title(&list.title, &list.metadata, None)?;
-        self.visit_list_items(&list.items, "-", 1)
+        self.visit_list_items(
+            &list.items,
+            "-",
+            1,
+            false,
+            suppresses_list_marker(list.metadata.style, false),
+        )
     }
 
     fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
@@ -1214,14 +1256,14 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 "rendering numerically",
             )?;
         }
-        let start = list
-            .metadata
-            .attributes
-            .get_string("start")
-            .and_then(|start| start.parse::<usize>().ok())
-            .filter(|start| *start > 0)
-            .unwrap_or(1);
-        self.visit_list_items(&list.items, "1.", start)
+        let (start, reversed) = list_sequence(&list.metadata, list.items.len());
+        self.visit_list_items(
+            &list.items,
+            "1.",
+            start,
+            reversed,
+            suppresses_list_marker(list.metadata.style, true),
+        )
     }
 
     fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
@@ -1445,41 +1487,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
     fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
         self.write_block_title(&list.title, &list.metadata, None)?;
-        // Description lists (definition lists) not in standard Markdown
-        self.write_list_indent()?;
-        self.write_warning("description lists", "using regular list")?;
-        for item in &list.items {
-            // Render term as bold text in a list item
-            self.write_list_indent()?;
-            write!(self.writer, "- **")?;
-            self.visit_inline_nodes(&item.term)?;
-            writeln!(self.writer, "**")?;
-
-            // Render principal text (inline content after delimiter) if present
-            if !item.principal_text.is_empty() {
-                self.write_list_indent()?;
-                write!(self.writer, "  ")?;
-                self.visit_inline_nodes(&item.principal_text)?;
-                writeln!(self.writer)?;
-            }
-
-            // Render description blocks indented
-            for block in &item.description {
-                self.list_depth += 1;
-                let result = (|| {
-                    if !matches!(
-                        block,
-                        Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
-                    ) {
-                        self.write_list_indent()?;
-                    }
-                    self.visit_block(block)
-                })();
-                self.list_depth -= 1;
-                result?;
-            }
+        match list.metadata.style {
+            Some("horizontal") => self.visit_horizontal_description_list(list),
+            Some("qanda") => self.visit_qanda_description_list(list),
+            _ => self.visit_regular_description_list(list),
         }
-        Ok(())
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
@@ -1594,7 +1606,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_role_end(role)?;
             }
             InlineNode::InlineAnchor(anchor) => {
-                self.write_inline_anchor(Some(anchor.id))?;
+                self.write_inline_anchor_node(anchor)?;
             }
             InlineNode::Macro(mac) => {
                 self.visit_inline_macro_inner(mac)?;
@@ -1617,6 +1629,105 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 }
 
 impl<W: Write> MarkdownVisitor<'_, '_, W> {
+    fn visit_regular_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Error> {
+        self.write_list_indent()?;
+        self.write_warning("description lists", "using regular list")?;
+        for item in &list.items {
+            self.write_list_indent()?;
+            write!(self.writer, "- **")?;
+            self.visit_inline_nodes(&item.term)?;
+            writeln!(self.writer, "**")?;
+
+            if !item.principal_text.is_empty() {
+                self.write_list_indent()?;
+                write!(self.writer, "  ")?;
+                self.visit_inline_nodes(&item.principal_text)?;
+                writeln!(self.writer)?;
+            }
+            self.visit_description_blocks(&item.description)?;
+        }
+        Ok(())
+    }
+
+    fn visit_horizontal_description_list(
+        &mut self,
+        list: &DescriptionList<'_>,
+    ) -> Result<(), Error> {
+        for item in &list.items {
+            self.write_list_indent()?;
+            write!(self.writer, "**")?;
+            self.visit_inline_nodes(&item.term)?;
+            write!(self.writer, "**")?;
+            if !item.principal_text.is_empty() {
+                write!(self.writer, " — ")?;
+                self.visit_inline_nodes(&item.principal_text)?;
+            }
+            writeln!(self.writer, "  ")?;
+
+            for block in &item.description {
+                if !matches!(
+                    block,
+                    Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
+                ) {
+                    self.write_list_indent()?;
+                }
+                self.visit_block(block)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn visit_qanda_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Error> {
+        let (start, reversed) = list_sequence(&list.metadata, list.items.len());
+        for (index, item) in list.items.iter().enumerate() {
+            let number = if reversed {
+                start.saturating_sub(index)
+            } else {
+                start.saturating_add(index)
+            };
+            self.write_list_indent()?;
+            write!(self.writer, "{number}. <em>")?;
+            self.visit_inline_nodes(&item.term)?;
+            writeln!(self.writer, "</em>")?;
+
+            if !item.principal_text.is_empty() {
+                writeln!(self.writer)?;
+                self.write_list_indent()?;
+                write!(self.writer, "    ")?;
+                self.visit_inline_nodes(&item.principal_text)?;
+                writeln!(self.writer)?;
+            }
+            if !item.description.is_empty() {
+                if item.principal_text.is_empty() {
+                    writeln!(self.writer)?;
+                }
+                self.visit_description_blocks(&item.description)?;
+            }
+            if index + 1 < list.items.len() {
+                writeln!(self.writer)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn visit_description_blocks(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {
+        for block in blocks {
+            self.list_depth += 1;
+            let result = (|| {
+                if !matches!(
+                    block,
+                    Block::DescriptionList(_) | Block::OrderedList(_) | Block::UnorderedList(_)
+                ) {
+                    self.write_list_indent()?;
+                }
+                self.visit_block(block)
+            })();
+            self.list_depth -= 1;
+            result?;
+        }
+        Ok(())
+    }
+
     fn write_macro_link(
         &mut self,
         destination: &str,
@@ -1870,49 +1981,70 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    /// Render list items with the given marker (for both ordered and unordered lists).
     fn visit_list_items(
         &mut self,
         items: &[ListItem],
         marker: &str,
         start: usize,
+        reversed: bool,
+        markerless: bool,
     ) -> Result<(), Error> {
-        for (i, item) in items.iter().enumerate() {
+        for (index, item) in items.iter().enumerate() {
             self.write_list_indent()?;
-            // For ordered lists, use the actual number
-            let item_marker = if marker.ends_with('.') {
-                format!("{}.", start.saturating_add(i))
+            let number = if reversed {
+                start.saturating_sub(index)
             } else {
-                marker.to_string()
+                start.saturating_add(index)
+            };
+            let item_marker = if marker.ends_with('.') {
+                format!("{number}.")
+            } else {
+                marker.to_owned()
             };
 
-            // Check for task list items (GFM extension)
             let is_task = item.checked.is_some();
-            let is_checked = matches!(
-                item.checked,
-                Some(acdc_parser::ListItemCheckedStatus::Checked)
-            );
+            let is_checked = matches!(item.checked, Some(ListItemCheckedStatus::Checked));
 
-            if is_task && self.variant() == MarkdownVariant::GitHubFlavored {
-                let checkbox = if is_checked { "[x]" } else { "[ ]" };
-                write!(self.writer, "{item_marker} {checkbox} ")?;
-            } else {
+            if !markerless {
                 write!(self.writer, "{item_marker} ")?;
             }
+            if is_task && markerless {
+                write!(self.writer, "{} ", if is_checked { '☑' } else { '☐' })?;
+            } else if is_task && self.variant() == MarkdownVariant::GitHubFlavored {
+                let checkbox = if is_checked { "[x]" } else { "[ ]" };
+                write!(self.writer, "{checkbox} ")?;
+            } else if is_task {
+                let checkbox = if is_checked { "x" } else { " " };
+                write!(self.writer, "\\[{checkbox}\\] ")?;
+            }
 
-            // Render item content
             self.visit_inline_nodes(&item.principal)?;
-            writeln!(self.writer)?;
+            if markerless {
+                writeln!(self.writer, "  ")?;
+            } else {
+                writeln!(self.writer)?;
+            }
 
-            // Render nested blocks (indented)
             for block in &item.blocks {
                 if matches!(block, Block::OrderedList(_) | Block::UnorderedList(_)) {
-                    self.list_depth += 1;
+                    if markerless {
+                        writeln!(self.writer)?;
+                    } else {
+                        self.list_depth += 1;
+                    }
                     let result = self.visit_block(block);
-                    self.list_depth -= 1;
+                    if markerless {
+                        writeln!(self.writer)?;
+                    } else {
+                        self.list_depth -= 1;
+                    }
                     result?;
                 } else {
-                    write!(self.writer, "    ")?;
+                    if markerless {
+                        self.write_list_indent()?;
+                    } else {
+                        write!(self.writer, "    ")?;
+                    }
                     self.visit_block(block)?;
                 }
             }

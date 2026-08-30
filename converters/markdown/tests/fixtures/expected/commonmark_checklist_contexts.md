@@ -3,38 +3,38 @@
 <a id="_nested_checklist_states"></a>
 ## Nested checklist states
 
-- Unchecked parent
-    - Lowercase checked child
-    - Uppercase checked child
-    - Star checked child
-- Checked sibling
+- \[ \] Unchecked parent
+    - \[x\] Lowercase checked child
+    - \[x\] Uppercase checked child
+    - \[x\] Star checked child
+- \[x\] Checked sibling
 
 <a id="_checklist_nested_under_an_ordered_item"></a>
 ## Checklist nested under an ordered item
 
 1. Ordered parent
-    - Unchecked child
-        - Checked grandchild
-    - Checked sibling
+    - \[ \] Unchecked child
+        - \[x\] Checked grandchild
+    - \[x\] Checked sibling
 2. Ordered sibling
 
 <a id="_ordered_list_nested_under_a_checklist_item"></a>
 ## Ordered list nested under a checklist item
 
-- Checklist parent
+- \[x\] Checklist parent
     1. Ordered child
         1. \[x\] Literal lowercase marker
         2. \[X\] Literal uppercase marker
         3. \[\*\] Literal star marker
         4. \[ \] Literal unchecked marker
-- Checklist sibling
+- \[ \] Checklist sibling
 
 <a id="_ordinary_bullet_nested_under_a_checklist_item"></a>
 ## Ordinary bullet nested under a checklist item
 
-- Checklist parent
+- \[x\] Checklist parent
     - Ordinary bullet
-        - Nested checklist
+        - \[ \] Nested checklist
 
 <a id="_checklist_like_markers_in_an_ordered_list"></a>
 ## Checklist-like markers in an ordered list

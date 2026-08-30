@@ -1,0 +1,77 @@
+= List and Bibliography Meaning
+
+See <<plain>> and <<custom>>.
+
+== Markerless lists
+
+[none]
+. Ordered none one
+. Ordered none two
+
+[no-bullet]
+. Ordered no-bullet one
+. Ordered no-bullet two
+
+[unstyled]
+. Ordered unstyled one
+. Ordered unstyled two
+
+[none]
+* Unordered none one
+* Unordered none two
+
+[no-bullet]
+* Unordered no-bullet one
+* Unordered no-bullet two
+
+[unstyled]
+* Unordered unstyled one
+* Unordered unstyled two
+
+[unnumbered]
+. Ordered unnumbered one
+. Ordered unnumbered two
+
+[unnumbered]
+* Unordered unnumbered one
+* Unordered unnumbered two
+
+[none]
+* [x] Markerless checked
+* [ ] Markerless unchecked
+
+== Reversed lists
+
+[%reversed]
+. Default three
+. Default two
+. Default one
+
+[%reversed,start=5]
+. Five
+. Four
+. Three
+
+== Bibliography
+
+[bibliography]
+=== References
+
+* [[[plain]]] Plain entry.
+* [[[custom,Custom *Label*]]] Custom entry.
+* [[regular]] Regular anchor.
+
+=== Explicit bibliography list
+
+[bibliography]
+* [[[outside,Outside Label]]] Outside entry.
+
+== Description styles
+
+[horizontal]
+Term A:: Definition A.
+Term B:: Definition B with *bold* text.
+
+[qanda]
+Answered question?:: This question has an answer.
+Trailing unanswered question?::

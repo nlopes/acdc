@@ -18,7 +18,8 @@
 - **Named ordered**
   Named style is effective.
 
-<!-- Warning: description lists not natively supported in Markdown, using regular list -->
-- **Answered question?**
-  This question has an answer.
-- **Trailing unanswered question?**
+1. <em>Answered question?</em>
+
+    This question has an answer.
+
+2. <em>Trailing unanswered question?</em>

@@ -56,9 +56,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   captions.
 - Visible index terms preserve inline formatting, links, and attribute
   substitutions; concealed terms remain hidden.
-- Ordered lists honor a positive `start` value, including on nested lists.
-  Every line of a nested list remains indented. Unsupported alphabetic and
-  Roman styles continue to produce a warning and use numeric markers.
+- Ordered lists honor positive `start` values and the `reversed` option,
+  including on nested lists. Markerless ordered and unordered styles use a
+  readable marker-free layout, and CommonMark keeps visible checked and
+  unchecked states. Unsupported alphabetic and Roman styles continue to
+  produce a warning and use numeric markers.
+- Bibliography entries retain stable anchors and visible bracketed labels, so
+  their cross-references reach an identifiable entry.
+- Horizontal description lists render as term-and-definition lines, while Q&A
+  lists render as numbered questions and answers. Other styles retain the
+  content-preserving regular-list fallback.
 - Markdown conversion attributes now include the `markdown` backend and
   base-backend, `md` file type, `.md` output suffix, and their conditional
   convenience attributes.
@@ -110,9 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   normalize relative paths, and encode spaces as `%20`.
 - Markdown output now uses one blank line between blocks and one final newline,
   without redundant spacing around quotes and nested lists.
-- Description-list fallbacks now indent nested levels and preserve repeated
-  continuations, formatted terms, titled boundaries, named styles, and
-  trailing unanswered Q&A items.
+- Regular description-list fallbacks now indent nested levels and preserve
+  repeated continuations, formatted terms, titled boundaries, and named
+  styles.
 - Unindented ordered and unordered markers now render as nested mixed lists,
   matching Asciidoctor's list ownership.
 - Brackets in block attribute values no longer make the attribute line leak
