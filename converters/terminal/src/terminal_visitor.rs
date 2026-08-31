@@ -8,9 +8,10 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Admonition, Audio, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock, DescriptionList,
-    DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList, PageBreak,
-    Paragraph, Section, SectionKind, TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, SectionKind, TableOfContents, ThematicBreak, UnorderedList,
+    Video,
 };
 use crossterm::{
     QueueableCommand,
@@ -120,10 +121,22 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     pub fn into_writer(self) -> W {
         self.writer
     }
+
+    pub(crate) fn warn_unsupported_parser_variant(&mut self, kind: &str) {
+        self.diagnostics.warn_with_advice(
+            format!("an unsupported parser {kind} variant was omitted from terminal output"),
+            "Use another backend for this document and report the unsupported construct.",
+        );
+    }
 }
 
 impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
     type Error = crate::Error;
+
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_unsupported_parser_variant("block");
+        Ok(())
+    }
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
         // In embedded mode, skip header output (title, authors, revision info)

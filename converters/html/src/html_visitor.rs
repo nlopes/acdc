@@ -325,9 +325,10 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             self.processor.document_attributes.get("max-width")
             && !max_width.is_empty()
         {
-            self.diagnostics.warn(format!(
-                "`max-width` usage is not recommended. Use CSS stylesheet instead: {max_width}"
-            ));
+            self.diagnostics.warn_with_advice(
+                format!("`max-width` usage is not recommended: {max_width}"),
+                "Set the maximum content width in a CSS stylesheet instead.",
+            );
             writeln!(
                 self.writer,
                 "<style>

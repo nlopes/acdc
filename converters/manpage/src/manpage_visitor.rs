@@ -8,7 +8,7 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Admonition, Audio, BlockMetadata, CalloutList, Caption, DelimitedBlock, DescriptionList,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, Caption, DelimitedBlock, DescriptionList,
     DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
     PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
@@ -121,6 +121,13 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         self.writer
     }
 
+    pub(crate) fn warn_unsupported_parser_variant(&mut self, kind: &str) {
+        self.diagnostics.warn_with_advice(
+            format!("an unsupported parser {kind} variant was omitted from manpage output"),
+            "Use another backend for this document and report the unsupported construct.",
+        );
+    }
+
     /// Write a blank line for spacing.
     pub(crate) fn write_sp(&mut self) -> Result<(), Error> {
         writeln!(self.writer, ".sp")?;
@@ -228,6 +235,11 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
 
 impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     type Error = Error;
+
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_unsupported_parser_variant("block");
+        Ok(())
+    }
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
         self.render_document_start(doc)

@@ -66,8 +66,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 writeln!(w, "{}", manify(stem.content, EscapeMode::Preserve))?;
                 Ok(())
             }
-            // Comments and any future variants produce no output
-            DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
+            DelimitedBlockType::DelimitedComment(_) => Ok(()),
+            _ => {
+                self.warn_unsupported_parser_variant("delimited block");
+                Ok(())
+            }
         }
     }
 

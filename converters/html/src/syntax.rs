@@ -472,9 +472,12 @@ fn extract_text_and_callouts(
             | InlineNode::Macro(_) => {}
             node => {
                 if let Some(diagnostics) = diagnostics.as_deref_mut() {
-                    diagnostics.warn(format!(
-                        "unsupported inline node in highlighted code, skipping node: {node:?}"
-                    ));
+                    diagnostics.warn_with_advice(
+                        format!(
+                            "unsupported inline node in highlighted code, skipping node: {node:?}"
+                        ),
+                        "Use plain source output for this block and report the unsupported construct.",
+                    );
                 }
             }
         }

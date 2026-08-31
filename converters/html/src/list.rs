@@ -126,9 +126,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
         let raw_depth = list.marker.matches('.').count().max(1);
         if raw_depth > usize::from(u8::MAX) {
-            self.diagnostics.warn(format!(
-                "ordered list marker depth {raw_depth} exceeds 255, clamping"
-            ));
+            self.diagnostics.warn_with_advice(
+                format!("ordered list marker depth {raw_depth} exceeds 255, clamping"),
+                "Reduce the ordered-list nesting depth to 255 levels or fewer.",
+            );
         }
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
         let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);

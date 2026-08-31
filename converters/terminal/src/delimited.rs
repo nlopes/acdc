@@ -161,11 +161,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 Ok(())
             }
             _ => {
-                // Handle any future block types
-                self.diagnostics.warn(format!(
-                    "unsupported delimited block in terminal output, skipping content: {:?}",
-                    block.inner
-                ));
+                self.warn_unsupported_parser_variant("delimited block");
                 Ok(())
             }
         };

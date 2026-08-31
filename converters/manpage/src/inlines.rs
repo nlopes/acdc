@@ -327,8 +327,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 write!(w, "\\fB({})\\fP", callout.number)?;
             }
 
-            // Handle any future variants - skip unknown nodes
-            _ => {}
+            _ => self.warn_unsupported_parser_variant("inline node"),
         }
 
         Ok(())
@@ -463,8 +462,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 self.render_ui_inline_macro(macro_node)?;
             }
 
-            // Handle any future variants - skip unknown macros
-            _ => {}
+            _ => self.warn_unsupported_parser_variant("inline macro"),
         }
 
         Ok(())

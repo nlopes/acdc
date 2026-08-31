@@ -590,9 +590,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         if safe_mode < acdc_parser::SafeMode::Server {
             return true;
         }
-        self.diagnostics.warn(format!(
-            "terminal rendering is disabled at safe mode `{safe_mode:?}`; rendering the block as a plain listing"
-        ));
+        self.diagnostics.warn_with_advice(
+            format!(
+                "terminal rendering is disabled at safe mode `{safe_mode:?}`; rendering the block as a plain listing"
+            ),
+            "Use terminal previews only for trusted documents below Server safe mode, or use a plain listing block.",
+        );
         false
     }
 

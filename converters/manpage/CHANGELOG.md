@@ -76,6 +76,9 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
   `(C)`, `->`, `...`) literal instead of converting to roff special glyphs.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable manpage convention issues, including NAME/SYNOPSIS section order.
+- Unsupported parser block, delimited block, inline node, and inline macro
+  variants now emit structured manpage warnings with actionable advice instead
+  of disappearing through tracing or silent fallbacks.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 

@@ -45,6 +45,8 @@ const REPLAY_RENDER_FPS: u128 = 30;
 const MAX_REPLAY_RENDER_FRAMES: usize = 120;
 const REPLAY_NO_FRAMES_MESSAGE: &str =
     "terminal replay produced no visible frames; rendering a static terminal preview instead";
+const REPLAY_NO_FRAMES_ADVICE: &str =
+    "Ensure the recording writes visible terminal output, or remove the `replay` option.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Theme {
@@ -213,9 +215,12 @@ fn replay_format(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics<'_>
         "" | "ansi" => ReplayFormat::Ansi,
         "asciicast" | "cast" => ReplayFormat::Asciicast,
         other => {
-            diagnostics.warn(format!(
-                "unknown terminal replay `format` value `{other}`; expected `ansi` or `asciicast`. Replaying as raw ANSI."
-            ));
+            diagnostics.warn_with_advice(
+                format!(
+                    "unknown terminal replay `format` value `{other}`; expected `ansi` or `asciicast`. Replaying as raw ANSI."
+                ),
+                "Set the block's `format` attribute to `ansi` or `asciicast`.",
+            );
             ReplayFormat::Ansi
         }
     }
@@ -314,7 +319,7 @@ fn render_replay_ansi<W: Write>(
     if frames.is_empty() {
         // No visible frames captured: warn and fall back to a static preview of
         // the final screen.
-        diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
+        diagnostics.warn_with_advice(REPLAY_NO_FRAMES_MESSAGE, REPLAY_NO_FRAMES_ADVICE);
         let grid = capture_ansi(&ansi, size)?;
         return render_static(&mut writer, &grid, preview_options.theme);
     }
@@ -385,9 +390,12 @@ fn render_replay_asciicast<W: Write>(
     let timeline = match recording.capture(capture_size) {
         Ok(timeline) => timeline,
         Err(err) => {
-            diagnostics.warn(format!(
-                "asciicast replay capture failed: {err}; rendering a static terminal preview instead"
-            ));
+            diagnostics.warn_with_advice(
+                format!(
+                    "asciicast replay capture failed: {err}; rendering a static terminal preview instead"
+                ),
+                "Validate the recording with asciinema, or remove the `replay` option.",
+            );
             return render_blank_preview(&mut writer, size, preview_options.theme);
         }
     };
@@ -398,7 +406,7 @@ fn render_replay_asciicast<W: Write>(
     let frames = window_frames_to_bottom(timeline.into_frames(), size.rows);
 
     if frames.is_empty() {
-        diagnostics.warn(REPLAY_NO_FRAMES_MESSAGE);
+        diagnostics.warn_with_advice(REPLAY_NO_FRAMES_MESSAGE, REPLAY_NO_FRAMES_ADVICE);
         return render_blank_preview(&mut writer, size, preview_options.theme);
     }
 
@@ -536,9 +544,10 @@ fn positive_attr(
     let value = value?;
     let parsed = attr_usize(Some(value));
     if parsed.is_none() {
-        diagnostics.warn(format!(
-            "terminal replay attribute `{name}` must be a positive integer, got `{value}`"
-        ));
+        diagnostics.warn_with_advice(
+            format!("terminal replay attribute `{name}` must be a positive integer, got `{value}`"),
+            format!("Set `{name}` to a positive integer."),
+        );
     }
     parsed
 }
@@ -1547,16 +1556,16 @@ mod tests {
 
         assert!(!html.contains("terminal-view terminal-view--replay"));
         assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
-        assert!(warnings.iter().any(|warning| {
-            warning
-                .message
-                .contains("terminal replay attribute `cols` must be a positive integer")
-        }));
-        assert!(warnings.iter().any(|warning| {
-            warning
-                .message
-                .contains("terminal replay requires positive `cols` and `rows`")
-        }));
+        for expected in [
+            "terminal replay attribute `cols` must be a positive integer",
+            "terminal replay requires positive `cols` and `rows`",
+        ] {
+            let warning = warnings
+                .iter()
+                .find(|warning| warning.message.contains(expected))
+                .ok_or("missing terminal replay fallback warning")?;
+            assert!(warning.advice().is_some(), "missing advice: {warning:?}");
+        }
         Ok(())
     }
 
@@ -1653,12 +1662,11 @@ mod tests {
             html.contains("class=\"listingblock\""),
             "expected plain listing fallback, got: {html}"
         );
-        assert!(
-            warnings
-                .iter()
-                .any(|warning| warning.message.contains("terminal rendering is disabled")),
-            "expected a safe-mode fallback warning, got: {warnings:?}"
-        );
+        let warning = warnings
+            .iter()
+            .find(|warning| warning.message.contains("terminal rendering is disabled"))
+            .ok_or("missing safe-mode fallback warning")?;
+        assert!(warning.advice().is_some(), "missing advice: {warning:?}");
         Ok(())
     }
 
@@ -1764,11 +1772,15 @@ mod tests {
         )?;
 
         assert!(html.contains("terminal-view terminal-view--replay"));
-        assert!(warnings.iter().any(|warning| {
-            warning
-                .message
-                .contains("unknown terminal replay `format` value `bogus`")
-        }));
+        let warning = warnings
+            .iter()
+            .find(|warning| {
+                warning
+                    .message
+                    .contains("unknown terminal replay `format` value `bogus`")
+            })
+            .ok_or("missing replay format warning")?;
+        assert!(warning.advice().is_some(), "missing advice: {warning:?}");
         Ok(())
     }
 

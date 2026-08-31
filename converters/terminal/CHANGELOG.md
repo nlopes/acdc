@@ -77,8 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
   `(C)`, `->`, `...`) literal instead of converting to Unicode.
 - User-facing converter warnings are now collected in `ConversionResult` for
-  recoverable terminal conversion issues such as image display failures and
-  unsupported delimited block fallbacks.
+  recoverable terminal conversion issues such as image display failures.
+  Unsupported parser blocks and delimited block types also emit structured
+  warnings with actionable advice instead of relying on tracing output.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 
