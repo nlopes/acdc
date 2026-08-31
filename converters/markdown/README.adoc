@@ -33,13 +33,13 @@ output. Library users can select the same behavior with
 
 Supported constructs:
 
-- **Headings**: mapped to ATX (`#`, `##`, …). The document title renders as a
-  top-level heading. Sections preserve parser-assigned section, part, and
-  appendix numbers. `%notitle` hides only the section heading and keeps its
-  destination and body.
-- **Document metadata**: explicit header IDs, subtitles, authors and email
-  addresses, and revision numbers, dates, and remarks remain visible beneath
-  the document title.
+- **Headings**: mapped to ATX (`#`, `##`, …).
+  The document title renders as a top-level heading.
+  Sections preserve parser-assigned section, part, and appendix numbers.
+  `%notitle` hides only the section heading and keeps its destination and body.
+  Numbered book chapter headings and TOC entries use the active `chapter-signifier`; an absent or unset signifier keeps the number-only form.
+- **Document metadata**: explicit header IDs, subtitles, authors and email addresses, and revision numbers, dates, and remarks remain visible beneath the document title.
+  When several anchors precede the title, the last anchor becomes its destination, and automatic references use the full title and subtitle.
 - **Block titles and captions**: paragraph, list, delimited-block, admonition,
   image, audio, video, and table titles render as strong title lines adjacent
   to their content. Numbered, custom, and disabled figure, table, example, and

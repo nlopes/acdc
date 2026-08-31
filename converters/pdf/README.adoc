@@ -188,7 +188,12 @@ pinned Typst release can enforce PDF/UA-1, but that mode can reject documents
 that do not meet its metadata and semantic requirements. acdc does not enable
 that stricter profile automatically.
 
-== Inline IDs and roles
+== Named destinations, inline IDs, and roles
+
+Document-title IDs and IDs on explicit `link:`, direct URL, and `mailto:` macros create named PDF destinations.
+Local cross-references can appear before or after these targets.
+When several anchors precede a document title, the last anchor is used and automatic references show the full title and subtitle.
+For duplicate link IDs, acdc keeps the first destination so the PDF remains valid.
 
 IDs on bold, italic, monospace, highlight, subscript, superscript, and quoted text create PDF link targets.
 For example, `[#term]*Term*` can be referenced with `<<term>>`.

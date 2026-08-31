@@ -122,6 +122,13 @@ The implementation here follows from:
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
+## Recoverable document warnings
+
+A section directly nested in a `[bibliography]` section remains in the AST and
+adds a located warning to `ParseResult::warnings()`. Parsing and conversion
+continue. Asciidoctor keeps the same content but reports the condition at error
+severity.
+
 ## Include targets
 
 Include targets may contain internal spaces. Leading or trailing ASCII whitespace

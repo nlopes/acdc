@@ -114,8 +114,17 @@ The implementation here follows from:
 
 * **Safe mode** - `Safe`, `Secure`, `Server`, `Unsafe`
 * **Strict mode** - Stricter parsing rules
+* **Base directory** - Entry-input include resolution through `Options::builder().with_base_dir(path)`
+* **Document attributes** - Caller attributes passed with `with_attribute` or `with_attributes` cannot be replaced or unset by document entries.
+  The parser also protects the built-in read-only and API-only attribute names internally.
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
+
+== Recoverable document warnings
+
+A section directly nested in a `[bibliography]` section remains in the AST and adds a located warning to `ParseResult::warnings()`.
+Parsing and conversion continue.
+Asciidoctor keeps the same content but reports the condition at error severity.
 
 [#include-targets]
 == Include targets

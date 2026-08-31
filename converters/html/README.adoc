@@ -48,14 +48,15 @@ Uses the same CSS as Asciidoctor for familiar, professional-looking output. The 
 
 Supports all major AsciiDoc constructs:
 
-- **Document structure**: Headers, sections, table of contents
+- **Document structure**: Headers, sections, book parts and chapters, and table of contents
 - **Text formatting**: Bold, italic, monospace, highlighting, subscript, superscript
 - **Lists**: Unordered, ordered, description lists, callout lists
 - **Blocks**: Listings, literals, examples, quotes, sidebars, open blocks
 - **Admonitions**: NOTE, TIP, IMPORTANT, WARNING, CAUTION (with Font Awesome icons when `:icons: font`)
 - **Media**: Images, videos (YouTube, Vimeo), audio
 - **Tables**: Full table support with headers, footers, cell formatting, cell spanning, and nested tables
-- **Cross-references**: Internal links and anchors
+- **Cross-references**: Internal links, anchors, and IDs on explicit links, URLs, and mail links
+- **Bibliographies**: Visible bracketed labels on entries and automatic citations
 - **Attributes**: Document-level attribute substitution
 - **Index terms**: Visible `((term))` and concealed `\(((term,secondary,tertiary)))` with catalog generation
 
@@ -74,6 +75,8 @@ acdc convert -a sectnums -a sectnumlevels=2 document.adoc
 ....
 
 Table of contents entries are also numbered when `:sectnums:` is set.
+In book documents, numbered chapter headings and TOC entries use the active `chapter-signifier`.
+An absent or unset signifier keeps the number-only form.
 
 === Syntax Highlighting
 
@@ -741,8 +744,7 @@ The HTML converter:
 - Handles Unicode correctly
 - Auto-numbers example blocks
 - Generates unique IDs for sections and anchors
-- Reports structured converter warnings if a future parser variant has no HTML
-  representation
+- Reports structured converter warnings with actionable advice if a future parser variant has no HTML representation
 - Embeds the Asciidoctor CSS stylesheet for consistent styling
 - Includes file modification timestamps in metadata
 

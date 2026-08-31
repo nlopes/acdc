@@ -88,8 +88,8 @@ to normal PHP highlighting and reports one warning per document.
 The terminal backend keeps document structure in a static form:
 
 * Table-of-contents entries keep section and part numbering.
-* Book chapters use `chapter-signifier`; `%notitle` hides a heading but keeps its
-  content and reference text.
+* Book chapter headings and TOC entries use the same default, configured, or unset `chapter-signifier`.
+  `%notitle` hides a heading but keeps its content and reference text.
 * Internal cross-references and footnotes are styled display references. They are
   not terminal jump targets. Inline and block anchors remain invisible.
 * Example and abstract paragraphs, open blocks, quote and verse attributions,
