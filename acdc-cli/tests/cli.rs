@@ -348,6 +348,85 @@ fn terminal_converts_multiple_files_without_a_pager() -> Result<(), Box<dyn std:
     Ok(())
 }
 
+#[cfg(all(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "pdf",
+    feature = "terminal",
+))]
+#[test]
+fn all_backends_render_recovered_bibliography_children() -> Result<(), Box<dyn std::error::Error>> {
+    const SOURCE: &str = "= recovery(1)\n\n\
+        == NAME\n\n\
+        recovery - test bibliography recovery\n\n\
+        == SYNOPSIS\n\n\
+        recovery\n\n\
+        [bibliography]\n\
+        == REFERENCES\n\n\
+        === Recovered Child\n\n\
+        Recovered child body.\n\n\
+        == FOLLOWING\n\n\
+        Following body.\n";
+    const WARNING: &str = "bibliography sections do not support nested sections";
+
+    let temp = tempfile::tempdir()?;
+    let document = temp.path().join("recovery.adoc");
+    fs::write(&document, SOURCE)?;
+    let document_arg = document.to_string_lossy();
+
+    let assert_rendered = |rendered: &str| {
+        assert!(rendered.contains("Recovered Child"), "{rendered}");
+        assert!(rendered.contains("Recovered child body."), "{rendered}");
+    };
+    let assert_warning = |output: &Output| {
+        let stderr = output_text(&output.stderr);
+        assert!(stderr.contains(WARNING), "{stderr}");
+    };
+
+    for backend in ["html", "markdown", "manpage", "terminal"] {
+        let output = run_acdc(
+            &[
+                "convert",
+                "--backend",
+                backend,
+                "--out-file",
+                "-",
+                document_arg.as_ref(),
+            ],
+            None,
+        )?;
+
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_warning(&output);
+        assert_rendered(&output_text(&output.stdout));
+    }
+
+    let pdf_path = temp.path().join("recovery.pdf");
+    let pdf_arg = pdf_path.to_string_lossy();
+    let typst_path = temp.path().join("recovery.typ");
+    let typst_arg = typst_path.to_string_lossy();
+    let pdf = run_acdc(
+        &[
+            "convert",
+            "--backend",
+            "pdf",
+            "--emit-typst",
+            typst_arg.as_ref(),
+            "--out-file",
+            pdf_arg.as_ref(),
+            document_arg.as_ref(),
+        ],
+        None,
+    )?;
+    assert!(pdf.status.success(), "{}", output_text(&pdf.stderr));
+    assert_warning(&pdf);
+    assert_rendered(&fs::read_to_string(typst_path)?);
+    assert!(fs::read(pdf_path)?.starts_with(b"%PDF-"));
+
+    Ok(())
+}
+
 #[cfg(feature = "inspect")]
 #[test]
 fn inspect_resolves_includes_and_omits_ansi_when_piped() -> Result<(), Box<dyn std::error::Error>> {
