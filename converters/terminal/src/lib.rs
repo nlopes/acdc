@@ -9,7 +9,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options,
+    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options,
     section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
@@ -22,9 +22,8 @@ pub(crate) use appearance::Appearance;
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 pub(crate) const MAX_TERMINAL_WIDTH: usize = 120;
 
-/// Intrinsic traits for the terminal backend.
-const BACKEND_TRAITS: BackendTraits =
-    BackendTraits::new("terminal", "terminal", "terminal", ".terminal");
+const TERMINAL_BACKEND: BackendProfile =
+    BackendProfile::new("terminal", "terminal", "terminal", ".terminal");
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct IndexTermLabel {
@@ -141,7 +140,7 @@ impl<'a> Converter<'a> for Processor<'a> {
         for (name, value) in Self::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
         }
-        BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
+        TERMINAL_BACKEND.apply(&mut document_attributes, options.doctype());
         let appearance = Appearance::detect();
 
         let terminal_width = crossterm::terminal::size()
@@ -385,7 +384,7 @@ mod backend_tests {
     use super::*;
 
     #[test]
-    fn constructor_applies_terminal_backend_traits() {
+    fn constructor_applies_terminal_backend_profile() {
         let processor = Processor::new(Options::default(), DocumentAttributes::default());
 
         assert_eq!(

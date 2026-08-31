@@ -54,9 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target's reference text. `xref::reference_text` exposes that precedence on its
   own. A standalone curved apostrophe extracts as the typographic character
   rather than an ASCII quote.
-- Converter backends can declare their Asciidoctor-compatible backend,
-  base-backend, file-type, output-suffix, and HTML-syntax traits and apply the
-  corresponding intrinsic and doctype convenience attributes consistently.
+- Converter backends can declare an Asciidoctor-compatible profile containing
+  their backend, base-backend, file-type, output-suffix, and HTML syntax and
+  apply the corresponding intrinsic and doctype convenience attributes
+  consistently.
 - `inline_text::InlineTextTransform` and `inlines_to_string()` provide shared
   plain-text extraction from inline nodes for converters and tooling, including
   configurable hard-line-break rendering.

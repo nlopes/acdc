@@ -7,7 +7,7 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
+    BackendProfile, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
     xref::XrefGuard,
 };
 #[cfg(feature = "highlighting")]
@@ -93,13 +93,12 @@ impl HtmlVariant {
         }
     }
 
-    /// Intrinsic backend traits for this HTML output variant.
-    const fn backend_traits(self) -> BackendTraits {
+    const fn backend_profile(self) -> BackendProfile {
         let backend = match self {
             Self::Standard => "html5",
             Self::Semantic => "html5s",
         };
-        BackendTraits::new(backend, "html", "html", ".html").with_htmlsyntax("html")
+        BackendProfile::new(backend, "html", "html", ".html").with_htmlsyntax("html")
     }
 }
 
@@ -205,7 +204,7 @@ impl<'a> Processor<'a> {
     pub fn with_variant(mut self, variant: HtmlVariant) -> Self {
         self.variant = variant;
         variant
-            .backend_traits()
+            .backend_profile()
             .apply(&mut self.document_attributes, self.options.doctype());
         self
     }
@@ -569,7 +568,7 @@ impl<'a> Processor<'a> {
             document_attributes.insert(name.clone(), value.clone());
         }
         variant
-            .backend_traits()
+            .backend_profile()
             .apply(&mut document_attributes, options.doctype());
 
         Self {

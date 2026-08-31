@@ -23,7 +23,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration, Warning,
+    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration, Warning,
     icon::{IconMode, image_source as icon_image_source},
     media::resolve_target,
     toc::Config as TocConfig,
@@ -53,9 +53,8 @@ mod visitor;
 pub use acdc_pdf_typst::{PageDimensions, PageGeometryError, PageLayout, PageMargins, PageSize};
 pub use error::Error;
 
-/// Intrinsic traits for the PDF backend.
-pub(crate) const BACKEND_TRAITS: BackendTraits =
-    BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
+pub(crate) const PDF_BACKEND: BackendProfile =
+    BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
 use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
 

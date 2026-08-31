@@ -106,8 +106,8 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Options, WarningSource, section::last_section_has_style,
-    visitor::Visitor, xref::XrefGuard,
+    BackendProfile, Converter, Diagnostics, Options, WarningSource,
+    section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
 };
 use acdc_parser::{
     AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Reference,
@@ -160,8 +160,7 @@ impl MarkdownVariant {
     }
 }
 
-/// Intrinsic traits for the Markdown backend.
-const BACKEND_TRAITS: BackendTraits = BackendTraits::new("markdown", "markdown", "md", ".md");
+const MARKDOWN_BACKEND: BackendProfile = BackendProfile::new("markdown", "markdown", "md", ".md");
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct IndexTermLabel {
@@ -219,7 +218,7 @@ impl Processor<'_> {
     #[must_use]
     pub fn with_variant(mut self, variant: MarkdownVariant) -> Self {
         self.variant = variant;
-        BACKEND_TRAITS.apply(&mut self.document_attributes, self.options.doctype());
+        MARKDOWN_BACKEND.apply(&mut self.document_attributes, self.options.doctype());
         self
     }
 
@@ -295,7 +294,7 @@ impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
     fn new(options: Options, mut document_attributes: DocumentAttributes<'a>) -> Self {
-        BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
+        MARKDOWN_BACKEND.apply(&mut document_attributes, options.doctype());
         Self {
             options,
             document_attributes,

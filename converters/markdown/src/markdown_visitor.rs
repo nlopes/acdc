@@ -32,7 +32,7 @@ use acdc_parser::{
 };
 
 use crate::{
-    BACKEND_TRAITS, Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel,
+    Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, MARKDOWN_BACKEND,
     MarkdownVariant, Processor,
 };
 
@@ -2392,7 +2392,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         let extension = attributes
             .get_string("relfilesuffix")
             .or_else(|| attributes.get_string("outfilesuffix"))
-            .unwrap_or_else(|| Cow::Borrowed(BACKEND_TRAITS.outfilesuffix()));
+            .unwrap_or_else(|| Cow::Borrowed(MARKDOWN_BACKEND.outfilesuffix()));
         interdocument_xref(target, extension.strip_prefix('.').unwrap_or(&extension))
     }
 

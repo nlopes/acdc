@@ -38,7 +38,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Doctype, Options, section::last_section_has_style,
+    BackendProfile, Converter, Diagnostics, Doctype, Options, section::last_section_has_style,
     visitor::Visitor, xref::XrefGuard,
 };
 
@@ -62,8 +62,7 @@ pub use error::Error;
 pub use escape::{EscapeMode, manify};
 pub use manpage_visitor::ManpageVisitor;
 
-/// Intrinsic traits for the manpage backend.
-const BACKEND_TRAITS: BackendTraits = BackendTraits::new("manpage", "manpage", "man", ".man");
+const MANPAGE_BACKEND: BackendProfile = BackendProfile::new("manpage", "manpage", "man", ".man");
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) struct IndexTermLabel {
@@ -192,7 +191,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes.insert(name.clone(), value.clone());
         }
         document_attributes.set("doctype".into(), Doctype::Manpage.as_str().into());
-        BACKEND_TRAITS.apply(&mut document_attributes, Doctype::Manpage);
+        MANPAGE_BACKEND.apply(&mut document_attributes, Doctype::Manpage);
 
         Self {
             options,
@@ -260,7 +259,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn constructor_applies_manpage_backend_traits() {
+    fn constructor_applies_manpage_backend_profile() {
         let processor = Processor::new(Options::default(), DocumentAttributes::default());
 
         assert_eq!(

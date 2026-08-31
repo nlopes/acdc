@@ -57,7 +57,7 @@ pub mod visitor;
 mod warning;
 pub mod xref;
 
-pub use backend::BackendTraits;
+pub use backend::BackendProfile;
 pub use doctype::Doctype;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
@@ -467,12 +467,12 @@ impl std::fmt::Display for GeneratorMetadata {
 /// 4. **CLI attributes** - user-provided via `-a name=value`
 ///
 /// Intrinsic backend attributes are an exception to this precedence: converters
-/// apply their [`BackendTraits`] when constructed, replacing conflicting values.
+/// apply their [`BackendProfile`] when constructed, replacing conflicting values.
 ///
 /// ## Attributes and parsing
 ///
 /// A converter establishes its full attribute set on construction (base defaults,
-/// converter defaults, backend traits, and doctype). Construct the converter
+/// converter defaults, backend profile, and doctype). Construct the converter
 /// first, then pass its [`document_attributes`](Converter::document_attributes)
 /// to parser options after building them. Preprocessing and attribute
 /// substitution then see the selected backend and converter defaults, while

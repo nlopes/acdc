@@ -1,4 +1,4 @@
-//! Backend traits and their intrinsic document attributes.
+//! Backend profiles and their intrinsic document attributes.
 
 use std::borrow::Cow;
 
@@ -13,7 +13,7 @@ use crate::Doctype;
 /// `backend`, `basebackend`, `filetype`, `outfilesuffix`, and their convenience
 /// attributes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct BackendTraits {
+pub struct BackendProfile {
     backend: &'static str,
     basebackend: &'static str,
     filetype: &'static str,
@@ -21,8 +21,8 @@ pub struct BackendTraits {
     htmlsyntax: Option<&'static str>,
 }
 
-impl BackendTraits {
-    /// Create backend traits without an HTML syntax.
+impl BackendProfile {
+    /// Create a backend profile without an HTML syntax.
     #[must_use]
     pub const fn new(
         backend: &'static str,
@@ -84,7 +84,7 @@ impl BackendTraits {
     /// behavior. A valid `doctype` already present in the map takes precedence
     /// over `default_doctype`.
     ///
-    /// Converters apply their traits on construction; parse using the
+    /// Converters apply their profile on construction; parse using the
     /// converter's [`document_attributes`](crate::Converter::document_attributes)
     /// so preprocessing sees the selected backend and the converter's defaults.
     pub fn apply(self, attributes: &mut DocumentAttributes<'_>, default_doctype: Doctype) {
@@ -160,9 +160,9 @@ mod tests {
     #[test]
     fn applies_all_backend_intrinsic_attributes() {
         let mut attributes = DocumentAttributes::default();
-        let traits = BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
+        let profile = BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
-        traits.apply(&mut attributes, Doctype::Book);
+        profile.apply(&mut attributes, Doctype::Book);
 
         assert_eq!(attributes.get_string("backend").as_deref(), Some("pdf"));
         assert_eq!(
@@ -189,15 +189,15 @@ mod tests {
     }
 
     #[test]
-    fn replaces_stale_traits_but_preserves_explicit_output_suffix() {
+    fn replaces_stale_backend_attributes_but_preserves_explicit_output_suffix() {
         let mut attributes = DocumentAttributes::default();
-        BackendTraits::new("html5", "html", "html", ".html")
+        BackendProfile::new("html5", "html", "html", ".html")
             .with_htmlsyntax("html")
             .apply(&mut attributes, Doctype::Article);
         attributes.set("outfilesuffix".into(), ".custom".into());
         attributes.set("doctype".into(), "book".into());
 
-        BackendTraits::new("pdf", "html", "pdf", ".pdf")
+        BackendProfile::new("pdf", "html", "pdf", ".pdf")
             .with_htmlsyntax("html")
             .apply(&mut attributes, Doctype::Book);
 
