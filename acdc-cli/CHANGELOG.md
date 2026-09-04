@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   discovers command blocks — listing or source blocks carrying the `command`
   role and an explicit id — in an AsciiDoc document and runs them through the
   interpreter declared by each block's `[source, <lang>]` header (default
-  `sh`). Commands are discovered in document order, including inside nested
+  `sh`). The value is passed directly to the operating system as an executable
+  name or path without an allowlist; executing a document is not a sandbox
+  boundary. Commands are discovered in document order, including inside nested
   containers and included files, and executed in dependency order. Exact
   `--id` and `--id-regex` selectors form a union, selected commands always
   run with their transitive dependencies, and each command runs at most once;

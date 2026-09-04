@@ -21,7 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in topological order, and selecting a command includes its transitive
   dependencies exactly once each.
 - `[source, <lang>]` headers select the interpreter a script runs under
-  (default `sh`). Scripts are written to a temporary file passed to that
+  (default `sh`). The value is passed directly to the operating system as an
+  executable name or path without an allowlist, so executing a document is not
+  a sandbox boundary. Scripts are written to a temporary file passed to that
   interpreter; commands run in the caller's working directory and inherit its
   environment. A non-zero exit is reported as a command failure; a script
   that cannot be written or an interpreter that cannot be spawned is
