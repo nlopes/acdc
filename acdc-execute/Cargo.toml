@@ -1,0 +1,22 @@
+[package]
+name = "acdc-execute"
+version = "0.1.0"
+edition.workspace = true
+description = "Discover and run command blocks defined in AsciiDoc documents."
+license.workspace = true
+repository = "https://github.com/nlopes/acdc"
+keywords = ["asciidoc", "command-runner", "task-runner"]
+categories = ["command-line-utilities", "development-tools"]
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+acdc-parser.workspace = true
+petgraph.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+rstest.workspace = true
