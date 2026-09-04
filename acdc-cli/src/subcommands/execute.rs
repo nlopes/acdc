@@ -4,8 +4,9 @@
 //! explicit id. Every command is discovered in document order — including
 //! blocks inside nested containers and included files — validated, topologically
 //! ordered by their `deps` attribute, and executed through the declared
-//! interpreter. Parser safe mode limits document reads only; it does not
-//! sandbox executed commands.
+//! interpreter. The `[source, <lang>]` value is passed directly as an executable
+//! name or path without an allowlist. Parser safe mode limits document reads
+//! only; it does not sandbox executed commands.
 
 use std::path::{Path, PathBuf};
 
@@ -119,12 +120,25 @@ fn select(
 
 /// Print the selected commands and their scripts in the order they would run.
 fn print_plan(blocks: &[CommandBlock]) {
+    print!("{}", format_plan(blocks));
+}
+
+fn format_plan(blocks: &[CommandBlock]) -> String {
+    let mut output = String::new();
     for block in blocks {
-        println!("{} ({})", block.metadata.id, block.metadata.shell);
-        for line in block.script.lines() {
-            println!("  {line}");
+        output.push_str(block.metadata.id.as_str());
+        output.push_str(" (");
+        output.push_str(&block.metadata.interpreter);
+        output.push_str(")\n");
+        for line in block.script.split_inclusive('\n') {
+            output.push_str("  ");
+            output.push_str(line);
+        }
+        if !block.script.ends_with('\n') {
+            output.push('\n');
         }
     }
+    output
 }
 
 /// Run the selected commands in order, inheriting stdio, environment, and the
@@ -173,7 +187,7 @@ mod tests {
     use clap::Parser;
     use regex::Regex;
 
-    use super::{Args, execute_plan, select};
+    use super::{Args, execute_plan, format_plan, select};
     use acdc_execute::{CommandBlock, CommandGraph};
 
     #[derive(Parser)]
@@ -238,6 +252,17 @@ mod tests {
     fn rejects_invalid_id_regex() {
         let err = TestCli::try_parse_from(["test", "README.adoc", "--id-regex", "["]);
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn dry_run_preserves_trailing_blank_lines() {
+        let block = CommandBlock::new(
+            "build".parse().unwrap_or_else(|e| panic!("{e}")),
+            "echo hello\n\n".into(),
+            None,
+            acdc_parser::Location::default(),
+        );
+        assert_eq!(format_plan(&[block]), "build (sh)\n  echo hello\n  \n");
     }
 
     #[test]
@@ -451,7 +476,7 @@ mod tests {
         let block = CommandBlock::new(
             "nope".parse().unwrap_or_else(|e| panic!("{e}")),
             "true".into(),
-            Some("acdc-execute-nonexistent-shell".into()),
+            Some("acdc-execute-nonexistent-interpreter".into()),
             acdc_parser::Location::default(),
         );
         let error = execute_plan(&[block], false).expect_err("should fail");

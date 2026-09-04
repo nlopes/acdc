@@ -190,9 +190,9 @@ fn command_in_included_file_is_discovered() {
 // --------------------------------------------------------------------------
 
 #[test]
-fn default_shell_is_sh_when_no_language() {
+fn default_interpreter_is_sh_when_no_language() {
     let block = find(graph(&cmd("build", None, None, "echo hi")), "build");
-    assert_eq!(block.metadata.shell, "sh");
+    assert_eq!(block.metadata.interpreter, "sh");
 }
 
 #[test]
@@ -201,7 +201,14 @@ fn source_block_with_no_language_defaults_to_sh() {
     // Different code path from having no [source,...] annotation at all.
     let src = "[.command, id=build]\n[source]\n----\necho hi\n----\n";
     let block = find(graph(src), "build");
-    assert_eq!(block.metadata.shell, "sh");
+    assert_eq!(block.metadata.interpreter, "sh");
+}
+
+#[test]
+fn source_interpreter_ignores_block_options() {
+    let src = "[.command, id=build]\n[source, bash, %linenums]\n----\necho hi\n----\n";
+    let block = find(graph(src), "build");
+    assert_eq!(block.metadata.interpreter, "bash");
 }
 
 #[rstest]
@@ -209,9 +216,9 @@ fn source_block_with_no_language_defaults_to_sh() {
 #[case("zsh")]
 #[case("python3")]
 #[case("fish")]
-fn source_language_sets_shell(#[case] lang: &str) {
+fn source_interpreter_sets_interpreter(#[case] lang: &str) {
     let block = find(graph(&cmd("build", None, Some(lang), "echo hi")), "build");
-    assert_eq!(block.metadata.shell, lang);
+    assert_eq!(block.metadata.interpreter, lang);
 }
 
 // --------------------------------------------------------------------------
@@ -425,7 +432,7 @@ fn readme_example_builds_expected_graph() {
     assert_eq!(names, ["build", "test"]);
     let first = blocks.first().unwrap_or_else(|| panic!("build missing"));
     let second = blocks.get(1).unwrap_or_else(|| panic!("test missing"));
-    assert_eq!(first.metadata.shell, "bash");
+    assert_eq!(first.metadata.interpreter, "bash");
     assert_eq!(first.script, "cargo xtask build\n");
     assert_eq!(second.script, "cargo nextest run\n");
 }

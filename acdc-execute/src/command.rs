@@ -11,7 +11,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::prelude::Direction;
 use petgraph::visit::{Dfs, EdgeRef, Reversed};
 
-const DEFAULT_SHELL: &str = "sh";
+const DEFAULT_INTERPRETER: &str = "sh";
 
 /// A unique identifier for a command.
 ///
@@ -99,11 +99,14 @@ pub enum InvalidCommandId {
 pub struct CommandMetadata {
     /// The identifier for the command, e.g. `build` or `test`.
     pub id: CommandId,
-    /// The shell or runtime to use to execute the command.
+    /// The interpreter name or path to use to execute the command.
     ///
     /// This value is what might appear *last* in the *shebang* of a script, e.g. `python3` for
-    /// `#!/usr/bin/env python3`, or `bash` for `#!/usr/bin/env bash`.
-    pub shell: String,
+    /// `#!/usr/bin/env python3`, or `bash` for `#!/usr/bin/env bash`. It is passed directly to
+    /// [`std::process::Command`] without an allowlist or shell-string parsing, so a document can
+    /// select any executable available to the calling process. Executing a document is not a
+    /// sandbox boundary.
+    pub interpreter: String,
     /// A short, human-readable summary of what the command does, shown when listing commands.
     pub description: Option<String>,
 }
@@ -121,9 +124,14 @@ pub struct CommandBlock {
 }
 
 impl CommandBlock {
-    /// Construct a [`CommandBlock`], defaulting `shell` to `"sh"` when absent.
+    /// Construct a [`CommandBlock`], defaulting `interpreter` to `"sh"` when absent.
     #[must_use]
-    pub fn new(id: CommandId, script: String, shell: Option<String>, location: Location) -> Self {
+    pub fn new(
+        id: CommandId,
+        script: String,
+        interpreter: Option<String>,
+        location: Location,
+    ) -> Self {
         let mut script = script;
         if !script.ends_with('\n') {
             script.push('\n');
@@ -131,7 +139,7 @@ impl CommandBlock {
         Self {
             metadata: CommandMetadata {
                 id,
-                shell: shell.unwrap_or_else(|| DEFAULT_SHELL.to_string()),
+                interpreter: interpreter.unwrap_or_else(|| DEFAULT_INTERPRETER.to_string()),
                 description: None,
             },
             script,
@@ -152,7 +160,7 @@ impl CommandBlock {
     /// the configured interpreter is invoked with that file as its argument. The interpreter is
     /// invoked explicitly rather than through a shebang and the OS loader: shebangs are honored
     /// only on Unix and require the executable bit, which would ignore
-    /// [`CommandMetadata::shell`]. Explicit invocation is portable across platforms and
+    /// [`CommandMetadata::interpreter`]. Explicit invocation is portable across platforms and
     /// interpreters.
     ///
     /// The command runs in the current working directory of the calling process and inherits its
@@ -173,7 +181,7 @@ impl CommandBlock {
             .map_err(ExecError::TempFile)?;
         tmp.flush().map_err(ExecError::TempFile)?;
 
-        let status = Command::new(&self.metadata.shell)
+        let status = Command::new(&self.metadata.interpreter)
             .arg(tmp.path())
             .status()
             .map_err(ExecError::Spawn)?;
@@ -213,9 +221,9 @@ pub enum BuildError {
     UnknownDep(CommandId),
     /// A dependency edge would introduce a cycle.
     ///
-    /// The edge runs from `dep` (the prerequisite) to `command` (the dependent). A
-    /// self-dependency has `dep == command`.
-    #[error("dependency cycle: {dep} -> {command}")]
+    /// The reported edge runs from `dep` (the prerequisite) to `command` (the dependent) and is
+    /// one edge in the cycle. A self-dependency has `dep == command`.
+    #[error("dependency cycle includes: {dep} -> {command}")]
     Cycle {
         /// The dependent command.
         command: CommandId,
@@ -276,6 +284,8 @@ impl CommandGraph {
         let mut dfs = Dfs::empty(rev);
         let mut relevant: HashSet<NodeIndex> = HashSet::new();
 
+        // Reuse one DFS so shared ancestors are visited once; `move_to` resets the stack while
+        // retaining the visitor's visited set.
         for id in ids {
             let &target = self
                 .index
@@ -393,24 +403,40 @@ impl CommandGraphBuilder {
             graph.order.push(node);
         }
         if graph.order.len() != count {
-            let node = (0..count)
-                .find(|i| indegree.contains_key(i))
-                .map_or_else(|| NodeIndex::new(0), NodeIndex::new);
-            let dep = graph
-                .graph
-                .neighbors_directed(node, Direction::Incoming)
-                .min()
-                .map_or_else(
-                    || graph.graph[node].metadata.id.clone(),
-                    |dep_node| graph.graph[dep_node].metadata.id.clone(),
-                );
+            let (command, dep) = cycle_edge(&graph.graph, &indegree);
             return Err(BuildError::Cycle {
-                command: graph.graph[node].metadata.id.clone(),
-                dep,
+                command: graph.graph[command].metadata.id.clone(),
+                dep: graph.graph[dep].metadata.id.clone(),
             });
         }
 
         Ok(graph)
+    }
+}
+
+fn cycle_edge(
+    graph: &DiGraph<CommandBlock, ()>,
+    remaining_indegree: &HashMap<usize, usize>,
+) -> (NodeIndex, NodeIndex) {
+    let start = remaining_indegree
+        .keys()
+        .copied()
+        .min()
+        .map_or_else(|| NodeIndex::new(0), NodeIndex::new);
+    let mut visited = HashSet::new();
+    let mut command = start;
+
+    loop {
+        visited.insert(command);
+        let dep = graph
+            .neighbors_directed(command, Direction::Incoming)
+            .filter(|node| remaining_indegree.contains_key(&node.index()))
+            .min()
+            .unwrap_or(command);
+        if visited.contains(&dep) {
+            return (command, dep);
+        }
+        command = dep;
     }
 }
 

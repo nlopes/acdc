@@ -164,7 +164,7 @@ Color is used only on interactive stdout and respects `NO_COLOR`.
 === `execute`
 
 Build with `execute` to run *command blocks* defined in an AsciiDoc document.
-A command block is a listing block carrying the `command` role and an explicit `id`; it may declare a `deps` attribute naming the ids of commands that must run first, and a `[source, <lang>]` header selects the interpreter (default `sh`).
+A command block is a listing block carrying the `command` role and an explicit `id`; it may declare a `deps` attribute naming the ids of commands that must run first, and a `[source, <lang>]` header selects the interpreter (default `sh`). The `command` role and `id` are required; the source header and `deps` attribute are optional. The interpreter value is passed directly to the operating system as an executable name or path without an allowlist, so executing a document is not a sandbox boundary.
 
 [source,asciidoc]
 ....

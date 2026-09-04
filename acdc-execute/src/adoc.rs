@@ -55,7 +55,7 @@ pub(crate) fn collect_commands(
         {
             let (command, deps) = parse_command_block(db)?;
             builder.add(command, deps);
-            continue;
+            continue; // Listing blocks have no nested content to traverse.
         }
         for nested in child_blocks(block) {
             collect_commands(nested, builder)?;
@@ -141,27 +141,28 @@ fn parse_command_block(
         })
         .transpose()?
         .unwrap_or_default();
-    let shell = source_language(meta);
+    let interpreter = source_interpreter(meta);
     let description = meta
         .attributes
         .get_string("description")
         .map(std::borrow::Cow::into_owned);
-    let script = inlines_to_string(inlines);
+    let script = listing_inlines_to_string(inlines);
 
     Ok((
-        CommandBlock::new(id, script, shell, db.location.clone()).with_description(description),
+        CommandBlock::new(id, script, interpreter, db.location.clone())
+            .with_description(description),
         deps,
     ))
 }
 
-/// The source language of a `[source,<lang>]` block, e.g. `bash` for `[source, bash]`.
+/// The interpreter selected by a `[source,<lang>]` block, e.g. `bash` for `[source, bash]`.
 ///
 /// The parser stores the style (`"source"`) in `meta.style` and moves remaining positional
 /// attributes into `meta.attributes` as value-less (`AttributeValue::None`) keys. For a
 /// well-formed source block the language is the *only* such key; other annotating syntax
 /// (options like `%linenums`, named attributes like `id=`) lands in different fields, so the
 /// first — and in practice sole — `None`-valued attribute is the language.
-fn source_language(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
+fn source_interpreter(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
     if meta.style != Some("source") {
         return None;
     }
@@ -175,7 +176,7 @@ fn source_language(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
 /// Text nodes contribute their content verbatim and hard line breaks become newlines. Any other
 /// inline node carries no script text: listing content is a verbatim context, so anchors,
 /// formatting spans, and callout markers do not appear in well-formed command blocks.
-fn inlines_to_string(inlines: &[acdc::InlineNode<'_>]) -> String {
+fn listing_inlines_to_string(inlines: &[acdc::InlineNode<'_>]) -> String {
     let mut out = String::new();
     for node in inlines {
         #[expect(

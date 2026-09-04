@@ -122,22 +122,22 @@ fn display_renders_inner_string() {
 // --------------------------------------------------------------------------
 
 #[test]
-fn new_stores_id_script_and_default_shell() {
+fn new_stores_id_script_and_default_interpreter() {
     let block = CommandBlock::new(id("build"), "cargo build".into(), None, Location::default());
     assert_eq!(block.metadata.id, id("build"));
-    assert_eq!(block.metadata.shell, "sh");
+    assert_eq!(block.metadata.interpreter, "sh");
     assert_eq!(block.script, "cargo build\n");
 }
 
 #[test]
-fn new_stores_explicit_shell() {
+fn new_stores_explicit_interpreter() {
     let block = CommandBlock::new(
         id("test"),
         String::new(),
         Some("bash".into()),
         Location::default(),
     );
-    assert_eq!(block.metadata.shell, "bash");
+    assert_eq!(block.metadata.interpreter, "bash");
 }
 
 #[test]
@@ -262,10 +262,18 @@ fn build_rejects_two_node_cycle() {
 
 #[test]
 fn build_rejects_longer_cycle() {
-    assert!(matches!(
-        build(&[("a", &["c"]), ("b", &["a"]), ("c", &["b"])]),
-        Err(BuildError::Cycle { .. })
-    ));
+    match build(&[("a", &["c"]), ("b", &["a"]), ("c", &["b"])]) {
+        Err(BuildError::Cycle { command, dep }) => {
+            assert_ne!(command, dep);
+            assert!(
+                (command == id("a") && dep == id("c"))
+                    || (command == id("b") && dep == id("a"))
+                    || (command == id("c") && dep == id("b")),
+                "reported edge must belong to the cycle: {dep} -> {command}"
+            );
+        }
+        other => panic!("expected Cycle, got {other:?}"),
+    }
 }
 
 #[rstest]
@@ -273,7 +281,7 @@ fn build_rejects_longer_cycle() {
 #[case(BuildError::UnknownDep(id("gen")), "unknown dependency: gen")]
 #[case(
     BuildError::Cycle { command: id("b"), dep: id("a") },
-    "dependency cycle: a -> b"
+    "dependency cycle includes: a -> b"
 )]
 fn build_error_display(#[case] err: BuildError, #[case] expected: &str) {
     assert_eq!(err.to_string(), expected);
@@ -438,7 +446,7 @@ fn execute_reports_missing_interpreter() {
     let block = CommandBlock::new(
         id("nope"),
         "true".into(),
-        Some("acdc-execute-nonexistent-shell".into()),
+        Some("acdc-execute-nonexistent-interpreter".into()),
         Location::default(),
     );
     assert!(matches!(block.execute(), Err(ExecError::Spawn(_))));
@@ -446,7 +454,7 @@ fn execute_reports_missing_interpreter() {
 
 #[test]
 fn execute_uses_declared_interpreter() {
-    // `false` is not a shell; passing a script file to `sh -c`-style interpreters
+    // `false` is not an interpreter; passing a script file to `sh -c`-style interpreters
     // differs. Use `echo` to prove the script reaches the interpreter's argv.
     let block = CommandBlock::new(
         id("echo"),

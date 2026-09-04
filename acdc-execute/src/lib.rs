@@ -23,9 +23,10 @@
 //!   breaks become newlines and inline nodes that carry no text (anchors,
 //!   formatting spans, callout markers) contribute nothing.
 //! - The script is written to a temporary file which is passed as the single
-//!   argument to the configured interpreter. The interpreter defaults to
-//!   `sh`; a `[source, <lang>]` header on the command block selects the
-//!   interpreter instead (e.g. `bash`, `python3`).
+//!   argument to the configured interpreter. The interpreter defaults to `sh`; a
+//!   `[source, <lang>]` header on the command block selects an interpreter name
+//!   or path instead (e.g. `bash`, `python3`). The value is unfiltered and is
+//!   not a sandbox boundary.
 //! - Commands run in the current working directory of the calling process
 //!   and inherit its environment.
 //! - A command that exits with a non-zero status is a command failure the
