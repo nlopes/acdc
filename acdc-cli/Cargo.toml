@@ -17,6 +17,7 @@ doc = false
 
 [dependencies]
 acdc-converters-core.workspace = true
+acdc-execute = { workspace = true, optional = true }
 acdc-converters-html = { workspace = true, optional = true }
 acdc-lint = { workspace = true, optional = true }
 acdc-parser.workspace = true
@@ -82,7 +83,7 @@ terminal-emulator = [
 ]
 
 # Development tools
-execute = ["dep:regex"]  # Skeleton for running command blocks from AsciiDoc
+execute = ["dep:acdc-execute", "dep:regex"]  # Run command blocks from AsciiDoc documents
 inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 

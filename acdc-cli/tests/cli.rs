@@ -6,7 +6,12 @@ use std::{
 #[cfg(any(feature = "html", feature = "terminal", feature = "inspect"))]
 use tempfile::tempdir;
 
-#[cfg(any(feature = "html", feature = "terminal", feature = "inspect"))]
+#[cfg(any(
+    feature = "html",
+    feature = "terminal",
+    feature = "inspect",
+    feature = "execute"
+))]
 use std::fs;
 
 fn run_acdc(args: &[&str], input: Option<&str>) -> io::Result<Output> {
@@ -566,5 +571,91 @@ fn inspect_resolves_includes_and_omits_ansi_when_piped() -> Result<(), Box<dyn E
     assert!(stdout.contains("Included paragraph."));
     assert!(!stdout.contains("max-include-depth"));
     assert!(!stdout.contains('\u{1b}'));
+    Ok(())
+}
+
+#[cfg(feature = "execute")]
+#[test]
+fn execute_dry_run_prints_the_plan_in_dependency_order() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let document = temp.path().join("commands.adoc");
+    fs::write(
+        &document,
+        "[.command, id=test, deps=\"build\"]\n----\necho testing\n----\n\n\
+         [.command, id=build]\n[source, bash]\n----\necho building\n----\n",
+    )?;
+    let document_arg = document.to_string_lossy();
+
+    let output = run_acdc(&["execute", "--dry-run", document_arg.as_ref()], None)?;
+    let stdout = output_text(&output.stdout);
+
+    assert!(output.status.success());
+    let build = stdout.find("build (bash)").ok_or("build plan missing")?;
+    let test = stdout.find("test (sh)").ok_or("test plan missing")?;
+    assert!(build < test, "dependency must print first: {stdout}");
+    assert!(stdout.contains("  echo testing"));
+    Ok(())
+}
+
+#[cfg(feature = "execute")]
+#[test]
+fn execute_runs_selected_commands() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let marker = temp.path().join("ran");
+    let document = temp.path().join("commands.adoc");
+    fs::write(
+        &document,
+        format!(
+            "[.command, id=touch-marker]\n----\necho run >> {}\n----\n",
+            marker.display()
+        ),
+    )?;
+    let document_arg = document.to_string_lossy();
+
+    let output = run_acdc(
+        &["execute", "--id", "touch-marker", document_arg.as_ref()],
+        None,
+    )?;
+
+    assert!(output.status.success());
+    assert!(marker.exists());
+    Ok(())
+}
+
+#[cfg(feature = "execute")]
+#[test]
+fn execute_failure_returns_a_failing_exit() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let document = temp.path().join("commands.adoc");
+    fs::write(&document, "[.command, id=fail]\n----\nexit 7\n----\n")?;
+    let document_arg = document.to_string_lossy();
+
+    let output = run_acdc(&["execute", document_arg.as_ref()], None)?;
+    let stderr = output_text(&output.stderr);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr.contains("`fail` exited with"));
+    Ok(())
+}
+
+#[cfg(feature = "execute")]
+#[test]
+fn execute_reports_unknown_and_duplicate_selectors_as_diagnostics()
+-> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    let document = temp.path().join("commands.adoc");
+    fs::write(&document, "[.command, id=build]\n----\ntrue\n----\n")?;
+    let document_arg = document.to_string_lossy();
+
+    let unknown = run_acdc(&["execute", "--id", "missing", document_arg.as_ref()], None)?;
+    assert_eq!(unknown.status.code(), Some(1));
+    assert!(output_text(&unknown.stderr).contains("unknown command id: missing"));
+
+    let no_match = run_acdc(
+        &["execute", "--id-regex", "^zzz", document_arg.as_ref()],
+        None,
+    )?;
+    assert_eq!(no_match.status.code(), Some(1));
+    assert!(output_text(&no_match.stderr).contains("matched no commands"));
     Ok(())
 }
