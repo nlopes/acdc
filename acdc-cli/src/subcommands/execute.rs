@@ -1,12 +1,6 @@
 //! Execute command blocks from `AsciiDoc` files.
 //!
-//! Commands are listing (or source) blocks carrying the `command` role and an
-//! explicit id. Every command is discovered in document order — including
-//! blocks inside nested containers and included files — validated, topologically
-//! ordered by their `deps` attribute, and executed through the declared
-//! interpreter. The `[source, <lang>]` value is passed directly as an executable
-//! name or path without an allowlist. Parser safe mode limits document reads
-//! only; it does not sandbox executed commands.
+//! Commands are listing or source blocks set with the `command` role.
 
 use std::path::{Path, PathBuf};
 
@@ -142,10 +136,7 @@ fn format_plan(blocks: &[CommandBlock]) -> String {
 }
 
 /// Run the selected commands in order, inheriting stdio, environment, and the
-/// current working directory. `exit_on_failure` stops at the first command
-/// that exits unsuccessfully; otherwise every command is attempted and the
-/// failures are reported together. A script that cannot be written or an
-/// interpreter that cannot be spawned is reported immediately.
+/// current working directory.
 fn execute_plan(blocks: &[CommandBlock], exit_on_failure: bool) -> miette::Result<()> {
     let mut failures = Vec::new();
     for block in blocks {
