@@ -156,12 +156,6 @@ fn parse_command_block(
 }
 
 /// The interpreter selected by a `[source,<lang>]` block, e.g. `bash` for `[source, bash]`.
-///
-/// The parser stores the style (`"source"`) in `meta.style` and moves remaining positional
-/// attributes into `meta.attributes` as value-less (`AttributeValue::None`) keys. For a
-/// well-formed source block the language is the *only* such key; other annotating syntax
-/// (options like `%linenums`, named attributes like `id=`) lands in different fields, so the
-/// first — and in practice sole — `None`-valued attribute is the language.
 fn source_interpreter(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
     if meta.style != Some("source") {
         return None;
@@ -172,10 +166,6 @@ fn source_interpreter(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
 }
 
 /// Render listing inline content as script text.
-///
-/// Text nodes contribute their content verbatim and hard line breaks become newlines. Any other
-/// inline node carries no script text: listing content is a verbatim context, so anchors,
-/// formatting spans, and callout markers do not appear in well-formed command blocks.
 fn listing_inlines_to_string(inlines: &[acdc::InlineNode<'_>]) -> String {
     let mut out = String::new();
     for node in inlines {
