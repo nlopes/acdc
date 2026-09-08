@@ -7,25 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Builds with the `execute` feature expose the `acdc execute` command, which
-  discovers command blocks — listing or source blocks carrying the `command`
-  role and an explicit id — in an AsciiDoc document and runs them through the
-  interpreter declared by each block's `[source, <lang>]` header (default
-  `sh`). The value is passed directly to the operating system as an executable
-  name or path without an allowlist; executing a document is not a sandbox
-  boundary. Commands are discovered in document order, including inside nested
-  containers and included files, and executed in dependency order. Exact
-  `--id` and `--id-regex` selectors form a union, selected commands always
-  run with their transitive dependencies, and each command runs at most once;
-  a missing selector match, duplicate id, or malformed command block is
-  reported as a diagnostic. `--dry-run` prints the selected plan without
-  running commands, and `--exit-on-failure` stops at the first command that
-  exits unsuccessfully instead of attempting the remaining ones. `-S`
-  selects the parser safe mode; it limits document includes only and does
-  not sandbox executed commands.
-
 ### Fixed
 
 - `lint -D one-sentence-per-line` now rejects description-list values with
@@ -143,7 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`--variant` flag for `convert`** — pick a backend-specific output style.
   HTML: `standard` (default) or `semantic`. Markdown: `commonmark` or `gfm`
   (default). `--backend html5s` remains an alias for `--backend html --variant
-semantic` and rejects `--variant`. Invalid combinations are rejected up-front,
+  semantic` and rejects `--variant`. Invalid combinations are rejected up-front,
   and unavailable backends or variants are omitted from command help.
 - **Timing summary table for multi-file conversions** — when `convert` is invoked with
   `--timings` and more than one input file, a summary table is printed after the
@@ -208,6 +189,7 @@ This is tagged but unreleased in crates.io for now.
 [#311]: https://github.com/nlopes/acdc/issues/311
 [#329]: https://github.com/nlopes/acdc/issues/329
 [#330]: https://github.com/nlopes/acdc/issues/330
+
 [Unreleased]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.2.0...HEAD
 [0.2.0]: https://github.com/nlopes/acdc/compare/acdc-cli-v0.1.0...acdc-cli-v0.2.0
 [0.1.0]: https://github.com/nlopes/acdc/releases/tag/acdc-cli-v0.1.0
