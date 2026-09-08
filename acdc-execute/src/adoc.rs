@@ -160,9 +160,9 @@ fn source_interpreter(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
     if meta.style != Some("source") {
         return None;
     }
-    meta.attributes.iter().find_map(|(name, value)| {
-        matches!(value, acdc::AttributeValue::None).then(|| name.as_ref().to_owned())
-    })
+    meta.attributes
+        .get_string("language")
+        .map(std::borrow::Cow::into_owned)
 }
 
 /// Render listing inline content as script text.
