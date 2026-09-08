@@ -411,7 +411,10 @@ fn error_display(#[case] error: Error, #[case] expected: &str) {
 fn safe_mode_still_discovers_commands() {
     // Commands are discovered and validated identically under SECURE safe mode;
     // safe mode only limits what the document may include.
-    let options = Options::builder().with_safe_mode(SafeMode::Secure).build();
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Secure)
+        .build()
+        .unwrap_or_else(|e| panic!("{e}"));
     let src = "[.command, id=build]\n----\necho hi\n----\n";
     let parsed = acdc_parser::parse(src, &options).unwrap_or_else(|e| panic!("{e}"));
     let built = CommandGraph::try_from(parsed.document()).unwrap_or_else(|e| panic!("{e}"));
