@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `convert -a skip-front-matter` makes captured front matter available to
+  conditionals and includes.
 - Repeated `-a` options now use the final assignment's precedence, matching
   Asciidoctor. A later default such as `-a name=value@` or `-a !name=@` cancels
   an earlier override and lets the document assign that attribute.

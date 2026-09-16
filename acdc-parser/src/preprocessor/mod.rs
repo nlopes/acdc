@@ -41,6 +41,8 @@ pub(crate) struct PreprocessorResult<'input> {
     /// Byte ranges mapping preprocessed output back to source files.
     /// Used by the parser to produce accurate file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
+    /// Front matter captured from the primary input. Included front matter does not replace it.
+    pub(crate) front_matter: Option<String>,
 }
 
 impl PreprocessorResult<'_> {
@@ -52,6 +54,7 @@ impl PreprocessorResult<'_> {
             text: Cow::Owned(self.text.into_owned()),
             leveloffset_ranges: self.leveloffset_ranges,
             source_ranges: self.source_ranges,
+            front_matter: self.front_matter,
         }
     }
 }
@@ -59,6 +62,54 @@ impl PreprocessorResult<'_> {
 struct NestedPreprocessorResult {
     result: PreprocessorResult<'static>,
     document_attributes: DocumentAttributes<'static>,
+}
+
+#[derive(Debug)]
+struct SkimmedFrontMatter {
+    value: String,
+    lines_consumed: usize,
+}
+
+/// Recognize YAML-style front matter at the start of a reader buffer.
+///
+/// Both delimiters must be exactly `---`. If the closing delimiter is absent,
+/// the caller must keep the original buffer unchanged.
+fn skim_front_matter<'a>(mut lines: impl Iterator<Item = &'a str>) -> Option<SkimmedFrontMatter> {
+    if lines.next()? != "---" {
+        return None;
+    }
+
+    let mut value = String::new();
+    for (index, line) in lines.enumerate() {
+        if line == "---" {
+            return Some(SkimmedFrontMatter {
+                value,
+                lines_consumed: index + 2,
+            });
+        }
+        if index > 0 {
+            value.push('\n');
+        }
+        value.push_str(line);
+    }
+    None
+}
+
+fn consume_front_matter<'a>(
+    lines: &mut impl Iterator<Item = &'a str>,
+    line_number: &mut usize,
+    capture: bool,
+    front_matter: Option<SkimmedFrontMatter>,
+) -> Option<String> {
+    let front_matter = front_matter?;
+    for _ in 0..front_matter.lines_consumed {
+        lines.next();
+    }
+    *line_number += front_matter.lines_consumed;
+    if !capture {
+        return None;
+    }
+    Some(front_matter.value)
 }
 
 /// Per-directive context bundling position and file information that
@@ -1139,21 +1190,35 @@ impl Preprocessor {
     ) -> Result<PreprocessorResult<'input>, Error> {
         let normalized = Preprocessor::normalize(input);
         let setext = comment::setext_enabled(options);
+        let front_matter = options
+            .document_attributes
+            .contains_key("skip-front-matter")
+            .then(|| skim_front_matter(normalized.lines()))
+            .flatten();
 
         // Fast path: no triggers means the slow rebuild would produce byte-identical
         // output. Return the normalized text directly, preserving any borrow from
         // the caller's input so that downstream parsing can be zero-copy.
-        if Self::try_pass_through(&normalized, setext)
+        if front_matter.is_none()
+            && Self::try_pass_through(&normalized, setext)
             && !self.nested_attributes_must_propagate(&normalized)
         {
             return Ok(PreprocessorResult {
                 text: normalized,
                 leveloffset_ranges: Vec::new(),
                 source_ranges: Vec::new(),
+                front_matter: None,
             });
         }
 
-        self.process_slow_path(&normalized, source_origin, options, setext, Vec::new())
+        self.process_slow_path(
+            &normalized,
+            source_origin,
+            options,
+            setext,
+            Vec::new(),
+            front_matter,
+        )
     }
 
     /// Preprocess a compacted include selection whose lines retain coordinates
@@ -1168,7 +1233,13 @@ impl Preprocessor {
         let mut options = options.clone();
         let normalized = Preprocessor::normalize(input);
         let setext = comment::setext_enabled(&options);
-        if Self::try_pass_through(&normalized, setext)
+        let front_matter = options
+            .document_attributes
+            .contains_key("skip-front-matter")
+            .then(|| skim_front_matter(normalized.lines()))
+            .flatten();
+        if front_matter.is_none()
+            && Self::try_pass_through(&normalized, setext)
             && !self.nested_attributes_must_propagate(&normalized)
         {
             let source_ranges = {
@@ -1186,6 +1257,7 @@ impl Preprocessor {
                 text: Cow::Owned(normalized.into_owned()),
                 leveloffset_ranges: Vec::new(),
                 source_ranges,
+                front_matter: None,
             };
             return Ok(NestedPreprocessorResult {
                 result,
@@ -1199,6 +1271,7 @@ impl Preprocessor {
             &mut options,
             setext,
             line_origins,
+            front_matter,
         )?;
         Ok(NestedPreprocessorResult {
             result: result.into_owned(),
@@ -1219,6 +1292,7 @@ impl Preprocessor {
         options: &mut Options<'_>,
         setext: bool,
         line_origins: Vec<InputLineOrigin>,
+        front_matter: Option<SkimmedFrontMatter>,
     ) -> Result<PreprocessorResult<'input>, Error> {
         // Slow path: at least one trigger fires (include, conditional,
         // multi-line attribute continuation, or escaped directive). Rebuild
@@ -1234,6 +1308,18 @@ impl Preprocessor {
         // `comment::CommentScanner`.
         let mut scanner = CommentScanner::new(setext);
         let mut conditional_stack = Vec::new();
+        let captured_front_matter = consume_front_matter(
+            &mut lines,
+            &mut line_number,
+            self.include_context.depth == 0,
+            front_matter,
+        );
+        if let Some(value) = &captured_front_matter {
+            options
+                .document_attributes
+                .set_text("front-matter".into(), value.clone().into());
+        }
+
         while let Some(line) = lines.next() {
             let conditional_consumed = {
                 let origin = out.origin_of_line(line_number);
@@ -1320,6 +1406,7 @@ impl Preprocessor {
             text: Cow::Owned(out.output.join("\n")),
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
+            front_matter: captured_front_matter,
         })
     }
 

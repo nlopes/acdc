@@ -924,11 +924,22 @@ impl<'a> Include<'a> {
     ) -> Result<IncludedContent, Error> {
         let normalized = Preprocessor::normalize(content).into_owned();
         let content_lines = normalized.lines().map(str::to_string).collect::<Vec<_>>();
-        let selected_indices = self.select_content_lines(&content_lines, resolved_source);
-        let selected_lines = selected_indices
+        let mut selected_indices = self.select_content_lines(&content_lines, resolved_source);
+        let mut selected_lines = selected_indices
             .iter()
             .filter_map(|idx| content_lines.get(*idx).cloned())
             .collect::<Vec<_>>();
+        if is_asciidoc
+            && self
+                .options
+                .document_attributes
+                .contains_key("skip-front-matter")
+            && let Some(front_matter) =
+                super::skim_front_matter(selected_lines.iter().map(std::string::String::as_str))
+        {
+            selected_lines.drain(..front_matter.lines_consumed);
+            selected_indices.drain(..front_matter.lines_consumed);
+        }
         let (selected_lines, column_shift) = if let Some(indent) = self.indent {
             Self::apply_indent(&selected_lines, indent)
         } else {

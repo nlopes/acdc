@@ -298,7 +298,7 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let options = options
+    let mut options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::Reader);
     // Shared across the preprocessor and the grammar state so both layers'
@@ -308,6 +308,11 @@ pub fn parse_from_reader<R: std::io::Read>(
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
+    if let Some(front_matter) = result.front_matter {
+        options
+            .document_attributes
+            .set_text("front-matter".into(), front_matter.into());
+    }
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
@@ -341,7 +346,7 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
-    let options = options
+    let mut options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::String);
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -349,6 +354,11 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
         let _span = tracing::info_span!("preprocess").entered();
         Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
+    if let Some(front_matter) = result.front_matter {
+        options
+            .document_attributes
+            .set_text("front-matter".into(), front_matter.into());
+    }
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
@@ -386,7 +396,7 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let options = options
+    let mut options = options
         .clone()
         .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
     let path = file_path.as_ref().to_path_buf();
@@ -401,6 +411,11 @@ pub fn parse_file<P: AsRef<Path>>(
             Rc::clone(&warnings_handle),
         )?
     };
+    if let Some(front_matter) = result.front_matter {
+        options
+            .document_attributes
+            .set_text("front-matter".into(), front_matter.into());
+    }
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Processor defaults for `backend`, `basebackend`, `filetype`, and `doctype`
   now produce matching convenience attributes regardless of builder insertion
   order. Stale flags cannot override the final default values.
+- `skip-front-matter` makes captured root front matter available to conditionals
+  and includes before parsing. Included front matter does not replace it.
 - Attribute syntax in ordinary table cells remains literal text, matching Asciidoctor;
   it no longer changes sibling cells or content after the table.
 - Parsing documents with frequent document-attribute checks no longer incurs a
@@ -51,6 +53,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   setup-time consumption. Supported body assignments remain visible in source
   order even when a parser or converter feature uses only its header value.
   Caller-locked, API-only, and read-only assignments remain rejected.
+- `skip-front-matter`, when supplied through parser options, now consumes
+  YAML-style front matter before parsing and exposes its content through the
+  `front-matter` document attribute. Front matter in included AsciiDoc files is
+  also removed. A document attribute entry cannot activate this early input
+  processing.
 - `outdir` and `outfile` remain unavailable during parsing even when supplied
   through parser options. Use the converter result to inspect output paths.
 - Caller values for `max-include-depth` now allow surrounding Unicode
