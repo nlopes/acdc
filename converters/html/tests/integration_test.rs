@@ -16,6 +16,47 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 
 type Error = Box<dyn StdError>;
 
+#[test]
+fn oversized_source_indent_is_a_bounded_structured_warning() -> Result<(), Error> {
+    for highlighter in [false, true] {
+        for assignment in [
+            ":source-indent: 18446744073709551615\n\n[source]",
+            "\n[source,indent=18446744073709551615]",
+        ] {
+            let input = format!("= T\n{assignment}\n----\n    text\n----\n");
+            let options = ParserOptions::builder()
+                .with_attribute("source-highlighter", highlighter)
+                .build()?;
+            let parsed = parse(&input, &options)?;
+            let attributes = parsed.document().attributes.clone();
+            let processor = Processor::new_with_variant(
+                ConverterOptions::default(),
+                ParserOptions::builder().with_attributes(attributes.into_inputs()),
+                HtmlVariant::Standard,
+            )?;
+            let mut output = Vec::new();
+            let mut warnings = Vec::new();
+            let source = WarningSource::new("html");
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            processor.convert_to_writer(
+                parsed.document(),
+                &mut output,
+                &RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                },
+                &mut diagnostics,
+            )?;
+            assert!(output.len() < 2048);
+            assert!(warnings.iter().any(|warning| {
+                warning.message.contains("unsupported source indentation")
+                    && warning.advice().is_some()
+            }));
+        }
+    }
+    Ok(())
+}
+
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
 }

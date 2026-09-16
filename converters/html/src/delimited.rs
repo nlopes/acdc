@@ -513,6 +513,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         });
         let comment_prefix = default_line_comment(language.as_deref());
         let processed_inlines = process_callout_guards(inlines, comment_prefix);
+        let source_indent =
+            crate::source_indent::resolve(metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
         let subs = effective_subs(metadata.substitutions.as_ref(), true);
         #[cfg(not(feature = "pre-spec-subs"))]
@@ -528,6 +530,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             language.as_deref(),
             self,
             &subs,
+            source_indent,
         )
     }
 
@@ -921,7 +924,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         )?;
         writeln!(self.writer, "<div class=\"content\">")?;
         write!(self.writer, "<pre>")?;
-        self.visit_inline_nodes(traversal, inlines)?;
+        self.visit_indented_inlines(traversal, inlines, metadata)?;
         writeln!(self.writer, "</pre>")?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
@@ -1095,7 +1098,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     write_semantic_tag_open(&mut self.writer, "div", metadata, "literal-block")?;
                 }
                 write!(self.writer, "<pre>")?;
-                self.visit_inline_nodes(traversal, inlines)?;
+                self.visit_indented_inlines(traversal, inlines, metadata)?;
                 writeln!(self.writer, "</pre>")?;
                 if has_title {
                     writeln!(self.writer, "</section>")?;

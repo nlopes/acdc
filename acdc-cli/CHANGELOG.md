@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `convert -a skip-front-matter` makes captured front matter available to
-  conditionals and includes.
 - Repeated `-a` options now use the final assignment's precedence, matching
   Asciidoctor. A later default such as `-a name=value@` or `-a !name=@` cancels
   an earlier override and lets the document assign that attribute.
+- `convert -a skip-front-matter` makes captured front matter available to
+  conditionals and includes. HTML conversion warns about excessive source
+  indentation instead of panicking.
 - Serialized parser output now keeps document attributes as an end-of-header
   snapshot and reports accepted body set and unset entries in source order.
 - `convert -a` attributes now remain locked against matching set or unset

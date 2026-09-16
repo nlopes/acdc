@@ -41,7 +41,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             )?;
             writeln!(self.writer, "<div class=\"content\">")?;
             write!(self.writer, "<pre>")?;
-            self.visit_inline_nodes(traversal, &para.content)?;
+            self.visit_indented_inlines(traversal, &para.content, &para.metadata)?;
             writeln!(self.writer, "</pre>")?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
@@ -299,6 +299,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     .flatten()
                     .map(str::to_owned)
             });
+        let source_indent =
+            crate::source_indent::resolve(&para.metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
         let subs = effective_subs(para.metadata.substitutions.as_ref(), true);
         #[cfg(not(feature = "pre-spec-subs"))]
@@ -317,6 +319,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     language.as_deref(),
                     self,
                     &subs,
+                    source_indent,
                 )?;
                 writeln!(self.writer, "</div>")?;
             } else {
@@ -339,6 +342,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     language.as_deref(),
                     self,
                     &subs,
+                    source_indent,
                 )?;
                 writeln!(self.writer, "</figure>")?;
             }
@@ -365,6 +369,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 language.as_deref(),
                 self,
                 &subs,
+                source_indent,
             )?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;

@@ -37,6 +37,7 @@ mod inlines;
 mod list;
 mod paragraph;
 mod section;
+mod source_indent;
 mod syntax;
 mod table;
 #[cfg(feature = "terminal")]
@@ -884,7 +885,11 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
     language: Option<&str>,
     visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
+    source_indent: Option<u16>,
 ) -> Result<(), Error> {
+    let indentation = source_indent::IndentedSource::new(inlines, source_indent);
+    let indented = indentation.as_ref().map(|source| source.inlines(inlines));
+    let inlines = indented.as_deref().unwrap_or(inlines);
     #[cfg(feature = "highlighting")]
     let highlighting_enabled = visitor
         .processor
@@ -1172,6 +1177,7 @@ mod tests {
         assert!(html.contains("images/header/before.png"));
         assert!(html.contains("images/body/after.png"));
         assert!(html.contains("language-ruby"));
+        assert!(html.contains("  puts 'source'"));
         assert!(html.contains("frame-ends grid-rows stripes-odd"));
         assert!(html.contains(MATHJAX_LOADER_URL));
         Ok(())

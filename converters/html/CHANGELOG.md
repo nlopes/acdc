@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `source-indent` and block `indent` remove common leading whitespace before
+  applying the requested indentation, including explicit zero, with or without
+  syntax highlighting. Negative values retain existing indentation. Unlike
+  Asciidoctor, invalid values and widths above 1024 produce a warning and retain
+  the input indentation instead of permitting unbounded output growth.
 - Body document attributes now affect only later HTML blocks. This includes
   media and icon paths, icon modes, captions and section labels, cross-reference
   suffixes, source language and indentation, table presentation, and STEM
