@@ -83,6 +83,20 @@ fn run_fixture_test(
 
     let expected_path = expected_dir.join(file_name).with_extension("html");
 
+    let actual = render_fixture(path, variant, embedded)?;
+    let expected = read_to_string(&expected_path)?;
+    let expected_normalized = remove_lines_trailing_whitespace(&expected);
+    let actual_normalized = remove_lines_trailing_whitespace(&actual);
+
+    pretty_assertions::assert_eq!(
+        expected_normalized,
+        actual_normalized,
+        "HTML output mismatch for fixture: {file_name}",
+    );
+    Ok(())
+}
+
+fn render_fixture(path: &Path, variant: HtmlVariant, embedded: bool) -> Result<String, Error> {
     let parser_options = ParserOptions::default();
     let parsed = parse_file(path, &parser_options)?;
     let doc = parsed.document();
@@ -106,16 +120,158 @@ fn run_fixture_test(
     let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
 
-    let expected = read_to_string(&expected_path)?;
-    let actual = String::from_utf8(output)?;
-    let expected_normalized = remove_lines_trailing_whitespace(&expected);
-    let actual_normalized = remove_lines_trailing_whitespace(&actual);
+    Ok(String::from_utf8(output)?)
+}
 
-    pretty_assertions::assert_eq!(
-        expected_normalized,
-        actual_normalized,
-        "HTML output mismatch for fixture: {file_name}",
-    );
+#[rstest::rstest]
+#[case::toc_attribute_normalization(
+    r#"= TOC attributes
+:toc: left
+
+Root: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+
+[cols="2*a",options="noheader"]
+|===
+|
+:toc: macro
+
+Child: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|
+Sibling: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|===
+
+Parent: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+"#,
+    &[
+        r"Root: [] [left] [auto] [toc2].",
+        r"Child: [] [content] [macro] [toc2].",
+        r"Sibling: [{toc}] [{toc-position}] [auto] [toc2].",
+        r"Parent: [] [left] [auto] [toc2].",
+    ],
+    &[],
+)]
+#[case::toc_nested_body(
+    r"= T
+:toc: left
+
+[cols=a]
+|===
+|
+Before.
+
+:toc: right
+
+Text: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|===
+",
+    &[
+        r"Before.",
+        r"Text: [right] [{toc-position}] [auto] [toc2].",
+    ],
+    &[],
+)]
+#[case::toc_nested_class(
+    r"= T
+
+[cols=a]
+|===
+|
+:toc: left
+:toc-class: child
+
+Child: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|===
+
+Parent: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+",
+    &[
+        r"Child: [] [left] [auto] [child].",
+        r"Parent: [{toc}] [{toc-position}] [auto] [{toc-class}].",
+    ],
+    &[],
+)]
+#[case::toc_nested_comments(
+    r"= T
+:toc: left
+
+[cols=a]
+|===
+|
+// Comment
+:toc: right
+
+Text: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|===
+",
+    &[
+        r"Text: [] [right] [auto] [toc2].",
+    ],
+    &[],
+)]
+#[case::toc_nested_gap(
+    r"= T
+:toc: left
+
+[cols=a]
+|===
+|
+// Comment
+
+:toc: right
+
+Text: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|===
+",
+    &[
+        r"Text: [] [right] [auto] [toc2].",
+    ],
+    &[],
+)]
+#[case::toc_nested_header(
+    r"= T
+:toc: left
+
+[cols=a]
+|===
+|
+:toc: right
+
+Text: [{toc}] [{toc-position}] [{toc-placement}] [{toc-class}].
+|===
+",
+    &[
+        r"Text: [] [right] [auto] [toc2].",
+    ],
+    &[],
+)]
+fn inline_html_preserves_attribute_context(
+    #[case] input: &str,
+    #[case] paragraphs: &[&str],
+    #[case] footnotes: &[&str],
+) -> Result<(), Error> {
+    let html = convert_string(input, &[])?;
+    for (open, close, expected) in [
+        ("<p", "</p>", paragraphs),
+        ("<div class=\"footnote\"", "</div>", footnotes),
+    ] {
+        let actual: Vec<_> = html
+            .split(open)
+            .skip(1)
+            .filter_map(|part| {
+                let (attributes, rest) = part.split_once('>')?;
+                if !attributes.is_empty() && !attributes.starts_with([' ', '>']) {
+                    return None;
+                }
+                let content = rest.split_once(close)?.0;
+                Some(if open == "<p" {
+                    content
+                } else {
+                    content.trim_end()
+                })
+            })
+            .collect();
+        assert_eq!(actual, expected, "{input}");
+    }
     Ok(())
 }
 

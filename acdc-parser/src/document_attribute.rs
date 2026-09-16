@@ -80,6 +80,73 @@ pub(crate) fn nested_attribute_is_inherited(name: &str) -> bool {
     )
 }
 
+pub(crate) fn normalize_toc_attributes<'a>(
+    attributes: &mut DocumentAttributes<'a>,
+) -> Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)> {
+    let legacy = attributes.contains_key("toc2");
+    let Some(toc) = legacy.then_some("left").or_else(|| {
+        attributes
+            .get("toc")
+            .map(|value| value.text().unwrap_or_default())
+    }) else {
+        return Vec::new();
+    };
+    let placement = attributes
+        .get("toc-placement")
+        .map_or("macro", |value| value.text().unwrap_or_default());
+    let explicit_position = if placement == "auto" {
+        attributes.text("toc-position").unwrap_or_default()
+    } else {
+        placement
+    };
+    if toc.is_empty() && explicit_position.is_empty() {
+        return Vec::new();
+    }
+    let position = if explicit_position.is_empty() {
+        if toc.is_empty() { "left" } else { toc }
+    } else {
+        explicit_position
+    };
+    let (position, placement, sidebar) = match position {
+        "left" | "<" | "&lt;" => (Some("left"), "auto", true),
+        "right" | ">" | "&gt;" => (Some("right"), "auto", true),
+        "top" | "^" => (Some("top"), "auto", true),
+        "bottom" | "v" => (Some("bottom"), "auto", true),
+        "macro" => (Some("content"), "macro", false),
+        "preamble" => (Some("content"), "preamble", false),
+        _ => (None, "auto", false),
+    };
+    let mut assignments: Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)> = vec![
+        (
+            "toc".into(),
+            DocumentAttributeAssignment::Set(DocumentAttributeValue::presence()),
+        ),
+        (
+            "toc-placement".into(),
+            DocumentAttributeAssignment::Set(placement.into()),
+        ),
+        (
+            "toc-position".into(),
+            position.map_or(DocumentAttributeAssignment::Unset, |value| {
+                DocumentAttributeAssignment::Set(value.into())
+            }),
+        ),
+    ];
+    if legacy {
+        assignments.push(("toc2".into(), DocumentAttributeAssignment::Unset));
+    }
+    if sidebar && !attributes.contains_key("toc-class") {
+        assignments.push((
+            "toc-class".into(),
+            DocumentAttributeAssignment::Set("toc2".into()),
+        ));
+    }
+    for (name, assignment) in &assignments {
+        attributes.normalize_assignment(name.clone(), assignment.clone());
+    }
+    assignments
+}
+
 pub(crate) fn initialize_nested_attributes<'a>(
     attributes: &mut DocumentAttributes<'a>,
 ) -> Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)> {

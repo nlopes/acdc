@@ -721,6 +721,17 @@ impl<'a> DocumentAttributes<'a> {
             .insert(name, StoredAssignment { assignment, state });
     }
 
+    pub(crate) fn normalize_assignment(
+        &mut self,
+        name: AttributeName<'a>,
+        assignment: DocumentAttributeAssignment<'a>,
+    ) {
+        let state = self
+            .entry(&name)
+            .map_or(AssignmentState::PROCESSOR, |entry| entry.state);
+        self.set_entry(name, assignment, state);
+    }
+
     pub(crate) fn assign_document_value(
         &mut self,
         name: AttributeName<'a>,

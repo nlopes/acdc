@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Header `toc` values now expand as empty text, with the position exposed by
+  `toc-position`. Root and AsciiDoc cell headers normalize `toc2`, `toc-placement`,
+  and `toc-class` as Asciidoctor does, while retaining caller precedence.
 - AsciiDoc table cells match Asciidoctor inheritance for source unsets, locked
   caller unsets, inherited defaults, and child document exceptions.
 - Processor defaults for `backend`, `basebackend`, `filetype`, and `doctype`

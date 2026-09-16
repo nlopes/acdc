@@ -80,6 +80,7 @@ pub(crate) const DEFAULT_ATTRIBUTE_ENTRIES: &[(AttributeName<'static>, Attribute
         str_attr("table-caption", "Table"),
         // UI labels
         str_attr("toc-title", "Table of Contents"),
+        str_attr("toc-placement", "auto"),
         str_attr("untitled-label", "Untitled"),
         str_attr("version-label", "Version"),
         str_attr("last-update-label", "Last updated"),

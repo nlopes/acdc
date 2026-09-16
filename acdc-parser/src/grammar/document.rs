@@ -2855,7 +2855,10 @@ peg::parser! {
         }
 
         rule header_attribute_snapshot() -> DocumentAttributes<'input>
-        = { DocumentAttributes::clone(&state.document_attributes) }
+        = {
+            crate::document_attribute::normalize_toc_attributes(Rc::make_mut(&mut state.document_attributes));
+            DocumentAttributes::clone(&state.document_attributes)
+        }
 
         rule prepare_manpage_front_matter()
         = manpage_name_section_required() section:&manpage_name_section() {
@@ -3324,6 +3327,23 @@ peg::parser! {
             let blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
             Ok(order_document_attribute_events(blocks))
         }
+
+        pub(crate) rule nested_document_blocks(offset: usize, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
+        = eol()*
+          header:(
+              comment:comment_line_block(offset) eol()* { comment }
+              / attribute:document_attribute_block(offset) (eol() / ![_]) { attribute }
+          )*
+          header:normalize_nested_header(header, initial_attributes)
+          body:blocks(offset, None, None)
+        {
+            let mut blocks = header?;
+            blocks.extend(body?);
+            Ok(order_document_attribute_events(blocks))
+        }
+
+        rule normalize_nested_header(header: Vec<Result<Block<'input>, Error>>, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
+        = { crate::grammar::table::normalize_nested_header(state, header, initial_attributes) }
 
         /// Blocks for table cells without `AsciiDoc` style - excludes block types that require full parsing.
         /// Table cells use a simplified block parser that excludes sections, document attributes,

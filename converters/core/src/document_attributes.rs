@@ -496,8 +496,15 @@ mod tests {
                     .and_then(DocumentAttributeValue::as_str),
                 Some("book")
             );
+            assert!(
+                context
+                    .get("toc")
+                    .is_some_and(DocumentAttributeValue::is_presence)
+            );
             assert_eq!(
-                context.get("toc").and_then(DocumentAttributeValue::as_str),
+                context
+                    .get("toc-position")
+                    .and_then(DocumentAttributeValue::as_str),
                 Some("left")
             );
             assert!(!context.is_nested_document());

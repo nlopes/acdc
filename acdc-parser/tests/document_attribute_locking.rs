@@ -1,4 +1,4 @@
-use acdc_parser::{AttributeValue, Block, Options, parse};
+use acdc_parser::{AttributeValue, Block, DocumentAttributeValue, Options, parse};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -172,19 +172,29 @@ fn documented_modifiable_attributes_accept_document_values() -> Result<(), Error
         };
         let parsed = parse(&source, &Options::default())?;
 
-        assert_eq!(
-            parsed
-                .document()
-                .attributes
-                .get(&name)
-                .and_then(|value| value.text()),
-            if policy == "header" {
-                Some("document")
-            } else {
-                baseline_text
-            },
-            "{name}"
-        );
+        if name == "toc" {
+            assert!(
+                parsed
+                    .document()
+                    .attributes
+                    .get(&name)
+                    .is_some_and(DocumentAttributeValue::is_presence)
+            );
+        } else {
+            assert_eq!(
+                parsed
+                    .document()
+                    .attributes
+                    .get(&name)
+                    .and_then(|value| value.text()),
+                if policy == "header" {
+                    Some("document")
+                } else {
+                    baseline_text
+                },
+                "{name}"
+            );
+        }
         if policy == "body" {
             assert!(parsed.document().blocks.iter().any(|block| {
                 matches!(
@@ -241,15 +251,25 @@ fn documented_header_attributes_keep_the_header_snapshot_after_body_values() -> 
         let source = format!(":{name}: header\n\nBefore.\n\n:{name}: body\n:{name}!:\n\nAfter.\n");
         let parsed = parse(&source, &Options::default())?;
 
-        assert_eq!(
-            parsed
-                .document()
-                .attributes
-                .get(&name)
-                .and_then(|value| value.text()),
-            Some("header"),
-            "{name}"
-        );
+        if name == "toc" {
+            assert!(
+                parsed
+                    .document()
+                    .attributes
+                    .get(&name)
+                    .is_some_and(DocumentAttributeValue::is_presence)
+            );
+        } else {
+            assert_eq!(
+                parsed
+                    .document()
+                    .attributes
+                    .get(&name)
+                    .and_then(|value| value.text()),
+                Some("header"),
+                "{name}"
+            );
+        }
         let events: Vec<_> = parsed
             .document()
             .blocks

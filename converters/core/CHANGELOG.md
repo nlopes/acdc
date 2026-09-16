@@ -102,6 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- TOC placement follows normalized document settings, including `toc2`, position
+  aliases, and explicit `toc-position` and `toc-placement` overrides.
 - Nested AsciiDoc cell traversal applies child document settings and restores
   parent settings after success or failure.
 - Switching backend profiles clears obsolete `htmlsyntax` and convenience

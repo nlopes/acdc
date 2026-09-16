@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use crate::{
-    Block, ColumnStyle, Error, InlineNode, Paragraph, TableColumn, Verbatim,
-    blocks::table::ParsedCell, model::SectionLevel,
+    AttributeName, Block, ColumnStyle, DocumentAttribute, DocumentAttributeAssignment, Error,
+    InlineNode, Paragraph, TableColumn, Verbatim, blocks::table::ParsedCell, model::SectionLevel,
 };
 
 use super::{ParserState, document_parser, inline_processing::adjust_and_log_parse_error};
@@ -60,7 +60,12 @@ pub(crate) fn parse_table_cell<'a>(
             &mut state.document_attributes,
         ));
 
-        let result = document_parser::blocks(content, state, cell_start_offset, None, None);
+        let result = document_parser::nested_document_blocks(
+            content,
+            state,
+            cell_start_offset,
+            &mut initial_attributes,
+        );
 
         state.document_attributes = outer_attributes;
         state.nested_parent_attributes = outer_parent_attributes;
@@ -97,4 +102,30 @@ pub(crate) fn parse_table_cell<'a>(
     );
     column.initial_attributes = initial_attributes;
     Ok(column)
+}
+
+pub(crate) fn normalize_nested_header<'a>(
+    state: &mut ParserState<'a>,
+    header: Vec<Result<Block<'a>, Error>>,
+    initial_attributes: &mut Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>,
+) -> Result<Vec<Block<'a>>, Error> {
+    let mut header = header.into_iter().collect::<Result<Vec<_>, _>>()?;
+    let normalized = crate::document_attribute::normalize_toc_attributes(Rc::make_mut(
+        &mut state.document_attributes,
+    ));
+    // Header entries replay their normalized values when converters enter the cell.
+    for block in &mut header {
+        if let Block::DocumentAttribute(event) = block
+            && event.is_accepted()
+            && let Some((_, assignment)) = normalized.iter().find(|(name, _)| *name == event.name)
+        {
+            *event = DocumentAttribute::accepted(
+                event.name.clone(),
+                assignment.clone(),
+                event.location.clone(),
+            );
+        }
+    }
+    initial_attributes.extend(normalized);
+    Ok(header)
 }

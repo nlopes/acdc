@@ -128,19 +128,24 @@ impl Config {
         toc_macro: Option<&TableOfContents<'_>>,
         attributes: &TraversalContext<'_>,
     ) -> Self {
-        let placement = match attributes.get("toc") {
-            Some(value) => value.as_integer().map_or_else(
-                || {
-                    value
-                        .as_str()
-                        .filter(|text| !text.is_empty())
-                        .unwrap_or("auto")
-                        .to_lowercase()
-                },
-                |value| value.to_string(),
-            ),
-            None => "none".to_string(),
-        };
+        let placement = if attributes.contains_key("toc") {
+            let placement = attributes
+                .get("toc-placement")
+                .and_then(|value| value.as_str())
+                .unwrap_or("auto");
+            if placement == "auto" {
+                attributes
+                    .get("toc-position")
+                    .and_then(|value| value.as_str())
+                    .filter(|position| matches!(*position, "left" | "right" | "top" | "bottom"))
+                    .unwrap_or("auto")
+            } else {
+                placement
+            }
+        } else {
+            "none"
+        }
+        .to_owned();
 
         let title = attributes
             .get("toc-title")
