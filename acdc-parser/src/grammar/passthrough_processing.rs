@@ -313,6 +313,7 @@ fn process_inline_children<'a>(
 fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<InlineNode<'a>> {
     let mut result = Vec::new();
     let mut cursor = 0;
+    let mut copied_until = 0;
     while let Some(relative_start) = raw.content[cursor..].find('{') {
         let start = cursor + relative_start;
         let Some(relative_end) = raw.content[start + 1..].find('}') else {
@@ -333,7 +334,14 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             cursor = end;
             continue;
         };
-        push_raw_segment(&mut result, raw, cursor, start, raw.subs.clone(), state);
+        push_raw_segment(
+            &mut result,
+            raw,
+            copied_until,
+            start,
+            raw.subs.clone(),
+            state,
+        );
         let reference_location = raw_segment_location(raw, start, end, state);
         let mut value = String::new();
         let _ = resolved.write_text(&mut value);
@@ -345,11 +353,12 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             }));
         }
         cursor = end;
+        copied_until = end;
     }
     push_raw_segment(
         &mut result,
         raw,
-        cursor,
+        copied_until,
         raw.content.len(),
         raw.subs.clone(),
         state,
@@ -675,15 +684,6 @@ pub(crate) fn process_passthrough_placeholders<'a>(
             }
             result.push(node);
         }
-    }
-
-    // If no placeholders were found, return the original content as plain text
-    if result.is_empty() {
-        result.push(InlineNode::PlainText(Plain {
-            content,
-            location: base_location.clone(),
-            escaped: false,
-        }));
     }
 
     // Clamp all locations to valid bounds within the input string

@@ -553,7 +553,7 @@ peg::parser! {
         // Double square brackets (anchors): [[...]]
         / "[[" inner:$((!"]]" [_])*) "]]" { state.intern_fmt(format_args!("[[{inner}]]")) }
         // Paired square brackets with prefix (macros): something[...]
-        / prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { state.intern_fmt(format_args!("{prefix}[{inner}]")) }
+        / !literal_pass_macro() prefix:$([^('[' | ' ' | '\t' | '\n' | '\\')]+) "[" inner:$([^']']*) "]" { state.intern_fmt(format_args!("{prefix}[{inner}]")) }
         // Curly braces (attributes): {...}
         / "{" inner:$([^'}']*) "}" { state.intern_fmt(format_args!("{{{inner}}}")) }
         // Double parens (index terms): ((...))
@@ -585,11 +585,17 @@ peg::parser! {
         rule escaped_syntax_match() -> ()
         = "\\" "\\"? escapable_pattern_match()
 
+        rule literal_pass_macro()
+        = "pass:" {?
+            (!state.inline_ctx.substitutions.enabled(&Substitution::Macros))
+                .then_some(()).ok_or("macro substitutions enabled")
+        }
+
         /// Match escapable patterns without consuming
         rule escapable_pattern_match() -> ()
         = "<<" (!">>" [_])* ">>"
         / "[[" (!"]]" [_])* "]]"
-        / [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
+        / !literal_pass_macro() [^('[' | ' ' | '\t' | '\n' | '\\')]+ "[" [^']']* "]"
         / "{" [^'}']* "}"
         / "((" (!"))" [_])* "))"
         // Unconstrained formatting: match entire span

@@ -506,7 +506,10 @@ impl<'a> ParserState<'a> {
             quotes_only: true,
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
-            inline_ctx: InlineContext::default(),
+            inline_ctx: InlineContext {
+                substitutions: SubstitutionPlan::only(&crate::Substitution::Quotes),
+                ..InlineContext::default()
+            },
             next_at_sign_cache: Cell::new(None),
         }
     }

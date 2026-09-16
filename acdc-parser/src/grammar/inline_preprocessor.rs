@@ -697,6 +697,7 @@ parser!(
             // have a colon in the name (e.g., {counter:num}) which is not valid in
             // standard attribute names
             / counter_reference()
+            / escaped_attribute_reference()
             / attribute_reference()
             / unprocessed_text()
         } / expected!("inlines parser failed")
@@ -723,12 +724,13 @@ parser!(
         /// "a disaster" that they want to redesign or remove. We detect them, emit a warning,
         /// and return empty string (the counter syntax is silently removed from output).
         rule counter_reference() -> String
-            = start_offset:byte_offset() "{"
+            = &counter_reference_pattern() start:position!() start_offset:byte_offset() "{"
               counter_type:$("counter2" / "counter") ":"
               name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
               (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)?
-              "}" end_offset:byte_offset()
+              "}" end:position!()
             {
+                let end_offset = start_offset + end - start;
                 let source_location = state.source_location_for(start_offset, end_offset);
                 state.add_warning(Warning::new(
                     WarningKind::Other(Cow::Owned(format!(
@@ -737,9 +739,36 @@ parser!(
                     Some(source_location),
                 ));
 
-                // Return empty string - counter is removed from output
+                // Removed counters still occupy source bytes in later labels and diagnostics.
+                state.source_map.borrow_mut().add_replacement(
+                    start_offset, end_offset, 0, ProcessedKind::Attribute,
+                );
+                state.advance_by(end - start);
                 String::new()
             }
+
+        rule escaped_attribute_reference() -> String
+            = start:position() "\\" text:$("{" attribute_name_pattern() "}") {
+                let location = state.calculate_location(start, text, 1);
+                let text = if state.attributes_enabled { text } else {
+                    state.arena.alloc_str(&format!("\\{text}"))
+                };
+                let index = state.pass_found_count.get();
+                let placeholder = format!("���{index}���");
+                state.passthroughs.borrow_mut().push(Pass {
+                    text: Some(text),
+                    substitutions: vec![Substitution::SpecialChars],
+                    location: location.clone(),
+                    kind: PassthroughKind::AttributeRef,
+                });
+                state.source_map.borrow_mut().add_replacement(
+                    location.absolute_start, location.absolute_end, placeholder.len(), ProcessedKind::Escape,
+                );
+                state.pass_found_count.set(index + 1);
+                placeholder
+            }
+
+        rule escaped_attribute_reference_pattern() = "\\{" attribute_name_pattern() "}"
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
@@ -753,7 +782,19 @@ parser!(
             }
 
         rule escaped_passthrough() -> String
-            = "\\" source:$("+++" (!"+++" [_])+ "+++") {
+            = "\\" source:$("pass:" substitutions() "[" [^']']* "]") {
+                let start = state.get_offset();
+                let expanded = if state.macros_enabled {
+                    state.extract_single_passthroughs(source, start + 1, document_attributes)
+                } else {
+                    let mut text = String::new();
+                    state.append_unprotected_text(&mut text, source, start + 1, document_attributes);
+                    text
+                };
+                state.current_offset.set(start + source.len() + 1);
+                format!("\\{expanded}")
+            }
+            / "\\" source:$("+++" (!"+++" [_])+ "+++") {
                 state.expand_escaped_passthrough(source, document_attributes, true)
             }
             / "\\" source:$("++" (!"++" [_])+ "++") {
@@ -952,14 +993,16 @@ parser!(
             = text:$((
                 [^'{' | '+' | '`' | 'k' | 'p' | '\\']+
                 /
-                !(escaped_passthrough_pattern() / passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
             }
 
         /// Pattern for counter references: {counter:name} or {counter:name:initial} or {counter2:...}
-        rule counter_reference_pattern() = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
+        rule counter_reference_pattern()
+            = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
+              {? state.attributes_enabled.then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 

@@ -19,6 +19,7 @@ second
 Values: {text-value}; [{empty-value}]; {false-text}; {true-text}; {zero-text}; {octal-text}; {positive-text}; {negative-text}; {continued}.
 
 Header copies: {copied-header}; {copied-absent}.
+Escaped reference: \{source-value}.
 Protected values: {max-include-depth}; {safe-mode-name}; {backend-forged}.
 
 :source-value: body

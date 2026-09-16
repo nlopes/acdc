@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Escaped `pass:[...]` macros remain literal and respect the active substitutions,
+  matching Asciidoctor. Counter syntax remains literal when attribute substitutions
+  are disabled; counter evaluation remains unsupported.
 - Header `toc` values now expand as empty text, with the position exposed by
   `toc-position`. Root and AsciiDoc cell headers normalize `toc2`, `toc-placement`,
   and `toc-class` as Asciidoctor does, while retaining caller precedence.

@@ -83,7 +83,7 @@
         {
           "name": "text",
           "type": "string",
-          "value": "Header copies: header; {missing-value}.\nProtected values: 64; unsafe; {backend-forged}.",
+          "value": "Header copies: header; {missing-value}.\nEscaped reference: ",
           "location": [
             {
               "line": 21,
@@ -91,6 +91,36 @@
             },
             {
               "line": 22,
+              "col": 60
+            }
+          ]
+        },
+        {
+          "name": "raw",
+          "type": "string",
+          "value": "{source-value}",
+          "location": [
+            {
+              "line": 22,
+              "col": 20
+            },
+            {
+              "line": 22,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nProtected values: 64; unsafe; {backend-forged}.",
+          "location": [
+            {
+              "line": 22,
+              "col": 75
+            },
+            {
+              "line": 23,
               "col": 74
             }
           ]
@@ -102,7 +132,7 @@
           "col": 1
         },
         {
-          "line": 22,
+          "line": 23,
           "col": 74
         }
       ]
@@ -113,11 +143,11 @@
       "value": "body",
       "location": [
         {
-          "line": 24,
+          "line": 25,
           "col": 1
         },
         {
-          "line": 24,
+          "line": 25,
           "col": 20
         }
       ]
@@ -128,11 +158,11 @@
       "value": "body",
       "location": [
         {
-          "line": 25,
+          "line": 26,
           "col": 1
         },
         {
-          "line": 25,
+          "line": 26,
           "col": 29
         }
       ]
@@ -143,11 +173,11 @@
       "value": false,
       "location": [
         {
-          "line": 26,
+          "line": 27,
           "col": 1
         },
         {
-          "line": 26,
+          "line": 27,
           "col": 16
         }
       ]
@@ -162,11 +192,11 @@
           "value": "After unset: {source-value}; header; body.",
           "location": [
             {
-              "line": 28,
+              "line": 29,
               "col": 1
             },
             {
-              "line": 28,
+              "line": 29,
               "col": 60
             }
           ]
@@ -174,11 +204,11 @@
       ],
       "location": [
         {
-          "line": 28,
+          "line": 29,
           "col": 1
         },
         {
-          "line": 28,
+          "line": 29,
           "col": 60
         }
       ]
@@ -189,11 +219,11 @@
       "value": "later",
       "location": [
         {
-          "line": 30,
+          "line": 31,
           "col": 1
         },
         {
-          "line": 30,
+          "line": 31,
           "col": 21
         }
       ]
@@ -204,11 +234,11 @@
       "value": false,
       "location": [
         {
-          "line": 31,
+          "line": 32,
           "col": 1
         },
         {
-          "line": 31,
+          "line": 32,
           "col": 15
         }
       ]
@@ -223,11 +253,11 @@
           "value": "After reset: later; header; {copied-body}.",
           "location": [
             {
-              "line": 33,
+              "line": 34,
               "col": 1
             },
             {
-              "line": 33,
+              "line": 34,
               "col": 60
             }
           ]
@@ -235,11 +265,11 @@
       ],
       "location": [
         {
-          "line": 33,
+          "line": 34,
           "col": 1
         },
         {
-          "line": 33,
+          "line": 34,
           "col": 60
         }
       ]
@@ -254,11 +284,11 @@
           "value": "Rejected assignments: 64; unsafe; {doctype-forged}; {filetype-forged}.",
           "location": [
             {
-              "line": 41,
+              "line": 42,
               "col": 1
             },
             {
-              "line": 41,
+              "line": 42,
               "col": 97
             }
           ]
@@ -266,11 +296,11 @@
       ],
       "location": [
         {
-          "line": 41,
+          "line": 42,
           "col": 1
         },
         {
-          "line": 41,
+          "line": 42,
           "col": 97
         }
       ]
@@ -287,11 +317,11 @@
           "value": ":literal-value: remains text\n{source-value}",
           "location": [
             {
-              "line": 44,
+              "line": 45,
               "col": 1
             },
             {
-              "line": 45,
+              "line": 46,
               "col": 14
             }
           ]
@@ -299,11 +329,11 @@
       ],
       "location": [
         {
-          "line": 43,
+          "line": 44,
           "col": 1
         },
         {
-          "line": 46,
+          "line": 47,
           "col": 4
         }
       ]
@@ -315,7 +345,7 @@
       "col": 1
     },
     {
-      "line": 46,
+      "line": 47,
       "col": 4
     }
   ]
