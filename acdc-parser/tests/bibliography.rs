@@ -1,6 +1,120 @@
-use acdc_parser::{Block, InlineNode, Options, SectionKind, WarningKind, parse};
+use acdc_parser::{Block, InlineNode, Options, SafeMode, SectionKind, WarningKind, parse};
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn bibliography_citation_keeps_attribute_escape() -> Result<(), Error> {
+    let parsed = parse(
+        "= T\n:value: expanded\n\n[bibliography]\n* [[[ref,\\{value}]]] Entry.\n",
+        &Options::default(),
+    )?;
+    let label = parsed
+        .document()
+        .references
+        .get("ref")
+        .and_then(|reference| reference.xreflabel.as_ref())
+        .ok_or("missing label")?;
+    let text: String = label
+        .iter()
+        .filter_map(|node| {
+            if let InlineNode::PlainText(plain) = node {
+                Some(plain.content)
+            } else if let InlineNode::RawText(raw) = node {
+                Some(raw.content)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(text, "[\\{value}]", "{label:?}");
+    Ok(())
+}
+
+#[test]
+fn bibliography_reference_warnings_retain_source_locations() -> Result<(), Error> {
+    let source = "= T\n\nBefore.\n\n[bibliography]\n* [[[ref,<<missing>> +]]] Entry.\n";
+    let parsed = parse(source, &Options::default())?;
+    let warnings: Vec<_> = parsed
+        .warnings()
+        .iter()
+        .filter(|warning| {
+            warning
+                .kind
+                .to_string()
+                .contains("invalid reference: missing")
+        })
+        .collect();
+    assert_eq!(warnings.len(), 1, "{:?}", parsed.warnings());
+    let location = &warnings
+        .first()
+        .ok_or("missing warning")?
+        .source_location()
+        .ok_or("missing warning source")?
+        .location;
+    assert_eq!(location.start.line, 6);
+    Ok(())
+}
+
+#[test]
+fn bibliography_labels_keep_parent_safe_mode_and_original_citation_text() -> Result<(), Error> {
+    let source = "[bibliography]\n* [[[ref,pass:a[{safe-mode-name}]]]] Entry.\n";
+    for mode in [
+        SafeMode::Unsafe,
+        SafeMode::Safe,
+        SafeMode::Server,
+        SafeMode::Secure,
+    ] {
+        let options = Options::builder().with_safe_mode(mode).build()?;
+        let parsed = parse(source, &options)?;
+        let list = unordered_list(parsed.document().blocks.first().ok_or("missing list")?)?;
+        let [InlineNode::InlineAnchor(anchor), ..] = list
+            .items
+            .first()
+            .ok_or("missing list item")?
+            .principal
+            .as_slice()
+        else {
+            return Err("missing bibliography anchor".into());
+        };
+        assert_eq!(anchor.xreflabel, Some("pass:a[{safe-mode-name}"));
+        let label = anchor.bibliography_label().ok_or("missing entry content")?;
+        assert!(
+            matches!(label, [InlineNode::RawText(raw)] if raw.content == mode.name()),
+            "{mode:?}: {label:?}"
+        );
+        assert!(label.iter().all(|inline| {
+            let location = inline.location();
+            location.absolute_start >= source.find("pass:").unwrap_or_default()
+                && location.absolute_end < source.len()
+        }));
+    }
+    Ok(())
+}
+
+#[test]
+fn bibliography_attribute_values_do_not_become_new_passthroughs() -> Result<(), Error> {
+    let parsed = parse(
+        "= T\n:raw: +++<mark>raw</mark>+++\n\n[bibliography]\n* [[[ref,{raw}]]] Entry.\n",
+        &Options::default(),
+    )?;
+    let list = unordered_list(parsed.document().blocks.first().ok_or("missing list")?)?;
+    let [InlineNode::InlineAnchor(anchor), ..] = list
+        .items
+        .first()
+        .ok_or("missing list item")?
+        .principal
+        .as_slice()
+    else {
+        return Err("missing bibliography anchor".into());
+    };
+    assert_eq!(anchor.xreflabel, Some("{raw}"));
+    let label = anchor.bibliography_label().ok_or("missing entry content")?;
+    assert!(
+        matches!(label, [InlineNode::PlainText(plain)] if plain.content == "+++<mark>raw</mark>+++"),
+        "{label:?}"
+    );
+    Ok(())
+}
 
 fn unordered_list<'block, 'source>(
     block: &'block Block<'source>,

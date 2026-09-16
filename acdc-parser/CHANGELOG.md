@@ -35,9 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Escaped `pass:[...]` macros remain literal and respect the active substitutions,
   matching Asciidoctor. Counter syntax remains literal when attribute substitutions
   are disabled; counter evaluation remains unsupported.
+- Bibliography labels accept footnotes and brackets introduced by attributes.
+  Multiline passthrough entries retain Asciidoctor's separate citation fallback.
 - Header `toc` values now expand as empty text, with the position exposed by
   `toc-position`. Root and AsciiDoc cell headers normalize `toc2`, `toc-placement`,
   and `toc-class` as Asciidoctor does, while retaining caller precedence.
+- Bibliography entry labels use the attributes and safe mode at their source
+  position. Citation labels retain their original attribute references, matching
+  Asciidoctor. Attribute values cannot introduce a second passthrough substitution.
 - AsciiDoc table cells match Asciidoctor inheritance for source unsets, locked
   caller unsets, inherited defaults, and child document exceptions.
 - Processor defaults for `backend`, `basebackend`, `filetype`, and `doctype`

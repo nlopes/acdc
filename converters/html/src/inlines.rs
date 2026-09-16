@@ -59,11 +59,11 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Anchor, AttributeValue, Autolink, Block, Bold, Button, CalloutRef, CrossReference,
-    CurvedApostrophe, CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image,
-    IndexTerm, IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto,
-    Menu, Monospace, Options as ParserOptions, Pass, Plain, Raw, Stem, StemNotation, Subscript,
-    Substitution, Superscript, Url, Verbatim, parse, parse_text_for_quotes, strip_quotes,
+    Anchor, AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
+    CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
+    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu,
+    Monospace, Pass, Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url,
+    Verbatim, parse_text_for_quotes, strip_quotes,
 };
 
 use crate::{
@@ -384,50 +384,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        if let Some(source) = anchor
-            .xreflabel
-            .filter(|source| source.contains('+') || source.contains("pass:"))
-            && let Some(label) =
-                self.render_preprocessed_bibliography_label(traversal, source, options, subs)?
-        {
-            write!(self.writer_mut(), "{label}")?;
+        if let Some(label) = anchor.bibliography_label() {
+            let html = self.render_bibliography_inline_fragment(traversal, label, options, subs)?;
+            write!(self.writer_mut(), "[{html}]")?;
             return Ok(());
         }
 
-        let processor = Rc::clone(&self.processor);
-        let Some(label) = processor
-            .references
-            .get(anchor.id)
-            .and_then(|reference| reference.xreflabel.as_deref())
-        else {
-            write!(self.writer_mut(), "[{}]", escape_pcdata(anchor.id))?;
-            return Ok(());
-        };
-        let html = self.render_bibliography_inline_fragment(traversal, label, options, subs)?;
-        write!(self.writer_mut(), "{html}")?;
+        write!(self.writer_mut(), "[{}]", escape_pcdata(anchor.id))?;
         Ok(())
-    }
-
-    fn render_preprocessed_bibliography_label(
-        &mut self,
-        traversal: &mut TraversalContext<'a>,
-        source: &str,
-        options: &RenderOptions,
-        subs: &[Substitution],
-    ) -> Result<Option<String>, Error> {
-        let wrapped = format!("({source})");
-        let parser_options =
-            ParserOptions::default().with_document_attributes(traversal.to_document_attributes()?);
-        let parsed = parse(&wrapped, &parser_options)?;
-        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
-            return Ok(None);
-        };
-        let html =
-            self.render_bibliography_inline_fragment(traversal, &paragraph.content, options, subs)?;
-        Ok(html
-            .strip_prefix('(')
-            .and_then(|html| html.strip_suffix(')'))
-            .map(|html| format!("[{html}]")))
     }
 
     fn render_bibliography_inline_fragment(
@@ -437,12 +401,10 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<String, Error> {
-        let mut fragment_options = options.clone();
-        fragment_options.toc_mode = true;
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
             Rc::clone(&self.processor),
-            fragment_options,
+            options.clone(),
             self.diagnostics.reborrow(),
         );
         visitor.current_subs = subs.to_vec();
@@ -854,6 +816,23 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
+        if self.captured_raw_fragments.is_some() {
+            let mut visitor = HtmlVisitor::new(
+                Vec::new(),
+                Rc::clone(&self.processor),
+                options.clone(),
+                self.diagnostics.reborrow(),
+            );
+            visitor.current_subs = subs.to_vec();
+            visitor.render_inline_macro(traversal, m, options, subs)?;
+            let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
+            if let Some(captured) = self.captured_raw_fragments.as_mut() {
+                let index = captured.len();
+                captured.push(html);
+                write!(self.writer_mut(), "{}", raw_fragment_placeholder(index))?;
+            }
+            return Ok(());
+        }
         match m {
             InlineMacro::Autolink(al) => self.render_autolink(al, options),
             InlineMacro::Link(l) => self.render_link(traversal, l, options, subs),

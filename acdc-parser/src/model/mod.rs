@@ -9,6 +9,7 @@ use serde::{
 
 mod admonition;
 mod anchor;
+pub(crate) use anchor::BibliographyLabel;
 mod attributes;
 mod attribution;
 pub(crate) mod caption;

@@ -150,6 +150,7 @@ pub(crate) fn process_attribute_list<'input>(
                     }
                 };
                 metadata.id = Some(Anchor {
+                    bibliography_label: None,
                     id,
                     xreflabel: None,
                     location: state.create_location(id_start, id_end),

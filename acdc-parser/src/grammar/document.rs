@@ -933,6 +933,7 @@ fn apply_style_part<'input>(
                 id: value,
                 xreflabel: None,
                 location,
+                bibliography_label: None,
                 bibliography: false,
             });
         }
@@ -1029,6 +1030,7 @@ fn store_named_block_attribute<'input>(
                 id: value,
                 xreflabel: None,
                 location: location.clone().unwrap_or_default(),
+                bibliography_label: None,
                 bibliography: false,
             });
         }
@@ -1699,6 +1701,9 @@ fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<
     }
 
     anchor.bibliography = true;
+    if let Some(label) = &anchor.bibliography_label {
+        anchor.xreflabel = label.source;
+    }
     anchor.location =
         state.create_location(open.location.absolute_start, close.location.absolute_start);
     let remove_close = if close.content == "]" {
@@ -1764,7 +1769,12 @@ fn collect_inline_references<'a>(
 ) {
     for inline in inlines {
         match inline {
-            InlineNode::InlineAnchor(anchor) => insert_reference(state, refs, anchor, None, None),
+            InlineNode::InlineAnchor(anchor) => {
+                insert_reference(state, refs, anchor, None, None);
+                if let Some(label) = anchor.bibliography_label() {
+                    collect_inline_references(state, label, refs, xrefs);
+                }
+            }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 xrefs.push(CrossReferenceUse {
                     target: xref.target,
@@ -6128,6 +6138,7 @@ peg::parser! {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_location(span_start, end),
+                bibliography_label: None,
                 bibliography: false,
             }
         }
@@ -6153,6 +6164,7 @@ peg::parser! {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_block_location(span_start, span_end, offset),
+                bibliography_label: None,
                 bibliography: false,
             })
         }
@@ -7251,6 +7263,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     start: Position::new(1, 5),
                     end: Position::new(1, 10),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7279,6 +7292,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     start: Position::new(1, 9),
                     end: Position::new(1, 13),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7307,6 +7321,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     start: Position::new(1, 9),
                     end: Position::new(1, 13),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7336,6 +7351,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     start: Position::new(1, 3),
                     end: Position::new(1, 13),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7363,6 +7379,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                     start: Position::new(1, 3),
                     end: Position::new(1, 8),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );

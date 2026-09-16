@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - TOC placement and CSS classes follow Asciidoctor's normalized header settings.
+- Bibliography labels preserve the document safe mode and keep the home
+  directory hidden in server and secure modes. Entry links remain clickable,
+  and attribute values do not become new passthroughs.
 - AsciiDoc table cells use their own document type and title/TOC settings while
   retaining the parent settings outside the cell.
 - `source-indent` and block `indent` remove common leading whitespace before

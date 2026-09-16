@@ -202,16 +202,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                     continue;
                 }
 
-                let label = visitor
-                    .processor
-                    .references
-                    .get(anchor.id)
-                    .and_then(|reference| reference.xreflabel.as_deref())
-                    .map(<[_]>::to_vec);
                 writeln!(visitor.writer_mut(), ".TP")?;
                 write!(visitor.writer_mut(), "\\fB")?;
-                if let Some(label) = label {
-                    visitor.visit_inline_nodes(traversal, &label)?;
+                if let Some(label) = anchor.bibliography_label() {
+                    write!(visitor.writer_mut(), "[")?;
+                    visitor.visit_inline_nodes(traversal, label)?;
+                    write!(visitor.writer_mut(), "]")?;
                 } else {
                     write!(visitor.writer_mut(), "[{}]", anchor.id)?;
                 }

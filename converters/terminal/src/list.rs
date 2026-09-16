@@ -238,14 +238,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
                 item.principal.split_first()
                 && anchor.is_bibliography()
             {
-                if let Some(label) = self
-                    .processor
-                    .references
-                    .get(anchor.id)
-                    .and_then(|reference| reference.xreflabel.as_deref())
-                    .map(<[_]>::to_vec)
-                {
-                    self.visit_inline_nodes(traversal, &label)?;
+                if let Some(label) = anchor.bibliography_label() {
+                    write!(self.writer, "[")?;
+                    self.visit_inline_nodes(traversal, label)?;
+                    write!(self.writer, "]")?;
                 } else {
                     self.writer
                         .queue(PrintStyledContent(format!("[{}]", anchor.id).bold()))?;

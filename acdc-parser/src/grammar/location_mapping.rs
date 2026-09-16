@@ -1,4 +1,4 @@
-use crate::{Form, InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source};
+use crate::{Error, Form, InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source};
 
 use super::{
     ParserState,
@@ -53,7 +53,7 @@ pub(crate) struct LocationMappingContext<'a, 'b> {
 }
 
 /// Type alias for location mapping closures
-pub(crate) type LocationMapper<'a> = dyn Fn(&Location) -> Result<Location, crate::Error> + 'a;
+pub(crate) type LocationMapper<'a> = dyn Fn(&Location) -> Result<Location, Error> + 'a;
 
 /// Location mapping coordinate transformations during inline processing.
 ///
@@ -100,7 +100,7 @@ pub(crate) fn create_location_mapper<'a>(
     base_location: &'a Location,
     form: Option<&'a Form>,
 ) -> Box<LocationMapper<'a>> {
-    Box::new(move |loc: &Location| -> Result<Location, crate::Error> {
+    Box::new(move |loc: &Location| -> Result<Location, Error> {
         tracing::info!(?base_location, ?loc, "mapping inline location");
 
         // Convert processed-relative absolute offsets into document-absolute offsets
@@ -225,7 +225,7 @@ pub(crate) fn map_inner_content_locations<'a>(
     state: &ParserState<'a>,
     processed: &'a ProcessedContent<'a>,
     base_location: &Location,
-) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+) -> Result<Vec<InlineNode<'a>>, Error> {
     let mut mapped_content = Vec::with_capacity(content.len());
     for node in content {
         match node {
@@ -309,7 +309,7 @@ pub(crate) fn map_inline_locations<'a>(
     processed: &'a ProcessedContent<'a>,
     content: &[InlineNode<'a>],
     location: &Location,
-) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+) -> Result<Vec<InlineNode<'a>>, Error> {
     tracing::info!(?location, "mapping inline locations");
 
     let map_loc = create_location_mapper(state, processed, location, None);
@@ -377,6 +377,22 @@ pub(crate) fn map_inline_locations<'a>(
             InlineNode::InlineAnchor(anchor) => {
                 let mut mapped = anchor.clone();
                 mapped.location = map_loc(&anchor.location)?;
+                if let Some(label) = &mut mapped.bibliography_label {
+                    label.content =
+                        map_inline_locations(state, processed, &label.content, location)?;
+                    // Citation registration uses source lines before passthrough extraction.
+                    label.source = mapped
+                        .location
+                        .absolute_start
+                        .checked_sub(1)
+                        .and_then(|start| state.input.get(start..mapped.location.absolute_end + 2))
+                        .and_then(|source| source.strip_prefix("[[["))
+                        .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
+                        .and_then(|source| {
+                            source.split_once(',').map(|(_, label)| label.trim_start())
+                        })
+                        .filter(|source| !source.contains(['\n', '\r']));
+                }
                 mapped.xreflabel = mapped
                     .xreflabel
                     .map(|label| restore_reference_label_passthroughs(label, state, processed));
@@ -429,7 +445,7 @@ fn map_inline_macro<'a>(
     processed: &'a ProcessedContent<'a>,
     location: &Location,
     map_loc: &LocationMapper<'_>,
-) -> Result<InlineNode<'a>, crate::Error> {
+) -> Result<InlineNode<'a>, Error> {
     use crate::InlineMacro;
     let mut mapped_macro = inline_macro.clone();
     match &mut mapped_macro {
@@ -527,7 +543,7 @@ fn map_plain_text_inline_locations<'a>(
     state: &ParserState<'a>,
     processed: &'a ProcessedContent<'a>,
     map_loc: &LocationMapper<'_>,
-) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+) -> Result<Vec<InlineNode<'a>>, Error> {
     // Extract plain text at `'a` so the passthrough-processing path can hand
     // back `InlineNode<'a>`. The content is already arena-allocated `&'a str`.
     let original_content: &'a str = plain.content;

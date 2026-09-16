@@ -2235,12 +2235,12 @@ peg::parser! {
         )
 
         rule inline_anchor() -> InlineNode<'input>
-        = double_open_square_bracket()
+        = start:position!() double_open_square_bracket()
         // Whitespace is excluded - IDs must not contain spaces
         warn_anchor_id_with_whitespace()?
         id:$([^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+)
         reftext:(
-            comma() reftext:$([^']']+) {
+            comma() reftext:anchor_reftext(start) {
                 Some(reftext)
             } /
             {
@@ -2255,12 +2255,28 @@ peg::parser! {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                bibliography_label: None,
                 bibliography: false,
             })
         }
 
         rule inline_anchor_match() -> ()
-        = double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+ (comma() [^']']+)? double_close_square_bracket()
+        = start:position!() double_open_square_bracket() [^'\'' | ',' | ']' | '[' | ' ' | '\t' | '\n' | '\r']+ (comma() anchor_reftext(start))? double_close_square_bracket()
+
+        rule bibliography_anchor_start(start: usize)
+        = {?
+            start.checked_sub(1)
+                .and_then(|offset| state.input.get(offset..start))
+                .filter(|previous| *previous == "[")
+                .map(|_| ())
+                .ok_or("not a bibliography anchor")
+        }
+
+        rule anchor_reftext(start: usize) -> &'input str
+        // Reserve the last three closing brackets for the bibliography delimiter.
+        = bibliography_anchor_start(start)
+          label:$((!("]]]" !"]") [^'\n' | '\r'])+) { label }
+        / !bibliography_anchor_start(start) label:$([^']']+) { label }
 
         rule invalid_bibliography_anchor() -> InlineNode<'input>
         = syntax:$("[[[" [^']' | '\n']* "]]]") {?

@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use acdc_parser::{
-    AttributeValue, Block, DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeValue,
+    Block, DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeValue,
     DocumentAttributes,
 };
 use rustc_hash::FxHashMap;
@@ -194,7 +194,7 @@ impl<'doc> TraversalContext<'doc> {
         self.get(name).is_some()
     }
 
-    /// Whether the document explicitly sets or unsets this attribute.
+    /// Whether an explicit assignment is active at this position.
     #[must_use]
     pub fn is_explicit(&self, name: &str) -> bool {
         self.attribute_assignment(name).is_some()
@@ -204,34 +204,6 @@ impl<'doc> TraversalContext<'doc> {
     #[must_use]
     pub fn substitute_attributes<'text>(&self, text: &'text str) -> Cow<'text, str> {
         acdc_parser::substitute_attributes(text, |name| self.get(name))
-    }
-
-    /// Copy the current assignments for a separate parsing operation.
-    ///
-    /// This allocates; ordinary conversion reads borrow the document instead.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error if an effective assignment fails configuration validation.
-    pub fn to_document_attributes(
-        &self,
-    ) -> Result<DocumentAttributes<'static>, acdc_parser::Error> {
-        let mut inputs: FxHashMap<_, _> = self.header.to_static().into_inputs().collect();
-        for (name, assignment) in &self.overlay {
-            let value = match AttributeValue::from(*assignment) {
-                AttributeValue::String(text) => {
-                    AttributeValue::String(Cow::Owned(text.into_owned()))
-                }
-                AttributeValue::Bool(value) => AttributeValue::Bool(value),
-                AttributeValue::None | _ => AttributeValue::None,
-            };
-            inputs.insert(Cow::Owned((*name).to_owned()), value);
-        }
-        acdc_parser::Options::builder()
-            .with_attributes(inputs)
-            .build()
-            .map(acdc_parser::Options::into_document_attributes)
-            .map(DocumentAttributes::into_static)
     }
 }
 
@@ -414,38 +386,6 @@ mod tests {
             assert!(!context.is_nested_document());
             assert_eq!(context.substitute_attributes("{name}"), "parent");
         }
-        Ok(())
-    }
-
-    #[test]
-    fn owned_reparse_boundary_preserves_spelling_unsets_and_implicit_defaults() -> Result<(), Error>
-    {
-        let options = Options::builder()
-            .with_attribute("max-include-depth", "03")
-            .build()?;
-        let parsed = parse(
-            "= Header\n:name: header\n\nBody.\n\n:name: body\n:figure-caption!:\n",
-            &options,
-        )?;
-        let mut context = TraversalContext::new(&parsed.document().attributes);
-        let mut observer = Observer::default();
-        context.visit_blocks(&mut observer, &parsed.document().blocks)?;
-        let snapshot = context.to_document_attributes()?;
-        assert_eq!(
-            snapshot.get("name").and_then(DocumentAttributeValue::text),
-            Some("body")
-        );
-        assert_eq!(
-            snapshot
-                .get("max-include-depth")
-                .and_then(DocumentAttributeValue::text),
-            Some("03")
-        );
-        assert!(matches!(
-            snapshot.assignment("figure-caption"),
-            Some(DocumentAttributeAssignment::Unset)
-        ));
-        assert!(!snapshot.is_explicit("table-caption"));
         Ok(())
     }
 

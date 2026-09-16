@@ -1875,11 +1875,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             let _ = write!(self.writer, "#link(<{label}>)[");
         }
 
-        if let Some(label) = references
-            .get(anchor.id)
-            .and_then(|reference| reference.xreflabel.as_deref())
-        {
+        if let Some(label) = anchor.bibliography_label() {
+            self.write_text_expr("[");
             self.write_inlines(traversal, label)?;
+            self.write_text_expr("]");
         } else {
             self.write_text_expr(&format!("[{}]", anchor.id));
         }

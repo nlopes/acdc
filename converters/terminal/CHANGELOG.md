@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bibliography entries substitute attributes at their source position while
+  citation labels retain their original attribute references, matching Asciidoctor.
 - AsciiDoc table cells apply their child document settings without changing
   parent or sibling settings.
 - Attribute changes inside admonitions, examples, quotes, sidebars, and list

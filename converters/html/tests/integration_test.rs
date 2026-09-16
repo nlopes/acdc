@@ -17,6 +17,49 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn bibliography_conversion_keeps_parent_safe_mode() -> Result<(), Error> {
+    for mode in [
+        SafeMode::Unsafe,
+        SafeMode::Safe,
+        SafeMode::Server,
+        SafeMode::Secure,
+    ] {
+        let parsed = parse(
+            "[bibliography]\n* [[[ref,pass:a[{safe-mode-name}; {safe-mode-level}]]]] Entry.\n* [[[home,pass:a[{user-home}]]]] Home.\n",
+            &ParserOptions::builder().with_safe_mode(mode).build()?,
+        )?;
+        let processor = Processor::new_with_variant(
+            ConverterOptions::builder().safe_mode(mode).build(),
+            ParserOptions::builder(),
+            HtmlVariant::Standard,
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        processor.convert_to_writer(
+            parsed.document(),
+            &mut output,
+            &RenderOptions {
+                embedded: true,
+                ..RenderOptions::default()
+            },
+            &mut diagnostics,
+        )?;
+        let html = String::from_utf8(output)?;
+        assert!(
+            html.contains(&format!("[{}; {}] Entry.", mode.name(), mode.level())),
+            "{html}"
+        );
+        if mode >= SafeMode::Server {
+            assert!(html.contains("[.] Home."), "{html}");
+        }
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+    Ok(())
+}
+
+#[test]
 fn oversized_source_indent_is_a_bounded_structured_warning() -> Result<(), Error> {
     for highlighter in [false, true] {
         for assignment in [
@@ -124,6 +167,32 @@ fn render_fixture(path: &Path, variant: HtmlVariant, embedded: bool) -> Result<S
 }
 
 #[rstest::rstest]
+#[case::bibliography_recognition(
+    r"= References
+:label: a[b]c
+
+Citations: <<brackets>>, <<note>>, <<escaped>>, <<multiline>>.
+
+[bibliography]
+* [[[brackets,{label}]]] Bracketed attribute.
+* [[[note,footnote:[A note.] +]]] Footnote label.
+* [[[escaped,\pass:[raw]]]] Escaped macro.
+* [[[multiline,pass:a[first
+second]]]] Multiline passthrough.
+",
+    &[
+        r##"Citations: <a href="#brackets">[{label}]</a>, <a href="#note">[footnote:[A note.] +]</a>, <a href="#escaped">[\pass:[raw]</a>, <a href="#multiline">[multiline]</a>."##,
+        r#"<a id="brackets"></a>[a[b]c] Bracketed attribute."#,
+        r##"<a id="note"></a>[<sup class="footnote">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup> +] Footnote label."##,
+        r#"<a id="escaped"></a>[pass:[raw]] Escaped macro."#,
+        r#"<a id="multiline"></a>[first
+second] Multiline passthrough."#,
+    ],
+    &[
+        r##"
+<a href="#_footnoteref_1">1</a>. A note."##,
+    ],
+)]
 #[case::toc_attribute_normalization(
     r#"= TOC attributes
 :toc: left

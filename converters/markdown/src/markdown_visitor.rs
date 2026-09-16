@@ -495,17 +495,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             return Ok(());
         }
 
-        let label = self
-            .processor
-            .references
-            .get(anchor.id)
-            .and_then(|reference| reference.xreflabel.as_deref())
-            .map(<[_]>::to_vec);
-        if let Some(label) = label {
-            self.visit_inline_nodes(traversal, &label)?;
-        } else {
-            write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id))?;
+        if let Some(label) = anchor.bibliography_label() {
+            write!(self.writer, "\\[")?;
+            self.visit_inline_nodes(traversal, label)?;
+            write!(self.writer, "\\]")?;
+            return Ok(());
         }
+
+        write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id))?;
         Ok(())
     }
 

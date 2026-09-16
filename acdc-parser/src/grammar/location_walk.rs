@@ -198,12 +198,16 @@ where
             InlineNode::CurvedQuotationText(t) => self.inlines(&mut t.content),
             InlineNode::CurvedApostropheText(t) => self.inlines(&mut t.content),
             InlineNode::Macro(m) => self.inline_macro(m),
+            InlineNode::InlineAnchor(anchor) => {
+                if let Some(label) = &mut anchor.bibliography_label {
+                    self.inlines(&mut label.content);
+                }
+            }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
-            | InlineNode::InlineAnchor(_)
             | InlineNode::CalloutRef(_) => {}
         }
     }
