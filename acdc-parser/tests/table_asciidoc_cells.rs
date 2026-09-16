@@ -1,6 +1,6 @@
 use acdc_parser::{
-    AttributeValue, Block, DelimitedBlockType, Document, InlineNode, Options, Paragraph, Table,
-    TableColumn, parse,
+    Block, DelimitedBlockType, Document, DocumentAttributeAssignment, DocumentAttributeValue,
+    InlineNode, Options, Paragraph, Table, TableColumn, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -83,27 +83,29 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
             Some(attribute)
         })
         .collect();
-    assert_eq!(attribute_entries.len(), 5);
-    let changed_outer = attribute_entries
-        .get(2)
-        .ok_or("expected changed outer entry")?;
-    let unset_outer = attribute_entries
-        .get(3)
-        .ok_or("expected unset outer entry")?;
-    assert_eq!(changed_outer.name.as_ref(), "outer");
+    assert_eq!(attribute_entries.len(), 3);
+    let local_set = attribute_entries.first().ok_or("expected local set")?;
+    let local_unset = attribute_entries.last().ok_or("expected local unset")?;
+    assert_eq!(local_set.name.as_ref(), "cell-local");
     assert_eq!(
-        changed_outer.value,
-        AttributeValue::String("changed".into())
+        *local_set.assignment(),
+        DocumentAttributeAssignment::Set(DocumentAttributeValue::from("local"))
     );
-    assert_eq!(unset_outer.name.as_ref(), "outer");
-    assert_eq!(unset_outer.value, AttributeValue::Bool(false));
+    assert_eq!(local_unset.name.as_ref(), "cell-local");
+    assert_eq!(
+        *local_unset.assignment(),
+        DocumentAttributeAssignment::Unset
+    );
     assert_eq!(
         cell_paragraphs(row.columns.get(1).ok_or("expected the second cell")?),
         ["Sibling {cell-local} and inherited."]
     );
     assert_eq!(
-        document.attributes.get("outer"),
-        Some(&AttributeValue::String("inherited".into()))
+        document
+            .attributes
+            .get("outer")
+            .and_then(|value| value.text()),
+        Some("inherited")
     );
     assert!(!document.attributes.contains_key("cell-local"));
     assert!(!document.attributes.contains_key("sectnums"));
@@ -112,6 +114,29 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
         return Err("expected a trailing paragraph".into());
     };
     assert_eq!(paragraph_text(after), "After {cell-local} and inherited.");
+    Ok(())
+}
+
+#[test]
+fn attribute_syntax_in_plain_cells_is_literal_text() -> Result<(), Error> {
+    let parsed = parse(
+        "= T\n\n|===\n|\n:cell-local: value\n\nCell sees {cell-local}.\n|===\n",
+        &Options::default(),
+    )?;
+    let table = table(parsed.document().blocks.first().ok_or("expected a table")?)?;
+    let content = &table
+        .rows
+        .first()
+        .and_then(|row| row.columns.first())
+        .ok_or("expected a cell")?
+        .content;
+
+    let [Block::Paragraph(assignment), Block::Paragraph(after)] = content.as_slice() else {
+        return Err("expected two literal paragraphs, not an attribute event".into());
+    };
+    assert_eq!(paragraph_text(assignment), ":cell-local: value");
+    assert_eq!(paragraph_text(after), "Cell sees {cell-local}.");
+    assert!(!parsed.document().attributes.contains_key("cell-local"));
     Ok(())
 }
 

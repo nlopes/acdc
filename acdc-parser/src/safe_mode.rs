@@ -66,6 +66,28 @@ impl FromStr for SafeMode {
     }
 }
 
+impl SafeMode {
+    #[must_use]
+    pub const fn level(self) -> u8 {
+        match self {
+            Self::Unsafe => 0,
+            Self::Safe => 1,
+            Self::Server => 10,
+            Self::Secure => 20,
+        }
+    }
+
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Unsafe => "unsafe",
+            Self::Safe => "safe",
+            Self::Server => "server",
+            Self::Secure => "secure",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

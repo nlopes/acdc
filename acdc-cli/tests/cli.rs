@@ -1,7 +1,10 @@
 use std::{
+    error::Error,
     io::{self, Write},
     process::{Command, Output, Stdio},
 };
+#[cfg(any(feature = "html", feature = "terminal", feature = "inspect"))]
+use tempfile::tempdir;
 
 #[cfg(any(feature = "html", feature = "terminal", feature = "inspect"))]
 use std::fs;
@@ -41,7 +44,7 @@ fn output_text(bytes: &[u8]) -> String {
     feature = "tck",
 )))]
 #[test]
-fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&[], None)?;
     let stderr = output_text(&output.stderr);
 
@@ -53,7 +56,7 @@ fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn std::er
 
 #[cfg(feature = "html")]
 #[test]
-fn convert_requires_an_input() -> Result<(), Box<dyn std::error::Error>> {
+fn convert_requires_an_input() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&["convert"], None)?;
     let stderr = output_text(&output.stderr);
 
@@ -65,7 +68,7 @@ fn convert_requires_an_input() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "lint")]
 #[test]
-fn lint_requires_an_input() -> Result<(), Box<dyn std::error::Error>> {
+fn lint_requires_an_input() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&["lint"], None)?;
     let stderr = output_text(&output.stderr);
 
@@ -77,7 +80,7 @@ fn lint_requires_an_input() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "html")]
 #[test]
-fn missing_input_file_returns_a_failure() -> Result<(), Box<dyn std::error::Error>> {
+fn missing_input_file_returns_a_failure() -> Result<(), Box<dyn Error>> {
     let missing = "acdc-cli-test-file-that-does-not-exist.adoc";
     let output = run_acdc(&["convert", missing], None)?;
     let stderr = output_text(&output.stderr);
@@ -90,7 +93,7 @@ fn missing_input_file_returns_a_failure() -> Result<(), Box<dyn std::error::Erro
 
 #[cfg(feature = "lint")]
 #[test]
-fn denied_lint_returns_a_failure() -> Result<(), Box<dyn std::error::Error>> {
+fn denied_lint_returns_a_failure() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(
         &[
             "lint",
@@ -111,7 +114,7 @@ fn denied_lint_returns_a_failure() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "tck")]
 #[test]
-fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn std::error::Error>> {
+fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(
         &["tck"],
         Some(r#"{"contents":"text","path":"test.adoc","type":"document"}"#),
@@ -125,7 +128,7 @@ fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn std::error::Error>
 
 #[cfg(feature = "html")]
 #[test]
-fn converts_stdin_to_stdout() -> Result<(), Box<dyn std::error::Error>> {
+fn converts_stdin_to_stdout() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(
         &["convert", "--stdin", "--out-file", "-"],
         Some("= CLI integration test\n\nConverted body.\n"),
@@ -140,8 +143,7 @@ fn converts_stdin_to_stdout() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(feature = "html")]
 #[test]
-fn command_line_attributes_cannot_be_changed_by_document_entries()
--> Result<(), Box<dyn std::error::Error>> {
+fn command_line_attributes_cannot_be_changed_by_document_entries() -> Result<(), Box<dyn Error>> {
     let locked_set = run_acdc(
         &[
             "convert",
@@ -187,8 +189,7 @@ fn command_line_attributes_cannot_be_changed_by_document_entries()
 
 #[cfg(feature = "html")]
 #[test]
-fn soft_command_line_attributes_can_be_changed_by_document_entries()
--> Result<(), Box<dyn std::error::Error>> {
+fn soft_command_line_attributes_can_be_changed_by_document_entries() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(
         &[
             "convert",
@@ -228,7 +229,7 @@ fn soft_command_line_attributes_can_be_changed_by_document_entries()
 
 #[cfg(feature = "html")]
 #[test]
-fn converter_defaults_remain_document_overridable() -> Result<(), Box<dyn std::error::Error>> {
+fn converter_defaults_remain_document_overridable() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(
         &["convert", "--stdin", "--out-file", "-"],
         Some("= T\n:lang: fr\n\nBody.\n"),
@@ -242,10 +243,19 @@ fn converter_defaults_remain_document_overridable() -> Result<(), Box<dyn std::e
 
 #[cfg(feature = "html")]
 #[test]
-fn implied_and_conversion_only_attributes_are_not_seeded_in_the_parser()
--> Result<(), Box<dyn std::error::Error>> {
+fn implied_and_conversion_only_attributes_are_not_available_in_the_parser()
+-> Result<(), Box<dyn Error>> {
     let output = run_acdc(
-        &["convert", "--stdin", "--out-file", "-"],
+        &[
+            "convert",
+            "--stdin",
+            "--out-file",
+            "-",
+            "-a",
+            "outdir=caller-dir",
+            "-a",
+            "outfile=caller-file",
+        ],
         Some("= T\n\n{lang}|{outdir}|{outfile}\n"),
     )?;
     let converted = output_text(&output.stdout);
@@ -258,9 +268,8 @@ fn implied_and_conversion_only_attributes_are_not_seeded_in_the_parser()
 
 #[cfg(feature = "html")]
 #[test]
-fn selected_backend_attributes_are_available_during_parsing()
--> Result<(), Box<dyn std::error::Error>> {
-    let temp = tempfile::tempdir()?;
+fn selected_backend_attributes_are_available_during_parsing() -> Result<(), Box<dyn Error>> {
+    let temp = tempdir()?;
     let document = temp.path().join("backend-attributes.adoc");
     fs::write(
         &document,
@@ -290,8 +299,8 @@ fn selected_backend_attributes_are_available_during_parsing()
 
 #[cfg(feature = "html")]
 #[test]
-fn converts_multiple_files_with_a_timing_summary() -> Result<(), Box<dyn std::error::Error>> {
-    let temp = tempfile::tempdir()?;
+fn converts_multiple_files_with_a_timing_summary() -> Result<(), Box<dyn Error>> {
+    let temp = tempdir()?;
     let first = temp.path().join("first.adoc");
     let second = temp.path().join("second.adoc");
     fs::write(&first, "= First\n\nFirst body.\n")?;
@@ -320,8 +329,8 @@ fn converts_multiple_files_with_a_timing_summary() -> Result<(), Box<dyn std::er
 
 #[cfg(feature = "terminal")]
 #[test]
-fn terminal_converts_multiple_files_without_a_pager() -> Result<(), Box<dyn std::error::Error>> {
-    let temp = tempfile::tempdir()?;
+fn terminal_converts_multiple_files_without_a_pager() -> Result<(), Box<dyn Error>> {
+    let temp = tempdir()?;
     let first = temp.path().join("first.adoc");
     let second = temp.path().join("second.adoc");
     fs::write(&first, "First terminal document.\n")?;
@@ -356,7 +365,7 @@ fn terminal_converts_multiple_files_without_a_pager() -> Result<(), Box<dyn std:
     feature = "terminal",
 ))]
 #[test]
-fn all_backends_render_recovered_bibliography_children() -> Result<(), Box<dyn std::error::Error>> {
+fn all_backends_render_recovered_bibliography_children() -> Result<(), Box<dyn Error>> {
     const SOURCE: &str = "= recovery(1)\n\n\
         == NAME\n\n\
         recovery - test bibliography recovery\n\n\
@@ -370,7 +379,7 @@ fn all_backends_render_recovered_bibliography_children() -> Result<(), Box<dyn s
         Following body.\n";
     const WARNING: &str = "bibliography sections do not support nested sections";
 
-    let temp = tempfile::tempdir()?;
+    let temp = tempdir()?;
     let document = temp.path().join("recovery.adoc");
     fs::write(&document, SOURCE)?;
     let document_arg = document.to_string_lossy();
@@ -429,8 +438,8 @@ fn all_backends_render_recovered_bibliography_children() -> Result<(), Box<dyn s
 
 #[cfg(feature = "inspect")]
 #[test]
-fn inspect_resolves_includes_and_omits_ansi_when_piped() -> Result<(), Box<dyn std::error::Error>> {
-    let temp = tempfile::tempdir()?;
+fn inspect_resolves_includes_and_omits_ansi_when_piped() -> Result<(), Box<dyn Error>> {
+    let temp = tempdir()?;
     let included = temp.path().join("included.adoc");
     let document = temp.path().join("document.adoc");
     fs::write(&included, "Included paragraph.\n")?;
@@ -442,6 +451,7 @@ fn inspect_resolves_includes_and_omits_ansi_when_piped() -> Result<(), Box<dyn s
 
     assert!(output.status.success());
     assert!(stdout.contains("Included paragraph."));
+    assert!(!stdout.contains("max-include-depth"));
     assert!(!stdout.contains('\u{1b}'));
     Ok(())
 }

@@ -1,0 +1,43 @@
+= Converter Consumers
+:imagesdir: images/header
+:iconsdir: icons/header
+:icontype: png
+:icons: image
+:figure-caption: Figure
+:source-language: rust
+:source-linenums-option:
+:source-indent: 2
+:source-wrap-option:
+:tabsize: 4
+:table-frame: all
+:table-grid: all
+:table-stripes: even
+:hide-uri-scheme:
+
+[#probe-converter-before]
+image::before.png[Before]
+
+:imagesdir: images/body
+:figure-caption: Illustration
+:source-language: ruby
+:table-frame: ends
+:table-grid: rows
+:table-stripes: odd
+:hide-uri-scheme!:
+:stem: latexmath
+
+[#probe-converter-after]
+image::after.png[After]
+
+[source]
+----
+puts 'source'
+----
+
+|===
+|Body table
+|===
+
+https://example.com/path[Example]
+
+stem:[x + y]

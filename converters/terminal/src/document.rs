@@ -1,7 +1,10 @@
 use std::io::{self, BufWriter, Write};
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{AttributeValue, Author};
+use acdc_converters_core::{
+    Converter, TraversalContext,
+    visitor::{Visitor, WritableVisitor},
+};
+use acdc_parser::Author;
 use crossterm::{
     QueueableCommand,
     style::{Print, PrintStyledContent, Stylize},
@@ -9,21 +12,25 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
-    pub(crate) fn render_header(&mut self, header: &acdc_parser::Header) -> Result<(), Error> {
-        let cloned_processor = self.processor.clone();
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
+    pub(crate) fn render_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &acdc_parser::Header,
+    ) -> Result<(), Error> {
+        let cloned_processor = self.processor;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor =
             TerminalVisitor::new(inner, cloned_processor, self.diagnostics.reborrow());
 
         for node in &header.title {
-            temp_visitor.visit_inline_node(node)?;
+            temp_visitor.visit_inline_node(traversal, node)?;
         }
         if let Some(subtitle) = &header.subtitle {
             write!(temp_visitor.writer, ": ")?;
             for node in subtitle {
-                temp_visitor.visit_inline_node(node)?;
+                temp_visitor.visit_inline_node(traversal, node)?;
             }
         }
 
@@ -40,7 +47,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .trim()
             .to_string();
 
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let w = self.writer_mut();
         w.queue(PrintStyledContent(title_content.bold().underlined()))?;
 
@@ -63,18 +70,23 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         }
 
         // Render revision info if present
-        let revnumber = processor.document_attributes.get("revnumber");
-        let revdate = processor.document_attributes.get("revdate");
-        let revremark = processor.document_attributes.get("revremark");
+        let text_attribute = |name| {
+            processor
+                .document_attributes()
+                .get(name)
+                .and_then(|value| value.text())
+        };
+        let revnumber = text_attribute("revnumber");
+        let revdate = text_attribute("revdate");
+        let revremark = text_attribute("revremark");
 
         if revnumber.is_some() || revdate.is_some() {
-            if let Some(AttributeValue::String(revnumber)) = revnumber {
-                let label = match processor.document_attributes.get("version-label") {
-                    Some(AttributeValue::String(label)) if !label.is_empty() => {
-                        Some(label.as_ref())
-                    }
-                    Some(_) | None => None,
-                };
+            if let Some(revnumber) = revnumber {
+                let label = processor
+                    .document_attributes()
+                    .get("version-label")
+                    .and_then(|value| value.text())
+                    .filter(|label| !label.is_empty());
                 let revision = label.map_or_else(
                     || revnumber.to_string(),
                     |label| format!("{label} {revnumber}"),
@@ -84,12 +96,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                     w.queue(PrintStyledContent(", ".dim()))?;
                 }
             }
-            if let Some(AttributeValue::String(revdate)) = revdate {
-                w.queue(PrintStyledContent(revdate.clone().dim()))?;
+            if let Some(revdate) = revdate {
+                w.queue(PrintStyledContent(revdate.to_string().dim()))?;
             }
             writeln!(w)?;
-            if let Some(AttributeValue::String(revremark)) = revremark {
-                w.queue(PrintStyledContent(revremark.clone().dim().italic()))?;
+            if let Some(revremark) = revremark {
+                w.queue(PrintStyledContent(revremark.to_string().dim().italic()))?;
                 writeln!(w)?;
             }
         }
@@ -117,6 +129,7 @@ fn visit_author<W: Write + ?Sized>(author: &Author, w: &mut W) -> Result<(), io:
 mod tests {
     use super::*;
     use crate::create_test_processor_with;
+    use acdc_converters_core::{Diagnostics, WarningSource};
     use acdc_parser::{
         Author, Block, Document, Header, InlineNode, Location, Paragraph, Plain, Section, Title,
     };
@@ -127,10 +140,12 @@ mod tests {
         let processor = create_test_processor_with(doc.attributes.clone());
         let buffer = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_document(&doc)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_document(&mut traversal, &doc)?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"");
         Ok(())
@@ -151,10 +166,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor_with(doc.attributes.clone());
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_document(&doc)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_document(&mut traversal, &doc)?;
         let buffer = visitor.into_writer();
         assert_eq!(buffer, b"\x1b[1m\x1b[4mTitle\x1b[0m\n\x1b[3mby \x1b[0m\x1b[3mJohn \x1b[0m\x1b[3mM \x1b[0m\x1b[3mDoe\x1b[0m\x1b[3m <johndoe@example.com>\x1b[0m\n\n");
         Ok(())
@@ -193,10 +210,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor_with(doc.attributes.clone());
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_document(&doc)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_document(&mut traversal, &doc)?;
         let buffer = visitor.into_writer();
         let output = String::from_utf8_lossy(&buffer);
 

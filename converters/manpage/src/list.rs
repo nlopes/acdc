@@ -6,6 +6,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    TraversalContext,
     list::OrderedListNumbering,
     visitor::{Visitor, WritableVisitor},
 };
@@ -20,19 +21,20 @@ fn style_suppresses_marker(style: Option<&str>) -> bool {
     matches!(style, Some("none" | "no-bullet" | "unstyled"))
 }
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn with_list_scope(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
-        render_items: impl FnOnce(&mut Self) -> Result<(), Error>,
+        render_items: impl FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<(), Error>,
     ) -> Result<(), Error> {
-        self.render_title_with_wrapper(title, ".sp\n\\fB", "\\fP\n")?;
+        self.render_title_with_wrapper(traversal, title, ".sp\n\\fB", "\\fP\n")?;
 
         let rs_indent = if self.list_depth > 0 { 4 } else { 0 };
         writeln!(self.writer_mut(), ".RS {rs_indent}")?;
         self.list_depth += 1;
 
-        let result = render_items(self);
+        let result = render_items(self, traversal);
 
         self.list_depth -= 1;
         writeln!(self.writer_mut(), ".RE")?;
@@ -41,13 +43,17 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Visit an unordered (bulleted) list.
-    pub(crate) fn render_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Error> {
+    pub(crate) fn render_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Error> {
         if list.metadata.style == Some("bibliography") {
-            return self.render_bibliography_list(list);
+            return self.render_bibliography_list(traversal, list);
         }
 
         let suppress_marker = style_suppresses_marker(list.metadata.style);
-        self.with_list_scope(&list.title, |visitor| {
+        self.with_list_scope(traversal, &list.title, |visitor, traversal| {
             for item in &list.items {
                 let w = visitor.writer_mut();
                 if suppress_marker {
@@ -68,7 +74,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
                 // Visit principal text (inline content after marker)
                 if !item.principal.is_empty() {
-                    visitor.visit_inline_nodes(&item.principal)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal)?;
                     let w = visitor.writer_mut();
                     writeln!(w)?;
                 }
@@ -81,7 +87,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 if !item.blocks.is_empty() {
                     writeln!(visitor.writer_mut(), ".RS 2")?;
                     for block in &item.blocks {
-                        visitor.visit_block(block)?;
+                        traversal.visit_block(visitor, block)?;
                     }
                     writeln!(visitor.writer_mut(), ".RE")?;
                 }
@@ -92,7 +98,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Visit an ordered (numbered) list.
-    pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
+    pub(crate) fn render_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Error> {
         let suppress_marker = style_suppresses_marker(list.metadata.style)
             || list.metadata.style == Some("unnumbered");
         let numbering = list
@@ -108,7 +118,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
             .unwrap_or(if reversed { list.items.len() } else { 1 });
-        self.with_list_scope(&list.title, |visitor| {
+        self.with_list_scope(traversal, &list.title, |visitor, traversal| {
             for (i, item) in list.items.iter().enumerate() {
                 let w = visitor.writer_mut();
                 if suppress_marker {
@@ -124,7 +134,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
                 // Visit principal text
                 if !item.principal.is_empty() {
-                    visitor.visit_inline_nodes(&item.principal)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal)?;
                     let w = visitor.writer_mut();
                     writeln!(w)?;
                 }
@@ -133,7 +143,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 if !item.blocks.is_empty() {
                     writeln!(visitor.writer_mut(), ".RS 0")?;
                     for block in &item.blocks {
-                        visitor.visit_block(block)?;
+                        traversal.visit_block(visitor, block)?;
                     }
                     writeln!(visitor.writer_mut(), ".RE")?;
                 }
@@ -144,18 +154,29 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Visit a description list (term/definition pairs).
-    pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
-        self.with_list_scope(&list.title, |visitor| {
+    pub(crate) fn render_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Error> {
+        self.with_list_scope(traversal, &list.title, |visitor, traversal| {
             for (index, item) in list.items.iter().enumerate() {
                 match list.metadata.style {
-                    Some("horizontal") => visitor.render_horizontal_description_item(item)?,
-                    Some("qanda") => visitor.render_qanda_description_item(item)?,
-                    Some("ordered") => visitor
-                        .render_tagged_description_item(item, Some(&format!("{}. ", index + 1)))?,
-                    Some("unordered") => {
-                        visitor.render_tagged_description_item(item, Some("\\(bu "))?;
+                    Some("horizontal") => {
+                        visitor.render_horizontal_description_item(traversal, item)?;
                     }
-                    Some(_) | None => visitor.render_tagged_description_item(item, None)?,
+                    Some("qanda") => visitor.render_qanda_description_item(traversal, item)?,
+                    Some("ordered") => visitor.render_tagged_description_item(
+                        traversal,
+                        item,
+                        Some(&format!("{}. ", index + 1)),
+                    )?,
+                    Some("unordered") => {
+                        visitor.render_tagged_description_item(traversal, item, Some("\\(bu "))?;
+                    }
+                    Some(_) | None => {
+                        visitor.render_tagged_description_item(traversal, item, None)?;
+                    }
                 }
             }
 
@@ -163,17 +184,21 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         })
     }
 
-    fn render_bibliography_list(&mut self, list: &UnorderedList) -> Result<(), Error> {
-        self.with_list_scope(&list.title, |visitor| {
+    fn render_bibliography_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Error> {
+        self.with_list_scope(traversal, &list.title, |visitor, traversal| {
             for item in &list.items {
                 let Some((InlineNode::InlineAnchor(anchor), content)) =
                     item.principal.split_first()
                 else {
-                    visitor.render_unordered_item(item, false)?;
+                    visitor.render_unordered_item(traversal, item, false)?;
                     continue;
                 };
                 if !anchor.is_bibliography() {
-                    visitor.render_unordered_item(item, false)?;
+                    visitor.render_unordered_item(traversal, item, false)?;
                     continue;
                 }
 
@@ -186,40 +211,46 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 writeln!(visitor.writer_mut(), ".TP")?;
                 write!(visitor.writer_mut(), "\\fB")?;
                 if let Some(label) = label {
-                    visitor.visit_inline_nodes(&label)?;
+                    visitor.visit_inline_nodes(traversal, &label)?;
                 } else {
                     write!(visitor.writer_mut(), "[{}]", anchor.id)?;
                 }
                 writeln!(visitor.writer_mut(), "\\fP")?;
-                visitor.render_list_item_content(content, &item.blocks, 0)?;
+                visitor.render_list_item_content(traversal, content, &item.blocks, 0)?;
             }
             Ok(())
         })
     }
 
-    fn render_unordered_item(&mut self, item: &ListItem<'_>, suppress: bool) -> Result<(), Error> {
+    fn render_unordered_item(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a ListItem<'a>,
+        suppress: bool,
+    ) -> Result<(), Error> {
         if suppress {
             writeln!(self.writer_mut(), ".IP \"\" 2")?;
         } else {
             writeln!(self.writer_mut(), ".IP \\(bu 2")?;
         }
-        self.render_list_item_content(&item.principal, &item.blocks, 2)
+        self.render_list_item_content(traversal, &item.principal, &item.blocks, 2)
     }
 
     fn render_list_item_content(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         principal: &[InlineNode<'_>],
-        blocks: &[acdc_parser::Block<'_>],
+        blocks: &'a [acdc_parser::Block<'a>],
         indent: usize,
     ) -> Result<(), Error> {
         if !principal.is_empty() {
-            self.visit_inline_nodes(principal)?;
+            self.visit_inline_nodes(traversal, principal)?;
             writeln!(self.writer_mut())?;
         }
         if !blocks.is_empty() {
             writeln!(self.writer_mut(), ".RS {indent}")?;
             for block in blocks {
-                self.visit_block(block)?;
+                traversal.visit_block(self, block)?;
             }
             writeln!(self.writer_mut(), ".RE")?;
         }
@@ -228,7 +259,8 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
     fn render_tagged_description_item(
         &mut self,
-        item: &DescriptionListItem<'_>,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
         marker: Option<&str>,
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".TP")?;
@@ -236,62 +268,66 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         if let Some(marker) = marker {
             write!(self.writer_mut(), "{marker}")?;
         }
-        self.visit_inline_nodes(&item.term)?;
+        self.visit_inline_nodes(traversal, &item.term)?;
         writeln!(self.writer_mut(), "\\fP")?;
-        self.render_description_content(item, None)
+        self.render_description_content(traversal, item, None)
     }
 
     fn render_horizontal_description_item(
         &mut self,
-        item: &DescriptionListItem<'_>,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".sp")?;
         write!(self.writer_mut(), "\\fB")?;
-        self.visit_inline_nodes(&item.term)?;
+        self.visit_inline_nodes(traversal, &item.term)?;
         write!(self.writer_mut(), "\\fP")?;
         if !item.principal_text.is_empty() {
             write!(self.writer_mut(), " \\(en ")?;
-            self.visit_inline_nodes(&item.principal_text)?;
+            self.visit_inline_nodes(traversal, &item.principal_text)?;
         }
         writeln!(self.writer_mut())?;
-        self.render_description_blocks(&item.description, 4)
+        self.render_description_blocks(traversal, &item.description, 4)
     }
 
     fn render_qanda_description_item(
         &mut self,
-        item: &DescriptionListItem<'_>,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
     ) -> Result<(), Error> {
         writeln!(self.writer_mut(), ".TP")?;
         write!(self.writer_mut(), "\\fBQ: ")?;
-        self.visit_inline_nodes(&item.term)?;
+        self.visit_inline_nodes(traversal, &item.term)?;
         writeln!(self.writer_mut(), "\\fP")?;
-        self.render_description_content(item, Some("\\fBA:\\fP "))
+        self.render_description_content(traversal, item, Some("\\fBA:\\fP "))
     }
 
     fn render_description_content(
         &mut self,
-        item: &DescriptionListItem<'_>,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
         prefix: Option<&str>,
     ) -> Result<(), Error> {
         if !item.principal_text.is_empty() || (!item.description.is_empty() && prefix.is_some()) {
             if let Some(prefix) = prefix {
                 write!(self.writer_mut(), "{prefix}")?;
             }
-            self.visit_inline_nodes(&item.principal_text)?;
+            self.visit_inline_nodes(traversal, &item.principal_text)?;
             writeln!(self.writer_mut())?;
         }
-        self.render_description_blocks(&item.description, 0)
+        self.render_description_blocks(traversal, &item.description, 0)
     }
 
     fn render_description_blocks(
         &mut self,
-        blocks: &[acdc_parser::Block<'_>],
+        traversal: &mut TraversalContext<'a>,
+        blocks: &'a [acdc_parser::Block<'a>],
         indent: usize,
     ) -> Result<(), Error> {
         if !blocks.is_empty() {
             writeln!(self.writer_mut(), ".RS {indent}")?;
             for block in blocks {
-                self.visit_block(block)?;
+                traversal.visit_block(self, block)?;
             }
             writeln!(self.writer_mut(), ".RE")?;
         }
@@ -299,15 +335,19 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Visit a callout list.
-    pub(crate) fn render_callout_list(&mut self, list: &CalloutList) -> Result<(), Error> {
-        self.with_list_scope(&list.title, |visitor| {
+    pub(crate) fn render_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Error> {
+        self.with_list_scope(traversal, &list.title, |visitor, traversal| {
             for item in &list.items {
                 let w = visitor.writer_mut();
                 writeln!(w, ".IP \\fB({})\\fP 4", item.callout.number)?;
 
                 // Visit principal text
                 if !item.principal.is_empty() {
-                    visitor.visit_inline_nodes(&item.principal)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal)?;
                     let w = visitor.writer_mut();
                     writeln!(w)?;
                 }
@@ -316,7 +356,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 if !item.blocks.is_empty() {
                     writeln!(visitor.writer_mut(), ".RS 0")?;
                     for block in &item.blocks {
-                        visitor.visit_block(block)?;
+                        traversal.visit_block(visitor, block)?;
                     }
                     writeln!(visitor.writer_mut(), ".RE")?;
                 }

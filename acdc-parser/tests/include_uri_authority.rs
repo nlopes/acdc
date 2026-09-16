@@ -184,7 +184,9 @@ fn document_attribute_cannot_grant_uri_read_authority() -> TestResult {
     let server = TestServer::start("Remote content.")?;
     let document = TempDocument::new(&format!(":allow-uri-read:\n\ninclude::{}[]", server.uri))?;
 
-    let options = Options::builder().with_safe_mode(SafeMode::Server).build();
+    let options = Options::builder()
+        .with_safe_mode(SafeMode::Server)
+        .build()?;
     let result = parse_file(&document.path, &options)?;
 
     assert_include_fallback(&result, &server.uri)?;
@@ -201,7 +203,7 @@ fn caller_attribute_presence_grants_uri_read_authority() -> TestResult {
         let options = Options::builder()
             .with_safe_mode(SafeMode::Server)
             .with_attribute("allow-uri-read", value)
-            .build();
+            .build()?;
 
         let result = parse_file(&document.path, &options)?;
 
@@ -220,7 +222,7 @@ fn authorized_uri_with_internal_spaces_uses_ureq_recovery() -> TestResult {
     let options = Options::builder()
         .with_safe_mode(SafeMode::Server)
         .with_attribute("allow-uri-read", true)
-        .build();
+        .build()?;
 
     let result = parse_file(&document.path, &options)?;
 
@@ -264,11 +266,11 @@ fn unset_caller_values_do_not_grant_uri_read_authority() -> TestResult {
         Options::builder()
             .with_safe_mode(SafeMode::Server)
             .with_attribute("allow-uri-read", false)
-            .build(),
+            .build()?,
         Options::builder()
             .with_safe_mode(SafeMode::Server)
             .with_attribute("allow-uri-read", ())
-            .build(),
+            .build()?,
     ];
 
     for options in options {
@@ -291,7 +293,7 @@ fn document_cannot_revoke_caller_uri_read_authority() -> TestResult {
     let options = Options::builder()
         .with_safe_mode(SafeMode::Server)
         .with_attribute("allow-uri-read", true)
-        .build();
+        .build()?;
 
     let result = parse_file(&document.path, &options)?;
 

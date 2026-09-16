@@ -1,5 +1,8 @@
+use miette::Result as MietteResult;
 use std::{
     borrow::Cow,
+    error::Error,
+    fmt::Display,
     io::BufReader,
     path::{Path, PathBuf},
     time::{Duration, Instant},
@@ -14,14 +17,22 @@ use acdc_converters_html::HtmlVariant;
 use acdc_converters_markdown::MarkdownVariant;
 #[cfg(feature = "pdf")]
 use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions};
-use acdc_parser::{AttributeValue, DocumentAttributes, ParseResult, SafeMode};
-use clap::{ArgAction, Args as ClapArgs};
+#[cfg(feature = "terminal")]
+use acdc_converters_terminal::Error as TerminalError;
+use acdc_parser::{
+    AttributeValue, Options as ParserOptions, OptionsBuilder, ParseResult, SafeMode, Warning,
+    parse_file,
+};
+
+use clap::{ArgAction, Args as ClapArgs, ValueEnum};
 use rayon::prelude::*;
 
 use crate::{
     error::{self, WarningReport, WarningReportContext},
     timing::{TimingEntry, render_summary},
 };
+
+type RawAttributes<'a> = std::collections::HashMap<Cow<'a, str>, AttributeValue<'a>>;
 
 /// Convert `AsciiDoc` documents to various output formats
 #[derive(ClapArgs, Debug)]
@@ -216,7 +227,7 @@ impl Args {
     }
 }
 
-pub fn run(args: &Args) -> miette::Result<()> {
+pub fn run(args: &Args) -> MietteResult<()> {
     #[cfg(any(feature = "html", feature = "markdown"))]
     let backend = args.backend.resolve(args.variant)?;
     #[cfg(not(any(feature = "html", feature = "markdown")))]
@@ -231,28 +242,14 @@ pub fn run(args: &Args) -> miette::Result<()> {
         args.safe_mode
     };
 
-    // Build only the CLI-relevant attributes here. Each converter establishes its
-    // own backend traits, defaults, and doctype when constructed; the parser then
-    // runs against `processor.document_attributes()` so it sees the full set.
-    let (document_attributes, doctype) = {
-        #[cfg(feature = "manpage")]
-        {
-            let document_attributes = build_attributes_map(&args.attributes);
-            // Auto-set doctype to Manpage when using manpage backend
-            // This matches asciidoctor behavior where --backend manpage implies --doctype manpage
-            let doctype = if matches!(backend, Backend::Manpage) {
-                Doctype::Manpage
-            } else {
-                args.doctype
-            };
-            (document_attributes, doctype)
-        }
-        #[cfg(not(feature = "manpage"))]
-        {
-            let document_attributes = build_attributes_map(&args.attributes);
-            (document_attributes, args.doctype)
-        }
+    #[cfg(feature = "manpage")]
+    let doctype = if matches!(backend, Backend::Manpage) {
+        Doctype::Manpage
+    } else {
+        args.doctype
     };
+    #[cfg(not(feature = "manpage"))]
+    let doctype = args.doctype;
 
     let output_destination = args.output_destination();
 
@@ -268,6 +265,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
         .output_destination(output_destination.clone())
         .build();
 
+    let document_attributes = build_parser_options(args, &options);
     let output_paths = match backend {
         #[cfg(feature = "html")]
         Backend::Html(variant) => run_processor::<acdc_converters_html::Processor, _>(
@@ -275,7 +273,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
             &options,
             document_attributes,
             move |opts, attrs| {
-                acdc_converters_html::Processor::new(opts, attrs).with_variant(variant)
+                acdc_converters_html::Processor::new_with_variant(opts, attrs, variant)
             },
         ),
 
@@ -300,7 +298,8 @@ pub fn run(args: &Args) -> miette::Result<()> {
             &options,
             document_attributes,
             move |opts, attrs| {
-                acdc_converters_markdown::Processor::new(opts, attrs).with_variant(variant)
+                acdc_converters_markdown::Processor::new(opts, attrs)
+                    .map(|processor| processor.with_variant(variant))
             },
         ),
 
@@ -313,7 +312,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
                 document_attributes,
                 move |opts, attrs| {
                     acdc_converters_pdf::Processor::new(opts, attrs)
-                        .with_pdf_options(pdf_options.clone())
+                        .map(|processor| processor.with_pdf_options(pdf_options.clone()))
                 },
             )
         }
@@ -329,7 +328,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
 }
 
 #[cfg(feature = "pdf")]
-fn validate_pdf_options(args: &Args, backend: Backend) -> miette::Result<()> {
+fn validate_pdf_options(args: &Args, backend: Backend) -> MietteResult<()> {
     if matches!(backend, Backend::Pdf) {
         if args.emit_typst.is_some() && !args.stdin && args.files.len() > 1 {
             return Err(miette::miette!(
@@ -375,7 +374,7 @@ fn open_output_files<E>(
     output_destination: &OutputDestination,
     mut opener: impl FnMut(&Path) -> Result<(), E>,
 ) where
-    E: std::fmt::Display,
+    E: Display,
 {
     if matches!(output_destination, OutputDestination::Stdout) {
         tracing::warn!("--open ignored when output is stdout");
@@ -409,31 +408,28 @@ fn selected_input_files(args: &Args) -> &[PathBuf] {
     }
 }
 
-/// Run a converter against the input(s). `make_processor` builds each
-/// `P` from the per-call options and attributes, letting the caller
-/// plumb backend-specific knobs (e.g. `with_variant`) without forcing
-/// them into the `Converter` trait or `Options`. Variant-less backends
-/// pass `P::new` directly.
+/// Run a converter against the inputs. The factory supplies backend-specific
+/// settings, such as HTML or Markdown variants.
 #[tracing::instrument(skip(base_options, document_attributes, make_processor))]
 fn run_processor<P, F>(
     args: &Args,
     base_options: &Options,
-    document_attributes: DocumentAttributes<'static>,
+    document_attributes: OptionsBuilder<'static>,
     make_processor: F,
-) -> miette::Result<Vec<PathBuf>>
+) -> MietteResult<Vec<PathBuf>>
 where
     P: Converter<'static>,
-    P::Error: Send + 'static + From<acdc_parser::Error>,
-    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync,
+    P::Error: Send + 'static,
+    F: Fn(Options, OptionsBuilder<'static>) -> Result<P, P::Error> + Send + Sync,
 {
     // Handle stdin separately (no parallelization)
     if args.stdin {
-        let processor = make_processor(base_options.clone(), document_attributes.clone());
-        let parser_options =
-            build_parser_options(args, base_options, processor.document_attributes().clone());
+        let processor = make_processor(base_options.clone(), document_attributes)
+            .map_err(|e| error::display(&e))?;
+        let parser_options = processor.parser_options();
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
-        let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
+        let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
             .map_err(|error| error::display(&error))?;
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
@@ -448,12 +444,12 @@ where
 
     // Single-file fast path: skip rayon thread pool overhead entirely
     if let [file] = files_to_process {
-        let processor = make_processor(base_options.clone(), document_attributes);
-        let parser_options =
-            build_parser_options(args, base_options, processor.document_attributes().clone());
+        let processor = make_processor(base_options.clone(), document_attributes)
+            .map_err(|e| error::display(&e))?;
+        let parser_options = processor.parser_options();
         let parse_result = if base_options.timings() {
             let now = Instant::now();
-            let result = acdc_parser::parse_file(file, &parser_options);
+            let result = parse_file(file, parser_options);
             let elapsed = now.elapsed();
             if result.is_ok() {
                 use acdc_converters_core::PrettyDuration;
@@ -461,7 +457,7 @@ where
             }
             result
         } else {
-            acdc_parser::parse_file(file, &parser_options)
+            parse_file(file, parser_options)
         };
         let convert_result = match parse_result {
             Ok(parsed) => {
@@ -490,16 +486,16 @@ where
 }
 
 fn run_multi_file<P, F>(
-    args: &Args,
+    _args: &Args,
     base_options: &Options,
-    document_attributes: &DocumentAttributes<'static>,
+    document_attributes: &OptionsBuilder<'static>,
     files_to_process: &[PathBuf],
     make_processor: F,
-) -> miette::Result<Vec<PathBuf>>
+) -> MietteResult<Vec<PathBuf>>
 where
     P: Converter<'static>,
-    P::Error: Send + 'static + From<acdc_parser::Error>,
-    F: Fn(Options, DocumentAttributes<'static>) -> P + Send + Sync,
+    P::Error: Send + 'static,
+    F: Fn(Options, OptionsBuilder<'static>) -> Result<P, P::Error> + Send + Sync,
 {
     let show_timings = base_options.timings();
     let multi_file = files_to_process.len() > 1;
@@ -525,21 +521,21 @@ where
 
     let file_results: Vec<FileResult<P::Error>> = files_to_process
         .par_iter()
-        .map(|file| {
-            let processor = make_processor(converter_options.clone(), document_attributes.clone());
-            let parser_options =
-                build_parser_options(args, base_options, processor.document_attributes().clone());
+        .map(|file| -> Result<_, P::Error> {
+            let processor = make_processor(converter_options.clone(), document_attributes.clone())?;
+            let parser_options = processor.parser_options();
             let entry = if show_timings {
                 let now = Instant::now();
-                let result = acdc_parser::parse_file(file, &parser_options);
+                let result = parse_file(file, parser_options);
                 (file.clone(), result, Some(now.elapsed()))
             } else {
-                let result = acdc_parser::parse_file(file, &parser_options);
+                let result = parse_file(file, parser_options);
                 (file.clone(), result, None)
             };
-            convert_parse_result(entry, &processor, show_timings)
+            Ok(convert_parse_result(entry, &processor, show_timings))
         })
-        .collect();
+        .collect::<Result<_, _>>()
+        .map_err(|e| error::display(&e))?;
 
     if show_timings && multi_file {
         let wall_clock = wall_clock_start.map(|s| s.elapsed());
@@ -560,7 +556,6 @@ fn convert_parse_result<P>(
 ) -> FileResult<P::Error>
 where
     P: Converter<'static>,
-    P::Error: From<acdc_parser::Error>,
 {
     let now = Instant::now();
     let (result, parser_warnings) = match parse_result {
@@ -585,7 +580,7 @@ where
 struct FileResult<E> {
     path: PathBuf,
     result: Result<ConversionResult, E>,
-    parser_warnings: Vec<acdc_parser::Warning>,
+    parser_warnings: Vec<Warning>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
 }
@@ -601,14 +596,14 @@ impl<E> FileResult<E> {
 }
 
 trait FileResultsReporter {
-    fn report(self) -> miette::Result<Vec<PathBuf>>;
+    fn report(self) -> MietteResult<Vec<PathBuf>>;
 }
 
 impl<E> FileResultsReporter for Vec<FileResult<E>>
 where
-    E: std::error::Error + 'static,
+    E: Error + 'static,
 {
-    fn report(self) -> miette::Result<Vec<PathBuf>> {
+    fn report(self) -> MietteResult<Vec<PathBuf>> {
         let mut output_paths = Vec::new();
         let mut errors = Vec::new();
 
@@ -693,7 +688,7 @@ trait WarningRenderer {
     fn render(&self, context: WarningRenderContext<'_>);
 }
 
-impl WarningRenderer for [acdc_parser::Warning] {
+impl WarningRenderer for [Warning] {
     fn render(&self, context: WarningRenderContext<'_>) {
         let context = WarningReportContext::new().with_optional_file(context.file);
         for warning in self {
@@ -725,6 +720,8 @@ impl ConversionResultReporter for ConversionResult {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "pdf")]
+    use crate::Commands;
     use std::convert::Infallible;
 
     #[cfg(feature = "pdf")]
@@ -733,16 +730,16 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "pdf")]
-    fn parse_pdf_args<const N: usize>(raw: [&str; N]) -> miette::Result<Args> {
+    fn parse_pdf_args<const N: usize>(raw: [&str; N]) -> MietteResult<Args> {
         let cli = crate::Cli::try_parse_from(raw).map_err(|error| miette::miette!(error))?;
         match cli.command {
-            crate::Commands::Convert(args) => Ok(args),
+            Commands::Convert(args) => Ok(args),
             #[cfg(feature = "inspect")]
-            crate::Commands::Inspect(_) => Err(miette::miette!("test command selected inspect")),
+            Commands::Inspect(_) => Err(miette::miette!("test command selected inspect")),
             #[cfg(feature = "lint")]
-            crate::Commands::Lint(_) => Err(miette::miette!("test command selected lint")),
+            Commands::Lint(_) => Err(miette::miette!("test command selected lint")),
             #[cfg(feature = "tck")]
-            crate::Commands::Tck(_) => Err(miette::miette!("test command selected tck")),
+            Commands::Tck(_) => Err(miette::miette!("test command selected tck")),
         }
     }
 
@@ -758,7 +755,7 @@ mod tests {
 
     #[cfg(feature = "pdf")]
     #[test]
-    fn maps_pdf_command_line_options() -> miette::Result<()> {
+    fn maps_pdf_command_line_options() -> MietteResult<()> {
         let args = parse_pdf_args([
             "acdc",
             "convert",
@@ -813,7 +810,7 @@ mod tests {
 
     #[cfg(feature = "pdf")]
     #[test]
-    fn rejects_emit_typst_for_multiple_inputs() -> miette::Result<()> {
+    fn rejects_emit_typst_for_multiple_inputs() -> MietteResult<()> {
         let args = parse_pdf_args([
             "acdc",
             "convert",
@@ -846,7 +843,7 @@ mod tests {
 
     #[cfg(all(feature = "pdf", feature = "html"))]
     #[test]
-    fn rejects_pdf_options_for_other_backends() -> miette::Result<()> {
+    fn rejects_pdf_options_for_other_backends() -> MietteResult<()> {
         let args = parse_pdf_args([
             "acdc",
             "convert",
@@ -881,6 +878,55 @@ mod tests {
         });
 
         assert_eq!(opened, paths);
+    }
+
+    #[test]
+    fn later_cli_defaults_cancel_earlier_overrides() -> Result<(), Box<dyn Error>> {
+        for values in [
+            ["probe=first", "probe=last@"],
+            ["probe!", "!probe=@"],
+            ["probe=first", "probe@=last"],
+        ] {
+            let values = values.map(str::to_string);
+            let options = ParserOptions::builder()
+                .with_attributes(build_attribute_overrides(&values))
+                .with_defaults(build_attributes_map(&values))
+                .build()?;
+            let parsed = acdc_parser::parse(":probe: document\n\n{probe}\n", &options)?;
+            assert_eq!(
+                parsed
+                    .document()
+                    .attributes
+                    .get("probe")
+                    .and_then(|value| value.text()),
+                Some("document")
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn cli_attribute_input_keeps_text_and_typed_numeric_values() -> Result<(), Box<dyn Error>> {
+        let parsed = parse_attribute("max-include-depth=064");
+        assert_eq!(parsed.value, AttributeValue::String(Cow::Borrowed("064")));
+
+        let attributes = ParserOptions::with_attributes(build_attributes_map(&[
+            "max-include-depth=064".to_string(),
+        ]))?
+        .into_document_attributes();
+        assert_eq!(
+            attributes
+                .get("max-include-depth")
+                .and_then(acdc_parser::DocumentAttributeValue::as_integer),
+            Some(64)
+        );
+        assert_eq!(
+            attributes
+                .get("max-include-depth")
+                .and_then(|value| value.text()),
+            Some("064")
+        );
+        Ok(())
     }
 
     #[test]
@@ -1002,15 +1048,13 @@ fn spawn_pager(no_pager: bool) -> Option<std::process::Child> {
 
 #[cfg(feature = "terminal")]
 fn parse_terminal_file(
-    args: &Args,
     base_options: &Options,
-    document_attributes: &DocumentAttributes<'static>,
+    parser_options: &ParserOptions<'static>,
     file: &Path,
 ) -> Result<ParseResult, acdc_parser::Error> {
-    let parser_options = build_parser_options(args, base_options, document_attributes.clone());
     if base_options.timings() {
         let now = Instant::now();
-        let result = acdc_parser::parse_file(file, &parser_options);
+        let result = parse_file(file, parser_options);
         if result.is_ok() {
             use acdc_converters_core::PrettyDuration;
             eprintln!(
@@ -1021,7 +1065,7 @@ fn parse_terminal_file(
         }
         result
     } else {
-        acdc_parser::parse_file(file, &parser_options)
+        parse_file(file, parser_options)
     }
 }
 
@@ -1031,19 +1075,18 @@ fn parse_terminal_file(
 fn run_terminal_stdin(
     args: &Args,
     base_options: &Options,
-    document_attributes: DocumentAttributes<'static>,
+    document_attributes: OptionsBuilder<'static>,
     output_to_file: bool,
-) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
+) -> Result<Vec<PathBuf>, TerminalError> {
     use std::io::BufWriter;
 
     use acdc_converters_terminal::Processor;
 
-    let processor = Processor::new(base_options.clone(), document_attributes);
-    let parser_options =
-        build_parser_options(args, base_options, processor.document_attributes().clone());
+    let processor = Processor::new(base_options.clone(), document_attributes)?;
+    let parser_options = processor.parser_options();
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
-    let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+    let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
@@ -1089,14 +1132,14 @@ fn run_terminal_stdin(
 #[cfg(feature = "terminal")]
 fn run_terminal_through_pager(
     processor: &acdc_converters_terminal::Processor<'static>,
-    args: &Args,
+    _args: &Args,
     base_options: &Options,
     files: &[PathBuf],
     mut pager: std::process::Child,
-) -> Result<(), acdc_converters_terminal::Error> {
+) -> Result<(), TerminalError> {
     use std::io::BufWriter;
 
-    let mut deferred: Vec<(Vec<acdc_parser::Warning>, PathBuf)> = Vec::new();
+    let mut deferred: Vec<(Vec<Warning>, PathBuf)> = Vec::new();
     let mut converter_warnings = Vec::new();
     if let Some(pager_stdin) = pager.stdin.take() {
         let mut writer = BufWriter::new(pager_stdin);
@@ -1104,8 +1147,7 @@ fn run_terminal_through_pager(
         let mut diagnostics =
             acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
         for file in files {
-            let mut parsed =
-                parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
+            let mut parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
             let parser_warnings = parsed.take_warnings();
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
@@ -1126,8 +1168,8 @@ fn run_terminal_through_pager(
 fn run_terminal_with_pager(
     args: &Args,
     base_options: &Options,
-    document_attributes: DocumentAttributes<'static>,
-) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
+    document_attributes: OptionsBuilder<'static>,
+) -> Result<Vec<PathBuf>, TerminalError> {
     use acdc_converters_terminal::Processor;
 
     // Check if --out-file specifies a file (not stdout)
@@ -1142,14 +1184,13 @@ fn run_terminal_with_pager(
     }
 
     let files_to_process = selected_input_files(args);
-    let processor = Processor::new(base_options.clone(), document_attributes);
+    let processor = Processor::new(base_options.clone(), document_attributes)?;
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
         let mut output_paths = Vec::new();
         for file in files_to_process {
-            let parsed =
-                parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
+            let parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (output_path, warnings) = result.into_parts();
@@ -1167,8 +1208,7 @@ fn run_terminal_with_pager(
     } else {
         // No pager - use convert() which writes to stdout
         for file in files_to_process {
-            let parsed =
-                parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
+            let parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (_, warnings) = result.into_parts();
@@ -1186,7 +1226,7 @@ fn run_terminal_with_pager(
 /// stays in this enum (rather than being normalised to `Html`) so the
 /// resolver can reject the contradictory `--backend html5s --variant
 /// <anything>` form before lowering it to the typed [`Backend`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum BackendArg {
     #[cfg(feature = "html")]
     Html,
@@ -1205,7 +1245,7 @@ pub enum BackendArg {
 
 /// PDF page size parsed from `--page`.
 #[cfg(feature = "pdf")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum PdfPageArg {
     A3,
     A4,
@@ -1233,7 +1273,7 @@ impl PdfPageArg {
 
 /// PDF page layout parsed from `--page-layout`.
 #[cfg(feature = "pdf")]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum PdfPageLayoutArg {
     Portrait,
     Landscape,
@@ -1249,7 +1289,7 @@ impl PdfPageLayoutArg {
     }
 }
 
-impl std::fmt::Display for BackendArg {
+impl Display for BackendArg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "html")]
@@ -1273,7 +1313,7 @@ impl std::fmt::Display for BackendArg {
 /// so disabling its converter removes its variant names from `--variant`
 /// entirely.
 #[cfg(any(feature = "html", feature = "markdown"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum VariantArg {
     #[cfg(feature = "html")]
     Standard,
@@ -1288,7 +1328,7 @@ pub enum VariantArg {
 }
 
 #[cfg(any(feature = "html", feature = "markdown"))]
-impl std::fmt::Display for VariantArg {
+impl Display for VariantArg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             #[cfg(feature = "html")]
@@ -1334,7 +1374,7 @@ enum Backend {
     any(feature = "manpage", feature = "pdf", feature = "terminal"),
     any(feature = "html", feature = "markdown")
 ))]
-fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> miette::Result<()> {
+fn require_no_variant(backend: &'static str, variant: Option<VariantArg>) -> MietteResult<()> {
     if variant.is_some() {
         return Err(miette::miette!(
             "backend '{backend}' does not accept a variant"
@@ -1350,7 +1390,7 @@ impl BackendArg {
     /// variant, a markdown variant on the html backend (or vice versa),
     /// or any variant on a backend that has none.
     #[cfg(any(feature = "html", feature = "markdown"))]
-    fn resolve(self, variant: Option<VariantArg>) -> miette::Result<Backend> {
+    fn resolve(self, variant: Option<VariantArg>) -> MietteResult<Backend> {
         match (self, variant) {
             // The `html5s` alias is the surface spelling of "html + semantic".
             // Pairing it with `--variant` would be self-contradicting.
@@ -1409,14 +1449,28 @@ impl BackendArg {
     }
 }
 
-fn build_attributes_map(values: &[String]) -> DocumentAttributes<'static> {
-    let mut map = DocumentAttributes::default();
+fn build_attributes_map(values: &[String]) -> RawAttributes<'static> {
+    let mut map = RawAttributes::with_capacity(values.len());
 
     for raw_attr in values {
         let attribute = parse_attribute(raw_attr);
-        map.set(attribute.name, attribute.value);
+        map.insert(attribute.name, attribute.value);
     }
     map
+}
+
+fn build_attribute_overrides(values: &[String]) -> RawAttributes<'static> {
+    let mut overrides = RawAttributes::with_capacity(values.len());
+    for raw_attr in values {
+        let attribute = parse_attribute(raw_attr);
+        if attribute.locked {
+            overrides.insert(attribute.name, attribute.value);
+        } else {
+            // A later default cancels an earlier override for the same name.
+            overrides.remove(&attribute.name);
+        }
+    }
+    overrides
 }
 
 struct ParsedAttribute {
@@ -1474,19 +1528,11 @@ fn parse_attribute(raw_attr: &str) -> ParsedAttribute {
 }
 
 /// Build parser options from CLI args and base options
-fn build_parser_options(
-    args: &Args,
-    base_options: &Options,
-    document_attributes: DocumentAttributes<'static>,
-) -> acdc_parser::Options<'static> {
-    let mut builder = acdc_parser::Options::builder().with_safe_mode(base_options.safe_mode());
-
-    for raw_attr in &args.attributes {
-        let attribute = parse_attribute(raw_attr);
-        if attribute.locked {
-            builder = builder.with_attribute(attribute.name, attribute.value);
-        }
-    }
+fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'static> {
+    let mut builder = ParserOptions::builder()
+        .with_safe_mode(base_options.safe_mode())
+        .with_attributes(build_attribute_overrides(&args.attributes))
+        .with_defaults(build_attributes_map(&args.attributes));
 
     if base_options.timings() {
         builder = builder.with_timings();
@@ -1501,7 +1547,5 @@ fn build_parser_options(
         builder = builder.with_setext();
     }
 
-    let mut options = builder.build();
-    options.document_attributes.merge(document_attributes);
-    options
+    builder
 }

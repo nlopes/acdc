@@ -1,12 +1,19 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
-use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
+use acdc_converters_core::{
+    TraversalContext,
+    visitor::{Visitor, WritableVisitor},
+};
+use acdc_parser::{Admonition, AdmonitionVariant};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_id};
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
-    pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn render_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admon: &'a Admonition<'a>,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
 
         // Get the appropriate caption attribute for this admonition type
@@ -19,17 +26,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             AdmonitionVariant::Caution => "caution-caption",
         };
 
-        let caption = processor
-            .document_attributes
+        let caption = traversal
             .get(caption_attr)
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_ref()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
+            .and_then(|value| value.text())
+            .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?
+            .to_string();
+        let font_icons = acdc_converters_core::icon::IconMode::from_attributes(traversal)
+            == acdc_converters_core::icon::IconMode::Font;
 
         if processor.variant() == HtmlVariant::Semantic {
-            return visit_admonition_semantic(self, admon, caption, processor.is_font_icons_mode());
+            return visit_admonition_semantic(traversal, self, admon, &caption, font_icons);
         }
 
         let class = build_class(
@@ -46,7 +52,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Output icon based on `:icons:` document attribute
         // - Font mode (`icons=font`): Use Font Awesome <i> element
         // - Default: Use text label in <div class="title">
-        if processor.is_font_icons_mode() {
+        if font_icons {
             let fa_icon = match admon.variant {
                 AdmonitionVariant::Note => "fa-circle-info",
                 AdmonitionVariant::Tip => "fa-lightbulb",
@@ -65,7 +71,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         writeln!(self.writer, "<td class=\"content\">")?;
         if !admon.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(&admon.title)?;
+            self.visit_inline_nodes(traversal, &admon.title)?;
             writeln!(self.writer, "</div>")?;
         }
 
@@ -76,18 +82,18 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             [acdc_parser::Block::Paragraph(para)] => {
                 writeln!(self.writer, "<div class=\"paragraph\">")?;
                 write!(self.writer, "<p>")?;
-                self.visit_inline_nodes(&para.content)?;
+                self.visit_inline_nodes(traversal, &para.content)?;
                 writeln!(self.writer, "</p>")?;
                 writeln!(self.writer, "</div>")?;
             }
             [block] => {
                 // Single non-paragraph block: use normal rendering
-                self.visit_block(block)?;
+                traversal.visit_block(self, block)?;
             }
             blocks => {
                 // Multiple blocks: use normal rendering for all
                 for block in blocks {
-                    self.visit_block(block)?;
+                    traversal.visit_block(self, block)?;
                 }
             }
         }
@@ -101,9 +107,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 }
 
 /// Render an admonition block in semantic HTML5 mode.
-fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
+fn visit_admonition_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
+    traversal: &mut TraversalContext<'a>,
     visitor: &mut V,
-    admon: &Admonition,
+    admon: &'a Admonition<'a>,
     caption: &str,
     font_icons: bool,
 ) -> Result<(), Error> {
@@ -145,7 +152,7 @@ fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
         if !admon.title.is_empty() {
             write!(writer, "<h6 class=\"block-title\">")?;
             let _ = writer;
-            visitor.visit_inline_nodes(&admon.title)?;
+            visitor.visit_inline_nodes(traversal, &admon.title)?;
             writer = visitor.writer_mut();
             writeln!(writer, "</h6>")?;
         }
@@ -162,7 +169,7 @@ fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
             "<h6 class=\"block-title\"><span class=\"title-label\">{caption}: </span>"
         )?;
         let _ = writer;
-        visitor.visit_inline_nodes(&admon.title)?;
+        visitor.visit_inline_nodes(traversal, &admon.title)?;
         writer = visitor.writer_mut();
         writeln!(writer, "</h6>")?;
     }
@@ -174,16 +181,16 @@ fn visit_admonition_semantic<V: WritableVisitor<Error = Error>>(
             let writer = visitor.writer_mut();
             write!(writer, "<p>")?;
             let _ = writer;
-            visitor.visit_inline_nodes(&para.content)?;
+            visitor.visit_inline_nodes(traversal, &para.content)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</p>")?;
         }
         [block] => {
-            visitor.visit_block(block)?;
+            traversal.visit_block(visitor, block)?;
         }
         blocks => {
             for block in blocks {
-                visitor.visit_block(block)?;
+                traversal.visit_block(visitor, block)?;
             }
         }
     }

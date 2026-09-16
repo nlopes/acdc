@@ -8,8 +8,8 @@
 //! The codebase follows a two-tier naming pattern for converter functions:
 //!
 //! - **`visit_*` functions**: High-level orchestration functions that accept a visitor reference
-//!   and traverse the AST structure. These functions call `visitor.visit_block()`,
-//!   `visitor.visit_inline_nodes()`, or other visitor methods to handle nested content.
+//!   and traverse the AST structure. Nested blocks go through
+//!   [`TraversalContext::visit_block`] so attribute events are applied before their callbacks.
 //!   They are entry points for processing complete AST nodes.
 //!
 //! - **`render_*` functions**: Low-level helper functions that generate specific markup output.
@@ -24,16 +24,24 @@ use std::io::Write;
 
 use acdc_parser::{
     Admonition, Audio, Block, CalloutList, CalloutListItem, CalloutRef, DelimitedBlock,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
-    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, DocumentAttribute, Header,
+    Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, TableOfContents,
+    ThematicBreak, UnorderedList, Video,
 };
+
+use crate::TraversalContext;
 
 /// The Visitor trait defines methods for visiting each type of AST node.
 ///
 /// Converters implement this trait to define how to process each node type.
 ///
-/// The module provides default traversal logic that calls these methods following the
-/// `AsciiDoc` document structure.
+/// Defaults traverse structural blocks, list items, and `AsciiDoc` table-cell scopes.
+/// Leaf callbacks do nothing. Override inline callbacks to inspect or render inline
+/// content, and structural callbacks to control output or which children are visited.
+///
+/// Structural nodes borrow the document for `'doc` so the active attribute view can
+/// retain references to accepted assignments. Inline nodes use shorter borrows so
+/// converters can also visit temporary text, such as normalized source indentation.
 ///
 /// # Document Structure
 ///
@@ -48,8 +56,10 @@ use acdc_parser::{
 /// 7. `visit_document_end()` - document cleanup
 ///
 /// All structural hooks (`visit_document_*`, `visit_preamble_end`) have default
-/// no-op implementations. Simple converters only implement block/inline visitors.
-pub trait Visitor {
+/// no-op implementations. Attribute replay belongs to [`TraversalContext`], not
+/// to the visitor: dispatch nested blocks through the context, and use
+/// [`TraversalContext::with_scope`] when overriding nested-document traversal.
+pub trait Visitor<'doc> {
     /// The error type that can be returned during visiting
     type Error;
 
@@ -62,7 +72,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations
     /// may return errors during document processing.
-    fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_start(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -76,7 +90,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations
     /// may return errors during document processing.
-    fn visit_body_content_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_body_content_start(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -90,7 +108,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations
     /// may return errors during document processing.
-    fn visit_preamble_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_preamble_start(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -104,7 +126,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations
     /// may return errors during document processing.
-    fn visit_preamble_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_preamble_end(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -117,7 +143,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations
     /// may return errors during document processing.
-    fn visit_document_supplements(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_supplements(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -130,7 +160,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations
     /// may return errors during document processing.
-    fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_end(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
@@ -151,17 +185,21 @@ pub trait Visitor {
     /// # Errors
     ///
     /// Returns an error if any visitor method fails during document traversal.
-    fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        doc: &'doc Document<'doc>,
+    ) -> Result<(), Self::Error> {
         // 1. Document start - setup, document wrappers
-        self.visit_document_start(doc)?;
+        self.visit_document_start(traversal, doc)?;
 
         // 2. Header - title, authors, metadata (if present)
         if let Some(header) = &doc.header {
-            self.visit_header(header)?;
+            self.visit_header(traversal, header)?;
         }
 
         // 3. Body content start - before any blocks
-        self.visit_body_content_start(doc)?;
+        self.visit_body_content_start(traversal, doc)?;
 
         // 4. Identify preamble (blocks before first section) per AsciiDoc spec
         let first_section_idx = doc
@@ -188,57 +226,55 @@ pub trait Visitor {
 
         // 5. Walk preamble blocks
         if emit_preamble {
-            self.visit_preamble_start(doc)?;
+            self.visit_preamble_start(traversal, doc)?;
         }
 
         for block in preamble {
-            self.visit_block(block)?;
+            traversal.visit_block(self, block)?;
         }
 
         if emit_preamble {
-            self.visit_preamble_end(doc)?;
+            self.visit_preamble_end(traversal, doc)?;
         }
 
         // 6. Walk remaining blocks (sections and other top-level blocks)
         for block in remaining {
-            self.visit_block(block)?;
+            traversal.visit_block(self, block)?;
         }
 
         // 7. Document supplements - footnotes, bibliography, etc.
-        self.visit_document_supplements(doc)?;
+        self.visit_document_supplements(traversal, doc)?;
 
         // 8. Document end - close wrappers, final cleanup
-        self.visit_document_end(doc)?;
+        self.visit_document_end(traversal, doc)?;
 
         Ok(())
     }
 
-    /// Visit a generic block (delegates to specific block visitors)
+    /// Called before a block is dispatched, including attribute and comment blocks.
     ///
     /// # Errors
     ///
-    /// Returns an error if conversion of this block fails.
-    fn visit_block(&mut self, block: &Block) -> Result<(), Self::Error> {
-        match block {
-            Block::Section(section) => self.visit_section(section),
-            Block::Paragraph(para) => self.visit_paragraph(para),
-            Block::DelimitedBlock(delimited) => self.visit_delimited_block(delimited),
-            Block::OrderedList(list) => self.visit_ordered_list(list),
-            Block::UnorderedList(list) => self.visit_unordered_list(list),
-            Block::DescriptionList(list) => self.visit_description_list(list),
-            Block::CalloutList(list) => self.visit_callout_list(list),
-            Block::Admonition(admon) => self.visit_admonition(admon),
-            Block::Image(img) => self.visit_image(img),
-            Block::Video(video) => self.visit_video(video),
-            Block::Audio(audio) => self.visit_audio(audio),
-            Block::ThematicBreak(br) => self.visit_thematic_break(br),
-            Block::PageBreak(br) => self.visit_page_break(br),
-            Block::TableOfContents(toc) => self.visit_table_of_contents(toc),
-            Block::DiscreteHeader(header) => self.visit_discrete_header(header),
-            // DocumentAttribute blocks are metadata and comments produce no output
-            Block::DocumentAttribute(_) | Block::Comment(_) => Ok(()),
-            _ => self.visit_unhandled_block(block),
-        }
+    /// Returns a backend-specific error if preparation fails.
+    fn before_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _block: &'doc Block<'doc>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    /// Observe an attribute assignment after the context has applied it.
+    ///
+    /// # Errors
+    ///
+    /// The default implementation never returns an error.
+    fn visit_document_attribute(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _attribute: &'doc DocumentAttribute<'doc>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 
     /// Visit a block variant that this version of the visitor does not handle.
@@ -250,7 +286,11 @@ pub trait Visitor {
     ///
     /// The default implementation never returns an error, but custom implementations may return
     /// an error while reporting or rendering the block.
-    fn visit_unhandled_block(&mut self, block: &Block) -> Result<(), Self::Error> {
+    fn visit_unhandled_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        block: &'doc Block<'doc>,
+    ) -> Result<(), Self::Error> {
         tracing::warn!(?block, "Unexpected block");
         Ok(())
     }
@@ -262,128 +302,285 @@ pub trait Visitor {
     /// # Errors
     ///
     /// Returns an error if conversion of the header fails.
-    fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error>;
+    fn visit_header(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        header: &Header,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &header.title)
+    }
 
     /// Visit a section (heading with nested content)
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this section fails.
-    fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error>;
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        section: &'doc Section<'doc>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &section.title)?;
+        traversal.visit_blocks(self, &section.content)
+    }
 
     /// Visit a paragraph
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this paragraph fails.
-    fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error>;
+    fn visit_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        para: &Paragraph,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &para.title)?;
+        self.visit_inline_nodes(traversal, &para.content)
+    }
 
     /// Visit a delimited block (listing, example, sidebar, table, etc.)
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this delimited block fails.
-    fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error>;
+    fn visit_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        block: &'doc DelimitedBlock<'doc>,
+    ) -> Result<(), Self::Error> {
+        match &block.inner {
+            DelimitedBlockType::DelimitedExample(blocks)
+            | DelimitedBlockType::DelimitedOpen(blocks)
+            | DelimitedBlockType::DelimitedQuote(blocks)
+            | DelimitedBlockType::DelimitedSidebar(blocks) => traversal.visit_blocks(self, blocks),
+            DelimitedBlockType::DelimitedTable(table) => {
+                for row in table.header.iter().chain(&table.rows).chain(&table.footer) {
+                    for (index, column) in row.columns.iter().enumerate() {
+                        let style = column.style.unwrap_or_else(|| {
+                            table
+                                .columns
+                                .get(index)
+                                .map_or(acdc_parser::ColumnStyle::Default, |format| format.style)
+                        });
+                        if style == acdc_parser::ColumnStyle::AsciiDoc {
+                            traversal.with_scope(|context| {
+                                context.visit_blocks(self, &column.content)
+                            })?;
+                        } else {
+                            traversal.visit_blocks(self, &column.content)?;
+                        }
+                    }
+                }
+                Ok(())
+            }
+            DelimitedBlockType::DelimitedComment(_)
+            | DelimitedBlockType::DelimitedListing(_)
+            | DelimitedBlockType::DelimitedLiteral(_)
+            | DelimitedBlockType::DelimitedPass(_)
+            | DelimitedBlockType::DelimitedVerse(_)
+            | DelimitedBlockType::DelimitedStem(_)
+            | _ => Ok(()),
+        }
+    }
 
     /// Visit an ordered (numbered) list
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this list fails.
-    fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error>;
+    fn visit_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc OrderedList<'doc>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &list.title)?;
+        for item in &list.items {
+            self.visit_list_item(traversal, item)?;
+        }
+        Ok(())
+    }
 
     /// Visit an unordered (bulleted) list
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this list fails.
-    fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error>;
+    fn visit_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc UnorderedList<'doc>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &list.title)?;
+        for item in &list.items {
+            self.visit_list_item(traversal, item)?;
+        }
+        Ok(())
+    }
 
     /// Visit a description list (term/definition pairs)
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this list fails.
-    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error>;
+    fn visit_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc DescriptionList<'doc>,
+    ) -> Result<(), Self::Error> {
+        for item in &list.items {
+            self.visit_inline_nodes(traversal, &item.term)?;
+            self.visit_inline_nodes(traversal, &item.principal_text)?;
+            traversal.visit_blocks(self, &item.description)?;
+        }
+        Ok(())
+    }
 
     /// Visit a callout list
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this list fails.
-    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error>;
+    fn visit_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc CalloutList<'doc>,
+    ) -> Result<(), Self::Error> {
+        for item in &list.items {
+            self.visit_callout_list_item(traversal, item)?;
+        }
+        Ok(())
+    }
 
     /// Visit a list item
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this list item fails.
-    fn visit_list_item(&mut self, item: &ListItem) -> Result<(), Self::Error>;
+    fn visit_list_item(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        item: &'doc ListItem<'doc>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &item.principal)?;
+        traversal.visit_blocks(self, &item.blocks)
+    }
 
     /// Visit an admonition (NOTE, TIP, WARNING, etc.)
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this admonition fails.
-    fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error>;
+    fn visit_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        admon: &'doc Admonition<'doc>,
+    ) -> Result<(), Self::Error> {
+        traversal.visit_blocks(self, &admon.blocks)
+    }
 
     /// Visit an image
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this image fails.
-    fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error>;
+    fn visit_image(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _img: &Image,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit a video
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this video fails.
-    fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error>;
+    fn visit_video(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _video: &Video,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit an audio element
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this audio element fails.
-    fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error>;
+    fn visit_audio(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _audio: &Audio,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit a thematic break (horizontal rule)
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this thematic break fails.
-    fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error>;
+    fn visit_thematic_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _br: &ThematicBreak,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit a page break
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this page break fails.
-    fn visit_page_break(&mut self, br: &PageBreak) -> Result<(), Self::Error>;
+    fn visit_page_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _br: &PageBreak,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit a table of contents
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this table of contents fails.
-    fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error>;
+    fn visit_table_of_contents(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _toc: &TableOfContents,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit a discrete header (not part of document structure)
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of this discrete header fails.
-    fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error>;
+    fn visit_discrete_header(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        header: &DiscreteHeader,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &header.title)
+    }
 
     /// Visit a sequence of inline nodes
     ///
     /// # Errors
     ///
     /// Returns an error if conversion of any inline node fails.
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        nodes: &[InlineNode],
+    ) -> Result<(), Self::Error> {
         for node in nodes {
-            self.visit_inline_node(node)?;
+            self.visit_inline_node(traversal, node)?;
         }
         Ok(())
     }
@@ -393,14 +590,26 @@ pub trait Visitor {
     /// # Errors
     ///
     /// Returns an error if conversion of this inline node fails.
-    fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error>;
+    fn visit_inline_node(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _node: &InlineNode,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit plain text
     ///
     /// # Errors
     ///
     /// Returns an error if writing the text fails.
-    fn visit_text(&mut self, text: &str) -> Result<(), Self::Error>;
+    fn visit_text(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _text: &str,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
 
     /// Visit a callout reference inline node.
     ///
@@ -409,19 +618,28 @@ pub trait Visitor {
     /// # Errors
     ///
     /// Returns an error if writing the callout reference fails.
-    fn visit_callout_ref(&mut self, _callout: &CalloutRef) -> Result<(), Self::Error> {
+    fn visit_callout_ref(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _callout: &CalloutRef,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
     /// Visit a callout list item.
     ///
-    /// Default implementation does nothing. Override to render callout list items.
+    /// The default visits principal text followed by attached blocks.
     ///
     /// # Errors
     ///
     /// Returns an error if writing the callout list item fails.
-    fn visit_callout_list_item(&mut self, _item: &CalloutListItem) -> Result<(), Self::Error> {
-        Ok(())
+    fn visit_callout_list_item(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        item: &'doc CalloutListItem<'doc>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &item.principal)?;
+        traversal.visit_blocks(self, &item.blocks)
     }
 }
 
@@ -445,7 +663,7 @@ pub fn is_formatting_span(node: &InlineNode) -> bool {
 /// A writable visitor that outputs to a writer.
 ///
 /// This is a common pattern for converters that generate text output (HTML, terminal, etc.)
-pub trait WritableVisitor: Visitor {
+pub trait WritableVisitor<'doc>: Visitor<'doc> {
     /// Get a mutable reference to the writer
     fn writer_mut(&mut self) -> &mut dyn Write;
 
@@ -465,6 +683,7 @@ pub trait WritableVisitor: Visitor {
     /// Returns an error if writing or visiting fails.
     fn render_title_with_wrapper(
         &mut self,
+        traversal: &mut TraversalContext<'doc>,
         title: &[InlineNode],
         prefix: &str,
         suffix: &str,
@@ -476,7 +695,7 @@ pub trait WritableVisitor: Visitor {
             let w = self.writer_mut();
             write!(w, "{prefix}")?;
             let _ = w;
-            self.visit_inline_nodes(title)?;
+            self.visit_inline_nodes(traversal, title)?;
             let w = self.writer_mut();
             write!(w, "{suffix}")?;
         }

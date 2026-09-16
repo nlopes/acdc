@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Repeated `-a` options now use the final assignment's precedence, matching
+  Asciidoctor. A later default such as `-a name=value@` or `-a !name=@` cancels
+  an earlier override and lets the document assign that attribute.
+- Serialized parser output now keeps document attributes as an end-of-header
+  snapshot and reports accepted body set and unset entries in source order.
 - `convert -a` attributes now remain locked against matching set or unset
   entries in the document. The Asciidoctor-compatible `@` suffix makes a value
   a document-overridable default, including `name@=value`, `name=value@`, and
@@ -16,12 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Implied and conversion-only values such as the default `lang=en`, `outdir`,
   and `outfile` are no longer inserted into parser attributes. Converters keep
   their output fallbacks, while an unresolved attribute reference stays
-  unresolved unless the document or command line sets it.
+  unresolved. `outdir` and `outfile` remain conversion-result metadata even
+  when matching `-a` options are supplied.
 - `convert` makes the selected backend's attributes and the converter's default
   attributes available while the document is parsed, so backend conditionals such
   as `ifdef::backend-pdf[]` and references to `backend`, `basebackend`, `filetype`,
   `outfilesuffix`, and `htmlsyntax` reflect the chosen output during parsing —
-  consistently for both stdin and file inputs.
+  consistently for stdin, single-file input, and multi-file batches.
 - CLI subcommand errors now exit with a non-zero status after rendering the
   error message. This includes `acdc lint` runs with denied diagnostics.
 - Missing `convert` and `lint` inputs now produce normal command usage errors,

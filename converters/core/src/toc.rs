@@ -11,9 +11,24 @@
 //! - `preamble` - Render at end of preamble
 //! - `macro` - Render where `toc::[]` macro appears
 
-use acdc_parser::{AttributeValue, DocumentAttributes, SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{AttributeValue, SectionKind, TableOfContents, TocEntry};
 
-use crate::section::{appendix_number_prefix, part_number_prefix, section_number_prefix};
+use crate::{
+    TraversalContext,
+    section::{appendix_number_prefix, part_number_prefix, section_number_prefix},
+};
+
+fn resolved_u8(attributes: &TraversalContext<'_>, name: &str) -> Option<u8> {
+    attributes.get(name).and_then(|value| {
+        if let Some(value) = value.as_integer() {
+            u8::try_from(value).ok()
+        } else if let Some(value) = value.as_str() {
+            value.parse().ok()
+        } else {
+            None
+        }
+    })
+}
 
 /// Section-number settings used while rendering a table of contents.
 #[derive(Debug, Clone, Copy)]
@@ -27,14 +42,21 @@ impl<'a> NumberingConfig<'a> {
     /// Builds TOC numbering settings from document attributes and backend signifiers.
     #[must_use]
     pub fn new(
-        attributes: &'a DocumentAttributes<'_>,
+        attributes: &'a TraversalContext<'_>,
         part_signifier: Option<&'a str>,
         chapter_signifier: Option<&'a str>,
     ) -> Self {
-        let appendix_caption = match attributes.get("appendix-caption") {
-            Some(AttributeValue::String(caption)) => Some(caption.as_ref()),
-            Some(AttributeValue::Bool(false)) => None,
-            _ => Some("Appendix"),
+        let appendix_caption = if let Some(caption) = attributes
+            .get("appendix-caption")
+            .and_then(|value| value.text())
+        {
+            Some(caption)
+        } else if !attributes.contains_key("appendix-caption")
+            && attributes.is_explicit("appendix-caption")
+        {
+            None
+        } else {
+            Some("Appendix")
         };
         Self {
             part_signifier,
@@ -104,27 +126,26 @@ impl Config {
     #[must_use]
     pub fn from_attributes(
         toc_macro: Option<&TableOfContents<'_>>,
-        attributes: &DocumentAttributes<'_>,
+        attributes: &TraversalContext<'_>,
     ) -> Self {
-        let placement = attributes
-            .get("toc")
-            .map_or("none", |v| match v {
-                // Empty string or Bool(true) means toc is enabled with auto placement
-                AttributeValue::String(s) if s.is_empty() => "auto",
-                AttributeValue::String(s) => s.as_ref(),
-                AttributeValue::Bool(true) => "auto",
-                // Bool(false), None, or unknown means toc is disabled
-                AttributeValue::Bool(false) | AttributeValue::None | _ => "none",
-            })
-            .to_lowercase();
+        let placement = match attributes.get("toc") {
+            Some(value) => value.as_integer().map_or_else(
+                || {
+                    value
+                        .as_str()
+                        .filter(|text| !text.is_empty())
+                        .unwrap_or("auto")
+                        .to_lowercase()
+                },
+                |value| value.to_string(),
+            ),
+            None => "none".to_string(),
+        };
 
         let title = attributes
             .get("toc-title")
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.as_ref()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .map(String::from);
+            .and_then(|value| value.text())
+            .map(str::to_owned);
 
         // First check if toc macro has a levels attribute (block-level)
         let levels = toc_macro
@@ -133,13 +154,8 @@ impl Config {
                 AttributeValue::String(s) => s.parse::<u8>().ok(),
                 AttributeValue::Bool(_) | AttributeValue::None | _ => None,
             })
-            .or_else(|| {
-                // Fall back to document-level toclevels attribute
-                attributes.get("toclevels").and_then(|v| match v {
-                    AttributeValue::String(s) => s.parse::<u8>().ok(),
-                    AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-                })
-            })
+            // Fall back to document-level toclevels attribute.
+            .or_else(|| resolved_u8(attributes, "toclevels"))
             .unwrap_or(2);
 
         // Compute toc-class: custom value, or "toc2" for sidebar positions, or "toc" otherwise
@@ -147,16 +163,15 @@ impl Config {
         // Content positions (auto, preamble, macro) use "toc" class for inline styling
         let toc_class = attributes
             .get("toc-class")
-            .and_then(|v| match v {
-                AttributeValue::String(s) if !s.is_empty() => Some(s.clone().into_owned()),
-                AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => {
-                    None
-                }
-            })
-            .unwrap_or_else(|| match placement.as_ref() {
-                "left" | "right" | "top" | "bottom" => "toc2".to_string(),
-                _ => "toc".to_string(),
-            });
+            .and_then(|value| value.text())
+            .filter(|value| !value.is_empty())
+            .map_or_else(
+                || match placement.as_ref() {
+                    "left" | "right" | "top" | "bottom" => "toc2".to_string(),
+                    _ => "toc".to_string(),
+                },
+                str::to_owned,
+            );
 
         Self {
             placement,
@@ -194,5 +209,34 @@ impl Config {
     #[must_use]
     pub fn toc_class(&self) -> &str {
         &self.toc_class
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn typed_numbers_and_text_use_separate_views() -> Result<(), Box<dyn std::error::Error>> {
+        let mut attributes = std::collections::HashMap::<
+            std::borrow::Cow<'_, str>,
+            acdc_parser::AttributeValue<'_>,
+        >::new();
+        attributes.insert("max-include-depth".into(), "03".into());
+        attributes.insert("toc-title".into(), "Contents 03".into());
+
+        let attributes = acdc_parser::Options::builder()
+            .with_defaults(attributes)
+            .build()?
+            .into_document_attributes();
+
+        assert_eq!(
+            resolved_u8(&TraversalContext::new(&attributes), "max-include-depth"),
+            Some(3)
+        );
+
+        let config = Config::from_attributes(None, &TraversalContext::new(&attributes));
+        assert_eq!(config.title(), Some("Contents 03"));
+        Ok(())
     }
 }

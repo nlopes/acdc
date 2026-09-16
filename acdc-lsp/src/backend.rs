@@ -4,42 +4,47 @@
 
 use std::sync::{Mutex, PoisonError, RwLock};
 
-use tower_lsp_server::jsonrpc::{Error, Result};
-use tower_lsp_server::ls_types::{
-    CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
-    CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
-    CallHierarchyServerCapability, CodeActionOptions, CodeActionParams,
-    CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions, CodeLensParams,
-    CompletionOptions, CompletionParams, CompletionResponse, ConfigurationItem,
-    DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams,
-    DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams, DocumentLink,
-    DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
-    DocumentOnTypeFormattingParams, DocumentRangeFormattingParams, DocumentSymbolParams,
-    DocumentSymbolResponse, FileOperationFilter, FileOperationPattern, FileOperationPatternKind,
-    FileOperationRegistrationOptions, FoldingRange, FoldingRangeParams,
-    FoldingRangeProviderCapability, GotoDefinitionParams, GotoDefinitionResponse, Hover,
-    HoverParams, HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams,
-    InlayHint, InlayHintParams, MessageType, OneOf, PrepareRenameResponse, ReferenceParams,
-    Registration, RenameFilesParams, RenameOptions, RenameParams, SelectionRange,
-    SelectionRangeParams, SelectionRangeProviderCapability, SemanticTokensParams,
-    SemanticTokensResult, ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions,
-    SignatureHelpParams, SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
-    TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
-    WorkspaceFileOperationsServerCapabilities, WorkspaceFoldersServerCapabilities,
-    WorkspaceServerCapabilities, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+use tower_lsp_server::{
+    Client, LanguageServer,
+    jsonrpc::{Error, Result},
+    ls_types::{
+        CallHierarchyIncomingCall, CallHierarchyIncomingCallsParams, CallHierarchyItem,
+        CallHierarchyOutgoingCall, CallHierarchyOutgoingCallsParams, CallHierarchyPrepareParams,
+        CallHierarchyServerCapability, CodeActionKind, CodeActionOptions, CodeActionParams,
+        CodeActionProviderCapability, CodeActionResponse, CodeLens, CodeLensOptions,
+        CodeLensParams, CompletionOptions, CompletionParams, CompletionResponse, ConfigurationItem,
+        DidChangeConfigurationParams, DidChangeTextDocumentParams, DidChangeWorkspaceFoldersParams,
+        DidCloseTextDocumentParams, DidOpenTextDocumentParams, DocumentFormattingParams,
+        DocumentLink, DocumentLinkOptions, DocumentLinkParams, DocumentOnTypeFormattingOptions,
+        DocumentOnTypeFormattingParams, DocumentRangeFormattingParams, DocumentSymbolParams,
+        DocumentSymbolResponse, FileOperationFilter, FileOperationPattern,
+        FileOperationPatternKind, FileOperationRegistrationOptions, FoldingRange,
+        FoldingRangeParams, FoldingRangeProviderCapability, GotoDefinitionParams,
+        GotoDefinitionResponse, Hover, HoverParams, HoverProviderCapability, InitializeParams,
+        InitializeResult, InitializedParams, InlayHint, InlayHintParams, Location, MessageType,
+        OneOf, PrepareRenameResponse, ReferenceParams, Registration, RenameFilesParams,
+        RenameOptions, RenameParams, SelectionRange, SelectionRangeParams,
+        SelectionRangeProviderCapability, SemanticTokensParams, SemanticTokensResult,
+        ServerCapabilities, ServerInfo, SignatureHelp, SignatureHelpOptions, SignatureHelpParams,
+        SymbolInformation, TextDocumentPositionParams, TextDocumentSyncCapability,
+        TextDocumentSyncKind, TextEdit, Uri, WorkDoneProgressOptions, WorkspaceEdit,
+        WorkspaceFileOperationsServerCapabilities, WorkspaceFoldersServerCapabilities,
+        WorkspaceServerCapabilities, WorkspaceSymbolParams, WorkspaceSymbolResponse,
+    },
 };
-use tower_lsp_server::{Client, LanguageServer};
 
-use crate::capabilities::{
-    call_hierarchy, code_actions, code_lens, completion, definition, document_links, file_rename,
-    folding, formatting, hover, inlay_hints, on_type_formatting, references, rename,
-    selection_range, semantic_tokens, signature_help, symbols,
+use crate::{
+    capabilities::{
+        call_hierarchy, code_actions, code_lens, completion, definition, document_links,
+        file_rename, folding, formatting, hover, inlay_hints, on_type_formatting, references,
+        rename, selection_range, semantic_tokens, signature_help, symbols,
+    },
+    config::{
+        AnalysisConfiguration, BackendUpdate, RootConfiguration, ServerOptions, WorkspaceSettings,
+        parse_backend_update,
+    },
+    state::Workspace,
 };
-use crate::config::{
-    AnalysisConfiguration, BackendUpdate, RootConfiguration, ServerOptions, WorkspaceSettings,
-    parse_backend_update,
-};
-use crate::state::Workspace;
 
 #[derive(Clone, Copy, Default)]
 struct ClientFeatures {
@@ -311,9 +316,9 @@ impl LanguageServer for Backend {
                 code_action_provider: Some(CodeActionProviderCapability::Options(
                     CodeActionOptions {
                         code_action_kinds: Some(vec![
-                            tower_lsp_server::ls_types::CodeActionKind::QUICKFIX,
-                            tower_lsp_server::ls_types::CodeActionKind::REFACTOR_EXTRACT,
-                            tower_lsp_server::ls_types::CodeActionKind::SOURCE,
+                            CodeActionKind::QUICKFIX,
+                            CodeActionKind::REFACTOR_EXTRACT,
+                            CodeActionKind::SOURCE,
                         ]),
                         work_done_progress_options: WorkDoneProgressOptions::default(),
                         resolve_provider: Some(false),
@@ -336,7 +341,6 @@ impl LanguageServer for Backend {
                 selection_range_provider: Some(SelectionRangeProviderCapability::Simple(true)),
                 // Enable call hierarchy for include-tree navigation
                 call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
-                // Enable inlay hints for resolved attributes and xref titles
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 // Enable signature help for macro attribute lists
                 signature_help_provider: Some(SignatureHelpOptions {
@@ -565,7 +569,7 @@ impl LanguageServer for Backend {
             .map(|(uri, symbol)| SymbolInformation {
                 name: symbol.name,
                 kind: symbol.kind,
-                location: tower_lsp_server::ls_types::Location {
+                location: Location {
                     uri,
                     range: crate::convert::location_to_range(&symbol.location),
                 },
@@ -599,7 +603,7 @@ impl LanguageServer for Backend {
                     ?loc,
                     "goto_definition resolved to"
                 );
-                GotoDefinitionResponse::Scalar(tower_lsp_server::ls_types::Location {
+                GotoDefinitionResponse::Scalar(Location {
                     uri: target_uri,
                     range: crate::convert::location_to_range(&loc),
                 })
@@ -627,10 +631,7 @@ impl LanguageServer for Backend {
     }
 
     #[tracing::instrument(name = "lsp/references", level = "debug", skip_all, fields(uri = params.text_document_position.text_document.uri.as_str()))]
-    async fn references(
-        &self,
-        params: ReferenceParams,
-    ) -> Result<Option<Vec<tower_lsp_server::ls_types::Location>>> {
+    async fn references(&self, params: ReferenceParams) -> Result<Option<Vec<Location>>> {
         let uri = params.text_document_position.text_document.uri;
         let position = params.text_document_position.position;
         let include_declaration = params.context.include_declaration;

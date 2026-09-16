@@ -100,6 +100,7 @@ use tracing::instrument;
 
 mod blocks;
 mod constants;
+mod document_attribute;
 mod error;
 pub(crate) mod grammar;
 mod model;
@@ -120,16 +121,17 @@ pub use model::{
     CalloutRefKind, Caption, CaptionKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth,
     Comment, CommentKind, CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
     DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
-    DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote, Form, HEADER, Header,
-    Highlight, HorizontalAlignment, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
-    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
-    ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace,
-    NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw,
-    Reference, Role, Section, SectionKind, Source, SourceUrl, StandaloneCurvedApostrophe, Stem,
-    StemContent, StemNotation, Subscript, Substitution, Subtitle, Superscript, Table, TableColumn,
-    TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
-    ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
-    Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefStyle, strip_quotes, substitute,
+    DocumentAttribute, DocumentAttributeAssignment, DocumentAttributeValue, DocumentAttributes,
+    ElementAttributes, Footnote, Form, HEADER, Header, Highlight, HorizontalAlignment, ICON_SIZES,
+    Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Italic,
+    Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, MAX_SECTION_LEVELS,
+    MAX_TOC_LEVELS, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Pass,
+    PassthroughKind, Plain, Position, Raw, Reference, Role, Section, SectionKind, Source,
+    SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
+    Substitution, Subtitle, Superscript, Table, TableColumn, TableFrame, TableGrid,
+    TableOfContents, TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry,
+    UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
+    XrefCaptionLabel, XrefStyle, strip_quotes, substitute, substitute_attributes,
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};
@@ -162,7 +164,7 @@ pub use warning::{Warning, WarningKind};
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Safe)
 ///     .with_timings()
-///     .build();
+///     .build()?;
 ///
 /// let doc = Parser::new(content)
 ///     .with_options(options)
@@ -219,7 +221,7 @@ impl<'input> Parser<'input> {
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
-    ///     .build();
+    ///     .build()?;
     ///
     /// let parser = Parser::new("= Title")
     ///     .with_options(options);
@@ -283,9 +285,10 @@ impl<'input> Parser<'input> {
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
-///     .build();
+///     .build()?;
 /// let file = File::open("fixtures/samples/README.adoc").unwrap();
-/// let document = parse_from_reader(file, &options).unwrap();
+/// let document = parse_from_reader(file, &options)?;
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
 /// # Errors
@@ -295,7 +298,9 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let options = options.clone().prepare_for_parse();
+    let options = options
+        .clone()
+        .prepare_for_parse(document_attribute::InputKind::Reader);
     // Shared across the preprocessor and the grammar state so both layers'
     // warnings land in the same `ParseResult::warnings()` slice.
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -326,16 +331,19 @@ pub fn parse_from_reader<R: std::io::Read>(
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
-///     .build();
+///     .build()?;
 /// let content = "= Document Title\n\nThis is a paragraph.\n\n== Section Title\n\nThis is a subsection.";
-/// let document = parse(content, &options).unwrap();
+/// let document = parse(content, &options)?;
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
 /// # Errors
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
-    let options = options.clone().prepare_for_parse();
+    let options = options
+        .clone()
+        .prepare_for_parse(document_attribute::InputKind::String);
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
@@ -365,9 +373,10 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
-///     .build();
+///     .build()?;
 /// let file_path = Path::new("fixtures/samples/README.adoc");
-/// let document = parse_file(file_path, &options).unwrap();
+/// let document = parse_file(file_path, &options)?;
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
 /// # Errors
@@ -377,7 +386,9 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
-    let options = options.clone().prepare_for_parse();
+    let options = options
+        .clone()
+        .prepare_for_parse(document_attribute::InputKind::File(file_path.as_ref()));
     let path = file_path.as_ref().to_path_buf();
     let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -490,13 +501,8 @@ fn parse_input(
 
 /// Parse inline `AsciiDoc` content from a string.
 ///
-/// This function parses the provided string as inline `AsciiDoc` elements, returning a
-/// vector of inline nodes instead of a complete document structure. This is useful for
-/// parsing fragments of `AsciiDoc` content that contain inline markup like emphasis,
-/// strong text, links, macros, and other inline elements.
-///
-/// NOTE: This function exists pretty much just for the sake of the TCK tests, which rely
-/// on an "inline" type output.
+/// The result owns its inline nodes without a block document. Use it for fragments
+/// containing emphasis, links, macros, or other inline content.
 ///
 /// # Example
 ///
@@ -505,9 +511,10 @@ fn parse_input(
 ///
 /// let options = Options::builder()
 ///     .with_safe_mode(SafeMode::Unsafe)
-///     .build();
+///     .build()?;
 /// let content = "This is *strong* text with a https://example.com[link].";
-/// let inline_nodes = parse_inline(content, &options).unwrap();
+/// let inline_nodes = parse_inline(content, &options)?;
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 ///
 /// # Errors
@@ -516,7 +523,10 @@ fn parse_input(
 pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineResult, Error> {
     tracing::trace!(?input, "post preprocessor");
     let owner = parsed::OwnedInput::new(input.into());
-    let options_owned = options.clone().prepare_for_parse().into_static();
+    let options_owned = options
+        .clone()
+        .prepare_for_parse(document_attribute::InputKind::String)
+        .into_static();
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let warnings_for_state = Rc::clone(&warnings_handle);
 
@@ -561,7 +571,7 @@ mod proptests;
 #[allow(clippy::panic)]
 #[allow(clippy::expect_used)]
 mod tests {
-    use std::{fs, path::PathBuf};
+    use std::{error::Error as StdError, fs, path::PathBuf};
 
     use pretty_assertions::assert_eq;
 
@@ -576,11 +586,9 @@ mod tests {
     }
 
     #[test]
-    fn caller_hardbreak_attributes_create_line_break_nodes() {
+    fn caller_hardbreak_attributes_create_line_break_nodes() -> Result<(), Box<dyn StdError>> {
         for name in ["hardbreaks", "hardbreaks-option"] {
-            let mut attributes = DocumentAttributes::default();
-            attributes.set(name.into(), AttributeValue::String("false".into()));
-            let options = Options::with_attributes(attributes);
+            let options = Options::builder().with_attribute(name, "false").build()?;
             let parsed = parse("First line\nSecond line\n", &options)
                 .expect("parse paragraph with caller hard breaks");
             let paragraph = parsed
@@ -616,6 +624,7 @@ mod tests {
                 ]
             ));
         }
+        Ok(())
     }
 
     #[test]
@@ -639,13 +648,15 @@ mod tests {
     }
 
     #[test]
-    fn indent_include_remaps_columns_to_origin() {
+    fn indent_include_remaps_columns_to_origin() -> Result<(), Box<dyn StdError>> {
         // A `----` listing including a one-line file with `indent=6`. The remap must
         // report the included token at its ORIGIN columns (1..10) — stripping back the
         // six inserted spaces — not the preprocessed columns (7..16). For re-indented
         // content `absolute_*` stays in preprocessed coordinates (not serialized to the
         // ASG), so we only assert it stays a valid `start <= end` span.
-        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file("fixtures/preprocessor/include_indent_main.adoc", &opts)
             .expect("parse indented include");
         let doc = result.document();
@@ -683,10 +694,11 @@ mod tests {
             Some("include_indent_target.rb"),
         );
         assert!(loc.absolute_start <= loc.absolute_end);
+        Ok(())
     }
 
     #[test]
-    fn quote_attribution_and_citetitle_remap_to_included_file() {
+    fn quote_attribution_and_citetitle_remap_to_included_file() -> Result<(), Box<dyn StdError>> {
         fn file_name(loc: &Location) -> Option<&str> {
             loc.start
                 .file
@@ -699,7 +711,9 @@ mod tests {
         // line 5 (so its preprocessed line is 7). The attribution and citetitle inline
         // nodes must remap to the included file at its true line 3 — not stay at the
         // preprocessed line with `file: None` like the rest of the block.
-        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file("fixtures/preprocessor/include_quote_main.adoc", &opts)
             .expect("parse included quote block");
         let doc = result.document();
@@ -736,15 +750,18 @@ mod tests {
             .location();
         assert_eq!(citetitle.start.line, 3, "citetitle origin line");
         assert_eq!(file_name(citetitle), part, "citetitle origin file");
+        Ok(())
     }
 
     #[test]
-    fn inline_preprocessor_warning_reports_included_file_line() {
+    fn inline_preprocessor_warning_reports_included_file_line() -> Result<(), Box<dyn StdError>> {
         // A `{counter:foo}` (an inline-preprocessor warning) sits on line 3 of an
         // included file, spliced in at primary line 5 (preprocessed line 7). The
         // warning must name the included file at its true line 3 — not `file: None`
         // and the post-splice line, matching the error path and the AST nodes.
-        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file("fixtures/preprocessor/include_counter_main.adoc", &opts)
             .expect("parse included counter");
         let warning = result
@@ -767,10 +784,11 @@ mod tests {
             loc.location.start.line, 3,
             "warning origin line in the included file"
         );
+        Ok(())
     }
 
     #[test]
-    fn toc_entries_and_references_remap_to_included_file() {
+    fn toc_entries_and_references_remap_to_included_file() -> Result<(), Box<dyn StdError>> {
         // A section on line 1 of an included file (spliced in at primary line 6) must
         // surface in `toc_entries` and `references` at the included file's true line 1
         // — not the post-splice line with `file: None`. `references` is the LSP
@@ -783,7 +801,9 @@ mod tests {
                 .map(String::as_str)
         }
 
-        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file("fixtures/preprocessor/include_refs_main.adoc", &opts)
             .expect("parse included section");
         let doc = result.document();
@@ -807,6 +827,7 @@ mod tests {
             part,
             "reference origin file"
         );
+        Ok(())
     }
 
     #[test]
@@ -829,10 +850,12 @@ mod tests {
     }
 
     #[test]
-    fn footnote_location_remaps_to_included_file() {
+    fn footnote_location_remaps_to_included_file() -> Result<(), Box<dyn StdError>> {
         // A footnote on line 3 of an included file (spliced at primary line 5) must
         // report that file at its true line 3.
-        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file("fixtures/preprocessor/include_footnote_main.adoc", &opts)
             .expect("parse included footnote");
         let doc = result.document();
@@ -848,6 +871,7 @@ mod tests {
                 .map(String::as_str),
             Some("include_footnote_part.adoc"),
         );
+        Ok(())
     }
 
     #[test]
@@ -869,13 +893,15 @@ mod tests {
     }
 
     #[test]
-    fn document_root_follows_per_boundary_file_model() {
+    fn document_root_follows_per_boundary_file_model() -> Result<(), Box<dyn StdError>> {
         // `include_chain`: main.adoc ends with `include::outer.adoc[]`, and outer.adoc
         // ends with `include::inner.adoc[]`. The document's last content thus comes from
         // inner.adoc, so per the ASG's per-`locationBoundary` `file` model the document's
         // END carries the include chain while its START (primary main.adoc) carries none.
         // The document root is NOT special-cased to the primary file.
-        let opts = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let opts = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result =
             parse_file("fixtures/include_chain/main.adoc", &opts).expect("parse include chain");
         let location = &result.document().location;
@@ -890,6 +916,7 @@ mod tests {
             Some(&expected),
             "document end carries the include chain it ends in",
         );
+        Ok(())
     }
 
     #[rstest::rstest]
@@ -923,7 +950,7 @@ mod tests {
         } else {
             builder
         };
-        let options = builder.build();
+        let options = builder.build()?;
 
         match parse_file(&path, &options) {
             Ok(result) => {
@@ -943,14 +970,14 @@ mod tests {
     }
 
     #[test]
-    fn node_locations_are_source_relative_after_dropped_comment() {
+    fn node_locations_are_source_relative_after_dropped_comment() -> Result<(), Box<dyn StdError>> {
         use crate::Block;
         // The adjacent comment on line 4 is dropped by the preprocessor; the section
         // and its body must still report their ORIGINAL source lines (7 and 9), not
         // the shifted preprocessed lines.
         let input =
             "= Doc\n\nfirst para\n// dropped comment\nsecond para\n\n== Section\n\nbody text\n";
-        let result = parse(input, &Options::builder().build()).expect("parse");
+        let result = parse(input, &Options::builder().build()?).expect("parse");
         let section = result
             .document()
             .blocks
@@ -982,13 +1009,16 @@ mod tests {
             body.location.start.line, 9,
             "body paragraph at source line 9"
         );
+        Ok(())
     }
 
     #[test]
-    fn node_locations_carry_origin_file_across_include() {
+    fn node_locations_carry_origin_file_across_include() -> Result<(), Box<dyn StdError>> {
         use crate::{Block, SafeMode};
         let path = PathBuf::from("fixtures/tests/leveloffset_include.adoc");
-        let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let options = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file(&path, &options).expect("parse");
         // The first section comes from the included file, at its own line 1.
         let section = result
@@ -1013,16 +1043,19 @@ mod tests {
             section.location.start.line, 1,
             "included section at its own line 1"
         );
+        Ok(())
     }
 
     #[test]
-    fn node_locations_carry_full_include_chain() {
+    fn node_locations_carry_full_include_chain() -> Result<(), Box<dyn StdError>> {
         use crate::{Block, SafeMode};
         // main.adoc includes outer.adoc which includes inner.adoc. Each paragraph's
         // `file` is the chain of include targets (as written) reaching it; primary
         // content has none.
         let path = PathBuf::from("fixtures/include_chain/main.adoc");
-        let options = Options::builder().with_safe_mode(SafeMode::Unsafe).build();
+        let options = Options::builder()
+            .with_safe_mode(SafeMode::Unsafe)
+            .build()?;
         let result = parse_file(&path, &options).expect("parse");
 
         let paragraphs = result
@@ -1069,6 +1102,7 @@ mod tests {
                 .map(|chain| chain.as_slice()),
             Some(["outer.adoc".to_string(), "inner.adoc".to_string()].as_slice())
         );
+        Ok(())
     }
 
     #[cfg(test)]
@@ -1353,9 +1387,7 @@ mod tests {
     }
 
     mod attribute_resolution_tests {
-        use std::borrow::Cow;
-
-        use crate::{AttributeValue, Options, parse};
+        use crate::{Options, parse};
 
         #[test]
         fn test_definition_time_resolution_bar_defined_first() {
@@ -1370,10 +1402,7 @@ mod tests {
             let doc = parsed.document();
 
             // foo should have bar's value expanded at definition time
-            assert_eq!(
-                doc.attributes.get("foo"),
-                Some(&AttributeValue::String(Cow::Borrowed("resolved-bar")))
-            );
+            assert_eq!(doc.attributes.text("foo"), Some("resolved-bar"));
         }
 
         #[test]
@@ -1389,10 +1418,7 @@ mod tests {
             let doc = parsed.document();
 
             // foo should keep {bar} as literal since bar wasn't defined yet
-            assert_eq!(
-                doc.attributes.get("foo"),
-                Some(&AttributeValue::String(Cow::Borrowed("{bar}")))
-            );
+            assert_eq!(doc.attributes.text("foo"), Some("{bar}"));
         }
 
         #[test]
@@ -1410,18 +1436,9 @@ mod tests {
             let doc = parsed.document();
 
             // c is defined first, so b gets "final-value", then a gets "final-value"
-            assert_eq!(
-                doc.attributes.get("c"),
-                Some(&AttributeValue::String(Cow::Borrowed("final-value")))
-            );
-            assert_eq!(
-                doc.attributes.get("b"),
-                Some(&AttributeValue::String(Cow::Borrowed("final-value")))
-            );
-            assert_eq!(
-                doc.attributes.get("a"),
-                Some(&AttributeValue::String(Cow::Borrowed("final-value")))
-            );
+            assert_eq!(doc.attributes.text("c"), Some("final-value"));
+            assert_eq!(doc.attributes.text("b"), Some("final-value"));
+            assert_eq!(doc.attributes.text("a"), Some("final-value"));
         }
     }
 }

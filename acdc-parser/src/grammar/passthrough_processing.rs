@@ -1,8 +1,9 @@
 use bumpalo::Bump;
+use std::mem::take;
 
 use crate::{
-    AttributeValue, InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass,
-    PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
+    InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
+    ProcessedContent, Raw, Substitution,
     model::substitution::{SubstitutionPlan, resolve_passthrough_substitutions},
     parsed::OwnedInput,
 };
@@ -262,8 +263,7 @@ fn process_inline_children<'a>(
 ) {
     macro_rules! process_content {
         ($value:expr) => {
-            $value.content =
-                process_inline_nodes(std::mem::take(&mut $value.content), substitutions, state)
+            $value.content = process_inline_nodes(take(&mut $value.content), substitutions, state)
         };
     }
 
@@ -279,20 +279,16 @@ fn process_inline_children<'a>(
         InlineNode::Macro(macro_node) => match macro_node {
             InlineMacro::Footnote(value) => process_content!(value),
             InlineMacro::Url(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::Link(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::Mailto(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::CrossReference(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::Icon(_)
             | InlineMacro::Image(_)
@@ -333,22 +329,20 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             continue;
         }
 
-        let Some(value) = state.document_attributes.get(name) else {
+        let Some(resolved) = state.document_attributes.get(name) else {
             cursor = end;
             continue;
         };
         push_raw_segment(&mut result, raw, cursor, start, raw.subs.clone(), state);
         let reference_location = raw_segment_location(raw, start, end, state);
-        match value {
-            AttributeValue::String(value) => result.push(InlineNode::RawText(Raw {
-                content: state.intern_str(value),
+        let mut value = String::new();
+        let _ = resolved.write_text(&mut value);
+        if !value.is_empty() {
+            result.push(InlineNode::RawText(Raw {
+                content: state.intern_str(&value),
                 location: reference_location,
                 subs: vec![Substitution::SpecialChars],
-            })),
-            AttributeValue::Bool(true) => {}
-            AttributeValue::Bool(false) | AttributeValue::None => {
-                push_raw_segment(&mut result, raw, start, end, raw.subs.clone(), state);
-            }
+            }));
         }
         cursor = end;
     }

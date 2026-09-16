@@ -1,0 +1,322 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Attribute Values and Substitution",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 35
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 17,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "continued": "first second",
+    "copied-absent": "{missing-value}",
+    "copied-header": "header",
+    "empty-value": true,
+    "false-text": "false",
+    "negative-text": "-1",
+    "octal-text": "064",
+    "positive-text": "+1",
+    "source-value": "header",
+    "text-value": "header text",
+    "true-text": "true",
+    "zero-text": "0"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Values: header text; []; false; true; 0; 064; +1; -1; first second.",
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 139
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 19,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 139
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Header copies: header; {missing-value}.\nProtected values: 64; unsafe; {backend-forged}.",
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 74
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 74
+        }
+      ]
+    },
+    {
+      "name": "source-value",
+      "type": "attribute",
+      "value": "body",
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "copied-body",
+      "type": "attribute",
+      "value": "body",
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "source-value",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 16
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After unset: {source-value}; header; body.",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 60
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 60
+        }
+      ]
+    },
+    {
+      "name": "source-value",
+      "type": "attribute",
+      "value": "later",
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "copied-body",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 15
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After reset: later; header; {copied-body}.",
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 33,
+              "col": 60
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 33,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 60
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Rejected assignments: 64; unsafe; {doctype-forged}; {filetype-forged}.",
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 97
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 41,
+          "col": 1
+        },
+        {
+          "line": 41,
+          "col": 97
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": ":literal-value: remains text\n{source-value}",
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 43,
+          "col": 1
+        },
+        {
+          "line": 46,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 46,
+      "col": 4
+    }
+  ]
+}

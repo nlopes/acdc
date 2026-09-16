@@ -1,3 +1,4 @@
+use bumpalo::Bump;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
@@ -9,10 +10,12 @@ use std::{
 use peg::parser;
 
 use crate::{
-    AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
-    SourceLocation, Substitution, Warning, WarningKind, grammar::LineMap,
-    model::substitution::parse_substitution,
+    DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
+    Substitution, Warning, WarningKind, grammar::LineMap, model::substitution::parse_substitution,
 };
+
+#[cfg(test)]
+use crate::AttributeValue;
 
 /// Parser state for the inline preprocessor.
 ///
@@ -35,7 +38,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) full_input: &'a str,
     /// Arena for interning synthesised passthrough strings produced during
     /// preprocessing (character-replacement expansions, escape-stripped text).
-    pub(crate) arena: &'a bumpalo::Bump,
+    pub(crate) arena: &'a Bump,
     pub(crate) source_map: RefCell<SourceMap>,
     /// The substring currently being parsed.
     pub(crate) input: RefCell<&'a str>,
@@ -65,7 +68,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         input: &'a str,
         line_map: Rc<LineMap>,
         full_input: &'a str,
-        arena: &'a bumpalo::Bump,
+        arena: &'a Bump,
         macros_enabled: bool,
         attributes_enabled: bool,
     ) -> Self {
@@ -91,7 +94,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         input: &'a str,
         line_map: Rc<LineMap>,
         full_input: &'a str,
-        arena: &'a bumpalo::Bump,
+        arena: &'a Bump,
     ) -> Self {
         Self::new(input, line_map, full_input, arena, true, true)
     }
@@ -397,53 +400,43 @@ impl<'a> InlinePreprocessorParserState<'a> {
                 | "quot"
         );
 
-        match document_attributes.get(attribute_name) {
-            Some(AttributeValue::String(value)) if is_character_reference => {
-                self.passthroughs.borrow_mut().push(Pass {
-                    text: Some(self.arena.alloc_str(value)),
-                    substitutions: Vec::new(),
-                    location: location.clone(),
-                    kind: PassthroughKind::AttributeRef,
-                });
-                let placeholder = format!(
-                    "\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}",
-                    self.pass_found_count.get()
-                );
-                self.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    placeholder.len(),
-                    ProcessedKind::Passthrough,
-                );
-                self.pass_found_count.set(self.pass_found_count.get() + 1);
-                placeholder
-            }
-            Some(AttributeValue::String(value)) => {
-                self.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    value.len(),
-                    ProcessedKind::Attribute,
-                );
-                self.attributes
-                    .borrow_mut()
-                    .insert(self.source_map.borrow().replacements.len(), location);
-                value.to_string()
-            }
-            Some(AttributeValue::Bool(true)) => {
-                self.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    0,
-                    ProcessedKind::Attribute,
-                );
-                self.attributes
-                    .borrow_mut()
-                    .insert(self.source_map.borrow().replacements.len(), location);
-                String::new()
-            }
-            _ => format!("{{{attribute_name}}}"),
+        let Some(resolved) = document_attributes.get(attribute_name) else {
+            return format!("{{{attribute_name}}}");
+        };
+
+        if is_character_reference && let Some(value) = resolved.as_str() {
+            self.passthroughs.borrow_mut().push(Pass {
+                text: Some(self.arena.alloc_str(value.as_ref())),
+                substitutions: Vec::new(),
+                location: location.clone(),
+                kind: PassthroughKind::AttributeRef,
+            });
+            let placeholder = format!(
+                "\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}",
+                self.pass_found_count.get()
+            );
+            self.source_map.borrow_mut().add_replacement(
+                location.absolute_start,
+                location.absolute_end,
+                placeholder.len(),
+                ProcessedKind::Passthrough,
+            );
+            self.pass_found_count.set(self.pass_found_count.get() + 1);
+            return placeholder;
         }
+
+        let mut value = String::new();
+        let _ = resolved.write_text(&mut value);
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            value.len(),
+            ProcessedKind::Attribute,
+        );
+        self.attributes
+            .borrow_mut()
+            .insert(self.source_map.borrow().replacements.len(), location);
+        value
     }
 
     fn location_from_offsets(&self, absolute_start: usize, absolute_end: usize) -> Location {
@@ -996,11 +989,14 @@ parser!(
 
         rule attribute_reference_content() -> String
             = "{" attribute_name:attribute_name() "}" {
-                match document_attributes.get(attribute_name) {
-                    Some(AttributeValue::String(value)) => value.to_string(),
-                        // TODO(nlopes): do we need to handle other types?
-                        // For non-string attributes, keep original text
-                    _ => format!("{{{attribute_name}}}"),
+                let mut value = String::new();
+                if document_attributes
+                    .write_text(attribute_name, &mut value)
+                    .unwrap_or_default()
+                {
+                    value
+                } else {
+                    format!("{{{attribute_name}}}")
                 }
             }
 
@@ -1034,15 +1030,27 @@ mod tests {
 
     fn setup_attributes() -> DocumentAttributes<'static> {
         let mut attributes = DocumentAttributes::default();
-        attributes.insert("s".into(), AttributeValue::String("link:/nonono".into()));
-        attributes.insert("version".into(), AttributeValue::String("1.0".into()));
-        attributes.insert("title".into(), AttributeValue::String("My Title".into()));
+        assert!(
+            attributes
+                .insert("s".into(), AttributeValue::String("link:/nonono".into()))
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("version".into(), AttributeValue::String("1.0".into()))
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("title".into(), AttributeValue::String("My Title".into()))
+                .is_ok()
+        );
         attributes
     }
 
     fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
         // Leak a per-call arena so test states have the required lifetime.
-        let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
+        let arena: &'static Bump = Box::leak(Box::new(Bump::new()));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
@@ -1294,8 +1302,16 @@ mod tests {
     fn test_nested_passthrough_with_nested_attributes() -> Result<(), Error> {
         let mut attributes = setup_attributes();
         // Add nested attributes
-        attributes.insert("nested1".into(), AttributeValue::String("{version}".into()));
-        attributes.insert("nested2".into(), AttributeValue::String("{nested1}".into()));
+        assert!(
+            attributes
+                .insert("nested1".into(), AttributeValue::String("{version}".into()))
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("nested2".into(), AttributeValue::String("{nested1}".into()))
+                .is_ok()
+        );
 
         // Test passthrough containing attribute that references another attribute
         let input = "Here is a +special {nested2} value+ to test.";
@@ -1390,7 +1406,11 @@ mod tests {
     fn test_pass_macro_with_mixed_content() -> Result<(), Error> {
         let mut attributes = setup_attributes();
         // Add docname attribute
-        attributes.insert("docname".into(), AttributeValue::String("test-doc".into()));
+        assert!(
+            attributes
+                .insert("docname".into(), AttributeValue::String("test-doc".into()))
+                .is_ok()
+        );
 
         let input = "The text pass:q,a[<u>underline _{docname}_</u>] is underlined.";
         let state = setup_state(input);
@@ -1433,7 +1453,11 @@ mod tests {
     #[test]
     fn test_all_passthroughs_with_attribute() -> Result<(), Error> {
         let mut attributes = setup_attributes();
-        attributes.insert("meh".into(), AttributeValue::String("1.0".into()));
+        assert!(
+            attributes
+                .insert("meh".into(), AttributeValue::String("1.0".into()))
+                .is_ok()
+        );
 
         let input = "1 +2+, ++3++ {meh} and +++4+++ are all numbers.";
         //                 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456
@@ -1763,7 +1787,7 @@ mod tests {
     }
 
     fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'_> {
-        let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
+        let arena: &'static Bump = Box::leak(Box::new(Bump::new()));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),

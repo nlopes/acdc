@@ -9,12 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- Source-ordered document-attribute changes require less copying when converter
+  scopes change.
 - **Typography replacements skip the replace chain on plain prose.** Text
   without special characters (arrows, ellipses, escapes) costs nothing per
   paragraph.
 
 ### Added
 
+- Converter visitors now expose the document attributes active at each body
+  position. Set, repeated set, and unset events override the header snapshot,
+  and nested AsciiDoc table cells restore the parent values when they end.
+- Backend profiles now expose `embedded` only for embedded output, and
+  `ConversionResult::outdir` and `ConversionResult::outfile` expose resolved
+  post-conversion output metadata without making it visible to document source.
 - Plain-text and shared converter output now resolve title-based shorthand
   references to matching section IDs while preserving written text for
   unresolved targets.
@@ -94,6 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Switching backend profiles clears obsolete `htmlsyntax` and convenience
+  attributes while preserving an explicit `outfilesuffix`.
 - Numbered book TOCs can now retain a configured `chapter-signifier` on
   chapter entries without adding it to nested sections.
 - Automatic references to sections with a named `reftext` now display that
@@ -148,6 +158,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** configure a converter with the parser options builder, then parse
+  with the converter's validated parser options. Application overrides, defaults,
+  and backend setup are resolved together before preprocessing.
+- **Breaking:** visitor callbacks receive the source-ordered attribute context.
+  Shared block dispatch applies assignments, and scoped traversal restores parent
+  values on success or error. Custom converters no longer implement an attribute
+  source trait or expose mutable attribute state.
 - **BREAKING**: `Converter::write_to`, `derive_output_path`, and the
   provided `convert*` methods now accept `&Document<'_>` of any lifetime
   instead of `&Document<'a>` tied to the converter's stored-attribute

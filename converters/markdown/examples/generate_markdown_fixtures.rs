@@ -4,7 +4,7 @@ use std::{error::Error, fs, path::Path};
 
 use acdc_converters_core::{Converter, Diagnostics, GeneratorMetadata, Options, WarningSource};
 use acdc_converters_markdown::{MarkdownVariant, Processor};
-use acdc_parser::{DocumentAttributes, Options as ParserOptions};
+use acdc_parser::Options as ParserOptions;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut arguments = std::env::args_os().skip(1);
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             .file_stem()
             .and_then(|stem| stem.to_str())
             .ok_or("invalid fixture file name")?;
-        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+        let parser_options = ParserOptions::default();
         let parsed = acdc_parser::parse_file(&input_path, &parser_options)?;
         let doc = parsed.document();
         let variant = if stem.starts_with("commonmark_") {
@@ -51,7 +51,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         let options = Options::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
-        let processor = Processor::new(options, doc.attributes.clone()).with_variant(variant);
+        let processor = Processor::new(
+            options,
+            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?
+        .with_variant(variant);
         let mut output = Vec::new();
         let mut warnings = Vec::new();
         let source = WarningSource::new("markdown").with_variant(variant.as_str());

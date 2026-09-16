@@ -1,9 +1,10 @@
-use std::path::{Path, PathBuf};
-
-use acdc_parser::{
-    Block, CalloutList, DelimitedBlock, DelimitedBlockType, DescriptionList, Document, Image,
-    InlineMacro, InlineNode, OrderedList, Paragraph, Section, Source, UnorderedList,
+use std::{
+    convert::Infallible,
+    path::{Path, PathBuf},
 };
+
+use acdc_converters_core::{TraversalContext, visitor::Visitor};
+use acdc_parser::{Document, Image, InlineMacro, InlineNode, Source};
 
 use crate::LintId;
 
@@ -14,212 +15,91 @@ pub(crate) fn lint_resources(
     document: &Document<'_>,
     source_path: Option<&Path>,
 ) {
-    lint_resource_blocks(emitter, document, &document.blocks, source_path);
+    let mut traversal = TraversalContext::new(&document.attributes);
+    let mut visitor = ResourceVisitor {
+        emitter,
+        source_path,
+    };
+    let Ok(()) = traversal.visit_blocks(&mut visitor, &document.blocks);
 }
 
-fn lint_resource_blocks(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    blocks: &[Block<'_>],
-    source_path: Option<&Path>,
-) {
-    for block in blocks {
-        match block {
-            Block::Admonition(block) => {
-                lint_resource_blocks(emitter, document, &block.blocks, source_path);
-            }
-            Block::CalloutList(list) => {
-                lint_resource_callout_list(emitter, document, list, source_path);
-            }
-            Block::DescriptionList(list) => {
-                lint_resource_description_list(emitter, document, list, source_path);
-            }
-            Block::DelimitedBlock(block) => {
-                lint_resource_delimited_block(emitter, document, block, source_path);
-            }
-            Block::DiscreteHeader(header) => {
-                lint_resource_inlines(emitter, document, header.title.as_ref(), source_path);
-            }
-            Block::Image(image) => lint_image(emitter, document, image, source_path),
-            Block::OrderedList(list) => {
-                lint_resource_ordered_list(emitter, document, list, source_path);
-            }
-            Block::Paragraph(paragraph) => {
-                lint_resource_paragraph(emitter, document, paragraph, source_path);
-            }
-            Block::Section(section) => {
-                lint_resource_section(emitter, document, section, source_path);
-            }
-            Block::UnorderedList(list) => {
-                lint_resource_unordered_list(emitter, document, list, source_path);
-            }
-            Block::Audio(_)
-            | Block::Comment(_)
-            | Block::DocumentAttribute(_)
-            | Block::PageBreak(_)
-            | Block::TableOfContents(_)
-            | Block::ThematicBreak(_)
-            | Block::Video(_)
-            | _ => {}
-        }
+struct ResourceVisitor<'emitter, 'source, 'path> {
+    emitter: &'emitter mut LintEmitter<'source>,
+    source_path: Option<&'path Path>,
+}
+
+impl<'doc> Visitor<'doc> for ResourceVisitor<'_, '_, '_> {
+    type Error = Infallible;
+
+    fn visit_image(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        image: &Image<'_>,
+    ) -> Result<(), Self::Error> {
+        lint_image(self.emitter, traversal, image, self.source_path);
+        Ok(())
     }
-}
 
-fn lint_resource_callout_list(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    list: &CalloutList<'_>,
-    source_path: Option<&Path>,
-) {
-    for item in &list.items {
-        lint_resource_blocks(emitter, document, &item.blocks, source_path);
-    }
-}
-
-fn lint_resource_description_list(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    list: &DescriptionList<'_>,
-    source_path: Option<&Path>,
-) {
-    for item in &list.items {
-        lint_resource_inlines(emitter, document, &item.term, source_path);
-        lint_resource_inlines(emitter, document, &item.principal_text, source_path);
-        lint_resource_blocks(emitter, document, &item.description, source_path);
-    }
-}
-
-fn lint_resource_ordered_list(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    list: &OrderedList<'_>,
-    source_path: Option<&Path>,
-) {
-    lint_resource_inlines(emitter, document, list.title.as_ref(), source_path);
-    for item in &list.items {
-        lint_resource_inlines(emitter, document, &item.principal, source_path);
-        lint_resource_blocks(emitter, document, &item.blocks, source_path);
-    }
-}
-
-fn lint_resource_unordered_list(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    list: &UnorderedList<'_>,
-    source_path: Option<&Path>,
-) {
-    lint_resource_inlines(emitter, document, list.title.as_ref(), source_path);
-    for item in &list.items {
-        lint_resource_inlines(emitter, document, &item.principal, source_path);
-        lint_resource_blocks(emitter, document, &item.blocks, source_path);
-    }
-}
-
-fn lint_resource_paragraph(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    paragraph: &Paragraph<'_>,
-    source_path: Option<&Path>,
-) {
-    lint_resource_inlines(emitter, document, paragraph.title.as_ref(), source_path);
-    lint_resource_inlines(emitter, document, &paragraph.content, source_path);
-}
-
-fn lint_resource_section(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    section: &Section<'_>,
-    source_path: Option<&Path>,
-) {
-    lint_resource_inlines(emitter, document, section.title.as_ref(), source_path);
-    lint_resource_blocks(emitter, document, &section.content, source_path);
-}
-
-fn lint_resource_delimited_block(
-    emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
-    block: &DelimitedBlock<'_>,
-    source_path: Option<&Path>,
-) {
-    match &block.inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks) => {
-            lint_resource_blocks(emitter, document, blocks, source_path);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            for row in table
-                .header
-                .iter()
-                .chain(table.rows.iter())
-                .chain(table.footer.iter())
-            {
-                for column in &row.columns {
-                    lint_resource_blocks(emitter, document, &column.content, source_path);
-                }
-            }
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | _ => {}
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        nodes: &[InlineNode<'_>],
+    ) -> Result<(), Self::Error> {
+        lint_resource_inlines(self.emitter, traversal, nodes, self.source_path);
+        Ok(())
     }
 }
 
 fn lint_resource_inlines(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    attributes: &mut TraversalContext<'_>,
     nodes: &[InlineNode<'_>],
     source_path: Option<&Path>,
 ) {
     for node in nodes {
         match node {
             InlineNode::BoldText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::CurvedApostropheText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::CurvedQuotationText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::HighlightText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::ItalicText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::MonospaceText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::SubscriptText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::SuperscriptText(text) => {
-                lint_resource_inlines(emitter, document, &text.content, source_path);
+                lint_resource_inlines(emitter, attributes, &text.content, source_path);
             }
             InlineNode::Macro(macro_node) => match macro_node {
                 InlineMacro::CrossReference(reference) => {
-                    lint_resource_inlines(emitter, document, &reference.text, source_path);
+                    lint_resource_inlines(emitter, attributes, &reference.text, source_path);
                 }
                 InlineMacro::Footnote(footnote) => {
-                    lint_resource_inlines(emitter, document, &footnote.content, source_path);
+                    lint_resource_inlines(emitter, attributes, &footnote.content, source_path);
                 }
                 InlineMacro::Image(image) => {
-                    lint_image(emitter, document, image, source_path);
+                    lint_image(emitter, attributes, image, source_path);
                 }
                 InlineMacro::Link(link) => {
-                    lint_resource_inlines(emitter, document, &link.text, source_path);
+                    lint_resource_inlines(emitter, attributes, &link.text, source_path);
                 }
                 InlineMacro::Mailto(mailto) => {
-                    lint_resource_inlines(emitter, document, &mailto.text, source_path);
+                    lint_resource_inlines(emitter, attributes, &mailto.text, source_path);
                 }
                 InlineMacro::Url(url) => {
-                    lint_resource_inlines(emitter, document, &url.text, source_path);
+                    lint_resource_inlines(emitter, attributes, &url.text, source_path);
                 }
                 InlineMacro::Autolink(_)
                 | InlineMacro::Button(_)
@@ -245,13 +125,13 @@ fn lint_resource_inlines(
 
 fn lint_image(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    attributes: &mut TraversalContext<'_>,
     image: &Image<'_>,
     source_path: Option<&Path>,
 ) {
     lint_imagesdir(emitter, image);
     lint_image_alt_text(emitter, image);
-    lint_image_target_exists(emitter, document, image, source_path);
+    lint_image_target_exists(emitter, attributes, image, source_path);
 }
 
 fn lint_imagesdir(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
@@ -290,11 +170,11 @@ fn lint_image_alt_text(emitter: &mut LintEmitter<'_>, image: &Image<'_>) {
 
 fn lint_image_target_exists(
     emitter: &mut LintEmitter<'_>,
-    document: &Document<'_>,
+    attributes: &mut TraversalContext<'_>,
     image: &Image<'_>,
     source_path: Option<&Path>,
 ) {
-    let Some(path) = image_target_path(document, image, source_path) else {
+    let Some(path) = image_target_path(attributes, image, source_path) else {
         return;
     };
     if path.exists() {
@@ -310,7 +190,7 @@ fn lint_image_target_exists(
 }
 
 fn image_target_path(
-    document: &Document<'_>,
+    attributes: &TraversalContext<'_>,
     image: &Image<'_>,
     source_path: Option<&Path>,
 ) -> Option<PathBuf> {
@@ -325,18 +205,15 @@ fn image_target_path(
     }
 
     let base = source_path.parent().unwrap_or_else(|| Path::new("."));
-    let has_dir = target
-        .parent()
-        .is_some_and(|parent| !parent.as_os_str().is_empty());
-    if has_dir {
-        return Some(base.join(target));
-    }
-
-    let imagesdir = document
-        .attributes
-        .get_string("imagesdir")
+    let imagesdir = attributes
+        .get("imagesdir")
+        .and_then(|value| value.text())
+        .map(acdc_parser::strip_quotes)
         .filter(|value| !value.trim().is_empty())
-        .map_or_else(PathBuf::new, |value| PathBuf::from(value.as_ref()));
+        .unwrap_or_default();
+    if imagesdir.contains("://") || imagesdir.starts_with("//") {
+        return None;
+    }
     Some(base.join(imagesdir).join(target))
 }
 
@@ -381,7 +258,10 @@ mod tests {
 
     use crate::{Error, LintId, LintOptions, Lintable};
 
-    use super::super::test_support::{has_lint, report_for};
+    use super::{
+        super::test_support::{has_lint, report_for},
+        TraversalContext, image_target_path,
+    };
 
     struct TempDoc {
         path: PathBuf,
@@ -428,6 +308,53 @@ mod tests {
         let report = doc.path().lint(&LintOptions::default())?;
 
         assert!(has_lint(&report, LintId::ImageTargetExists));
+        Ok(())
+    }
+
+    #[test]
+    fn image_target_uses_document_text_presentation() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            ":imagesdir: 'media files'\n\nimage::photo.png[Photo]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let image = parsed
+            .document()
+            .blocks
+            .iter()
+            .find_map(|block| {
+                if let acdc_parser::Block::Image(image) = block {
+                    Some(image)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing image")?;
+        let source = Path::new("/tmp/attributes.adoc");
+        let attributes = TraversalContext::new(&parsed.document().attributes);
+
+        assert_eq!(
+            image_target_path(&attributes, image, Some(source)),
+            Some(PathBuf::from("/tmp/media files/photo.png"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn image_targets_follow_body_events_and_nested_cell_scope()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        fs::create_dir(directory.path().join("assets"))?;
+        fs::write(directory.path().join("assets/inside.svg"), "<svg/>")?;
+        fs::write(directory.path().join("after.svg"), "<svg/>")?;
+        let path = directory.path().join("document.adoc");
+        for source in [
+            "= T\n\n[NOTE]\n====\n:imagesdir: assets\n\nimage::inside.svg[Inside]\n====\n\nimage::inside.svg[Inside]\n\n:imagesdir!:\n\nimage::after.svg[After]\n",
+            "= T\n\n[cols=a]\n|===\n|\n:imagesdir: assets\n\nimage::inside.svg[Inside]\n|===\n\nimage::after.svg[After]\n",
+        ] {
+            fs::write(&path, source)?;
+            let report = path.lint(&LintOptions::default())?;
+            assert!(!has_lint(&report, LintId::ImageTargetExists));
+        }
         Ok(())
     }
 }

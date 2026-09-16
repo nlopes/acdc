@@ -1,4 +1,4 @@
-use crate::{AttributeValue, DocumentAttributes};
+use crate::DocumentAttributes;
 use std::borrow::Cow;
 
 /// Parsed revision information
@@ -33,17 +33,14 @@ pub(crate) fn process_revision_info<'a>(
     if document_attributes.contains_key("revnumber") {
         ignored.number = true;
     } else {
-        document_attributes.insert(
-            "revnumber".into(),
-            AttributeValue::String(revision_info.number),
-        );
+        document_attributes.insert_text("revnumber".into(), revision_info.number);
     }
 
     if let Some(date) = revision_info.date {
         if document_attributes.contains_key("revdate") {
             ignored.date = true;
         } else {
-            document_attributes.insert("revdate".into(), AttributeValue::String(date));
+            document_attributes.insert_text("revdate".into(), date);
         }
     }
 
@@ -51,7 +48,7 @@ pub(crate) fn process_revision_info<'a>(
         if document_attributes.contains_key("revremark") {
             ignored.remark = true;
         } else {
-            document_attributes.insert("revremark".into(), AttributeValue::String(remark));
+            document_attributes.insert_text("revremark".into(), remark);
         }
     }
 

@@ -1,14 +1,15 @@
 use std::{
+    error::Error,
     io::{self, IsTerminal, Write},
     path::PathBuf,
 };
 
-use acdc_converters_core::{inlines_to_string, visitor::Visitor};
+use acdc_converters_core::{TraversalContext, inlines_to_string, visitor::Visitor};
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, Block, CalloutList, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, Location,
-    Options, OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak,
-    UnorderedList, Video, parse_file,
+    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode,
+    ListItem, Location, Options, OrderedList, PageBreak, Paragraph, Section, TableOfContents,
+    ThematicBreak, UnorderedList, Video, parse_file,
 };
 use crossterm::style::Stylize;
 
@@ -145,10 +146,14 @@ fn truncate(text: &str, max_len: usize) -> String {
     }
 }
 
-impl<W: Write> Visitor for TreeVisitor<W> {
+impl<'a, W: Write> Visitor<'a> for TreeVisitor<W> {
     type Error = io::Error;
 
-    fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         if self.color {
             writeln!(self.writer, "{}", "Document".blue().bold())?;
         } else {
@@ -164,19 +169,23 @@ impl<W: Write> Visitor for TreeVisitor<W> {
         if let Some(header) = &doc.header {
             child_index += 1;
             self.with_child(child_index == child_count, |visitor| {
-                visitor.visit_header(header)
+                visitor.visit_header(traversal, header)
             })?;
         }
         for block in visible_blocks {
             child_index += 1;
             self.with_child(child_index == child_count, |visitor| {
-                visitor.visit_block(block)
+                traversal.visit_block(visitor, block)
             })?;
         }
         Ok(())
     }
 
-    fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
+    fn visit_header(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        header: &Header,
+    ) -> Result<(), Self::Error> {
         self.print_tree_line("Header", None, Some(&header.location))?;
 
         self.with_child(header.authors.is_empty(), |visitor| {
@@ -204,7 +213,11 @@ impl<W: Write> Visitor for TreeVisitor<W> {
         Ok(())
     }
 
-    fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Self::Error> {
         let detail = format!("Level {}", section.level);
         self.print_tree_line("Section", Some(&detail), Some(&section.location))?;
 
@@ -221,21 +234,29 @@ impl<W: Write> Visitor for TreeVisitor<W> {
         for block in &section.content {
             child_index += 1;
             self.with_child(child_index == child_count, |visitor| {
-                visitor.visit_block(block)
+                traversal.visit_block(visitor, block)
             })?;
         }
 
         Ok(())
     }
 
-    fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
+    fn visit_paragraph(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Self::Error> {
         let text = inlines_to_string(&para.content);
         let preview = truncate(&text, 50);
         self.print_tree_line("Paragraph", Some(&preview), Some(&para.location))?;
         Ok(())
     }
 
-    fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
+    fn visit_delimited_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Self::Error> {
         let block_type = match &block.inner {
             DelimitedBlockType::DelimitedListing(_) => "Listing",
             DelimitedBlockType::DelimitedLiteral(_) => "Literal",
@@ -279,53 +300,85 @@ impl<W: Write> Visitor for TreeVisitor<W> {
         Ok(())
     }
 
-    fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
+    fn visit_unordered_list(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Self::Error> {
         let detail = format!("{} items", list.items.len());
         self.print_tree_line("UnorderedList", Some(&detail), Some(&list.location))?;
         Ok(())
     }
 
-    fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
+    fn visit_ordered_list(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Self::Error> {
         let detail = format!("{} items", list.items.len());
         self.print_tree_line("OrderedList", Some(&detail), Some(&list.location))?;
         Ok(())
     }
 
-    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
+    fn visit_description_list(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Self::Error> {
         let detail = format!("{} items", list.items.len());
         self.print_tree_line("DescriptionList", Some(&detail), Some(&list.location))?;
         Ok(())
     }
 
-    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
+    fn visit_callout_list(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Self::Error> {
         let detail = format!("{} items", list.items.len());
         self.print_tree_line("CalloutList", Some(&detail), Some(&list.location))?;
         Ok(())
     }
 
-    fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
+    fn visit_list_item(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _item: &'a ListItem<'a>,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn visit_admonition(&mut self, admonition: &Admonition) -> Result<(), Self::Error> {
+    fn visit_admonition(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        admonition: &'a Admonition<'a>,
+    ) -> Result<(), Self::Error> {
         let variant = match admonition.variant {
-            acdc_parser::AdmonitionVariant::Note => "Note",
-            acdc_parser::AdmonitionVariant::Tip => "Tip",
-            acdc_parser::AdmonitionVariant::Important => "Important",
-            acdc_parser::AdmonitionVariant::Warning => "Warning",
-            acdc_parser::AdmonitionVariant::Caution => "Caution",
+            AdmonitionVariant::Note => "Note",
+            AdmonitionVariant::Tip => "Tip",
+            AdmonitionVariant::Important => "Important",
+            AdmonitionVariant::Warning => "Warning",
+            AdmonitionVariant::Caution => "Caution",
         };
         self.print_tree_line("Admonition", Some(variant), Some(&admonition.location))?;
         Ok(())
     }
 
-    fn visit_image(&mut self, image: &Image) -> Result<(), Self::Error> {
+    fn visit_image(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        image: &Image,
+    ) -> Result<(), Self::Error> {
         let detail = image.source.to_string();
         self.print_tree_line("Image", Some(&truncate(&detail, 50)), Some(&image.location))?;
         Ok(())
     }
 
-    fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
+    fn visit_video(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Self::Error> {
         let detail = if let Some(source) = video.sources.first() {
             source.to_string()
         } else {
@@ -335,56 +388,90 @@ impl<W: Write> Visitor for TreeVisitor<W> {
         Ok(())
     }
 
-    fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
+    fn visit_audio(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        audio: &Audio,
+    ) -> Result<(), Self::Error> {
         let detail = audio.source.to_string();
         self.print_tree_line("Audio", Some(&truncate(&detail, 50)), Some(&audio.location))?;
         Ok(())
     }
 
-    fn visit_page_break(&mut self, page_break: &PageBreak) -> Result<(), Self::Error> {
+    fn visit_page_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        page_break: &PageBreak,
+    ) -> Result<(), Self::Error> {
         self.print_tree_line("PageBreak", None, Some(&page_break.location))?;
         Ok(())
     }
 
-    fn visit_thematic_break(&mut self, thematic_break: &ThematicBreak) -> Result<(), Self::Error> {
+    fn visit_thematic_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        thematic_break: &ThematicBreak,
+    ) -> Result<(), Self::Error> {
         self.print_tree_line("ThematicBreak", None, Some(&thematic_break.location))?;
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
+    fn visit_table_of_contents(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        toc: &TableOfContents,
+    ) -> Result<(), Self::Error> {
         self.print_tree_line("TableOfContents", None, Some(&toc.location))?;
         Ok(())
     }
 
-    fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
+    fn visit_discrete_header(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        header: &DiscreteHeader,
+    ) -> Result<(), Self::Error> {
         let title = inlines_to_string(&header.title);
         let detail = format!("Level {} - {}", header.level, truncate(&title, 40));
         self.print_tree_line("DiscreteHeader", Some(&detail), Some(&header.location))?;
         Ok(())
     }
 
-    // Required trait methods with no-op implementations for inline nodes
-    fn visit_inline_nodes(&mut self, _inlines: &[InlineNode]) -> Result<(), Self::Error> {
+    fn visit_inline_nodes(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _inlines: &[InlineNode],
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn visit_inline_node(&mut self, _inline: &InlineNode) -> Result<(), Self::Error> {
+    fn visit_inline_node(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _inline: &InlineNode,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 
-    fn visit_text(&mut self, _text: &str) -> Result<(), Self::Error> {
+    fn visit_text(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _text: &str,
+    ) -> Result<(), Self::Error> {
         Ok(())
     }
 }
 
-pub fn run(args: &Args) -> Result<(), Box<dyn std::error::Error>> {
+pub fn run(args: &Args) -> Result<(), Box<dyn Error>> {
     let options = Options::default();
     let parsed = parse_file(&args.file, &options)?;
 
     let stdout = io::stdout();
     let color = stdout.is_terminal();
     let mut visitor = TreeVisitor::new(stdout.lock(), args.show_locations, args.max_depth, color);
-    visitor.visit_document(parsed.document())?;
+    visitor.visit_document(
+        &mut TraversalContext::new(&parsed.document().attributes),
+        parsed.document(),
+    )?;
 
     Ok(())
 }
@@ -402,10 +489,13 @@ mod tests {
     }
 
     #[test]
-    fn renders_truthful_plain_tree_connectors() -> Result<(), Box<dyn std::error::Error>> {
+    fn renders_truthful_plain_tree_connectors() -> Result<(), Box<dyn Error>> {
         let parsed = parse("= Document\n\n== Section\n\nBody.\n", &Options::default())?;
         let mut output = Vec::new();
-        TreeVisitor::new(&mut output, false, 0, false).visit_document(parsed.document())?;
+        TreeVisitor::new(&mut output, false, 0, false).visit_document(
+            &mut TraversalContext::new(&parsed.document().attributes),
+            parsed.document(),
+        )?;
         let output = String::from_utf8(output)?;
 
         assert!(output.contains("Document\n├─ Header"));
@@ -417,10 +507,13 @@ mod tests {
     }
 
     #[test]
-    fn max_depth_hides_deeper_nodes() -> Result<(), Box<dyn std::error::Error>> {
+    fn max_depth_hides_deeper_nodes() -> Result<(), Box<dyn Error>> {
         let parsed = parse("= Document\n\n== Section\n\nBody.\n", &Options::default())?;
         let mut output = Vec::new();
-        TreeVisitor::new(&mut output, false, 1, false).visit_document(parsed.document())?;
+        TreeVisitor::new(&mut output, false, 1, false).visit_document(
+            &mut TraversalContext::new(&parsed.document().attributes),
+            parsed.document(),
+        )?;
         let output = String::from_utf8(output)?;
 
         assert!(output.contains("Section: Level 1"));

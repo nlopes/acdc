@@ -7,8 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Element attributes use less memory while preserving lookup, merge, and JSON output behavior.
+- **Breaking:** configure attributes from standard Rust iterators, with separate
+  application overrides and document-overridable defaults. Configuration is
+  validated before parsing; callers no longer manage parser policy or a separate
+  input collection. See the README for migration examples.
+- **Breaking:** attribute reads now borrow opaque typed values. Numeric meaning,
+  presence, and retained text remain distinct, so values such as `064` keep their
+  spelling. Source-ordered events expose set/unset assignments directly, including
+  explicit unsets. The JSON shape is unchanged.
+- `Document::attributes` is now the effective end-of-header snapshot. Accepted
+  body assignments are ordered `Block::DocumentAttribute` events, including
+  metadata-adjacent entries immediately before the affected block. Rejected or
+  invalid assignments do not appear as semantic events.
+- The `DocumentAttributes` read API is now document-specific. `iter()` yields
+  document attribute values, and the raw `get()`, `get_string()`, `presentation()`,
+  `presentation_text()`, `write_presentation()`, `get_explicit()`, and
+  `iter_explicit()` adapters and `DocumentAttributePresentation` have been
+  removed. Effective lookup, membership, iteration, conditionals, and
+  substitution now agree on defaults and unset values. The JSON shape is
+  unchanged.
+
 ### Fixed
 
+- Processor defaults for `backend`, `basebackend`, `filetype`, and `doctype`
+  now produce matching convenience attributes regardless of builder insertion
+  order. Stale flags cannot override the final default values.
+- Attribute syntax in ordinary table cells remains literal text, matching Asciidoctor;
+  it no longer changes sibling cells or content after the table.
+- Parsing documents with frequent document-attribute checks no longer incurs a
+  significant document-attribute performance penalty.
+- String and reader input now define `docdate`, `docdatetime`, `doctime`, and
+  `docyear`; file input replaces these values with the source modification time.
+- An explicit `sectnums` or `hardbreaks-option` unset now masks its older alias,
+  and an empty `sectnums` value no longer inherits `numbered=all`.
+- A document attribute whose literal value is `true` now substitutes as
+  `true`; only an empty attribute entry has an empty text presentation.
+- When more than one processor `filetype-*` flag is set, `filetype` now uses a
+  stable lexical choice instead of map iteration order.
+- Built-in document attributes now separate assignment protection from
+  setup-time consumption. Supported body assignments remain visible in source
+  order even when a parser or converter feature uses only its header value.
+  Caller-locked, API-only, and read-only assignments remain rejected.
+- `outdir` and `outfile` remain unavailable during parsing even when supplied
+  through parser options. Use the converter result to inspect output paths.
+- Caller values for `max-include-depth` now allow surrounding Unicode
+  whitespace but otherwise require a complete non-negative ASCII decimal
+  integer. Malformed, empty, fractional, and negative values return a
+  structured configuration error before preprocessing. Valid values retain
+  their original spelling, and very large positive values saturate safely.
+  This deliberately rejects the numeric-prefix coercion in asciidoctor's
+  current Ruby implementation.
 - Document-title IDs now enter the reference catalog and use the full title
   and subtitle as automatic reference text. Anchors and cross-references in
   rendered block titles, quote credits, and footnote bodies are also
@@ -74,6 +125,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Parser input now initializes the complete intrinsic document-attribute set before
+  preprocessing, including file metadata, shared document/conversion timestamps,
+  safe-mode values, masked home paths, and active convenience attributes.
+  `SOURCE_DATE_EPOCH` selects deterministic UTC timestamps. Included attributes
+  use the same active state for conditionals, while the public document map stops
+  at the end of the header. The selected converter remains an API decision even
+  when source changes the visible `backend` text.
 - Index terms now parse Asciidoctor's named `see` and `see-also` attributes
   and the spaced `>>` and `&>` shorthand forms. `IndexTerm::relationship`
   exposes this data as `IndexTermRelationship`; serialized ASG output includes

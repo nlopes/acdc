@@ -2,15 +2,13 @@
 
 use std::collections::HashMap;
 
+use acdc_converters_core::{TraversalContext, visitor::Visitor};
 use acdc_parser::{
     Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location, Section,
 };
-use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::{Position, Uri};
 
-use tower_lsp_server::ls_types::Uri;
-
-use crate::state::document::OwnedSource;
-use crate::state::{DocumentState, Workspace, XrefTarget};
+use crate::state::{DocumentState, Workspace, XrefTarget, document::OwnedSource};
 
 /// Collect all anchor definitions from document AST
 #[must_use]
@@ -316,123 +314,162 @@ fn collect_inline_xrefs(inlines: &[InlineNode], xrefs: &mut Vec<(String, Locatio
 /// Collect all media sources (images, audio, video) from document AST
 #[must_use]
 pub(crate) fn collect_media_sources(doc: &Document) -> Vec<(OwnedSource, Location)> {
-    let mut sources = vec![];
-
-    for block in &doc.blocks {
-        collect_block_media(block, &mut sources);
-    }
-
-    sources
+    let mut visitor = MediaVisitor {
+        sources: Vec::new(),
+    };
+    let mut traversal = TraversalContext::new(&doc.attributes);
+    let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
+    visitor.sources
 }
 
-fn collect_block_media(block: &Block, sources: &mut Vec<(OwnedSource, Location)>) {
-    match block {
-        Block::Section(section) => {
-            for child in &section.content {
-                collect_block_media(child, sources);
-            }
-        }
-        Block::Paragraph(para) => {
-            collect_inline_media(&para.content, sources);
-        }
-        Block::DelimitedBlock(delimited) => {
-            collect_delimited_block_media(&delimited.inner, sources);
-        }
-        Block::UnorderedList(list) => {
-            for item in &list.items {
-                collect_inline_media(&item.principal, sources);
-                for b in &item.blocks {
-                    collect_block_media(b, sources);
-                }
-            }
-        }
-        Block::OrderedList(list) => {
-            for item in &list.items {
-                collect_inline_media(&item.principal, sources);
-                for b in &item.blocks {
-                    collect_block_media(b, sources);
-                }
-            }
-        }
-        Block::DescriptionList(list) => {
-            for item in &list.items {
-                collect_inline_media(&item.principal_text, sources);
-                for b in &item.description {
-                    collect_block_media(b, sources);
-                }
-            }
-        }
-        Block::Admonition(adm) => {
-            for b in &adm.blocks {
-                collect_block_media(b, sources);
-            }
-        }
-        Block::Image(img) => {
-            sources.push((OwnedSource::from_borrowed(&img.source), img.location.clone()));
-        }
-        Block::Audio(audio) => {
-            sources.push((
-                OwnedSource::from_borrowed(&audio.source),
+struct MediaVisitor {
+    sources: Vec<(OwnedSource, Location)>,
+}
+
+impl<'doc> Visitor<'doc> for MediaVisitor {
+    type Error = std::convert::Infallible;
+
+    fn before_block(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        block: &'doc Block<'doc>,
+    ) -> Result<(), Self::Error> {
+        match block {
+            Block::Image(image) => self.sources.push((
+                resolve_media_source(&image.source, traversal),
+                image.location.clone(),
+            )),
+            Block::Audio(audio) => self.sources.push((
+                resolve_media_source(&audio.source, traversal),
                 audio.location.clone(),
-            ));
-        }
-        Block::Video(video) => {
-            for source in &video.sources {
-                sources.push((OwnedSource::from_borrowed(source), video.location.clone()));
+            )),
+            Block::Video(video) => {
+                for source in &video.sources {
+                    self.sources.push((
+                        resolve_media_source(source, traversal),
+                        video.location.clone(),
+                    ));
+                }
             }
+            Block::DelimitedBlock(block) => match &block.inner {
+                DelimitedBlockType::DelimitedListing(inlines)
+                | DelimitedBlockType::DelimitedLiteral(inlines)
+                | DelimitedBlockType::DelimitedPass(inlines)
+                | DelimitedBlockType::DelimitedVerse(inlines)
+                | DelimitedBlockType::DelimitedComment(inlines) => {
+                    collect_inline_media(inlines, &mut self.sources, traversal);
+                }
+                DelimitedBlockType::DelimitedExample(_)
+                | DelimitedBlockType::DelimitedOpen(_)
+                | DelimitedBlockType::DelimitedQuote(_)
+                | DelimitedBlockType::DelimitedSidebar(_)
+                | DelimitedBlockType::DelimitedStem(_)
+                | DelimitedBlockType::DelimitedTable(_)
+                | _ => {}
+            },
+            Block::Section(_)
+            | Block::Paragraph(_)
+            | Block::OrderedList(_)
+            | Block::UnorderedList(_)
+            | Block::DescriptionList(_)
+            | Block::CalloutList(_)
+            | Block::Admonition(_)
+            | Block::DiscreteHeader(_)
+            | Block::DocumentAttribute(_)
+            | Block::TableOfContents(_)
+            | Block::ThematicBreak(_)
+            | Block::PageBreak(_)
+            | Block::Comment(_)
+            | _ => {}
         }
-        Block::TableOfContents(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::CalloutList(_)
-        | Block::Comment(_)
-        // non_exhaustive
-        | _ => {}
+        Ok(())
+    }
+
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        section: &'doc acdc_parser::Section<'doc>,
+    ) -> Result<(), Self::Error> {
+        traversal.visit_blocks(self, &section.content)
+    }
+
+    fn visit_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        paragraph: &acdc_parser::Paragraph<'_>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &paragraph.content)
+    }
+
+    fn visit_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc acdc_parser::DescriptionList<'doc>,
+    ) -> Result<(), Self::Error> {
+        for item in &list.items {
+            self.visit_inline_nodes(traversal, &item.principal_text)?;
+            traversal.visit_blocks(self, &item.description)?;
+        }
+        Ok(())
+    }
+
+    fn visit_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc acdc_parser::OrderedList<'doc>,
+    ) -> Result<(), Self::Error> {
+        for item in &list.items {
+            self.visit_list_item(traversal, item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        list: &'doc acdc_parser::UnorderedList<'doc>,
+    ) -> Result<(), Self::Error> {
+        for item in &list.items {
+            self.visit_list_item(traversal, item)?;
+        }
+        Ok(())
+    }
+
+    fn visit_discrete_header(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _header: &acdc_parser::DiscreteHeader<'_>,
+    ) -> Result<(), Self::Error> {
+        Ok(())
+    }
+
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        nodes: &[InlineNode<'_>],
+    ) -> Result<(), Self::Error> {
+        collect_inline_media(nodes, &mut self.sources, traversal);
+        Ok(())
     }
 }
 
-fn collect_delimited_block_media(
-    inner: &DelimitedBlockType,
+fn collect_inline_media(
+    inlines: &[InlineNode],
     sources: &mut Vec<(OwnedSource, Location)>,
+    attributes: &mut TraversalContext<'_>,
 ) {
-    match inner {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            for block in blocks {
-                collect_block_media(block, sources);
-            }
-        }
-        DelimitedBlockType::DelimitedListing(inlines)
-        | DelimitedBlockType::DelimitedLiteral(inlines)
-        | DelimitedBlockType::DelimitedPass(inlines)
-        | DelimitedBlockType::DelimitedVerse(inlines)
-        | DelimitedBlockType::DelimitedComment(inlines) => {
-            collect_inline_media(inlines, sources);
-        }
-        DelimitedBlockType::DelimitedTable(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        // non_exhaustive
-        | _ => {}
-    }
-}
-
-fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(OwnedSource, Location)>) {
     for inline in inlines {
         match inline {
             InlineNode::Macro(InlineMacro::Image(img)) => {
-                sources.push((OwnedSource::from_borrowed(&img.source), img.location.clone()));
+                sources.push((resolve_media_source(&img.source, attributes), img.location.clone()));
             }
             // Recurse into formatted text to find nested images
-            InlineNode::BoldText(b) => collect_inline_media(&b.content, sources),
-            InlineNode::ItalicText(i) => collect_inline_media(&i.content, sources),
-            InlineNode::MonospaceText(m) => collect_inline_media(&m.content, sources),
-            InlineNode::HighlightText(h) => collect_inline_media(&h.content, sources),
-            InlineNode::SubscriptText(s) => collect_inline_media(&s.content, sources),
-            InlineNode::SuperscriptText(s) => collect_inline_media(&s.content, sources),
+            InlineNode::BoldText(b) => collect_inline_media(&b.content, sources, attributes),
+            InlineNode::ItalicText(i) => collect_inline_media(&i.content, sources, attributes),
+            InlineNode::MonospaceText(m) => collect_inline_media(&m.content, sources, attributes),
+            InlineNode::HighlightText(h) => collect_inline_media(&h.content, sources, attributes),
+            InlineNode::SubscriptText(s) => collect_inline_media(&s.content, sources, attributes),
+            InlineNode::SuperscriptText(s) => collect_inline_media(&s.content, sources, attributes),
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
@@ -446,6 +483,36 @@ fn collect_inline_media(inlines: &[InlineNode], sources: &mut Vec<(OwnedSource, 
             // non_exhaustive
             | _ => {}
         }
+    }
+}
+
+fn resolve_media_source(
+    source: &acdc_parser::Source<'_>,
+    attributes: &TraversalContext<'_>,
+) -> OwnedSource {
+    let source = OwnedSource::from_borrowed(source);
+    let OwnedSource::Path(path) = &source else {
+        return source;
+    };
+    if path.is_absolute() {
+        return source;
+    }
+    let Some(directory) = attributes
+        .get("imagesdir")
+        .and_then(|value| value.text())
+        .map(acdc_parser::strip_quotes)
+        .filter(|directory| !directory.is_empty())
+    else {
+        return source;
+    };
+    if directory.contains("://") || directory.starts_with("//") {
+        OwnedSource::Url(format!(
+            "{}/{}",
+            directory.trim_end_matches('/'),
+            path.display()
+        ))
+    } else {
+        OwnedSource::Path(std::path::Path::new(directory).join(path))
     }
 }
 
@@ -575,10 +642,11 @@ fn resolve_link_target(target: &str, doc_uri: &Uri) -> Option<(Uri, Location)> {
 mod tests {
     use super::*;
     use crate::state::Workspace;
-    use acdc_parser::Options;
+    use acdc_parser::{Error, Options, parse};
+    use std::error::Error as StdError;
 
     #[test]
-    fn test_collect_section_anchors() -> Result<(), acdc_parser::Error> {
+    fn test_collect_section_anchors() -> Result<(), Error> {
         let content = r"= Document
 
 [[explicit-id]]
@@ -590,7 +658,7 @@ Some content.
 
 More content.
 ";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let anchors = collect_anchors(parsed.document());
 
         // Should have both explicit and generated IDs
@@ -600,7 +668,7 @@ More content.
     }
 
     #[test]
-    fn test_collect_xrefs() -> Result<(), acdc_parser::Error> {
+    fn test_collect_xrefs() -> Result<(), Error> {
         let content = r"= Document
 
 == Section One
@@ -612,7 +680,7 @@ See xref:section-two[Section Two].
 
 Content.
 ";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let xrefs = collect_xrefs(parsed.document());
 
         assert_eq!(xrefs.len(), 1);
@@ -623,7 +691,7 @@ Content.
     }
 
     #[test]
-    fn test_cross_file_xref_definition() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_cross_file_xref_definition() -> Result<(), Box<dyn StdError>> {
         let workspace = Workspace::new();
         let a_uri = "file:///project/a.adoc".parse::<Uri>()?;
         let file_uri = "file:///project/file.adoc".parse::<Uri>()?;
@@ -679,8 +747,7 @@ Content.
     }
 
     #[test]
-    fn xref_macro_does_not_resolve_to_a_matching_local_title()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn xref_macro_does_not_resolve_to_a_matching_local_title() -> Result<(), Box<dyn StdError>> {
         let workspace = Workspace::new();
         let source_uri = "file:///project/source.adoc".parse::<Uri>()?;
         let other_uri = "file:///project/Other.adoc".parse::<Uri>()?;
@@ -704,7 +771,7 @@ Content.
     }
 
     #[test]
-    fn compat_mode_natural_xref_has_no_definition() -> Result<(), Box<dyn std::error::Error>> {
+    fn compat_mode_natural_xref_has_no_definition() -> Result<(), Box<dyn StdError>> {
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
         let content = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
@@ -741,7 +808,7 @@ Content.
     }
 
     #[test]
-    fn named_section_reftext_controls_xref_definition() -> Result<(), Box<dyn std::error::Error>> {
+    fn named_section_reftext_controls_xref_definition() -> Result<(), Box<dyn StdError>> {
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
         let content = "Named: <<Custom Label>>.\nTitle: <<Actual Title>>.\nExplicit: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n";
@@ -788,8 +855,7 @@ Content.
     }
 
     #[test]
-    fn passthroughs_are_restored_before_natural_xref_definition()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn passthroughs_are_restored_before_natural_xref_definition() -> Result<(), Box<dyn StdError>> {
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
         let content = "See <<Pass raw Title>>.\n\n== Pass pass:[raw] Title\n";
@@ -812,9 +878,9 @@ Content.
     }
 
     #[test]
-    fn test_collect_media_sources_block_image() -> Result<(), acdc_parser::Error> {
+    fn test_collect_media_sources_block_image() -> Result<(), Error> {
         let content = "= Document\n\nimage::photo.png[Alt text]\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 1);
@@ -825,9 +891,9 @@ Content.
     }
 
     #[test]
-    fn test_collect_media_sources_inline_image() -> Result<(), acdc_parser::Error> {
+    fn test_collect_media_sources_inline_image() -> Result<(), Error> {
         let content = "= Document\n\n== Section\n\nSee image:icon.png[] here.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 1);
@@ -838,12 +904,40 @@ Content.
     }
 
     #[test]
-    fn test_collect_media_sources_multiple() -> Result<(), acdc_parser::Error> {
+    fn test_collect_media_sources_multiple() -> Result<(), Error> {
         let content = "= Document\n\nimage::a.png[]\n\n== Section\n\nimage::b.jpg[]\n\nText with image:c.svg[] inline.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let sources = collect_media_sources(parsed.document());
 
         assert_eq!(sources.len(), 3);
+        Ok(())
+    }
+
+    #[test]
+    fn media_sources_follow_body_events_and_nested_cell_scope() -> Result<(), Error> {
+        for (source, expected) in [
+            (
+                "= T\n\n[NOTE]\n====\n:imagesdir: assets\n\nimage::inside.svg[]\n====\n\nimage::after.svg[]\n",
+                ["assets/inside.svg", "assets/after.svg"],
+            ),
+            (
+                "= T\n\n[cols=a]\n|===\n|\n:imagesdir: assets\n\nimage::inside.svg[]\n|===\n\nimage::after.svg[]\n",
+                ["assets/inside.svg", "after.svg"],
+            ),
+        ] {
+            let parsed = parse(source, &Options::default())?;
+            let actual = collect_media_sources(parsed.document())
+                .into_iter()
+                .filter_map(|(source, _)| {
+                    if let OwnedSource::Path(path) = source {
+                        Some(path)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(actual, expected.map(std::path::PathBuf::from));
+        }
         Ok(())
     }
 }

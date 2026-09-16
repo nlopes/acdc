@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Body document attributes now apply in source order to later manpage media
+  targets, section labels, manname headings, and cross-reference suffixes.
+  Attribute changes inside AsciiDoc table cells do not affect sibling cells or
+  later content.
+- Manpage parser attributes now expose `embedded` only when embedded output is selected.
+
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
 ### Performance
 
+- Nested and table-cell rendering reuses the active document-attribute view.
 - **Streaming output.** Rendering writes directly to the caller's `Write`
   target, keeping allocations flat on large documents.
 
@@ -170,6 +179,11 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Changed
 
+- **Breaking:** configure conversion with the parser options builder, then use
+  the converter's validated parser options for parsing. Invalid attribute values
+  are rejected before conversion.
+- **Breaking:** direct visitor callbacks now receive the current traversal
+  context, including source-ordered and nested-cell attributes.
 - Refactored grid-building logic to use shared utilities from `acdc-converters-core`.
 - Skip NOTES and AUTHOR(S) sections in embedded mode to match asciidoctor behaviour
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of

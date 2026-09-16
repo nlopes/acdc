@@ -1,0 +1,46 @@
+= Attribute Values and Substitution
+:text-value: header text
+:empty-value:
+:false-text: false
+:true-text: true
+:zero-text: 0
+:octal-text: 064
+:positive-text: +1
+:negative-text: -1
+:source-value: header
+:copied-header: {source-value}
+:copied-absent: {missing-value}
+:continued: first \
+second
+:max-include-depth: 2junk
+:safe-mode-name: forged
+:backend-forged:
+
+Values: {text-value}; [{empty-value}]; {false-text}; {true-text}; {zero-text}; {octal-text}; {positive-text}; {negative-text}; {continued}.
+
+Header copies: {copied-header}; {copied-absent}.
+Protected values: {max-include-depth}; {safe-mode-name}; {backend-forged}.
+
+:source-value: body
+:copied-body: {source-value}
+:source-value!:
+
+After unset: {source-value}; {copied-header}; {copied-body}.
+
+:source-value: later
+:!copied-body:
+
+After reset: {source-value}; {copied-header}; {copied-body}.
+
+:max-include-depth!:
+:max-include-depth: -1
+:safe-mode-name: forged
+:doctype-forged:
+:filetype-forged:
+
+Rejected assignments: {max-include-depth}; {safe-mode-name}; {doctype-forged}; {filetype-forged}.
+
+----
+:literal-value: remains text
+{source-value}
+----

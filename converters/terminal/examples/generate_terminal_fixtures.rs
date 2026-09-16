@@ -36,13 +36,16 @@ fn generate(
     osc8_links: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     generator.generate(|_subdir, doc, output| {
-        let processor = Processor::new(Options::default(), doc.attributes.clone())
-            .with_terminal_width(80)
-            .with_dark_mode(true)
-            .with_terminal_capabilities(Capabilities {
-                unicode: true,
-                osc8_links,
-            });
+        let processor = Processor::new(
+            Options::default(),
+            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?
+        .with_terminal_width(80)
+        .with_dark_mode(true)
+        .with_terminal_capabilities(Capabilities {
+            unicode: true,
+            osc8_links,
+        });
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);

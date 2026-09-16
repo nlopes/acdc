@@ -4,6 +4,7 @@
 .worktrees/
 /cargo-flamegraph.trace/
 /acdc-parser/**/*.html
+!/acdc-parser/fixtures/document_attributes/reference/asciidoctor-*/output/**/*.html
 /perf
 /profile.json.gz
 # Claude Code runtime locks (ScheduleWakeup, etc.)

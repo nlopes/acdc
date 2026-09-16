@@ -1,17 +1,21 @@
-use std::borrow::Cow;
-use std::io::Write;
+use std::{
+    borrow::Cow,
+    io::{Error as IoError, ErrorKind, Write},
+};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
-    Diagnostics, InlineTextTransform, WarningSource, decode_numeric_char_refs, inlines_to_string,
+    Diagnostics, InlineTextTransform, TraversalContext, WarningSource, decode_numeric_char_refs,
+    inlines_to_string,
     link::{autolink_fallback, link_fallback},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
 use acdc_parser::{
-    Button, CrossReference, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
+    Button, CrossReference, Image, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
+    Keyboard,
 };
 use crossterm::{
     QueueableCommand,
@@ -112,10 +116,11 @@ fn try_to_unicode_subscript(text: &str) -> Option<String> {
 
 /// Render super/subscript content: try Unicode conversion first, fall back to
 /// dim-styled text to subtly indicate super/subscript.
-fn render_script_text<W: Write + ?Sized>(
+fn render_script_text<'a, W: Write + ?Sized>(
     nodes: &[InlineNode],
     w: &mut W,
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
     converter: fn(&str) -> Option<String>,
 ) -> Result<(), Error> {
     // Collect plain text to attempt Unicode conversion
@@ -153,7 +158,7 @@ fn render_script_text<W: Write + ?Sized>(
     // Fall back to dim-styled text
     w.queue(SetAttribute(Attribute::Dim))?;
     for node in nodes {
-        render_inline_node_to_writer(node, w, processor)?;
+        render_inline_node_to_writer(node, w, processor, traversal)?;
     }
     w.queue(SetAttribute(Attribute::NormalIntensity))?;
     Ok(())
@@ -163,11 +168,12 @@ fn render_script_text<W: Write + ?Sized>(
 ///
 /// This is used to render styled text (bold, italic, etc.) where crossterm
 /// requires the full text upfront to apply styling.
-fn render_inline_nodes_to_string(
+fn render_inline_nodes_to_string<'a>(
     nodes: &[InlineNode],
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<String, Error> {
-    Ok(render_inline_nodes_to_owned(nodes, processor)?
+    Ok(render_inline_nodes_to_owned(nodes, processor, traversal)?
         .trim()
         .to_string())
 }
@@ -176,41 +182,43 @@ fn render_inline_nodes_to_string(
 ///
 /// Reference text is rendered with this variant: the space in `.A title` or
 /// around a formatted span belongs to the text.
-fn render_inline_nodes_to_owned(
+fn render_inline_nodes_to_owned<'a>(
     nodes: &[InlineNode],
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<String, Error> {
     let mut buffer = std::io::BufWriter::new(Vec::new());
     for node in nodes {
-        render_inline_node_to_writer(node, &mut buffer, processor)?;
+        render_inline_node_to_writer(node, &mut buffer, processor, traversal)?;
     }
     buffer.flush()?;
-    // SAFETY: We only write valid UTF-8 through write! macros and plain text from parser
     Ok(String::from_utf8(buffer.into_inner()?)?)
 }
 
-fn render_inline_nodes_with_styles_to_owned(
+fn render_inline_nodes_with_styles_to_owned<'a>(
     nodes: &[InlineNode],
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<String, Error> {
     let source = WarningSource::new("terminal");
     let mut warnings = Vec::new();
     let mut visitor = crate::TerminalVisitor::new(
         Vec::new(),
-        processor.clone(),
+        processor,
         Diagnostics::new(&source, &mut warnings),
     );
     visitor.text_boundaries = TextBoundaries::NONE;
-    visitor.visit_inline_nodes(nodes)?;
+    visitor.visit_inline_nodes(traversal, nodes)?;
     Ok(String::from_utf8(visitor.into_writer())?)
 }
 
 /// Helper to render a single inline node directly to a writer.
 /// Always called from within inline spans, so `string_boundaries_are_space` is false.
-fn render_inline_node_to_writer<W: Write + ?Sized>(
+fn render_inline_node_to_writer<'a, W: Write + ?Sized>(
     node: &InlineNode,
     w: &mut W,
-    processor: &Processor<'_>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
     match node {
         InlineNode::PlainText(p) => {
@@ -226,51 +234,63 @@ fn render_inline_node_to_writer<W: Write + ?Sized>(
         }
         InlineNode::ItalicText(i) => {
             for inner in &i.content {
-                render_inline_node_to_writer(inner, w, processor)?;
+                render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
         }
         InlineNode::BoldText(b) => {
             for inner in &b.content {
-                render_inline_node_to_writer(inner, w, processor)?;
+                render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
         }
         InlineNode::HighlightText(h) => {
             if h.role == Some("underline") {
                 // Underline role: just render content (no highlight styling in buffer)
                 for inner in &h.content {
-                    render_inline_node_to_writer(inner, w, processor)?;
+                    render_inline_node_to_writer(inner, w, processor, traversal)?;
                 }
             } else {
                 for inner in &h.content {
-                    render_inline_node_to_writer(inner, w, processor)?;
+                    render_inline_node_to_writer(inner, w, processor, traversal)?;
                 }
             }
         }
         InlineNode::MonospaceText(m) => {
             for inner in &m.content {
-                render_inline_node_to_writer(inner, w, processor)?;
+                render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
         }
         InlineNode::Macro(m) => {
-            render_inline_macro_to_writer(m, w, processor)?;
+            render_inline_macro_to_writer(m, w, processor, traversal)?;
         }
         InlineNode::SuperscriptText(s) => {
-            render_script_text(&s.content, w, processor, try_to_unicode_superscript)?;
+            render_script_text(
+                &s.content,
+                w,
+                processor,
+                traversal,
+                try_to_unicode_superscript,
+            )?;
         }
         InlineNode::SubscriptText(s) => {
-            render_script_text(&s.content, w, processor, try_to_unicode_subscript)?;
+            render_script_text(
+                &s.content,
+                w,
+                processor,
+                traversal,
+                try_to_unicode_subscript,
+            )?;
         }
         InlineNode::CurvedQuotationText(c) => {
             write!(w, "\u{201C}")?;
             for inner in &c.content {
-                render_inline_node_to_writer(inner, w, processor)?;
+                render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
             write!(w, "\u{201D}")?;
         }
         InlineNode::CurvedApostropheText(c) => {
             write!(w, "\u{2018}")?;
             for inner in &c.content {
-                render_inline_node_to_writer(inner, w, processor)?;
+                render_inline_node_to_writer(inner, w, processor, traversal)?;
             }
             write!(w, "\u{2019}")?;
         }
@@ -288,8 +308,8 @@ fn render_inline_node_to_writer<W: Write + ?Sized>(
             write!(w, "({})", callout.number)?;
         }
         _ => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Unsupported,
+            return Err(IoError::new(
+                ErrorKind::Unsupported,
                 format!("Unsupported inline node in buffer: {node:?}"),
             )
             .into());
@@ -298,13 +318,17 @@ fn render_inline_node_to_writer<W: Write + ?Sized>(
     Ok(())
 }
 
-impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
     /// Internal implementation for visiting inline nodes
-    pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), crate::Error> {
-        let processor = self.processor.clone();
+    pub(crate) fn render_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+    ) -> Result<(), Error> {
+        let processor = self.processor;
         match node {
             InlineNode::PlainText(p) => {
-                let text = transform_plain(p.content, &processor, self.text_boundaries);
+                let text = transform_plain(p.content, processor, self.text_boundaries);
                 let w = self.writer_mut();
                 write!(w, "{text}")?;
             }
@@ -312,17 +336,21 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
             | InlineNode::BoldText(_)
             | InlineNode::HighlightText(_)
             | InlineNode::MonospaceText(_) => {
-                self.render_formatted_inline_node(node, &processor)?;
+                self.render_formatted_inline_node(traversal, node, processor)?;
             }
             InlineNode::SuperscriptText(_) | InlineNode::SubscriptText(_) => {
-                self.render_script_inline_node(node, &processor)?;
+                self.render_script_inline_node(traversal, node, processor)?;
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                self.render_cross_reference(xref, &processor)?;
+                self.render_cross_reference(traversal, xref, processor)?;
+            }
+            InlineNode::Macro(InlineMacro::Button(button)) => {
+                let experimental = traversal.contains_key("experimental");
+                let w = self.writer_mut();
+                render_button(button, w, experimental)?;
             }
             InlineNode::Macro(m) => {
-                let w = self.writer_mut();
-                render_inline_macro_to_writer(m, w, &processor)?;
+                render_inline_macro_to_writer(m, &mut self.writer, processor, traversal)?;
             }
             InlineNode::InlineAnchor(_) => {
                 // Anchors are invisible in terminal output
@@ -338,14 +366,14 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
             InlineNode::CurvedQuotationText(c) => {
                 let w = self.writer_mut();
                 write!(w, "\u{201C}")?;
-                self.visit_inline_nodes(&c.content)?;
+                self.visit_inline_nodes(traversal, &c.content)?;
                 let w = self.writer_mut();
                 write!(w, "\u{201D}")?;
             }
             InlineNode::CurvedApostropheText(c) => {
                 let w = self.writer_mut();
                 write!(w, "\u{2018}")?;
-                self.visit_inline_nodes(&c.content)?;
+                self.visit_inline_nodes(traversal, &c.content)?;
                 let w = self.writer_mut();
                 write!(w, "\u{2019}")?;
             }
@@ -369,8 +397,8 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                 ))?;
             }
             _ => {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::Unsupported,
+                return Err(IoError::new(
+                    ErrorKind::Unsupported,
                     format!("Unsupported inline node in terminal: {node:?}"),
                 )
                 .into());
@@ -381,12 +409,14 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
 
     fn render_cross_reference(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         xref: &CrossReference<'_>,
-        processor: &Processor<'_>,
-    ) -> Result<(), crate::Error> {
+        processor: &Processor<'a>,
+    ) -> Result<(), Error> {
         if !xref.text.is_empty() {
-            return self
-                .write_link_styled(processor, |visitor| visitor.visit_inline_nodes(&xref.text));
+            return self.write_link_styled(processor, |visitor| {
+                visitor.visit_inline_nodes(traversal, &xref.text)
+            });
         }
 
         match resolve_xref(
@@ -394,9 +424,10 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
             xref,
             &processor.xref_guard,
         ) {
-            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                self.write_link_styled(processor, |visitor| visitor.visit_inline_nodes(inlines))
-            }
+            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
+                .write_link_styled(processor, |visitor| {
+                    visitor.visit_inline_nodes(traversal, inlines)
+                }),
             XrefDisplay::ShortCaption(prefix) => self.write_link_styled(processor, |visitor| {
                 write!(visitor.writer_mut(), "{prefix}")?;
                 Ok(())
@@ -404,7 +435,7 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
             XrefDisplay::FullCaption(prefix, inlines, _scope) => {
                 self.write_link_styled(processor, |visitor| {
                     write!(visitor.writer_mut(), "{prefix}, “")?;
-                    visitor.visit_inline_nodes(inlines)?;
+                    visitor.visit_inline_nodes(traversal, inlines)?;
                     write!(visitor.writer_mut(), "”")?;
                     Ok(())
                 })
@@ -431,9 +462,9 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     /// Write reference text in the link colour, underlined.
     fn write_link_styled(
         &mut self,
-        processor: &Processor<'_>,
-        text: impl FnOnce(&mut Self) -> Result<(), crate::Error>,
-    ) -> Result<(), crate::Error> {
+        processor: &Processor<'a>,
+        text: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
         self.push_colors(Some(processor.appearance.colors.link), None)?;
         self.writer_mut()
             .queue(SetAttribute(Attribute::Underlined))?;
@@ -447,21 +478,22 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     /// Render bold, italic, highlight, or monospace inline nodes with crossterm styling.
     fn render_formatted_inline_node(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
-        processor: &crate::Processor<'_>,
-    ) -> Result<(), crate::Error> {
+        processor: &crate::Processor<'a>,
+    ) -> Result<(), Error> {
         match node {
             InlineNode::ItalicText(i) => {
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::Italic))?;
-                self.visit_inline_nodes(&i.content)?;
+                self.visit_inline_nodes(traversal, &i.content)?;
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::NoItalic))?;
             }
             InlineNode::BoldText(b) => {
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::Bold))?;
-                self.visit_inline_nodes(&b.content)?;
+                self.visit_inline_nodes(traversal, &b.content)?;
                 let w = self.writer_mut();
                 w.queue(SetAttribute(Attribute::NormalIntensity))?;
             }
@@ -469,24 +501,24 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                 if h.role == Some("underline") {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::Underlined))?;
-                    self.visit_inline_nodes(&h.content)?;
+                    self.visit_inline_nodes(traversal, &h.content)?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NoUnderline))?;
                 } else if h.role == Some("line-through") {
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::CrossedOut))?;
-                    self.visit_inline_nodes(&h.content)?;
+                    self.visit_inline_nodes(traversal, &h.content)?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NotCrossedOut))?;
                 } else {
                     self.push_colors(Some(Color::Black), Some(Color::Yellow))?;
-                    self.visit_inline_nodes(&h.content)?;
+                    self.visit_inline_nodes(traversal, &h.content)?;
                     self.pop_colors()?;
                 }
             }
             InlineNode::MonospaceText(m) => {
                 self.push_colors(Some(processor.appearance.colors.inline_monospace), None)?;
-                self.visit_inline_nodes(&m.content)?;
+                self.visit_inline_nodes(traversal, &m.content)?;
                 self.pop_colors()?;
             }
             InlineNode::PlainText(_)
@@ -509,12 +541,13 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     /// Render superscript or subscript inline nodes.
     fn render_script_inline_node(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
-        processor: &crate::Processor<'_>,
-    ) -> Result<(), crate::Error> {
+        processor: &crate::Processor<'a>,
+    ) -> Result<(), Error> {
         match node {
             InlineNode::SuperscriptText(s) => {
-                let text = render_inline_nodes_to_string(&s.content, processor)?;
+                let text = render_inline_nodes_to_string(&s.content, processor, traversal)?;
                 let w = self.writer_mut();
                 if let Some(converted) = try_to_unicode_superscript(&text) {
                     write!(w, "{converted}")?;
@@ -525,7 +558,7 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                 }
             }
             InlineNode::SubscriptText(s) => {
-                let text = render_inline_nodes_to_string(&s.content, processor)?;
+                let text = render_inline_nodes_to_string(&s.content, processor, traversal)?;
                 let w = self.writer_mut();
                 if let Some(converted) = try_to_unicode_subscript(&text) {
                     write!(w, "{converted}")?;
@@ -560,7 +593,7 @@ pub(crate) fn maybe_render_osc8_link<W: Write + ?Sized>(
     text: &str,
     w: &mut W,
     processor: &Processor<'_>,
-) -> Result<(), crate::Error> {
+) -> Result<(), Error> {
     if processor.appearance.capabilities.osc8_links {
         w.queue(Print(
             format!("\x1B]8;;{target}\x1B\\{text}\x1B]8;;\x1B\\")
@@ -578,21 +611,25 @@ pub(crate) fn maybe_render_osc8_link<W: Write + ?Sized>(
     Ok(())
 }
 
-fn render_inline_macro_to_writer<W: Write + ?Sized>(
+fn render_inline_macro_to_writer<'a, W: Write + ?Sized>(
     inline_macro: &InlineMacro<'_>,
     w: &mut W,
-    processor: &Processor<'_>,
-) -> Result<(), crate::Error> {
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
     match inline_macro {
         InlineMacro::Link(l) => {
             let target = l.target.to_string();
             if l.text.iter().any(is_self_linked_image) {
                 for node in &l.text {
                     if is_self_linked_image(node) {
-                        render_inline_node_to_writer(node, w, processor)?;
+                        render_inline_node_to_writer(node, w, processor, traversal)?;
                     } else {
-                        let text =
-                            render_inline_nodes_to_string(std::slice::from_ref(node), processor)?;
+                        let text = render_inline_nodes_to_string(
+                            std::slice::from_ref(node),
+                            processor,
+                            traversal,
+                        )?;
                         maybe_render_osc8_link(&target, &text, w, processor)?;
                     }
                 }
@@ -600,7 +637,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
                 let text = if l.text.is_empty() {
                     link_fallback(&target, l.hides_uri_scheme()).to_string()
                 } else {
-                    render_inline_nodes_to_string(&l.text, processor)?
+                    render_inline_nodes_to_string(&l.text, processor, traversal)?
                 };
                 maybe_render_osc8_link(&target, &text, w, processor)?;
             }
@@ -610,14 +647,14 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             let text = if u.text.is_empty() {
                 link_fallback(&target, u.hides_uri_scheme()).to_string()
             } else {
-                render_inline_nodes_to_string(&u.text, processor)?
+                render_inline_nodes_to_string(&u.text, processor, traversal)?
             };
             maybe_render_osc8_link(&target, &text, w, processor)?;
         }
         InlineMacro::Mailto(m) => {
             maybe_render_osc8_link(
                 m.target.to_string().as_ref(),
-                &render_inline_nodes_to_string(&m.text, processor)?,
+                &render_inline_nodes_to_string(&m.text, processor, traversal)?,
                 w,
                 processor,
             )?;
@@ -639,8 +676,10 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
                 format!("[{}]", footnote.number).cyan().bold(),
             ))?;
         }
-        InlineMacro::Button(b) => render_button(b, w, processor)?,
-        InlineMacro::CrossReference(xref) => render_cross_reference_to_writer(xref, w, processor)?,
+        InlineMacro::Button(b) => render_button(b, w, traversal.contains_key("experimental"))?,
+        InlineMacro::CrossReference(xref) => {
+            render_cross_reference_to_writer(xref, w, processor, traversal)?;
+        }
         InlineMacro::Pass(p) => {
             // Pass content through as-is
             if let Some(text) = p.text {
@@ -654,17 +693,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
             write!(w, "[Icon: {alt}]")?;
         }
-        InlineMacro::Keyboard(kbd) => {
-            // Show keyboard shortcuts with brackets
-            write!(w, "[")?;
-            for (i, key) in kbd.keys.iter().enumerate() {
-                if i > 0 {
-                    write!(w, "+")?;
-                }
-                write!(w, "{key}")?;
-            }
-            write!(w, "]")?;
-        }
+        InlineMacro::Keyboard(kbd) => render_keyboard_to_writer(kbd, w)?,
         InlineMacro::Menu(menu) => {
             // Show menu path
             write!(w, "{}", menu.target)?;
@@ -676,15 +705,32 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             // Show stem content as-is (terminal can't render math)
             write!(w, "[{}]", stem.content)?;
         }
-        InlineMacro::IndexTerm(term) => render_index_term_to_writer(term, w, processor)?,
+        InlineMacro::IndexTerm(term) => {
+            render_index_term_to_writer(term, w, processor, traversal)?;
+        }
         _ => {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Unsupported,
+            return Err(IoError::new(
+                ErrorKind::Unsupported,
                 format!("Unsupported inline macro in terminal: {inline_macro:?}"),
             )
             .into());
         }
     }
+    Ok(())
+}
+
+fn render_keyboard_to_writer<W: Write + ?Sized>(
+    keyboard: &Keyboard<'_>,
+    w: &mut W,
+) -> Result<(), Error> {
+    write!(w, "[")?;
+    for (index, key) in keyboard.keys.iter().enumerate() {
+        if index > 0 {
+            write!(w, "+")?;
+        }
+        write!(w, "{key}")?;
+    }
+    write!(w, "]")?;
     Ok(())
 }
 
@@ -696,7 +742,7 @@ fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
     )
 }
 
-pub(crate) fn block_image_alt(image: &acdc_parser::Image<'_>) -> String {
+pub(crate) fn block_image_alt(image: &Image<'_>) -> String {
     if let Some(alt) = image.metadata.attributes.get_string("alt") {
         return alt.into_owned();
     }
@@ -709,7 +755,7 @@ pub(crate) fn block_image_alt(image: &acdc_parser::Image<'_>) -> String {
         .replace(['-', '_'], " ")
 }
 
-fn inline_image_alt(image: &acdc_parser::Image<'_>) -> String {
+fn inline_image_alt(image: &Image<'_>) -> String {
     if image.title.is_empty() {
         block_image_alt(image)
     } else {
@@ -718,7 +764,7 @@ fn inline_image_alt(image: &acdc_parser::Image<'_>) -> String {
 }
 
 fn render_inline_image<W: Write + ?Sized>(
-    image: &acdc_parser::Image<'_>,
+    image: &Image<'_>,
     w: &mut W,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
@@ -731,21 +777,22 @@ fn render_inline_image<W: Write + ?Sized>(
     }
 }
 
-fn render_index_term_to_writer<W: Write + ?Sized>(
+fn render_index_term_to_writer<'a, W: Write + ?Sized>(
     term: &IndexTerm<'_>,
     w: &mut W,
-    processor: &Processor<'_>,
-) -> Result<(), crate::Error> {
-    let render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
+    let mut render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
         Ok(IndexTermLabel {
             plain: InlineTextTransform::default().to_string(inlines),
-            rendered: render_inline_nodes_with_styles_to_owned(inlines, processor)?,
+            rendered: render_inline_nodes_with_styles_to_owned(inlines, processor, traversal)?,
         })
     };
     processor.add_index_entry(IndexTermEntry {
         primary: render_label(term.term())?,
-        secondary: term.secondary().map(render_label).transpose()?,
-        tertiary: term.tertiary().map(render_label).transpose()?,
+        secondary: term.secondary().map(&mut render_label).transpose()?,
+        tertiary: term.tertiary().map(&mut render_label).transpose()?,
         relationship: match term.relationship.as_ref() {
             Some(IndexTermRelationship::See { target }) => {
                 IndexCatalogRelationship::See(render_label(target)?)
@@ -764,7 +811,7 @@ fn render_index_term_to_writer<W: Write + ?Sized>(
         write!(
             w,
             "{}",
-            render_inline_nodes_with_styles_to_owned(term.term(), processor)?
+            render_inline_nodes_with_styles_to_owned(term.term(), processor, traversal)?
         )?;
     }
     Ok(())
@@ -773,9 +820,9 @@ fn render_index_term_to_writer<W: Write + ?Sized>(
 fn render_button<W: Write + ?Sized>(
     button: &Button,
     w: &mut W,
-    processor: &Processor<'_>,
-) -> Result<(), crate::Error> {
-    if processor.document_attributes.contains_key("experimental") {
+    experimental: bool,
+) -> Result<(), Error> {
+    if experimental {
         w.queue(PrintStyledContent(
             format!("[{}]", button.label).white().bold(),
         ))?;
@@ -794,11 +841,12 @@ fn render_button<W: Write + ?Sized>(
 /// span upfront (table cells, super/subscript). Like every node rendered this
 /// way, the reference text arrives without its own styling; the resolution
 /// itself is the same as the visitor's.
-fn render_cross_reference_to_writer<W: Write + ?Sized>(
+fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
     xref: &CrossReference,
     w: &mut W,
-    processor: &Processor<'_>,
-) -> Result<(), crate::Error> {
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
     let text = if xref.text.is_empty() {
         match resolve_xref(
             processor.references.get(xref.target),
@@ -806,12 +854,12 @@ fn render_cross_reference_to_writer<W: Write + ?Sized>(
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                render_inline_nodes_to_owned(inlines, processor)?
+                render_inline_nodes_to_owned(inlines, processor, traversal)?
             }
             XrefDisplay::ShortCaption(prefix) => prefix,
             XrefDisplay::FullCaption(prefix, inlines, _scope) => format!(
                 "{prefix}, “{}”",
-                render_inline_nodes_to_owned(inlines, processor)?
+                render_inline_nodes_to_owned(inlines, processor, traversal)?
             ),
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
@@ -830,8 +878,8 @@ fn render_cross_reference_to_writer<W: Write + ?Sized>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TerminalVisitor;
-    use crate::create_test_processor;
+    use crate::{TerminalVisitor, create_test_processor};
+
     use acdc_converters_core::visitor::Visitor;
     use acdc_parser::{
         Anchor, Bold, CrossReference, CurvedApostrophe, CurvedQuotation, Form, Highlight, Image,
@@ -857,8 +905,11 @@ mod tests {
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("terminal");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_paragraph(&paragraph)?;
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_paragraph(&mut traversal, &paragraph)?;
         let output = visitor.into_writer();
 
         Ok(String::from_utf8_lossy(&output).to_string())

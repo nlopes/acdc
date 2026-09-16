@@ -5,7 +5,7 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{AttributeValue, Block, InlineNode, Options, ParseResult, parse_file};
+use acdc_parser::{Block, InlineNode, Options, ParseResult, parse_file};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -60,7 +60,7 @@ impl Drop for IncludeTree {
     }
 }
 
-fn options(max_depth: &str) -> Options<'_> {
+fn options(max_depth: &str) -> Result<Options<'_>, acdc_parser::Error> {
     Options::builder()
         .with_attribute("max-include-depth", max_depth)
         .build()
@@ -112,15 +112,16 @@ fn assert_chain(result: &ParseResult, depth: &str, expansion: Expansion) -> Test
     Ok(())
 }
 
-fn assert_max_depth(result: &ParseResult, expected: &str) {
-    assert_eq!(
-        result
-            .document()
-            .attributes
-            .get_string("max-include-depth")
-            .as_deref(),
-        Some(expected)
-    );
+fn assert_max_depth(result: &ParseResult, expected: &str) -> TestResult {
+    let mut actual = String::new();
+    let value = result
+        .document()
+        .attributes
+        .get("max-include-depth")
+        .ok_or("depth has a default")?;
+    value.write_text(&mut actual)?;
+    assert_eq!(actual, expected);
+    Ok(())
 }
 
 fn assert_depth_warning(result: &ParseResult, max: usize, file: &Path, line: u32) -> TestResult {
@@ -145,7 +146,7 @@ fn default_depth_is_visible_and_allows_a_two_level_chain() -> TestResult {
 
     let result = parse_file(&tree.main, &Options::default())?;
 
-    assert_max_depth(&result, "64");
+    assert_max_depth(&result, "64")?;
     assert_chain(&result, "64", Expansion::Full)?;
     assert!(result.warnings().is_empty());
     Ok(())
@@ -158,7 +159,7 @@ fn default_depth_is_defined_for_conditionals_without_being_explicit() -> TestRes
 
     let result = parse_file(&tree.main, &Options::default())?;
 
-    assert_max_depth(&result, "64");
+    assert_max_depth(&result, "64")?;
     assert_eq!(
         paragraph_texts(&result)?,
         [
@@ -179,9 +180,9 @@ fn default_depth_is_defined_for_conditionals_without_being_explicit() -> TestRes
 fn zero_disables_built_in_includes_without_a_diagnostic() -> TestResult {
     let tree = IncludeTree::chain("")?;
 
-    let result = parse_file(&tree.main, &options("0"))?;
+    let result = parse_file(&tree.main, &options("0")?)?;
 
-    assert_max_depth(&result, "0");
+    assert_max_depth(&result, "0")?;
     assert_chain(&result, "0", Expansion::BlockedAtMain)?;
     assert!(result.warnings().is_empty());
     Ok(())
@@ -191,9 +192,9 @@ fn zero_disables_built_in_includes_without_a_diagnostic() -> TestResult {
 fn positive_limit_preserves_the_blocked_directive_and_continues() -> TestResult {
     let tree = IncludeTree::chain("")?;
 
-    let result = parse_file(&tree.main, &options("1"))?;
+    let result = parse_file(&tree.main, &options("1")?)?;
 
-    assert_max_depth(&result, "1");
+    assert_max_depth(&result, "1")?;
     assert_chain(&result, "1", Expansion::BlockedAtOne)?;
     assert_depth_warning(&result, 1, &tree.one, 3)?;
     Ok(())
@@ -221,7 +222,7 @@ fn include_like_block_macros_do_not_trigger_depth_warnings() -> TestResult {
         "unused",
     )?;
 
-    let result = parse_file(&tree.main, &options("1"))?;
+    let result = parse_file(&tree.main, &options("1")?)?;
 
     assert_eq!(
         paragraph_texts(&result)?,
@@ -235,22 +236,22 @@ fn include_like_block_macros_do_not_trigger_depth_warnings() -> TestResult {
 fn caller_limit_two_allows_a_two_level_chain() -> TestResult {
     let tree = IncludeTree::chain("")?;
 
-    let result = parse_file(&tree.main, &options("2"))?;
+    let result = parse_file(&tree.main, &options("2")?)?;
 
-    assert_max_depth(&result, "2");
+    assert_max_depth(&result, "2")?;
     assert_chain(&result, "2", Expansion::Full)?;
     assert!(result.warnings().is_empty());
     Ok(())
 }
 
 #[test]
-fn caller_string_values_use_the_leading_signed_decimal_for_the_policy() -> TestResult {
-    for value in ["2junk", " 2", "18446744073709551616"] {
+fn caller_string_values_allow_surrounding_unicode_whitespace() -> TestResult {
+    for value in [" 2 ", "\u{2003}2\u{a0}"] {
         let tree = IncludeTree::chain("")?;
 
-        let result = parse_file(&tree.main, &options(value))?;
+        let result = parse_file(&tree.main, &options(value)?)?;
 
-        assert_max_depth(&result, value);
+        assert_max_depth(&result, value)?;
         assert_chain(&result, value, Expansion::Full)?;
         assert!(result.warnings().is_empty());
     }
@@ -258,14 +259,38 @@ fn caller_string_values_use_the_leading_signed_decimal_for_the_policy() -> TestR
 }
 
 #[test]
-fn negative_caller_value_disables_built_in_includes() -> TestResult {
+fn very_large_positive_caller_value_saturates_without_overflow() -> TestResult {
+    let value = "9999999999999999999999999999999999999999";
     let tree = IncludeTree::chain("")?;
 
-    let result = parse_file(&tree.main, &options("-1"))?;
+    let result = parse_file(&tree.main, &options(value)?)?;
 
-    assert_max_depth(&result, "-1");
-    assert_chain(&result, "-1", Expansion::BlockedAtMain)?;
+    assert_max_depth(&result, value)?;
+    assert_chain(&result, value, Expansion::Full)?;
     assert!(result.warnings().is_empty());
+    Ok(())
+}
+
+#[test]
+fn malformed_caller_values_return_a_structured_configuration_error() -> TestResult {
+    for supplied in ["2junk", "1.5", "-1", ""] {
+        let Err(error) = options(supplied) else {
+            return Err(format!("expected `{supplied}` to be rejected").into());
+        };
+        let acdc_parser::Error::InvalidDocumentAttribute {
+            name,
+            value,
+            expected,
+            location,
+        } = error
+        else {
+            return Err(format!("unexpected error for `{supplied}`: {error}").into());
+        };
+        assert_eq!(name, "max-include-depth");
+        assert_eq!(value, supplied);
+        assert_eq!(expected, "a complete non-negative integer");
+        assert!(location.is_none());
+    }
     Ok(())
 }
 
@@ -274,13 +299,17 @@ fn boolean_true_disables_includes_without_crashing() -> TestResult {
     let tree = IncludeTree::chain("")?;
     let options = Options::builder()
         .with_attribute("max-include-depth", true)
-        .build();
+        .build()?;
 
     let result = parse_file(&tree.main, &options)?;
 
     assert_eq!(
-        result.document().attributes.get("max-include-depth"),
-        Some(&AttributeValue::Bool(true))
+        result
+            .document()
+            .attributes
+            .get("max-include-depth")
+            .and_then(acdc_parser::DocumentAttributeValue::as_integer),
+        Some(0)
     );
     // A boolean has no string form, so the reference substitutes to nothing.
     assert_chain(&result, "", Expansion::BlockedAtMain)?;
@@ -293,10 +322,10 @@ fn boolean_false_and_no_value_restore_the_default() -> TestResult {
     let options = [
         Options::builder()
             .with_attribute("max-include-depth", false)
-            .build(),
+            .build()?,
         Options::builder()
             .with_attribute("max-include-depth", ())
-            .build(),
+            .build()?,
     ];
 
     for options in options {
@@ -304,7 +333,7 @@ fn boolean_false_and_no_value_restore_the_default() -> TestResult {
 
         let result = parse_file(&tree.main, &options)?;
 
-        assert_max_depth(&result, "64");
+        assert_max_depth(&result, "64")?;
         assert_chain(&result, "64", Expansion::Full)?;
         assert!(result.warnings().is_empty());
     }
@@ -315,9 +344,9 @@ fn boolean_false_and_no_value_restore_the_default() -> TestResult {
 fn document_header_cannot_change_or_unset_the_trusted_limit() -> TestResult {
     let tree = IncludeTree::chain(":max-include-depth: 2\n:max-include-depth!:\n\n")?;
 
-    let result = parse_file(&tree.main, &options("1"))?;
+    let result = parse_file(&tree.main, &options("1")?)?;
 
-    assert_max_depth(&result, "1");
+    assert_max_depth(&result, "1")?;
     assert_chain(&result, "1", Expansion::BlockedAtOne)?;
     assert_depth_warning(&result, 1, &tree.one, 3)?;
     Ok(())
@@ -329,9 +358,9 @@ fn ignored_body_depth_declarations_are_absent_from_the_ast() -> TestResult {
         "BEFORE\n\n:max-include-depth: 5\n\n== Section\n\n:max-include-depth: 6\n:max-include-depth!:\n\nAFTER {max-include-depth}",
     )?;
 
-    let result = parse_file(&tree.main, &options("1"))?;
+    let result = parse_file(&tree.main, &options("1")?)?;
 
-    assert_max_depth(&result, "1");
+    assert_max_depth(&result, "1")?;
     let [Block::Paragraph(before), Block::Section(section)] = result.document().blocks.as_slice()
     else {
         return Err(format!("unexpected document blocks: {:?}", result.document().blocks).into());
@@ -361,9 +390,9 @@ fn block_metadata_cannot_change_the_trusted_limit() -> TestResult {
     ] {
         let tree = IncludeTree::chain(&format!("{metadata}:max-include-depth: 2\n"))?;
 
-        let result = parse_file(&tree.main, &options("1"))?;
+        let result = parse_file(&tree.main, &options("1")?)?;
 
-        assert_max_depth(&result, "1");
+        assert_max_depth(&result, "1")?;
         assert_chain(&result, "1", Expansion::BlockedAtOne)?;
         assert_depth_warning(&result, 1, &tree.one, 3)?;
     }
@@ -376,7 +405,7 @@ fn document_header_cannot_override_or_unset_the_default() -> TestResult {
 
     let result = parse_file(&tree.main, &Options::default())?;
 
-    assert_max_depth(&result, "64");
+    assert_max_depth(&result, "64")?;
     assert_chain(&result, "64", Expansion::Full)?;
     assert!(result.warnings().is_empty());
     Ok(())
@@ -386,7 +415,7 @@ fn document_header_cannot_override_or_unset_the_default() -> TestResult {
 fn depth_limit_bounds_a_self_include_cycle() -> TestResult {
     let tree = IncludeTree::main_only("SELF BODY\n\ninclude::main.adoc[]")?;
 
-    let result = parse_file(&tree.main, &options("2"))?;
+    let result = parse_file(&tree.main, &options("2")?)?;
 
     assert_eq!(
         paragraph_texts(&result)?,

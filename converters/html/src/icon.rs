@@ -1,12 +1,11 @@
 use std::fmt::Write as _;
 use std::io::{self, Write};
 
-use acdc_converters_core::icon::{IconMode, alt as icon_alt, image_source as icon_image_source};
-use acdc_parser::{
-    AttributeValue, DocumentAttributes, ElementAttributes, ICON_SIZES, Icon, Source,
+use acdc_converters_core::{
+    TraversalContext,
+    icon::{IconMode, alt as icon_alt, image_source as icon_image_source},
 };
-
-use crate::Processor;
+use acdc_parser::{AttributeValue, ElementAttributes, ICON_SIZES, Icon, Source};
 
 /// Check if a positional attribute exists (stored as key with `AttributeValue::None`).
 fn has_positional_attr(attrs: &ElementAttributes, name: &str) -> bool {
@@ -36,7 +35,7 @@ fn get_icon_size(attrs: &ElementAttributes) -> Option<String> {
 /// - Text mode (no `icons` attribute): Uses text placeholders
 pub(crate) fn write_icon<W: Write + ?Sized>(
     w: &mut W,
-    processor: &Processor<'_>,
+    document_attributes: &TraversalContext<'_>,
     icon: &Icon,
 ) -> io::Result<()> {
     let target = &icon.target;
@@ -48,18 +47,12 @@ pub(crate) fn write_icon<W: Write + ?Sized>(
         None => "icon".to_string(),
     };
 
-    match IconMode::from(&processor.document_attributes) {
+    match IconMode::from_attributes(document_attributes) {
         IconMode::Font => {
-            write_font_icon(
-                w,
-                target,
-                attrs,
-                &processor.document_attributes,
-                &span_class,
-            )?;
+            write_font_icon(w, target, attrs, document_attributes, &span_class)?;
         }
         IconMode::Image => {
-            write_image_icon(w, processor, target, attrs, &span_class)?;
+            write_image_icon(w, document_attributes, target, attrs, &span_class)?;
         }
         IconMode::Text | _ => {
             let alt = icon_alt(target, attrs);
@@ -89,7 +82,7 @@ fn resolve_fa_family(value: &str) -> Option<&'static str> {
 }
 
 /// Get the FA family CSS class for an icon, checking macro attributes then document defaults.
-fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &DocumentAttributes) -> String {
+fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &TraversalContext<'_>) -> String {
     // 1. Icon macro attribute: set= or pack= (aliases)
     let macro_value = attrs.get_string("set").or_else(|| attrs.get_string("pack"));
 
@@ -100,11 +93,10 @@ fn get_fa_family(attrs: &ElementAttributes, doc_attrs: &DocumentAttributes) -> S
     }
 
     // 2. Document attribute: :icon-set: or :icon-pack: (aliases)
-    let doc_value = doc_attrs
-        .get_string("icon-set")
-        .or_else(|| doc_attrs.get_string("icon-pack"));
+    let doc_value = acdc_converters_core::document_attribute_text((doc_attrs).get("icon-set"))
+        .or_else(|| acdc_converters_core::document_attribute_text((doc_attrs).get("icon-pack")));
 
-    if let Some(ref val) = doc_value
+    if let Some(val) = doc_value
         && let Some(css_class) = resolve_fa_family(val)
     {
         return css_class.to_string();
@@ -119,7 +111,7 @@ fn write_font_icon<W: Write + ?Sized>(
     w: &mut W,
     target: &Source,
     attrs: &ElementAttributes,
-    doc_attrs: &DocumentAttributes,
+    doc_attrs: &TraversalContext<'_>,
     span_class: &str,
 ) -> io::Result<()> {
     let family = get_fa_family(attrs, doc_attrs);
@@ -154,12 +146,12 @@ fn write_font_icon<W: Write + ?Sized>(
 /// Write an image-based icon.
 fn write_image_icon<W: Write + ?Sized>(
     w: &mut W,
-    processor: &Processor<'_>,
+    document_attributes: &TraversalContext<'_>,
     target: &Source,
     attrs: &ElementAttributes,
     span_class: &str,
 ) -> io::Result<()> {
-    let source = icon_image_source(&processor.document_attributes, target);
+    let source = icon_image_source(document_attributes, target);
     let alt = icon_alt(target, attrs);
 
     // Build img attributes

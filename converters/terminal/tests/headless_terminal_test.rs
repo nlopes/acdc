@@ -1,6 +1,6 @@
 use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_terminal::Processor;
-use acdc_parser::{DocumentAttributes, Options as ParserOptions};
+use acdc_parser::Options as ParserOptions;
 use libghostty_vt::{
     RenderState, Terminal, TerminalOptions,
     render::{CellIterator, RowIterator},
@@ -105,12 +105,15 @@ impl RenderedGrid {
 
 fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, Error> {
     crossterm::style::force_color_output(true);
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+    let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse(asciidoc, &parser_options)?;
     let doc = parsed.document();
 
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone())
-        .with_terminal_width(usize::from(cols));
+    let processor = Processor::new(
+        ConverterOptions::default(),
+        acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+    )?
+    .with_terminal_width(usize::from(cols));
     let mut output = Vec::new();
     let source = acdc_converters_core::WarningSource::new("terminal");
     let mut warnings = Vec::new();

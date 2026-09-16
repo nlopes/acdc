@@ -1,21 +1,25 @@
 //! Workspace-level state management
 
-use std::collections::HashMap;
-use std::sync::{PoisonError, RwLock};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{PoisonError, RwLock},
+};
 
-use acdc_parser::Location;
-use dashmap::DashMap;
-use dashmap::mapref::one::Ref;
+use acdc_parser::{Location, parse};
+use dashmap::{DashMap, mapref::one::Ref};
+
 use tower_lsp_server::ls_types::Uri;
 
-use crate::capabilities::{
-    definition, diagnostics,
-    workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
+use crate::{
+    capabilities::{
+        definition, diagnostics,
+        workspace_symbols::{IndexedSymbol, extract_workspace_symbols},
+    },
+    config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles},
+    limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded},
+    state::{DocumentState, document::ParsedText},
 };
-use crate::config::{AnalysisBackend, AnalysisConfiguration, ParserProfiles};
-use crate::limits::{MAX_INDEXABLE_FILE_BYTES, read_bounded};
-use crate::state::DocumentState;
-use crate::state::document::ParsedText;
 
 /// Workspace-level state management
 pub(crate) struct Workspace {
@@ -205,18 +209,11 @@ impl Workspace {
         if let Some(doc_path) = uri.to_file_path()
             && let Some(doc_dir) = doc_path.parent()
         {
-            let imagesdir_owned: Option<String> =
-                state
-                    .ast()
-                    .and_then(|ast| match ast.document().attributes.get("imagesdir") {
-                        Some(acdc_parser::AttributeValue::String(s)) => Some(s.to_string()),
-                        _ => None,
-                    });
             let link_diags = diagnostics::compute_link_diagnostics(
                 &state.media_sources,
                 &state.includes,
                 doc_dir,
-                imagesdir_owned.as_deref(),
+                None,
             );
             state.diagnostics.extend(link_diags);
         }
@@ -283,7 +280,7 @@ impl Workspace {
         tracing::info!(?path, anchor_id, "reading file from disk for anchor lookup");
         let text = read_bounded(path.as_ref())?;
         let backend = self.backend_for(uri);
-        let parsed = acdc_parser::parse(&text, self.parser_profiles.get(backend)).ok()?;
+        let parsed = parse(&text, self.parser_profiles.get(backend)).ok()?;
         let anchors = definition::collect_anchors(parsed.document());
         let result = anchors.get(anchor_id).cloned();
         tracing::info!(
@@ -326,8 +323,7 @@ impl Workspace {
                 continue;
             }
             if let Some(text) = read_bounded(&path)
-                && let Ok(parsed) =
-                    acdc_parser::parse(&text, self.parser_profiles.get(self.backend_for(&uri)))
+                && let Ok(parsed) = parse(&text, self.parser_profiles.get(self.backend_for(&uri)))
             {
                 let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri, symbols);
@@ -408,7 +404,7 @@ impl Workspace {
 
     /// Discover all `AsciiDoc` files in the workspace roots.
     #[must_use]
-    pub(crate) fn discover_workspace_files(&self) -> Vec<std::path::PathBuf> {
+    pub(crate) fn discover_workspace_files(&self) -> Vec<PathBuf> {
         let roots = self.workspace_roots();
         discover_adoc_files(&roots)
     }
@@ -418,7 +414,7 @@ impl Workspace {
             && let Some(text) = read_bounded(path.as_ref())
         {
             let backend = self.backend_for(uri);
-            if let Ok(parsed) = acdc_parser::parse(&text, self.parser_profiles.get(backend)) {
+            if let Ok(parsed) = parse(&text, self.parser_profiles.get(backend)) {
                 let symbols = extract_workspace_symbols(parsed.document());
                 self.symbol_index.insert(uri.clone(), symbols);
             }
@@ -504,7 +500,7 @@ impl Workspace {
             parse_diagnostics.push(Self::oversized_document_diagnostic(text.len()));
             ParsedText::from_source(text.into_boxed_str())
         } else {
-            match acdc_parser::parse(&text, options) {
+            match parse(&text, options) {
                 Ok(mut parse_result) => {
                     {
                         let doc = parse_result.document();
@@ -535,7 +531,7 @@ impl Workspace {
         let raw_conditionals = if let Some(attrs) = &ast_attributes {
             crate::state::document::extract_conditionals(raw_text, attrs)
         } else {
-            crate::state::document::extract_conditionals(raw_text, &options.document_attributes)
+            crate::state::document::extract_conditionals(raw_text, options.document_attributes())
         };
 
         DocumentState {
@@ -563,7 +559,7 @@ const ADOC_EXTENSIONS: &[&str] = &["adoc", "asciidoc", "asc"];
 ///
 /// Walks directories recursively using `std::fs`, skipping hidden directories
 /// and common build/dependency directories.
-fn discover_adoc_files(roots: &[Uri]) -> Vec<std::path::PathBuf> {
+fn discover_adoc_files(roots: &[Uri]) -> Vec<PathBuf> {
     let mut files = Vec::new();
     for root in roots {
         if let Some(path) = root.to_file_path() {
@@ -573,7 +569,7 @@ fn discover_adoc_files(roots: &[Uri]) -> Vec<std::path::PathBuf> {
     files
 }
 
-fn walk_directory(dir: &std::path::Path, files: &mut Vec<std::path::PathBuf>) {
+fn walk_directory(dir: &std::path::Path, files: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
@@ -604,9 +600,11 @@ impl Default for Workspace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::RootConfiguration;
+    use std::{env::temp_dir, error::Error, fs::remove_dir_all};
 
     #[test]
-    fn test_anchor_index_updated_on_document_change() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_anchor_index_updated_on_document_change() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -620,7 +618,7 @@ mod tests {
     }
 
     #[test]
-    fn test_anchor_index_cleaned_on_document_remove() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_anchor_index_cleaned_on_document_remove() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -636,7 +634,7 @@ mod tests {
     }
 
     #[test]
-    fn test_anchor_index_updated_on_document_reparse() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_anchor_index_updated_on_document_reparse() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -653,7 +651,7 @@ mod tests {
     }
 
     #[test]
-    fn test_all_anchors_across_documents() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_all_anchors_across_documents() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri1 = "file:///doc1.adoc".parse::<Uri>()?;
         let uri2 = "file:///doc2.adoc".parse::<Uri>()?;
@@ -681,7 +679,7 @@ mod tests {
     /// wire-through that makes `ParseResult::warnings()` useful to
     /// editors.
     #[test]
-    fn test_parser_warning_becomes_lsp_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_parser_warning_becomes_lsp_diagnostic() -> Result<(), Box<dyn Error>> {
         use tower_lsp_server::ls_types::DiagnosticSeverity;
 
         let workspace = Workspace::new();
@@ -707,8 +705,7 @@ mod tests {
     }
 
     #[test]
-    fn default_html5_backend_activates_html_conditionals() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn default_html5_backend_activates_html_conditionals() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///backend-default.adoc".parse::<Uri>()?;
         let content = "= Document\n\nifdef::backend-html5[]\n[[html-only]]\n== HTML Only\nendif::[]\n\nifdef::backend-pdf[]\n[[pdf-only]]\n== PDF Only\nendif::[]\n";
@@ -720,7 +717,10 @@ mod tests {
             .ok_or("document should be indexed")?;
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
-            ast.document().attributes.get_string("backend").as_deref(),
+            ast.document()
+                .attributes
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("html5")
         );
         drop(ast);
@@ -738,8 +738,7 @@ mod tests {
     }
 
     #[test]
-    fn configured_pdf_backend_activates_reported_or_conditional()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn configured_pdf_backend_activates_reported_or_conditional() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         workspace.initialize_analysis(AnalysisBackend::Pdf, Vec::new());
         let uri = "file:///backend-pdf.adoc".parse::<Uri>()?;
@@ -752,7 +751,10 @@ mod tests {
             .ok_or("document should be indexed")?;
         let ast = document.ast().ok_or("document should parse")?;
         assert_eq!(
-            ast.document().attributes.get_string("backend").as_deref(),
+            ast.document()
+                .attributes
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("pdf")
         );
         assert!(ast.document().attributes.contains_key("title-page"));
@@ -777,7 +779,7 @@ mod tests {
 
     #[test]
     fn runtime_configuration_reparses_only_documents_whose_backend_changed()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let html_root = "file:///workspace/html".parse::<Uri>()?;
         let pdf_root = "file:///workspace/pdf".parse::<Uri>()?;
@@ -785,11 +787,11 @@ mod tests {
         let pdf_uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
         let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
         configuration.replace_roots(vec![
-            crate::config::RootConfiguration {
+            RootConfiguration {
                 uri: html_root.clone(),
                 backend: Some(AnalysisBackend::Html5),
             },
-            crate::config::RootConfiguration {
+            RootConfiguration {
                 uri: pdf_root.clone(),
                 backend: Some(AnalysisBackend::Pdf),
             },
@@ -800,11 +802,11 @@ mod tests {
         workspace.update_document(pdf_uri.clone(), content.to_string(), 1);
 
         configuration.replace_roots(vec![
-            crate::config::RootConfiguration {
+            RootConfiguration {
                 uri: html_root,
                 backend: Some(AnalysisBackend::Markdown),
             },
-            crate::config::RootConfiguration {
+            RootConfiguration {
                 uri: pdf_root,
                 backend: Some(AnalysisBackend::Pdf),
             },
@@ -822,13 +824,12 @@ mod tests {
     }
 
     #[test]
-    fn removing_workspace_root_reapplies_unscoped_backend() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn removing_workspace_root_reapplies_unscoped_backend() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let root = "file:///workspace/pdf".parse::<Uri>()?;
         let uri = "file:///workspace/pdf/index.adoc".parse::<Uri>()?;
         let mut configuration = AnalysisConfiguration::new(AnalysisBackend::Html5, Vec::new());
-        configuration.replace_roots(vec![crate::config::RootConfiguration {
+        configuration.replace_roots(vec![RootConfiguration {
             uri: root,
             backend: Some(AnalysisBackend::Pdf),
         }]);
@@ -861,8 +862,7 @@ mod tests {
     }
 
     #[test]
-    fn unchanged_configuration_does_not_reparse_documents() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn unchanged_configuration_does_not_reparse_documents() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///workspace/index.adoc".parse::<Uri>()?;
         workspace.update_document(uri, "= Document\n".to_string(), 1);
@@ -876,11 +876,10 @@ mod tests {
     }
 
     #[test]
-    fn runtime_configuration_reindexes_closed_workspace_files()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn runtime_configuration_reindexes_closed_workspace_files() -> Result<(), Box<dyn Error>> {
         use std::fs;
 
-        let directory = std::env::temp_dir().join("acdc_lsp_backend_reindex");
+        let directory = temp_dir().join("acdc_lsp_backend_reindex");
         let _ = fs::remove_dir_all(&directory);
         fs::create_dir_all(&directory)?;
         fs::write(
@@ -916,7 +915,7 @@ mod tests {
     }
 
     #[test]
-    fn test_workspace_symbol_query() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_workspace_symbol_query() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri1 = "file:///doc1.adoc".parse::<Uri>()?;
         let uri2 = "file:///doc2.adoc".parse::<Uri>()?;
@@ -929,7 +928,7 @@ mod tests {
         );
 
         // Manually add doc2 to symbol_index (simulates scanned file)
-        let parsed2 = acdc_parser::parse(
+        let parsed2 = parse(
             "= Doc Two\n\n== TLS Configuration\n\nStuff.\n",
             &acdc_parser::Options::default(),
         )?;
@@ -952,9 +951,9 @@ mod tests {
     }
 
     #[test]
-    fn test_symbol_index_lifecycle() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_symbol_index_lifecycle() -> Result<(), Box<dyn Error>> {
         use std::fs;
-        let tmp = std::env::temp_dir().join("acdc_lsp_test_symbol_idx");
+        let tmp = temp_dir().join("acdc_lsp_test_symbol_idx");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp)?;
         fs::write(
@@ -997,9 +996,9 @@ mod tests {
     }
 
     #[test]
-    fn test_discover_adoc_files() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_discover_adoc_files() -> Result<(), Box<dyn Error>> {
         use std::fs;
-        let tmp = std::env::temp_dir().join("acdc_lsp_test_discover");
+        let tmp = temp_dir().join("acdc_lsp_test_discover");
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(tmp.join("subdir"))?;
         fs::create_dir_all(tmp.join(".git"))?;
@@ -1030,7 +1029,7 @@ mod tests {
     }
 
     #[test]
-    fn test_find_anchor_in_document() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_find_anchor_in_document() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -1054,9 +1053,9 @@ mod tests {
     }
 
     #[test]
-    fn test_missing_image_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp = std::env::temp_dir().join("acdc_lsp_test_img_diag");
-        let _ = std::fs::remove_dir_all(&tmp);
+    fn test_missing_image_diagnostic() -> Result<(), Box<dyn Error>> {
+        let tmp = temp_dir().join("acdc_lsp_test_img_diag");
+        let _ = remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp)?;
 
         let workspace = Workspace::new();
@@ -1076,14 +1075,14 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
     #[test]
-    fn test_missing_include_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp = std::env::temp_dir().join("acdc_lsp_test_inc_diag");
-        let _ = std::fs::remove_dir_all(&tmp);
+    fn test_missing_include_diagnostic() -> Result<(), Box<dyn Error>> {
+        let tmp = temp_dir().join("acdc_lsp_test_inc_diag");
+        let _ = remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp)?;
 
         let workspace = Workspace::new();
@@ -1103,14 +1102,14 @@ mod tests {
                 .collect::<Vec<_>>()
         );
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
     use tower_lsp_server::ls_types::DiagnosticSeverity;
 
     #[test]
-    fn test_section_level_skip_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_section_level_skip_diagnostic() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -1134,7 +1133,7 @@ mod tests {
     }
 
     #[test]
-    fn test_nested_section_level_skip_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_nested_section_level_skip_diagnostic() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -1158,7 +1157,7 @@ mod tests {
     }
 
     #[test]
-    fn test_section_level_valid_no_diagnostic() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_section_level_valid_no_diagnostic() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
 
@@ -1179,7 +1178,7 @@ mod tests {
     /// exactly one document and the expected media-source count — catches
     /// any per-edit accumulation reintroduced into `DocumentState`.
     #[test]
-    fn update_document_does_not_accumulate_state() -> Result<(), Box<dyn std::error::Error>> {
+    fn update_document_does_not_accumulate_state() -> Result<(), Box<dyn Error>> {
         use std::fmt::Write as _;
 
         let workspace = Workspace::new();
@@ -1216,7 +1215,7 @@ mod tests {
     /// Oversized open documents skip parsing and emit one informational
     /// diagnostic on line 1 so AST-backed features degrade gracefully.
     #[test]
-    fn oversized_open_document_is_gated() -> Result<(), Box<dyn std::error::Error>> {
+    fn oversized_open_document_is_gated() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///huge.adoc".parse::<Uri>()?;
 

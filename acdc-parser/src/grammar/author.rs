@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use bumpalo::Bump;
 
-use crate::{AttributeValue, Author, DocumentAttributes, Header};
+use crate::{Author, DocumentAttributes, Header};
 
 use super::{ParserState, document::document_parser};
 
@@ -50,7 +50,7 @@ fn ingest_author_attribute<'a>(
     header: &mut Header<'a>,
     attrs: &DocumentAttributes<'a>,
 ) {
-    let Some(author) = attrs.get_string("author") else {
+    let Some(author) = attrs.text("author").map(crate::strip_quotes) else {
         return;
     };
     if author.is_empty() {
@@ -61,8 +61,8 @@ fn ingest_author_attribute<'a>(
     // every string into the outer arena before keeping them alongside
     // `header`.
     let scratch = Bump::new();
-    let mut temp_state = ParserState::new(&author, &scratch);
-    let Ok(parsed) = document_parser::authors(&author, &mut temp_state) else {
+    let mut temp_state = ParserState::new(author, &scratch);
+    let Ok(parsed) = document_parser::authors(author, &mut temp_state) else {
         return;
     };
     // `arena.alloc_str` returns `&mut str`; reborrow to `&str` to match the
@@ -80,9 +80,9 @@ fn ingest_author_attribute<'a>(
     // Apply :email: if present and the first author has no email yet.
     if let Some(first) = authors.first_mut()
         && first.email.is_none()
-        && let Some(email) = attrs.get_string("email")
+        && let Some(email) = attrs.text("email").map(crate::strip_quotes)
     {
-        first.email = Some(arena.alloc_str(&email));
+        first.email = Some(arena.alloc_str(email));
     }
     header.authors = authors;
 }
@@ -91,15 +91,12 @@ fn ingest_author_attribute<'a>(
 /// current header authors.
 fn set_aggregate_author_attrs<'a>(header: &Header<'a>, attrs: &mut DocumentAttributes<'a>) {
     let all_names: Vec<String> = header.authors.iter().map(build_author_full_name).collect();
-    attrs.insert(
-        "authors".into(),
-        AttributeValue::String(all_names.join(", ").into()),
-    );
+    attrs.insert_text("authors".into(), all_names.join(", ").into());
     // `authorcount` has a default of "0" (so `{authorcount}` resolves to 0 for
     // author-less documents); `set` overrides that default with the real count.
-    attrs.set(
+    attrs.set_text(
         "authorcount".into(),
-        AttributeValue::String(header.authors.len().to_string().into()),
+        header.authors.len().to_string().into(),
     );
 }
 
@@ -113,33 +110,27 @@ fn set_per_author_attrs<'a>(header: &Header<'a>, attrs: &mut DocumentAttributes<
         } else {
             format!("_{}", i + 1)
         };
-        attrs.insert(
+        attrs.insert_text(
             format!("author{suffix}").into(),
-            AttributeValue::String(build_author_full_name(author).into()),
+            build_author_full_name(author).into(),
         );
-        attrs.insert(
+        attrs.insert_text(
             format!("firstname{suffix}").into(),
-            AttributeValue::String(Cow::Borrowed(author.first_name)),
+            Cow::Borrowed(author.first_name),
         );
         if let Some(middle) = author.middle_name {
-            attrs.insert(
-                format!("middlename{suffix}").into(),
-                AttributeValue::String(Cow::Borrowed(middle)),
-            );
+            attrs.insert_text(format!("middlename{suffix}").into(), Cow::Borrowed(middle));
         }
-        attrs.insert(
+        attrs.insert_text(
             format!("lastname{suffix}").into(),
-            AttributeValue::String(Cow::Borrowed(author.last_name)),
+            Cow::Borrowed(author.last_name),
         );
-        attrs.insert(
+        attrs.insert_text(
             format!("authorinitials{suffix}").into(),
-            AttributeValue::String(Cow::Borrowed(author.initials)),
+            Cow::Borrowed(author.initials),
         );
         if let Some(email) = author.email {
-            attrs.insert(
-                format!("email{suffix}").into(),
-                AttributeValue::String(Cow::Borrowed(email)),
-            );
+            attrs.insert_text(format!("email{suffix}").into(), Cow::Borrowed(email));
         }
     }
 }

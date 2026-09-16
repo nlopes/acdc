@@ -7,8 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Body document attributes now affect only later HTML blocks. This includes
+  media and icon paths, icon modes, captions and section labels, cross-reference
+  suffixes, source language and indentation, table presentation, and STEM
+  notation. MathJax and font-icon resources are discovered before the document
+  head is written, and nested AsciiDoc table-cell changes do not escape.
+- HTML parser attributes now expose `embedded` only when embedded output is selected.
+
 ### Performance
 
+- Documents with many body attributes and inline icons convert faster.
 - **Streaming output.** Rendering writes directly to the caller's `Write`
   target, keeping allocations flat on large documents.
 
@@ -497,6 +507,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** configure HTML conversion with the parser options builder and use
+  the converter's validated parser options for parsing. Construction and HTML
+  variant changes can reject invalid configuration.
+- **Breaking:** direct visitor callbacks receive the current traversal context.
+  Embedded consumers can still detect math enabled in headers, bodies, and nested cells.
 - **Use shared `replace_apostrophes` from converters-core** — smart apostrophe logic moved to
   converters-core for reuse across converters.
 - **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`

@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    Diagnostics,
+    Diagnostics, TraversalContext,
     substitutions::TextBoundaries,
     visitor::{Visitor, WritableVisitor},
 };
@@ -18,12 +18,13 @@ use crossterm::{
     style::{Color, PrintStyledContent, SetBackgroundColor, SetForegroundColor, Stylize},
 };
 
-use crate::Processor;
+use crate::{Error, Processor};
 
 /// Terminal visitor that generates terminal output from `AsciiDoc` AST
 pub struct TerminalVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
-    pub(crate) processor: Processor<'a>,
+    pub(crate) processor: &'d Processor<'a>,
+
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
@@ -44,10 +45,11 @@ pub struct TerminalVisitor<'a, 'd, W: Write> {
 type SpanColors = (Option<Color>, Option<Color>);
 
 impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
-    pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
+    pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
             processor,
+
             diagnostics,
             in_inline_span: false,
             text_boundaries: TextBoundaries::BOTH,
@@ -58,12 +60,13 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
 
     pub(crate) fn render_captioned_title_with_wrapper(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
         prefix: &str,
         suffix: &str,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), Error> {
         if title.is_empty() {
             return Ok(());
         }
@@ -71,7 +74,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             .processor
             .caption_prefix(metadata, fallback)
             .unwrap_or_default();
-        self.render_title_with_wrapper(title, &format!("{prefix}{caption}"), suffix)
+        self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)
     }
 
     /// Open an inline span that sets colours.
@@ -81,7 +84,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
         &mut self,
         fg: Option<Color>,
         bg: Option<Color>,
-    ) -> Result<(), crate::Error> {
+    ) -> Result<(), Error> {
         let outer = self.current_colors();
         let colors = (fg.or(outer.0), bg.or(outer.1));
         self.colors.push(colors);
@@ -90,7 +93,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
 
     /// Close the span opened by [`Self::push_colors`], restoring the colours of
     /// the span around it.
-    pub(crate) fn pop_colors(&mut self) -> Result<(), crate::Error> {
+    pub(crate) fn pop_colors(&mut self) -> Result<(), Error> {
         self.colors.pop();
         let colors = self.current_colors();
         self.apply_colors(colors)
@@ -103,7 +106,7 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     /// Write the channels that change, using the terminal default for a channel
     /// no open span sets. `Color::Reset` addresses one channel only (`SGR 39` /
     /// `SGR 49`), unlike a full reset, so bold and italic survive.
-    fn apply_colors(&mut self, colors: SpanColors) -> Result<(), crate::Error> {
+    fn apply_colors(&mut self, colors: SpanColors) -> Result<(), Error> {
         let (fg, bg) = colors;
         let applied = self.applied_colors;
         self.applied_colors = colors;
@@ -130,33 +133,53 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     }
 }
 
-impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
-    type Error = crate::Error;
+impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
+    type Error = Error;
 
-    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+    fn visit_unhandled_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _block: &'a Block<'a>,
+    ) -> Result<(), Self::Error> {
         self.warn_unsupported_parser_variant("block");
         Ok(())
     }
 
-    fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
+    fn visit_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &Header,
+    ) -> Result<(), Self::Error> {
         // In embedded mode, skip header output (title, authors, revision info)
         if self.processor.options.embedded() {
             return Ok(());
         }
-        self.render_header(header)
+        self.render_header(traversal, header)
     }
 
-    fn visit_body_content_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        self.render_toc(None, "auto")?;
+    fn visit_body_content_start(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_toc(traversal, None, "auto")?;
         Ok(())
     }
 
-    fn visit_preamble_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
-        self.render_toc(None, "preamble")?;
+    fn visit_preamble_end(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_toc(traversal, None, "preamble")?;
         Ok(())
     }
 
-    fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_supplements(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // Render footnotes at the end of the document if any exist
         if !doc.footnotes.is_empty() {
             writeln!(self.writer)?;
@@ -170,111 +193,183 @@ impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
                 write!(self.writer, " ")?;
 
                 // Render the footnote content
-                self.visit_inline_nodes(&footnote.content)?;
+                self.visit_inline_nodes(traversal, &footnote.content)?;
                 writeln!(self.writer)?;
             }
         }
         Ok(())
     }
 
-    fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Self::Error> {
         let is_index_section = section.kind == SectionKind::Index;
         let render_catalog = is_index_section && self.processor.has_valid_index_section();
 
-        self.render_section(section)?;
+        self.render_section(traversal, section)?;
 
         if render_catalog {
             // Render the collected index catalog instead of normal content
-            let processor = self.processor.clone();
-            crate::index::render(self, &processor)?;
+            let processor = self.processor;
+            crate::index::render(self, processor)?;
         } else {
             // Walk nested blocks within the section
-            for nested_block in &section.content.clone() {
-                self.visit_block(nested_block)?;
+            for nested_block in &section.content {
+                traversal.visit_block(self, nested_block)?;
             }
         }
 
         Ok(())
     }
 
-    fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        self.render_paragraph(para)
+    fn visit_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Self::Error> {
+        self.render_paragraph(traversal, para)
     }
 
-    fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
-        self.render_delimited_block(block)
+    fn visit_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_delimited_block(traversal, block)
     }
 
-    fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        self.render_ordered_list(list)
+    fn visit_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_ordered_list(traversal, list)
     }
 
-    fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
-        self.render_unordered_list(list)
+    fn visit_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_unordered_list(traversal, list)
     }
 
-    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        self.render_description_list(list)
+    fn visit_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_description_list(traversal, list)
     }
 
-    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        self.render_callout_list(list)
+    fn visit_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_callout_list(traversal, list)
     }
 
-    fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
+    fn visit_list_item(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _item: &'a ListItem<'a>,
+    ) -> Result<(), Self::Error> {
         // List items are handled by their parent list visitors
         Ok(())
     }
 
-    fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        self.render_admonition(admon)
+    fn visit_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admon: &'a Admonition<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_admonition(traversal, admon)
     }
 
-    fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        self.render_image(img)
+    fn visit_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        img: &Image,
+    ) -> Result<(), Self::Error> {
+        self.render_image(traversal, img)
     }
 
-    fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        self.render_video(video)
+    fn visit_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Self::Error> {
+        self.render_video(traversal, video)
     }
 
-    fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        self.render_audio(audio)
+    fn visit_audio(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        audio: &Audio,
+    ) -> Result<(), Self::Error> {
+        self.render_audio(traversal, audio)
     }
 
-    fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {
+    fn visit_thematic_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _br: &ThematicBreak,
+    ) -> Result<(), Self::Error> {
         let width = self.processor.terminal_width;
         writeln!(self.writer, "{}", "─".repeat(width))?;
         Ok(())
     }
 
-    fn visit_page_break(&mut self, _br: &PageBreak) -> Result<(), Self::Error> {
+    fn visit_page_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _br: &PageBreak,
+    ) -> Result<(), Self::Error> {
         let width = self.processor.terminal_width;
         writeln!(self.writer, "\n{}\n", "═".repeat(width))?;
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
-        self.render_toc(Some(toc), "macro")
+    fn visit_table_of_contents(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        toc: &TableOfContents,
+    ) -> Result<(), Self::Error> {
+        self.render_toc(traversal, Some(toc), "macro")
     }
 
-    fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
+    fn visit_discrete_header(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        header: &DiscreteHeader,
+    ) -> Result<(), Self::Error> {
         self.render_discrete_header(header)
     }
 
-    fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+    ) -> Result<(), Self::Error> {
         let saved = self.in_inline_span;
         if acdc_converters_core::visitor::is_formatting_span(node) {
             self.in_inline_span = true;
         }
 
-        let result = self.render_inline_node(node);
+        let result = self.render_inline_node(traversal, node);
 
         self.in_inline_span = saved;
         result
     }
 
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode],
+    ) -> Result<(), Self::Error> {
         let previous_boundaries = self.text_boundaries;
         let last = nodes.len().saturating_sub(1);
         let result = (|| {
@@ -292,7 +387,7 @@ impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
                             && previous_boundaries.at_paragraph_end()
                             && index == last),
                 );
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
             }
             Ok(())
         })();
@@ -300,13 +395,17 @@ impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
         result
     }
 
-    fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
+    fn visit_text(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        text: &str,
+    ) -> Result<(), Self::Error> {
         write!(self.writer, "{text}")?;
         Ok(())
     }
 }
 
-impl<W: Write> WritableVisitor for TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> WritableVisitor<'a> for TerminalVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

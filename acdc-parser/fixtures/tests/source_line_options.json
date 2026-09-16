@@ -1,10 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "prewrap": true,
-    "source-linenums-option": false
-  },
   "blocks": [
     {
       "name": "listing",
@@ -243,6 +239,21 @@
         {
           "line": 28,
           "col": 4
+        }
+      ]
+    },
+    {
+      "name": "source-linenums-option",
+      "type": "attribute",
+      "value": true,
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 25
         }
       ]
     },

@@ -1,13 +1,20 @@
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    collections::HashMap,
+    error::Error as StdError,
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
 
 use acdc_converters_core::{
-    Converter, GeneratorMetadata, Options as ConverterOptions, visitor::Visitor,
+    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
+    WarningSource, visitor::Visitor,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::{HtmlVariant, HtmlVisitor, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, DocumentAttributes, Options as ParserOptions, SafeMode};
+use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, parse_file};
 
-type Error = Box<dyn std::error::Error>;
+type Error = Box<dyn StdError>;
 
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
@@ -35,14 +42,18 @@ fn run_fixture_test(
 
     let expected_path = expected_dir.join(file_name).with_extension("html");
 
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
-    let parsed = acdc_parser::parse_file(path, &parser_options)?;
+    let parser_options = ParserOptions::default();
+    let parsed = parse_file(path, &parser_options)?;
     let doc = parsed.document();
 
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new_with_variant(converter_options, doc.attributes.clone(), variant);
+    let processor = Processor::new_with_variant(
+        converter_options,
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        variant,
+    )?;
     let render_options = RenderOptions {
         embedded,
         ..RenderOptions::default()
@@ -50,11 +61,11 @@ fn run_fixture_test(
 
     let mut output = Vec::new();
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("html");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("html");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
 
-    let expected = std::fs::read_to_string(&expected_path)?;
+    let expected = read_to_string(&expected_path)?;
     let actual = String::from_utf8(output)?;
     let expected_normalized = remove_lines_trailing_whitespace(&expected);
     let actual_normalized = remove_lines_trailing_whitespace(&actual);
@@ -129,22 +140,26 @@ fn convert_string_with_variant(
     extra_attrs: &[(&str, AttributeValue)],
     variant: HtmlVariant,
 ) -> Result<String, Error> {
-    let mut attrs = DocumentAttributes::default();
+    let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
     for (k, v) in extra_attrs {
         attrs.insert((*k).into(), v.clone());
     }
-    let parser_options = ParserOptions::with_attributes(attrs);
-    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let parser_options = ParserOptions::with_attributes(attrs)?;
+    let parsed = parse(input, &parser_options)?;
     let doc = parsed.document();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new_with_variant(converter_options, doc.attributes.clone(), variant);
+    let processor = Processor::new_with_variant(
+        converter_options,
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        variant,
+    )?;
     let render_options = RenderOptions::default();
     let mut output = Vec::new();
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("html");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("html");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
     Ok(String::from_utf8(output)?)
 }
@@ -192,7 +207,7 @@ fn standalone_description_and_keywords_are_escaped_when_present() -> Result<(), 
 
 #[test]
 fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
-    let parsed = acdc_parser::parse("text", &ParserOptions::default())?;
+    let parsed = parse("text", &ParserOptions::default())?;
     let block = parsed
         .document()
         .blocks
@@ -200,20 +215,24 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
         .ok_or("missing parsed block")?;
     let processor = Processor::new_with_variant(
         ConverterOptions::default(),
-        parsed.document().attributes.clone(),
+        ParserOptions::builder()
+            .with_attributes(parsed.document().attributes.clone().into_inputs()),
         HtmlVariant::Standard,
-    );
-    let source = acdc_converters_core::WarningSource::new("html").with_variant("standard");
+    )?;
+    let source = WarningSource::new("html").with_variant("standard");
     let mut warnings = Vec::new();
     {
-        let diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
             std::rc::Rc::new(processor),
             RenderOptions::default(),
             diagnostics,
         );
-        visitor.visit_unhandled_block(block)?;
+        visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
     let warning = warnings.first().ok_or("missing unhandled block warning")?;
@@ -226,15 +245,15 @@ fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
 
 #[test]
 fn deprecated_role_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
-    let parsed = acdc_parser::parse("[big]#large#\n", &parser_options)?;
+    let parser_options = ParserOptions::default();
+    let parsed = parse("[big]#large#\n", &parser_options)?;
     let doc = parsed.document();
     let converter_options = ConverterOptions::builder().embedded(true).build();
     let processor = Processor::new_with_variant(
         converter_options,
-        doc.attributes.clone(),
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
         HtmlVariant::Standard,
-    );
+    )?;
     let output_path = temp_output_path("html-warning", "html");
 
     let result = processor.convert_to_file(doc, None, &output_path)?;
@@ -307,17 +326,17 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
     let input = "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
 
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+        let parsed = parse(input, &ParserOptions::default())?;
         let doc = parsed.document();
         let processor = Processor::new_with_variant(
             ConverterOptions::default(),
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             variant,
-        );
+        )?;
         let mut output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
             doc,
             &mut output,
@@ -343,17 +362,17 @@ fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Erro
     let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
 
     for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-        let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+        let parsed = parse(input, &ParserOptions::default())?;
         let doc = parsed.document();
         let processor = Processor::new_with_variant(
             ConverterOptions::default(),
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             variant,
-        );
+        )?;
         let mut output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(
             doc,
             &mut output,
@@ -733,6 +752,25 @@ mod stylesheet_modes {
     }
 
     #[test]
+    fn asciidoc_cell_attributes_do_not_add_head_resources() -> Result<(), Error> {
+        let html = convert_string(
+            "= T\n:csp:\n\n[cols=\"1*a\"]\n|===\n|\n:icons: font\n:stem:\n\nNOTE: Nested\n|===\n",
+            &[],
+        )?;
+
+        assert!(
+            !html.contains("fontawesome"),
+            "unexpected Font Awesome:\n{html}"
+        );
+        assert!(!html.contains("MathJax"), "unexpected MathJax:\n{html}");
+        assert!(
+            !html.contains("cdn.jsdelivr.net"),
+            "unexpected Font Awesome CSP source:\n{html}"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn default_mode_includes_embedded_css() -> Result<(), Error> {
         let html = convert_string(BASIC_DOC, &[])?;
         assert!(
@@ -812,22 +850,21 @@ mod webfonts {
 mod copycss {
     use super::*;
     use acdc_converters_core::Converter;
+    use std::fs::write;
+    use tempfile::tempdir;
 
     #[test]
     fn linkcss_with_default_stylesheet_writes_builtin_css() -> Result<(), Error> {
-        let tmp = tempfile::tempdir()?;
+        let tmp = tempdir()?;
         let html_path = tmp.path().join("output.html");
 
         let input = "= Title\n:linkcss:\n\nHello.\n";
-        let mut attrs = DocumentAttributes::default();
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
-        attrs.insert(
-            "copycss".into(),
-            AttributeValue::String(std::borrow::Cow::Borrowed("")),
-        );
+        attrs.insert("copycss".into(), AttributeValue::String(Cow::Borrowed("")));
 
-        let parser_options = ParserOptions::with_attributes(attrs);
-        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let parser_options = ParserOptions::with_attributes(attrs)?;
+        let parsed = parse(input, &parser_options)?;
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
@@ -835,16 +872,16 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
 
         // Run a full file conversion: this writes HTML and copies CSS as
         // companion artifacts in one step.
         let mut html_output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
             doc,
             &mut html_output,
@@ -852,7 +889,7 @@ mod copycss {
             Some(&html_path),
             &mut diagnostics,
         )?;
-        std::fs::write(&html_path, &html_output)?;
+        write(&html_path, &html_output)?;
 
         // The built-in stylesheet should have been written to disk
         let css_path = tmp.path().join("asciidoctor-light-mode.css");
@@ -862,7 +899,7 @@ mod copycss {
             css_path.display()
         );
 
-        let css_content = std::fs::read_to_string(&css_path)?;
+        let css_content = read_to_string(&css_path)?;
         assert!(
             !css_content.is_empty(),
             "written CSS file should not be empty"
@@ -873,15 +910,15 @@ mod copycss {
 
     #[test]
     fn copycss_value_used_as_source_path() -> Result<(), Error> {
-        let tmp = tempfile::tempdir()?;
+        let tmp = tempdir()?;
         let html_path = tmp.path().join("output.html");
 
         // Create a custom CSS file to be used as copycss source
         let custom_css_path = tmp.path().join("my-custom.css");
-        std::fs::write(&custom_css_path, "body { color: red; }")?;
+        write(&custom_css_path, "body { color: red; }")?;
 
         let input = "= Title\n:linkcss:\n:stylesheet: target.css\n\nHello.\n";
-        let mut attrs = DocumentAttributes::default();
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
         attrs.insert(
             "copycss".into(),
@@ -892,8 +929,8 @@ mod copycss {
             AttributeValue::String("target.css".into()),
         );
 
-        let parser_options = ParserOptions::with_attributes(attrs);
-        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let parser_options = ParserOptions::with_attributes(attrs)?;
+        let parsed = parse(input, &parser_options)?;
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
@@ -901,16 +938,16 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
 
         // Run a full file conversion: this writes HTML and copies CSS as
         // companion artifacts in one step.
         let mut html_output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
             doc,
             &mut html_output,
@@ -918,7 +955,7 @@ mod copycss {
             Some(&html_path),
             &mut diagnostics,
         )?;
-        std::fs::write(&html_path, &html_output)?;
+        write(&html_path, &html_output)?;
 
         // The custom CSS should have been copied to target.css
         let target_path = tmp.path().join("target.css");
@@ -928,7 +965,7 @@ mod copycss {
             target_path.display()
         );
 
-        let content = std::fs::read_to_string(&target_path)?;
+        let content = read_to_string(&target_path)?;
         assert_eq!(
             content, "body { color: red; }",
             "copied file should have the custom CSS content"
@@ -939,20 +976,17 @@ mod copycss {
 
     #[test]
     fn no_stylesheet_mode_skips_copycss() -> Result<(), Error> {
-        let tmp = tempfile::tempdir()?;
+        let tmp = tempdir()?;
         let html_path = tmp.path().join("output.html");
 
         let input = ":!stylesheet:\n:linkcss:\n\nHello.\n";
-        let mut attrs = DocumentAttributes::default();
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         attrs.insert("stylesheet".into(), AttributeValue::Bool(false));
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
-        attrs.insert(
-            "copycss".into(),
-            AttributeValue::String(std::borrow::Cow::Borrowed("")),
-        );
+        attrs.insert("copycss".into(), AttributeValue::String(Cow::Borrowed("")));
 
-        let parser_options = ParserOptions::with_attributes(attrs);
-        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let parser_options = ParserOptions::with_attributes(attrs)?;
+        let parsed = parse(input, &parser_options)?;
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
@@ -960,14 +994,14 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
 
         let mut html_output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
             doc,
             &mut html_output,
@@ -991,19 +1025,16 @@ mod copycss {
 
     #[test]
     fn embedded_mode_skips_copycss() -> Result<(), Error> {
-        let tmp = tempfile::tempdir()?;
+        let tmp = tempdir()?;
         let html_path = tmp.path().join("output.html");
 
         let input = "= Title\n:linkcss:\n\nHello.\n";
-        let mut attrs = DocumentAttributes::default();
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         attrs.insert("linkcss".into(), AttributeValue::Bool(true));
-        attrs.insert(
-            "copycss".into(),
-            AttributeValue::String(std::borrow::Cow::Borrowed("")),
-        );
+        attrs.insert("copycss".into(), AttributeValue::String(Cow::Borrowed("")));
 
-        let parser_options = ParserOptions::with_attributes(attrs);
-        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let parser_options = ParserOptions::with_attributes(attrs)?;
+        let parsed = parse(input, &parser_options)?;
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
@@ -1012,14 +1043,14 @@ mod copycss {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
 
         let mut html_output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.write_to(
             doc,
             &mut html_output,
@@ -1048,6 +1079,8 @@ mod copycss {
 
 mod docinfo {
     use super::*;
+    use std::fs::write;
+    use tempfile::tempdir;
 
     /// Helper: create a temp dir with an `.adoc` source file and optional docinfo files,
     /// parse it, and return the converted HTML string.
@@ -1056,17 +1089,17 @@ mod docinfo {
         docinfo_files: &[(&str, &str)],
         embedded: bool,
         safe_mode: SafeMode,
-    ) -> Result<String, Box<dyn std::error::Error>> {
-        let tmp = tempfile::tempdir()?;
+    ) -> Result<String, Box<dyn StdError>> {
+        let tmp = tempdir()?;
         let adoc_path = tmp.path().join("mydoc.adoc");
-        std::fs::write(&adoc_path, adoc_content)?;
+        write(&adoc_path, adoc_content)?;
 
         for (name, content) in docinfo_files {
-            std::fs::write(tmp.path().join(name), content)?;
+            write(tmp.path().join(name), content)?;
         }
 
         let parser_options = ParserOptions::default();
-        let parsed = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+        let parsed = parse_file(&adoc_path, &parser_options)?;
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
@@ -1075,9 +1108,9 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
         let render_options = RenderOptions {
             embedded,
             source_dir: Some(tmp.path().to_path_buf()),
@@ -1090,7 +1123,7 @@ mod docinfo {
     }
 
     #[test]
-    fn shared_head_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+    fn shared_head_docinfo_injected() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n\nHello.\n",
             &[("docinfo.html", "<style>.custom { color: red; }</style>")],
@@ -1112,7 +1145,7 @@ mod docinfo {
     }
 
     #[test]
-    fn private_head_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+    fn private_head_docinfo_injected() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: private\n\nHello.\n",
             &[(
@@ -1131,7 +1164,7 @@ mod docinfo {
     }
 
     #[test]
-    fn shared_header_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+    fn shared_header_docinfo_injected() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n\nHello.\n",
             &[(
@@ -1156,7 +1189,7 @@ mod docinfo {
     }
 
     #[test]
-    fn private_header_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+    fn private_header_docinfo_injected() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: private\n\nHello.\n",
             &[(
@@ -1175,7 +1208,7 @@ mod docinfo {
     }
 
     #[test]
-    fn shared_footer_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+    fn shared_footer_docinfo_injected() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n\nHello.\n",
             &[(
@@ -1200,7 +1233,7 @@ mod docinfo {
     }
 
     #[test]
-    fn private_footer_docinfo_injected() -> Result<(), Box<dyn std::error::Error>> {
+    fn private_footer_docinfo_injected() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: private\n\nHello.\n",
             &[(
@@ -1219,7 +1252,7 @@ mod docinfo {
     }
 
     #[test]
-    fn combined_shared_and_private() -> Result<(), Box<dyn std::error::Error>> {
+    fn combined_shared_and_private() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared,private\n\nHello.\n",
             &[
@@ -1268,7 +1301,7 @@ mod docinfo {
     }
 
     #[test]
-    fn embedded_mode_skips_docinfo() -> Result<(), Box<dyn std::error::Error>> {
+    fn embedded_mode_skips_docinfo() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n\nHello.\n",
             &[
@@ -1291,7 +1324,7 @@ mod docinfo {
     }
 
     #[test]
-    fn missing_file_no_error() -> Result<(), Box<dyn std::error::Error>> {
+    fn missing_file_no_error() -> Result<(), Box<dyn StdError>> {
         // No docinfo files present, should not error
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n\nHello.\n",
@@ -1307,12 +1340,12 @@ mod docinfo {
     }
 
     #[test]
-    fn docinfodir_overrides_source_dir() -> Result<(), Box<dyn std::error::Error>> {
-        let tmp = tempfile::tempdir()?;
+    fn docinfodir_overrides_source_dir() -> Result<(), Box<dyn StdError>> {
+        let tmp = tempdir()?;
 
         // Create source file in root
         let adoc_path = tmp.path().join("mydoc.adoc");
-        std::fs::write(
+        write(
             &adoc_path,
             "= Title\n:docinfo: shared\n:docinfodir: custom-docinfo\n\nHello.\n",
         )?;
@@ -1320,13 +1353,13 @@ mod docinfo {
         // Create docinfo in a subdirectory
         let docinfo_dir = tmp.path().join("custom-docinfo");
         std::fs::create_dir(&docinfo_dir)?;
-        std::fs::write(docinfo_dir.join("docinfo.html"), "<!-- from-custom-dir -->")?;
+        write(docinfo_dir.join("docinfo.html"), "<!-- from-custom-dir -->")?;
 
         // Also create one in source dir (should NOT be picked up)
-        std::fs::write(tmp.path().join("docinfo.html"), "<!-- from-source-dir -->")?;
+        write(tmp.path().join("docinfo.html"), "<!-- from-source-dir -->")?;
 
         let parser_options = ParserOptions::default();
-        let parsed = acdc_parser::parse_file(&adoc_path, &parser_options)?;
+        let parsed = parse_file(&adoc_path, &parser_options)?;
         let doc = parsed.document();
 
         let converter_options = ConverterOptions::builder()
@@ -1334,9 +1367,9 @@ mod docinfo {
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
         let render_options = RenderOptions {
             source_dir: Some(tmp.path().to_path_buf()),
             docname: Some("mydoc".to_string()),
@@ -1357,7 +1390,7 @@ mod docinfo {
     }
 
     #[test]
-    fn secure_safe_mode_disables_docinfo() -> Result<(), Box<dyn std::error::Error>> {
+    fn secure_safe_mode_disables_docinfo() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n\nHello.\n",
             &[("docinfo.html", "<!-- secret-content -->")],
@@ -1373,7 +1406,7 @@ mod docinfo {
     }
 
     #[test]
-    fn attribute_substitution_in_docinfo() -> Result<(), Box<dyn std::error::Error>> {
+    fn attribute_substitution_in_docinfo() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared\n:my-custom-attr: replaced-value\n\nHello.\n",
             &[(
@@ -1396,7 +1429,7 @@ mod docinfo {
     }
 
     #[test]
-    fn docinfo_bare_attribute_defaults_to_private() -> Result<(), Box<dyn std::error::Error>> {
+    fn docinfo_bare_attribute_defaults_to_private() -> Result<(), Box<dyn StdError>> {
         // `:docinfo:` with no value should default to "private"
         let html = convert_with_docinfo(
             "= Title\n:docinfo:\n\nHello.\n",
@@ -1413,7 +1446,7 @@ mod docinfo {
     }
 
     #[test]
-    fn granular_shared_head_only() -> Result<(), Box<dyn std::error::Error>> {
+    fn granular_shared_head_only() -> Result<(), Box<dyn StdError>> {
         let html = convert_with_docinfo(
             "= Title\n:docinfo: shared-head\n\nHello.\n",
             &[
@@ -1441,26 +1474,25 @@ mod toc_footnote {
 
     /// Helper: convert an `AsciiDoc` string to embedded HTML (mirrors WASM editor path).
     fn convert_embedded(input: &str) -> Result<String, Error> {
-        let attrs = DocumentAttributes::default();
-        let parser_options = ParserOptions::with_attributes(attrs);
-        let parsed = acdc_parser::parse(input, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(input, &parser_options)?;
         let doc = parsed.document();
         let converter_options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .build();
         let processor = Processor::new_with_variant(
             converter_options,
-            doc.attributes.clone(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
             HtmlVariant::Standard,
-        );
+        )?;
         let render_options = RenderOptions {
             embedded: true,
             ..RenderOptions::default()
         };
         let mut output = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         processor.convert_to_writer(doc, &mut output, &render_options, &mut diagnostics)?;
         Ok(String::from_utf8(output)?)
     }

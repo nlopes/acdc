@@ -1,14 +1,20 @@
 use std::io::Write;
 
-use acdc_converters_core::{media::resolve_target, video::TryUrl, visitor::Visitor};
-use acdc_parser::{AttributeValue, DocumentAttributes, Video};
+use acdc_converters_core::{
+    TraversalContext, media::resolve_target, video::TryUrl, visitor::Visitor,
+};
+use acdc_parser::{AttributeValue, Video};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
-    pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn render_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
-            return visit_video_semantic(video, self);
+            return visit_video_semantic(traversal, video, self);
         }
 
         write!(self.writer, "<div")?;
@@ -18,7 +24,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         if !video.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(&video.title)?;
+            self.visit_inline_nodes(traversal, &video.title)?;
             writeln!(self.writer, "</div>")?;
         }
 
@@ -43,17 +49,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         );
 
         if is_youtube || is_vimeo {
-            render_iframe_video(
-                video,
-                self.processor.document_attributes(),
-                &mut self.writer,
-            )?;
+            render_iframe_video(video, traversal, &mut self.writer)?;
         } else {
-            render_local_video(
-                video,
-                self.processor.document_attributes(),
-                &mut self.writer,
-            )?;
+            render_local_video(video, traversal, &mut self.writer)?;
         }
 
         writeln!(self.writer, "</div>")?;
@@ -66,7 +64,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 /// Render a video as an iframe, suitable for `YouTube` or `Vimeo` embedding.
 fn render_iframe_video<W: Write + ?Sized>(
     video: &Video,
-    attributes: &DocumentAttributes<'_>,
+    attributes: &TraversalContext<'_>,
     w: &mut W,
 ) -> Result<(), Error> {
     let url = resolve_target(&video.try_url(true)?, attributes);
@@ -96,7 +94,7 @@ fn render_iframe_video<W: Write + ?Sized>(
 /// Render a local video using the `HTML5` `<video>` tag.
 fn render_local_video<W: Write + ?Sized>(
     video: &Video,
-    attributes: &DocumentAttributes<'_>,
+    attributes: &TraversalContext<'_>,
     w: &mut W,
 ) -> Result<(), Error> {
     let src = resolve_target(&video.try_url(false)?, attributes);
@@ -144,9 +142,10 @@ fn render_local_video<W: Write + ?Sized>(
     Ok(())
 }
 
-fn visit_video_semantic<W: Write>(
+fn visit_video_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
     video: &Video,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !video.title.is_empty();
 
@@ -172,22 +171,14 @@ fn visit_video_semantic<W: Write>(
     );
 
     if is_youtube || is_vimeo {
-        render_iframe_video(
-            video,
-            visitor.processor.document_attributes(),
-            &mut visitor.writer,
-        )?;
+        render_iframe_video(video, traversal, &mut visitor.writer)?;
     } else {
-        render_local_video(
-            video,
-            visitor.processor.document_attributes(),
-            &mut visitor.writer,
-        )?;
+        render_local_video(video, traversal, &mut visitor.writer)?;
     }
 
     if has_title {
         write!(visitor.writer, "<figcaption>")?;
-        visitor.visit_inline_nodes(&video.title)?;
+        visitor.visit_inline_nodes(traversal, &video.title)?;
         writeln!(visitor.writer, "</figcaption>")?;
     }
 

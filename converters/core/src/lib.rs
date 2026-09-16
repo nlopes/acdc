@@ -37,12 +37,17 @@ use std::{
     time::Instant,
 };
 
-use acdc_parser::{DelimitedBlockType, DocumentAttributes, SafeMode};
+use acdc_parser::{
+    AttributeValue, DelimitedBlockType, Document, DocumentAttributeValue, DocumentAttributes,
+    Error, Options as ParserOptions, OptionsBuilder as ParserOptionsBuilder, SafeMode,
+    strip_quotes,
+};
 
 mod backend;
 /// Source code syntax highlighting and callouts support.
 pub mod code;
 mod doctype;
+mod document_attributes;
 pub mod icon;
 pub mod inline_text;
 pub mod link;
@@ -59,8 +64,22 @@ pub mod xref;
 
 pub use backend::BackendProfile;
 pub use doctype::Doctype;
+pub use document_attributes::TraversalContext;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
+
+/// Return text without surrounding quotes, or empty text for presence.
+/// Integer values return none.
+#[must_use]
+pub fn document_attribute_text<'a>(
+    value: Option<&'a DocumentAttributeValue<'_>>,
+) -> Option<&'a str> {
+    let value = value?;
+    value
+        .as_str()
+        .map(strip_quotes)
+        .or_else(|| value.is_presence().then_some(""))
+}
 
 /// Whether a delimited block shows its title as a visible caption.
 ///
@@ -194,6 +213,24 @@ impl ConversionResult {
     #[must_use]
     pub fn output_path(&self) -> Option<&Path> {
         self.output_path.as_deref()
+    }
+
+    /// Return the resolved `outfile` value for this conversion.
+    ///
+    /// This is conversion metadata. It is not a parser-visible document
+    /// attribute and therefore cannot be referenced from source content.
+    #[must_use]
+    pub fn outfile(&self) -> Option<&Path> {
+        self.output_path()
+    }
+
+    /// Return the resolved `outdir` value for this conversion.
+    ///
+    /// This is conversion metadata. It is not a parser-visible document
+    /// attribute and therefore cannot be referenced from source content.
+    #[must_use]
+    pub fn outdir(&self) -> Option<&Path> {
+        self.output_path().and_then(Path::parent)
     }
 
     /// Borrow collected converter warnings.
@@ -464,38 +501,22 @@ impl std::fmt::Display for GeneratorMetadata {
 /// 1. **Base `AsciiDoc` defaults** - from [`DocumentAttributes::default()`]
 /// 2. **Converter-specific defaults** - from [`Converter::document_attributes_defaults()`] (e.g., `man-linkstyle` for manpage)
 /// 3. **Document attributes** - `:name: value` in document header or body
-/// 4. **CLI attributes** - user-provided via `-a name=value`
+/// 4. **Application overrides** - including CLI `-a name=value`
 ///
 /// Intrinsic backend attributes are an exception to this precedence: converters
 /// apply their [`BackendProfile`] when constructed, replacing conflicting values.
 ///
 /// ## Attributes and parsing
 ///
-/// A converter establishes its full attribute set on construction (base defaults,
-/// converter defaults, backend profile, and doctype). Construct the converter
-/// first, then pass its [`document_attributes`](Converter::document_attributes)
-/// to parser options after building them. Preprocessing and attribute
-/// substitution then see the selected backend and converter defaults, while
-/// only attributes present when the options were built remain caller-locked.
-///
-/// ## Implementation
-///
-/// Converters must implement these required methods:
-/// - [`write_to`](Converter::write_to) - Core conversion logic
-/// - [`derive_output_path`](Converter::derive_output_path) - Output path derivation
-/// - [`name`](Converter::name) - Converter name for logging/messages
-/// - [`options`](Converter::options) - Access to converter options
-/// - [`document_attributes`](Converter::document_attributes) - Access to document attributes
-///
-/// Converters get these methods for free:
-/// - [`convert`](Converter::convert) - Main entry point with routing
-/// - [`convert_to_stdout`](Converter::convert_to_stdout) - Output to stdout
-/// - [`convert_to_file`](Converter::convert_to_file) - Output to file with timing
+/// Configure application attributes and defaults with the parser options builder,
+/// then pass it to the converter constructor. Parse with the converter's
+/// [`parser_options`](Converter::parser_options) so preprocessing sees the selected
+/// backend and the same validated configuration as conversion.
 pub trait Converter<'a>: Sized {
     /// The error type for this converter.
     ///
-    /// Must implement `From<std::io::Error>` for the provided methods to work.
-    type Error: std::error::Error + From<std::io::Error>;
+    /// Converts configuration and I/O errors for construction and output.
+    type Error: std::error::Error + From<std::io::Error> + From<Error>;
 
     /// Returns converter-specific default attributes.
     ///
@@ -509,22 +530,33 @@ pub trait Converter<'a>: Sized {
     /// - Manpage: `man-linkstyle`, `manname-title`
     /// - Terminal: (none - uses environment detection)
     #[must_use]
-    fn document_attributes_defaults() -> DocumentAttributes<'static> {
-        DocumentAttributes::default()
+    fn document_attributes_defaults() -> &'static [(&'static str, AttributeValue<'static>)] {
+        &[]
     }
 
-    /// Create a new converter instance.
+    /// Create a converter from application-supplied attribute values.
     ///
     /// Stored attributes borrow with lifetime `'a`; each conversion accepts a
     /// borrowed `Document<'_>` of any lifetime, independent of `'a`.
-    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self;
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an attribute value is invalid.
+    fn new(options: Options, parser_options: ParserOptionsBuilder<'a>)
+    -> Result<Self, Self::Error>;
 
     /// Get a reference to the converter options.
     fn options(&self) -> &Options;
 
-    /// Get a reference to the document attributes stored on the converter.
+    /// Borrow the validated configuration to use when parsing input.
     #[must_use]
-    fn document_attributes(&self) -> &DocumentAttributes<'a>;
+    fn parser_options(&self) -> &ParserOptions<'a>;
+
+    /// Return the validated attributes used to configure parsing.
+    #[must_use]
+    fn document_attributes(&self) -> &DocumentAttributes<'a> {
+        self.parser_options().document_attributes()
+    }
 
     /// Derive output path from input path (e.g., "doc.adoc" → "doc.html").
     ///
@@ -544,7 +576,7 @@ pub trait Converter<'a>: Sized {
     fn derive_output_path(
         &self,
         input: &Path,
-        doc: &acdc_parser::Document<'_>,
+        doc: &Document<'_>,
     ) -> Result<Option<PathBuf>, Self::Error>;
 
     /// Convert the document and produce all output for one conversion.
@@ -569,7 +601,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn write_to<W: std::io::Write>(
         &self,
-        doc: &acdc_parser::Document<'_>,
+        doc: &Document<'_>,
         writer: W,
         source_file: Option<&Path>,
         output_path: Option<&Path>,
@@ -604,7 +636,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert_to_stdout(
         &self,
-        doc: &acdc_parser::Document<'_>,
+        doc: &Document<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         let stdout = std::io::stdout();
@@ -630,7 +662,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if file creation, conversion, or writing fails.
     fn convert_to_file(
         &self,
-        doc: &acdc_parser::Document<'_>,
+        doc: &Document<'_>,
         source_file: Option<&Path>,
         output_path: &Path,
     ) -> Result<ConversionResult, Self::Error> {
@@ -689,7 +721,7 @@ pub trait Converter<'a>: Sized {
     /// Returns an error if conversion or writing fails.
     fn convert(
         &self,
-        doc: &acdc_parser::Document<'_>,
+        doc: &Document<'_>,
         source_file: Option<&Path>,
     ) -> Result<ConversionResult, Self::Error> {
         match self.options().output_destination() {
@@ -731,21 +763,36 @@ pub trait Converter<'a>: Sized {
 ///     // Display rich error with source location
 /// }
 /// ```
-pub fn find_parser_error<'e>(
-    e: &'e (dyn std::error::Error + 'static),
-) -> Option<&'e acdc_parser::Error> {
+pub fn find_parser_error<'e>(e: &'e (dyn std::error::Error + 'static)) -> Option<&'e Error> {
     // Try to downcast the error directly first
-    if let Some(parser_error) = e.downcast_ref::<acdc_parser::Error>() {
+    if let Some(parser_error) = e.downcast_ref::<Error>() {
         return Some(parser_error);
     }
 
     // Walk the source chain
     let mut current = e.source();
     while let Some(err) = current {
-        if let Some(parser_error) = err.downcast_ref::<acdc_parser::Error>() {
+        if let Some(parser_error) = err.downcast_ref::<Error>() {
             return Some(parser_error);
         }
         current = err.source();
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn conversion_result_exposes_post_conversion_output_attributes() {
+        let result = ConversionResult::file(PathBuf::from("build/book.html"), Vec::new());
+
+        assert_eq!(result.outfile(), Some(Path::new("build/book.html")));
+        assert_eq!(result.outdir(), Some(Path::new("build")));
+
+        let stdout = ConversionResult::stdout(Vec::new());
+        assert_eq!(stdout.outfile(), None);
+        assert_eq!(stdout.outdir(), None);
+    }
 }

@@ -6,6 +6,7 @@ use crossterm::{
 };
 
 use acdc_converters_core::{
+    TraversalContext,
     list::OrderedListNumbering,
     visitor::{Visitor, WritableVisitor},
 };
@@ -76,21 +77,25 @@ fn style_suppresses_marker(style: Option<&str>) -> bool {
     matches!(style, Some("none" | "no-bullet" | "unstyled"))
 }
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Render a title with italic styling.
     ///
     /// This helper function renders inline nodes to a buffer, converts to a string,
     /// trims whitespace, and applies italic styling for terminal output.
-    #[tracing::instrument(skip(self))]
-    fn render_styled_title(&mut self, title: &[InlineNode]) -> Result<(), Error> {
+    #[tracing::instrument(skip(self, traversal))]
+    fn render_styled_title(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: &[InlineNode],
+    ) -> Result<(), Error> {
         if !title.is_empty() {
-            let processor = self.processor.clone();
+            let processor = self.processor;
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
             let mut temp_visitor =
                 TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
             for node in title {
-                temp_visitor.visit_inline_node(node)?;
+                temp_visitor.visit_inline_node(traversal, node)?;
             }
             let buffer = temp_visitor
                 .into_writer()
@@ -109,23 +114,24 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// All items in a single list are at the same nesting level. Nested lists appear
     /// as `Block` children within individual items and are handled by the visitor
     /// pattern (which reads `processor.list_indent` for the correct indentation).
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, traversal))]
     fn render_list_items(
         &mut self,
-        items: &[ListItem],
+        traversal: &mut TraversalContext<'a>,
+        items: &'a [ListItem<'a>],
         indent: usize,
         marker: ListMarker,
         start: usize,
         reversed: bool,
-        unicode: bool,
     ) -> Result<(), Error> {
+        let unicode = self.processor.appearance.capabilities.unicode;
         for (idx, item) in items.iter().enumerate() {
             let number = if reversed {
                 start.saturating_sub(idx)
             } else {
                 start.saturating_add(idx)
             };
-            self.render_list_item(item, indent, marker, number, unicode)?;
+            self.render_list_item(traversal, item, indent, marker, number, unicode)?;
         }
         Ok(())
     }
@@ -134,10 +140,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     ///
     /// After rendering the item's principal text, child blocks (which may include
     /// nested lists) are visited with an increased `list_indent` on the processor.
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, traversal))]
     fn render_list_item(
         &mut self,
-        item: &ListItem,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a ListItem<'a>,
         indent: usize,
         marker: ListMarker,
         item_number: usize,
@@ -167,7 +174,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         }
 
         for node in &item.principal {
-            self.visit_inline_node(node)?;
+            self.visit_inline_node(traversal, node)?;
         }
 
         writeln!(self.writer)?;
@@ -178,26 +185,29 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let old_indent = self.processor.list_indent.get();
         self.processor.list_indent.set(nested_indent);
         for block in &item.blocks {
-            self.visit_block(block)?;
+            traversal.visit_block(self, block)?;
         }
         self.processor.list_indent.set(old_indent);
 
         Ok(())
     }
 
-    pub(crate) fn render_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Error> {
+    pub(crate) fn render_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Error> {
         if list.metadata.style == Some("bibliography") {
-            return self.render_bibliography_list(list);
+            return self.render_bibliography_list(traversal, list);
         }
 
         let indent = self.processor.list_indent.get();
-        self.render_styled_title(&list.title)?;
+        self.render_styled_title(traversal, &list.title)?;
         // Only emit a leading newline for top-level lists (not nested ones)
         if indent == 0 {
             let w = self.writer_mut();
             writeln!(w)?;
         }
-        let unicode = self.processor.appearance.capabilities.unicode;
         let marker = if style_suppresses_marker(list.metadata.style) {
             ListMarker::Hidden
         } else {
@@ -208,13 +218,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 Some(_) | None => UnorderedMarker::Default,
             })
         };
-        self.render_list_items(&list.items, indent, marker, 1, false, unicode)?;
+        self.render_list_items(traversal, &list.items, indent, marker, 1, false)?;
         Ok(())
     }
 
-    fn render_bibliography_list(&mut self, list: &UnorderedList) -> Result<(), Error> {
+    fn render_bibliography_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
-        self.render_styled_title(&list.title)?;
+        self.render_styled_title(traversal, &list.title)?;
         if indent == 0 {
             writeln!(self.writer)?;
         }
@@ -231,7 +245,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                     .and_then(|reference| reference.xreflabel.as_deref())
                     .map(<[_]>::to_vec)
                 {
-                    self.visit_inline_nodes(&label)?;
+                    self.visit_inline_nodes(traversal, &label)?;
                 } else {
                     self.writer
                         .queue(PrintStyledContent(format!("[{}]", anchor.id).bold()))?;
@@ -243,12 +257,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             if content.is_empty() {
                 writeln!(self.writer)?;
             } else {
-                self.visit_inline_nodes(content)?;
+                self.visit_inline_nodes(traversal, content)?;
                 writeln!(self.writer)?;
             }
             let previous = self.processor.list_indent.replace(indent + 2);
             for block in &item.blocks {
-                self.visit_block(block)?;
+                traversal.visit_block(self, block)?;
             }
             self.processor.list_indent.set(previous);
         }
@@ -268,15 +282,18 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     ///    1. Nested item
     /// 3. Third item
     /// ```
-    pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
+    pub(crate) fn render_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
-        self.render_styled_title(&list.title)?;
+        self.render_styled_title(traversal, &list.title)?;
         // Only emit a leading newline for top-level lists (not nested ones)
         if indent == 0 {
             let w = self.writer_mut();
             writeln!(w)?;
         }
-        let unicode = self.processor.appearance.capabilities.unicode;
         let marker = if style_suppresses_marker(list.metadata.style)
             || list.metadata.style == Some("unnumbered")
         {
@@ -297,7 +314,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             .and_then(|start| start.parse::<usize>().ok())
             .filter(|start| *start > 0)
             .unwrap_or(if reversed { list.items.len() } else { 1 });
-        self.render_list_items(&list.items, indent, marker, start, reversed, unicode)?;
+        self.render_list_items(traversal, &list.items, indent, marker, start, reversed)?;
         Ok(())
     }
 
@@ -312,8 +329,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// <2> Second explanation
     /// <3> Third explanation
     /// ```
-    pub(crate) fn render_callout_list(&mut self, list: &CalloutList) -> Result<(), Error> {
-        self.render_styled_title(&list.title)?;
+    pub(crate) fn render_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Error> {
+        self.render_styled_title(traversal, &list.title)?;
         if !list.title.is_empty() {
             writeln!(self.writer)?;
         }
@@ -325,7 +346,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
             // Render principal text inline
             for node in &item.principal {
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
             }
 
             writeln!(self.writer)?;
@@ -333,7 +354,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             // Render attached blocks with indentation
             for block in &item.blocks {
                 write!(self.writer, "  ")?;
-                self.visit_block(block)?;
+                traversal.visit_block(self, block)?;
             }
         }
         Ok(())
@@ -347,9 +368,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// - **qanda**: Terms prefixed with "Q: ", definitions with "A: "
     /// - **ordered**: Terms use numbered markers
     /// - **unordered**: Terms use bullet markers
-    pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
+    pub(crate) fn render_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
-        self.render_styled_title(&list.title)?;
+        self.render_styled_title(traversal, &list.title)?;
         if indent == 0 || !list.title.is_empty() {
             writeln!(self.writer)?;
         }
@@ -359,13 +384,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         for (index, item) in list.items.iter().enumerate() {
             match style {
                 Some("horizontal") => {
-                    self.render_horizontal_description_list_item(item)?;
+                    self.render_horizontal_description_list_item(traversal, item)?;
                 }
                 Some("qanda") => {
-                    self.render_qanda_description_list_item(item)?;
+                    self.render_qanda_description_list_item(traversal, item)?;
                 }
                 Some("ordered") => {
-                    self.render_description_list_item(item, Some(&format!("{}.", index + 1)))?;
+                    self.render_description_list_item(
+                        traversal,
+                        item,
+                        Some(&format!("{}.", index + 1)),
+                    )?;
                 }
                 Some("unordered") => {
                     let marker = if self.processor.appearance.capabilities.unicode {
@@ -373,10 +402,10 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                     } else {
                         "*"
                     };
-                    self.render_description_list_item(item, Some(marker))?;
+                    self.render_description_list_item(traversal, item, Some(marker))?;
                 }
                 _ => {
-                    self.render_description_list_item(item, None)?;
+                    self.render_description_list_item(traversal, item, None)?;
                 }
             }
         }
@@ -389,17 +418,18 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// indented with 2 spaces, and any additional description blocks.
     fn render_description_list_item(
         &mut self,
-        item: &DescriptionListItem,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
         marker: Option<&str>,
     ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
         // Render term in bold
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for node in &item.term {
-            temp_visitor.visit_inline_node(node)?;
+            temp_visitor.visit_inline_node(traversal, node)?;
         }
         let buffer = temp_visitor
             .into_writer()
@@ -419,12 +449,12 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         if !item.principal_text.is_empty() {
             write_indent(&mut self.writer, indent + 2)?;
             for node in &item.principal_text {
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
             }
             writeln!(self.writer)?;
         }
 
-        self.render_description_blocks(&item.description, indent + 2)
+        self.render_description_blocks(traversal, &item.description, indent + 2)
     }
 
     /// Renders a single description list item in horizontal style.
@@ -432,16 +462,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Term and definition are on the same line, separated by `::`.
     fn render_horizontal_description_list_item(
         &mut self,
-        item: &DescriptionListItem,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
     ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
         // Render term in bold
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for node in &item.term {
-            temp_visitor.visit_inline_node(node)?;
+            temp_visitor.visit_inline_node(traversal, node)?;
         }
         let buffer = temp_visitor
             .into_writer()
@@ -457,13 +488,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         if !item.principal_text.is_empty() {
             write!(self.writer, " :: ")?;
             for node in &item.principal_text {
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
             }
         }
         writeln!(self.writer)?;
 
         // Render description blocks indented
-        self.render_description_blocks(&item.description, indent + 2)
+        self.render_description_blocks(traversal, &item.description, indent + 2)
     }
 
     /// Renders a single description list item in Q&A style.
@@ -471,16 +502,17 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Terms are prefixed with "Q: " and definitions with "A: ".
     fn render_qanda_description_list_item(
         &mut self,
-        item: &DescriptionListItem,
+        traversal: &mut TraversalContext<'a>,
+        item: &'a DescriptionListItem<'a>,
     ) -> Result<(), Error> {
         let indent = self.processor.list_indent.get();
         // Render "Q: " prefix + term in bold
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for node in &item.term {
-            temp_visitor.visit_inline_node(node)?;
+            temp_visitor.visit_inline_node(traversal, node)?;
         }
         let buffer = temp_visitor
             .into_writer()
@@ -499,18 +531,19 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             write_indent(&mut self.writer, indent)?;
             self.writer.queue(PrintStyledContent("A: ".dim()))?;
             for node in &item.principal_text {
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
             }
             writeln!(self.writer)?;
         }
 
         // Render description blocks indented
-        self.render_description_blocks(&item.description, indent + 3)
+        self.render_description_blocks(traversal, &item.description, indent + 3)
     }
 
     fn render_description_blocks(
         &mut self,
-        blocks: &[Block<'_>],
+        traversal: &mut TraversalContext<'a>,
+        blocks: &'a [Block<'a>],
         indent: usize,
     ) -> Result<(), Error> {
         let previous_indent = self.processor.list_indent.replace(indent);
@@ -521,7 +554,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             ) {
                 write_indent(&mut self.writer, indent)?;
             }
-            self.visit_block(block)
+            traversal.visit_block(self, block)
         });
         self.processor.list_indent.set(previous_indent);
         result

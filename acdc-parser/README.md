@@ -122,6 +122,62 @@ The implementation here follows from:
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
 
+Document configuration accepts standard Rust iterators. Application overrides
+and document-overridable defaults use the same input values; callers do not need
+to track parser locks or assignment policy.
+
+```rust
+use acdc_parser::{Options, parse};
+
+let options = Options::builder()
+    .with_attributes([("max-include-depth", "064")])
+    .with_defaults([("imagesdir", "images")])
+    .build()?;
+let parsed = parse("= Example\n\nContent.\n", &options)?;
+let depth = parsed.document().attributes.get("max-include-depth").unwrap();
+assert_eq!(depth.as_integer(), Some(64));
+assert_eq!(depth.text(), Some("064"));
+# Ok::<(), acdc_parser::Error>(())
+```
+
+`with_attributes` replaces earlier application inputs; `with_attribute` sets one
+input. `with_defaults` replaces earlier defaults. Use `false` or `()` to unset an
+attribute, including one supplied by defaults.
+
+## Intrinsic document attributes
+
+acdc initializes the intrinsic backend, input, time, safe-mode, and environment
+attributes before preprocessing. Conditionals and substitutions therefore see the
+same values as the final parsed document. File input derives `docdir`, `docfile`,
+`docfilesuffix`, `docname`, and the document timestamp from the entry file. Server
+and Secure modes conceal the directory and home path. `SOURCE_DATE_EPOCH` makes
+both the document and conversion timestamps deterministic and formats them in UTC.
+
+The parser records the effective attributes at the end of the document header in
+`Document::attributes`. Later accepted set and unset entries appear as ordered
+`Block::DocumentAttribute` nodes and do not change that header snapshot. Each node
+exposes `assignment()`, which returns `DocumentAttributeAssignment::Set` or `Unset`.
+A set value provides `as_str()`, `as_integer()`, and `is_presence()` for semantic
+reads, and `text()` or `write_text()` to retain its written representation.
+`get()` borrows a value without copying it. `assignment()` and `assignments()` on
+the header snapshot also expose explicit unsets. Rejected and invalid entries do
+not become semantic AST events.
+
+Custom converters can use `acdc-converters-core::TraversalContext` with the shared
+visitor to read attributes at each body position. The context applies events in
+source order and restores parent attributes after nested AsciiDoc table cells.
+Parser consumers that do not use the visitor can interpret the ordered set/unset
+events directly; the parser exposes no mutable traversal or precedence state.
+
+The header column in the Asciidoctor document-attribute reference identifies where a
+feature normally reads its setup value. It is not a general ban on later assignments.
+acdc accepts supported body assignments in source order, while setup-only consumers
+continue to use the header snapshot. Caller values, API-only attributes, and read-only
+intrinsic values remain protected. A source `backend` value can be visible as document
+text, but it does not change the converter that the API or CLI already selected.
+`outdir` and `outfile` are output metadata exposed by the converter result; they are
+not available to source substitution.
+
 ## Recoverable document warnings
 
 A section directly nested in a `[bibliography]` section remains in the AST and
@@ -164,26 +220,29 @@ warnings and parsing continues.
 
 Built-in includes have a trusted `max-include-depth` attribute that defaults to `64`
 and is visible as `{max-include-depth}` in the parsed document. The fallback
-participates in attribute lookup, substitution, and conditionals without being
-reported as caller-stored by `DocumentAttributes::iter()` or `contains_key()`, and it
-is not serialized unless the caller supplied a value. Set it through the parser
-options when a different limit is needed:
+participates in attribute lookup, membership, effective iteration, substitution, and
+conditionals. On the borrowed value, `as_integer()` returns its numeric value, `text()` returns the
+original spelling of an explicit value, and `write_text()` writes either that spelling
+or the formatted default. Use `is_explicit()` to test whether an assignment exists,
+including an unset assignment. The default is not serialized unless the caller supplied
+a value. Set it through the parser options when a different limit is needed:
 
 ```rust
 let options = acdc_parser::Options::builder()
     .with_attribute("max-include-depth", "8")
-    .build();
+    .build()?;
 ```
 
 The entry document does not count toward the limit; each currently open included file
-counts as one level. A value of `0` or a negative value disables built-in include
-processing and leaves each directive as literal content without a diagnostic. String
-values use their leading signed decimal while the original value remains visible as
-the document attribute; for example, `" 8"` and `"8notes"` both set a limit of 8. At
-a positive limit, the blocked directive is likewise preserved, a located diagnostic
-is added to `ParseResult::warnings()`, and parsing continues. Leading Unicode
-whitespace is treated as whitespace, so a non-breaking space (`U+00A0`) before `8`
-also sets a limit of 8. Only an exact `include::` directive is processed; block macro
+counts as one level. A value of `0` disables built-in include processing and leaves
+each directive as literal content without a diagnostic. A string value can have
+surrounding Unicode whitespace, but the complete trimmed value must be a non-negative
+ASCII decimal integer. Malformed, empty, decimal-fraction, and negative values return
+an `InvalidDocumentAttribute` configuration error when options are built. The original
+spelling of a valid value remains visible as the document attribute, and very large
+positive values saturate safely without overflow. At a positive limit, the blocked
+directive is preserved, a located diagnostic is added to `ParseResult::warnings()`,
+and parsing continues. Only an exact `include::` directive is processed; block macro
 names that merely begin with `include` remain ordinary content without include
 diagnostics. Declarations in document content are consumed but cannot change or unset
 the trusted value and do not appear as `Block::DocumentAttribute` nodes in the AST.
@@ -365,13 +424,17 @@ acdc's references are the [AsciiDoc Language draft specification](https://gitlab
   safely disables built-in includes instead of reproducing asciidoctor's Ruby
   `NoMethodError`. Use a decimal string for a numeric limit; see
   [Include depth](#include-depth).
-* **Unicode whitespace in include-depth values**: acdc treats leading Unicode
-  whitespace, including a non-breaking space (`U+00A0`), as whitespace when deriving
-  the numeric limit. asciidoctor's Ruby conversion skips only ASCII whitespace, so
-  the same value is converted to `0` and disables built-in includes. See
-  [Include depth](#include-depth).
+* **Strict include-depth validation**: acdc trims surrounding Unicode whitespace and
+  requires the complete `max-include-depth` string to be a non-negative ASCII decimal
+  integer. Malformed, empty, fractional, and negative values return a structured
+  configuration error. asciidoctor's current Ruby implementation instead accepts a
+  leading signed decimal prefix, so a value such as `8notes` silently becomes `8`.
+  The strict rule follows the documented [integer (≥ 0) domain](https://docs.asciidoctor.org/asciidoc/latest/attributes/document-attributes-ref/#security-attributes)
+  and is an intentional compatibility divergence. See [Include depth](#include-depth).
 * **Symmetric escape of constrained markers**: `\*foo\*`, `\_foo\_`, `` \`foo\` ``, `\#foo\#` all emit the literal marker pair (`*foo*`, `_foo_`, etc.). asciidoctor strips only the opening backslash and leaves the trailing `\` in the output. The draft spec's backslash-escaping section (`spec/outline.adoc`) states: "a backslash in front of a reserved markup character will be removed, regardless of whether the text would have been interpreted or not" — acdc follows that rule symmetrically.
 
 ## See also
 
+- [Document attribute value model](DOCUMENT_ATTRIBUTE_MODEL.md) for the selected
+  typed-value, default, assignment, presentation, and migration boundaries
 - [CHANGELOG](CHANGELOG.md) for detailed feature history and version notes

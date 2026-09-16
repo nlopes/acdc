@@ -1,15 +1,14 @@
-use std::io::Write;
+use std::{collections::HashMap, io::Write};
 
 use acdc_converters_core::{
+    TraversalContext,
     section::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
     visitor::WritableVisitor,
 };
-use acdc_parser::{
-    AttributeValue, DiscreteHeader, DocumentAttributes, InlineNode, Section, SectionKind,
-};
+use acdc_parser::{DiscreteHeader, InlineNode, Section, SectionKind};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -17,34 +16,28 @@ use crossterm::{
 
 use crate::TerminalVisitor;
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
-    pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), crate::Error> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
+    pub(crate) fn render_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), crate::Error> {
         if section.metadata.options.contains(&"notitle") {
             return Ok(());
         }
 
-        let processor = self.processor.clone();
-        let w = self.writer_mut();
-        writeln!(w)?;
-
+        let processor = self.processor;
         let effective_level = effective_section_level(section.level, section.kind);
         let is_appendix = section.kind == SectionKind::Appendix;
         let is_part = section.level == 0 && section.kind == SectionKind::Normal;
 
         let prefix = section.number().map_or_else(String::new, |number| {
             if is_appendix {
-                appendix_number_prefix(
-                    number,
-                    string_attribute(&processor.document_attributes, "appendix-caption"),
-                )
+                appendix_number_prefix(number, string_attribute(traversal, "appendix-caption"))
             } else if is_part {
-                part_number_prefix(
-                    number,
-                    string_attribute(&processor.document_attributes, "part-signifier"),
-                )
+                part_number_prefix(number, string_attribute(traversal, "part-signifier"))
             } else if section.level == 1 && section.kind == SectionKind::Normal {
-                let signifier =
-                    book_chapter_signifier(&processor.document_attributes, Some("Chapter"));
+                let signifier = book_chapter_signifier(traversal, Some("Chapter"));
                 section_number_prefix(number, signifier)
             } else {
                 section_number_prefix(number, None)
@@ -55,6 +48,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let title = format!("{prefix}{raw_title}");
 
         let tw = processor.terminal_width;
+        let w = self.writer_mut();
+        writeln!(w)?;
 
         match effective_level {
             0 | 1 => {
@@ -114,7 +109,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         &mut self,
         header: &DiscreteHeader,
     ) -> Result<(), crate::Error> {
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let w = self.writer_mut();
         // Discrete headers render similar to level 4 sections (bold only)
         let styled = extract_title_text(&header.title, &processor.references)
@@ -127,18 +122,15 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     }
 }
 
-fn string_attribute<'a>(attributes: &'a DocumentAttributes<'_>, name: &str) -> Option<&'a str> {
-    match attributes.get(name) {
-        Some(AttributeValue::String(value)) => Some(value.as_ref()),
-        Some(_) | None => None,
-    }
+fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Option<&'a str> {
+    attributes.get(name).and_then(|value| value.text())
 }
 
 /// Plain text for a section or header title, which terminal output renders as a
 /// styled single line rather than through the inline pipeline.
 fn extract_title_text(
     title: &[InlineNode],
-    references: &std::collections::HashMap<&str, acdc_parser::Reference<'_>>,
+    references: &HashMap<&str, acdc_parser::Reference<'_>>,
 ) -> String {
     crate::extract_heading_text(title, references)
 }
@@ -178,8 +170,8 @@ mod tests {
 
     /// A catalog is only consulted for a cross-reference with no text of its
     /// own; these cases hold none.
-    fn no_references() -> std::collections::HashMap<&'static str, acdc_parser::Reference<'static>> {
-        std::collections::HashMap::new()
+    fn no_references() -> HashMap<&'static str, acdc_parser::Reference<'static>> {
+        HashMap::new()
     }
 
     #[test]

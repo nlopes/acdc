@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document and workspace symbols now show accepted document-attribute set and
+  unset events in source order. Rejected source lines remain available to
+  text-based editor features but are not semantic attribute symbols.
+  Numeric assignments retain their written spelling in symbol details.
+- Attribute-reference completion now includes effective parser defaults such
+  as `max-include-depth`; hover and inlay hints render their text presentation.
 - Title-based shorthand cross-references now use the resolved section ID for
   go-to-definition, hover, and inlay hints.
 - **Configurable analysis backend** — the LSP now supplies `html5` backend attributes by
@@ -31,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Missing-media diagnostics resolve paths using source-ordered `imagesdir`
+  settings and restore outer settings after AsciiDoc table cells.
 - Go-to-definition, hover, and inlay hints now use a section's named `reftext`
   as its natural cross-reference alias. Explicit IDs remain available, section
   titles are not retained as second aliases, and formatted labels produce
@@ -97,7 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Link validation diagnostics** — flag missing images, audio, video, and
   include files with warning-level diagnostics. Resolves image paths through
   the `imagesdir` attribute when set. URLs and icon names are skipped.
-- **Inlay hints** — show resolved attribute values and cross-reference titles as
+- **Inlay hints** — show effective attribute values and cross-reference titles as
   ghost text inline (`textDocument/inlayHint`). Attribute references like
   `{product-name}` display their resolved value; xrefs like `<<setup>>` show the
   target section title.

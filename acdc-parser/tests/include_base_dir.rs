@@ -1,7 +1,7 @@
 use std::{
     error::Error,
     fs,
-    io::Cursor,
+    io::{Cursor, Result as IoResult},
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -18,7 +18,7 @@ const ANCESTOR_RECOVERY_WARNING: &str =
 struct TempDirectory(PathBuf);
 
 impl TempDirectory {
-    fn new() -> std::io::Result<Self> {
+    fn new() -> IoResult<Self> {
         let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
             "acdc-parser-include-base-dir-{}-{sequence}",
@@ -41,7 +41,7 @@ struct CurrentDirectoryFile {
 }
 
 impl CurrentDirectoryFile {
-    fn new(content: &str) -> std::io::Result<Self> {
+    fn new(content: &str) -> IoResult<Self> {
         let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let name = format!(
             "acdc-parser-include-base-dir-{}-{sequence}.adoc",
@@ -59,7 +59,7 @@ impl Drop for CurrentDirectoryFile {
     }
 }
 
-fn write(path: &Path, content: &str) -> std::io::Result<()> {
+fn write(path: &Path, content: &str) -> IoResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -93,7 +93,7 @@ fn string_and_reader_input_default_to_current_directory() -> TestResult {
 fn string_and_reader_input_resolve_includes_against_base_dir() -> TestResult {
     let directory = TempDirectory::new()?;
     write(&directory.0.join("part.adoc"), "INCLUDED")?;
-    let options = Options::builder().with_base_dir(&directory.0).build();
+    let options = Options::builder().with_base_dir(&directory.0).build()?;
 
     let string_result = parse("include::part.adoc[]", &options)?;
     let reader_result = parse_from_reader(Cursor::new("include::part.adoc[]"), &options)?;
@@ -122,7 +122,7 @@ fn file_input_base_override_controls_entry_resolution() -> TestResult {
         let options = Options::builder()
             .with_safe_mode(safe_mode)
             .with_base_dir(&base_dir)
-            .build();
+            .build()?;
         let result = parse_file(&main, &options)?;
 
         assert_eq!(paragraph_text(&result)?, "NESTED", "{safe_mode:?}");
@@ -143,7 +143,7 @@ fn safe_and_server_confinement_use_overridden_base() -> TestResult {
     let unsafe_options = Options::builder()
         .with_safe_mode(SafeMode::Unsafe)
         .with_base_dir(&base_dir)
-        .build();
+        .build()?;
     let unsafe_result = parse_file(&main, &unsafe_options)?;
     assert_eq!(paragraph_text(&unsafe_result)?, "REAL OUTSIDE");
     assert!(unsafe_result.warnings().is_empty());
@@ -152,7 +152,7 @@ fn safe_and_server_confinement_use_overridden_base() -> TestResult {
         let options = Options::builder()
             .with_safe_mode(safe_mode)
             .with_base_dir(&base_dir)
-            .build();
+            .build()?;
         let result = parse_file(&main, &options)?;
 
         assert_eq!(
@@ -177,7 +177,7 @@ fn missing_include_recovery_uses_the_entry_basename_outside_the_base() -> TestRe
     write(&main, "include::missing.adoc[]")?;
     fs::create_dir(&base_dir)?;
 
-    let options = Options::builder().with_base_dir(&base_dir).build();
+    let options = Options::builder().with_base_dir(&base_dir).build()?;
     let result = parse_file(&main, &options)?;
 
     assert_eq!(
@@ -203,7 +203,7 @@ fn nested_includes_are_relative_to_the_containing_file_after_base_override() -> 
     write(&base_dir.join("chapters/one.adoc"), "include::two.adoc[]")?;
     write(&base_dir.join("chapters/two.adoc"), "RELATIVE")?;
 
-    let options = Options::builder().with_base_dir(&base_dir).build();
+    let options = Options::builder().with_base_dir(&base_dir).build()?;
     let result = parse_file(&main, &options)?;
 
     assert_eq!(paragraph_text(&result)?, "RELATIVE");

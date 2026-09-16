@@ -1,5 +1,5 @@
 use crate::{
-    AttributeValue, Options,
+    AttributeValue, Error, Options,
     model::{HEADER, substitute},
 };
 
@@ -24,27 +24,38 @@ peg::parser! {
 }
 
 #[tracing::instrument(level = "trace")]
-pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) {
+pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
     match attribute_parser::document_attribute(line) {
         Ok((unset, name, value)) => {
-            if options.is_document_attribute_locked(&name, true) {
-                return;
-            }
-            let attributes = &mut options.document_attributes;
-            if unset {
-                attributes.set(name.into(), AttributeValue::Bool(false));
+            let value = if unset {
+                AttributeValue::Bool(false)
             } else {
-                let value = match value {
-                    Some(v) => substitute(&v, HEADER, attributes).into_owned(),
-                    None => String::new(),
-                };
-                attributes.set(name.into(), AttributeValue::String(value.into()));
-            }
+                match value {
+                    Some(value) => {
+                        let value =
+                            substitute(&value, HEADER, &options.document_attributes).into_owned();
+                        if value.is_empty() {
+                            AttributeValue::Bool(true)
+                        } else {
+                            AttributeValue::String(value.into())
+                        }
+                    }
+                    None => AttributeValue::Bool(true),
+                }
+            };
+            options.document_attributes.assign_document_value(
+                name.into(),
+                value,
+                true,
+                false,
+                None,
+            )?;
         }
         Err(e) => {
             tracing::warn!(?e, "Failed to parse attribute line");
         }
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -52,73 +63,73 @@ mod tests {
     use super::*;
 
     fn options() -> Options<'static> {
-        Options::default().prepare_for_parse()
+        Options::default().prepare_for_parse(crate::document_attribute::InputKind::String)
     }
 
     #[test]
-    fn test_parse_simple_attribute() {
+    fn test_parse_simple_attribute() -> Result<(), Error> {
         let mut options = options();
-        parse_line(&mut options, ":name: value");
-        assert_eq!(
-            options.document_attributes.get("name"),
-            Some(&AttributeValue::String("value".into()))
-        );
+        parse_line(&mut options, ":name: value")?;
+        assert_eq!(options.document_attributes.text("name"), Some("value"));
+        Ok(())
     }
 
     #[test]
-    fn test_parse_unset_attribute() {
+    fn test_parse_unset_attribute() -> Result<(), Error> {
         let mut options = options();
-        parse_line(&mut options, ":!name:");
-        assert_eq!(
-            options.document_attributes.get("name"),
-            Some(&AttributeValue::Bool(false))
-        );
+        parse_line(&mut options, ":!name:")?;
+        assert!(options.document_attributes.is_explicit("name"));
+        assert_eq!(options.document_attributes.get("name"), None);
+        Ok(())
     }
 
     #[test]
-    fn test_parse_empty_value() {
+    fn test_parse_empty_value() -> Result<(), Error> {
         let mut options = options();
-        parse_line(&mut options, ":name:");
-        assert_eq!(
-            options.document_attributes.get("name"),
-            Some(&AttributeValue::String(std::borrow::Cow::Borrowed("")))
+        parse_line(&mut options, ":name:")?;
+        assert!(
+            options
+                .document_attributes
+                .get("name")
+                .is_some_and(crate::DocumentAttributeValue::is_presence)
         );
+        Ok(())
     }
 
     #[test]
-    fn test_parse_complex_name() {
+    fn test_parse_complex_name() -> Result<(), Error> {
         let mut options = options();
-        parse_line(&mut options, ":complex-name_123: value");
+        parse_line(&mut options, ":complex-name_123: value")?;
         assert_eq!(
-            options.document_attributes.get("complex-name_123"),
-            Some(&AttributeValue::String("value".into()))
+            options.document_attributes.text("complex-name_123"),
+            Some("value")
         );
+        Ok(())
     }
 
     #[test]
-    fn test_definition_time_attribute_expansion() {
+    fn test_definition_time_attribute_expansion() -> Result<(), Error> {
         // When bar is defined before foo, {bar} in foo's value should be expanded
         let mut options = options();
-        parse_line(&mut options, ":bar: resolved-bar");
-        parse_line(&mut options, ":foo: {bar}");
+        parse_line(&mut options, ":bar: resolved-bar")?;
+        parse_line(&mut options, ":foo: {bar}")?;
 
         // foo should have bar's value expanded at definition time
         assert_eq!(
-            options.document_attributes.get("foo"),
-            Some(&AttributeValue::String("resolved-bar".into()))
+            options.document_attributes.text("foo"),
+            Some("resolved-bar")
         );
+        Ok(())
     }
 
     #[test]
-    fn test_undefined_attribute_kept_literal() {
+    fn test_undefined_attribute_kept_literal() -> Result<(), Error> {
         // When bar is NOT defined when foo is parsed, {bar} should stay literal
         let mut options = options();
-        parse_line(&mut options, ":foo: {bar}");
+        parse_line(&mut options, ":foo: {bar}")?;
 
         // foo should keep {bar} as literal since bar wasn't defined
-        assert_eq!(
-            options.document_attributes.get("foo"),
-            Some(&AttributeValue::String("{bar}".into()))
-        );
+        assert_eq!(options.document_attributes.text("foo"), Some("{bar}"));
+        Ok(())
     }
 }

@@ -11,7 +11,7 @@ use std::{
 use encoding_rs::{Encoding, UTF_8, UTF_16BE, UTF_16LE};
 
 use crate::{
-    AttributeValue, Location, Options, Warning, WarningKind,
+    DocumentAttributeValue, DocumentAttributes, Location, Options, Warning, WarningKind,
     error::{Error, SourceLocation},
     model::{LeveloffsetRange, Position, SourceRange},
 };
@@ -31,10 +31,10 @@ use include::{Include, IncludeResult, LocationContext};
 /// `text` borrows from the caller's input when possible (fast path: no include /
 /// conditional / multi-line-attribute triggers), enabling zero-copy parsing all
 /// the way through the grammar. When any trigger fires, `text` is `Cow::Owned`.
-#[derive(Debug, Default)]
-pub(crate) struct PreprocessorResult<'a> {
+#[derive(Debug)]
+pub(crate) struct PreprocessorResult<'input> {
     /// The preprocessed document text.
-    pub(crate) text: Cow<'a, str>,
+    pub(crate) text: Cow<'input, str>,
     /// Byte ranges where specific leveloffset values apply.
     /// Used by the parser to adjust section levels.
     pub(crate) leveloffset_ranges: Vec<LeveloffsetRange>,
@@ -54,6 +54,11 @@ impl PreprocessorResult<'_> {
             source_ranges: self.source_ranges,
         }
     }
+}
+
+struct NestedPreprocessorResult {
+    result: PreprocessorResult<'static>,
+    document_attributes: DocumentAttributes<'static>,
 }
 
 /// Per-directive context bundling position and file information that
@@ -117,28 +122,6 @@ fn is_escaped_directive(line: &str) -> bool {
     })
 }
 
-/// Derive the include recursion limit from the `max-include-depth` attribute,
-/// emulating Ruby's `String#to_i`: the leading signed decimal wins, trailing text
-/// is ignored, a negative value means zero, and values beyond the platform word
-/// size saturate. The raw attribute keeps its original spelling for documents to
-/// read back.
-fn parse_max_include_depth(value: &str) -> usize {
-    let value = value.trim_start();
-    if value.starts_with('-') {
-        return 0;
-    }
-    let value = value.strip_prefix('+').unwrap_or(value);
-
-    value
-        .bytes()
-        .take_while(u8::is_ascii_digit)
-        .fold(0, |depth, digit| {
-            depth
-                .saturating_mul(10)
-                .saturating_add(usize::from(digit - b'0'))
-        })
-}
-
 /// Caller authority and recursion state shared by one include-processing chain.
 #[derive(Debug, Clone, Copy)]
 pub(super) struct IncludeContext {
@@ -149,21 +132,14 @@ pub(super) struct IncludeContext {
 
 impl IncludeContext {
     fn root(options: &Options<'_>) -> Self {
-        let max_depth = match options
+        let max_depth = options
             .document_attributes
-            .get(crate::constants::MAX_INCLUDE_DEPTH_ATTR)
-        {
-            Some(AttributeValue::String(value)) => parse_max_include_depth(value),
-            // Boolean `true` carries no numeric limit: disable includes rather
-            // than reproducing asciidoctor's Ruby `NoMethodError`.
-            Some(AttributeValue::Bool(true)) => 0,
-            // Attribute maps built without defaults synthesize no fallback.
-            Some(AttributeValue::Bool(false) | AttributeValue::None) | None => {
-                crate::constants::DEFAULT_MAX_INCLUDE_DEPTH
-            }
-        };
+            .get(crate::document_attribute::MAX_INCLUDE_DEPTH_ATTR)
+            .and_then(DocumentAttributeValue::as_integer)
+            .unwrap_or(crate::document_attribute::DEFAULT_MAX_INCLUDE_DEPTH);
+        let max_depth = usize::try_from(max_depth).unwrap_or(usize::MAX);
         Self {
-            allows_uri_read: options.document_attributes.is_set("allow-uri-read"),
+            allows_uri_read: options.document_attributes.contains_key("allow-uri-read"),
             depth: 0,
             max_depth,
         }
@@ -293,7 +269,7 @@ struct PreprocessorState<'input> {
     /// of the main-file [`SourceRange`]s recorded below. `None` for stdin/string
     /// input — ranges are still recorded (so line/offset remapping works) with a
     /// `None` file.
-    source_file: Option<std::path::PathBuf>,
+    source_file: Option<PathBuf>,
     /// Byte offset of each 1-indexed source line in the (normalized) primary input,
     /// so a run/chunk anchored at a source line can record its origin-file byte
     /// offset. `src_line_starts[n - 1]` is the start of source line `n`.
@@ -747,7 +723,7 @@ impl Preprocessor {
     #[tracing::instrument(skip(reader, warnings))]
     pub(crate) fn process_reader<R: std::io::Read>(
         mut reader: R,
-        options: &Options,
+        options: &Options<'_>,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'static>, Error> {
         let mut input = String::new();
@@ -758,39 +734,45 @@ impl Preprocessor {
         // The local `input` cannot outlive this function, so materialize any
         // borrowed text into an owned result.
         let source_origin = SourceOrigin::memory(options.base_dir.as_deref());
-        Ok(Self::new(options, warnings)
-            .process_inner(&input, Some(&source_origin), options)?
+        let preprocessor = Self::new(options, warnings);
+        let mut options = options.clone();
+        Ok(preprocessor
+            .process_inner(&input, Some(&source_origin), &mut options)?
             .into_owned())
     }
 
     #[tracing::instrument(skip(warnings))]
-    pub(crate) fn process<'a>(
-        input: &'a str,
-        options: &Options,
+    pub(crate) fn process<'input>(
+        input: &'input str,
+        options: &Options<'_>,
         warnings: Rc<RefCell<Vec<Warning>>>,
-    ) -> Result<PreprocessorResult<'a>, Error> {
+    ) -> Result<PreprocessorResult<'input>, Error> {
         let source_origin = SourceOrigin::memory(options.base_dir.as_deref());
-        Self::new(options, warnings).process_inner(input, Some(&source_origin), options)
+        let preprocessor = Self::new(options, warnings);
+        let mut options = options.clone();
+        preprocessor.process_inner(input, Some(&source_origin), &mut options)
     }
 
     /// Like `process` but lets the caller pass the file path explicitly, used
     /// by `parse_file` where the input has already been read and leaked.
     #[tracing::instrument(skip(file_path, warnings))]
-    pub(crate) fn process_with_file<'a>(
-        input: &'a str,
+    pub(crate) fn process_with_file<'input>(
+        input: &'input str,
         file_path: &Path,
-        options: &Options,
+        options: &Options<'_>,
         warnings: Rc<RefCell<Vec<Warning>>>,
-    ) -> Result<PreprocessorResult<'a>, Error> {
+    ) -> Result<PreprocessorResult<'input>, Error> {
         let source_origin = SourceOrigin::entry_file(file_path, options.base_dir.as_deref())?;
-        Self::new(options, warnings).process_inner(input, Some(&source_origin), options)
+        let preprocessor = Self::new(options, warnings);
+        let mut options = options.clone();
+        preprocessor.process_inner(input, Some(&source_origin), &mut options)
     }
 
     #[cfg(test)]
     #[tracing::instrument(skip(file_path, warnings))]
     pub(crate) fn process_file<P: AsRef<Path>>(
         file_path: P,
-        options: &Options,
+        options: &Options<'_>,
         warnings: Rc<RefCell<Vec<Warning>>>,
     ) -> Result<PreprocessorResult<'static>, Error> {
         if file_path.as_ref().parent().is_some() {
@@ -798,8 +780,10 @@ impl Preprocessor {
             let input = read_and_decode_file(file_path.as_ref(), None)?;
             let source_origin =
                 SourceOrigin::entry_file(file_path.as_ref(), options.base_dir.as_deref())?;
-            Ok(Self::new(options, warnings)
-                .process_inner(&input, Some(&source_origin), options)?
+            let preprocessor = Self::new(options, warnings);
+            let mut options = options.clone();
+            Ok(preprocessor
+                .process_inner(&input, Some(&source_origin), &mut options)?
                 .into_owned())
         } else {
             Err(Error::InvalidIncludePath(
@@ -820,6 +804,7 @@ impl Preprocessor {
         current_offset: usize,
         source_origin: Option<&SourceOrigin>,
         options: &Options,
+        include_context: IncludeContext,
     ) -> Result<Option<IncludeResult>, Error> {
         if let Some(source_origin) = source_origin {
             let include = Include::parse(
@@ -827,7 +812,7 @@ impl Preprocessor {
                 line,
                 LocationContext::new(line_number, current_offset, source_origin.as_path()),
                 options,
-                self.include_context,
+                include_context,
                 &self.warnings,
             )?;
             let attribute_list_as_written = line
@@ -1029,7 +1014,7 @@ impl Preprocessor {
         &self,
         line: &'input str,
         ctx: &DirectiveContext<'_>,
-        attributes: &crate::DocumentAttributes,
+        attributes: &DocumentAttributes,
         stack: &mut Vec<ConditionalFrame<'input>>,
         out: &mut PreprocessorState<'_>,
     ) -> Result<bool, Error> {
@@ -1103,7 +1088,7 @@ impl Preprocessor {
         &self,
         line: &'input str,
         ctx: &DirectiveContext<'_>,
-        options: &Options,
+        options: &mut Options,
         out: &mut PreprocessorState<'input>,
     ) -> Result<(), Error> {
         if is_escaped_directive(line) {
@@ -1125,14 +1110,19 @@ impl Preprocessor {
             // Included content carries its own source ranges; close the main-file
             // run first so it does not overlap them.
             out.flush_run();
-            if let Some(include_result) = self.process_include(
+            if let Some(mut include_result) = self.process_include(
                 line,
                 ctx.source_line,
                 ctx.current_offset,
                 ctx.source_origin,
                 options,
+                self.include_context,
             )? {
+                let document_attributes = include_result.document_attributes.take();
                 Self::handle_include_result(include_result, out, ctx.input_line);
+                if let Some(document_attributes) = document_attributes {
+                    options.document_attributes = document_attributes;
+                }
             }
         } else {
             out.push_source_line(line, ctx.input_line);
@@ -1141,19 +1131,21 @@ impl Preprocessor {
     }
 
     #[tracing::instrument]
-    fn process_inner<'a>(
+    fn process_inner<'input>(
         &self,
-        input: &'a str,
+        input: &'input str,
         source_origin: Option<&SourceOrigin>,
-        options: &Options,
-    ) -> Result<PreprocessorResult<'a>, Error> {
+        options: &mut Options<'_>,
+    ) -> Result<PreprocessorResult<'input>, Error> {
         let normalized = Preprocessor::normalize(input);
         let setext = comment::setext_enabled(options);
 
         // Fast path: no triggers means the slow rebuild would produce byte-identical
         // output. Return the normalized text directly, preserving any borrow from
         // the caller's input so that downstream parsing can be zero-copy.
-        if Self::try_pass_through(&normalized, setext) {
+        if Self::try_pass_through(&normalized, setext)
+            && !self.nested_attributes_must_propagate(&normalized)
+        {
             return Ok(PreprocessorResult {
                 text: normalized,
                 leveloffset_ranges: Vec::new(),
@@ -1170,12 +1162,15 @@ impl Preprocessor {
         &self,
         input: &str,
         source_origin: &SourceOrigin,
-        options: &Options,
+        options: &Options<'_>,
         line_origins: Vec<InputLineOrigin>,
-    ) -> Result<PreprocessorResult<'static>, Error> {
+    ) -> Result<NestedPreprocessorResult, Error> {
+        let mut options = options.clone();
         let normalized = Preprocessor::normalize(input);
-        let setext = comment::setext_enabled(options);
-        if Self::try_pass_through(&normalized, setext) {
+        let setext = comment::setext_enabled(&options);
+        if Self::try_pass_through(&normalized, setext)
+            && !self.nested_attributes_must_propagate(&normalized)
+        {
             let source_ranges = {
                 let normalized_ref = normalized.as_ref();
                 let mut state =
@@ -1187,21 +1182,28 @@ impl Preprocessor {
                 state.flush_run();
                 state.source_ranges
             };
-            return Ok(PreprocessorResult {
+            let result = PreprocessorResult {
                 text: Cow::Owned(normalized.into_owned()),
                 leveloffset_ranges: Vec::new(),
                 source_ranges,
+            };
+            return Ok(NestedPreprocessorResult {
+                result,
+                document_attributes: options.document_attributes.into_static(),
             });
         }
 
-        self.process_slow_path(
+        let result = self.process_slow_path(
             &normalized,
             Some(source_origin),
-            options,
+            &mut options,
             setext,
             line_origins,
-        )
-        .map(PreprocessorResult::into_owned)
+        )?;
+        Ok(NestedPreprocessorResult {
+            result: result.into_owned(),
+            document_attributes: options.document_attributes.into_static(),
+        })
     }
 
     /// Rebuild a document that contains at least one preprocessor trigger.
@@ -1210,21 +1212,20 @@ impl Preprocessor {
     /// cannot perturb instruction layout for the common pass-through path.
     #[cold]
     #[inline(never)]
-    fn process_slow_path<'a>(
+    fn process_slow_path<'input>(
         &self,
-        normalized: &Cow<'a, str>,
+        normalized: &Cow<'input, str>,
         source_origin: Option<&SourceOrigin>,
-        options: &Options,
+        options: &mut Options<'_>,
         setext: bool,
         line_origins: Vec<InputLineOrigin>,
-    ) -> Result<PreprocessorResult<'a>, Error> {
+    ) -> Result<PreprocessorResult<'input>, Error> {
         // Slow path: at least one trigger fires (include, conditional,
         // multi-line attribute continuation, or escaped directive). Rebuild
         // line-by-line. The output is materialized before `normalized` drops,
         // whether normalization borrowed the caller's input or created a buffer.
         let normalized_ref = normalized.as_ref();
 
-        let mut options = options.clone();
         let mut lines = normalized_ref.lines().peekable();
         let mut line_number = 1;
         let mut out = PreprocessorState::new(normalized_ref, source_origin, line_origins);
@@ -1233,7 +1234,6 @@ impl Preprocessor {
         // `comment::CommentScanner`.
         let mut scanner = CommentScanner::new(setext);
         let mut conditional_stack = Vec::new();
-
         while let Some(line) = lines.next() {
             let conditional_consumed = {
                 let origin = out.origin_of_line(line_number);
@@ -1273,7 +1273,7 @@ impl Preprocessor {
                 // emit it as its own range anchored at its first line.
                 let continuation_start_line = line_number;
                 Self::process_continuation(&mut attribute_content, &mut lines, &mut line_number);
-                attribute::parse_line(&mut options, attribute_content.as_str());
+                attribute::parse_line(options, attribute_content.as_str())?;
                 out.push_chunk(attribute_content, continuation_start_line);
                 scanner.record(line);
                 // `process_continuation` advanced `line_number` over the absorbed
@@ -1283,7 +1283,7 @@ impl Preprocessor {
                 line_number += 1;
                 continue;
             } else if line.starts_with(':') {
-                attribute::parse_line(&mut options, line.trim());
+                attribute::parse_line(options, line.trim())?;
             }
             if scanner.at_verbatim_delimiter(line) {
                 out.push_source_line(line, line_number);
@@ -1305,7 +1305,7 @@ impl Preprocessor {
                     current_offset: origin.source_start_offset,
                     source_origin,
                 };
-                self.process_directive_line(line, &ctx, &options, &mut out)?;
+                self.process_directive_line(line, &ctx, options, &mut out)?;
             } else {
                 out.push_source_line(line, line_number);
             }
@@ -1322,23 +1322,31 @@ impl Preprocessor {
             source_ranges: out.source_ranges,
         })
     }
+
+    fn nested_attributes_must_propagate(&self, text: &str) -> bool {
+        self.include_context.depth > 0 && text.lines().any(|line| line.starts_with(':'))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::grammar::LineMap;
+    use std::ffi::OsStr;
 
     #[test]
     fn max_include_depth_fallback_uses_the_canonical_default() {
         let options = Options {
-            document_attributes: crate::DocumentAttributes::empty(),
+            document_attributes: DocumentAttributes::empty(),
             ..Options::default()
         };
 
+        let actual = i128::try_from(IncludeContext::root(&options).max_depth).unwrap_or(i128::MAX);
         assert_eq!(
-            IncludeContext::root(&options).max_depth.to_string(),
-            crate::constants::DEFAULT_MAX_INCLUDE_DEPTH_STR
+            crate::document_attribute::default_value(
+                crate::document_attribute::MAX_INCLUDE_DEPTH_ATTR
+            ),
+            Some(&DocumentAttributeValue::integer(actual))
         );
     }
 
@@ -1487,7 +1495,7 @@ Body";
     fn active_multi_attribute_conditional_in_header() -> Result<(), Error> {
         let options = Options::builder()
             .with_attribute("backend-pdf", true)
-            .build();
+            .build()?;
         let input = "= Title
 ifdef::backend-pdf,backend-docbook5[]
 :title-page:
@@ -1541,7 +1549,7 @@ Visible body";
 
     #[test]
     fn nested_conditionals_follow_enclosing_activity() -> Result<(), Error> {
-        let options = Options::builder().with_attribute("outer", true).build();
+        let options = Options::builder().with_attribute("outer", true).build()?;
         let input = "ifdef::outer[]
 outer content
 ifdef::inner[]
@@ -1557,7 +1565,7 @@ tail";
 
     #[test]
     fn inactive_enclosing_conditional_hides_active_nested_condition() -> Result<(), Error> {
-        let options = Options::builder().with_attribute("inner", true).build();
+        let options = Options::builder().with_attribute("inner", true).build()?;
         let input = "ifdef::outer[]
 hidden outer content
 ifdef::inner[]
@@ -1576,7 +1584,7 @@ tail";
             .with_attribute("third", true)
             .with_attribute("first", true)
             .with_attribute("second", true)
-            .build();
+            .build()?;
         let input = "ifdef::missing-one,missing-two,third[]
 or content
 endif::missing-one,missing-two,third[]
@@ -1590,7 +1598,7 @@ endif::first+second+third[]";
 
     #[test]
     fn attribute_defined_in_active_conditional_affects_later_condition() -> Result<(), Error> {
-        let options = Options::builder().with_attribute("outer", true).build();
+        let options = Options::builder().with_attribute("outer", true).build()?;
         let input = "ifdef::outer[]
 :inner:
 endif::outer[]
@@ -1662,12 +1670,12 @@ more";
         source_ranges: Vec<SourceRange>,
         current_file: &str,
         needle: &str,
-    ) -> Option<(Option<std::path::PathBuf>, usize)> {
+    ) -> Option<(Option<PathBuf>, usize)> {
         use crate::grammar::ParserState;
 
         let offset = text.find(needle)?;
         let mut state = ParserState::new_for_test(text);
-        state.current_file = Some(std::path::PathBuf::from(current_file).into());
+        state.current_file = Some(PathBuf::from(current_file).into());
         state.source_ranges = source_ranges;
 
         let loc = state.create_location(offset, offset + needle.len());
@@ -1748,7 +1756,7 @@ more";
                 .as_ref()
                 .and_then(|(file, _)| file.as_ref())
                 .and_then(|p| p.file_name())
-                .and_then(std::ffi::OsStr::to_str),
+                .and_then(OsStr::to_str),
             Some("include_line_mapping_chapter.adoc"),
         );
         assert_eq!(chapter.map(|(_, line)| line), Some(5));
@@ -1764,7 +1772,7 @@ more";
             main.as_ref()
                 .and_then(|(file, _)| file.as_ref())
                 .and_then(|p| p.file_name())
-                .and_then(std::ffi::OsStr::to_str),
+                .and_then(OsStr::to_str),
             Some("include_line_mapping_main.adoc"),
         );
         assert_eq!(main.map(|(_, line)| line), Some(5));
@@ -1785,7 +1793,7 @@ more";
             .file
             .as_ref()
             .and_then(|p| p.file_name())
-            .and_then(std::ffi::OsStr::to_str)
+            .and_then(OsStr::to_str)
             .map(str::to_string);
         let line_map = LineMap::new(&text);
         Some((
@@ -1918,7 +1926,7 @@ body";
     fn test_line_comment_after_setext_underline_is_preserved() -> Result<(), Error> {
         // With Setext enabled, `=====` is a heading underline (a block
         // boundary), so a comment after it is preserved rather than absorbed.
-        let options = Options::builder().with_setext().build();
+        let options = Options::builder().with_setext().build()?;
         let input = "Title
 =====
 // a comment

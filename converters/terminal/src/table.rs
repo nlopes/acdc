@@ -1,13 +1,17 @@
 use std::io::{self, BufWriter};
 
-use acdc_converters_core::Diagnostics;
-use acdc_converters_core::table::{
-    CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count, table_has_spans,
+use acdc_converters_core::{
+    Converter, Diagnostics, TraversalContext,
+    table::{
+        CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count,
+        table_has_spans,
+    },
+    visitor::WritableVisitor,
 };
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+
 use acdc_parser::{
-    BlockMetadata, ColumnStyle, HorizontalAlignment, TableFrame, TableGrid, TablePresentation,
-    TableStripes, VerticalAlignment,
+    BlockMetadata, ColumnFormat, ColumnStyle, HorizontalAlignment, Table as ParserTable,
+    TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
 };
 use comfy_table::{
     Attribute, Cell, CellAlignment, ColumnConstraint, ContentArrangement, Table, Width,
@@ -25,19 +29,31 @@ fn map_alignment(align: HorizontalAlignment) -> CellAlignment {
 }
 
 /// Render a cell's content to a string, applying column style formatting.
-fn render_cell_content(
-    col: &acdc_parser::TableColumn,
+fn render_cell_content<'a>(
+    col: &'a TableColumn<'a>,
     col_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
-    processor: &Processor<'_>,
+    columns: &[ColumnFormat],
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Cell, Error> {
     let buffer = Vec::new();
     let inner = BufWriter::new(buffer);
-    let mut temp_visitor = TerminalVisitor::new(inner, processor.clone(), diagnostics.reborrow());
-    col.content
-        .iter()
-        .try_for_each(|block| temp_visitor.visit_block(block))?;
+    let mut temp_visitor = TerminalVisitor::new(inner, processor, diagnostics.reborrow());
+    let scoped = col
+        .style
+        .or_else(|| columns.get(col_index).map(|column| column.style))
+        == Some(ColumnStyle::AsciiDoc);
+    let mut render = |traversal: &mut TraversalContext<'a>| {
+        col.content
+            .iter()
+            .try_for_each(|block| traversal.visit_block(&mut temp_visitor, block))
+    };
+    if scoped {
+        traversal.with_scope(render)
+    } else {
+        render(traversal)
+    }?;
     let buffer = temp_visitor
         .into_writer()
         .into_inner()
@@ -55,9 +71,9 @@ fn render_cell_content(
 
 fn apply_cell_format(
     mut cell: Cell,
-    col: &acdc_parser::TableColumn<'_>,
+    col: &TableColumn<'_>,
     col_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
     processor: &Processor<'_>,
 ) -> Cell {
     // Determine effective alignment: cell override > column default
@@ -99,9 +115,9 @@ fn apply_cell_format(
 }
 
 fn effective_valign(
-    col: &acdc_parser::TableColumn<'_>,
+    col: &TableColumn<'_>,
     col_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
 ) -> VerticalAlignment {
     col.valign
         .or_else(|| columns.get(col_index).map(|column| column.valign))
@@ -110,9 +126,9 @@ fn effective_valign(
 
 fn pad_cell_vertically(
     cell: Cell,
-    col: &acdc_parser::TableColumn<'_>,
+    col: &TableColumn<'_>,
     col_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
     processor: &Processor<'_>,
     max_lines: usize,
 ) -> Cell {
@@ -133,17 +149,20 @@ fn pad_cell_vertically(
     apply_cell_format(Cell::new(padded), col, col_index, columns, processor)
 }
 
-fn render_row_cells(
-    row: &acdc_parser::TableRow<'_>,
-    columns: &[acdc_parser::ColumnFormat],
-    processor: &Processor<'_>,
+fn render_row_cells<'a>(
+    row: &'a acdc_parser::TableRow<'a>,
+    columns: &[ColumnFormat],
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<Cell>, Error> {
     let cells = row
         .columns
         .iter()
         .enumerate()
-        .map(|(index, col)| render_cell_content(col, index, columns, processor, diagnostics))
+        .map(|(index, col)| {
+            render_cell_content(col, index, columns, processor, traversal, diagnostics)
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let max_lines = cells
         .iter()
@@ -607,10 +626,11 @@ fn apply_table_presentation(
 }
 
 /// Build `comfy_table` cells from a logical grid row.
-fn build_comfy_cells_from_grid(
-    grid_row: &GridRow<'_>,
-    tbl: &acdc_parser::Table,
-    processor: &Processor<'_>,
+fn build_comfy_cells_from_grid<'a>(
+    grid_row: &GridRow<'a>,
+    tbl: &'a ParserTable<'a>,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<Cell>, Error> {
     let mut cells = Vec::with_capacity(grid_row.cells.len());
@@ -623,6 +643,7 @@ fn build_comfy_cells_from_grid(
                         *cell_index,
                         &tbl.columns,
                         processor,
+                        traversal,
                         diagnostics,
                     )?;
                     if grid_row.is_header {
@@ -684,7 +705,7 @@ fn build_comfy_cells_from_grid(
 }
 
 /// Configure column width constraints on the table widget.
-fn apply_column_widths(table_widget: &mut Table, tbl: &acdc_parser::Table, num_cols: usize) {
+fn apply_column_widths(table_widget: &mut Table, tbl: &ParserTable<'_>, num_cols: usize) {
     if !tbl.columns.is_empty() {
         let widths = calculate_column_widths(&tbl.columns);
         // Widths may have fewer entries than num_cols if cols attribute doesn't
@@ -708,49 +729,66 @@ fn apply_column_widths(table_widget: &mut Table, tbl: &acdc_parser::Table, num_c
     }
 }
 
-fn render_table_without_spans(
+fn render_table_without_spans<'a>(
+    traversal: &mut TraversalContext<'a>,
     table_widget: &mut Table,
-    tbl: &acdc_parser::Table,
-    visitor: &mut TerminalVisitor<'_, '_, impl std::io::Write>,
-    processor: &Processor<'_>,
+    tbl: &'a ParserTable<'a>,
+    visitor: &mut TerminalVisitor<'a, '_, impl std::io::Write>,
+    processor: &Processor<'a>,
     presentation: TablePresentation,
 ) -> Result<String, Error> {
     apply_column_widths(table_widget, tbl, tbl.columns.len());
 
     if let Some(header) = &tbl.header {
-        let header_cells: Vec<_> =
-            render_row_cells(header, &tbl.columns, processor, &mut visitor.diagnostics)?
-                .into_iter()
-                .map(|cell| {
-                    cell.fg(processor.appearance.colors.table_header)
-                        .add_attribute(Attribute::Bold)
-                })
-                .collect();
+        let header_cells: Vec<_> = render_row_cells(
+            header,
+            &tbl.columns,
+            processor,
+            traversal,
+            &mut visitor.diagnostics,
+        )?
+        .into_iter()
+        .map(|cell| {
+            cell.fg(processor.appearance.colors.table_header)
+                .add_attribute(Attribute::Bold)
+        })
+        .collect();
         table_widget.set_header(header_cells);
     }
 
     for (row_idx, row) in tbl.rows.iter().enumerate() {
-        let cells = render_row_cells(row, &tbl.columns, processor, &mut visitor.diagnostics)?
-            .into_iter()
-            .map(|mut cell| {
-                if stripe_row(presentation.stripes(), row_idx) {
-                    cell = cell.add_attribute(Attribute::Dim);
-                }
-                cell
-            })
-            .collect::<Vec<_>>();
+        let cells = render_row_cells(
+            row,
+            &tbl.columns,
+            processor,
+            traversal,
+            &mut visitor.diagnostics,
+        )?
+        .into_iter()
+        .map(|mut cell| {
+            if stripe_row(presentation.stripes(), row_idx) {
+                cell = cell.add_attribute(Attribute::Dim);
+            }
+            cell
+        })
+        .collect::<Vec<_>>();
         table_widget.add_row(cells);
     }
 
     if let Some(footer) = &tbl.footer {
-        let footer_cells: Vec<_> =
-            render_row_cells(footer, &tbl.columns, processor, &mut visitor.diagnostics)?
-                .into_iter()
-                .map(|cell| {
-                    cell.fg(processor.appearance.colors.table_footer)
-                        .add_attribute(Attribute::Bold)
-                })
-                .collect();
+        let footer_cells: Vec<_> = render_row_cells(
+            footer,
+            &tbl.columns,
+            processor,
+            traversal,
+            &mut visitor.diagnostics,
+        )?
+        .into_iter()
+        .map(|cell| {
+            cell.fg(processor.appearance.colors.table_footer)
+                .add_attribute(Attribute::Bold)
+        })
+        .collect();
         table_widget.add_row(footer_cells);
     }
 
@@ -768,15 +806,18 @@ fn render_table_without_spans(
     ))
 }
 
-pub(crate) fn visit_table<W: std::io::Write>(
-    tbl: &acdc_parser::Table,
+pub(crate) fn visit_table<'a, W: std::io::Write>(
+    traversal: &mut TraversalContext<'a>,
+    tbl: &'a ParserTable<'a>,
     metadata: &BlockMetadata<'_>,
-    visitor: &mut TerminalVisitor<'_, '_, W>,
-    processor: &Processor<'_>,
+    visitor: &mut TerminalVisitor<'a, '_, W>,
+    processor: &Processor<'a>,
 ) -> Result<(), Error> {
     let terminal_width = processor.terminal_width;
     let presentation = tbl.presentation().unwrap_or_else(|| {
-        TablePresentation::from_attributes(metadata, &processor.document_attributes)
+        TablePresentation::from_attributes(metadata, |name| {
+            (processor.document_attributes()).get(name)
+        })
     });
 
     let mut table_widget = Table::new();
@@ -798,8 +839,13 @@ pub(crate) fn visit_table<W: std::io::Write>(
         let mut header_set = false;
         let mut body_row_idx = 0;
         for grid_row in &grid {
-            let cells =
-                build_comfy_cells_from_grid(grid_row, tbl, processor, &mut visitor.diagnostics)?;
+            let cells = build_comfy_cells_from_grid(
+                grid_row,
+                tbl,
+                processor,
+                traversal,
+                &mut visitor.diagnostics,
+            )?;
 
             if grid_row.is_header && !header_set {
                 table_widget.set_header(cells);
@@ -835,8 +881,14 @@ pub(crate) fn visit_table<W: std::io::Write>(
         return Ok(());
     }
 
-    let rendered =
-        render_table_without_spans(&mut table_widget, tbl, visitor, processor, presentation)?;
+    let rendered = render_table_without_spans(
+        traversal,
+        &mut table_widget,
+        tbl,
+        visitor,
+        processor,
+        presentation,
+    )?;
     let rendered = align_table(&rendered, metadata, terminal_width);
     let w = visitor.writer_mut();
     writeln!(w, "{rendered}")?;
@@ -889,6 +941,7 @@ fn align_table(output: &str, metadata: &BlockMetadata<'_>, terminal_width: usize
 mod tests {
     use super::*;
     use crate::create_test_processor;
+    use acdc_converters_core::WarningSource;
     use acdc_parser::{Block, DelimitedBlockType};
 
     /// Parse an `AsciiDoc` string and extract the first table from the document.
@@ -896,7 +949,7 @@ mod tests {
     /// Leaks the parsed document so the returned `Table<'static>` borrows
     /// from memory that lives for the rest of the test process.
     #[allow(clippy::expect_used)]
-    fn parse_table(adoc: &str) -> acdc_parser::Table<'static> {
+    fn parse_table(adoc: &str) -> ParserTable<'static> {
         let options = acdc_parser::Options::default();
         let parsed = acdc_parser::parse(adoc, &options).expect("Failed to parse AsciiDoc");
         let parsed: &'static acdc_parser::ParseResult = Box::leak(Box::new(parsed));
@@ -932,12 +985,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -969,12 +1029,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -996,12 +1063,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1028,12 +1102,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1063,12 +1144,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1097,12 +1185,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1128,12 +1223,19 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::TerminalVisitor::new(buffer, processor.clone(), diagnostics.reborrow());
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
 
-        visit_table(&table, &BlockMetadata::default(), &mut visitor, &processor)?;
+        visit_table(
+            &mut traversal,
+            &table,
+            &BlockMetadata::default(),
+            &mut visitor,
+            &processor,
+        )?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);

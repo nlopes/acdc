@@ -39,7 +39,7 @@ terminal_fixture_catalog!([
     (escaped_superscript_subscript, false),
     (styled_paragraphs, false),
     (block_attribute_parity, false),
-    (caption_source_order, false),
+    (caption_source_order, false, requires: feature = "highlighting"),
     (passthrough_xrefs, false),
     (xref_nesting, false),
     (inline_text_extraction, false, requires: feature = "highlighting"),

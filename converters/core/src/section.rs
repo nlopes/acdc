@@ -1,6 +1,8 @@
 //! Section presentation utilities shared by converters.
 
-use acdc_parser::{AttributeValue, Block, DocumentAttributes, SectionKind};
+use acdc_parser::{Block, SectionKind};
+
+use crate::TraversalContext;
 
 /// Whether the last section in `blocks` is tagged with the requested style.
 ///
@@ -37,18 +39,23 @@ pub fn effective_section_level(level: u8, kind: SectionKind) -> u8 {
 /// default.
 #[must_use]
 pub fn book_chapter_signifier<'a>(
-    attributes: &'a DocumentAttributes<'_>,
+    attributes: &'a TraversalContext<'_>,
     default: Option<&'a str>,
 ) -> Option<&'a str> {
-    if attributes.get_string("doctype").as_deref() != Some("book") {
+    if !matches!(
+        attributes.get("doctype"),
+        Some(value) if value.as_str() == Some("book")
+    ) {
         return None;
     }
 
-    match attributes.get("chapter-signifier") {
-        Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
-            Some(signifier.as_ref())
-        }
+    match attributes
+        .get("chapter-signifier")
+        .and_then(|value| value.text())
+    {
+        Some(signifier) if !signifier.is_empty() => Some(signifier),
         Some(_) => None,
+        None if attributes.is_explicit("chapter-signifier") => None,
         None => default,
     }
 }

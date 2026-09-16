@@ -1,5 +1,5 @@
 use acdc_parser::{
-    AttributeValue, Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttribute,
+    Block, DelimitedBlock, DelimitedBlockType, Document, DocumentAttribute, DocumentAttributeValue,
     SourceLocation, Table, TableRow, strip_quotes,
 };
 
@@ -58,6 +58,7 @@ fn lint_attribute_url_prefix_blocks(emitter: &mut LintEmitter<'_>, blocks: &[Blo
                 lint_attribute_url_prefix_delimited_block(emitter, block);
             }
             Block::DocumentAttribute(attribute) => {
+                // Check the accepted assignment at this source position.
                 lint_document_attribute_url_prefix(emitter, attribute);
             }
             Block::OrderedList(list) => {
@@ -131,13 +132,17 @@ fn lint_document_attribute_url_prefix(
     emitter: &mut LintEmitter<'_>,
     attribute: &DocumentAttribute<'_>,
 ) {
-    let AttributeValue::String(value) = &attribute.value else {
+    let Some(value) = attribute
+        .assignment()
+        .value()
+        .and_then(DocumentAttributeValue::as_str)
+    else {
         return;
     };
     lint_url_attribute(
         emitter,
         attribute.name.as_ref(),
-        value.as_ref(),
+        value,
         emitter.source_location(&attribute.location),
     );
 }

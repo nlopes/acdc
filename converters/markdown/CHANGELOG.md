@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** configure conversion with the parser options builder, then use
+  the converter's validated parser options for parsing. Invalid attribute values
+  are rejected before conversion.
+- **Breaking:** direct visitor callbacks now receive the current traversal
+  context, including source-ordered and nested-cell attributes.
+
 ### Fixed
+
+- Body document attributes now apply in source order to later Markdown media
+  targets, section labels and numbering, and cross-reference suffixes. Nested
+  AsciiDoc table-cell changes remain local to the cell.
+- Markdown parser attributes now expose `embedded` only when embedded output is selected.
 
 - Numbered book chapters now honor a configured `chapter-signifier` in both
   headings and TOC entries. An absent or unset signifier keeps the number-only
@@ -15,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When multiple anchors precede a document title, Markdown now emits the last
   one as the title destination, matching Asciidoctor. Automatic references use
   the full title and subtitle.
+
+### Performance
+
+- Nested and table-cell rendering reuses the active document-attribute view.
 
 ### Added
 

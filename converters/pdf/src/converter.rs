@@ -1,43 +1,48 @@
 use std::{
+    cell::Cell,
     io::Write,
     path::{Path, PathBuf},
+    rc::Rc,
 };
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
-use acdc_parser::{Document, DocumentAttributes};
-#[cfg(feature = "pre-spec-subs")]
-use std::{cell::Cell, rc::Rc};
+use acdc_parser::Document;
 
 use crate::{Error, PDF_BACKEND, PdfOptions, Processor};
 
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn new(options: Options, mut document_attributes: DocumentAttributes<'a>) -> Self {
-        PDF_BACKEND.apply(&mut document_attributes, options.doctype());
-        Self {
+    fn new(
+        options: Options,
+        parser_options: acdc_parser::OptionsBuilder<'a>,
+    ) -> Result<Self, Self::Error> {
+        let mut parser_options = parser_options;
+        parser_options = PDF_BACKEND.apply(parser_options, options.doctype(), options.embedded());
+        let parser_options = parser_options.build()?;
+        Ok(Self {
             options,
-            document_attributes,
-            references: std::rc::Rc::new(std::collections::HashMap::new()),
+            parser_options,
+            references: Rc::new(std::collections::HashMap::new()),
             xref_guard: acdc_converters_core::xref::XrefGuard::default(),
-            example_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            figure_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            listing_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
-            table_counter: std::rc::Rc::new(std::cell::Cell::new(0)),
+            example_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
+            table_counter: Rc::new(Cell::new(0)),
             pdf_options: PdfOptions::default(),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
-        }
+        })
     }
 
     fn options(&self) -> &Options {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes<'a> {
-        &self.document_attributes
+    fn parser_options(&self) -> &acdc_parser::Options<'a> {
+        &self.parser_options
     }
 
     fn derive_output_path(
@@ -84,21 +89,21 @@ mod tests {
     use super::*;
 
     #[test]
-    fn constructor_applies_pdf_backend_profile() {
-        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+    fn constructor_applies_pdf_backend_profile() -> Result<(), Box<dyn std::error::Error>> {
+        let processor = Processor::new(Options::default(), acdc_parser::Options::builder())?;
 
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("backend")
-                .as_deref(),
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("pdf")
         );
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("basebackend")
-                .as_deref(),
+                .get("basebackend")
+                .and_then(|value| value.text()),
             Some("html")
         );
         assert!(processor.document_attributes().contains_key("backend-pdf"));
@@ -107,5 +112,6 @@ mod tests {
                 .document_attributes()
                 .contains_key("part-signifier")
         );
+        Ok(())
     }
 }

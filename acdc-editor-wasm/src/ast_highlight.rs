@@ -5,7 +5,7 @@
 //! `<span class="adoc-*">` for CSS-based highlighting.
 
 use acdc_parser::{
-    AdmonitionVariant, Block, DelimitedBlockType, Document, Form, InlineMacro, InlineNode,
+    AdmonitionVariant, Block, DelimitedBlockType, Document, Form, InlineMacro, InlineNode, Location,
 };
 
 /// A span of source text that should receive a CSS class.
@@ -245,7 +245,7 @@ fn collect_block_spans(input: &str, block: &Block, spans: &mut Vec<Span>) {
     }
 }
 
-fn push_block_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, class: &'static str) {
+fn push_block_span(spans: &mut Vec<Span>, location: &Location, class: &'static str) {
     spans.push(Span {
         start: location.absolute_start,
         end: location.absolute_end,
@@ -254,7 +254,7 @@ fn push_block_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, clas
     });
 }
 
-fn push_inline_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, class: &'static str) {
+fn push_inline_span(spans: &mut Vec<Span>, location: &Location, class: &'static str) {
     spans.push(Span {
         start: location.absolute_start,
         end: location.absolute_end,
@@ -268,7 +268,7 @@ fn push_inline_span(spans: &mut Vec<Span>, location: &acdc_parser::Location, cla
 /// Returns the exclusive end position of the delimited region.
 /// `absolute_end` is inclusive, so we convert with `+1`.
 fn highlight_delimited_inline(
-    location: &acdc_parser::Location,
+    location: &Location,
     delimiter_len: usize,
     spans: &mut Vec<Span>,
 ) -> usize {
@@ -1456,11 +1456,11 @@ mod tests {
 
     #[test]
     #[cfg(feature = "setext")]
-    fn test_setext_header_highlight() {
+    fn test_setext_header_highlight() -> Result<(), Box<dyn std::error::Error>> {
         // Setext header: title line + underline line
         let input = "Setext Header\n-------------";
         // Enable setext in options for this test
-        let options = acdc_parser::Options::builder().with_setext().build();
+        let options = acdc_parser::Options::builder().with_setext().build()?;
         let parsed = acdc_parser::parse(input, &options).expect("failed to parse setext");
         let result = highlight_from_ast(input, parsed.document());
 
@@ -1469,6 +1469,7 @@ mod tests {
         assert_eq!(matches.len(), 2, "result: {result}");
         assert!(result.contains("Setext Header"), "result: {result}");
         assert!(result.contains("-------------"), "result: {result}");
+        Ok(())
     }
 
     #[test]

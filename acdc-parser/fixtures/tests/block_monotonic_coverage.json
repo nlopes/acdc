@@ -30,9 +30,7 @@
       }
     ]
   },
-  "attributes": {
-    "author": "Test"
-  },
+  "attributes": {},
   "blocks": [
     {
       "name": "admonition",

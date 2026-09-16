@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::WritableVisitor;
+use acdc_converters_core::{TraversalContext, media::resolve_target, visitor::WritableVisitor};
 use acdc_parser::{CaptionKind, Image};
 use crossterm::{
     QueueableCommand,
@@ -9,19 +9,24 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor, inlines};
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
-    pub(crate) fn render_image(&mut self, image: &Image) -> Result<(), Error> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
+    pub(crate) fn render_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &Image,
+    ) -> Result<(), Error> {
         let alt = inlines::block_image_alt(image);
         let link = image.metadata.attributes.get_string("link");
 
         #[cfg(feature = "images")]
         let rendered_protocol_image = if let acdc_parser::Source::Path(path) = &image.source {
             let config = image_config(image, self.processor.terminal_width);
+            let path = resolve_target(&path.to_string_lossy(), traversal);
             self.writer_mut().flush()?;
-            let displayed = viuer::print_from_file(path, &config).is_ok();
+            let displayed = viuer::print_from_file(&path, &config).is_ok();
             if !displayed {
                 self.diagnostics.warn_with_advice(
-                    format!("failed to display image `{}`", path.display()),
+                    format!("failed to display image `{path}`"),
                     "Verify the image path is relative to the input document and that the terminal image feature can load it.",
                 );
             }
@@ -36,11 +41,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         if !rendered_protocol_image || link.is_some() {
             let text = format!("[Image: {alt}]");
             if let Some(target) = link {
-                let processor = self.processor.clone();
-                inlines::maybe_render_osc8_link(&target, &text, self.writer_mut(), &processor)?;
+                let processor = self.processor;
+                inlines::maybe_render_osc8_link(&target, &text, self.writer_mut(), processor)?;
             } else {
                 self.writer_mut().queue(PrintStyledContent(text.italic()))?;
-                let source = image.source.to_string();
+                let source = resolve_target(&image.source.to_string(), traversal);
                 if source != alt {
                     self.writer_mut()
                         .queue(PrintStyledContent(format!(" ({source})").dim()))?;
@@ -50,6 +55,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         }
 
         self.render_captioned_title_with_wrapper(
+            traversal,
             &image.title,
             &image.metadata,
             Some(CaptionKind::Figure),

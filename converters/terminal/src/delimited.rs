@@ -1,13 +1,13 @@
 #[cfg(feature = "pre-spec-subs")]
 use std::borrow::Cow;
-use std::io::{BufWriter, Write};
+use std::io::{BufWriter, IntoInnerError, Write};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::{
     Replacements, SubsFlags, TextBoundaries, apply_replacements, effective_subs_flags,
 };
 use acdc_converters_core::{
-    InlineTextTransform,
+    InlineTextTransform, TraversalContext,
     code::{SourceLineOptions, default_line_comment, detect_language},
     visitor::{Visitor, WritableVisitor},
 };
@@ -22,8 +22,10 @@ use crossterm::{
     },
 };
 
-use crate::wrap::{pad_to_width, wrap_ansi_text};
-use crate::{Error, TerminalVisitor};
+use crate::{
+    Error, Processor, TerminalVisitor, extract_heading_text,
+    wrap::{pad_to_width, wrap_ansi_text},
+};
 
 struct BoxChars {
     tl: &'static str,
@@ -53,13 +55,13 @@ const SQUARE_BOX: BoxChars = BoxChars {
 };
 
 /// Render content inside a box with specified corner/border characters.
-fn render_boxed_content<V: WritableVisitor<Error = Error>>(
+fn render_boxed_content<'a, V: WritableVisitor<'a, Error = Error>>(
     visitor: &mut V,
     label: &str,
     content: &str,
     terminal_width: usize,
     chars: &BoxChars,
-    color: crossterm::style::Color,
+    color: Color,
 ) -> Result<(), Error> {
     let inner_width = terminal_width.saturating_sub(4); // 2 for border + 2 for padding
     let horiz = chars.horiz;
@@ -97,9 +99,13 @@ fn render_boxed_content<V: WritableVisitor<Error = Error>>(
     Ok(())
 }
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Visit a delimited block in terminal format.
-    pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
+    pub(crate) fn render_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
             block.metadata.substitutions.as_ref(),
@@ -116,45 +122,48 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         let result = match &block.inner {
             DelimitedBlockType::DelimitedTable(t) => {
                 self.render_captioned_title_with_wrapper(
+                    traversal,
                     &block.title,
                     &block.metadata,
                     caption_kind,
                     "  ",
                     "\n",
                 )?;
-                let processor = self.processor.clone();
-                crate::table::visit_table(t, &block.metadata, self, &processor)
+                let processor = self.processor;
+                crate::table::visit_table(traversal, t, &block.metadata, self, processor)
             }
             DelimitedBlockType::DelimitedListing(inlines)
-            | DelimitedBlockType::DelimitedLiteral(inlines) => {
-                self.render_preformatted_block(&block.title, inlines, &block.metadata, caption_kind)
-            }
+            | DelimitedBlockType::DelimitedLiteral(inlines) => self.render_preformatted_block(
+                traversal,
+                &block.title,
+                inlines,
+                &block.metadata,
+                caption_kind,
+            ),
             DelimitedBlockType::DelimitedExample(blocks) => {
-                self.render_example_block(&block.title, blocks, &block.metadata)
+                self.render_example_block(traversal, &block.title, blocks, &block.metadata)
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.render_quote_block(&block.title, blocks, &block.metadata)
+                self.render_quote_block(traversal, &block.title, blocks, &block.metadata)
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.render_sidebar_block(&block.title, blocks)
+                self.render_sidebar_block(traversal, &block.title, blocks)
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
-                self.render_open_block(&block.title, blocks)
+                self.render_open_block(traversal, &block.title, blocks)
             }
             DelimitedBlockType::DelimitedVerse(inlines) => {
-                self.render_verse_block(&block.title, inlines, &block.metadata)
+                self.render_verse_block(traversal, &block.title, inlines, &block.metadata)
             }
             DelimitedBlockType::DelimitedPass(inlines) => {
-                // Passthrough content is rendered as-is
-                let inlines = inlines.clone();
-                self.visit_inline_nodes(&inlines)?;
+                self.visit_inline_nodes(traversal, inlines)?;
                 let w = self.writer_mut();
                 writeln!(w)?;
                 Ok(())
             }
             DelimitedBlockType::DelimitedStem(stem) => {
                 let notation = stem.notation.to_string();
-                self.render_stem_block(&block.title, &notation, stem.content)
+                self.render_stem_block(traversal, &block.title, &notation, stem.content)
             }
             DelimitedBlockType::DelimitedComment(_) => {
                 // Comments are not rendered
@@ -174,6 +183,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render a listing, literal, or source block with its terminal source options.
     fn render_preformatted_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
         inlines: &[InlineNode],
         metadata: &BlockMetadata,
@@ -193,9 +203,16 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             );
         }
 
-        self.render_captioned_title_with_wrapper(title, metadata, caption_kind, "\n", "\n")?;
+        self.render_captioned_title_with_wrapper(
+            traversal,
+            title,
+            metadata,
+            caption_kind,
+            "\n",
+            "\n",
+        )?;
 
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let tw = processor.terminal_width;
         let color = processor.appearance.colors.label_listing;
 
@@ -215,7 +232,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(w, "{}", top_sep.clone().with(color))?;
 
         // Render code content directly (no left border)
-        let content = render_preformatted_content(inlines, metadata, &processor)?;
+        let content = render_preformatted_content(inlines, metadata, processor)?;
         let w = self.writer_mut();
         write!(w, "{content}")?;
         if !content.ends_with('\n') {
@@ -231,36 +248,36 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render an example block with box borders.
     fn render_example_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
-        blocks: &[Block],
+        blocks: &'a [Block<'a>],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let label = if title.is_empty() {
             String::new()
         } else {
             let caption = processor
                 .caption_prefix(metadata, Some(CaptionKind::Example))
                 .unwrap_or_default();
-            let title_text = crate::extract_heading_text(title, &processor.references);
+            let title_text = extract_heading_text(title, &processor.references);
             format!("{caption}{title_text}")
         };
 
         // Render content to buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor =
-            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for nested_block in blocks {
-            temp_visitor.visit_block(nested_block)?;
+            traversal.visit_block(&mut temp_visitor, nested_block)?;
         }
         let buffer = temp_visitor
             .into_writer()
             .into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
+            .map_err(IntoInnerError::into_error)?;
         let content = String::from_utf8_lossy(&buffer);
 
-        let color = crossterm::style::Color::Cyan;
+        let color = Color::Cyan;
         render_boxed_content(
             self,
             &label,
@@ -276,29 +293,29 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render a quote block with `│` left border.
     fn render_quote_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
-        blocks: &[Block],
+        blocks: &'a [Block<'a>],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let processor = self.processor;
 
         // Render title if present
-        self.render_title_with_wrapper(title, "", "\n")?;
+        self.render_title_with_wrapper(traversal, title, "", "\n")?;
 
         // Render content to temporary buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor =
-            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
 
         for nested_block in blocks {
-            temp_visitor.visit_block(nested_block)?;
+            traversal.visit_block(&mut temp_visitor, nested_block)?;
         }
 
         let buffer = temp_visitor
             .into_writer()
             .into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
+            .map_err(IntoInnerError::into_error)?;
 
         let content = String::from_utf8_lossy(&buffer);
         let color = processor.appearance.colors.admon_tip; // Green for quotes
@@ -327,20 +344,24 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_open_block(&mut self, title: &[InlineNode], blocks: &[Block]) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let label = crate::extract_heading_text(title, &processor.references);
+    fn render_open_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: &[InlineNode],
+        blocks: &'a [Block<'a>],
+    ) -> Result<(), Error> {
+        let processor = self.processor;
+        let label = extract_heading_text(title, &processor.references);
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut visitor =
-            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
+        let mut visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for block in blocks {
-            visitor.visit_block(block)?;
+            traversal.visit_block(&mut visitor, block)?;
         }
         let buffer = visitor
             .into_writer()
             .into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
+            .map_err(IntoInnerError::into_error)?;
         let content = String::from_utf8_lossy(&buffer);
         render_boxed_content(
             self,
@@ -348,39 +369,39 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             content.trim_end(),
             processor.terminal_width,
             &ROUNDED_BOX,
-            crossterm::style::Color::DarkYellow,
+            Color::DarkYellow,
         )
     }
 
     /// Render a sidebar block with rounded box borders.
     fn render_sidebar_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
-        blocks: &[Block],
+        blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let processor = self.processor;
 
         let label = if title.is_empty() {
             String::new()
         } else {
-            crate::extract_heading_text(title, &processor.references)
+            extract_heading_text(title, &processor.references)
         };
 
         // Render content to buffer
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor =
-            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
         for nested_block in blocks {
-            temp_visitor.visit_block(nested_block)?;
+            traversal.visit_block(&mut temp_visitor, nested_block)?;
         }
         let buffer = temp_visitor
             .into_writer()
             .into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
+            .map_err(IntoInnerError::into_error)?;
         let content = String::from_utf8_lossy(&buffer);
 
-        let color = crossterm::style::Color::Blue;
+        let color = Color::Blue;
         render_boxed_content(
             self,
             &label,
@@ -396,27 +417,27 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render a verse block (poetry) with `┊` left border preserving line breaks.
     fn render_verse_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
         inlines: &[InlineNode],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
+        let processor = self.processor;
 
-        self.render_title_with_wrapper(title, "", "\n")?;
+        self.render_title_with_wrapper(traversal, title, "", "\n")?;
 
         // Render verse content to buffer to process line by line
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
-        let mut temp_visitor =
-            TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
-        temp_visitor.visit_inline_nodes(inlines)?;
+        let mut temp_visitor = TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+        temp_visitor.visit_inline_nodes(traversal, inlines)?;
         let buffer = temp_visitor
             .into_writer()
             .into_inner()
-            .map_err(std::io::IntoInnerError::into_error)?;
+            .map_err(IntoInnerError::into_error)?;
 
         let content = String::from_utf8_lossy(&buffer);
-        let color = crossterm::style::Color::Magenta;
+        let color = Color::Magenta;
 
         let w = self.writer_mut();
         for line in content.lines() {
@@ -436,13 +457,14 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     /// Render a STEM/math block with styled borders.
     fn render_stem_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
         notation: &str,
         content: &str,
     ) -> Result<(), Error> {
-        self.render_title_if_present(title)?;
+        self.render_title_if_present(traversal, title)?;
 
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let tw = processor.terminal_width;
         let color = processor.appearance.colors.label_listing;
 
@@ -464,15 +486,19 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     }
 
     /// Helper to render title if present.
-    fn render_title_if_present(&mut self, title: &[InlineNode]) -> Result<(), Error> {
-        self.render_title_with_wrapper(title, "  ", "\n")
+    fn render_title_if_present(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        title: &[InlineNode],
+    ) -> Result<(), Error> {
+        self.render_title_with_wrapper(traversal, title, "  ", "\n")
     }
 }
 
 pub(crate) fn render_preformatted_content(
     inlines: &[InlineNode<'_>],
     metadata: &BlockMetadata<'_>,
-    processor: &crate::Processor<'_>,
+    processor: &Processor<'_>,
 ) -> Result<String, Error> {
     let language = detect_language(metadata);
     let (source, callouts) = source_with_callout_placeholders(inlines, language);
@@ -499,13 +525,13 @@ pub(crate) fn render_preformatted_content(
 }
 
 #[cfg(feature = "pre-spec-subs")]
-fn apply_source_substitutions(mut source: String, processor: &crate::Processor<'_>) -> String {
+fn apply_source_substitutions(mut source: String, processor: &Processor<'_>) -> String {
     let substitutions = processor.current_subs.get();
     if substitutions.contains(SubsFlags::ATTRIBUTES)
         && let Cow::Owned(expanded) = acdc_parser::substitute(
             &source,
             &[acdc_parser::Substitution::Attributes],
-            &processor.document_attributes,
+            processor.parser_options.document_attributes(),
         )
     {
         source = expanded;
@@ -522,7 +548,7 @@ fn apply_source_substitutions(mut source: String, processor: &crate::Processor<'
 }
 
 #[cfg(not(feature = "pre-spec-subs"))]
-fn apply_source_substitutions(source: String, _processor: &crate::Processor<'_>) -> String {
+fn apply_source_substitutions(source: String, _processor: &Processor<'_>) -> String {
     source
 }
 
@@ -656,9 +682,9 @@ fn apply_source_line_options(content: &str, options: &SourceLineOptions) -> Stri
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TerminalVisitor;
-    use crate::create_test_processor;
-    use acdc_converters_core::visitor::Visitor;
+    use crate::{TerminalVisitor, create_test_processor};
+
+    use acdc_converters_core::{Converter, Diagnostics, WarningSource, visitor::Visitor};
     use acdc_parser::{Location, Paragraph, Plain, Title};
 
     /// Create simple plain text inline nodes for testing
@@ -690,10 +716,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -721,10 +749,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -752,10 +782,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -783,10 +815,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -822,10 +856,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -860,10 +896,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -897,10 +935,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -930,10 +970,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -968,10 +1010,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1003,10 +1047,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1040,10 +1086,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1079,10 +1127,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1114,10 +1164,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1146,10 +1198,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1178,10 +1232,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1206,10 +1262,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1233,10 +1291,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1263,10 +1323,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1291,10 +1353,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1317,10 +1381,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1343,10 +1409,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1372,10 +1440,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1404,10 +1474,12 @@ mod tests {
         let buffer = Vec::new();
         let processor = create_test_processor();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = TerminalVisitor::new(buffer, processor, diagnostics.reborrow());
-        visitor.visit_delimited_block(&block)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = TerminalVisitor::new(buffer, &processor, diagnostics.reborrow());
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let output = visitor.into_writer();
 
         let output_str = String::from_utf8_lossy(&output);
@@ -1459,27 +1531,30 @@ mod tests {
 
         let mut buffer1 = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor1 =
-            TerminalVisitor::new(&mut buffer1, processor.clone(), diagnostics.reborrow());
-        visitor1.visit_delimited_block(&block1)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor1 = TerminalVisitor::new(&mut buffer1, &processor, diagnostics.reborrow());
+        visitor1.visit_delimited_block(&mut traversal, &block1)?;
 
         let mut buffer2 = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor2 =
-            TerminalVisitor::new(&mut buffer2, processor.clone(), diagnostics.reborrow());
-        visitor2.visit_delimited_block(&block2)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor2 = TerminalVisitor::new(&mut buffer2, &processor, diagnostics.reborrow());
+        visitor2.visit_delimited_block(&mut traversal, &block2)?;
 
         let mut buffer3 = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("terminal");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor3 =
-            TerminalVisitor::new(&mut buffer3, processor.clone(), diagnostics.reborrow());
-        visitor3.visit_delimited_block(&block3)?;
+        let source = WarningSource::new("terminal");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor3 = TerminalVisitor::new(&mut buffer3, &processor, diagnostics.reborrow());
+        visitor3.visit_delimited_block(&mut traversal, &block3)?;
 
         let output1 = String::from_utf8_lossy(&buffer1);
         let output2 = String::from_utf8_lossy(&buffer2);

@@ -24,10 +24,12 @@ mod title;
 
 pub use admonition::{Admonition, AdmonitionVariant};
 pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
+pub(crate) use attributes::RawAttributes;
 pub use attributes::{
-    AttributeName, AttributeValue, DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS,
-    MAX_TOC_LEVELS, strip_quotes,
+    AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
+    DocumentAttributes, ElementAttributes, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, strip_quotes,
 };
+pub(crate) use attributes::{DocumentAttributeStatus, default_document_attribute_values};
 pub use attribution::{Attribution, CiteTitle};
 pub use caption::{Caption, CaptionKind};
 pub use inlines::*;
@@ -72,10 +74,10 @@ impl Document<'_> {
     /// section's numbering policy. Existing table-of-contents entries receive the new
     /// numbers, but this method does not add, remove, or reorder those entries.
     pub fn renumber_sections(&mut self) {
-        let is_book = self
-            .attributes
-            .get_string("doctype")
-            .is_some_and(|doctype| doctype == "book");
+        let is_book = matches!(
+            self.attributes.get("doctype"),
+            Some(value) if value.as_str() == Some("book")
+        );
         section::renumber_sections(&mut self.blocks, &mut self.toc_entries, is_book);
     }
 
@@ -462,16 +464,60 @@ impl Block<'_> {
     }
 }
 
-/// A `DocumentAttribute` represents a document attribute in a document.
-///
-/// A document attribute is a key-value pair that can be used to set metadata in a
-/// document.
-#[derive(Clone, Debug, PartialEq)]
+/// An accepted document-attribute assignment in the document body.
+#[derive(Clone, PartialEq)]
 #[non_exhaustive]
 pub struct DocumentAttribute<'a> {
     pub name: AttributeName<'a>,
-    pub value: AttributeValue<'a>,
     pub location: Location,
+    assignment: DocumentAttributeAssignment<'a>,
+    accepted: bool,
+}
+
+impl<'a> DocumentAttribute<'a> {
+    pub(crate) fn accepted(
+        name: AttributeName<'a>,
+        applied: DocumentAttributeAssignment<'a>,
+        location: Location,
+    ) -> Self {
+        Self {
+            name,
+            location,
+            assignment: applied,
+            accepted: true,
+        }
+    }
+
+    pub(crate) fn rejected(name: AttributeName<'a>, location: Location) -> Self {
+        Self {
+            name,
+            location,
+            assignment: DocumentAttributeAssignment::Unset,
+            accepted: false,
+        }
+    }
+
+    pub(crate) const fn is_accepted(&self) -> bool {
+        self.accepted
+    }
+
+    /// Borrow the accepted set or unset assignment.
+    #[must_use]
+    pub const fn assignment(&self) -> &DocumentAttributeAssignment<'a> {
+        &self.assignment
+    }
+}
+
+impl std::fmt::Debug for DocumentAttribute<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("DocumentAttribute")
+            .field("name", &self.name)
+            .field("assignment", &self.assignment)
+            .field("location", &self.location)
+            .field("accepted", &self.accepted)
+            .finish()
+    }
 }
 
 impl Serialize for DocumentAttribute<'_> {
@@ -482,7 +528,7 @@ impl Serialize for DocumentAttribute<'_> {
         let mut state = serializer.serialize_map(None)?;
         state.serialize_entry("name", &self.name)?;
         state.serialize_entry("type", "attribute")?;
-        state.serialize_entry("value", &self.value)?;
+        state.serialize_entry("value", &self.assignment.serialized_value(false))?;
         state.serialize_entry("location", &self.location)?;
         state.end()
     }
@@ -823,7 +869,7 @@ impl Serialize for Document<'_> {
             // We serialize the attributes even if they're empty because that's what the
             // TCK expects (odd but true)
             state.serialize_entry("attributes", &self.attributes)?;
-        } else if !self.attributes.is_empty() {
+        } else if !self.attributes.serialization_is_empty() {
             state.serialize_entry("attributes", &self.attributes)?;
         }
         if !self.blocks.is_empty() {

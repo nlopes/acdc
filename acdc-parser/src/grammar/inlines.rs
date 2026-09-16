@@ -3,7 +3,7 @@ use crate::{
     CurvedQuotation, Footnote, Form, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
     IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, Mailto,
     Menu, Monospace, Pass, PassthroughKind, Plain, Source, StandaloneCurvedApostrophe, Stem,
-    StemNotation, Subscript, Substitution, Superscript, Url,
+    StemNotation, Subscript, Substitution, Superscript, Title, Url,
     grammar::{
         ParserState, inline_preprocessing,
         inline_preprocessor::InlinePreprocessorParserState,
@@ -12,12 +12,15 @@ use crate::{
     model::{strip_quotes, substitution::HEADER},
 };
 
-use super::helpers::{
-    BlockParsingMetadata, MacroAttributeContext, PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID,
-    RESERVED_NAMED_ATTRIBUTE_OPTIONS, RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand,
-    is_valid_bibliography_id, process_attribute_list, strip_url_backslash_escapes,
+use super::{
+    helpers::{
+        BlockParsingMetadata, MacroAttributeContext, PositionWithOffset,
+        RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
+        RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand, is_valid_bibliography_id, process_attribute_list,
+        strip_url_backslash_escapes,
+    },
+    state::{InlineContext, InlineRules},
 };
-use super::state::{InlineContext, InlineRules};
 
 /// RFC 5321 max local-part length. An email address must have `@` within this
 /// many bytes of the start of the local part.
@@ -1017,7 +1020,7 @@ peg::parser! {
                 target: target_source,
                 attributes: metadata.attributes.clone(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-                hide_uri_scheme: state.document_attributes.is_set("hide-uri-scheme"),
+                hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             })))
         }
 
@@ -1114,7 +1117,7 @@ peg::parser! {
         }
 
         rule check_experimental() -> ()
-        = {? if state.document_attributes.is_set("experimental") { Ok(()) } else { Err("experimental UI macros disabled") } }
+        = {? if state.document_attributes.contains_key("experimental") { Ok(()) } else { Err("experimental UI macros disabled") } }
 
         rule check_post_replacements() -> ()
         = {? if state.inline_ctx.substitutions.enabled(&Substitution::PostReplacements) { Ok(()) } else { Err("post_replacements disabled") } }
@@ -1158,7 +1161,7 @@ peg::parser! {
                 url: url_source,
                 bracketed,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-                hide_uri_scheme: state.document_attributes.is_set("hide-uri-scheme"),
+                hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             })))
         }
 
@@ -1291,8 +1294,8 @@ peg::parser! {
                 "asciimath" => StemNotation::Asciimath,
                 _ => {
                     // stem:[] — resolve from :stem: document attribute
-                    match state.document_attributes.get_string("stem") {
-                        Some(s) => StemNotation::from_str(&s).unwrap_or(StemNotation::Asciimath),
+                    match state.document_attributes.text("stem") {
+                        Some(s) => StemNotation::from_str(s).unwrap_or(StemNotation::Asciimath),
                         _ => StemNotation::Asciimath,
                     }
                 }
@@ -1315,10 +1318,10 @@ peg::parser! {
         {?
             let (_discrete, metadata, title_position) = attributes;
             let mut metadata = metadata.clone();
-            let mut title = crate::Title::default();
+            let mut title = Title::default();
             if let Some(style) = metadata.style.take() {
                 // For inline images, the first positional attribute is the alt text (title)
-                title = crate::Title::new(vec![InlineNode::PlainText(Plain {
+                title = Title::new(vec![InlineNode::PlainText(Plain {
                     content: style,
                     location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
                     escaped: false,
@@ -1355,7 +1358,7 @@ peg::parser! {
                     process_inlines(state, &bm, title_start_pos.offset, title_end, state.inline_ctx.offset, content),
                     "could not process title in inline image macro"
                 )?;
-                title = crate::Title::new(title_inlines);
+                title = Title::new(title_inlines);
             }
             // Note: We do NOT remove the title attribute - it's needed for the HTML title attribute
 
@@ -1455,7 +1458,7 @@ peg::parser! {
                 target,
                 attributes: metadata.attributes.clone(),
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-                hide_uri_scheme: state.document_attributes.is_set("hide-uri-scheme"),
+                hide_uri_scheme: state.document_attributes.contains_key("hide-uri-scheme"),
             })))
         }
 
@@ -1501,9 +1504,12 @@ peg::parser! {
             tracing::debug!(?target_str, ?text, "Found cross-reference shorthand");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
-            xref.resolve_natural_target = !state.document_attributes.is_set("compat-mode");
+            xref.resolve_natural_target = !state.document_attributes.contains_key("compat-mode");
             xref.xrefstyle = crate::XrefStyle::from_attribute(
-                state.document_attributes.get_string("xrefstyle").as_deref(),
+                state
+                    .document_attributes
+                    .text("xrefstyle")
+                    .map(crate::strip_quotes),
             );
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
@@ -1551,7 +1557,10 @@ peg::parser! {
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             xref.xrefstyle = crate::XrefStyle::from_attribute(
-                state.document_attributes.get_string("xrefstyle").as_deref(),
+                state
+                    .document_attributes
+                    .text("xrefstyle")
+                    .map(crate::strip_quotes),
             );
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());

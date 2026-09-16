@@ -8,8 +8,8 @@ use bumpalo::Bump;
 use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{
-    AttributeValue, Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes,
-    InlineMacro, InlineNode, Location, MAX_SECTION_LEVELS, Table, TocEntry,
+    Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
+    InlineNode, Location, MAX_SECTION_LEVELS, Table, TocEntry, model::DocumentAttributeStatus,
 };
 
 use super::title::Title;
@@ -42,26 +42,21 @@ pub(crate) struct SectionNumbering {
 
 impl SectionNumbering {
     pub(crate) fn from_attributes(attributes: &DocumentAttributes<'_>) -> Self {
-        let enabled = attributes
-            .get("sectnums")
-            .or_else(|| attributes.get("numbered"))
-            .is_some_and(|value| {
-                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
-            });
+        let numbering = match attributes.status("sectnums") {
+            DocumentAttributeStatus::Absent => attributes.status("numbered"),
+            status @ (DocumentAttributeStatus::Set(_) | DocumentAttributeStatus::Unset) => status,
+        };
+        let enabled = matches!(&numbering, DocumentAttributeStatus::Set(_));
         let max_level = attributes
-            .get_string("sectnumlevels")
+            .text("sectnumlevels")
             .and_then(|value| value.parse().ok())
             .unwrap_or(DEFAULT_NUMBERED_SECTION_LEVELS)
             .min(MAX_SECTION_LEVELS);
         let number_all = matches!(
-            attributes
-                .get("sectnums")
-                .or_else(|| attributes.get("numbered")),
-            Some(AttributeValue::String(value)) if value == "all"
+            &numbering,
+            DocumentAttributeStatus::Set(value) if value.as_str() == Some("all")
         );
-        let partnums = attributes.get("partnums").is_some_and(|value| {
-            !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
-        });
+        let partnums = attributes.contains_key("partnums");
         Self {
             enabled,
             max_level,

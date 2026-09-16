@@ -9,11 +9,13 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options,
+    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, TraversalContext,
     section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
 };
+#[cfg(any(test, feature = "emulator"))]
+use acdc_parser::DocumentAttributes;
 use acdc_parser::{
-    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode, Reference,
+    BlockMetadata, Caption, CaptionKind, Document, InlineNode, Options as ParserOptions, Reference,
     TocEntry,
 };
 
@@ -49,7 +51,7 @@ pub(crate) enum IndexCatalogRelationship {
 #[derive(Clone, Debug)]
 pub struct Processor<'a> {
     pub(crate) options: Options,
-    pub(crate) document_attributes: DocumentAttributes<'a>,
+    pub(crate) parser_options: ParserOptions<'a>,
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
@@ -106,7 +108,7 @@ pub(crate) fn create_test_processor_with(
     let appearance = Appearance::detect();
     Processor {
         options: Options::default(),
-        document_attributes,
+        parser_options: ParserOptions::default().with_document_attributes(document_attributes),
         toc_entries: vec![],
         references: Rc::new(HashMap::new()),
         xref_guard: XrefGuard::default(),
@@ -128,28 +130,28 @@ pub(crate) fn create_test_processor_with(
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn document_attributes_defaults() -> DocumentAttributes<'static> {
-        // Terminal converter uses environment detection (Appearance::detect())
-        // rather than document attributes for its configuration.
-        // No terminal-specific attribute defaults needed.
-        DocumentAttributes::default()
-    }
-
-    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
-        let mut document_attributes = document_attributes;
-        for (name, value) in Self::document_attributes_defaults().iter() {
-            document_attributes.insert(name.clone(), value.clone());
+    fn new(
+        options: Options,
+        parser_options: acdc_parser::OptionsBuilder<'a>,
+    ) -> Result<Self, Self::Error> {
+        let mut parser_options = parser_options;
+        for (name, value) in Self::document_attributes_defaults() {
+            if parser_options.attribute(name).is_none() {
+                parser_options = parser_options.with_default_attribute(*name, value.clone());
+            }
         }
-        TERMINAL_BACKEND.apply(&mut document_attributes, options.doctype());
+        parser_options =
+            TERMINAL_BACKEND.apply(parser_options, options.doctype(), options.embedded());
         let appearance = Appearance::detect();
 
         let terminal_width = crossterm::terminal::size()
             .map_or(FALLBACK_TERMINAL_WIDTH, |(cols, _)| usize::from(cols))
             .min(MAX_TERMINAL_WIDTH);
 
-        Self {
+        let parser_options = parser_options.build()?;
+        Ok(Self {
             options,
-            document_attributes,
+            parser_options,
             toc_entries: vec![],
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
@@ -165,15 +167,15 @@ impl<'a> Converter<'a> for Processor<'a> {
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
-        }
+        })
     }
 
     fn options(&self) -> &Options {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes<'a> {
-        &self.document_attributes
+    fn parser_options(&self) -> &ParserOptions<'a> {
+        &self.parser_options
     }
 
     fn derive_output_path(
@@ -195,7 +197,8 @@ impl<'a> Converter<'a> for Processor<'a> {
     ) -> Result<(), Self::Error> {
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor = Processor {
-            document_attributes: doc.attributes.clone(),
+            parser_options: ParserOptions::default()
+                .with_document_attributes(doc.attributes.clone()),
             toc_entries: doc.toc_entries.clone(),
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
@@ -213,8 +216,9 @@ impl<'a> Converter<'a> for Processor<'a> {
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
-        let mut visitor = TerminalVisitor::new(writer, processor, diagnostics.reborrow());
-        visitor.visit_document(doc)
+        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut visitor = TerminalVisitor::new(writer, &processor, diagnostics.reborrow());
+        visitor.visit_document(&mut traversal, doc)
     }
 
     fn name(&self) -> &'static str {
@@ -231,7 +235,9 @@ impl Processor<'_> {
     ) -> Option<String> {
         let resolved = match (&metadata.caption, fallback) {
             (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, Some(kind)) => {
+                Caption::resolve_owned(metadata, self.parser_options.document_attributes(), kind)
+            }
             (None, None) => return None,
         };
         match resolved {
@@ -321,7 +327,11 @@ pub fn render_document_to_ansi(
     width: usize,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<Vec<u8>, Error> {
-    let processor = Processor::new(options, doc.attributes.clone()).with_terminal_width(width);
+    let processor = Processor::new(
+        options,
+        ParserOptions::builder().with_attributes(doc.attributes.to_static().into_inputs()),
+    )?
+    .with_terminal_width(width);
     let mut output = Vec::new();
     let source = acdc_converters_core::WarningSource::new("terminal").with_variant("preview");
     let mut warnings = Vec::new();
@@ -356,9 +366,12 @@ pub fn render_listing_to_ansi(
     width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
-    let processor = Processor::new(options, document_attributes)
-        .with_terminal_width(width)
-        .with_dark_mode(dark_mode);
+    let processor = Processor::new(
+        options,
+        ParserOptions::builder().with_attributes(document_attributes.into_inputs()),
+    )?
+    .with_terminal_width(width)
+    .with_dark_mode(dark_mode);
     let mut output = Vec::new();
     let color_guard = ColorOutputGuard::force_enabled();
 
@@ -382,25 +395,76 @@ pub fn render_listing_to_ansi(
 #[cfg(test)]
 mod backend_tests {
     use super::*;
+    use std::error::Error as StdError;
 
     #[test]
-    fn constructor_applies_terminal_backend_profile() {
-        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+    fn constructor_applies_terminal_backend_profile() -> Result<(), Box<dyn StdError>> {
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
 
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("backend")
-                .as_deref(),
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("terminal")
         );
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("filetype")
-                .as_deref(),
+                .get("filetype")
+                .and_then(|value| value.text()),
             Some("terminal")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn canonical_body_attributes_apply_in_source_order() -> Result<(), Box<dyn StdError>> {
+        let parsed = acdc_parser::parse(
+            include_str!("../../../acdc-parser/fixtures/tests/document_attributes_consumers.adoc"),
+            &ParserOptions::default(),
+        )?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_terminal_width(120);
+        let source = processor.warning_source();
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let mut output = Vec::new();
+
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+
+        let terminal = String::from_utf8(output)?;
+        assert!(terminal.contains("images/header/before.png"));
+        assert!(terminal.contains("images/body/after.png"));
+        Ok(())
+    }
+
+    #[test]
+    fn body_experimental_applies_inside_buffered_inline_content() -> Result<(), Box<dyn StdError>> {
+        let parsed = acdc_parser::parse(
+            "= T\n:experimental!:\n\n:experimental:\nhttps://example.com[btn:[Run]]\n",
+            &ParserOptions::default(),
+        )?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
+        let source = processor.warning_source();
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let mut output = Vec::new();
+
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+
+        let terminal = String::from_utf8(output)?;
+        assert!(terminal.contains("[Run]"), "{terminal:?}");
+        assert!(!terminal.contains("btn:[Run]"), "{terminal:?}");
+        Ok(())
     }
 }
 

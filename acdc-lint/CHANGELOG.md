@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Document-attribute rules now inspect accepted text assignments. Unset,
+  invalid, and rejected entries are not treated as semantic values.
+
 ### Added
 
 - Added location-scoped lint level overrides for individual lint IDs. Overrides
@@ -40,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Image-existence checks use `imagesdir` at each image's source position, including
+  body changes, unsets, nested blocks, and local AsciiDoc table-cell settings.
+  An explicit unset removes the earlier directory prefix.
 - The `delimited-block-minimal-delimiter` lint now accounts for delimiter
   lines inside block content before deciding whether a longer delimiter can be
   shortened.

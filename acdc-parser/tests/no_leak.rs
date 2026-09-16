@@ -12,6 +12,7 @@
 //! Each integration test file is its own binary in Cargo, so installing a
 //! `#[global_allocator]` here does not affect other tests.
 
+use acdc_parser::{Options, parse_file};
 use std::{alloc::System, error::Error, path::Path};
 
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, StatsAlloc};
@@ -46,7 +47,7 @@ fn net_bytes_delta(region: &Region<'_, System>) -> i64 {
 /// return close to baseline. Fails loudly on any `Box::leak`-style escape.
 #[test]
 fn parse_file_does_not_leak_across_iterations() -> TestResult {
-    let opts = acdc_parser::Options::builder().build();
+    let opts = Options::builder().build()?;
     let fixture = Path::new("fixtures/samples/mdbasics/mdbasics.adoc");
     assert!(
         fixture.exists(),
@@ -55,12 +56,12 @@ fn parse_file_does_not_leak_across_iterations() -> TestResult {
     );
 
     for _ in 0..WARMUP_ITERATIONS {
-        let _doc = acdc_parser::parse_file(fixture, &opts)?;
+        let _doc = parse_file(fixture, &opts)?;
     }
 
     let region = Region::new(GLOBAL);
     for _ in 0..MEASURED_ITERATIONS {
-        let _doc = acdc_parser::parse_file(fixture, &opts)?;
+        let _doc = parse_file(fixture, &opts)?;
     }
     let delta = net_bytes_delta(&region);
 
@@ -78,12 +79,10 @@ fn parse_file_does_not_leak_across_iterations() -> TestResult {
 }
 
 /// Parse inline content repeatedly and assert the same invariant for the
-/// `parse_inline` entry point, which maintains its own leaked arena today.
+/// `parse_inline` entry point.
 #[test]
 fn parse_inline_does_not_leak_across_iterations() -> TestResult {
-    let opts = acdc_parser::Options::builder()
-        .with_attribute("name", "World")
-        .build();
+    let opts = Options::builder().with_attribute("name", "World").build()?;
     // Mix of substitution, passthrough, and nested macros — forces the
     // inline preprocessor onto its non-fast-path, which is where the
     // bumpalo arena grows.
@@ -118,8 +117,8 @@ fn parse_inline_does_not_leak_across_iterations() -> TestResult {
 fn parse_file_returns_static_document() -> TestResult {
     fn assert_static<T: 'static>(_: &T) {}
 
-    let opts = acdc_parser::Options::builder().build();
-    let doc = acdc_parser::parse_file("fixtures/samples/mdbasics/mdbasics.adoc", &opts)?;
+    let opts = Options::builder().build()?;
+    let doc = parse_file("fixtures/samples/mdbasics/mdbasics.adoc", &opts)?;
     assert_static(&doc);
     Ok(())
 }

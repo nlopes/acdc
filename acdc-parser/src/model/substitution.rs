@@ -26,7 +26,7 @@ use std::borrow::Cow;
 
 use serde::Serialize;
 
-use crate::{AttributeValue, DocumentAttributes};
+use crate::DocumentAttributes;
 
 const SUBSTITUTION_STAGE_COUNT: usize = 7;
 const DISABLED_SUBSTITUTION: u8 = u8::MAX;
@@ -500,13 +500,14 @@ pub(crate) fn remove_substitution(result: &mut Vec<Substitution>, sub: &Substitu
 /// # Example
 ///
 /// ```
-/// use acdc_parser::{DocumentAttributes, AttributeValue, Substitution, substitute};
+/// use acdc_parser::{Options, Substitution, substitute};
 ///
-/// let mut attrs = DocumentAttributes::default();
-/// attrs.set("version".into(), AttributeValue::String("1.0".into()));
+/// let options = Options::with_attributes([("version", "1.0")])?;
+/// let attrs = options.document_attributes();
 ///
-/// let result = substitute("Version {version}", &[Substitution::Attributes], &attrs);
+/// let result = substitute("Version {version}", &[Substitution::Attributes], attrs);
 /// assert_eq!(result, "Version 1.0");
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 #[must_use]
 pub fn substitute<'a, 'b>(
@@ -521,57 +522,9 @@ where
     for substitution in substitutions {
         match substitution {
             Substitution::Attributes => {
-                // Expand {name} patterns with values from document attributes
-                if !result.contains('{') {
-                    continue;
-                }
-
-                let mut expanded = String::with_capacity(result.len());
-                let mut chars = result.chars().peekable();
-                let mut changed = false;
-
-                while let Some(ch) = chars.next() {
-                    if ch == '{' {
-                        let mut attr_name = String::new();
-                        let mut found_closing_brace = false;
-
-                        while let Some(&next_ch) = chars.peek() {
-                            if next_ch == '}' {
-                                chars.next();
-                                found_closing_brace = true;
-                                break;
-                            }
-                            attr_name.push(next_ch);
-                            chars.next();
-                        }
-
-                        if found_closing_brace {
-                            match attributes.get(&attr_name) {
-                                Some(AttributeValue::Bool(true)) => {
-                                    // Boolean true attributes expand to empty string
-                                    changed = true;
-                                }
-                                Some(AttributeValue::String(attr_value)) => {
-                                    expanded.push_str(attr_value);
-                                    changed = true;
-                                }
-                                _ => {
-                                    // Unknown attribute - keep reference as-is
-                                    expanded.push('{');
-                                    expanded.push_str(&attr_name);
-                                    expanded.push('}');
-                                }
-                            }
-                        } else {
-                            // No closing brace - keep opening brace and collected chars
-                            expanded.push('{');
-                            expanded.push_str(&attr_name);
-                        }
-                    } else {
-                        expanded.push(ch);
-                    }
-                }
-                if changed {
+                if let Cow::Owned(expanded) =
+                    substitute_attributes(&result, |name| attributes.get(name))
+                {
                     result = Cow::Owned(expanded);
                 }
             }
@@ -662,6 +615,7 @@ mod group_tests {
 #[cfg(all(test, feature = "pre-spec-subs"))]
 mod tests {
     use super::*;
+    use crate::AttributeValue;
 
     // Helper to extract explicit list from SubstitutionSpec
     #[allow(clippy::panic)]
@@ -1054,8 +1008,16 @@ mod tests {
         let attribute_volume_repeat = "value {attribute_volume}";
 
         let mut attributes = DocumentAttributes::default();
-        attributes.insert("weight".into(), attribute_weight.clone());
-        attributes.insert("mass".into(), attribute_mass.clone());
+        assert!(
+            attributes
+                .insert("weight".into(), attribute_weight.clone())
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("mass".into(), attribute_mass.clone())
+                .is_ok()
+        );
 
         // Resolve an attribute that is in the attributes map.
         let resolved = substitute("{weight}", HEADER, &attributes);
@@ -1071,6 +1033,35 @@ mod tests {
     }
 
     #[test]
+    fn test_resolve_typed_default_and_original_text() {
+        let mut attributes = DocumentAttributes::default();
+        assert_eq!(
+            substitute("depth={max-include-depth}", HEADER, &attributes),
+            "depth=64"
+        );
+
+        assert!(
+            attributes
+                .set("max-include-depth".into(), "064".into())
+                .is_ok()
+        );
+        assert_eq!(
+            substitute("depth={max-include-depth}", HEADER, &attributes),
+            "depth=064"
+        );
+
+        assert!(
+            attributes
+                .set("present".into(), AttributeValue::Bool(true))
+                .is_ok()
+        );
+        assert_eq!(
+            substitute("before{present}after", HEADER, &attributes),
+            "beforeafter"
+        );
+    }
+
+    #[test]
     fn test_substitute_single_pass_expansion() {
         // Test that the substitute() function does single-pass expansion.
         // When foo's value is "{bar}", substitute("{foo}") returns the literal
@@ -1080,8 +1071,12 @@ mod tests {
         // 1. Definition-time resolution is handled separately (in the grammar parser)
         // 2. The substitute function just replaces one level of references
         let mut attributes = DocumentAttributes::default();
-        attributes.insert("foo".into(), "{bar}".into());
-        attributes.insert("bar".into(), "should-not-appear".into());
+        assert!(attributes.insert("foo".into(), "{bar}".into()).is_ok());
+        assert!(
+            attributes
+                .insert("bar".into(), "should-not-appear".into())
+                .is_ok()
+        );
 
         let resolved = substitute("{foo}", HEADER, &attributes);
         assert_eq!(resolved, "{bar}");
@@ -1183,5 +1178,38 @@ mod tests {
             expected,
             "spec={subs_attr:?} sub={sub:?}"
         );
+    }
+}
+
+/// Expand known attribute references, leaving unresolved references unchanged.
+///
+/// The returned text borrows the input when no reference is replaced.
+#[must_use]
+pub fn substitute_attributes<'text, 'value>(
+    text: &'text str,
+    mut lookup: impl FnMut(&str) -> Option<&'value super::DocumentAttributeValue<'value>>,
+) -> Cow<'text, str> {
+    let mut remaining = text;
+    let mut unwritten = text;
+    let mut output: Option<String> = None;
+    while let Some((_, candidate)) = remaining.split_once('{') {
+        let Some((name, rest)) = candidate.split_once('}') else {
+            break;
+        };
+        remaining = rest;
+        if let Some(value) = lookup(name) {
+            let output = output.get_or_insert_with(|| String::with_capacity(text.len()));
+            let prefix_len = unwritten.len() - candidate.len() - 1;
+            output.push_str(unwritten.split_at(prefix_len).0);
+            let _ = value.write_text(output);
+            unwritten = rest;
+        }
+    }
+    match output {
+        Some(mut output) => {
+            output.push_str(unwritten);
+            Cow::Owned(output)
+        }
+        None => Cow::Borrowed(text),
     }
 }
