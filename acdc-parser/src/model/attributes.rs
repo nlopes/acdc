@@ -9,7 +9,7 @@ use serde::{
 use crate::{
     Error, SourceLocation,
     document_attribute::{
-        AssignmentDecision, AssignmentRequest, AssignmentState, AttributeOrigin,
+        AssignmentDecision, AssignmentRequest, AssignmentState, AttributeLock, AttributeOrigin,
         MAX_INCLUDE_DEPTH_ATTR, RawAttributeValue, assignment_decision, default_value,
         is_intrinsic, processor_assignment_state, validate_assignment_value,
     },
@@ -838,6 +838,14 @@ impl<'a> DocumentAttributes<'a> {
     #[must_use]
     pub fn is_explicit(&self, name: &str) -> bool {
         self.entry(name).is_some()
+    }
+
+    pub(crate) fn locks_nested_attribute(&self, name: &str) -> bool {
+        crate::document_attribute::nested_attribute_is_inherited(name)
+            && (self.contains_key(name)
+                || self
+                    .entry(name)
+                    .is_some_and(|entry| entry.state.lock == AttributeLock::Locked))
     }
 
     #[cfg(test)]

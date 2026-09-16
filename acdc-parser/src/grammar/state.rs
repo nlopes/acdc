@@ -370,7 +370,7 @@ impl<'a> ParserState<'a> {
         let force_locked = self
             .nested_parent_attributes
             .as_ref()
-            .is_some_and(|attributes| attributes.is_explicit(key.as_ref()));
+            .is_some_and(|attributes| attributes.locks_nested_attribute(key.as_ref()));
         let updates_hardbreaks = matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option");
         let result = Rc::make_mut(&mut self.document_attributes).assign_document_value(
             key.clone(),

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AsciiDoc table cells use their own document type and title/TOC settings while
+  retaining the parent settings outside the cell.
 - `source-indent` and block `indent` remove common leading whitespace before
   applying the requested indentation, including explicit zero, with or without
   syntax highlighting. Negative values retain existing indentation. Unlike

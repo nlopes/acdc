@@ -1,0 +1,35 @@
+= Nested Attribute Scope
+:cell-value: parent
+:cell-unset!:
+
+[cols="1a,1a,1"]
+|===
+|
+:cell-value: rejected
+:cell-unset: local
+:cell-local: first
+
+First: {cell-value}; {cell-unset}; {cell-local}.
+
+:cell-local: second
+
+Updated: {cell-local}.
+
+[cols=a]
+!===
+!
+:cell-local: rejected
+:nested-only: nested
+
+Nested: {cell-value}; {cell-local}; {nested-only}.
+!===
+
+After nested: {cell-local}; {nested-only}.
+
+|
+Sibling: {cell-value}; {cell-unset}; {cell-local}.
+
+|Plain: {cell-value}; {cell-unset}; {cell-local}.
+|===
+
+Parent: {cell-value}; {cell-unset}; {cell-local}; {nested-only}.

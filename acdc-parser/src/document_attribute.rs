@@ -67,6 +67,83 @@ impl AssignmentState {
     }
 }
 
+pub(crate) fn nested_attribute_is_inherited(name: &str) -> bool {
+    !matches!(
+        name,
+        "doctype"
+            | "toc"
+            | "toc-placement"
+            | "toc-position"
+            | "notitle"
+            | "showtitle"
+            | "compat-mode"
+    )
+}
+
+pub(crate) fn initialize_nested_attributes<'a>(
+    attributes: &mut DocumentAttributes<'a>,
+) -> Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)> {
+    let mut assignments = Vec::new();
+    let placement = attributes.get("toc-placement").map_or_else(
+        || DocumentAttributeValue::from("auto"),
+        |value| value.clone().into_static(),
+    );
+    let compat = attributes
+        .contains_key("compat-mode")
+        .then(DocumentAttributeValue::presence);
+    for (name, value) in [
+        ("doctype", Some(DocumentAttributeValue::from("article"))),
+        ("toc", None),
+        ("toc-placement", Some(placement)),
+        ("toc-position", None),
+        ("notitle", Some(DocumentAttributeValue::presence())),
+        ("showtitle", None),
+        ("compat-mode", compat),
+    ] {
+        let assignment = value.map_or(
+            DocumentAttributeAssignment::Unset,
+            DocumentAttributeAssignment::Set,
+        );
+        if attributes.get(name) != assignment.value() {
+            assignments.push((name.into(), assignment.clone()));
+        }
+        attributes.set_entry(name.into(), assignment, AssignmentState::PROCESSOR);
+    }
+    let mut old_flags = attributes
+        .iter()
+        .filter(|(name, _)| is_doctype_flag(name))
+        .map(|(name, _)| name.to_owned())
+        .collect::<Vec<_>>();
+    old_flags.sort_unstable();
+    let mut flags = vec!["doctype-article".to_owned()];
+    for name in ["backend", "basebackend"] {
+        if let Some(value) = attributes
+            .get(name)
+            .and_then(DocumentAttributeValue::as_str)
+        {
+            flags.push(format!("{name}-{value}-doctype-article"));
+        }
+    }
+    for name in old_flags {
+        if !flags.contains(&name) {
+            attributes.set_entry(
+                name.clone().into(),
+                DocumentAttributeAssignment::Unset,
+                AssignmentState::PROCESSOR,
+            );
+            assignments.push((name.into(), DocumentAttributeAssignment::Unset));
+        }
+    }
+    for name in flags {
+        let assignment = DocumentAttributeAssignment::Set(DocumentAttributeValue::presence());
+        if !attributes.contains_key(&name) {
+            assignments.push((name.clone().into(), assignment.clone()));
+        }
+        attributes.set_entry(name.into(), assignment, AssignmentState::PROCESSOR);
+    }
+    assignments
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum AssignmentPolicy {
     Modifiable,

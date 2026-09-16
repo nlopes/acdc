@@ -50,7 +50,7 @@ fn render_cell_content<'a>(
             .try_for_each(|block| traversal.visit_block(&mut temp_visitor, block))
     };
     if scoped {
-        traversal.with_scope(render)
+        traversal.with_table_cell(col, render)
     } else {
         render(traversal)
     }?;

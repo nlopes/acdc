@@ -100,13 +100,13 @@ fn inline_nodes_blank(content: &[InlineNode]) -> bool {
 /// Render cell content with support for nested blocks and cell styles.
 ///
 /// # Arguments
-/// * `blocks` - The content blocks to render
+/// * `column` - The cell and its nested attribute initialization
 /// * `visitor` - The HTML visitor
 /// * `wrap_paragraph` - Whether paragraphs get `<p class="tableblock">` wrappers
 /// * `style` - Optional cell style (Strong, Emphasis, Monospace, Literal, Header, `AsciiDoc`)
 fn render_cell_content<'a, V>(
     traversal: &mut TraversalContext<'a>,
-    blocks: &'a [Block<'a>],
+    column: &'a acdc_parser::TableColumn<'a>,
     visitor: &mut V,
     _processor: &Processor<'_>,
     _options: &RenderOptions,
@@ -118,7 +118,7 @@ where
 {
     let scoped = style == Some(ColumnStyle::AsciiDoc);
     let mut render = |traversal: &mut TraversalContext<'a>| {
-        for block in blocks {
+        for block in &column.content {
             if let Block::Paragraph(para) = block {
                 if style == Some(ColumnStyle::Literal) {
                     let writer = visitor.writer_mut();
@@ -157,7 +157,7 @@ where
         Ok(())
     };
     if scoped {
-        traversal.with_scope(render)
+        traversal.with_table_cell(column, render)
     } else {
         render(traversal)
     }
@@ -376,13 +376,7 @@ where
     )?;
     let _ = writer;
     render_cell_content(
-        traversal,
-        &cell.content,
-        visitor,
-        processor,
-        options,
-        !semantic,
-        style,
+        traversal, cell, visitor, processor, options, !semantic, style,
     )?;
     let writer = visitor.writer_mut();
     writeln!(writer, "</{tag}>")?;
@@ -479,15 +473,7 @@ where
                 "<th class=\"{cell_class_prefix}{halign} {valign}\"{span_attrs}>"
             )?;
             let _ = writer;
-            render_cell_content(
-                traversal,
-                &cell.content,
-                visitor,
-                processor,
-                options,
-                false,
-                None,
-            )?;
+            render_cell_content(traversal, cell, visitor, processor, options, false, None)?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</th>")?;
         }
@@ -539,13 +525,7 @@ where
             )?;
             let _ = writer;
             render_cell_content(
-                traversal,
-                &cell.content,
-                visitor,
-                processor,
-                options,
-                !semantic,
-                style,
+                traversal, cell, visitor, processor, options, !semantic, style,
             )?;
             let writer = visitor.writer_mut();
             writeln!(writer, "</td>")?;

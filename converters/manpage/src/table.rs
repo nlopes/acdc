@@ -468,7 +468,7 @@ fn format_cell_with_inlines<'a>(
         })
     };
     if scoped {
-        traversal.with_scope(render)
+        traversal.with_table_cell(cell, render)
     } else {
         render(traversal)
     }?;

@@ -2,8 +2,10 @@
 
 use serde::Serialize;
 
-use super::location::Location;
-use super::{AttributeValue, Block, BlockMetadata};
+use super::{
+    AttributeName, AttributeValue, Block, BlockMetadata, DocumentAttributeAssignment,
+    location::Location,
+};
 
 /// The outer border applied to a table.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -370,6 +372,8 @@ impl<'a> TableRow<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct TableColumn<'a> {
+    #[serde(skip)]
+    pub(crate) initial_attributes: Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>,
     pub content: Vec<Block<'a>>,
     /// Number of columns this cell spans (default 1).
     /// Specified in `AsciiDoc` with `n+|` syntax (e.g., `2+|` for colspan=2).
@@ -399,6 +403,17 @@ const fn is_default_span(span: &usize) -> bool {
 }
 
 impl<'a> TableColumn<'a> {
+    /// Attribute assignments applied before this `AsciiDoc` cell's content.
+    ///
+    /// These initialize the nested scope; they do not change the parent document.
+    pub fn initial_attributes(
+        &self,
+    ) -> impl Iterator<Item = (&str, &DocumentAttributeAssignment<'a>)> {
+        self.initial_attributes
+            .iter()
+            .map(|(name, assignment)| (name.as_ref(), assignment))
+    }
+
     /// Create a new table column with full cell specifier options.
     #[must_use]
     pub(crate) fn with_format(
@@ -410,6 +425,7 @@ impl<'a> TableColumn<'a> {
         style: Option<ColumnStyle>,
     ) -> Self {
         Self {
+            initial_attributes: Vec::new(),
             content,
             colspan,
             rowspan,

@@ -117,6 +117,20 @@ impl<'doc> TraversalContext<'doc> {
         result
     }
 
+    /// Initialize an `AsciiDoc` cell's attributes and restore the parent on return.
+    pub fn with_table_cell<R>(
+        &mut self,
+        column: &'doc acdc_parser::TableColumn<'doc>,
+        operation: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.with_scope(|context| {
+            for (name, assignment) in column.initial_attributes() {
+                context.overlay.insert(name, assignment);
+            }
+            operation(context)
+        })
+    }
+
     /// Start at the end of the document header.
     #[must_use]
     pub fn new(header: &'doc DocumentAttributes<'doc>) -> Self {
@@ -432,6 +446,62 @@ mod tests {
             Some(DocumentAttributeAssignment::Unset)
         ));
         assert!(!snapshot.is_explicit("table-caption"));
+        Ok(())
+    }
+
+    #[test]
+    fn table_cell_scope_initializes_attributes_and_restores_parent_on_error() -> Result<(), Error> {
+        let parsed = parse(
+            "= T\n:doctype: book\n:toc: left\n\n[cols=a]\n|===\n|\nCell.\n|===\n",
+            &Options::default(),
+        )?;
+        let Block::DelimitedBlock(block) = parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or("missing table block")?
+        else {
+            return Err("missing table block".into());
+        };
+        let acdc_parser::DelimitedBlockType::DelimitedTable(table) = &block.inner else {
+            return Err("missing table".into());
+        };
+        let mut context = TraversalContext::new(&parsed.document().attributes);
+        for fail in [false, true] {
+            let result = context.with_table_cell(
+                table
+                    .rows
+                    .first()
+                    .and_then(|row| row.columns.first())
+                    .ok_or("missing table cell")?,
+                |context| {
+                    assert_eq!(
+                        context
+                            .get("doctype")
+                            .and_then(DocumentAttributeValue::as_str),
+                        Some("article")
+                    );
+                    assert!(!context.contains_key("toc"));
+                    if fail {
+                        Err("conversion failed")
+                    } else {
+                        Ok(())
+                    }
+                },
+            );
+            assert_eq!(result.is_err(), fail);
+            assert_eq!(
+                context
+                    .get("doctype")
+                    .and_then(DocumentAttributeValue::as_str),
+                Some("book")
+            );
+            assert_eq!(
+                context.get("toc").and_then(DocumentAttributeValue::as_str),
+                Some("left")
+            );
+            assert!(!context.is_nested_document());
+        }
         Ok(())
     }
 }

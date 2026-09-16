@@ -41,6 +41,7 @@ pub(crate) fn parse_table_cell<'a>(
 
     // Markdown blockquotes are only parsed when cell has AsciiDoc style ('a' prefix).
     // This matches asciidoctor behavior where `> text` is only a blockquote in 'a' style cells.
+    let mut initial_attributes = Vec::new();
     let blocks = if cell.style == Some(ColumnStyle::AsciiDoc) {
         // An AsciiDoc-style cell is a nested document. It inherits the outer
         // attributes, but its local attributes, section catalog, hard-break
@@ -54,6 +55,10 @@ pub(crate) fn parse_table_cell<'a>(
         let outer_toc_len = state.toc_entries.len();
         let outer_last_block_was_verbatim = state.last_block_was_verbatim;
         let outer_last_verbatim_callouts = std::mem::take(&mut state.last_verbatim_callouts);
+
+        initial_attributes = crate::document_attribute::initialize_nested_attributes(Rc::make_mut(
+            &mut state.document_attributes,
+        ));
 
         let result = document_parser::blocks(content, state, cell_start_offset, None, None);
 
@@ -82,12 +87,14 @@ pub(crate) fn parse_table_cell<'a>(
         );
         Ok(Vec::new())
     })?;
-    Ok(TableColumn::with_format(
+    let mut column = TableColumn::with_format(
         blocks,
         cell.colspan,
         cell.rowspan,
         cell.halign,
         cell.valign,
         cell.style,
-    ))
+    );
+    column.initial_attributes = initial_attributes;
+    Ok(column)
 }

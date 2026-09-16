@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AsciiDoc table cells apply their child document settings without changing
+  parent or sibling settings.
 - Body document attributes now apply in source order to later manpage media
   targets, section labels, manname headings, and cross-reference suffixes.
   Attribute changes inside AsciiDoc table cells do not affect sibling cells or

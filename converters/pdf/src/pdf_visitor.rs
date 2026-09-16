@@ -2680,8 +2680,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.writer.raw(wrapper);
         }
         if style == ColumnStyle::AsciiDoc {
-            traversal
-                .with_scope(|traversal| self.write_asciidoc_table_cell(traversal, &cell.content))?;
+            traversal.with_table_cell(cell, |traversal| {
+                self.write_asciidoc_table_cell(traversal, &cell.content)
+            })?;
         } else {
             self.write_blocks(traversal, &cell.content)?;
         }

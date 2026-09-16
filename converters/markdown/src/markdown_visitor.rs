@@ -2850,7 +2850,7 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
             visitor.footnotes = take(&mut self.footnotes);
             let scoped = style == Some(ColumnStyle::AsciiDoc);
             let result = if scoped {
-                traversal.with_scope(|traversal| {
+                traversal.with_table_cell(cell, |traversal| {
                     visitor.visit_separated_blocks(traversal, &cell.content, false)
                 })
             } else {

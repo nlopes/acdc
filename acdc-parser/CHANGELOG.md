@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AsciiDoc table cells match Asciidoctor inheritance for source unsets, locked
+  caller unsets, inherited defaults, and child document exceptions.
 - Processor defaults for `backend`, `basebackend`, `filetype`, and `doctype`
   now produce matching convenience attributes regardless of builder insertion
   order. Stale flags cannot override the final default values.

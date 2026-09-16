@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- AsciiDoc table cells apply their child document settings without changing
+  parent or sibling settings.
 - Body document attributes now apply in source order to later Markdown media
   targets, section labels and numbering, and cross-reference suffixes. Nested
   AsciiDoc table-cell changes remain local to the cell.

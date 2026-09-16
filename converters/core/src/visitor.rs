@@ -58,7 +58,7 @@ use crate::TraversalContext;
 /// All structural hooks (`visit_document_*`, `visit_preamble_end`) have default
 /// no-op implementations. Attribute replay belongs to [`TraversalContext`], not
 /// to the visitor: dispatch nested blocks through the context, and use
-/// [`TraversalContext::with_scope`] when overriding nested-document traversal.
+/// [`TraversalContext::with_table_cell`] when overriding `AsciiDoc` cell traversal.
 pub trait Visitor<'doc> {
     /// The error type that can be returned during visiting
     type Error;
@@ -363,7 +363,7 @@ pub trait Visitor<'doc> {
                                 .map_or(acdc_parser::ColumnStyle::Default, |format| format.style)
                         });
                         if style == acdc_parser::ColumnStyle::AsciiDoc {
-                            traversal.with_scope(|context| {
+                            traversal.with_table_cell(column, |context| {
                                 context.visit_blocks(self, &column.content)
                             })?;
                         } else {

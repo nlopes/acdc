@@ -102,6 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Nested AsciiDoc cell traversal applies child document settings and restores
+  parent settings after success or failure.
 - Switching backend profiles clears obsolete `htmlsyntax` and convenience
   attributes while preserving an explicit `outfilesuffix`.
 - Numbered book TOCs can now retain a configured `chapter-signifier` on

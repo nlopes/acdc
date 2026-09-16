@@ -5,6 +5,223 @@ use acdc_parser::{
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn nested_attribute_locks_distinguish_values_and_unset_origins() -> Result<(), Error> {
+    let cases = [
+        ("absent", "", "", Options::default(), "child", "{value}"),
+        (
+            "header value",
+            ":value: parent\n",
+            "",
+            Options::default(),
+            "parent",
+            "parent",
+        ),
+        (
+            "body value",
+            "",
+            ":value: parent\n",
+            Options::default(),
+            "parent",
+            "parent",
+        ),
+        (
+            "header unset",
+            ":value!:\n",
+            "",
+            Options::default(),
+            "child",
+            "{value}",
+        ),
+        (
+            "body unset",
+            "",
+            ":value!:\n",
+            Options::default(),
+            "child",
+            "{value}",
+        ),
+        (
+            "caller value",
+            "",
+            "",
+            Options::builder()
+                .with_attribute("value", "caller")
+                .build()?,
+            "caller",
+            "caller",
+        ),
+        (
+            "caller unset",
+            "",
+            "",
+            Options::builder().with_attribute("value", ()).build()?,
+            "{value}",
+            "{value}",
+        ),
+        (
+            "default value",
+            "",
+            "",
+            Options::builder()
+                .with_default_attribute("value", "default")
+                .build()?,
+            "default",
+            "default",
+        ),
+        (
+            "default unset",
+            "",
+            "",
+            Options::builder()
+                .with_default_attribute("value", false)
+                .build()?,
+            "child",
+            "{value}",
+        ),
+    ];
+    for (name, header, body, options, inside, outside) in cases {
+        let input = format!(
+            "= T\n{header}\n{body}\n[cols=\"2*a\"]\n|===\n|\n:value: child\n\nInside: {{value}}.\n|\nSibling: {{value}}.\n|===\n\nOutside: {{value}}.\n"
+        );
+        let parsed = parse(&input, &options)?;
+        let table = first_table(parsed.document())?;
+        let cells = &table.rows.first().ok_or("missing table row")?.columns;
+        assert_eq!(
+            cell_paragraphs(cells.first().ok_or("missing first cell")?),
+            [format!("Inside: {inside}.")],
+            "{name}"
+        );
+        assert_eq!(
+            cell_paragraphs(cells.get(1).ok_or("missing sibling cell")?),
+            [format!("Sibling: {outside}.")],
+            "{name}"
+        );
+        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+            return Err("missing outer paragraph".into());
+        };
+        assert_eq!(
+            paragraph_text(paragraph),
+            format!("Outside: {outside}."),
+            "{name}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_cells_lock_inherited_universal_defaults() -> Result<(), Error> {
+    for (name, value) in [
+        ("caution-caption", "Caution"),
+        ("version-label", "Version"),
+        ("toc-title", "Table of Contents"),
+    ] {
+        let input = format!("[cols=a]\n|===\n|\n:{name}: child\n\n{{{name}}}\n|===\n");
+        let parsed = parse(&input, &Options::default())?;
+        let table = table(
+            parsed
+                .document()
+                .blocks
+                .first()
+                .ok_or("missing table block")?,
+        )?;
+        assert_eq!(
+            cell_paragraphs(
+                table
+                    .rows
+                    .first()
+                    .ok_or("missing table row")?
+                    .columns
+                    .first()
+                    .ok_or("missing table cell")?
+            ),
+            [value],
+            "{name}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error> {
+    for (name, parent, child) in [
+        ("doctype", "book", "article"),
+        ("toc-placement", "preamble", "macro"),
+        ("toc-position", "left", "right"),
+        ("compat-mode", "", "changed"),
+    ] {
+        let input = format!(
+            "= T\n\n[cols=a]\n|===\n|\n:{name}: {child}\n\n{{{name}}}\n|===\n\n{{{name}}}\n"
+        );
+        let options = Options::builder().with_attribute(name, parent).build()?;
+        let parsed = parse(&input, &options)?;
+        let table = table(
+            parsed
+                .document()
+                .blocks
+                .first()
+                .ok_or("missing table block")?,
+        )?;
+        assert_eq!(
+            cell_paragraphs(
+                table
+                    .rows
+                    .first()
+                    .ok_or("missing table row")?
+                    .columns
+                    .first()
+                    .ok_or("missing table cell")?
+            ),
+            [child],
+            "{name}"
+        );
+        assert_eq!(
+            parsed
+                .document()
+                .attributes
+                .get(name)
+                .and_then(DocumentAttributeValue::as_str),
+            Some(parent)
+        );
+    }
+    let parsed = parse(
+        "= T\n:doctype: book\n:toc:\n:showtitle:\n:my-doctype-note: retained\n:compat-mode: parent\n\n[cols=a]\n|===\n|\n{doctype}; {toc}; {showtitle}; {notitle}; {my-doctype-note}; {compat-mode}\n|===\n",
+        &Options::default(),
+    )?;
+    let table = table(
+        parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or("missing table block")?,
+    )?;
+    let cell = table
+        .rows
+        .first()
+        .ok_or("missing table row")?
+        .columns
+        .first()
+        .ok_or("missing table cell")?;
+    assert_eq!(
+        cell_paragraphs(cell),
+        ["article; {toc}; {showtitle}; ; retained; "]
+    );
+    assert!(
+        cell.initial_attributes()
+            .any(|(name, value)| name == "doctype"
+                && value.value().and_then(DocumentAttributeValue::as_str) == Some("article"))
+    );
+    Ok(())
+}
+
+fn first_table<'doc, 'a>(document: &'doc Document<'a>) -> Result<&'doc Table<'a>, Error> {
+    document
+        .blocks
+        .iter()
+        .find_map(|block| table(block).ok())
+        .ok_or_else(|| "missing table".into())
+}
+
 fn table<'block, 'a>(block: &'block Block<'a>) -> Result<&'block Table<'a>, Error> {
     let Block::DelimitedBlock(block) = block else {
         return Err("expected a delimited block".into());
