@@ -59,6 +59,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the output tree, and `:diagram-cachedir:` moves the cache away from its default
   `.asciidoctor/diagram`.
 
+- The converted document refers to a generated image by a path relative to
+  `imagesdir`, which the backends prefix back on, so the reference works
+  wherever the image was written and whichever directory the command was run
+  from. `acdc convert doc/guide.adoc` and `acdc convert guide.adoc` from inside
+  `doc/` produce the same `src`. With `imagesdir` and `imagesoutdir` naming the
+  same place — or with neither set — that reference is just the file name, as
+  asciidoctor emits; when they differ, it is the path that bridges them, which
+  is what lets an `imagesoutdir` the document does not otherwise mention still
+  resolve.
+
 - Output formats follow the tool: `svg`, `png`, `pdf`, `gif` and `jpeg` become
   image blocks, while `txt`, `atxt` and `utxt` become literal blocks holding the
   generated ASCII or Unicode art. For an HTML backend, PDF is used only when a
@@ -100,6 +110,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `barcode` and `structurizr` are not available.
 - Mermaid is driven through `mmdc`; the gem's fallback onto the pre-`mmdc`
   `mermaid` binary under PhantomJS is not carried over.
+- `:data-uri:`, and the `inline` and `interactive` SVG types, do not embed the
+  image the way the gem does, because no acdc backend embeds images yet. The
+  attributes are recorded on the generated image and the document links to the
+  file, rather than acdc emitting a filesystem path that nothing would read.
 - `PlantUML` preprocessing is skipped for diagrams that use none of the
   preprocessor's syntax, which avoids a JVM start-up per block. `preprocess=false`
   still disables it outright.
