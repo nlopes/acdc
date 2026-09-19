@@ -1,0 +1,29 @@
+[package]
+name = "acdc-diagram"
+version = "0.1.0"
+edition.workspace = true
+description = "Diagram generation for acdc: turns `[plantuml]`, `[graphviz]`, … blocks into generated images"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[features]
+default = ["pre-spec-subs"]
+# Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
+pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
+
+[dependencies]
+acdc-converters-core.workspace = true
+acdc-parser.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+tempfile.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+pretty_assertions.workspace = true
+rstest.workspace = true
+
+[lints]
+workspace = true
