@@ -19,6 +19,13 @@ const BODY_END: &str = "\n\\endgroup\n\\end{document}\n";
 const DEFAULT_ENGINE: &str = "pdflatex";
 
 /// A `LaTeX` engine, with `pdf2svg` for SVG output.
+///
+/// Which engine runs is up to the document: `command=` names it and nothing
+/// here is special-cased, so `xelatex`, `lualatex`, a wrapper script or an
+/// absolute path all work the same way. The one requirement is that whatever
+/// is named accepts `pdflatex`'s arguments and writes its PDF next to the
+/// input — `pdflatex`, `lualatex` and `xelatex` do; something with its own
+/// command line, such as `tectonic`, reports its own error instead.
 pub(crate) struct TikZ;
 
 impl DiagramConverter for TikZ {
@@ -43,6 +50,7 @@ impl DiagramConverter for TikZ {
         format: Format,
         options: &ConverterOptions,
     ) -> Result<Generated> {
+        // Whatever `command=` holds is the tool name, looked up like any other.
         let engine = [engine(options)];
         let latex = source.find_command(&CommandLookup::new(&engine))?;
 
@@ -94,12 +102,14 @@ impl DiagramConverter for TikZ {
     }
 }
 
-/// The `LaTeX` engine to run: `command=lualatex` on the block, else
-/// `:tikz-command:` on the document, else `pdflatex`.
+/// The command to run: `command=` on the block, else `:tikz-command:` on the
+/// document, else `pdflatex`.
 ///
-/// The engine is looked up like any other tool, so `:lualatex: /opt/tex/lualatex`
-/// pins a particular build and a value containing a path separator is used
-/// directly.
+/// The value is the tool's name, taken verbatim and not matched against any
+/// list — `command=xelatex` runs `xelatex`, `command=my-latex-wrapper` runs
+/// that. It is then resolved like every other diagram tool, so a document
+/// attribute of the same name (`:xelatex: /opt/texlive/bin/xelatex`) pins a
+/// particular build, and a value holding a path separator is used as the path.
 fn engine(options: &ConverterOptions) -> &str {
     option(options, "command")
         .map(str::trim)
@@ -117,9 +127,14 @@ mod tests {
     }
 
     #[test]
-    fn honours_an_explicit_command() {
-        let options = ConverterOptions::from([("command".to_string(), "lualatex".to_string())]);
-        assert_eq!(engine(&options), "lualatex");
+    fn takes_the_command_name_verbatim() {
+        // Nothing is matched against a list of known engines: whatever follows
+        // `command=` is the tool that gets looked up.
+        for command in ["lualatex", "xelatex", "my-latex-wrapper", "/opt/tex/bin/pdflatex"] {
+            let options =
+                ConverterOptions::from([("command".to_string(), command.to_string())]);
+            assert_eq!(engine(&options), command);
+        }
     }
 
     #[test]
