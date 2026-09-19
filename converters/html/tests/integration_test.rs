@@ -33,6 +33,15 @@ fn run_fixture_test(
         return Ok(());
     }
 
+    // A fixture that turns on a source highlighter captures syntect's markup,
+    // which only exists under the `highlighting` feature. Keyed on the
+    // attribute rather than the file name so a new fixture that sets it is
+    // covered without being renamed.
+    #[cfg(not(feature = "highlighting"))]
+    if std::fs::read_to_string(path)?.contains(":source-highlighter:") {
+        return Ok(());
+    }
+
     let expected_path = expected_dir.join(file_name).with_extension("html");
 
     let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
