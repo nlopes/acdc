@@ -12,3 +12,4 @@
 # this is a skill provided by incident-io/claude-skills
 .claude/vibe-check-themes.md
 /wip
+*.DS_Store
