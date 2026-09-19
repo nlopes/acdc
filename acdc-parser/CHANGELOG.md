@@ -229,6 +229,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Extension authors can rewrite a parsed document before conversion and allocate
+  generated text that is released with the document.
+
 - Section targets expose their cross-reference category and number as borrowed,
   read-only values. Converters can honor `xrefstyle` and the `<name>-refsig`
   value at each reference's source position. Reference numbers continue beyond

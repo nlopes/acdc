@@ -136,7 +136,7 @@ pub use model::{
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};
 pub use options::{Options, OptionsBuilder, SafeMode};
-pub use parsed::{OwnedSource, ParseInlineResult, ParseResult};
+pub use parsed::{DocumentArena, OwnedSource, ParseInlineResult, ParseResult};
 pub use warning::{Warning, WarningKind};
 
 /// Type-based parser for `AsciiDoc` content.
@@ -485,7 +485,7 @@ fn parse_input(
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     ParseResult::try_new(owner, warnings_handle, move |owner| {
-        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        let mut state = grammar::ParserState::new(&owner.source, owner.arena.bump());
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
         state.initialize_hardbreaks();
@@ -551,7 +551,7 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
     let warnings_for_state = Rc::clone(&warnings_handle);
 
     ParseInlineResult::try_new(owner, warnings_handle, move |owner| {
-        let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
+        let mut state = grammar::ParserState::new(&owner.source, owner.arena.bump());
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
         state.initialize_hardbreaks();
