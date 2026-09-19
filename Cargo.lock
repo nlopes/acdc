@@ -12,6 +12,7 @@ dependencies = [
  "acdc-converters-markdown",
  "acdc-converters-pdf",
  "acdc-converters-terminal",
+ "acdc-diagram",
  "acdc-execute",
  "acdc-lint",
  "acdc-parser",
