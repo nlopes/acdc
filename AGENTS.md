@@ -45,6 +45,7 @@
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
+| `diagram` | on | cli | Renders `[plantuml]`, `[graphviz]`, … blocks via `acdc-diagram`; see `acdc-diagram/AGENTS.md` |
 
 New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.
 
@@ -55,6 +56,7 @@ When tests fail, identify the category and follow the appropriate path:
 - **Fixture mismatches** → run the `regen-fixtures` skill (ask first). If the skill is unavailable, ask before using the documented scoped generator.
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
+- **Diagram generation failures** → `acdc-diagram/AGENTS.md`
 
 ## Benchmarks
 
