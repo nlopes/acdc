@@ -108,7 +108,7 @@ pub(crate) fn process_passthrough_with_quotes<'a>(
 pub fn parse_text_for_quotes(content: &str) -> ParseInlineResult {
     let owner = OwnedInput::new(content.into());
     ParseInlineResult::from_infallible(owner, |owner| {
-        parse_text_for_quotes_in(&owner.arena, &owner.source)
+        parse_text_for_quotes_in(owner.arena.bump(), &owner.source)
     })
 }
 

@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `BlockMetadata::positional_values()` reports a block's unnamed positional
+  attributes in the order they were written. `[plantuml,my-diagram,svg]` reads
+  back as `"my-diagram"` then `"svg"`; a skipped slot (`[plantuml,,svg]`) comes
+  back as an empty string so the ones after it keep their index. The same values
+  remain available, unordered, through `metadata.attributes`.
+- `ParseResult::with_document_mut` rewrites a parsed document in place, for
+  passes that run between parsing and conversion. The closure is handed a
+  `DocumentArena` alongside the document, so nodes it inserts can hold generated
+  text with the document's own lifetime instead of owning or leaking it.
 - `Options::builder().with_base_dir(path)` now controls entry include resolution
   for string, reader, and file input. It also defines the Safe/Server local
   boundary; otherwise string/reader input uses the current directory and file
