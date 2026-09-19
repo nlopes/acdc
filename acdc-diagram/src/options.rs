@@ -111,11 +111,22 @@ impl OptionsBuilder {
     ///
     /// Unset directories fall back to the current working directory, which is
     /// what a document read from stdin resolves against.
+    ///
+    /// Both directories are made absolute. Where a generated image is written,
+    /// and how the document then refers to it, must not depend on which
+    /// directory the command happened to be run from.
     #[must_use]
     pub fn build(self) -> Options {
-        let cwd = || std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-        let base_dir = self.base_dir.unwrap_or_else(cwd);
-        let output_dir = self.output_dir.unwrap_or_else(|| base_dir.clone());
+        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let absolute = |dir: PathBuf| {
+            if dir.is_absolute() {
+                dir
+            } else {
+                cwd.join(dir)
+            }
+        };
+        let base_dir = absolute(self.base_dir.unwrap_or_else(|| cwd.clone()));
+        let output_dir = self.output_dir.map_or_else(|| base_dir.clone(), absolute);
         Options {
             base_dir,
             output_dir,
