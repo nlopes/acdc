@@ -1,0 +1,6 @@
+[graphviz,format=invalid]
+----
+digraph { a -> b }
+----
+
+Retained diagram body.

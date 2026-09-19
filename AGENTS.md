@@ -53,6 +53,7 @@ crate; check the CLI manifest for backend and tool selection.
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
+| `diagram` | on | cli | Renders `[plantuml]`, `[graphviz]`, … blocks via `acdc-diagram`; see `acdc-diagram/AGENTS.md` |
 
 Converters render resolved parser semantics and apply output escaping or retained
 raw-text substitutions. Do not reintroduce feature gates for language behavior.
@@ -64,6 +65,7 @@ When tests fail, identify the category and follow the appropriate path:
 - **Fixture mismatches** → get approval before changing existing expectations, then use the `regen-fixtures` skill or the documented scoped generator.
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
+- **Diagram generation failures** → `acdc-diagram/AGENTS.md`
 
 ## Benchmarks
 
