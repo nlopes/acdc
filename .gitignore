@@ -17,3 +17,4 @@ klee/
 docs-resources/
 asciidoctor-diagram/
 cspell.json
+.claude/agents/compare-asciidoc-output.md

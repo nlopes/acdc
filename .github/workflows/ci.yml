@@ -1,0 +1,222 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: '*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      parser: ${{ steps.filter.outputs.parser }}
+      converters: ${{ steps.filter.outputs.converters }}
+      cli: ${{ steps.filter.outputs.cli }}
+      lsp: ${{ steps.filter.outputs.lsp }}
+      pdf: ${{ steps.filter.outputs.pdf }}
+      wasm: ${{ steps.filter.outputs.wasm }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            parser:
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            converters:
+              - 'converters/**'
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            cli:
+              - 'acdc-cli/**'
+              - 'acdc-parser/**'
+              - 'converters/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            lsp:
+              - 'acdc-lsp/**'
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            pdf:
+              - 'converters/core/**'
+              - 'converters/pdf/**'
+              - 'acdc-parser/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+            wasm:
+              - 'acdc-editor-wasm/**'
+              - 'acdc-parser/**'
+              - 'converters/core/**'
+              - 'converters/html/**'
+              - 'Cargo.toml'
+              - 'Cargo.lock'
+
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+      - uses: Swatinem/rust-cache@v2
+      - name: Run clippy
+        run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Run clippy (WASM editor)
+        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
+
+  test-parser:
+    needs: changes
+    if: needs.changes.outputs.parser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run parser tests - all features
+        run: cargo nextest run -p acdc-parser --all-features --verbose
+      - name: Run parser tests - no default features
+        run: cargo nextest run -p acdc-parser --no-default-features --verbose
+      - name: Compile conditional performance benchmark
+        run: cargo check -p acdc-parser --bench conditional_bench --all-features
+      - name: Check parser fixtures
+        run: |
+          cargo run -p acdc-parser --example generate_parser_fixtures --all-features
+          if ! git diff --exit-code acdc-parser/fixtures/tests; then
+            echo "::warning::Fixtures are out of sync with current parser output"
+            echo "Run: cargo run -p acdc-parser --example generate_parser_fixtures --all-features"
+          fi
+        continue-on-error: true
+
+  test-converters:
+    needs: changes
+    if: needs.changes.outputs.converters == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+      - uses: Swatinem/rust-cache@v2
+      - name: Rebuild Ghostty for the current runner
+        run: cargo clean -p libghostty-vt-sys
+      - uses: taiki-e/install-action@nextest
+      - name: Run converter tests
+        run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
+      - name: Run Ghostty-backed terminal tests
+        run: cargo nextest run -p acdc-converters-terminal --test headless_terminal_test --all-features --verbose
+
+  test-pdf:
+    needs: changes
+    if: needs.changes.outputs.pdf == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run PDF pipeline tests - all features
+        run: cargo nextest run -p acdc-pdf-theme -p acdc-pdf-typst -p acdc-pdf-render -p acdc-pdf-images -p acdc-converters-pdf --all-features --verbose
+
+  test-cli:
+    needs: changes
+    if: needs.changes.outputs.cli == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run CLI tests
+        run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
+      - name: Smoke-test backend-only CLI builds
+        shell: bash
+        run: |
+          for feature in html manpage markdown pdf terminal; do
+            cargo run -p acdc-cli --no-default-features --features "$feature" -- convert --help
+          done
+      - name: Smoke-test tool-only CLI builds
+        shell: bash
+        run: |
+          cargo run -p acdc-cli --no-default-features --features inspect -- inspect --help
+          cargo run -p acdc-cli --no-default-features --features lint -- lint --help
+          cargo run -p acdc-cli --no-default-features --features tck -- tck --help
+      - name: Test the no-command CLI diagnostic
+        run: cargo nextest run -p acdc-cli --no-default-features --test cli
+
+  test-lsp:
+    needs: changes
+    if: needs.changes.outputs.lsp == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run LSP tests
+        run: cargo nextest run -p acdc-lsp --all-features --verbose
+
+  test-wasm:
+    needs: changes
+    if: needs.changes.outputs.wasm == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Run clippy (WASM editor)
+        run: cargo clippy -p acdc-editor-wasm --target wasm32-unknown-unknown --all-features -- --deny clippy::pedantic
+
+  proptests:
+    needs: changes
+    if: needs.changes.outputs.parser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Run property tests
+        run: cargo nextest run -p acdc-parser --all-features --lib proptests --verbose
+        env:
+          PROPTEST_CASES: 10000
+
+  doctest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.15.2
+      - uses: Swatinem/rust-cache@v2
+      - name: Run doc tests
+        run: cargo test --doc --all-features --verbose
