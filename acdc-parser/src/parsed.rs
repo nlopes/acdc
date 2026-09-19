@@ -10,7 +10,8 @@
 //! fallback.
 //!
 //! Consumers reach the AST via `.document()` (or `.inlines()`); bumpalo
-//! never appears in a public signature.
+//! never appears in a public signature — [`DocumentArena`] is the newtype
+//! that keeps it that way while still letting an in-place rewrite allocate.
 //!
 //! `OwnedSource` covers the parse-failure case (we have the text but no
 //! AST) without paying for an empty arena.
@@ -57,6 +58,32 @@ impl SourceFiles {
     }
 }
 
+/// Storage for generated text added to a parsed document.
+///
+/// Obtain this through [`ParseResult::with_document_mut`]. Allocations remain
+/// valid until the owning parse result is dropped and cannot be reclaimed
+/// individually.
+#[derive(Debug)]
+pub struct DocumentArena(Bump);
+
+impl DocumentArena {
+    /// Copy `text` into the arena.
+    ///
+    /// The returned slice lives as long as the parsed document, so AST nodes
+    /// may hold it. Copies are never reclaimed individually: the whole arena
+    /// is released when the `ParseResult` drops, so this is for text that
+    /// becomes part of the document, not for scratch buffers.
+    #[must_use]
+    pub fn alloc_str<'a>(&'a self, text: &str) -> &'a str {
+        self.0.alloc_str(text)
+    }
+
+    /// The underlying arena, for the parser's own interning paths.
+    pub(crate) fn bump(&self) -> &Bump {
+        &self.0
+    }
+}
+
 /// Owner-side of the self-referential parse cell: holds the preprocessed
 /// source text and the arena that parser-allocated strings live in. The
 /// AST dependent borrows from both fields simultaneously via their shared
@@ -64,7 +91,7 @@ impl SourceFiles {
 #[derive(Debug)]
 pub(crate) struct OwnedInput {
     pub(crate) source: Box<str>,
-    pub(crate) arena: Bump,
+    pub(crate) arena: DocumentArena,
 }
 
 impl OwnedInput {
@@ -74,7 +101,7 @@ impl OwnedInput {
         // footprint correlates with source length, so this avoids the
         // first ~10 chunk-grow round-trips through the global allocator
         // on documents larger than a few KB.
-        let arena = Bump::with_capacity(source.len());
+        let arena = DocumentArena(Bump::with_capacity(source.len()));
         Self { source, arena }
     }
 }
@@ -157,6 +184,24 @@ impl ParseResult {
     #[must_use]
     pub fn document(&self) -> &Document<'_> {
         self.cell.borrow_dependent()
+    }
+
+    /// Rewrite the document AST in place.
+    ///
+    /// Generated text can borrow from the supplied [`DocumentArena`]. The
+    /// closure prevents nodes from borrowing shorter-lived caller buffers.
+    ///
+    /// Callers must preserve source locations and keep references, the table of
+    /// contents, footnotes, and numbering consistent with their edits. This
+    /// method does not rebuild derived document data or update [`Self::source`]
+    /// and [`Self::warnings`]. Caption and section edits may require
+    /// [`Document::renumber_captions`] and [`Document::renumber_sections`].
+    pub fn with_document_mut<'outer, R>(
+        &'outer mut self,
+        f: impl for<'a> FnOnce(&'outer mut Document<'a>, &'a DocumentArena) -> R,
+    ) -> R {
+        self.cell
+            .with_dependent_mut(|owner, document| f(document, &owner.arena))
     }
 
     /// Borrow the preprocessed source the AST was parsed from.
