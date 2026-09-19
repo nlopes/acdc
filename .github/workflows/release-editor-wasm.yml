@@ -1,0 +1,79 @@
+name: Release editor WASM
+
+on:
+  push:
+    tags:
+      - 'acdc-editor-wasm-v*'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Install toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: wasm32-unknown-unknown
+
+    - name: Setup Cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install wasm-pack
+      run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+    - name: Build WASM package
+      run: wasm-pack build acdc-editor-wasm --target web --release
+
+    - name: Extract version
+      id: version
+      env:
+        REF_TYPE: ${{ github.ref_type }}
+      run: |
+        if [[ "$REF_TYPE" == "tag" ]]; then
+          VERSION="${GITHUB_REF_NAME#acdc-editor-wasm-v}"
+        else
+          VERSION="$(cargo metadata --no-deps --format-version 1 \
+            | jq -r '.packages[] | select(.name == "acdc-editor-wasm") | .version')"
+        fi
+        echo "version=v${VERSION}" >> "$GITHUB_OUTPUT"
+
+    - name: Create tarball
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: tar -czf "acdc-editor-wasm-${VERSION}.tar.gz" -C acdc-editor-wasm/pkg .
+
+    - name: Upload artifact (manual dispatch)
+      if: github.event_name == 'workflow_dispatch'
+      uses: actions/upload-artifact@v7
+      with:
+        name: acdc-editor-wasm-${{ steps.version.outputs.version }}
+        path: acdc-editor-wasm-${{ steps.version.outputs.version }}.tar.gz
+
+    - name: Extract changelog notes
+      id: notes
+      env:
+        VERSION: ${{ steps.version.outputs.version }}
+      run: |
+        SEMVER="${VERSION#v}"
+        NOTES="$(sed -n "/^## \[${SEMVER}\]/,/^## \[/{/^## \[${SEMVER}\]/d;/^## \[/d;p;}" acdc-editor-wasm/CHANGELOG.md)"
+        {
+          echo "body<<CHANGELOG_EOF"
+          echo "$NOTES"
+          echo "CHANGELOG_EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Create GitHub Release
+      if: github.ref_type == 'tag'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ steps.version.outputs.version }}
+        RELEASE_NOTES: ${{ steps.notes.outputs.body }}
+      run: gh release create "$GITHUB_REF_NAME" "acdc-editor-wasm-${VERSION}.tar.gz" --title "acdc-editor-wasm ${VERSION}" --notes-file - <<< "$RELEASE_NOTES"

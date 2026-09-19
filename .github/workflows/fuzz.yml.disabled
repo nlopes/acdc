@@ -1,0 +1,51 @@
+name: Fuzz
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'acdc-parser/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    paths:
+      - 'acdc-parser/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Install Rust nightly
+      uses: dtolnay/rust-toolchain@nightly
+
+    - name: Setup Cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Install cargo-fuzz
+      uses: taiki-e/install-action@cargo-fuzz
+
+    - name: Run fuzz targets
+      working-directory: acdc-parser
+      run: |
+        for target in parser_document parser_inline preprocessor include_directive; do
+          echo "::group::Fuzzing $target"
+          cargo +nightly fuzz run "$target" -- -max_total_time=30
+          echo "::endgroup::"
+        done
+
+    - name: Upload crash artifacts
+      if: failure()
+      uses: actions/upload-artifact@v7
+      with:
+        name: fuzz-crashes
+        path: acdc-parser/fuzz/artifacts/
+        if-no-files-found: ignore
