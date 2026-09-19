@@ -13,3 +13,5 @@
 .claude/vibe-check-themes.md
 /wip
 *.DS_Store
+klee/
+docs-resources/
