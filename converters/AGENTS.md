@@ -42,6 +42,13 @@ Shared utilities in `core/`:
     not glob discovery. Subs fixtures must be registered in that list
     explicitly, and `test_fixture` has the matching `.contains("subs")`
     early-return.
+- **Fixtures that set `:source-highlighter:`** capture syntect's markup, which
+  only exists under the **html** converter's `highlighting` feature. The html
+  harness skips them when that feature is off, keyed on the attribute appearing
+  in the fixture source rather than on its file name — a new fixture that turns
+  a highlighter on is covered without having to be renamed. Without this, a
+  plain `cargo test -p acdc-converters-html` fails while the `--all-features`
+  run the project standardises on passes.
 
 ## Test placement
 
