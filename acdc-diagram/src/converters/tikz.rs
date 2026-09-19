@@ -130,9 +130,13 @@ mod tests {
     fn takes_the_command_name_verbatim() {
         // Nothing is matched against a list of known engines: whatever follows
         // `command=` is the tool that gets looked up.
-        for command in ["lualatex", "xelatex", "my-latex-wrapper", "/opt/tex/bin/pdflatex"] {
-            let options =
-                ConverterOptions::from([("command".to_string(), command.to_string())]);
+        for command in [
+            "lualatex",
+            "xelatex",
+            "my-latex-wrapper",
+            "/opt/tex/bin/pdflatex",
+        ] {
+            let options = ConverterOptions::from([("command".to_string(), command.to_string())]);
             assert_eq!(engine(&options), command);
         }
     }

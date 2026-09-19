@@ -36,12 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `syntrax`, `tape`, `tikz`, `umlet`, `vega`, `vegalite`, `wavedrom`. Each needs
   its tool installed; none is bundled.
 
-- `tikz` blocks choose their `LaTeX` engine with `command=`: `command=lualatex`
-  runs `lualatex` in place of the default `pdflatex`, and `:tikz-command:` sets
-  it for the whole document. The engine is located like any other tool, so
-  `:lualatex: /opt/texlive/bin/lualatex` pins a particular build, and changing
-  the engine regenerates the diagram rather than serving the cached image. This
-  has no counterpart in `asciidoctor-diagram`, which always runs `pdflatex`.
+- `tikz` blocks choose the command that typesets them with `command=`. The
+  value is the command's name, taken as written and not checked against any
+  list: `command=xelatex` runs `xelatex`, `command=lualatex` runs `lualatex`,
+  and `command=my-latex-wrapper` runs that. `:tikz-command:` sets it for the
+  whole document, and the default is `pdflatex`. The command is then located
+  like every other diagram tool, so a document attribute of the same name
+  (`:xelatex: /opt/texlive/bin/xelatex`) pins a particular build and a value
+  holding a path separator is used as the path. Changing the command
+  regenerates the diagram rather than serving the cached image.
+
+  Whatever is named has to accept `pdflatex`'s arguments and leave its PDF next
+  to the input, which the `TeX` engines do; a tool with its own command line,
+  such as `tectonic`, is run and reports its own error. This attribute has no
+  counterpart in `asciidoctor-diagram`, which always runs `pdflatex`.
 
 - Generated images are cached. A diagram is only re-rendered when its code, its
   attributes, or the tool options behind it change — or, for a block macro, when
