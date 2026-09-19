@@ -1593,7 +1593,7 @@ fn for_each_inline_children<'a>(
 pub fn parse_inline_formatting(content: &str) -> ParseInlineResult {
     let owner = OwnedInput::new(content.into());
     ParseInlineResult::from_infallible(owner, |owner| {
-        parse_text_for_quotes_in(&owner.arena, &owner.source)
+        parse_text_for_quotes_in(owner.arena.bump(), &owner.source)
     })
 }
 
