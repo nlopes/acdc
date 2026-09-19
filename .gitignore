@@ -12,3 +12,10 @@
 # this is a skill provided by incident-io/claude-skills
 .claude/vibe-check-themes.md
 /wip
+
+# Generated diagram example output
+/acdc-diagram/examples/.asciidoctor/
+/acdc-diagram/examples/*.html
+/acdc-diagram/examples/*.svg
+/acdc-diagram/examples/*.png
+/acdc-diagram/examples/*.pdf
