@@ -1,0 +1,44 @@
+= Q&A description lists
+
+== Basic questions
+
+.Common questions
+[#common-questions.qanda-role]
+[qanda]
+What is AsciiDoc?:: A lightweight markup language.
+Why use it?:: It produces structured documents from plain text.
+
+== Formatted and shared questions
+
+[qanda]
+*Which question is important?*:: The answer includes *strong*, _emphasized_, and `code` text.
+`Where is config.toml?`:: In the project directory.
+What is the short name?::
+What is the long name?:: Both questions share this answer.
+
+== Attached content
+
+[qanda]
+Which steps should I follow?:: Start here.
+* First supporting point
+* Second supporting point
+
+How does nested content work?::
++
+--
+An attached paragraph.
+
+[qanda]
+What restarts inside the answer?:: The nested Q&A numbering.
+--
+
+== Alignment
+
+[qanda.text-center]
+What is centered?:: The question and principal answer.
+
+== Ignored numbering controls
+
+[qanda,start=4,options=reversed]
+Where does numbering start?:: At one.
+What comes next?:: Two.

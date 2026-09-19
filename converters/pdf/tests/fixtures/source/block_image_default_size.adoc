@@ -1,0 +1,3 @@
+= Block image default size
+
+image::inline-image-dimensions.svg[Small intrinsic image]

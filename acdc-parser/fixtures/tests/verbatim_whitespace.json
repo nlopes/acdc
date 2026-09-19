@@ -1,0 +1,556 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Verbatim whitespace",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 21
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Delimited listing",
+          "location": [
+            {
+              "line": 3,
+              "col": 4
+            },
+            {
+              "line": 3,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  leading spaces\nrepeated    spaces\ntab\tvalue\n\nafter blank\n",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 10,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Delimited literal",
+          "location": [
+            {
+              "line": 14,
+              "col": 4
+            },
+            {
+              "line": 14,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "literal",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "....",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  leading literal\nliteral    spaces\n",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Delimited source with a callout",
+          "location": [
+            {
+              "line": 22,
+              "col": 4
+            },
+            {
+              "line": 22,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust",
+              "rust": null
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  let value = 5; ",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 1
+                },
+                {
+                  "line": 26,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "callout_reference",
+              "type": "inline",
+              "variant": "explicit",
+              "number": 1,
+              "location": [
+                {
+                  "line": 26,
+                  "col": 18
+                },
+                {
+                  "line": 26,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n",
+              "location": [
+                {
+                  "line": 26,
+                  "col": 21
+                },
+                {
+                  "line": 26,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "callout",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "callout": {
+                "name": "callout_reference",
+                "type": "inline",
+                "variant": "explicit",
+                "number": 1,
+                "location": [
+                  {
+                    "line": 29,
+                    "col": 1
+                  },
+                  {
+                    "line": 29,
+                    "col": 14
+                  }
+                ]
+              },
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "The value.",
+                  "location": [
+                    {
+                      "line": 29,
+                      "col": 5
+                    },
+                    {
+                      "line": 29,
+                      "col": 14
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 29,
+                  "col": 1
+                },
+                {
+                  "line": 29,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Styled paragraphs",
+          "location": [
+            {
+              "line": 31,
+              "col": 4
+            },
+            {
+              "line": 31,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  source indentation",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "attributes": {
+              "language": "rust",
+              "rust": null
+            },
+            "style": "source"
+          },
+          "location": [
+            {
+              "line": 33,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  listing indentation",
+              "location": [
+                {
+                  "line": 37,
+                  "col": 1
+                },
+                {
+                  "line": 37,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "listing"
+          },
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 37,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "  literal indentation",
+              "location": [
+                {
+                  "line": 40,
+                  "col": 1
+                },
+                {
+                  "line": 40,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "metadata": {
+            "style": "literal"
+          },
+          "location": [
+            {
+              "line": 39,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 40,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Long lines",
+          "location": [
+            {
+              "line": 42,
+              "col": 4
+            },
+            {
+              "line": 42,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "space-separated content that is deliberately long enough to pass a normal PDF text width while retaining every word and every source space across the complete line\nunbroken_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 1
+                },
+                {
+                  "line": 46,
+                  "col": 195
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 42,
+          "col": 1
+        },
+        {
+          "line": 47,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 47,
+      "col": 4
+    }
+  ]
+}

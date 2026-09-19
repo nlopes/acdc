@@ -1,7 +1,7 @@
 use std::{io::Write, string::ToString};
 
-use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::Image;
+use acdc_converters_core::media::resolve_target;
+use acdc_parser::{BlockMetadata, CaptionKind, Image};
 
 use crate::{
     Error, HtmlVariant, HtmlVisitor,
@@ -43,22 +43,23 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             || alt_text_from_filename(&img.source),
             std::borrow::Cow::into_owned,
         );
+        let source = escape_href(&resolve_target(
+            &img.source.to_string(),
+            self.processor.document_attributes(),
+        ));
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
+        let link_controls = image_link_control_attributes(&img.metadata);
         if let Some(link) = link {
             write!(
                 self.writer,
-                "<a class=\"image\" href=\"{}\">",
-                escape_href(&link.to_string())
+                "<a class=\"image\" href=\"{}\"{link_controls}>",
+                escape_href(&link.to_string()),
             )?;
         }
 
-        write!(
-            self.writer,
-            "<img src=\"{}\" alt=\"{alt_text}\"",
-            img.source
-        )?;
+        write!(self.writer, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
         write_dimension_attributes(&mut self.writer, &img.metadata)?;
         write!(self.writer, ">")?;
 
@@ -70,11 +71,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Render title with figure caption if title exists
         // Caption can be disabled with :figure-caption!:
         if !img.title.is_empty() {
-            let prefix =
-                processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
-            self.render_title_with_wrapper(
+            self.render_captioned_title_with_wrapper(
                 &img.title,
-                &format!("<div class=\"title\">{prefix}"),
+                &img.metadata,
+                Some(CaptionKind::Figure),
+                "<div class=\"title\">",
                 "</div>",
             )?;
         }
@@ -118,9 +119,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             || alt_text_from_filename(&img.source),
             std::borrow::Cow::into_owned,
         );
+        let source = escape_href(&resolve_target(
+            &img.source.to_string(),
+            self.processor.document_attributes(),
+        ));
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
+        let link_controls = image_link_control_attributes(&img.metadata);
         let link_str = link.as_ref().map(ToString::to_string);
         let is_link_none = link_str.as_deref() == Some("none");
         let is_link_self = link_str.as_deref() == Some("self");
@@ -150,8 +156,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 );
             write!(
                 self.writer,
-                "<a class=\"image bare\" href=\"{}\" title=\"{label}\" aria-label=\"{label}\">",
-                img.source
+                "<a class=\"image bare\" href=\"{source}\"{link_controls} title=\"{label}\" aria-label=\"{label}\">",
             )?;
         } else if !is_link_none
             && !is_link_self
@@ -159,16 +164,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         {
             write!(
                 self.writer,
-                "<a class=\"image\" href=\"{}\">",
-                escape_href(link_str)
+                "<a class=\"image\" href=\"{}\"{link_controls}>",
+                escape_href(link_str),
             )?;
         }
 
-        write!(
-            self.writer,
-            "<img src=\"{}\" alt=\"{alt_text}\"",
-            img.source
-        )?;
+        write!(self.writer, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
         write_dimension_attributes(&mut self.writer, &img.metadata)?;
 
         // Add loading attribute if present
@@ -186,11 +187,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         if has_title {
-            let prefix =
-                processor.caption_prefix("figure-caption", &processor.figure_counter, "Figure");
-            self.render_title_with_wrapper(
+            self.render_captioned_title_with_wrapper(
                 &img.title,
-                &format!("<figcaption>{prefix}"),
+                &img.metadata,
+                Some(CaptionKind::Figure),
+                "<figcaption>",
                 "</figcaption>\n",
             )?;
         }
@@ -198,4 +199,26 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         writeln!(self.writer, "</{tag}>")?;
         Ok(())
     }
+}
+
+pub(crate) fn image_link_control_attributes(metadata: &BlockMetadata<'_>) -> String {
+    let window = metadata
+        .attributes
+        .get_string("window")
+        .filter(|window| !window.is_empty());
+    let nofollow = metadata.options.contains(&"nofollow");
+    let noopener = window
+        .as_deref()
+        .is_some_and(|window| window == "_blank" || metadata.options.contains(&"noopener"));
+
+    let mut attributes = window.map_or_else(String::new, |window| {
+        format!(" target=\"{}\"", escape_href(&window))
+    });
+    match (nofollow, noopener) {
+        (true, true) => attributes.push_str(" rel=\"nofollow noopener\""),
+        (true, false) => attributes.push_str(" rel=\"nofollow\""),
+        (false, true) => attributes.push_str(" rel=\"noopener\""),
+        (false, false) => {}
+    }
+    attributes
 }

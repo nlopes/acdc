@@ -6,6 +6,7 @@ This document tests CommonMark output where tables are not supported.
 
 Tables are not supported in CommonMark:
 
+.Skipped Table Title
 |===
 |Header 1 |Header 2
 

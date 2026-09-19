@@ -8,15 +8,21 @@ use std::{borrow::Cow, io::Write, rc::Rc};
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
     decode_numeric_char_refs,
+    link::{link_fallback, mailto_fallback},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
-use acdc_parser::{Autolink, CrossReference, InlineMacro, InlineNode, Link, Mailto};
+use acdc_parser::{
+    Autolink, CrossReference, ElementAttributes, InlineMacro, InlineNode, Link, Mailto,
+};
 
 use crate::{
     Error, ManpageVisitor,
-    escape::{EscapeMode, manify, uppercase_title},
+    escape::{
+        EscapeMode, escape_rendered_roff_macro_argument, escape_roff_macro_argument, manify,
+        uppercase_title,
+    },
     manpage_visitor::TextCase,
 };
 
@@ -25,6 +31,54 @@ fn replacements() -> Replacements<'static> {
     replacements.em_dash_spaced = " \u{2014} ";
     replacements.em_dash_word_bounded = "\u{2014}";
     replacements
+}
+
+#[derive(Clone, Copy)]
+enum RoleDefault {
+    Plain,
+    Highlight,
+}
+
+fn role_affixes(role: Option<&str>, default: RoleDefault) -> (String, String) {
+    let mut prefix = String::new();
+    let mut closings = Vec::new();
+
+    for role in role.into_iter().flat_map(str::split_whitespace) {
+        let (opening, closing) = match role {
+            "underline" | "subtitle" => ("\\fI", "\\fP"),
+            "line-through" => ("[deleted: ", "]"),
+            "overline" => ("[overlined: ", "]"),
+            "big" => ("\\s+1", "\\s-1"),
+            "small" => ("\\s-1", "\\s+1"),
+            "highlight" => ("\\fB", "\\fP"),
+            _ => continue,
+        };
+        prefix.push_str(opening);
+        closings.push(closing);
+    }
+
+    if prefix.is_empty() && role.is_none() && matches!(default, RoleDefault::Highlight) {
+        prefix.push_str("\\fB");
+        closings.push("\\fP");
+    }
+
+    let suffix = closings.into_iter().rev().collect();
+    (prefix, suffix)
+}
+
+fn role_from_attributes<'a>(attributes: &ElementAttributes<'a>) -> Option<Cow<'a, str>> {
+    attributes.get_string("role")
+}
+
+fn has_degraded_role(role: Option<&str>) -> bool {
+    role.into_iter()
+        .flat_map(str::split_whitespace)
+        .any(|role| {
+            !matches!(
+                role,
+                "underline" | "subtitle" | "big" | "small" | "highlight"
+            )
+        })
 }
 
 /// Apply manpage typography replacements to a `PlainText` leaf.
@@ -93,6 +147,51 @@ fn restore_em_dash_line_prefixes(content: &str, escaped: &str) -> Option<String>
 }
 
 impl<W: Write> ManpageVisitor<'_, '_, W> {
+    fn render_with_role(
+        &mut self,
+        role: Option<&str>,
+        default: RoleDefault,
+        content: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        if has_degraded_role(role) && !self.processor.inline_role_warning.replace(true) {
+            self.diagnostics.warn_with_advice(
+                "some inline roles have no exact portable roff styling; rendering textual or plain fallbacks",
+                "Use an HTML-capable backend when exact role styling is required.",
+            );
+        }
+        let (prefix, suffix) = role_affixes(role, default);
+        write!(self.writer_mut(), "{prefix}")?;
+        content(self)?;
+        write!(self.writer_mut(), "{suffix}")?;
+        Ok(())
+    }
+
+    fn render_link_display(
+        &mut self,
+        text: &[InlineNode<'_>],
+        fallback: &str,
+        role: Option<&str>,
+    ) -> Result<String, Error> {
+        let mut output = Vec::new();
+        {
+            let mut visitor = self.nested_visitor(&mut output);
+            visitor.render_with_role(role, RoleDefault::Plain, |visitor| {
+                if text.is_empty() {
+                    write!(
+                        visitor.writer_mut(),
+                        "{}",
+                        manify(fallback, EscapeMode::Normalize)
+                    )?;
+                } else {
+                    visitor.visit_inline_nodes(text)?;
+                }
+                Ok(())
+            })?;
+        }
+        let rendered = String::from_utf8_lossy(&output).trim().to_string();
+        Ok(escape_rendered_roff_macro_argument(&rendered).into_owned())
+    }
+
     fn render_plain_text(&mut self, text: &str) -> Result<(), Error> {
         let content = if self.strip_next_leading_space {
             self.strip_next_leading_space = false;
@@ -100,7 +199,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         } else {
             text
         };
-        let content = transform_plain(content, self, self.text_boundaries);
+        let mut content = transform_plain(content, self, self.text_boundaries);
+        if self.text_boundaries.at_paragraph_end() && text.ends_with("--") && content.ends_with(' ')
+        {
+            content.to_mut().pop();
+        }
         let content = apply_text_case(content, self.text_case);
         let escaped = manify(&content, EscapeMode::Normalize);
         let w = self.writer_mut();
@@ -160,10 +263,14 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineNode::HighlightText(highlight) => {
-                // Highlight - render as bold (no highlighting in roff)
-                write!(self.writer_mut(), "\\fB")?;
-                self.visit_inline_nodes(&highlight.content)?;
-                write!(self.writer_mut(), "\\fP")?;
+                let default = if highlight.id.is_some() {
+                    RoleDefault::Plain
+                } else {
+                    RoleDefault::Highlight
+                };
+                self.render_with_role(highlight.role, default, |visitor| {
+                    visitor.visit_inline_nodes(&highlight.content)
+                })?;
             }
 
             InlineNode::SubscriptText(sub) => {
@@ -220,8 +327,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 write!(w, "\\fB({})\\fP", callout.number)?;
             }
 
-            // Handle any future variants - skip unknown nodes
-            _ => {}
+            _ => self.warn_unsupported_parser_variant("inline node"),
         }
 
         Ok(())
@@ -231,14 +337,19 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // Use .URL macro for links (matching asciidoctor)
         // The macro must be on its own line; continuation text goes on the next line
         let target_str = link.target.to_string();
-        let escaped_target = manify(&target_str, EscapeMode::Normalize);
-        let display_text = if link.text.is_empty() {
+        let escaped_target = escape_roff_macro_argument(&target_str);
+        let role = role_from_attributes(&link.attributes);
+        let styled_fallback = !role_affixes(role.as_deref(), RoleDefault::Plain)
+            .0
+            .is_empty();
+        let display_text = if link.text.is_empty() && !link.hides_uri_scheme() && !styled_fallback {
             String::new()
         } else {
-            let mut buf = Vec::new();
-            let mut text_visitor = self.nested_visitor(&mut buf);
-            text_visitor.visit_inline_nodes(&link.text)?;
-            String::from_utf8_lossy(&buf).trim().to_string()
+            self.render_link_display(
+                &link.text,
+                link_fallback(&target_str, link.hides_uri_scheme()),
+                role.as_deref(),
+            )?
         };
         let w = self.writer_mut();
         writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display_text}\" \"\"")?;
@@ -262,20 +373,21 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         trailing: &str,
     ) -> Result<(), Error> {
         let target_str = mailto.target.to_string();
-        let email = target_str
-            .strip_prefix("mailto:")
-            .unwrap_or(&target_str)
-            .replace('@', "\\(at");
+        let email =
+            escape_roff_macro_argument(target_str.strip_prefix("mailto:").unwrap_or(&target_str))
+                .replace('@', "\\(at");
 
-        let display_text = if mailto.text.is_empty() {
+        let role = role_from_attributes(&mailto.attributes);
+        let styled_fallback = !role_affixes(role.as_deref(), RoleDefault::Plain)
+            .0
+            .is_empty();
+        let display_text = if mailto.text.is_empty() && !styled_fallback {
             String::new()
         } else {
-            let mut buf = Vec::new();
-            let mut text_visitor = self.nested_visitor(&mut buf);
-            text_visitor.visit_inline_nodes(&mailto.text)?;
-            String::from_utf8_lossy(&buf).trim().to_string()
+            self.render_link_display(&mailto.text, mailto_fallback(&target_str), role.as_deref())?
         };
 
+        let trailing = escape_rendered_roff_macro_argument(trailing);
         let w = self.writer_mut();
         writeln!(w, "\\c\n.MTO \"{email}\" \"{display_text}\" \"{trailing}\"")?;
         self.strip_next_leading_space = true;
@@ -300,16 +412,23 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // Use .MTO macro for mailto autolinks
         // The macro must end with newline; continuation text goes on the next line
         if let Some(email) = url_str.strip_prefix("mailto:") {
-            let escaped_email = email.replace('@', "\\(at");
+            let escaped_email = escape_roff_macro_argument(email).replace('@', "\\(at");
+            let trailing = escape_rendered_roff_macro_argument(trailing);
             let w = self.writer_mut();
             writeln!(w, "\\c\n.MTO \"{escaped_email}\" \"\" \"{trailing}\"")?;
         } else {
             // Use .URL macro for HTTP(S) links
+            let display_text = if autolink.hides_uri_scheme() {
+                escape_roff_macro_argument(link_fallback(&url_str, autolink.hides_uri_scheme()))
+            } else {
+                String::new()
+            };
+            let target = escape_roff_macro_argument(&url_str);
+            let trailing = escape_rendered_roff_macro_argument(trailing);
             let w = self.writer_mut();
             writeln!(
                 w,
-                "\\c\n.URL \"{}\" \"\" \"{trailing}\"",
-                manify(&url_str, EscapeMode::Normalize)
+                "\\c\n.URL \"{target}\" \"{display_text}\" \"{trailing}\"",
             )?;
         }
         self.strip_next_leading_space = true;
@@ -343,8 +462,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 self.render_ui_inline_macro(macro_node)?;
             }
 
-            // Handle any future variants - skip unknown macros
-            _ => {}
+            _ => self.warn_unsupported_parser_variant("inline macro"),
         }
 
         Ok(())
@@ -357,16 +475,20 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 // URL - use .URL macro for proper rendering (matching asciidoctor)
                 // The macro must end with newline; continuation text goes on the next line
                 let target_str = url.target.to_string();
-                let escaped_target = manify(&target_str, EscapeMode::Normalize);
-                if url.text.is_empty() {
+                let escaped_target = escape_roff_macro_argument(&target_str);
+                let role = role_from_attributes(&url.attributes);
+                let styled_fallback = !role_affixes(role.as_deref(), RoleDefault::Plain)
+                    .0
+                    .is_empty();
+                if url.text.is_empty() && !url.hides_uri_scheme() && !styled_fallback {
                     let w = self.writer_mut();
                     writeln!(w, "\\c\n.URL \"{escaped_target}\" \"\" \"\"")?;
                 } else {
-                    // Render text to a buffer for the .URL macro
-                    let mut buf = Vec::new();
-                    let mut text_visitor = self.nested_visitor(&mut buf);
-                    text_visitor.visit_inline_nodes(&url.text)?;
-                    let display_text = String::from_utf8_lossy(&buf).trim().to_string();
+                    let display_text = self.render_link_display(
+                        &url.text,
+                        link_fallback(&target_str, url.hides_uri_scheme()),
+                        role.as_deref(),
+                    )?;
                     let w = self.writer_mut();
                     writeln!(w, "\\c\n.URL \"{escaped_target}\" \"{display_text}\" \"\"")?;
                 }
@@ -412,12 +534,13 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // guard both outlive the `&mut self` render calls.
         let references = Rc::clone(&self.processor.references);
         let guard = self.processor.xref_guard.clone();
-        match resolve_xref(references.get(xref.target), xref.target, &guard) {
+        let target = xref.target;
+        match resolve_xref(references.get(target), xref, &guard) {
             // A reference to a level-1 section reads as that section's `.SH`
             // heading, which manpages upper-case. An explicit label reads as
             // written.
             XrefDisplay::Title(inlines, _scope) => {
-                let text_case = if self.processor.top_level_section_ids.contains(xref.target) {
+                let text_case = if self.processor.top_level_section_ids.contains(target) {
                     TextCase::Uppercase
                 } else {
                     TextCase::Preserve
@@ -425,10 +548,30 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 self.with_text_case(text_case, |visitor| visitor.visit_inline_nodes(inlines))
             }
             XrefDisplay::Label(inlines, _scope) => self.visit_inline_nodes(inlines),
+            XrefDisplay::ShortCaption(prefix) => {
+                let text = manify(&prefix, EscapeMode::Normalize);
+                write!(self.writer_mut(), "{text}")?;
+                Ok(())
+            }
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                let prefix = manify(&prefix, EscapeMode::Normalize);
+                let separator = manify(", “", EscapeMode::Normalize);
+                write!(self.writer_mut(), "{prefix}{separator}")?;
+                self.visit_inline_nodes(inlines)?;
+                let closing_quote = manify("”", EscapeMode::Normalize);
+                write!(self.writer_mut(), "{closing_quote}")?;
+                Ok(())
+            }
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => {
                 let text = manify(&text, EscapeMode::Normalize);
+                write!(self.writer_mut(), "{text}")?;
+                Ok(())
+            }
+            XrefDisplay::External(target) => {
+                let fallback = format!("[{target}]");
+                let text = manify(&fallback, EscapeMode::Normalize);
                 write!(self.writer_mut(), "{text}")?;
                 Ok(())
             }
@@ -439,20 +582,13 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     fn render_ui_inline_macro(&mut self, macro_node: &InlineMacro) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Image(img) => {
-                // Inline image - show title as alt text
-                if img.title.is_empty() {
-                    write!(self.writer_mut(), "[IMAGE]")?;
-                } else {
-                    write!(self.writer_mut(), "[")?;
-                    self.visit_inline_nodes(&img.title)?;
-                    write!(self.writer_mut(), "]")?;
-                }
+                self.render_inline_image(img)?;
             }
 
             InlineMacro::Icon(icon) => {
-                // Icon - show target name in brackets
-                let w = self.writer_mut();
-                write!(w, "[{}]", icon.target)?;
+                let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
+                let alt = manify(&alt, EscapeMode::Collapse);
+                write!(self.writer_mut(), "[{alt}]")?;
             }
 
             InlineMacro::Keyboard(kbd) => {
@@ -463,6 +599,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                     if i > 0 {
                         write!(w, "+")?;
                     }
+                    let key = manify(key, EscapeMode::Collapse);
                     write!(w, "{key}")?;
                 }
                 write!(w, "\\fP")?;
@@ -470,21 +607,24 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
             InlineMacro::Button(btn) => {
                 // Button - render in brackets
+                let label = manify(btn.label, EscapeMode::Collapse);
                 let w = self.writer_mut();
-                write!(w, "[\\fB{}\\fP]", btn.label)?;
+                write!(w, "[\\fB{label}\\fP]")?;
             }
 
             InlineMacro::Menu(menu) => {
                 // Menu - render target and items with arrows between them
+                let target = manify(menu.target, EscapeMode::Collapse);
                 let w = self.writer_mut();
-                write!(w, "\\fB{}\\fP", menu.target)?;
+                write!(w, "\\fB{target}\\fP")?;
                 for item in &menu.items {
+                    let item = manify(item, EscapeMode::Collapse);
                     write!(w, " \\(ra \\fB{item}\\fP")?;
                 }
             }
 
             InlineMacro::Pass(pass) => {
-                // Passthrough - write text directly (already processed)
+                // Passthrough content is backend-native and intentionally bypasses escaping.
                 if let Some(text) = &pass.text {
                     let w = self.writer_mut();
                     write!(w, "{text}")?;
@@ -492,19 +632,13 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::Stem(stem) => {
-                // Math/stem - render as-is (no LaTeX support in roff)
+                let content = manify(stem.content, EscapeMode::Collapse);
                 let w = self.writer_mut();
-                write!(w, "{}", stem.content)?;
+                write!(w, "{content}")?;
             }
 
             InlineMacro::IndexTerm(it) => {
-                // Flow terms (visible): output the term text
-                // Concealed terms (hidden): output nothing
-                if it.is_visible() {
-                    let w = self.writer_mut();
-                    write!(w, "{}", manify(it.term(), EscapeMode::Normalize))?;
-                }
-                // Concealed terms produce no output - they're only for index generation
+                self.render_index_term(it)?;
             }
 
             InlineMacro::Footnote(_)

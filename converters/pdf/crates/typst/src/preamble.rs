@@ -3,13 +3,18 @@
 
 use std::fmt::Write as _;
 
-use acdc_pdf_theme::{EMOJI_FONT_FAMILY, FontStack, Palette, Theme};
+use acdc_pdf_theme::{
+    CaptionAlignment, CaptionFontStyle, EMOJI_FONT_FAMILY, FontStack, Footer, Header,
+    HeaderAlignment, PageNumberPosition, Palette, Theme,
+};
 
 use crate::{
-    DocumentMetadata, EmitOptions, PageSize,
+    DocumentMetadata, EmitOptions, PageLayout, PageSize,
     escape::{escape_markup, escape_string},
     writer::Writer,
 };
+
+const TYPST_RAW_SIZE_EM: f64 = 0.8;
 
 /// Write the whole preamble (page setup, text/heading rules, and the `#let`
 /// helpers) into `writer`.
@@ -69,22 +74,46 @@ fn write_page(out: &mut String, theme: &Theme, options: &EmitOptions) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
 
-    let _ = write!(
-        out,
-        "#set page(paper: \"{}\", margin: (x: {}cm, y: {}cm)",
-        options.page.paper(),
-        spacing.margin_x_cm,
-        spacing.margin_y_cm,
-    );
+    if let Some(paper_name) = typst_paper_name(options.page) {
+        let _ = write!(out, "#set page(paper: \"{paper_name}\"");
+        if options.page_layout == PageLayout::Landscape {
+            out.push_str(", flipped: true");
+        }
+    } else {
+        let dimensions = options.page.dimensions(options.page_layout);
+        let _ = write!(
+            out,
+            "#set page(width: {}pt, height: {}pt",
+            dimensions.width_points(),
+            dimensions.height_points(),
+        );
+    }
+    if let Some(margin) = options.page_margin {
+        let _ = write!(
+            out,
+            ", margin: (top: {}pt, right: {}pt, bottom: {}pt, left: {}pt)",
+            margin.top_points(),
+            margin.right_points(),
+            margin.bottom_points(),
+            margin.left_points(),
+        );
+    } else {
+        let _ = write!(
+            out,
+            ", margin: (x: {}cm, y: {}cm)",
+            spacing.margin_x_cm, spacing.margin_y_cm,
+        );
+    }
     if !options.plain {
         let _ = write!(out, ", fill: {}", color(&palette.page_bg));
-        if let Some(header) = header_content(options, palette) {
+        if let Some(header) = header_content(options, palette, &theme.header) {
             let _ = write!(out, ", header: {header}");
         }
     }
     // The watermark annotations show even under `--plain`.
     if let Some(footer) = footer_content(
         palette,
+        &theme.footer,
         options.watermark.as_deref(),
         options.watermark_timestamp.as_deref(),
         !options.plain,
@@ -99,6 +128,19 @@ fn write_page(out: &mut String, theme: &Theme, options: &EmitOptions) {
         );
     }
     out.push_str(")\n");
+}
+
+const fn typst_paper_name(page: PageSize) -> Option<&'static str> {
+    match page {
+        PageSize::A3 => Some("a3"),
+        PageSize::A4 => Some("a4"),
+        PageSize::A5 => Some("a5"),
+        PageSize::Executive => Some("us-executive"),
+        PageSize::Legal => Some("us-legal"),
+        PageSize::Letter => Some("us-letter"),
+        PageSize::Tabloid => Some("us-tabloid"),
+        PageSize::Custom(_) => None,
+    }
 }
 
 /// Base text, paragraph, heading, and inline-span styling.
@@ -122,9 +164,11 @@ fn write_text(out: &mut String, theme: &Theme, options: &EmitOptions) {
     out.push_str(")\n");
     let _ = writeln!(
         out,
-        "#set par(leading: {}em, justify: false)",
+        "#set par(leading: {}em, spacing: {}pt, justify: false)",
         typography.body_leading_em,
+        typst_block_spacing(theme),
     );
+    let _ = writeln!(out, "#set block(spacing: {}pt)", typst_block_spacing(theme));
     // pulldown already emitted curly quotes/dashes; don't let Typst re-process.
     out.push_str("#set smartquote(enabled: false)\n");
 
@@ -175,18 +219,84 @@ fn write_code(out: &mut String, theme: &Theme, options: &EmitOptions) {
     );
     let _ = writeln!(
         out,
-        "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(fill: {}, it))",
-        color(&palette.code_bg),
-        spacing.code_radius_pt,
-        spacing.code_pad_pt,
-        color(&palette.code_fg),
+        "#let tablemonospace(body) = text(font: {}, fill: {}, body)",
+        font_tuple(&typography.mono_font, options.brand_fonts),
+        color(&palette.heading),
     );
+    if (typography.code_size_em - TYPST_RAW_SIZE_EM).abs() < f64::EPSILON {
+        let _ = writeln!(
+            out,
+            "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(fill: {}, it))",
+            color(&palette.code_bg),
+            spacing.code_radius_pt,
+            spacing.code_pad_pt,
+            color(&palette.code_fg),
+        );
+    } else {
+        let size = typography.code_size_em / TYPST_RAW_SIZE_EM;
+        let _ = writeln!(
+            out,
+            "#show raw.where(block: true): it => block(width: 100%, fill: {}, radius: {}pt, inset: {}pt, text(size: {size}em, fill: {}, it))",
+            color(&palette.code_bg),
+            spacing.code_radius_pt,
+            spacing.code_pad_pt,
+            color(&palette.code_fg),
+        );
+    }
 }
 
 /// Write the Typst helpers for quotes, verse, and block containers.
 fn write_block_helpers(out: &mut String, theme: &Theme) {
     let palette = &theme.palette;
     let spacing = &theme.spacing;
+    let typography = &theme.typography;
+    let caption = &theme.caption;
+
+    // Asciidoctor PDF derives abstract body text from its lead size and the
+    // abstract title from its fourth heading size.
+    let abstract_body_size = typography.body_size_pt * 1.25;
+    let abstract_title_size = typography.heading_pt[3];
+
+    let caption_align = match caption.align {
+        CaptionAlignment::Left => "left",
+        CaptionAlignment::Center => "center",
+        CaptionAlignment::Right => "right",
+    };
+    let caption_style = match caption.font_style {
+        CaptionFontStyle::Normal => "normal",
+        CaptionFontStyle::Italic => "italic",
+    };
+    let caption_color = caption.font_color.as_deref().unwrap_or(&palette.body_text);
+    let _ = writeln!(
+        out,
+        "#let captiontext(body) = {{\n  show strong: set text(fill: {color}, weight: {strong_weight}, style: \"normal\")\n  text(size: {size}em, weight: {weight}, style: \"{style}\", fill: {color}, body)\n}}\n#let blocktitle(body) = {{\n  block(width: 100%, above: {outside}pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}\n#let imagecaption(body) = {{\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n  block(width: 100%, above: 0pt, below: {outside}pt, align({align}, captiontext(body)))\n}}",
+        outside = typst_block_spacing(theme) + caption.margin_outside_pt,
+        inside = caption.margin_inside_pt,
+        align = caption_align,
+        size = caption.font_size_em,
+        weight = caption.font_weight,
+        strong_weight = typography.strong_weight,
+        style = caption_style,
+        color = color(caption_color),
+    );
+    let _ = writeln!(
+        out,
+        "#let admonitiontitle(body) = {{\n  block(width: 100%, above: 0pt, below: 0pt, align({align}, captiontext(body)))\n  block(height: {inside}pt, above: 0pt, below: 0pt)\n}}",
+        align = caption_align,
+        inside = caption.margin_inside_pt,
+    );
+
+    let _ = writeln!(
+        out,
+        "#let abstract(body) = block(width: 100%, text(size: {abstract_body_size}pt, style: \"italic\", fill: {}, body))",
+        color(&palette.quote_text),
+    );
+    let _ = writeln!(
+        out,
+        "#let abstracttitle(body) = block(width: 100%, below: 0.5em, align(center, text(size: {abstract_title_size}pt, weight: {}, fill: {}, body)))",
+        typography.heading_weight,
+        color(&palette.heading),
+    );
 
     let _ = writeln!(
         out,
@@ -239,6 +349,13 @@ fn write_block_helpers(out: &mut String, theme: &Theme) {
     );
 }
 
+fn typst_block_spacing(theme: &Theme) -> f64 {
+    // Typst measures paragraph spacing from the text baseline. Include the
+    // body's added leading so the visible block margin keeps the theme value.
+    theme.spacing.block_margin_bottom_pt
+        + theme.typography.body_size_pt * theme.typography.body_leading_em
+}
+
 /// The `#let` helpers and list/table styling.
 fn write_helpers(out: &mut String, theme: &Theme) {
     let palette = &theme.palette;
@@ -246,34 +363,17 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     let spacing = &theme.spacing;
 
     write_block_helpers(out, theme);
-    // Callouts are drawn as an icon badge beside the body, laid out in two
-    // columns so the content is indented past the icon. Each kind gets a glyph
-    // in the accent colour; `success` draws a check, the rest use a letter.
+    // The label is centred against the complete body. The stroked content
+    // cell makes the divider span titles and multi-paragraph admonitions.
     let _ = writeln!(
         out,
-        "#let _cbadge(body) = box(circle(radius: 0.6em, fill: {title}, inset: 0pt, align(center + horizon, body)))",
-        title = color(&palette.callout_title),
-    );
-    out.push_str(
-        "#let _cico(glyph) = _cbadge(text(fill: white, weight: 700, size: 0.82em)[#glyph])\n",
-    );
-    out.push_str(
-        "#let _ccheck = _cbadge(box(width: 0.62em, height: 0.62em, place(curve(stroke: (paint: white, thickness: 1.5pt, cap: \"round\", join: \"round\"), curve.move((0em, 0.34em)), curve.line((0.21em, 0.55em)), curve.line((0.58em, 0.08em))))))\n",
-    );
-    out.push_str(concat!(
-        "#let _cicon(kind) = (\"note\": _cico(\"i\"), \"tip\": _cico(\"i\"), ",
-        "\"important\": _cico(\"!\"), \"warning\": _cico(\"!\"), ",
-        "\"caution\": _cico(\"!\"), \"success\": _ccheck).at(kind, default: _cico(\"i\"))\n",
-    ));
-    let _ = writeln!(
-        out,
-        "#let callout(kind, body) = pad(left: {indent}pt, block(width: 100%, fill: {bg}, radius: {radius}pt, inset: (x: {px}pt, y: {py}pt), grid(columns: (auto, 1fr), column-gutter: {gutter}pt, align: top, _cicon(kind), body)))",
+        "#let callout(kind, body) = pad(left: {indent}pt, block(width: 100%, inset: (x: {pad}pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: {pad}pt, align: (x, _) => if x == 0 {{ center + horizon }} else {{ left + top }}, text(fill: {title}, weight: {weight}, upper(kind)), grid.cell(stroke: (left: {border}pt + {rule}), inset: (left: {pad}pt), body))))",
         indent = spacing.callout_indent_pt,
-        bg = color(&palette.callout_bg),
-        radius = spacing.callout_radius_pt,
-        px = spacing.callout_pad_x_pt,
-        py = spacing.callout_pad_y_pt,
-        gutter = spacing.callout_pad_x_pt * 0.8,
+        pad = spacing.callout_pad_x_pt,
+        title = color(&palette.callout_title),
+        weight = typography.strong_weight,
+        border = spacing.border_pt,
+        rule = color(&palette.border),
     );
     let _ = writeln!(
         out,
@@ -289,7 +389,7 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     );
     let _ = writeln!(
         out,
-        "#let docimage(path) = block(radius: {}pt, clip: true, image(path, width: 100%))",
+        "#let docimage(path, alt: none, width: none, ratio: none, destination: none) = block(width: 100%, radius: {}pt, clip: true, layout(size => {{\n  let resolved-width = if ratio != none {{ ratio * size.width }} else if width != none {{ calc.min(width, size.width) }} else {{ auto }}\n  let content = image(path, alt: alt, width: resolved-width)\n  if destination == none {{ content }} else {{ link(destination, content) }}\n}}))",
         spacing.image_radius_pt,
     );
 
@@ -308,8 +408,7 @@ fn write_helpers(out: &mut String, theme: &Theme) {
         color(&palette.counter),
     );
 
-    // Tables: horizontal rules only, in the border colour. The converter wraps
-    // cells from declared header rows with `tableheader`.
+    // Converter-emitted tables override this rule per cell.
     let _ = writeln!(
         out,
         "#set table(stroke: (_, y) => (bottom: {border}pt + {color}), inset: (x: 0.6em, y: 0.45em))",
@@ -318,15 +417,22 @@ fn write_helpers(out: &mut String, theme: &Theme) {
     );
     let _ = writeln!(
         out,
-        "#let tableheader(body) = text(weight: {}, body)",
-        typography.table_header_weight,
+        "#let tableemphasis(body) = {{\n  show strong: set text(style: \"normal\")\n  text(style: \"italic\", body)\n}}",
+    );
+    let _ = writeln!(
+        out,
+        "#let tablestrong(body) = {{\n  show emph: set text(weight: {})\n  text(weight: {}, body)\n}}",
+        typography.body_weight, typography.strong_weight,
+    );
+    let _ = writeln!(
+        out,
+        "#let tableheader(body) = {{\n  show emph: set text(weight: {})\n  text(weight: {}, body)\n}}",
+        typography.body_weight, typography.table_header_weight,
     );
 }
 
-/// Builds a running header from the configured logo and title.
-///
-/// The header starts after page 1 so it does not repeat the document title.
-fn header_content(options: &EmitOptions, palette: &Palette) -> Option<String> {
+/// Builds a page header from the configured logo and title.
+fn header_content(options: &EmitOptions, palette: &Palette, header: &Header) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     if let Some(logo) = &options.logo {
         let mut path = String::new();
@@ -334,23 +440,36 @@ fn header_content(options: &EmitOptions, palette: &Palette) -> Option<String> {
         path.push('"');
         crate::escape::escape_string(&mut path, logo);
         path.push('"');
-        parts.push(format!("#box(baseline: 30%, image({path}, height: 22pt))"));
+        parts.push(format!(
+            "#box(baseline: 30%, image({path}, height: {}pt))",
+            header.logo_height_pt
+        ));
     }
-    if let Some(title) = &options.running_header_title {
+    if let Some(title) = &options.page_header_title {
         let mut escaped = String::new();
         escape_markup(&mut escaped, title, true);
         parts.push(format!(
-            "#text(fill: {}, weight: 500, size: 11pt)[{escaped}]",
+            "#text(fill: {}, weight: {}, size: {}pt)[{escaped}]",
             color(&palette.accent),
+            header.font_weight,
+            header.font_size_pt,
         ));
     }
     if parts.is_empty() {
         return None;
     }
-    Some(format!(
-        "context if counter(page).get().first() > 1 {{ align(left + horizon)[{}] }}",
+    let content = format!(
+        "align({} + horizon)[{}]",
+        header_alignment(header.align),
         parts.join(" #h(0.6em) ")
-    ))
+    );
+    if header.show_on_page_one {
+        Some(content)
+    } else {
+        Some(format!(
+            "context if counter(page).get().first() > 1 {{ {content} }}"
+        ))
+    }
 }
 
 /// Build a diagonal, semi-transparent gray watermark placed behind the page
@@ -364,11 +483,12 @@ fn watermark_background(text: &str, palette: &Palette) -> String {
     )
 }
 
-/// Build the running footer: an optional watermark label (left), the page number
-/// (centre, only when branded), and an optional timestamp (right), all muted.
+/// Build the page footer: an optional watermark label (left), the themed page
+/// number (only when branded), and an optional timestamp (right), all muted.
 /// Returns `None` when there is nothing to show.
 fn footer_content(
     palette: &Palette,
+    footer: &Footer,
     watermark: Option<&str>,
     timestamp: Option<&str>,
     show_page: bool,
@@ -376,33 +496,45 @@ fn footer_content(
     if watermark.is_none() && timestamp.is_none() && !show_page {
         return None;
     }
-    let cell = |alignment: &str, body: String| format!("align({alignment})[{body}]");
-    let left = cell("left", escaped_or_empty(watermark));
-    let center = cell(
-        "center",
-        if show_page {
-            "#context counter(page).display()".to_string()
-        } else {
-            String::new()
-        },
-    );
-    let right = cell("right", escaped_or_empty(timestamp));
+    let mut left = Vec::new();
+    let mut center = Vec::new();
+    let mut right = Vec::new();
+    if let Some(watermark) = watermark {
+        left.push(escaped_content(watermark));
+    }
+    if show_page {
+        let page_number_slot = match footer.page_number_position {
+            PageNumberPosition::Left => &mut left,
+            PageNumberPosition::Center => &mut center,
+            PageNumberPosition::Right => &mut right,
+        };
+        page_number_slot.push("#context counter(page).display()".to_owned());
+    }
+    if let Some(timestamp) = timestamp {
+        right.push(escaped_content(timestamp));
+    }
+    let left = left.join(" #h(0.6em) ");
+    let center = center.join(" #h(0.6em) ");
+    let right = right.join(" #h(0.6em) ");
     Some(format!(
-        "text(fill: {}, size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), {left}, {center}, {right})]",
+        "text(fill: {}, size: {}pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[{left}], align(center)[{center}], align(right)[{right}])]",
         color(&palette.counter),
+        footer.font_size_pt,
     ))
 }
 
-/// Escape optional text for a content block, or the empty string if absent.
-fn escaped_or_empty(text: Option<&str>) -> String {
-    match text {
-        Some(text) => {
-            let mut escaped = String::new();
-            escape_markup(&mut escaped, text, true);
-            escaped
-        }
-        None => String::new(),
+const fn header_alignment(alignment: HeaderAlignment) -> &'static str {
+    match alignment {
+        HeaderAlignment::Left => "left",
+        HeaderAlignment::Center => "center",
+        HeaderAlignment::Right => "right",
     }
+}
+
+fn escaped_content(text: &str) -> String {
+    let mut escaped = String::new();
+    escape_markup(&mut escaped, text, true);
+    escaped
 }
 
 /// Format a colour string as a safely quoted Typst `rgb(…)` call.
@@ -454,19 +586,10 @@ fn string_literal(value: &str) -> String {
     literal
 }
 
-impl PageSize {
-    /// The Typst paper name for this page size.
-    pub(crate) fn paper(self) -> &'static str {
-        match self {
-            PageSize::A4 => "a4",
-            PageSize::Letter => "us-letter",
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{PageGeometryError, PageMargins, PageSize};
 
     fn stack(brand: Option<&str>, fallback: &[&str]) -> FontStack {
         FontStack {
@@ -496,6 +619,93 @@ mod tests {
                 "  description: \"First line\\nSecond line\",\n",
                 "  keywords: \"alpha, beta\",\n",
                 ")\n",
+            )
+        );
+    }
+
+    #[test]
+    fn landscape_page_setup_flips_the_named_paper() {
+        let options = EmitOptions {
+            page: PageSize::Legal,
+            page_layout: PageLayout::Landscape,
+            ..EmitOptions::default()
+        };
+        let mut out = String::new();
+
+        write_page(&mut out, &Theme::default(), &options);
+
+        assert!(out.starts_with("#set page(paper: \"us-legal\", flipped: true, margin:"));
+    }
+
+    #[test]
+    fn custom_page_setup_emits_dimensions_and_margins() -> Result<(), PageGeometryError> {
+        let options = EmitOptions {
+            page: PageSize::try_custom(612.0, 792.0)?,
+            page_layout: PageLayout::Landscape,
+            page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
+            ..EmitOptions::default()
+        };
+        let mut out = String::new();
+
+        write_page(&mut out, &Theme::default(), &options);
+
+        assert!(out.starts_with(concat!(
+            "#set page(width: 792pt, height: 612pt, ",
+            "margin: (top: 36pt, right: 54pt, bottom: 72pt, left: 90pt)",
+        )));
+        Ok(())
+    }
+
+    #[test]
+    fn page_header_uses_theme_placement_and_typography() {
+        let mut theme = Theme::default();
+        theme.header.align = HeaderAlignment::Right;
+        theme.header.font_size_pt = 10.0;
+        theme.header.font_weight = 600;
+        theme.header.logo_height_pt = 18.0;
+        theme.header.show_on_page_one = true;
+        let options = EmitOptions {
+            logo: Some("logo.svg".to_owned()),
+            page_header_title: Some("Manual".to_owned()),
+            ..EmitOptions::default()
+        };
+
+        assert_eq!(
+            header_content(&options, &theme.palette, &theme.header),
+            Some(
+                concat!(
+                    "align(right + horizon)[",
+                    "#box(baseline: 30%, image(\"logo.svg\", height: 18pt)) ",
+                    "#h(0.6em) #text(fill: rgb(\"#374151\"), weight: 600, ",
+                    "size: 10pt)[Manual]]",
+                )
+                .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn page_footer_uses_theme_size_and_page_number_position() {
+        let mut theme = Theme::default();
+        theme.footer.font_size_pt = 8.0;
+        theme.footer.page_number_position = PageNumberPosition::Left;
+
+        assert_eq!(
+            footer_content(
+                &theme.palette,
+                &theme.footer,
+                Some("DRAFT"),
+                Some("2026-08-26"),
+                true,
+            ),
+            Some(
+                concat!(
+                    "text(fill: rgb(\"#9ca3af\"), size: 8pt)[",
+                    "#grid(columns: (1fr, 1fr, 1fr), ",
+                    "align(left)[DRAFT #h(0.6em) #context counter(page).display()], ",
+                    "align(center)[], align(right)[2026-08-26])]",
+                )
+                .to_owned()
             )
         );
     }
@@ -540,14 +750,128 @@ mod tests {
     }
 
     #[test]
+    fn block_spacing_keeps_the_margin_outside_body_leading() {
+        let mut theme = Theme::default();
+        theme.typography.body_size_pt = 10.0;
+        theme.typography.body_leading_em = 0.5;
+        theme.spacing.block_margin_bottom_pt = 12.0;
+        let mut out = String::new();
+
+        write_text(&mut out, &theme, &EmitOptions::default());
+
+        assert!(out.contains("#set par(leading: 0.5em, spacing: 17pt, justify: false)"));
+        assert!(out.contains("#set block(spacing: 17pt)"));
+    }
+
+    #[test]
     fn table_header_helper_uses_the_theme_weight() {
         let mut theme = Theme::default();
+        theme.typography.body_weight = 450;
         theme.typography.table_header_weight = 600;
         let mut out = String::new();
 
         write_helpers(&mut out, &theme);
 
-        assert!(out.contains("#let tableheader(body) = text(weight: 600, body)"));
+        assert!(out.contains(concat!(
+            "#let tableheader(body) = {\n",
+            "  show emph: set text(weight: 450)\n",
+            "  text(weight: 600, body)\n",
+            "}",
+        )));
         assert!(!out.contains("table.cell.where(y: 0)"));
+    }
+
+    #[test]
+    fn table_monospace_helper_uses_the_theme_font() {
+        let mut theme = Theme::default();
+        theme.typography.mono_font = stack(None, &["Test Mono"]);
+        theme.palette.heading = "#123456".to_owned();
+        let mut out = String::new();
+
+        write_code(&mut out, &theme, &EmitOptions::default());
+
+        assert!(out.contains(concat!(
+            "#let tablemonospace(body) = text(font: (\"Test Mono\", ",
+            "\"Noto Color Emoji\"), fill: rgb(\"#123456\"), body)",
+        )));
+    }
+
+    #[test]
+    fn block_code_uses_the_theme_size() {
+        let mut theme = Theme::default();
+        theme.typography.code_size_em = 0.9;
+        let mut out = String::new();
+
+        write_code(&mut out, &theme, &EmitOptions::default());
+
+        assert!(out.contains("text(size: 1.125em, fill:"), "{out}");
+    }
+
+    #[test]
+    fn callout_helper_uses_text_labels_and_a_divider() {
+        let mut theme = Theme::default();
+        theme.palette.callout_title = "#123456".to_owned();
+        theme.palette.border = "#abcdef".to_owned();
+        theme.typography.strong_weight = 600;
+        theme.spacing.callout_indent_pt = 3.0;
+        theme.spacing.callout_pad_x_pt = 9.0;
+        theme.spacing.border_pt = 0.5;
+        let mut out = String::new();
+
+        write_helpers(&mut out, &theme);
+
+        assert!(out.contains(concat!(
+            "#let callout(kind, body) = pad(left: 3pt, block(width: 100%, ",
+            "inset: (x: 9pt, y: 4pt), grid(columns: (auto, 1fr), ",
+            "column-gutter: 9pt, align: (x, _) => if x == 0 ",
+            "{ center + horizon } else { left + top }, ",
+            "text(fill: rgb(\"#123456\"), weight: 600, upper(kind)), ",
+            "grid.cell(stroke: (left: 0.5pt + rgb(\"#abcdef\")), ",
+            "inset: (left: 9pt), body))))",
+        )));
+        assert!(!out.contains("_cicon"));
+    }
+
+    #[test]
+    fn block_title_helpers_use_caption_theme() {
+        let mut theme = Theme::default();
+        theme.caption.align = CaptionAlignment::Center;
+        theme.caption.font_color = Some("#123456".to_owned());
+        theme.caption.font_size_em = 1.2;
+        theme.caption.font_weight = 600;
+        theme.caption.font_style = CaptionFontStyle::Normal;
+        theme.caption.margin_inside_pt = 8.0;
+        theme.caption.margin_outside_pt = 3.0;
+        let mut out = String::new();
+
+        write_block_helpers(&mut out, &theme);
+
+        assert!(out.contains(concat!(
+            "#let captiontext(body) = {\n",
+            "  show strong: set text(fill: rgb(\"#123456\"), weight: 700, ",
+            "style: \"normal\")\n",
+            "  text(size: 1.2em, weight: 600, style: \"normal\", ",
+            "fill: rgb(\"#123456\"), body)\n",
+            "}\n",
+            "#let blocktitle(body) = {\n",
+            "  block(width: 100%, above: 22.15pt, below: 0pt, ",
+            "align(center, captiontext(body)))\n",
+            "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "}",
+        )));
+        assert!(out.contains(concat!(
+            "#let imagecaption(body) = {\n",
+            "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "  block(width: 100%, above: 0pt, below: 22.15pt, ",
+            "align(center, captiontext(body)))\n",
+            "}",
+        )));
+        assert!(out.contains(concat!(
+            "#let admonitiontitle(body) = {\n",
+            "  block(width: 100%, above: 0pt, below: 0pt, ",
+            "align(center, captiontext(body)))\n",
+            "  block(height: 8pt, above: 0pt, below: 0pt)\n",
+            "}",
+        )));
     }
 }

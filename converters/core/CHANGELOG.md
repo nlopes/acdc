@@ -15,11 +15,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Plain-text and shared converter output now resolve title-based shorthand
+  references to matching section IDs while preserving written text for
+  unresolved targets.
+- Converter visitors can report or recover from parser block variants added
+  before their backend supports them, instead of being limited to a tracing
+  event.
+- Automatic cross-references to captioned blocks support source-order
+  `xrefstyle=short` and `xrefstyle=full`, including custom and disabled
+  captions. Explicit reference labels still take precedence.
+- Plain-text output uses the visible, substituted text of index terms without
+  formatting markers.
+- Link fallback labels can omit Asciidoctor-compatible URI prefixes while
+  preserving the complete destination.
+- Source blocks have shared handling for line numbers, custom starting numbers,
+  and highlighted-line selectors.
 - `xref::resolve_xref` resolves an automatic cross-reference's display content
   with Asciidoctor's precedence — explicit reference label, target title, then
-  `[id]` — and tells a backend apart the three `[id]` cases it has to render
-  differently: an untitled target, a target that is absent from the catalog (no
-  anchor to link to), and a reference nested inside another one's text. Its
+  `[id]` — and distinguishes an untitled target, a missing local target, an
+  inter-document target, and a reference nested inside another one's text. Its
   `xref::XrefGuard` keeps a target whose reference text holds a reference of its
   own from recursing. Asciidoctor falls back to `[refid]` at the same point,
   except where it reuses a target's cached converted title, which can carry one
@@ -29,7 +43,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference text only) the same way.
 - `inline_text::InlineTextTransform` now carries the text of every inline node,
   so a heading or caption loses nothing it cannot render as markup: a link
-  contributes its link text, an image its alt text, an icon its target, a
+  contributes its link text, an image its alt text, an icon its alternative
+  text (or a readable form of its target), a
   footnote its marker, and a stem its content; asciidoctor brackets the last
   four, and so does this. A reference to an unknown target reads as its stylized
   id, which drops a file extension so `other.adoc#part` reads as `[other#part]`. Two options extend it — `decode_char_refs` turns
@@ -39,9 +54,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   target's reference text. `xref::reference_text` exposes that precedence on its
   own. A standalone curved apostrophe extracts as the typographic character
   rather than an ASCII quote.
-- Converter backends can declare their Asciidoctor-compatible backend,
-  base-backend, file-type, output-suffix, and HTML-syntax traits and apply the
-  corresponding intrinsic and doctype convenience attributes consistently.
+- Converter backends can declare an Asciidoctor-compatible profile containing
+  their backend, base-backend, file-type, output-suffix, and HTML syntax and
+  apply the corresponding intrinsic and doctype convenience attributes
+  consistently.
 - `inline_text::InlineTextTransform` and `inlines_to_string()` provide shared
   plain-text extraction from inline nodes for converters and tooling, including
   configurable hard-line-break rendering.
@@ -53,11 +69,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attribute (`arabic`, `decimal`, `loweralpha`, `upperalpha`, `lowerroman`,
   `upperroman`, `lowergreek`) and formats a 1-based item position into its marker
   text, shared by the terminal and manpage backends.
-- `section::SpecialSectionTracker` — shared, reusable tracker that decides which
-  sections take part in `:sectnums:` numbering. Fed each section (by `SectionKind`)
-  in document order, it accounts for book abstracts, `sectnums=all`, unnumbered
-  special-section subtrees, and lettered appendices. Used by each numbered
-  converter and its table of contents so the rule lives in one place.
 - `substitutions::effective_subs(spec, is_verbatim)` — shared resolver for
   per-block `[subs="…"]` lists against the `NORMAL` / `VERBATIM` baselines.
   Previously lived in the HTML converter; promoted so terminal, manpage, and
@@ -73,12 +84,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   converters. Includes `Replacements::unicode()` for terminal/manpage output.
 - `replace_em_dashes()` — standalone function for em-dash pattern matching, shared
   by converters that need format-specific em-dash output (e.g. HTML entities).
-- **Section numbering utilities** — new `section` module with `SectionNumberTracker`,
-  `PartNumberTracker`, `AppendixTracker`, and `to_upper_roman` moved from `acdc-converters-html`
-  so they can be shared across converters. Inside an appendix, `SectionNumberTracker`
-  numbers subsections with the appendix letter as the top component (`A.1`, `A.1.1`),
-  and `AppendixTracker::enter_appendix` returns the heading prefix (`Appendix A: `, or the
-  bare `A. ` when the caption is disabled) — both driven by the same letter.
 - `#[non_exhaustive]` attribute on `Options`, `GeneratorMetadata`, `toc::Config`,
   `Doctype`, and `IconMode` for semver-safe future additions
 - Comprehensive module-level documentation
@@ -89,6 +94,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numbered book TOCs can now retain a configured `chapter-signifier` on
+  chapter entries without adding it to nested sections.
+- Automatic references to sections with a named `reftext` now display that
+  label for both its natural alias and explicit ID. The section title is no
+  longer accepted as a second natural alias, matching Asciidoctor.
+- Parser API and CLI attributes now take precedence over document entries,
+  while document entries can still replace converter defaults.
+- Media targets used as URIs resolve relative paths against `imagesdir`, use
+  forward slashes, normalize path segments, and encode spaces as `%20`.
+- Icon mode selection now treats any set `icons` value other than `font` as
+  image mode, matching Asciidoctor.
+- Link fallback text distinguishes `link:`, `mailto:`, and automatic links, so
+  the HTML and PDF backends match Asciidoctor mail targets and angle brackets.
+- Inter-document cross-references preserve their external target and let each
+  backend use its own output suffix and fallback filename.
+- Universal AsciiDoc defaults passed to parsers no longer act like caller-set
+  attributes, so nested documents can change them locally. Implied converter
+  fallbacks such as `lang=en` are no longer exposed to attribute substitution
+  unless the attribute is explicitly set.
+- Built-in converters now use the parser's section numbers for both headings and
+  table-of-contents entries. Source-order changes and nested documents therefore
+  use one sequence in every backend.
 - Special-section numbering now treats book abstracts as chapters, honors
   `sectnums=all`, and keeps the ordinary section sequence across appendices.
 - Book table-of-contents numbering now keeps chapter numbers continuous across

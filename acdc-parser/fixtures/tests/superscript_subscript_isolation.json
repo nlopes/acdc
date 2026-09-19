@@ -13,7 +13,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "super",
               "location": [
@@ -61,7 +61,7 @@
           "form": "unconstrained",
           "inlines": [
             {
-              "name": "text",
+              "name": "raw",
               "type": "string",
               "value": "sub",
               "location": [

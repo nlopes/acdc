@@ -3,13 +3,19 @@ use std::borrow::Cow;
 use crate::{
     Anchor, AttributeValue, BlockMetadata, Title,
     grammar::ParserState,
-    model::{PositionalAttribute, SectionLevel, substitution::SubsFlags},
+    model::{PositionalAttribute, SectionLevel, substitution::SubstitutionPlan},
 };
 
 #[derive(Debug)]
 pub(crate) struct PositionWithOffset {
     pub(crate) offset: usize,
     pub(crate) position: crate::Position,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum MacroAttributeContext {
+    General,
+    Image,
 }
 
 // Used purely in the grammar to break down the block metadata lines into its different
@@ -22,10 +28,9 @@ pub(crate) enum BlockMetadataLine<'input> {
     DocumentAttribute(Cow<'input, str>, AttributeValue<'input>, bool),
 }
 
-// Used purely in the grammar to break down header metadata lines (anchors and attributes
-// that appear before the document title).
+// Used purely in the grammar where only anchors and attribute lists are valid metadata.
 #[derive(Debug)]
-pub(crate) enum HeaderMetadataLine<'input> {
+pub(crate) enum AttributeOrAnchorLine<'input> {
     Anchor(Anchor<'input>),
     Attributes((bool, Box<BlockMetadata<'input>>)),
 }
@@ -36,7 +41,7 @@ pub(crate) struct BlockParsingMetadata<'input> {
     pub(crate) metadata: BlockMetadata<'input>,
     pub(crate) title: Title<'input>,
     pub(crate) parent_section_level: Option<SectionLevel>,
-    pub(crate) subs_flags: SubsFlags,
+    pub(crate) substitutions: SubstitutionPlan,
     pub(crate) hardbreaks: bool,
     /// Set when the attribute line marks the block as a discrete heading,
     /// either via the `discrete`/`float` block style (`[discrete]`) or as a
@@ -55,6 +60,16 @@ pub(crate) const RESERVED_NAMED_ATTRIBUTE_ID: &str = "id";
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_ROLE: &str = "role";
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_OPTIONS: &str = "opts";
 pub(crate) const RESERVED_NAMED_ATTRIBUTE_SUBS: &str = "subs";
+
+pub(crate) fn is_valid_bibliography_id(id: &str) -> bool {
+    let mut chars = id.chars();
+    chars
+        .next()
+        .is_some_and(|first| first.is_alphabetic() || matches!(first, '_' | ':'))
+        && chars.all(|character| {
+            character.is_alphanumeric() || matches!(character, '_' | '-' | ':' | '.')
+        })
+}
 
 /// Strip backslash escapes from URL paths.
 ///
@@ -119,6 +134,7 @@ pub(crate) fn process_attribute_list<'input>(
     state: &ParserState<'input>,
     fallback_start: usize,
     fallback_end: usize,
+    context: MacroAttributeContext,
 ) -> Option<(usize, usize)> {
     let mut title_position = None;
     let mut first_positional = true;
@@ -137,6 +153,7 @@ pub(crate) fn process_attribute_list<'input>(
                     id,
                     xreflabel: None,
                     location: state.create_location(id_start, id_end),
+                    bibliography: false,
                 });
             }
             k if k == RESERVED_NAMED_ATTRIBUTE_ROLE => {
@@ -172,9 +189,15 @@ pub(crate) fn process_attribute_list<'input>(
             }
             _ => {
                 if let AttributeValue::String(ref s) = value {
-                    metadata
-                        .attributes
-                        .insert(key, AttributeValue::String(s.clone()));
+                    if context == MacroAttributeContext::Image && key == "link" {
+                        metadata
+                            .attributes
+                            .set(key, AttributeValue::String(s.clone()));
+                    } else {
+                        metadata
+                            .attributes
+                            .insert(key, AttributeValue::String(s.clone()));
+                    }
                 } else if value == AttributeValue::None {
                     // Positional attribute
                     let key_str: &'input str = state.intern_cow(key);

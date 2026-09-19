@@ -26,10 +26,9 @@
 //! - `.TS`/`.TE` for tables (tbl preprocessor format)
 //! - `\fB`, `\fI`, `\fP` for inline formatting
 
-#[cfg(feature = "pre-spec-subs")]
-use std::cell::Cell;
 use std::{
     borrow::Cow,
+    cell::{Cell, RefCell},
     collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
@@ -39,7 +38,8 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Doctype, Options, visitor::Visitor, xref::XrefGuard,
+    BackendProfile, Converter, Diagnostics, Doctype, Options, section::last_section_has_style,
+    visitor::Visitor, xref::XrefGuard,
 };
 
 use acdc_parser::{AttributeValue, Document, DocumentAttributes, Reference};
@@ -49,9 +49,11 @@ mod delimited;
 mod document;
 mod error;
 mod escape;
+mod index;
 mod inlines;
 mod list;
 mod manpage_visitor;
+mod media;
 mod paragraph;
 mod section;
 mod table;
@@ -60,8 +62,28 @@ pub use error::Error;
 pub use escape::{EscapeMode, manify};
 pub use manpage_visitor::ManpageVisitor;
 
-/// Intrinsic traits for the manpage backend.
-const BACKEND_TRAITS: BackendTraits = BackendTraits::new("manpage", "manpage", "man", ".man");
+const MANPAGE_BACKEND: BackendProfile = BackendProfile::new("manpage", "manpage", "man", ".man");
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct IndexTermLabel {
+    pub(crate) plain: String,
+    pub(crate) rendered: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IndexTermEntry {
+    pub(crate) primary: IndexTermLabel,
+    pub(crate) secondary: Option<IndexTermLabel>,
+    pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) relationship: IndexCatalogRelationship,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum IndexCatalogRelationship {
+    None,
+    See(IndexTermLabel),
+    SeeAlso(Vec<IndexTermLabel>),
+}
 
 /// Manpage converter processor.
 #[derive(Clone, Debug)]
@@ -72,6 +94,10 @@ pub struct Processor<'a> {
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
     pub(crate) top_level_section_ids: Rc<HashSet<&'a str>>,
+    pub(crate) static_media_warning: Rc<Cell<bool>>,
+    pub(crate) inline_role_warning: Rc<Cell<bool>>,
+    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
+    pub(crate) has_valid_index_section: bool,
     /// Substitutions active for the block currently being rendered, resolved
     /// from `[subs="…"]` (or the block-kind baseline when absent). Shared
     /// across clones so sub-visitors inherit the outer block's effective
@@ -121,6 +147,10 @@ impl Processor<'_> {
                     .map(|entry| entry.id)
                     .collect(),
             ),
+            static_media_warning: Rc::new(Cell::new(false)),
+            inline_role_warning: Rc::new(Cell::new(false)),
+            index_entries: Rc::new(RefCell::new(Vec::new())),
+            has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
@@ -149,8 +179,9 @@ impl<'a> Converter<'a> for Processor<'a> {
     fn document_attributes_defaults() -> DocumentAttributes<'static> {
         let mut attrs: DocumentAttributes<'static> = DocumentAttributes::default();
         // man-linkstyle controls how links are rendered in the manpage
-        // Format: "color style <text>" - blue R <> means blue, regular, angle brackets
-        attrs.insert("man-linkstyle".into(), "blue R <>".into());
+        // Format: "color style prefix suffix" - blue R < > means blue, regular,
+        // with the target in angle brackets.
+        attrs.insert("man-linkstyle".into(), "blue R < >".into());
         attrs
     }
 
@@ -160,7 +191,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             document_attributes.insert(name.clone(), value.clone());
         }
         document_attributes.set("doctype".into(), Doctype::Manpage.as_str().into());
-        BACKEND_TRAITS.apply(&mut document_attributes, Doctype::Manpage);
+        MANPAGE_BACKEND.apply(&mut document_attributes, Doctype::Manpage);
 
         Self {
             options,
@@ -168,6 +199,10 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(HashSet::new()),
+            static_media_warning: Rc::new(Cell::new(false)),
+            inline_role_warning: Rc::new(Cell::new(false)),
+            index_entries: Rc::new(RefCell::new(Vec::new())),
+            has_valid_index_section: false,
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }
@@ -224,7 +259,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn constructor_applies_manpage_backend_traits() {
+    fn constructor_applies_manpage_backend_profile() {
         let processor = Processor::new(Options::default(), DocumentAttributes::default());
 
         assert_eq!(
@@ -240,6 +275,13 @@ mod tests {
                 .get_string("doctype")
                 .as_deref(),
             Some("manpage")
+        );
+        assert_eq!(
+            processor
+                .document_attributes()
+                .get_string("man-linkstyle")
+                .as_deref(),
+            Some("blue R < >")
         );
         assert!(
             processor

@@ -1,0 +1,30 @@
+= Horizontal description lists
+
+== Basic pairs
+
+.Hardware terms
+[horizontal]
+CPU:: Central processing unit.
+RAM:: Random-access memory.
+
+== Formatted and wrapping
+
+[horizontal]
+`API`:: An *application programming interface*.
+A deliberately long term that must not consume the full line:: Its description keeps enough width to wrap as normal prose.
+
+== Multiple terms
+
+[horizontal]
+Primary term::
+Alternate term:: One description shared by both terms.
+
+== Block descriptions
+
+[horizontal]
+Workflow:: An introductory line.
++
+A continued paragraph with _formatted text_.
++
+* First step
+* Second step

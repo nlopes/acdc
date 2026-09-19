@@ -1,0 +1,15 @@
+Title macro: <<Pass raw Title>>.
+Title plus: <<Plus raw Title>>.
+Target macro: <<Target pass:[raw] Title>>.
+Target plus: <<Target +raw+ Title>>.
+Missing macro: <<Missing pass:[raw] Title>>.
+Missing plus: <<Missing +raw+ Title>>.
+Control: <<Control Title>>.
+
+== Pass pass:[raw] Title
+
+== Plus +raw+ Title
+
+== Target raw Title
+
+== Control Title

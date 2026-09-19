@@ -14,10 +14,11 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, CalloutList, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote, Header, Image,
-    InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section, Substitution,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, AttributeValue, Audio, Block, BlockMetadata, CalloutList, CaptionKind,
+    DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document,
+    DocumentAttributes, Footnote, Header, Image, InlineNode, ListItem, NORMAL, OrderedList,
+    PageBreak, Paragraph, Section, Substitution, TableOfContents, ThematicBreak, UnorderedList,
+    Video,
 };
 
 use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
@@ -145,6 +146,7 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     /// Plain-text title of the section currently being rendered, used as the
     /// label for index back-links. `None` outside any section (e.g. preamble).
     pub(crate) current_section_title: Option<String>,
+    pub(crate) captured_raw_fragments: Option<Vec<String>>,
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
     text_boundaries: TextBoundaries,
@@ -176,9 +178,28 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             current_subs: NORMAL.to_vec(),
             section_style: None,
             current_section_title: None,
+            captured_raw_fragments: None,
             docinfo,
             text_boundaries: TextBoundaries::BOTH,
         }
+    }
+
+    pub(crate) fn render_captioned_title_with_wrapper(
+        &mut self,
+        title: &[InlineNode],
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        let caption = self
+            .processor
+            .caption_prefix(metadata, fallback)
+            .unwrap_or_default();
+        self.render_title_with_wrapper(title, &format!("{prefix}{caption}"), suffix)
     }
 
     /// Consume the visitor and return the writer
@@ -304,9 +325,10 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             self.processor.document_attributes.get("max-width")
             && !max_width.is_empty()
         {
-            self.diagnostics.warn(format!(
-                "`max-width` usage is not recommended. Use CSS stylesheet instead: {max_width}"
-            ));
+            self.diagnostics.warn_with_advice(
+                format!("`max-width` usage is not recommended: {max_width}"),
+                "Set the maximum content width in a CSS stylesheet instead.",
+            );
             writeln!(
                 self.writer,
                 "<style>
@@ -373,6 +395,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             )?;
         }
 
+        self.render_document_metadata()?;
         if let Some(header) = &document.header {
             self.render_header_metadata(header)?;
         }
@@ -509,6 +532,14 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
 impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
     type Error = Error;
+
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.diagnostics.warn_with_advice(
+            "an unsupported parser block variant was omitted from HTML output",
+            "Use another backend for this document and report the unsupported construct.",
+        );
+        Ok(())
+    }
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
         // In embedded mode, skip the document frame (DOCTYPE, html, head, body)

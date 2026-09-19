@@ -1,0 +1,53 @@
+= Table presentation
+
+:table-frame: sides
+:table-grid: rows
+:table-stripes: odd
+
+.Sides, rows, and odd stripes
+|===
+|A |1
+|B |2
+|===
+
+:table-frame: ends
+:table-grid: cols
+:table-stripes: even
+
+.Ends, columns, and even stripes
+|===
+|C |3
+|D |4
+|===
+
+.Local all
+[frame=all,grid=all,stripes=all]
+|===
+|E |5
+|F |6
+|===
+
+.No rules and interactive hover
+[frame=none,grid=none,stripes=hover]
+|===
+|G |7
+|H |8
+|===
+
+:table-frame!:
+:table-grid!:
+:table-stripes!:
+
+.Restored defaults
+|===
+|I |9
+|J |10
+|===
+
+.Spans keep the selected rules
+[cols="3*",frame=none,grid=rows,stripes=odd]
+|===
+2.2+|Combined |Top
+|Bottom
+|Left |Middle |Right
+|===

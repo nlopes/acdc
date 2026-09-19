@@ -1,0 +1,82 @@
+'\" t
+.\"     Title: sections-inline-roles
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: Section and inline checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "SECTIONS\-INLINE\-ROLES" "1" "2026-08-30" "acdc" "Section and inline checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+sections\-inline\-roles \- verify section and inline presentation
+.SH "SYNOPSIS"
+.sp
+sections\-inline\-roles
+.SH "DESCRIPTION"
+.sp
+See Hidden \fBSection\fP and Visible Child\&.
+.sp
+The hidden section body remains visible.
+.sp
+\fBVisible Child\fP
+.sp
+The child body remains visible.
+.SS "Link display"
+.sp
+Before: \c
+.URL "https://before.example/path" "" ""
+and \c
+.URL "https://before.example/linked" "" ""
+\&.
+.sp
+Hidden schemes: \c
+.URL "https://hidden.example/path" "hidden.example/path" ""
+, \c
+.URL "https://hidden.example/linked" "hidden.example/linked" ""
+, and \c
+.URL "https://hidden.example/auto" "hidden.example/auto" ""
+\&.
+.sp
+Explicit text: \c
+.URL "https://hidden.example/label" "visible label" ""
+\&.
+.sp
+After: \c
+.URL "https://after.example/path" "" ""
+\&.
+.SS "Link roles"
+.sp
+Roles: \c
+.URL "https://example.com/underline" "\fIunderlined\fP" ""
+, \c
+.URL "https://example.com/deleted" "[deleted: removed]" ""
+, \c
+.URL "https://example.com/large" "\s+1large\s-1" ""
+, \c
+.MTO "person\(atexample.com" "\s-1small\s+1" ","
+and \c
+.URL "https://example.com/combined" "\fI[deleted: combined]\fP" ""
+\&.
+.SS "Inline roles"
+.sp
+Roles: \fBhighlighted\fP, targeted, \fIunderlined\fP, [deleted: removed], \s+1large\s-1, \s-1small\s+1, \fIsubtitle\fP, [overlined: overlined], custom, and \fI[deleted: combined]\fP\&.

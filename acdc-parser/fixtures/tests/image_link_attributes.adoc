@@ -1,0 +1,36 @@
+= Image link attributes
+:link-target: https://example.com/substituted
+
+== Documented forms
+
+[link=https://example.com/block-attribute]
+image::block-attribute.png[Block attribute]
+
+[link=https://example.com/overridden]
+image::macro-attribute.png[Macro attribute,link=https://example.com/macro]
+
+[link=https://example.com/first-line]
+[link=https://example.com/last-line]
+image::stacked-attributes.png[Stacked attributes]
+
+image::relative.png[Relative link,link=relative/path]
+
+Inline image: image:inline.png[Inline link,link=https://example.com/inline].
+
+== Compatibility edges
+
+image::empty-block.png[Empty block link,link=]
+
+image::repeated-block.png[Repeated block link,link=https://example.com/first,link=https://example.com/last]
+
+Empty inline link: image:empty-inline.png[Empty inline link,link=].
+
+Repeated inline link: image:repeated-inline.png[Repeated inline link,link=https://example.com/first,link=https://example.com/last].
+
+Substituted inline link: image:substituted-inline.png[Substituted inline link,link={link-target}].
+
+Ignored positional link: image:positional-inline.png[Positional inline link,10,20,https://example.com/ignored].
+
+Outer link: link:https://example.com/outer[image:outer-inline.png[Outer inline link]].
+
+Inner link precedence: link:https://example.com/outer[image:inner-inline.png[Inner inline link,link=https://example.com/inner]].

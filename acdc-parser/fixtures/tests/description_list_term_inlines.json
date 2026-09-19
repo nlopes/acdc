@@ -1,0 +1,393 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "qanda"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "What has ",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "strong",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 11
+                    },
+                    {
+                      "line": 2,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 2,
+                  "col": 10
+                },
+                {
+                  "line": 2,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 18
+                },
+                {
+                  "line": 2,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "emphasized",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 24
+                    },
+                    {
+                      "line": 2,
+                      "col": 33
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 2,
+                  "col": 23
+                },
+                {
+                  "line": 2,
+                  "col": 34
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " words?",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 35
+                },
+                {
+                  "line": 2,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "The mixed term must preserve both formats.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 45
+                },
+                {
+                  "line": 2,
+                  "col": 86
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 87
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Whole strong question?",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 2
+                    },
+                    {
+                      "line": 3,
+                      "col": 23
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 3,
+                  "col": 1
+                },
+                {
+                  "line": 3,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "A whole-term format.",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 28
+                },
+                {
+                  "line": 3,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 48
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "What contains ",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1
+                },
+                {
+                  "line": 4,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "code",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 16
+                    },
+                    {
+                      "line": 4,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 15
+                },
+                {
+                  "line": 4,
+                  "col": 20
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 21
+                },
+                {
+                  "line": 4,
+                  "col": 25
+                }
+              ]
+            },
+            {
+              "name": "ref",
+              "type": "inline",
+              "variant": "link",
+              "target": {
+                "type": "url",
+                "value": "https://example.com"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "a link",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 46
+                    },
+                    {
+                      "line": 4,
+                      "col": 51
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 26
+                },
+                {
+                  "line": 4,
+                  "col": 52
+                }
+              ],
+              "attributes": {}
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "?",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 53
+                },
+                {
+                  "line": 4,
+                  "col": 53
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code and link formats.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 57
+                },
+                {
+                  "line": 4,
+                  "col": 78
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 79
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 79
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 4,
+      "col": 78
+    }
+  ]
+}

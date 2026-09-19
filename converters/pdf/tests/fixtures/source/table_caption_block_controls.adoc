@@ -1,0 +1,33 @@
+= Table block caption controls
+
+.Default before controls
+[cols="1"]
+|===
+|Default one
+|===
+
+[caption="Local: "]
+.Block custom caption
+[cols="1"]
+|===
+|Block custom
+|===
+
+.Default after block custom
+[cols="1"]
+|===
+|Default two
+|===
+
+[caption=""]
+.Block blank caption
+[cols="1"]
+|===
+|Block blank
+|===
+
+.Default after block blank
+[cols="1"]
+|===
+|Default three
+|===

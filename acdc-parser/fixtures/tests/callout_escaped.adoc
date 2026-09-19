@@ -1,0 +1,7 @@
+[source,rust]
+----
+literal // \<1>
+literal \<!--2-->
+real // <1>
+----
+<1> Real callout

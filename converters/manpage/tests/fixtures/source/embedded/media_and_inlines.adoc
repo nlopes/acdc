@@ -6,7 +6,7 @@
 :icons: font
 :revdate: 2025-06-01
 
-== Name
+== Command Name
 
 embedded-media-test - test embedded mode with media
 

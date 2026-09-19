@@ -1,6 +1,6 @@
 use std::{
     cell::{Cell, RefCell},
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     io::Write,
     path::{Path, PathBuf},
     rc::Rc,
@@ -9,34 +9,41 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options,
-    section::{
-        AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
-        last_section_has_style,
-    },
-    visitor::Visitor,
-    xref::XrefGuard,
+    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options,
+    section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
 };
-#[cfg(feature = "emulator")]
-use acdc_parser::BlockMetadata;
-use acdc_parser::{Document, DocumentAttributes, IndexTermKind, InlineNode, Reference, TocEntry};
+use acdc_parser::{
+    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode, Reference,
+    TocEntry,
+};
 
 pub(crate) use appearance::Appearance;
 
 pub(crate) const FALLBACK_TERMINAL_WIDTH: usize = 80;
 pub(crate) const MAX_TERMINAL_WIDTH: usize = 120;
 
-/// Intrinsic traits for the terminal backend.
-const BACKEND_TRAITS: BackendTraits =
-    BackendTraits::new("terminal", "terminal", "terminal", ".terminal");
+const TERMINAL_BACKEND: BackendProfile =
+    BackendProfile::new("terminal", "terminal", "terminal", ".terminal");
 
-/// Leak a `&str` into a `&'static str`.
-///
-/// Used when caching index term data beyond the parser's arena lifetime.
-/// Leaks are bounded by the number of index entries encountered during a
-/// single document conversion; acceptable for a short-lived converter run.
-fn leak_str(s: &str) -> &'static str {
-    Box::leak(s.to_string().into_boxed_str())
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct IndexTermLabel {
+    pub(crate) plain: String,
+    pub(crate) rendered: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct IndexTermEntry {
+    pub(crate) primary: IndexTermLabel,
+    pub(crate) secondary: Option<IndexTermLabel>,
+    pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) relationship: IndexCatalogRelationship,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum IndexCatalogRelationship {
+    None,
+    See(IndexTermLabel),
+    SeeAlso(Vec<IndexTermLabel>),
 }
 
 #[derive(Clone, Debug)]
@@ -47,31 +54,26 @@ pub struct Processor<'a> {
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
-    /// Shared counter for auto-numbering example blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    pub(crate) example_counter: Rc<Cell<usize>>,
+    /// Fallback counter for example captions the parser did not number.
+    pub(crate) example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for figure captions the parser did not number.
+    pub(crate) figure_counter: Rc<Cell<u32>>,
+    /// Fallback counter for listing and source captions the parser did not number.
+    pub(crate) listing_counter: Rc<Cell<u32>>,
+    /// Fallback counter for table captions the parser did not number.
+    pub(crate) table_counter: Rc<Cell<u32>>,
     /// Terminal appearance (theme, capabilities, colors)
     pub(crate) appearance: Appearance,
-    /// Section number tracker for `:sectnums:` support.
-    pub(crate) section_number_tracker: SectionNumberTracker,
-    /// Part number tracker for `:partnums:` support in book doctype.
-    pub(crate) part_number_tracker: PartNumberTracker,
-    /// Appendix tracker for `[appendix]` style on level-0 sections.
-    pub(crate) appendix_tracker: AppendixTracker,
-    /// Tracks special sections so their subsections skip `:sectnums:` numbering.
-    pub(crate) special_section_tracker: SpecialSectionTracker,
     /// Terminal width (read once at start, capped at `MAX_TERMINAL_WIDTH`).
     pub(crate) terminal_width: usize,
-    /// Collected index term kinds for rendering in the index catalog.
-    ///
-    /// Stored as `'static` because entries are collected during visitor
-    /// traversal where the `Visitor` trait erases lifetimes, preventing
-    /// propagation of `'a` through the call chain.
-    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermKind<'static>>>>,
+    /// Collected index terms for rendering in the index catalog.
+    pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the document has a valid `[index]` section (last section).
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
     pub(crate) list_indent: Rc<Cell<usize>>,
+    /// Document-wide fallback warnings already emitted by this converter.
+    pub(crate) warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
     /// Substitutions active for the block currently being rendered, resolved
     /// from `[subs="…"]` (or the block-kind baseline when absent). Lives on
     /// `Processor` so freestanding inline helpers can consult it without
@@ -102,11 +104,6 @@ pub(crate) fn create_test_processor_with(
     document_attributes: DocumentAttributes<'_>,
 ) -> Processor<'_> {
     let appearance = Appearance::detect();
-    let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-    let part_number_tracker = PartNumberTracker::new(&document_attributes);
-    let appendix_tracker =
-        AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-    let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
     Processor {
         options: Options::default(),
         document_attributes,
@@ -114,15 +111,15 @@ pub(crate) fn create_test_processor_with(
         references: Rc::new(HashMap::new()),
         xref_guard: XrefGuard::default(),
         example_counter: Rc::new(Cell::new(0)),
+        figure_counter: Rc::new(Cell::new(0)),
+        listing_counter: Rc::new(Cell::new(0)),
+        table_counter: Rc::new(Cell::new(0)),
         appearance,
-        section_number_tracker,
-        part_number_tracker,
-        appendix_tracker,
-        special_section_tracker,
         terminal_width: FALLBACK_TERMINAL_WIDTH,
         index_entries: Rc::new(RefCell::new(Vec::new())),
         has_valid_index_section: false,
         list_indent: Rc::new(Cell::new(0)),
+        warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
         #[cfg(feature = "pre-spec-subs")]
         current_subs: Rc::new(Cell::new(SubsFlags::all())),
     }
@@ -143,14 +140,8 @@ impl<'a> Converter<'a> for Processor<'a> {
         for (name, value) in Self::document_attributes_defaults().iter() {
             document_attributes.insert(name.clone(), value.clone());
         }
-        BACKEND_TRAITS.apply(&mut document_attributes, options.doctype());
+        TERMINAL_BACKEND.apply(&mut document_attributes, options.doctype());
         let appearance = Appearance::detect();
-
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker = PartNumberTracker::new(&document_attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
 
         let terminal_width = crossterm::terminal::size()
             .map_or(FALLBACK_TERMINAL_WIDTH, |(cols, _)| usize::from(cols))
@@ -163,15 +154,15 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             example_counter: Rc::new(Cell::new(0)),
+            figure_counter: Rc::new(Cell::new(0)),
+            listing_counter: Rc::new(Cell::new(0)),
+            table_counter: Rc::new(Cell::new(0)),
             appearance,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: Rc::new(Cell::new(0)),
+            warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         }
@@ -202,12 +193,6 @@ impl<'a> Converter<'a> for Processor<'a> {
         _output_path: Option<&Path>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Self::Error> {
-        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker = PartNumberTracker::new(&doc.attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&doc.attributes);
-
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor = Processor {
             document_attributes: doc.attributes.clone(),
@@ -215,16 +200,16 @@ impl<'a> Converter<'a> for Processor<'a> {
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
             options: self.options.clone(),
-            example_counter: self.example_counter.clone(),
+            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
+            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
+            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
+            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
             appearance: self.appearance.clone(),
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
             list_indent: Rc::new(Cell::new(0)),
+            warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
@@ -238,6 +223,44 @@ impl<'a> Converter<'a> for Processor<'a> {
 }
 
 impl Processor<'_> {
+    /// Return the caption prefix for a titled block.
+    pub(crate) fn caption_prefix(
+        &self,
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<String> {
+        let resolved = match (&metadata.caption, fallback) {
+            (Some(caption), _) => caption.clone(),
+            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, None) => return None,
+        };
+        match resolved {
+            Caption::Numbered {
+                label,
+                number,
+                kind,
+            } => {
+                let number = number
+                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
+                Some(format!("{label} {number}. "))
+            }
+            Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::Unnumbered | _ => None,
+        }
+    }
+
+    fn next_caption_number(&self, kind: CaptionKind) -> u32 {
+        let counter = match kind {
+            CaptionKind::Figure => &self.figure_counter,
+            CaptionKind::Listing => &self.listing_counter,
+            CaptionKind::Table => &self.table_counter,
+            CaptionKind::Example | _ => &self.example_counter,
+        };
+        let number = counter.get() + 1;
+        counter.set(number);
+        number
+    }
+
     /// Override the detected terminal width.
     ///
     /// Useful for tests and fixture generation where a deterministic width is needed.
@@ -254,6 +277,13 @@ impl Processor<'_> {
         self
     }
 
+    /// Sets terminal capabilities instead of using the detected values.
+    #[must_use]
+    pub fn with_terminal_capabilities(mut self, capabilities: Capabilities) -> Self {
+        self.appearance.capabilities = capabilities;
+        self
+    }
+
     /// Returns the terminal capabilities.
     #[must_use]
     pub fn terminal_capabilities(&self) -> &Capabilities {
@@ -261,27 +291,19 @@ impl Processor<'_> {
     }
 
     /// Collect an index term entry for later rendering in the index catalog.
-    pub(crate) fn add_index_entry(&self, kind: &IndexTermKind<'_>) {
-        let owned: IndexTermKind<'static> = match kind {
-            IndexTermKind::Flow(t) => IndexTermKind::Flow(leak_str(t)),
-            IndexTermKind::Concealed {
-                term,
-                secondary,
-                tertiary,
-            } => IndexTermKind::Concealed {
-                term: leak_str(term),
-                secondary: secondary.map(leak_str),
-                tertiary: tertiary.map(leak_str),
-            },
-            _ => return,
-        };
-        self.index_entries.borrow_mut().push(owned);
+    pub(crate) fn add_index_entry(&self, entry: IndexTermEntry) {
+        self.index_entries.borrow_mut().push(entry);
     }
 
     /// Check if the document has a valid index section (last section with `[index]` style).
     #[must_use]
     pub(crate) fn has_valid_index_section(&self) -> bool {
         self.has_valid_index_section
+    }
+
+    /// Record a document-wide fallback and return whether its warning is new.
+    pub(crate) fn mark_fallback(&self, key: &'static str) -> bool {
+        self.warned_fallbacks.borrow_mut().insert(key)
     }
 }
 
@@ -329,8 +351,8 @@ pub fn render_document_to_ansi(
 pub fn render_listing_to_ansi(
     options: Options,
     document_attributes: DocumentAttributes<'_>,
-    inlines: &[InlineNode<'_>],
-    metadata: &BlockMetadata<'_>,
+    inlines: &[acdc_parser::InlineNode<'_>],
+    metadata: &acdc_parser::BlockMetadata<'_>,
     width: usize,
     dark_mode: bool,
 ) -> Result<Vec<u8>, Error> {
@@ -340,16 +362,18 @@ pub fn render_listing_to_ansi(
     let mut output = Vec::new();
     let color_guard = ColorOutputGuard::force_enabled();
 
-    if let Some(language) = acdc_converters_core::code::detect_language(metadata) {
-        crate::syntax::highlight_code(
-            &mut output,
-            inlines,
-            preview_highlight_language(language),
-            &processor,
-        )?;
-    } else {
-        write!(output, "{}", extract_inline_text(inlines, "\n"))?;
+    let mut metadata = metadata.clone();
+    if let Some(language) =
+        acdc_converters_core::code::detect_language(&metadata).map(str::to_string)
+    {
+        metadata.attributes.set(
+            "language".into(),
+            preview_highlight_language(&language).to_string().into(),
+        );
     }
+    output.extend_from_slice(
+        crate::delimited::render_preformatted_content(inlines, &metadata, &processor)?.as_bytes(),
+    );
 
     drop(color_guard);
     Ok(output)
@@ -360,7 +384,7 @@ mod backend_tests {
     use super::*;
 
     #[test]
-    fn constructor_applies_terminal_backend_traits() {
+    fn constructor_applies_terminal_backend_profile() {
         let processor = Processor::new(Options::default(), DocumentAttributes::default());
 
         assert_eq!(
@@ -410,8 +434,8 @@ impl Drop for ColorOutputGuard {
 ///
 /// `line_break` controls how `LineBreak` nodes are represented: `" "` for
 /// titles, `"\n"` for literal paragraphs.
-pub(crate) fn extract_inline_text(nodes: &[InlineNode], line_break: &str) -> String {
-    InlineTextTransform::default()
+pub(crate) fn extract_inline_text(nodes: &[acdc_parser::InlineNode], line_break: &str) -> String {
+    acdc_converters_core::InlineTextTransform::default()
         .line_break(line_break)
         .decode_char_refs(true)
         .to_string(nodes)

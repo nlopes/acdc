@@ -1,0 +1,16 @@
+= Index range sequence
+:reproducible:
+:index-pagenum-sequence-style: range
+
+First ((term)).
+
+<<<
+
+Second ((term)).
+
+<<<
+
+Third ((term)).
+
+[index]
+== Index

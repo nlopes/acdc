@@ -1,0 +1,1 @@
+../../html/embedded/link_macro_ids.adoc

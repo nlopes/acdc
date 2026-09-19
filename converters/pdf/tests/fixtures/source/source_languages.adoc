@@ -1,0 +1,44 @@
+= Source languages
+:source-highlighter: rouge
+
+.Positional language
+[source,rust]
+----
+fn main() {
+    println!("position");
+}
+----
+
+.Named language
+[source,language=python]
+----
+print("named")
+----
+
+.Missing language
+[source]
+----
+plain source
+----
+
+.Empty language slot
+[source,,linenums]
+----
+empty language slot
+----
+
+.Unknown language
+[source,definitely-unknown]
+----
+unknown_language()
+----
+
+.Language-like attribute on a listing
+[listing,ruby]
+----
+puts "listing"
+----
+
+.Source paragraph
+[source,ruby]
+puts "paragraph"

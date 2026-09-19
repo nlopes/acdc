@@ -1,0 +1,12 @@
+= Index Term Relationships
+:related-term: HTML 5
+
+Named visible: indexterm2:[Flash,see={related-term}].
+
+Named concealed: indexterm:[HTML 5,see-also="CSS 3, SVG"].
+
+Shorthand visible: ((Shockwave >> *Flash*)).
+
+Shorthand concealed secondary: (((Standards, Web &> _HTML 5_ &> `CSS 3`))).
+
+Missing delimiter spacing stays literal: ((A>>B)) and ((C &>D)).

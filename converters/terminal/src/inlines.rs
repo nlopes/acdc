@@ -4,18 +4,21 @@ use std::io::Write;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
-    decode_numeric_char_refs, inlines_to_string,
+    Diagnostics, InlineTextTransform, WarningSource, decode_numeric_char_refs, inlines_to_string,
+    link::{autolink_fallback, link_fallback},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
     xref::{XrefDisplay, resolve_xref},
 };
-use acdc_parser::{Button, CrossReference, InlineMacro, InlineNode};
+use acdc_parser::{
+    Button, CrossReference, IndexTerm, IndexTermRelationship, InlineMacro, InlineNode,
+};
 use crossterm::{
     QueueableCommand,
     style::{Attribute, Color, Print, PrintStyledContent, SetAttribute, Stylize},
 };
 
-use crate::{Error, Processor};
+use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
 /// Apply Unicode typography replacements to a `PlainText` leaf.
 ///
@@ -109,7 +112,7 @@ fn try_to_unicode_subscript(text: &str) -> Option<String> {
 
 /// Render super/subscript content: try Unicode conversion first, fall back to
 /// dim-styled text to subtly indicate super/subscript.
-fn render_script_text<W: Write>(
+fn render_script_text<W: Write + ?Sized>(
     nodes: &[InlineNode],
     w: &mut W,
     processor: &Processor<'_>,
@@ -186,9 +189,25 @@ fn render_inline_nodes_to_owned(
     Ok(String::from_utf8(buffer.into_inner()?)?)
 }
 
+fn render_inline_nodes_with_styles_to_owned(
+    nodes: &[InlineNode],
+    processor: &Processor<'_>,
+) -> Result<String, Error> {
+    let source = WarningSource::new("terminal");
+    let mut warnings = Vec::new();
+    let mut visitor = crate::TerminalVisitor::new(
+        Vec::new(),
+        processor.clone(),
+        Diagnostics::new(&source, &mut warnings),
+    );
+    visitor.text_boundaries = TextBoundaries::NONE;
+    visitor.visit_inline_nodes(nodes)?;
+    Ok(String::from_utf8(visitor.into_writer())?)
+}
+
 /// Helper to render a single inline node directly to a writer.
 /// Always called from within inline spans, so `string_boundaries_are_space` is false.
-fn render_inline_node_to_writer<W: Write>(
+fn render_inline_node_to_writer<W: Write + ?Sized>(
     node: &InlineNode,
     w: &mut W,
     processor: &Processor<'_>,
@@ -372,11 +391,23 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
 
         match resolve_xref(
             processor.references.get(xref.target),
-            xref.target,
+            xref,
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                 self.write_link_styled(processor, |visitor| visitor.visit_inline_nodes(inlines))
+            }
+            XrefDisplay::ShortCaption(prefix) => self.write_link_styled(processor, |visitor| {
+                write!(visitor.writer_mut(), "{prefix}")?;
+                Ok(())
+            }),
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    write!(visitor.writer_mut(), "{prefix}, “")?;
+                    visitor.visit_inline_nodes(inlines)?;
+                    write!(visitor.writer_mut(), "”")?;
+                    Ok(())
+                })
             }
             XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
                 self.write_link_styled(processor, |visitor| {
@@ -384,6 +415,10 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                     Ok(())
                 })
             }
+            XrefDisplay::External(target) => self.write_link_styled(processor, |visitor| {
+                write!(visitor.writer_mut(), "[{target}]")?;
+                Ok(())
+            }),
             // Already inside a reference's styling: plain text, so the outer
             // reference keeps its colour and underline.
             XrefDisplay::Nested(text) => {
@@ -437,6 +472,12 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
                     self.visit_inline_nodes(&h.content)?;
                     let w = self.writer_mut();
                     w.queue(SetAttribute(Attribute::NoUnderline))?;
+                } else if h.role == Some("line-through") {
+                    let w = self.writer_mut();
+                    w.queue(SetAttribute(Attribute::CrossedOut))?;
+                    self.visit_inline_nodes(&h.content)?;
+                    let w = self.writer_mut();
+                    w.queue(SetAttribute(Attribute::NotCrossedOut))?;
                 } else {
                     self.push_colors(Some(Color::Black), Some(Color::Yellow))?;
                     self.visit_inline_nodes(&h.content)?;
@@ -514,7 +555,7 @@ impl<W: Write> crate::TerminalVisitor<'_, '_, W> {
     }
 }
 
-fn maybe_render_osc8_link<W: Write + ?Sized>(
+pub(crate) fn maybe_render_osc8_link<W: Write + ?Sized>(
     target: &str,
     text: &str,
     w: &mut W,
@@ -544,21 +585,34 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
 ) -> Result<(), crate::Error> {
     match inline_macro {
         InlineMacro::Link(l) => {
-            let target = l.target.clone();
-            let text = if l.text.is_empty() {
-                target.to_string()
+            let target = l.target.to_string();
+            if l.text.iter().any(is_self_linked_image) {
+                for node in &l.text {
+                    if is_self_linked_image(node) {
+                        render_inline_node_to_writer(node, w, processor)?;
+                    } else {
+                        let text =
+                            render_inline_nodes_to_string(std::slice::from_ref(node), processor)?;
+                        maybe_render_osc8_link(&target, &text, w, processor)?;
+                    }
+                }
             } else {
-                render_inline_nodes_to_string(&l.text, processor)?
-            };
-            maybe_render_osc8_link(target.clone().to_string().as_ref(), &text, w, processor)?;
+                let text = if l.text.is_empty() {
+                    link_fallback(&target, l.hides_uri_scheme()).to_string()
+                } else {
+                    render_inline_nodes_to_string(&l.text, processor)?
+                };
+                maybe_render_osc8_link(&target, &text, w, processor)?;
+            }
         }
         InlineMacro::Url(u) => {
-            maybe_render_osc8_link(
-                u.target.to_string().as_ref(),
-                &render_inline_nodes_to_string(&u.text, processor)?,
-                w,
-                processor,
-            )?;
+            let target = u.target.to_string();
+            let text = if u.text.is_empty() {
+                link_fallback(&target, u.hides_uri_scheme()).to_string()
+            } else {
+                render_inline_nodes_to_string(&u.text, processor)?
+            };
+            maybe_render_osc8_link(&target, &text, w, processor)?;
         }
         InlineMacro::Mailto(m) => {
             maybe_render_osc8_link(
@@ -570,7 +624,13 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
         }
         InlineMacro::Autolink(a) => {
             let target = a.url.to_string();
-            maybe_render_osc8_link(&target, &target, w, processor)?;
+            let (text, bracketed) = autolink_fallback(&target, a.bracketed, a.hides_uri_scheme());
+            let text = if bracketed {
+                format!("<{text}>")
+            } else {
+                text.to_string()
+            };
+            maybe_render_osc8_link(&target, &text, w, processor)?;
         }
         InlineMacro::Footnote(footnote) => {
             // Render footnote as superscript number in terminal
@@ -588,12 +648,11 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             }
         }
         InlineMacro::Image(img) => {
-            // Terminal can't display images, show alt text or path
-            write!(w, "[Image: {}]", img.source)?;
+            render_inline_image(img, w, processor)?;
         }
         InlineMacro::Icon(icon) => {
-            // Terminal can't display icons, show icon name
-            write!(w, "[Icon: {}]", icon.target)?;
+            let alt = acdc_converters_core::icon::alt(&icon.target, &icon.attributes);
+            write!(w, "[Icon: {alt}]")?;
         }
         InlineMacro::Keyboard(kbd) => {
             // Show keyboard shortcuts with brackets
@@ -617,16 +676,7 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             // Show stem content as-is (terminal can't render math)
             write!(w, "[{}]", stem.content)?;
         }
-        InlineMacro::IndexTerm(it) => {
-            // Collect entry for index catalog rendering
-            processor.add_index_entry(&it.kind);
-
-            // Flow terms (visible): output the term text
-            // Concealed terms (hidden): output nothing
-            if it.is_visible() {
-                write!(w, "{}", it.term())?;
-            }
-        }
+        InlineMacro::IndexTerm(term) => render_index_term_to_writer(term, w, processor)?,
         _ => {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
@@ -634,6 +684,88 @@ fn render_inline_macro_to_writer<W: Write + ?Sized>(
             )
             .into());
         }
+    }
+    Ok(())
+}
+
+fn is_self_linked_image(node: &InlineNode<'_>) -> bool {
+    matches!(
+        node,
+        InlineNode::Macro(InlineMacro::Image(image))
+            if image.metadata.attributes.get_string("link").is_some()
+    )
+}
+
+pub(crate) fn block_image_alt(image: &acdc_parser::Image<'_>) -> String {
+    if let Some(alt) = image.metadata.attributes.get_string("alt") {
+        return alt.into_owned();
+    }
+    image
+        .source
+        .get_filename()
+        .and_then(|filename| std::path::Path::new(filename).file_stem())
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or_default()
+        .replace(['-', '_'], " ")
+}
+
+fn inline_image_alt(image: &acdc_parser::Image<'_>) -> String {
+    if image.title.is_empty() {
+        block_image_alt(image)
+    } else {
+        inlines_to_string(&image.title)
+    }
+}
+
+fn render_inline_image<W: Write + ?Sized>(
+    image: &acdc_parser::Image<'_>,
+    w: &mut W,
+    processor: &Processor<'_>,
+) -> Result<(), Error> {
+    let text = format!("[Image: {}]", inline_image_alt(image));
+    if let Some(target) = image.metadata.attributes.get_string("link") {
+        maybe_render_osc8_link(&target, &text, w, processor)
+    } else {
+        write!(w, "{text}")?;
+        Ok(())
+    }
+}
+
+fn render_index_term_to_writer<W: Write + ?Sized>(
+    term: &IndexTerm<'_>,
+    w: &mut W,
+    processor: &Processor<'_>,
+) -> Result<(), crate::Error> {
+    let render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
+        Ok(IndexTermLabel {
+            plain: InlineTextTransform::default().to_string(inlines),
+            rendered: render_inline_nodes_with_styles_to_owned(inlines, processor)?,
+        })
+    };
+    processor.add_index_entry(IndexTermEntry {
+        primary: render_label(term.term())?,
+        secondary: term.secondary().map(render_label).transpose()?,
+        tertiary: term.tertiary().map(render_label).transpose()?,
+        relationship: match term.relationship.as_ref() {
+            Some(IndexTermRelationship::See { target }) => {
+                IndexCatalogRelationship::See(render_label(target)?)
+            }
+            Some(IndexTermRelationship::SeeAlso { targets }) => IndexCatalogRelationship::SeeAlso(
+                targets
+                    .iter()
+                    .map(|target| render_label(target))
+                    .collect::<Result<_, _>>()?,
+            ),
+            None | Some(_) => IndexCatalogRelationship::None,
+        },
+    });
+
+    if term.is_visible() {
+        write!(
+            w,
+            "{}",
+            render_inline_nodes_with_styles_to_owned(term.term(), processor)?
+        )?;
     }
     Ok(())
 }
@@ -670,15 +802,21 @@ fn render_cross_reference_to_writer<W: Write + ?Sized>(
     let text = if xref.text.is_empty() {
         match resolve_xref(
             processor.references.get(xref.target),
-            xref.target,
+            xref,
             &processor.xref_guard,
         ) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                 render_inline_nodes_to_owned(inlines, processor)?
             }
+            XrefDisplay::ShortCaption(prefix) => prefix,
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => format!(
+                "{prefix}, “{}”",
+                render_inline_nodes_to_owned(inlines, processor)?
+            ),
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => text,
+            XrefDisplay::External(target) => format!("[{target}]"),
         }
     } else {
         inlines_to_string(&xref.text)
@@ -1016,7 +1154,7 @@ mod tests {
 
         let output = render_paragraph(vec![image])?;
         assert!(
-            output.contains("[Image: logo.png]"),
+            output.contains("[Image: logo]"),
             "Should render image placeholder"
         );
         Ok(())

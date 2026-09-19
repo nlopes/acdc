@@ -1,0 +1,6 @@
+:icons: svg
+:iconsdir: assets/icons
+
+Default icon: icon:arrow-left[].
+
+Custom icon: icon:heart[alt=Love].

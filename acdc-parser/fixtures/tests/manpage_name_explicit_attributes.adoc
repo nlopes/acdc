@@ -1,0 +1,13 @@
+= tool(1)
+:doctype: manpage
+:backend: manpage
+:manname: explicit-tool
+:manpurpose: explicit purpose
+
+== OVERVIEW
+
+This section is not manpage front matter.
+
+== DESCRIPTION
+
+Uses {manname}.

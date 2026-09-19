@@ -1,0 +1,529 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Styled image macro contexts",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 29
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 25
+      }
+    ]
+  },
+  "attributes": {
+    "listing-caption": "Listing"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Listing style",
+          "location": [
+            {
+              "line": 4,
+              "col": 2
+            },
+            {
+              "line": 4,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::listing.png[Listing alt]",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 31
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "listing"
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 31
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Source style",
+          "location": [
+            {
+              "line": 8,
+              "col": 2
+            },
+            {
+              "line": 8,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::source.png[Source alt]",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "rust": null
+        },
+        "style": "source"
+      },
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Literal style",
+          "location": [
+            {
+              "line": 12,
+              "col": 2
+            },
+            {
+              "line": 12,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::literal.png[Literal alt]",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 31
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "literal"
+      },
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 31
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Verse style",
+          "location": [
+            {
+              "line": 16,
+              "col": 2
+            },
+            {
+              "line": 16,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::verse.png[Verse alt]",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "verse"
+      },
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 27
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Explicit alt"
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Example positional value",
+          "location": [
+            {
+              "line": 20,
+              "col": 2
+            },
+            {
+              "line": 20,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "example.png"
+      },
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Explicit alt"
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Quote positional value",
+          "location": [
+            {
+              "line": 24,
+              "col": 2
+            },
+            {
+              "line": 24,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "quote.png"
+      },
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "custom"
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Custom positional fallback",
+          "location": [
+            {
+              "line": 28,
+              "col": 2
+            },
+            {
+              "line": 28,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "custom.png"
+      },
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "roles": [
+          "image-role"
+        ]
+      },
+      "source": {
+        "type": "path",
+        "value": "role.png"
+      },
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "image::untitled-listing.png[Untitled listing alt]",
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 36,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "listing"
+      },
+      "location": [
+        {
+          "line": 35,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 49
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Listing after styled macros",
+          "location": [
+            {
+              "line": 38,
+              "col": 2
+            },
+            {
+              "line": 38,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "plain listing text",
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 40,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "listing"
+      },
+      "location": [
+        {
+          "line": 38,
+          "col": 1
+        },
+        {
+          "line": 40,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Final alt"
+        }
+      },
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Figure after styled macros",
+          "location": [
+            {
+              "line": 42,
+              "col": 2
+            },
+            {
+              "line": 42,
+              "col": 27
+            }
+          ]
+        }
+      ],
+      "source": {
+        "type": "path",
+        "value": "final.png"
+      },
+      "location": [
+        {
+          "line": 42,
+          "col": 1
+        },
+        {
+          "line": 43,
+          "col": 27
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 43,
+      "col": 27
+    }
+  ]
+}

@@ -17,7 +17,7 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 
 == What it provides
 
-- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, and `heading`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
+- **`Theme`** — the design tokens (`palette`, `typography`, `spacing`, `caption`, `heading`, `header`, `footer`, `index`, and `table`). Tokens are *data*, loaded from YAML via `Theme::from_yaml_str`, so a caller can supply a brand theme without recompiling.
 - **`Theme::default`** — the bundled neutral theme (white page, grayscale, bundled fonts only). Its private embedded YAML remains the single source of truth and is parsed once per process, so the tokens cannot drift from a hand-written struct.
 - **`embedded_fonts`** — bytes for every bundled free font face (IBM Plex plus
   Noto Color Emoji).
@@ -27,6 +27,50 @@ The crate is *Typst-free*: it carries only data and bundled assets. The tokens c
 == Customising
 
 Supply a theme YAML file (via the CLI `--theme` flag or `PdfOptions::theme`) that deserialises into `Theme`; omit it to use `Theme::default`. The bundled `assets/theme/default.yaml` documents every available token. The parser does not impose an arbitrary document-size limit. The PDF converter applies a separate 1 MiB file-input limit before parsing. The schema is strict: unknown fields, invalid colours, invalid font stacks, invalid font weights, and non-finite or negative measurements are rejected with field-specific errors. Parsing uses the safe-Rust `serde-saphyr` backend, including its complexity and alias-expansion budgets.
+
+=== Document block spacing
+
+`spacing.block_margin_bottom_pt` controls the vertical margin between document
+blocks. It defaults to `12.0`, matching Asciidoctor PDF. List items and headings
+keep their own spacing.
+
+=== Block titles and captions
+
+The `caption` tokens apply to ordinary block titles and to numbered captions.
+Sidebar and abstract titles keep their own treatments.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Values
+
+|`caption.align`
+|`left`
+|`left`, `center`, or `right`.
+
+|`caption.font_color`
+|`#333333`
+|A hexadecimal colour, or `null` to use `palette.body_text`.
+
+|`caption.font_size_em`
+|`0.91`
+|A positive size relative to the body text.
+
+|`caption.font_weight`
+|`400`
+|A Typst font weight from `100` through `900`.
+
+|`caption.font_style`
+|`italic`
+|`normal` or `italic`.
+
+|`caption.margin_inside_pt`
+|`8.0`
+|Space between a title and its block, in points.
+
+|`caption.margin_outside_pt`
+|`0.0`
+|Space before a title, in points.
+|===
 
 === Book heading page breaks
 
@@ -47,6 +91,103 @@ The `heading` tokens apply to book parts and chapters. By default, each part and
 |`heading.chapter.break_before`
 |`always`
 |`always` starts each chapter on a new page; `auto` lets it follow the preceding content.
+|===
+
+=== Page headers and footers
+
+The `header` and `footer` tokens control the page header and footer produced
+from the document title, optional logo, page number, watermark label, and timestamp.
+`palette.accent` supplies the header colour, and `palette.counter` supplies the
+footer colour.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Values
+
+|`header.align`
+|`left`
+|`left`, `center`, or `right`.
+
+|`header.font_size_pt`
+|`11.0`
+|A positive title size in points.
+
+|`header.font_weight`
+|`500`
+|A Typst font weight from `100` through `900`.
+
+|`header.logo_height_pt`
+|`22.0`
+|A positive logo height in points.
+
+|`header.show_on_page_one`
+|`false`
+|Whether to show the header when the current page counter is `1`.
+
+|`footer.font_size_pt`
+|`9.0`
+|A positive size in points for the page number, watermark label, and timestamp.
+
+|`footer.page_number_position`
+|`center`
+|The `left`, `center`, or `right` footer slot. A page number in an occupied slot
+shares it with the watermark label or timestamp.
+|===
+
+=== Index catalogs
+
+The `index` tokens control the columns used by generated index catalogs. Their
+defaults match Asciidoctor PDF.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Purpose
+
+|`index.columns`
+|`2`
+|Number of catalog columns. Use `1` for a single column.
+
+|`index.column_gap_pt`
+|`12.0`
+|Gap between columns in points. In a custom theme, `null` uses the body font size.
+|===
+
+=== Tables
+
+The `table` tokens control frame and grid rules plus header, stripe, and footer backgrounds.
+Their defaults match Asciidoctor PDF.
+
+[cols="2,1,3",options="header"]
+|===
+|Token |Default |Purpose
+
+|`table.align`
+|`left`
+|Default table placement: `left`, `center`, or `right`.
+
+|`table.border_color`
+|`#dddddd`
+|Outer frame and inner grid colour.
+
+|`table.border_width_pt`
+|`0.5`
+|Outer frame and inner grid width.
+
+|`table.header_divider_width_pt`
+|`1.25`
+|Rule below a semantic header.
+
+|`table.header_background`
+|`null`
+|Semantic header background, or the table background when omitted.
+
+|`table.stripe_background`
+|`#f9f9f9`
+|Background for striped body rows.
+
+|`table.footer_background`
+|`#f0f0f0`
+|Semantic footer background, or the table background when omitted.
 |===
 
 == Bundled asset policy

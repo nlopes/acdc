@@ -1,0 +1,26 @@
+= Theme table alignment
+:acdc-pdf-test-theme: table_alignment_right
+
+.Theme places this table at the right
+[width=45%]
+|===
+|Theme right |A wider second cell
+|===
+
+.Explicit alignment overrides the theme
+[align=left,width=45%]
+|===
+|Explicit left |A wider second cell
+|===
+
+.A valid role overrides the theme
+[.center,width=45%]
+|===
+|Role center |A wider second cell
+|===
+
+.Invalid alignment falls through to the theme
+[align=invalid,width=45%]
+|===
+|Fallback right |A wider second cell
+|===

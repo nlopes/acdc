@@ -1,0 +1,16 @@
+= Natural Title Cross References
+
+Generated title: <<Syntax Highlighting>>.
+
+Custom text: <<Syntax Highlighting,highlighting section>>.
+
+Explicit ID: <<explicit-id>>.
+
+Explicit title: <<Explicit Title>>.
+
+Missing title: <<Missing Title>>.
+
+== Syntax Highlighting
+
+[#explicit-id]
+== Explicit Title

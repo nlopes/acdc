@@ -14,6 +14,7 @@ pre-spec-subs = ["acdc-parser/pre-spec-subs", "dep:bitflags"]
 [dependencies]
 acdc-parser.workspace = true
 bitflags = { version = "2.11", optional = true }
+relative-path.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
 

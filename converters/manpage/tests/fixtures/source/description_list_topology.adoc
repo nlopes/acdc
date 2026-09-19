@@ -1,0 +1,17 @@
+= description-list-topology(1)
+:doctype: manpage
+:manmanual: Test Manual
+:mansource: acdc
+:revdate: 2025-01-01
+
+== NAME
+
+description-list-topology - verify nested description lists
+
+== DESCRIPTION
+
+Root one:: Root one description.
+Child one::: Child one description.
+Grandchild one:::: Grandchild one description.
+Child two::: Child two description.
+Root two:: Root two description.

@@ -20,6 +20,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `convert -a` attributes now remain locked against matching set or unset
+  entries in the document. The Asciidoctor-compatible `@` suffix makes a value
+  a document-overridable default, including `name@=value`, `name=value@`, and
+  soft unset forms such as `!name=@`.
+- Implied and conversion-only values such as the default `lang=en`, `outdir`,
+  and `outfile` are no longer inserted into parser attributes. Converters keep
+  their output fallbacks, while an unresolved attribute reference stays
+  unresolved unless the document or command line sets it.
 - `convert` makes the selected backend's attributes and the converter's default
   attributes available while the document is parsed, so backend conditionals such
   as `ifdef::backend-pdf[]` and references to `backend`, `basebackend`, `filetype`,
@@ -82,8 +90,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enabled. It writes `.pdf` files by default and writes raw PDF bytes when
   `-o -` is selected. PDF runs accept `--font-dir`, `--logo`, `--title`,
   `--watermark`, `--watermark-timestamp`, `--page`, `--theme`, `--plain`,
-  `--toc`, and `--emit-typst`; `--strict` now makes unresolved PDF images or
-  logos fail instead of falling back with a warning.
+  `--page-layout`, `--toc`, and `--emit-typst`; named A3/A4/A5 and common US
+  page sizes can use portrait or landscape output, `pdf-page-size` accepts
+  custom dimensions, `pdf-page-margin` sets per-document margins, and `--strict` makes
+  unresolved PDF images or logos fail instead of falling back with a warning.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the

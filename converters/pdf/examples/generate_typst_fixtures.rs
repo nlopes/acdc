@@ -20,6 +20,8 @@ fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<std::path::PathBuf> 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     FixtureGenerator::new("pdf", "typ").generate(|_, doc, output| {
+        let source_file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/source/fixture.adoc");
         let output_dir = tempfile::tempdir()?;
         let typst_path = output_dir.path().join("expected.typ");
         let processor = Processor::new(Options::default(), doc.attributes.clone())
@@ -32,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("pdf");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        processor.write_to(doc, &mut pdf, None, None, &mut diagnostics)?;
+        processor.write_to(doc, &mut pdf, Some(&source_file), None, &mut diagnostics)?;
         output.extend(std::fs::read(typst_path)?);
         Ok(())
     })

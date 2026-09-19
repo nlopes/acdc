@@ -1,9 +1,13 @@
 = Index Terms Test
 
-This is about ((Arthur)) the king.
+This is about ((bold *Arthur*)) the king.
 
-(((Sword, Broadsword)))A concealed term for swords.
+(((italic _Sword_, secondary `Broadsword`, tertiary)))A concealed term for swords.
 
-Using macro style: indexterm2:[Excalibur].
+Using macro style: indexterm2:[mono `Excalibur`].
 
-And concealed macro: indexterm:[Knights, Round Table].
+And concealed macro: indexterm:[bold *Knights*, Round Table, tertiary].
+
+Quoted hierarchy: indexterm:["primary, one", "secondary, two", tertiary].
+
+Nested terms stay literal: ((outer indexterm:[inner])).

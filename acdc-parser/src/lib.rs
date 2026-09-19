@@ -37,6 +37,12 @@
 //! - Detailed error reporting with source location information.
 //! - Support for parsing from strings, files, and readers.
 //!
+//! # Checklist markers
+//!
+//! acdc treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
+//! Asciidoctor leaves `[X]` in the item text. This is an intentional acdc
+//! extension.
+//!
 //! # Local include confinement
 //!
 //! For file input, [`SafeMode::Safe`] and [`SafeMode::Server`] use the entry
@@ -111,18 +117,19 @@ pub use grammar::parse_text_for_quotes;
 pub use model::{
     Admonition, AdmonitionVariant, Anchor, AttributeName, AttributeValue, Attribution, Audio,
     Author, Autolink, Block, BlockMetadata, Bold, Button, CalloutList, CalloutListItem, CalloutRef,
-    CalloutRefKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth, Comment, CommentKind,
-    CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock, DelimitedBlockType,
-    DescriptionList, DescriptionListItem, DiscreteHeader, Document, DocumentAttribute,
-    DocumentAttributes, ElementAttributes, Footnote, Form, HEADER, Header, Highlight,
-    HorizontalAlignment, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind, InlineMacro,
-    InlineNode, Italic, Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location,
-    MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak,
-    Paragraph, Pass, PassthroughKind, Plain, Position, Raw, Reference, Role, Section, SectionKind,
-    Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
-    Substitution, Subtitle, Superscript, Table, TableColumn, TableOfContents, TableRow,
+    CalloutRefKind, Caption, CaptionKind, CiteTitle, ColumnFormat, ColumnStyle, ColumnWidth,
+    Comment, CommentKind, CrossReference, CurvedApostrophe, CurvedQuotation, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader, Document,
+    DocumentAttribute, DocumentAttributes, ElementAttributes, Footnote, Form, HEADER, Header,
+    Highlight, HorizontalAlignment, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
+    IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, LineBreak, Link, ListItem,
+    ListItemCheckedStatus, Location, MAX_SECTION_LEVELS, MAX_TOC_LEVELS, Mailto, Menu, Monospace,
+    NORMAL, OrderedList, PageBreak, Paragraph, Pass, PassthroughKind, Plain, Position, Raw,
+    Reference, Role, Section, SectionKind, Source, SourceUrl, StandaloneCurvedApostrophe, Stem,
+    StemContent, StemNotation, Subscript, Substitution, Subtitle, Superscript, Table, TableColumn,
+    TableFrame, TableGrid, TableOfContents, TablePresentation, TableRow, TableStripes,
     ThematicBreak, Title, TocEntry, UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM,
-    Verbatim, VerticalAlignment, Video, strip_quotes, substitute,
+    Verbatim, VerticalAlignment, Video, XrefCaptionLabel, XrefStyle, strip_quotes, substitute,
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};
@@ -288,18 +295,19 @@ pub fn parse_from_reader<R: std::io::Read>(
     reader: R,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
+    let options = options.clone().prepare_for_parse();
     // Shared across the preprocessor and the grammar state so both layers'
     // warnings land in the same `ParseResult::warnings()` slice.
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor::process_reader(reader, options, Rc::clone(&warnings_handle))?
+        Preprocessor::process_reader(reader, &options, Rc::clone(&warnings_handle))?
     };
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
         text,
-        options.clone(),
+        options,
         None,
         result.leveloffset_ranges,
         result.source_ranges,
@@ -327,16 +335,17 @@ pub fn parse_from_reader<R: std::io::Read>(
 /// This function returns an error if the content cannot be parsed.
 #[instrument]
 pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
+    let options = options.clone().prepare_for_parse();
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let result = {
         let _span = tracing::info_span!("preprocess").entered();
-        Preprocessor::process(input, options, Rc::clone(&warnings_handle))?
+        Preprocessor::process(input, &options, Rc::clone(&warnings_handle))?
     };
     let text: Box<str> = result.text.into_owned().into_boxed_str();
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
         text,
-        options.clone(),
+        options,
         None,
         result.leveloffset_ranges,
         result.source_ranges,
@@ -368,6 +377,7 @@ pub fn parse_file<P: AsRef<Path>>(
     file_path: P,
     options: &Options<'_>,
 ) -> Result<ParseResult, Error> {
+    let options = options.clone().prepare_for_parse();
     let path = file_path.as_ref().to_path_buf();
     let raw = preprocessor::read_and_decode_file(file_path.as_ref(), None)?;
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
@@ -376,7 +386,7 @@ pub fn parse_file<P: AsRef<Path>>(
         Preprocessor::process_with_file(
             &raw,
             file_path.as_ref(),
-            options,
+            &options,
             Rc::clone(&warnings_handle),
         )?
     };
@@ -384,7 +394,7 @@ pub fn parse_file<P: AsRef<Path>>(
     let _span = tracing::info_span!("grammar_parse", input_len = text.len()).entered();
     parse_input(
         text,
-        options.clone(),
+        options,
         Some(path),
         result.leveloffset_ranges,
         result.source_ranges,
@@ -506,7 +516,7 @@ fn parse_input(
 pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineResult, Error> {
     tracing::trace!(?input, "post preprocessor");
     let owner = parsed::OwnedInput::new(input.into());
-    let options_owned = options.clone().into_static();
+    let options_owned = options.clone().prepare_for_parse().into_static();
     let warnings_handle: Rc<RefCell<Vec<Warning>>> = Rc::new(RefCell::new(Vec::new()));
     let warnings_for_state = Rc::clone(&warnings_handle);
 
@@ -515,7 +525,10 @@ pub fn parse_inline(input: &str, options: &Options<'_>) -> Result<ParseInlineRes
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);
         state.initialize_hardbreaks();
-        state.inline_ctx.hardbreaks = state.hardbreaks;
+        state
+            .inline_ctx
+            .rules
+            .set(grammar::InlineRules::HARD_BREAKS, state.hardbreaks);
         state.warnings = warnings_for_state;
         let result = match grammar::inline_parser::inlines(&owner.source, &mut state) {
             Ok(mut inlines) => {
@@ -603,6 +616,26 @@ mod tests {
                 ]
             ));
         }
+    }
+
+    #[test]
+    fn parse_inline_accepts_pass_macros_without_substitution_names() {
+        let parsed = parse_inline("pass:[raw] pass:[]", &Options::default())
+            .expect("parse pass macros without substitution names");
+        let [
+            InlineNode::Macro(InlineMacro::Pass(with_content)),
+            InlineNode::PlainText(separator),
+            InlineNode::Macro(InlineMacro::Pass(empty)),
+        ] = parsed.inlines()
+        else {
+            panic!("expected two pass macros, got {:?}", parsed.inlines());
+        };
+
+        assert_eq!(with_content.text, Some("raw"));
+        assert!(with_content.substitutions.is_empty());
+        assert_eq!(separator.content, " ");
+        assert_eq!(empty.text, Some(""));
+        assert!(empty.substitutions.is_empty());
     }
 
     #[test]

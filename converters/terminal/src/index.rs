@@ -6,77 +6,79 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use acdc_converters_core::visitor::WritableVisitor;
-use acdc_parser::IndexTermKind;
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
 };
 
-use crate::{Error, Processor};
+use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
-/// Represents a single primary index entry with nested sub-entries.
 #[derive(Debug, Default)]
 struct IndexEntry {
-    /// Nested secondary terms (if any)
-    secondary: BTreeMap<String, SecondaryEntry>,
+    children: BTreeMap<IndexTermLabel, IndexEntry>,
+    relationship: Option<IndexRelationship>,
 }
 
-/// Represents a secondary-level index entry.
-#[derive(Debug, Default)]
-struct SecondaryEntry {
-    /// Nested tertiary terms (if any)
-    tertiary: BTreeSet<String>,
+#[derive(Debug)]
+enum IndexRelationship {
+    See(IndexTermLabel),
+    SeeAlso(BTreeSet<IndexTermLabel>),
 }
 
-/// Build a hierarchical index structure from collected term kinds.
-fn build_index_structure(entries: &[IndexTermKind]) -> BTreeMap<String, IndexEntry> {
-    let mut index: BTreeMap<String, IndexEntry> = BTreeMap::new();
+/// Build a hierarchical index structure from collected entries.
+fn build_index_structure(entries: &[IndexTermEntry]) -> BTreeMap<IndexTermLabel, IndexEntry> {
+    let mut index: BTreeMap<IndexTermLabel, IndexEntry> = BTreeMap::new();
 
-    for kind in entries {
-        match kind {
-            IndexTermKind::Flow(term) => {
-                index.entry((*term).to_string()).or_default();
-            }
-            IndexTermKind::Concealed {
-                term,
-                secondary,
-                tertiary,
-            } => {
-                let primary_entry = index.entry((*term).to_string()).or_default();
-
-                match (secondary, tertiary) {
-                    (Some(sec), None) => {
-                        primary_entry
-                            .secondary
-                            .entry((*sec).to_string())
-                            .or_default();
-                    }
-                    (Some(sec), Some(tert)) => {
-                        let secondary_entry = primary_entry
-                            .secondary
-                            .entry((*sec).to_string())
-                            .or_default();
-                        secondary_entry.tertiary.insert((*tert).to_string());
-                    }
-                    // Primary-only or invalid (tertiary without secondary)
-                    (None, _) => {}
-                }
-            }
-            _ => {}
+    for entry in entries {
+        let mut target = index.entry(entry.primary.clone()).or_default();
+        if let Some(secondary) = &entry.secondary {
+            target = target.children.entry(secondary.clone()).or_default();
         }
+        if let Some(tertiary) = &entry.tertiary {
+            target = target.children.entry(tertiary.clone()).or_default();
+        }
+        target.merge_relationship(&entry.relationship);
     }
 
     index
 }
 
+impl IndexEntry {
+    fn merge_relationship(&mut self, relationship: &IndexCatalogRelationship) {
+        match relationship {
+            IndexCatalogRelationship::None => {}
+            IndexCatalogRelationship::See(target) => {
+                if !matches!(self.relationship, Some(IndexRelationship::See(_))) {
+                    self.relationship = Some(IndexRelationship::See(target.clone()));
+                }
+            }
+            IndexCatalogRelationship::SeeAlso(targets) => match &mut self.relationship {
+                Some(IndexRelationship::See(_)) => {}
+                Some(IndexRelationship::SeeAlso(existing)) => {
+                    existing.extend(targets.iter().cloned());
+                }
+                None => {
+                    self.relationship = Some(IndexRelationship::SeeAlso(
+                        targets.iter().cloned().collect(),
+                    ));
+                }
+            },
+        }
+    }
+}
+
 /// Group index entries by their first letter (case-insensitive).
 fn group_by_letter(
-    index: BTreeMap<String, IndexEntry>,
-) -> BTreeMap<char, BTreeMap<String, IndexEntry>> {
-    let mut grouped: BTreeMap<char, BTreeMap<String, IndexEntry>> = BTreeMap::new();
+    index: BTreeMap<IndexTermLabel, IndexEntry>,
+) -> BTreeMap<char, BTreeMap<IndexTermLabel, IndexEntry>> {
+    let mut grouped: BTreeMap<char, BTreeMap<IndexTermLabel, IndexEntry>> = BTreeMap::new();
 
     for (term, entry) in index {
-        let first_char = term.chars().next().map_or('@', |c| c.to_ascii_uppercase());
+        let first_char = term
+            .plain
+            .chars()
+            .next()
+            .map_or('@', |c| c.to_ascii_uppercase());
         let category = if first_char.is_ascii_alphabetic() {
             first_char
         } else {
@@ -115,21 +117,35 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
         ))?;
         writeln!(w)?;
 
-        for (term, entry) in terms {
-            write!(w, "  {term}")?;
-            writeln!(w)?;
-
-            for (secondary, sec_entry) in &entry.secondary {
-                write!(w, "    {secondary}")?;
-                writeln!(w)?;
-
-                for tertiary in &sec_entry.tertiary {
-                    write!(w, "      {tertiary}")?;
-                    writeln!(w)?;
-                }
-            }
-        }
+        render_entries(w, terms, 1)?;
     }
 
+    Ok(())
+}
+
+fn render_entries<W: std::io::Write + ?Sized>(
+    w: &mut W,
+    entries: &BTreeMap<IndexTermLabel, IndexEntry>,
+    depth: usize,
+) -> Result<(), Error> {
+    for (term, entry) in entries {
+        write!(w, "{}{}", "  ".repeat(depth), term.rendered)?;
+        if let Some(IndexRelationship::See(target)) = &entry.relationship {
+            write!(w, " (see {})", target.rendered)?;
+        }
+        writeln!(w)?;
+
+        if let Some(IndexRelationship::SeeAlso(targets)) = &entry.relationship {
+            for target in targets {
+                writeln!(
+                    w,
+                    "{}(see also {})",
+                    "  ".repeat(depth + 1),
+                    target.rendered
+                )?;
+            }
+        }
+        render_entries(w, &entry.children, depth + 1)?;
+    }
     Ok(())
 }

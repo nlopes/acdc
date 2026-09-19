@@ -1,0 +1,61 @@
+= Caption and reference contexts
+:listing-caption: Listing
+:xrefstyle: full
+
+== Section context
+
+[[section-example]]
+.Section example
+====
+Section body.
+====
+
+Section reference: <<section-example>>.
+
+== List context
+
+* List item refers forward to <<list-listing>>.
++
+[[list-listing]]
+.List listing
+[source,rust]
+----
+fn in_list() {}
+----
++
+List item refers back to <<section-example>>.
+
+After list: <<list-listing>>.
+
+== Table-cell context
+
+[cols="1a"]
+|===
+|Cell refers forward to <<cell-example>>.
+
+[[cell-example]]
+.Cell example
+====
+Cell example body.
+====
+
+Cell refers back to <<section-example>>.
+|===
+
+After table: <<cell-example>>.
+
+== Multi-page context
+
+Forward across pages: <<page-table>>.
+
+<<<
+
+[[page-table]]
+.Page table
+|===
+|Page target
+|===
+
+<<<
+
+Backward across pages: <<page-table>>.

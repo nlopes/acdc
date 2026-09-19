@@ -1,0 +1,1 @@
+../../html/embedded/bibliography_reference_labels.adoc

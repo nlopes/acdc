@@ -1,0 +1,106 @@
+= List continuation and topology
+
+== Repeated description-list continuations
+
+[horizontal]
+Owner:: Principal description text.
++
+An attached paragraph owned by Owner.
++
+NOTE: An attached admonition owned by Owner.
++
+[source,rust]
+----
+fn owned() {
+    println!("owner");
+}
+----
+Sibling:: This sibling remains a separate row.
+
+== Nested description lists
+
+Root one:: Root one description.
+Child one::: Child one description.
+Grandchild one:::: Grandchild one description.
+Child two::: Child two description.
+Root two:: Root two description.
+
+Protocols::
+HTTP::: Transfers web resources.
+Headers:::: Carry request metadata.
+SSH::: Provides a secure shell.
+
+Final:: A root sibling after the nested topology.
+
+== Delimiter transitions
+
+.Shorter second delimiter
+First deep term::: First deep description.
+Root term:: Root description.
+
+.Skipped delimiter depth
+Root jump:: Root jump description.
+Deep jump:::: Deep jump description.
+
+.Semicolon to colon
+Semicolon term;; Semicolon description.
+Colon child:: Colon child description.
+
+.Colon to semicolon
+Colon term:: Colon description.
+Semicolon child;; Semicolon child description.
+
+== Formatted terms
+
+[qanda]
+What has *strong* and _emphasized_ words?:: The mixed term preserves both formats.
+*Whole strong question?*:: A whole-term format.
+What contains `code` and https://example.com[a link]?:: Code and link formats.
+
+== Titled list boundaries
+
+[qanda]
+First list question?:: First list answer.
+
+.Second list title
+[qanda]
+Second list question?:: Second list answer.
+
+.Plain description-list title
+Plain term:: Plain definition.
+
+== Effective marker styles
+
+[style=ordered]
+Named ordered:: Named style is effective.
+
+[style=unordered]
+Named unordered:: Named style is effective.
+
+== Continued mixed lists
+
+* Outer unordered owner
++
+--
+. First ordered child
+. Second ordered child
+** Unordered grandchild under the second ordered child
+** Second unordered grandchild
+--
+* Following unordered sibling
+
+. Outer ordered owner
++
+--
+* First unordered child
+* Second unordered child
+.. Ordered grandchild under the second unordered child
+.. Second ordered grandchild
+--
+. Following ordered sibling
+
+== Trailing unanswered Q&A
+
+[qanda]
+Answered question?:: This question has an answer.
+Trailing unanswered question?::

@@ -1,0 +1,2 @@
+Default icon: [Icon: arrow left].
+Custom icon: [Icon: Love].

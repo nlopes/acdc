@@ -1,0 +1,57 @@
+= Dynamic styled paragraph captions
+:example-caption: Header Example
+:listing-caption: Header Listing
+
+.Header example
+[example]
+Header example content.
+
+.Metadata example
+:example-caption: Metadata Example
+[example]
+Metadata example content.
+
+:example-caption!:
+
+.Disabled example
+[example]
+Disabled example content.
+
+:example-caption: Later Example
+
+.Later example
+[example]
+Later example content.
+
+:example-caption:
+
+.Blank example
+[example]
+Blank example content.
+
+.Header listing
+[listing]
+header listing
+
+.Metadata listing
+:listing-caption: Metadata Listing
+[listing]
+metadata listing
+
+:listing-caption!:
+
+.Disabled listing
+[source,rust]
+let disabled = 1;
+
+:listing-caption: Later Listing
+
+.Later listing
+[listing]
+later listing
+
+:listing-caption:
+
+.Blank listing
+[source,rust]
+let blank = 2;

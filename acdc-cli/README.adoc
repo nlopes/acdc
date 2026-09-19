@@ -84,6 +84,10 @@ When `--out-file` is combined with several inputs, only the first input is proce
 `--open` opens converter-reported output files with the system's default application and is ignored for stdout.
 
 Use `--timings` for parse/conversion timings, `--strict` to turn supported fallbacks into errors, `--safe` or `--safe-mode` for parser safety policy, and `--embedded` to suppress enclosing document structure where the backend supports embedded output.
+Values passed with `-a` or `--attribute` take precedence over matching attribute entries in the document.
+Use `-a name`, `-a name=value`, or `-a name!` to set, assign, or unset a locked value.
+Add `@` to the name or value, such as `-a name@=value`, `-a name=value@`, or
+`-a !name=@`, when the document must be allowed to replace that command-line default.
 
 ==== PDF
 
@@ -92,7 +96,8 @@ Build with `pdf` (or `all-backends`) and select `--backend pdf`:
 [source,console]
 ....
 cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
-  --page letter \
+  --page a3 \
+  --page-layout landscape \
   --font-dir fonts \
   --logo assets/logo.svg \
   --title "Internal Architecture" \
@@ -101,6 +106,10 @@ cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
   --toc
 ....
 
+`--page` accepts A3, A4, A5, Executive, Legal, Letter, or Tabloid.
+`--page-layout` accepts `portrait` or `landscape`.
+The `pdf-page-size` document attribute also accepts custom dimensions, and
+`pdf-page-margin` sets one to four margins for that document.
 `--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
 `--strict` makes unresolved PDF images or logos fatal.
 Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.

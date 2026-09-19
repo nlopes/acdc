@@ -28,16 +28,30 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-video\-audio\-test \- test video and audio placeholders
+video\-audio\-test \- test static media fallbacks
 .SH "SYNOPSIS"
 .sp
 \fBvideo\-audio\-test\fP
 .SH "DESCRIPTION"
 .SS "Video"
 .sp
-[VIDEO: video.mp4]
+\fBA tutorial video\fP
+.br
+.URL "media%20assets/video.mp4" "[Video source 1/2: A tutorial video]" ""
+.br
+.URL "media%20assets/video.webm" "[Video source 2/2: A tutorial video]" ""
+.br
+.URL "media%20assets/cover.jpg" "[Poster: cover.jpg]" ""
 .sp
-[VIDEO]
+.URL "media%20assets/standalone.mp4" "[Video: standalone.mp4]" ""
+.sp
+[Video]
+.br
+.URL "media%20assets/orphan\-cover.jpg" "[Poster: orphan\-cover.jpg]" ""
 .SS "Audio"
 .sp
-[AUDIO: podcast.mp3]
+\fBA podcast episode\fP
+.br
+.URL "media%20assets/podcast.mp3#t=2,4" "[Audio: A podcast episode]" ""
+.sp
+.URL "media%20assets/standalone.ogg" "[Audio: standalone.ogg]" ""

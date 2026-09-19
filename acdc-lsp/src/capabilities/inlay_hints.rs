@@ -1,6 +1,6 @@
-//! Inlay hints: show resolved attribute values and xref titles inline
+//! Inlay hints: show resolved attribute values and cross-reference text inline.
 
-use acdc_converters_core::inlines_to_string;
+use acdc_converters_core::{inlines_to_string, xref::reference_text};
 use acdc_parser::{AttributeValue, Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
 use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
@@ -62,7 +62,7 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
 /// Collect inlay hints for cross-references without explicit display text.
 ///
 /// For each `<<id>>` or `xref:file#id[]` that has no display text,
-/// shows the resolved section title as a hint after the xref.
+/// shows the resolved section reference text as a hint after the xref.
 fn collect_xref_hints(ast: &Document, range: &Range, hints: &mut Vec<InlayHint>) {
     for block in &ast.blocks {
         collect_xref_hints_in_block(block, ast, range, hints);
@@ -188,10 +188,10 @@ fn collect_xref_hint_in_inline(
                 return;
             }
 
-            if let Some(title) = resolve_xref_title(xref.target, ast) {
+            if let Some(hint_text) = resolve_xref_hint_text(xref.target, ast) {
                 hints.push(InlayHint {
                     position: hint_pos,
-                    label: InlayHintLabel::String(format!("\u{2192} {title}")),
+                    label: InlayHintLabel::String(format!("\u{2192} {hint_text}")),
                     kind: None,
                     text_edits: None,
                     tooltip: None,
@@ -234,8 +234,8 @@ fn collect_xref_hint_in_inline(
     }
 }
 
-/// Resolve a xref target to a section title using the TOC entries.
-fn resolve_xref_title(target: &str, ast: &Document) -> Option<String> {
+/// Resolve a local cross-reference target to its section reference text.
+fn resolve_xref_hint_text(target: &str, ast: &Document) -> Option<String> {
     let parsed = crate::state::XrefTarget::parse(target);
 
     // Only resolve local (same-document) xrefs for now
@@ -245,17 +245,11 @@ fn resolve_xref_title(target: &str, ast: &Document) -> Option<String> {
 
     let anchor_id = parsed.anchor.as_deref()?;
 
-    ast.toc_entries.iter().find_map(|entry| {
-        if entry.id == anchor_id {
-            Some(
-                entry
-                    .xreflabel
-                    .map_or_else(|| inlines_to_string(&entry.title), ToString::to_string),
-            )
-        } else {
-            None
-        }
-    })
+    ast.toc_entries.iter().find(|entry| entry.id == anchor_id)?;
+    ast.references
+        .get(anchor_id)
+        .and_then(reference_text)
+        .map(inlines_to_string)
 }
 
 /// Check if a position falls within a range.
@@ -384,6 +378,95 @@ mod tests {
             Some("\u{2192} Initial Setup"),
             "Expected xref hint with section title"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn interdocument_xref_macro_does_not_use_a_matching_local_title_hint()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let content = "Macro: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\n== Other.adoc\n";
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let labels = compute_inlay_hints(&doc, &full_range())
+            .into_iter()
+            .filter_map(|hint| match hint.label {
+                InlayHintLabel::String(label) if label.starts_with('→') => Some(label),
+                InlayHintLabel::String(_) | InlayHintLabel::LabelParts(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(labels, ["→ Other.adoc"]);
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_natural_xref_has_no_title_hint() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let labels = compute_inlay_hints(&doc, &full_range())
+            .into_iter()
+            .filter_map(|hint| match hint.label {
+                InlayHintLabel::String(label) if label.starts_with('→') => Some(label),
+                InlayHintLabel::String(_) | InlayHintLabel::LabelParts(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(labels, ["→ Syntax Highlighting"]);
+        Ok(())
+    }
+
+    #[test]
+    fn named_section_reftext_controls_xref_hints() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "Named: <<Custom Label>>.\nTitle: <<Actual Title>>.\nExplicit: <<id>>.\nExplicit text: <<id,Chosen text>>.\nFormatted: <<Custom *Formatted* Label>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n\n[#formatted,reftext=\"Custom *Formatted* Label\"]\n== Formatted Title\n";
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let labels = compute_inlay_hints(&doc, &full_range())
+            .into_iter()
+            .filter_map(|hint| match hint.label {
+                InlayHintLabel::String(label) if label.starts_with('→') => Some(label),
+                InlayHintLabel::String(_) | InlayHintLabel::LabelParts(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            labels,
+            [
+                "→ Custom Label",
+                "→ Custom Label",
+                "→ Custom Formatted Label"
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn passthroughs_are_restored_before_natural_xref_hints()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let content = "Resolved: <<Pass raw Title>>.\nMissing: <<Missing pass:[raw] Title>>.\n\n== Pass pass:[raw] Title\n";
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let labels = compute_inlay_hints(&doc, &full_range())
+            .into_iter()
+            .filter_map(|hint| match hint.label {
+                InlayHintLabel::String(label) if label.starts_with('→') => Some(label),
+                InlayHintLabel::String(_) | InlayHintLabel::LabelParts(_) => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(labels, ["→ Pass raw Title"]);
         Ok(())
     }
 

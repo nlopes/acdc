@@ -1,0 +1,959 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "rust": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "rust(); // ",
+          "location": [
+            {
+              "line": 3,
+              "col": 1
+            },
+            {
+              "line": 3,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 3,
+              "col": 12
+            },
+            {
+              "line": 3,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\npython = 1 # ",
+          "location": [
+            {
+              "line": 3,
+              "col": 15
+            },
+            {
+              "line": 4,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 4,
+              "col": 14
+            },
+            {
+              "line": 4,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nSELECT 1; -- ",
+          "location": [
+            {
+              "line": 4,
+              "col": 17
+            },
+            {
+              "line": 5,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 3,
+          "location": [
+            {
+              "line": 5,
+              "col": 14
+            },
+            {
+              "line": 5,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n(def x 1) ;; ",
+          "location": [
+            {
+              "line": 5,
+              "col": 17
+            },
+            {
+              "line": 6,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 4,
+          "location": [
+            {
+              "line": 6,
+              "col": 14
+            },
+            {
+              "line": 6,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n<tag/> <!--",
+          "location": [
+            {
+              "line": 6,
+              "col": 17
+            },
+            {
+              "line": 7,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 5,
+          "location": [
+            {
+              "line": 7,
+              "col": 12
+            },
+            {
+              "line": 7,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "-->\nsingle ; ",
+          "location": [
+            {
+              "line": 7,
+              "col": 13
+            },
+            {
+              "line": 8,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 6,
+          "location": [
+            {
+              "line": 8,
+              "col": 10
+            },
+            {
+              "line": 8,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nmultiple(); // ",
+          "location": [
+            {
+              "line": 8,
+              "col": 13
+            },
+            {
+              "line": 9,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 7,
+          "location": [
+            {
+              "line": 9,
+              "col": 16
+            },
+            {
+              "line": 9,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " ",
+          "location": [
+            {
+              "line": 9,
+              "col": 19
+            },
+            {
+              "line": 9,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 8,
+          "location": [
+            {
+              "line": 9,
+              "col": 20
+            },
+            {
+              "line": 9,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nπ = 3 // ",
+          "location": [
+            {
+              "line": 9,
+              "col": 23
+            },
+            {
+              "line": 10,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 9,
+          "location": [
+            {
+              "line": 10,
+              "col": 10
+            },
+            {
+              "line": 10,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 12,
+                "col": 1
+              },
+              {
+                "line": 12,
+                "col": 15
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Slash guard",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 5
+                },
+                {
+                  "line": 12,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 13,
+                "col": 1
+              },
+              {
+                "line": 13,
+                "col": 14
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Hash guard",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 5
+                },
+                {
+                  "line": 13,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 3,
+            "location": [
+              {
+                "line": 14,
+                "col": 1
+              },
+              {
+                "line": 14,
+                "col": 14
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Dash guard",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 5
+                },
+                {
+                  "line": 14,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 4,
+            "location": [
+              {
+                "line": 15,
+                "col": 1
+              },
+              {
+                "line": 15,
+                "col": 26
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Double-semicolon guard",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 5
+                },
+                {
+                  "line": 15,
+                  "col": 26
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 5,
+            "location": [
+              {
+                "line": 16,
+                "col": 1
+              },
+              {
+                "line": 16,
+                "col": 13
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "XML guard",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 5
+                },
+                {
+                  "line": 16,
+                  "col": 13
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 6,
+            "location": [
+              {
+                "line": 17,
+                "col": 1
+              },
+              {
+                "line": 17,
+                "col": 28
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Single semicolon remains",
+              "location": [
+                {
+                  "line": 17,
+                  "col": 5
+                },
+                {
+                  "line": 17,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 7,
+            "location": [
+              {
+                "line": 18,
+                "col": 1
+              },
+              {
+                "line": 18,
+                "col": 28
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First marker on one line",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 5
+                },
+                {
+                  "line": 18,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 8,
+            "location": [
+              {
+                "line": 19,
+                "col": 1
+              },
+              {
+                "line": 19,
+                "col": 29
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second marker on one line",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 5
+                },
+                {
+                  "line": 19,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 9,
+            "location": [
+              {
+                "line": 20,
+                "col": 1
+              },
+              {
+                "line": 20,
+                "col": 25
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Unicode before marker",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 5
+                },
+                {
+                  "line": 20,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "line-comment": "%",
+          "rust": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "custom(); % ",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 24,
+              "col": 13
+            },
+            {
+              "line": 24,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nordinary(); // ",
+          "location": [
+            {
+              "line": 24,
+              "col": 16
+            },
+            {
+              "line": 25,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 2,
+          "location": [
+            {
+              "line": 25,
+              "col": 16
+            },
+            {
+              "line": 25,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 27,
+                "col": 1
+              },
+              {
+                "line": 27,
+                "col": 16
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Custom guard",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 5
+                },
+                {
+                  "line": 27,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 2,
+            "location": [
+              {
+                "line": 28,
+                "col": 1
+              },
+              {
+                "line": 28,
+                "col": 28
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Non-custom guard remains",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 5
+                },
+                {
+                  "line": 28,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 28
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 28
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 28,
+      "col": 28
+    }
+  ]
+}

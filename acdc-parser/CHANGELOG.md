@@ -7,7 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Document-title IDs now enter the reference catalog and use the full title
+  and subtitle as automatic reference text. Anchors and cross-references in
+  rendered block titles, quote credits, and footnote bodies are also
+  cataloged and validated.
+- Styled source, listing, and literal paragraphs now expose trailing callout
+  markers and their following callout lists as structured nodes, matching
+  delimited verbatim blocks and Asciidoctor.
+- Explicit `+` continuations on callout-list items now attach the following
+  block to that item instead of folding the marker and block text into the
+  explanation, matching Asciidoctor.
+- `CrossReference` equality and debug output now depend only on its exposed
+  model state. Equivalent values from standalone and full-document parsing no
+  longer differ because of private parsing state, and debug output does not
+  expose that state.
+- A section's named `reftext` is now its natural cross-reference alias and
+  catalogued reference label. The section title is not retained as a second
+  alias; explicit IDs still resolve, and formatted labels retain their inline
+  content, matching Asciidoctor.
+- Section titles with `pass:[...]` or `+...+` content now participate in
+  title-based cross-reference lookup as their visible text. A shorthand target
+  that contains a passthrough remains unresolved, but `CrossReference::target`
+  and warnings retain its visible text, matching Asciidoctor.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it retains its natural target and produces an unresolved-reference warning
+  instead of resolving to a section ID. Source-order changes apply only to
+  later references, and explicit local IDs still resolve. Asciidoctor also
+  retains the natural target but does not warn.
+- Interdocument `xref:` macros keep their file and fragment targets when a
+  local section has the same title. Natural `<<Title>>` references still
+  resolve to local section IDs, and `CrossReference::target` distinguishes the
+  two forms, matching Asciidoctor.
+- Title-based shorthand cross-references such as `<<Syntax Highlighting>>` now
+  resolve to generated or explicit section IDs. Exact IDs take precedence,
+  custom link text remains intact, and missing titles stay unresolved with a
+  parser warning, matching Asciidoctor. `CrossReference::target` contains the
+  resolved ID when a title-based reference matches.
+- Explicit links, direct URL macros, and `mailto:` macros with a named `id`
+  attribute now act as untitled cross-reference targets, including when the
+  attribute list starts with a comma. Automatic references use `[id]`, and
+  `Document::references` exposes the target for navigation. Asciidoctor
+  renders these destinations but does not add them to its public reference
+  catalog; acdc catalogs them so converters can resolve the references safely.
+- Cross-reference labels that contain inline passthroughs no longer expose
+  internal placeholder text in automatic citations. The passthrough source is
+  preserved as literal reference text, matching Asciidoctor citations.
+- Inline passthroughs nested inside formatted text now retain their substitution
+  policy instead of becoming plain text.
+- Nested sections inside bibliography sections now produce a non-fatal parser
+  warning and remain in the document. Asciidoctor reports the same recoverable
+  condition at error severity; acdc's recoverable parser diagnostics currently
+  expose only warning severity.
+- Nested Setext sections now remain under their parent section instead of being
+  treated as sibling sections.
+- Attributes supplied through parser options now take precedence over matching
+  document entries. A document cannot replace a caller value or reverse a
+  caller-requested unset. A caller-set `sectnums` remains flexible after the
+  header, matching Asciidoctor; a caller-requested unset remains locked.
+- Document entries can no longer set or unset the read-only and API-only names
+  in the AsciiDoc document attribute reference, including backend convenience,
+  safe-mode, input-path, and include-security attributes. This follows the
+  documented contract and is intentionally stricter than current Asciidoctor
+  for derived names that its Ruby implementation does not lock consistently.
+
 ### Added
+
 
 - `BlockMetadata::positional_values()` reports a block's unnamed positional
   attributes in the order they were written. `[plantuml,my-diagram,svg]` reads
@@ -18,6 +84,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passes that run between parsing and conversion. The closure is handed a
   `DocumentArena` alongside the document, so nodes it inserts can hold generated
   text with the document's own lifetime instead of owning or leaking it.
+
+- Index terms now parse Asciidoctor's named `see` and `see-also` attributes
+  and the spaced `>>` and `&>` shorthand forms. `IndexTerm::relationship`
+  exposes this data as `IndexTermRelationship`; serialized ASG output includes
+  a `relationship` extension only when a relationship is present.
+- Cross-reference macros preserve formatted explicit text through supported
+  nested inline macros and escaped closing brackets. Empty cross-references
+  also expose the `xrefstyle` and caption-label selection in effect at their
+  source position; captioned targets expose the resolved label and number
+  needed for `short` and `full` automatic reference text.
+- Parsed tables expose their resolved `frame`, `grid`, and `stripes`
+  presentation. Table-level values override `table-frame`, `table-grid`, and
+  `table-stripes`, and document-attribute changes apply in source order. The
+  resolved presentation, including interactive `stripes=hover`, participates
+  in table equality and debug output.
+- Parsed sections and their table-of-contents entries now carry the same number,
+  based on the numbering attributes in effect at each heading. Numbering changes
+  apply in source order and restart inside AsciiDoc table cells. `Section::new`
+  creates an unnumbered section; use `Section::with_numbering(true)` and
+  `Document::renumber_sections()` when adding or changing sections through the API.
+
+- Titled example, listing, source, image, and table blocks now carry their caption —
+  label and number — in `BlockMetadata::caption`, taken from the `caption`,
+  `<kind>-caption`, or block-level `caption=` attribute in effect **at that block's
+  source position**. Changing a caption attribute part-way through a document applies
+  only from that point on, and a block nested inside another is numbered first, both
+  matching Asciidoctor.
+- Caption kind follows a block's effective context: `[listing]` on `====` is still an
+  example, `[literal]` on `----` takes no caption, and `[example]`/`[listing]`/`[source]`
+  promote an open or literal block. An untitled block takes no number, a custom or blank
+  caption consumes none, and `:example-caption!:` disables both. A `%collapsible` example
+  also takes no caption label or number.
+- `Document::renumber_captions()` reassigns every caption number after you change the
+  AST — reorder blocks, remove one, add a title — and `Document::highest_caption_number()`
+  reports the highest number assigned for a kind, so a consumer numbering a title the
+  parser never saw can start past it.
+
 - `Options::builder().with_base_dir(path)` now controls entry include resolution
   for string, reader, and file input. It also defines the Safe/Server local
   boundary; otherwise string/reader input uses the current directory and file
@@ -84,6 +187,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[[id,*Bold* label]]` renders bold while a macro in a label stays literal,
   matching `asciidoctor`. When two elements claim the same id, the first one to
   claim it keeps the reference text, also matching `asciidoctor`.
+- Bibliography sections classify each direct unordered list without an explicit
+  style as `bibliography`. A valid leading `[[[id]]]` or
+  `[[[id,reference text]]]` in those lists is exposed through
+  `Anchor::is_bibliography()` and `Reference::is_bibliography()`; misplaced
+  syntax remains an ordinary anchor with visible brackets, and invalid IDs
+  remain literal text. `Reference::has_automatic_citation()` reports whether a
+  bibliography target is cited without explicit link text. This matches
+  Asciidoctor.
 - An `<<id>>`/`xref:id[]` whose target is defined nowhere now reports a
   `WarningKind::UnresolvedReference`, matching `asciidoctor` (external/inter-document
   references aren't flagged as the parser only deals with one file at a time).
@@ -106,6 +217,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** index terms now expose substituted `InlineNode` collections
+  instead of source strings through `IndexTermKind` and its accessors.
+  `InlineMacro::IndexTerm` now contains a boxed `IndexTerm`, and serialized
+  `term`, `secondary`, and `tertiary` values are inline-node arrays.
+- Substitutions now follow their written order when attribute values introduce
+  formatting or macro syntax. The public `NORMAL` order and `[subs=normal]`
+  now put quotes before attributes, matching Asciidoctor.
+- A trailing `^` in URL, link, and mailto display text now sets
+  `window=_blank` and is omitted from the text, matching Asciidoctor.
+- Parsed URL, link, and autolink nodes report whether fallback display text
+  should omit the URI scheme, based on `hide-uri-scheme` at their source
+  position. Serialized ASG output is unchanged.
+- Keyboard, button, and menu macros are now recognized only while the
+  `experimental` document attribute is set. Setting or unsetting it in the
+  document body applies to the content that follows, matching Asciidoctor.
+- Comparing or debugging `Anchor` and `Reference` values now includes their
+  bibliography state. Serialized ASG output is unchanged.
+- `toclevels` and `sectnumlevels` now remain undefined until the document sets
+  them, so attribute references stay literal by default. TOC and section-numbering
+  depth still default to 2 and 3, matching Asciidoctor.
+- Comparing or debugging sections now includes their numbering state. Serialized
+  ASG output is unchanged.
+
+- `BlockMetadata` now carries its block's resolved caption, so parsed metadata no longer
+  compares equal to otherwise-identical metadata built by a caller. Serialized output is
+  unchanged — the caption is not part of the ASG.
 - A document attribute assigned the literal value `false` now remains set to
   that text. Use `:name!:` or `:!name:` to unset it, matching Asciidoctor.
 - Include targets beginning with a case-insensitive ASCII URI scheme are now
@@ -146,6 +283,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block image, audio, and video macros and inline image macros accept local and
+  remote targets with internal spaces, as well as already percent-encoded local
+  targets. Leading and trailing target whitespace remains invalid, matching
+  Asciidoctor.
+- Index-term inline nodes preserve their source locations inside passthroughs
+  and formatted spans.
+- Inline passthroughs apply `c`, `q`, `a`, `r`, `m`, and `p` substitutions in
+  the written order. The `n` and `v` groups use Asciidoctor's inline
+  passthrough policies. Escaped passthroughs stay literal, ordered substitutions
+  can create hard line breaks across attribute references, expanded values keep
+  valid source locations, and `parse_inline` accepts pass macros without a
+  substitution-name list, including an empty pass body.
+- Description lists now preserve repeated continuations, delimiter-based
+  nesting, formatted terms, trailing unanswered Q&A items, titled-list
+  boundaries, and named `style=` values, matching Asciidoctor.
+- Image macros now accept an empty inline `link=` value and use the last value
+  when `link=` appears more than once, matching Asciidoctor.
+- Checklist markers now apply only to unordered list items. `[ ]`, `[x]`,
+  `[X]`, and `[*]` remain visible text in ordered items, matching Asciidoctor.
+  acdc continues to accept `[X]` in unordered checklists as an intentional
+  extension.
+- Unindented ordered and unordered markers now nest automatically when the
+  marker type changes, while metadata after a blank line still starts a new
+  list, matching Asciidoctor.
+- Block attributes and anchors directly before an automatically nested list now
+  apply to that child list instead of appearing in the parent item text,
+  matching Asciidoctor.
+- A block image macro preceded by `[listing]`, `[source]`, `[literal]`, or
+  `[verse]` is parsed as that styled paragraph and kept as text instead of
+  becoming an image, matching Asciidoctor.
+- Path-based macros now recognize non-ASCII local targets, including cross-references,
+  links, icons, images, audio, and video, matching Asciidoctor.
+- Table cell specifiers now accept the Asciidoctor order with spans or repeats
+  before alignment and style. Column styles after spans, and across repeated
+  cells, now follow source-cell order.
+- AsciiDoc-style table cells now keep local attributes and sections within the
+  nested cell document. Local section-numbering changes apply in source order,
+  and outer cross-references can still target cell headings.
+- Literal table cells now keep attribute references, macros, formatting marks,
+  spaces, and line breaks as source text. Semantic header rows ignore cell and
+  column styles and continue to use normal substitutions, matching Asciidoctor.
+- Source blocks record `source-linenums-option` and `prewrap` changes at their
+  source position, so converters apply line numbering and HTML wrapping only
+  to the blocks that follow each change.
+- Verbatim blocks preserve trailing blank lines when callouts are enabled, and
+  explicitly styled source, listing, and literal paragraphs preserve their
+  leading indentation.
+- Callout parsing now recognizes every marker at the end of one line and XML
+  comment markers, while escaped markers remain literal and do not consume an
+  automatic number, matching Asciidoctor. Text and callout nodes now report
+  their own source spans instead of the location of the whole verbatim block.
+- Manpage name attributes come only from the required first level-1 section and
+  are available to substitutions throughout the body. A preamble, a wrong-level
+  section, or a non-conforming first section now uses the `docname` or `command`
+  fallback instead of deriving attributes from a later `NAME` section, matching
+  `asciidoctor`.
 - Dialogue lines that start with `--` now follow the effective replacement
   order. The documented trailing-`+` conflict stays on one line, while the
   `{empty}` hardbreaks workaround produces one line break. Disabling post
@@ -187,7 +380,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recovery.
 - Builds without the `network` feature now emit a located warning, preserve an
   authorized HTTP(S) include as literal unresolved text, and continue parsing
-  instead of removing the directive. This is an ACDC-specific capability
+  instead of removing the directive. This is an acdc-specific capability
   fallback because Asciidoctor has no equivalent compile-time network setting;
   URI includes that lack caller authority continue to use the no-warning link
   fallback.

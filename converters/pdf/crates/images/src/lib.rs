@@ -187,6 +187,21 @@ mod tests {
     }
 
     #[test]
+    fn resolves_percent_encoded_local_file() -> Result<(), Box<dyn std::error::Error>> {
+        let base = tempfile::tempdir()?;
+        std::fs::write(base.path().join("pic one.png"), png_bytes()?)?;
+        let spool = spool()?;
+        let resolved = resolve(
+            &["pic%20one.png"],
+            &ResolveConfig::new(base.path(), spool.path()),
+        );
+
+        assert!(resolved.failures.is_empty(), "{:?}", resolved.failures);
+        assert!(resolved.assets.get("pic%20one.png").is_some());
+        Ok(())
+    }
+
+    #[test]
     fn local_file_is_spooled_as_a_stable_snapshot() -> Result<(), Box<dyn std::error::Error>> {
         let base = tempfile::tempdir()?;
         let source = base.path().join("pic.png");

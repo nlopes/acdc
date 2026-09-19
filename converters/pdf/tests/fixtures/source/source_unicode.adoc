@@ -1,0 +1,10 @@
+= Unicode source
+:source-highlighter: rouge
+
+[source]
+----
+let café = "naïve — Ελληνικά";
+let combining = "é";
+let cjk = "你好世界";
+let emoji = "👩‍💻 🚀";
+----

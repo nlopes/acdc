@@ -23,5 +23,3 @@ Regular features work fine:
 ```python
 print("Hello, World!")
 ```
-
-

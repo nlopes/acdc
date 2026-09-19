@@ -34,9 +34,9 @@ table\-cell\-colspan \- test table cell colspan
 A table with colspan cells.
 .TS
 allbox tab(:);
-ltB ltB ltB
-lt s lt
-lt lt lt.
+ltBx ltBx ltBx
+ltx s ltx
+ltx ltx ltx.
 A:B:C
 Spans two columns:D
 E:F:G

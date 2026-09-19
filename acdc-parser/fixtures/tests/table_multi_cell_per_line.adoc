@@ -4,7 +4,7 @@
 
 [cols="1,1,1,1",options="header"]
 |===
-|Feature |Asciidoctor |ACDC |Notes
+|Feature |Asciidoctor |acdc |Notes
 
 |Sections
 |✅ Supported

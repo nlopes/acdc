@@ -34,6 +34,7 @@ typography:
 spacing:
   margin_x_cm: 2.5
   margin_y_cm: 2.5
+  block_margin_bottom_pt: 12.0
   image_radius_pt: 4.0
   code_radius_pt: 4.0
   callout_radius_pt: 4.0

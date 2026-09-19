@@ -1,0 +1,68 @@
+= Ordered and unordered description lists
+
+== Ordered style
+
+.Ordered terms
+[#ordered-terms.ignored-role]
+[ordered]
+First term:: First definition.
+Question?:: The punctuation is not duplicated.
+Third term:: The answer has *strong* and `code` text.
+
+See <<ordered-terms>>.
+
+== Unordered style
+
+[unordered]
+Alpha:: Value A.
+Beta:: Value B.
+
+== Stacked answer
+
+[ordered.stack]
+Stacked term:: The answer starts on the next line.
+Second stacked term:: Another answer.
+
+== Stacked custom subject stop
+
+[ordered.stack,subject-stop=";"]
+Explicit stop:: The answer is stacked after a semicolon.
+
+== Custom subject stop
+
+[unordered,subject-stop=";"]
+Custom stop:: The term ends with a semicolon.
+Already punctuated!:: The existing punctuation remains.
+
+== Ignored alignment role
+
+[unordered.text-center]
+Left aligned:: The ordinary role does not change list alignment.
+
+== Shared terms
+
+[ordered]
+Short name::
+Long name:: Both terms share this answer.
+
+== Attached content
+
+[unordered]
+Steps:: Start here.
+* First supporting point
+* Second supporting point
+
+More detail::
++
+--
+An attached paragraph.
+
+[ordered]
+Nested term:: Nested answer.
+--
+
+== Ignored numbering controls
+
+[ordered,start=4,options=reversed]
+One:: Starts at one.
+Two:: Continues at two.

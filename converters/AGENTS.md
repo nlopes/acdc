@@ -38,26 +38,47 @@ Shared utilities in `core/`:
   - The **html** and **manpage** harnesses use rstest glob discovery and
     early-return in their `run_*_fixture` helper when
     `file_name.contains("subs")`.
-  - The **terminal** harness uses an explicit `generate_tests!` macro list,
+  - The **terminal** harness uses an explicit `terminal_fixture_catalog!` list,
     not glob discovery. Subs fixtures must be registered in that list
     explicitly, and `test_fixture` has the matching `.contains("subs")`
     early-return.
 
+## Test placement
+
+- Use source and expected-output fixtures for rendered HTML, text, Typst, and other snapshot-like converter output.
+- Use integration tests for properties that snapshots cannot prove, including structured diagnostics, PDF annotations, PDF objects and metadata, warnings, and end-to-end behavior.
+
 ## Debugging
 
-- Use `compare-asciidoc-output` agent to diff converter output against asciidoctor
+- Compare the same source with the built `acdc` CLI and the matching asciidoctor backend before using the `compare-asciidoc-output` agent. Compare observable behavior rather than byte-identical output.
 - For fixture mismatches, run `regen-fixtures` skill (ask first)
 
 ## Fixture regeneration
+
+- Get approval before regenerating fixtures.
+- Record `git status --short` before regeneration.
+- Run one generator at a time. Each generator may rewrite its full fixture corpus.
+- Inspect status and the diff immediately afterward. Keep only intended changes or explicitly approved new baselines, and reject environment-only changes.
 
 ```bash
 cargo run -p acdc-converters-html --example generate_html_fixtures --all-features
 cargo run -p acdc-converters-terminal --example generate_terminal_fixtures --all-features
 cargo run -p acdc-converters-manpage --example generate_manpage_fixtures --all-features
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features
 cargo run -p acdc-converters-pdf --example generate_typst_fixtures --all-features
 
-# Markdown uses a shell script that drives the CLI (no example binary):
-bash converters/markdown/tests/regenerate_expected.sh
-# Regenerate a single fixture:
-bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
+# Regenerate a single Markdown fixture:
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features -- <fixture_name>
 ```
+
+### Terminal capability fixtures
+
+- Register terminal fixtures and their OSC 8 variants in
+  `terminal/tests/fixtures/catalog.rs`.
+- The terminal generator always writes `.txt` fixtures with OSC 8 disabled,
+  then writes `.osc8.txt` only for fixtures marked with an OSC 8 variant.
+- The terminal fixture harness pins capabilities instead of reading `TERM`. It
+  checks the plain variant for every fixture and both variants for each fixture
+  marked with an OSC 8 variant.
+- Do not copy or edit OSC 8 expected files by hand; run the terminal fixture
+  generator after approval.

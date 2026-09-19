@@ -7,14 +7,14 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
+    BackendProfile, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
     xref::XrefGuard,
 };
 #[cfg(feature = "highlighting")]
 use acdc_parser::substitute;
 use acdc_parser::{
-    AttributeValue, Document, DocumentAttributes, IndexTermKind, InlineNode, Reference,
-    Substitution, TocEntry, strip_quotes,
+    AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
+    Reference, Substitution, TocEntry,
 };
 
 mod admonition;
@@ -41,10 +41,7 @@ mod terminal;
 mod toc;
 mod video;
 
-pub(crate) use acdc_converters_core::section::{
-    AppendixTracker, PartNumberTracker, SectionNumberTracker, SpecialSectionTracker,
-    last_section_has_style,
-};
+pub(crate) use acdc_converters_core::section::last_section_has_style;
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
@@ -96,13 +93,12 @@ impl HtmlVariant {
         }
     }
 
-    /// Intrinsic backend traits for this HTML output variant.
-    const fn backend_traits(self) -> BackendTraits {
+    const fn backend_profile(self) -> BackendProfile {
         let backend = match self {
             Self::Standard => "html5",
             Self::Semantic => "html5s",
         };
-        BackendTraits::new(backend, "html", "html", ".html").with_htmlsyntax("html")
+        BackendProfile::new(backend, "html", "html", ".html").with_htmlsyntax("html")
     }
 }
 
@@ -113,16 +109,30 @@ impl std::fmt::Display for HtmlVariant {
 }
 
 /// An entry in the index catalog, collected during document traversal.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub(crate) struct IndexTermLabel {
+    pub(crate) plain: String,
+    pub(crate) html: String,
+}
+
 #[derive(Clone, Debug)]
-pub struct IndexTermEntry {
-    /// The index term kind (Flow or Concealed with hierarchy)
-    pub kind: IndexTermKind<'static>,
-    /// Anchor ID for linking back to the term's location
-    pub anchor_id: String,
+pub(crate) struct IndexTermEntry {
+    pub(crate) primary: IndexTermLabel,
+    pub(crate) secondary: Option<IndexTermLabel>,
+    pub(crate) tertiary: Option<IndexTermLabel>,
+    pub(crate) relationship: IndexCatalogRelationship,
+    pub(crate) anchor_id: String,
     /// Plain-text title of the section the term occurs in, used as the
     /// back-link label. `None` for terms outside any section (e.g. the
     /// preamble), which fall back to the document title.
-    pub section_title: Option<String>,
+    pub(crate) section_title: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum IndexCatalogRelationship {
+    None,
+    See(IndexTermLabel),
+    SeeAlso(Vec<IndexTermLabel>),
 }
 
 #[derive(Clone, Debug)]
@@ -136,19 +146,14 @@ pub struct Processor<'a> {
     references: HashMap<&'a str, Reference<'a>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     xref_guard: XrefGuard,
-    /// Shared counter for auto-numbering example blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    example_counter: Rc<Cell<usize>>,
-    /// Shared counter for auto-numbering table blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    table_counter: Rc<Cell<usize>>,
-    /// Shared counter for auto-numbering figure blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    figure_counter: Rc<Cell<usize>>,
-    /// Shared counter for auto-numbering listing blocks.
-    /// Uses Rc<Cell<>> so all clones share the same counter.
-    /// Only used when listing-caption attribute is set.
-    listing_counter: Rc<Cell<usize>>,
+    /// Fallback counter for example captions the parser did not number.
+    example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for table captions the parser did not number.
+    table_counter: Rc<Cell<u32>>,
+    /// Fallback counter for figure captions the parser did not number.
+    figure_counter: Rc<Cell<u32>>,
+    /// Fallback counter for listing and source captions the parser did not number.
+    listing_counter: Rc<Cell<u32>>,
     /// Shared counter for generating unique index term anchor IDs.
     index_term_counter: Rc<Cell<usize>>,
     /// Collected index term entries for rendering in the index catalog.
@@ -160,14 +165,6 @@ pub struct Processor<'a> {
     /// `_indexterm_` anchors and `[index]` sections render empty, matching
     /// asciidoctor (index generation is an acdc extension; see `crate::index`).
     generate_index: bool,
-    /// Section number tracker for `:sectnums:` support.
-    section_number_tracker: SectionNumberTracker,
-    /// Part number tracker for `:partnums:` support in book doctype.
-    part_number_tracker: PartNumberTracker,
-    /// Appendix tracker for `[appendix]` style on level-0 sections.
-    appendix_tracker: AppendixTracker,
-    /// Tracks special sections so their subsections skip `:sectnums:` numbering.
-    special_section_tracker: SpecialSectionTracker,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
 }
@@ -181,7 +178,7 @@ impl<'a> Processor<'a> {
 
     /// Get a reference to the collected index entries
     #[must_use]
-    pub fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
         &self.index_entries
     }
 
@@ -207,7 +204,7 @@ impl<'a> Processor<'a> {
     pub fn with_variant(mut self, variant: HtmlVariant) -> Self {
         self.variant = variant;
         variant
-            .backend_traits()
+            .backend_profile()
             .apply(&mut self.document_attributes, self.options.doctype());
         self
     }
@@ -220,67 +217,53 @@ impl<'a> Processor<'a> {
             .is_some_and(|v| v.to_string() == "font")
     }
 
-    /// Get a reference to the section number tracker
-    #[must_use]
-    pub(crate) fn section_number_tracker(&self) -> &SectionNumberTracker {
-        &self.section_number_tracker
-    }
-
-    /// Get a reference to the part number tracker
-    #[must_use]
-    pub(crate) fn part_number_tracker(&self) -> &PartNumberTracker {
-        &self.part_number_tracker
-    }
-
-    /// Get a reference to the appendix tracker
-    #[must_use]
-    pub(crate) fn appendix_tracker(&self) -> &AppendixTracker {
-        &self.appendix_tracker
-    }
-
-    /// Get a reference to the special-section tracker
-    #[must_use]
-    pub(crate) fn special_section_tracker(&self) -> &SpecialSectionTracker {
-        &self.special_section_tracker
-    }
-
-    /// Generate a caption prefix based on document attributes.
-    ///
-    /// Returns the caption prefix string. If captions are disabled via `:X-caption!:`,
-    /// returns an empty string. Otherwise increments the counter and returns
-    /// "Caption N. " format.
-    #[must_use]
+    /// Return the caption prefix for a titled block.
     pub(crate) fn caption_prefix(
         &self,
-        attribute_name: &str,
-        counter: &Rc<Cell<usize>>,
-        default_text: &str,
-    ) -> String {
-        match self.document_attributes.get(attribute_name) {
-            Some(AttributeValue::Bool(false)) => {
-                // Disabled via :X-caption!:
-                String::new()
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+    ) -> Option<String> {
+        let resolved = match (&metadata.caption, fallback) {
+            (Some(caption), _) => caption.clone(),
+            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, None) => return None,
+        };
+        match resolved {
+            Caption::Numbered {
+                label,
+                number,
+                kind,
+            } => {
+                let number = number
+                    .map_or_else(|| self.next_caption_number(kind), std::num::NonZeroU32::get);
+                Some(format!("{label} {number}. "))
             }
-            Some(AttributeValue::String(s)) => {
-                let count = counter.get() + 1;
-                counter.set(count);
-                let caption = strip_quotes(s);
-                format!("{caption} {count}. ")
-            }
-            _ => {
-                let count = counter.get() + 1;
-                counter.set(count);
-                format!("{default_text} {count}. ")
-            }
+            Caption::Custom(prefix) => Some(prefix.into_owned()),
+            Caption::Unnumbered | _ => None,
         }
+    }
+
+    fn next_caption_number(&self, kind: CaptionKind) -> u32 {
+        let counter = match kind {
+            CaptionKind::Figure => &self.figure_counter,
+            CaptionKind::Listing => &self.listing_counter,
+            CaptionKind::Table => &self.table_counter,
+            CaptionKind::Example | _ => &self.example_counter,
+        };
+        let number = counter.get() + 1;
+        counter.set(number);
+        number
     }
 
     /// Generate a unique anchor ID for an index term and collect the entry,
     /// recording the section it occurs in for the back-link label.
     #[must_use]
-    pub fn add_index_entry(
+    pub(crate) fn add_index_entry(
         &self,
-        kind: IndexTermKind<'static>,
+        primary: IndexTermLabel,
+        secondary: Option<IndexTermLabel>,
+        tertiary: Option<IndexTermLabel>,
+        relationship: IndexCatalogRelationship,
         section_title: Option<String>,
     ) -> String {
         let count = self.index_term_counter.get();
@@ -288,7 +271,10 @@ impl<'a> Processor<'a> {
         let anchor_id = format!("_indexterm_{count}");
 
         self.index_entries.borrow_mut().push(IndexTermEntry {
-            kind,
+            primary,
+            secondary,
+            tertiary,
+            relationship,
             anchor_id: anchor_id.clone(),
             section_title,
         });
@@ -308,11 +294,6 @@ impl<'a> Processor<'a> {
         options: &RenderOptions,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<(), Error> {
-        let section_number_tracker = SectionNumberTracker::new(&doc.attributes);
-        let part_number_tracker = PartNumberTracker::new(&doc.attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&doc.attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&doc.attributes);
         // The per-conversion processor borrows from `doc`; its `'a` is `'doc`,
         // independent of `self`'s stored-attribute lifetime.
         let processor: Processor<'doc> = Processor {
@@ -322,15 +303,11 @@ impl<'a> Processor<'a> {
             document_attributes: doc.attributes.clone(),
             generate_index: index_generation_enabled(&doc.attributes)
                 && last_section_has_style(&doc.blocks, "index"),
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             options: self.options.clone(),
-            example_counter: self.example_counter.clone(),
-            table_counter: self.table_counter.clone(),
-            figure_counter: self.figure_counter.clone(),
-            listing_counter: self.listing_counter.clone(),
+            example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
+            table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
+            figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
+            listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             index_term_counter: self.index_term_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
@@ -591,14 +568,8 @@ impl<'a> Processor<'a> {
             document_attributes.insert(name.clone(), value.clone());
         }
         variant
-            .backend_traits()
+            .backend_profile()
             .apply(&mut document_attributes, options.doctype());
-
-        let section_number_tracker = SectionNumberTracker::new(&document_attributes);
-        let part_number_tracker = PartNumberTracker::new(&document_attributes);
-        let appendix_tracker =
-            AppendixTracker::new(&document_attributes, section_number_tracker.clone());
-        let special_section_tracker = SpecialSectionTracker::new(&document_attributes);
 
         Self {
             options,
@@ -613,10 +584,6 @@ impl<'a> Processor<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
-            section_number_tracker,
-            part_number_tracker,
-            appendix_tracker,
-            special_section_tracker,
             variant,
         }
     }
@@ -892,11 +859,11 @@ fn apply_attribute_subs<'a>(
 
 /// Render a `<pre>` (and optional `<code>`) element for listing/source content.
 ///
-/// When the `highlighting` feature is enabled and a source-highlighter is set,
-/// syntax highlighting is applied for the given language. Otherwise the inlines
-/// are visited directly.
+/// With an active source highlighter, this applies syntax and source-line
+/// decoration. Otherwise it visits the inlines directly.
 pub(crate) fn render_pre_code<W: std::io::Write>(
     inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
     language: Option<&str>,
     visitor: &mut HtmlVisitor<'_, '_, W>,
     subs: &[Substitution],
@@ -908,39 +875,52 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         .document_attributes
         .get("source-highlighter")
         .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+    let nowrap = metadata.options.contains(&"nowrap");
+    let nowrap_class = if nowrap { " nowrap" } else { "" };
 
     #[cfg(feature = "highlighting")]
-    if let Some(lang) = language {
-        if highlighting_enabled {
+    if highlighting_enabled {
+        let lang = language.unwrap_or("text");
+        if let Some(language) = language {
             write!(
                 visitor.writer,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{language}\" data-lang=\"{language}\">"
             )?;
-            let processor = visitor.processor.clone();
-            let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
-            let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
-            let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
-            // Split-borrow writer and diagnostics so highlight_code can have
-            // both without overlapping &mut self calls on the visitor.
-            syntax::highlight_code(
-                &mut visitor.writer,
-                highlight_inlines,
-                lang,
-                &theme_name,
-                mode,
-                Some(&mut visitor.diagnostics),
-            )?;
-            writeln!(visitor.writer, "</code></pre>")?;
         } else {
             write!(
                 visitor.writer,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                "<pre class=\"highlight{nowrap_class}\"><code>"
             )?;
-            visitor.visit_inline_nodes(inlines)?;
-            writeln!(visitor.writer, "</code></pre>")?;
         }
+        let processor = visitor.processor.clone();
+        let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
+        let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
+        let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
+        // Split-borrow writer and diagnostics so highlight_code can have both
+        // without overlapping &mut self calls on the visitor.
+        syntax::highlight_code(
+            &mut visitor.writer,
+            highlight_inlines,
+            metadata,
+            lang,
+            &theme_name,
+            mode,
+            Some(&mut visitor.diagnostics),
+        )?;
+        writeln!(visitor.writer, "</code></pre>")?;
+    } else if let Some(lang) = language {
+        write!(
+            visitor.writer,
+            "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+        )?;
+        visitor.visit_inline_nodes(inlines)?;
+        writeln!(visitor.writer, "</code></pre>")?;
     } else {
-        write!(visitor.writer, "<pre>")?;
+        if nowrap {
+            write!(visitor.writer, "<pre class=\"nowrap\">")?;
+        } else {
+            write!(visitor.writer, "<pre>")?;
+        }
         visitor.visit_inline_nodes(inlines)?;
         writeln!(visitor.writer, "</pre>")?;
     }
@@ -951,12 +931,16 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         if let Some(lang) = language {
             write!(
                 visitor.writer,
-                "<pre class=\"highlight\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
+                "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
             visitor.visit_inline_nodes(inlines)?;
             writeln!(visitor.writer, "</code></pre>")?;
         } else {
-            write!(visitor.writer, "<pre>")?;
+            if nowrap {
+                write!(visitor.writer, "<pre class=\"nowrap\">")?;
+            } else {
+                write!(visitor.writer, "<pre>")?;
+            }
             visitor.visit_inline_nodes(inlines)?;
             writeln!(visitor.writer, "</pre>")?;
         }
@@ -1103,6 +1087,43 @@ mod tests {
         assert_eq!(standard.name(), "html");
         let semantic = standard.with_variant(HtmlVariant::Semantic);
         assert_eq!(semantic.name(), "html5s");
+    }
+
+    #[test]
+    fn media_targets_honor_imagesdir_and_encode_spaces() -> TestResult {
+        let parsed = acdc_parser::parse(
+            ":imagesdir: media library\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[poster=poster file.png]\n",
+            &acdc_parser::Options::default(),
+        )?;
+
+        for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+            let processor =
+                Processor::new(Options::default(), parsed.document().attributes.clone())
+                    .with_variant(variant);
+            let html = processor.convert_to_string(
+                parsed.document(),
+                &RenderOptions {
+                    embedded: true,
+                    ..RenderOptions::default()
+                },
+            )?;
+
+            for target in [
+                "src=\"media%20library/poster%20file.png\"",
+                "src=\"media%20library/already%20encoded.png\"",
+                "src=\"media%20library/inline%20poster.png\"",
+                "src=\"media%20library/clips/demo%20track.mp3\"",
+                "src=\"media%20library/clips/demo%20clip.mp4\"",
+                "poster=\"media%20library/poster%20file.png\"",
+            ] {
+                assert!(
+                    html.contains(target),
+                    "missing {target} in {variant:?}: {html}"
+                );
+            }
+            assert!(!html.contains("%2520"), "double-encoded target: {html}");
+        }
+        Ok(())
     }
 
     #[test]
@@ -1803,6 +1824,34 @@ Content.
             html.contains("<a href=\"#_part_two\">Part Two</a>"),
             "TOC should contain Part Two link"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_book_chapter_signifier_labels_headings_and_toc_entries() -> TestResult {
+        let content = r"= Book Title
+:doctype: book
+:toc:
+:sectnums:
+:chapter-signifier: Unit
+
+== First Chapter
+
+=== Detail
+";
+        let parser_options = acdc_parser::Options::default();
+        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let doc = parsed.document();
+
+        let processor = Processor::new(
+            acdc_converters_core::Options::default(),
+            doc.attributes.clone(),
+        );
+        let html = processor.convert_to_string(doc, &RenderOptions::default())?;
+
+        assert_eq!(html.matches("Unit 1. First Chapter").count(), 2, "{html}");
+        assert_eq!(html.matches("1.1. Detail").count(), 2, "{html}");
+        assert!(!html.contains("Unit 1.1. Detail"), "{html}");
         Ok(())
     }
 

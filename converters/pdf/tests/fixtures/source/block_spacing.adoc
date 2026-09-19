@@ -1,0 +1,74 @@
+First paragraph.
+
+// A comment between visible blocks must not add another gap.
+:example: value
+
+////
+A delimited comment must not add another gap either.
+////
+
+Second paragraph.
+
+.Titled paragraph
+Third paragraph.
+
+* First item
+* Second item
+
+Paragraph after a list.
+
+NOTE: A simple admonition.
+
+----
+A listing block.
+----
+
+.An example
+====
+Example body.
+====
+
+....
+A literal block.
+....
+
+____
+A quote block.
+____
+
+[verse]
+____
+A verse block.
+____
+
+****
+A sidebar block.
+****
+
+image::missing.png[Image fallback]
+
+--
+First paragraph in an open block.
+
+Second paragraph in an open block.
+--
+
+* Item with continuation
++
+First continuation paragraph.
+
+Second continuation paragraph.
+
+|===
+a|First table-cell paragraph.
+
+Second table-cell paragraph.
+|===
+
+== First section
+
+First section paragraph.
+
+== Second section
+
+Second section paragraph.

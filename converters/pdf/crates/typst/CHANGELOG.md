@@ -9,10 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Generated page headers and footers use the configured theme alignment,
+  sizes, title weight, logo height, page-one visibility, and page-number
+  position.
+- Generated documents apply the configured margin between document blocks.
+- Generated admonitions use text labels and a vertical divider, with titles in
+  the content column.
+- Generated block titles and captions use the configured PDF caption style.
+- Generated documents include theme-derived abstract title and body styles.
 - Generated documents can set the language and optional region of their text.
-- Running-header text is configured independently from embedded document title
+- Page-header text is configured independently from embedded document title
   metadata.
-- Running headers start after the first numbered page, so the document title is
+- Page headers start after the first numbered page, so the document title is
   not repeated at the top of its opening page.
 - The crate now lives under `converters/pdf/crates` as a non-publishable implementation
   component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
@@ -21,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Generated documents can use A3, A4, A5, Executive, Legal, Letter, or Tabloid
+  paper in portrait or landscape layout.
+- Generated documents can use validated custom page dimensions and margins.
+- Generated documents can place themed image captions below block images.
+- Generated documents can make block images clickable without extending the
+  link to their captions or surrounding layout.
 - Generated documents can include title, author, description, and keyword
   metadata.
 - Initial shared Typst writer, escaping, page preamble, header/footer,

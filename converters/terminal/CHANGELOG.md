@@ -14,12 +14,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Document headers, tables of contents, book chapters, hidden section titles,
+  and non-final index sections now preserve their configured labels, numbering,
+  hierarchy, content, and reference text in terminal output.
+- Example and abstract paragraphs, open blocks, quote and verse attributions,
+  admonition icon modes, visible text roles, list marker styles, reversed lists,
+  description-list styles, bibliography labels, and explicit callout numbers now
+  have distinct terminal presentations.
+- Source blocks now honor line numbers, starting values, highlighted ranges,
+  substitutions, and language-appropriate callout guards with or without syntax
+  highlighting. PHP `%mixed` mode reports one warning and uses normal PHP
+  highlighting.
+- Tables now honor requested width, `%autowidth`, horizontal placement, and
+  column or cell vertical alignment while retaining their existing span, frame,
+  grid, stripe, and truncation behavior.
+- Image fallbacks now use useful alternative text and preserve image links.
+  Protocol images use positive integer dimensions and supported alignment.
+  Audio and video macros now render as labeled static links, including titles,
+  time fragments, posters, and every alternative video source.
+- Links and URLs now honor `hide-uri-scheme` in visible text while keeping the
+  complete OSC 8 target or non-OSC 8 suffix. Inline `line-through` text now uses
+  terminal strike-through instead of highlight styling.
+- Title-based shorthand cross-references now resolve generated and explicit
+  section IDs before selecting their displayed reference text.
+- Figures, tables, examples, listings, and source blocks now render captions
+  with the labels active at each block's source position. Custom and disabled
+  captions, inner-first numbering, and changes made part-way through a document
+  match Asciidoctor.
+- Cross-references preserve formatted explicit text through supported nested
+  inline macros. Empty references to captioned blocks honor source-order
+  `xrefstyle=basic`, `short`, and `full`, including custom and disabled
+  captions.
+- Visible index terms and generated catalog labels preserve inline formatting,
+  links, and attribute substitutions.
+- Index-term `see` and `see-also` relationships render as separate catalog
+  directions instead of appearing in visible term text.
+- Inline icon labels use their explicit alternative text, or a readable form
+  of their target when no alternative is set.
+- Ordered lists honor a positive `start` value, including on nested lists.
+- Tables honor `frame`, `grid`, and static `stripes` values, including
+  source-order `table-frame`, `table-grid`, and `table-stripes` defaults.
+  `stripes=hover` has no effect in non-interactive terminal output.
 - Terminal conversion attributes now include the `terminal` backend,
   base-backend and file type, `.terminal` output suffix, and their conditional
   convenience attributes.
 - An ordered list with an explicit numbering style (`[loweralpha]`, `[upperalpha]`,
   `[lowerroman]`, `[upperroman]`, `[lowergreek]`, `[arabic]`, `[decimal]`) renders
   its markers in that style (e.g. `a.`, `IV.`, `α.`) instead of always `1.`, `2.`.
+  `[none]`, `[no-bullet]`, and `[unstyled]` omit ordered and unordered markers,
+  while `[unnumbered]` omits ordered markers. Markerless checklists keep their
+  checkbox.
 - Terminal replay frame capture (`replay::capture` / `capture_windowed`) turns
   recorded ANSI into ordered, deduplicated `CellGrid` frames for animated replay
   renderers; `capture_windowed` is a fast path for append-only recordings. Each
@@ -33,8 +77,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `[subs="-replacements"]` on a paragraph now keeps typography source (`--`,
   `(C)`, `->`, `...`) literal instead of converting to Unicode.
 - User-facing converter warnings are now collected in `ConversionResult` for
-  recoverable terminal conversion issues such as image display failures and
-  unsupported delimited block fallbacks.
+  recoverable terminal conversion issues such as image display failures.
+  Unsupported parser blocks and delimited block types also emit structured
+  warnings with actionable advice instead of relying on tracing output.
 - **`[listing]` and `[source]` styled paragraphs** — paragraphs with `[listing]` or
   `[source,lang]` style now render as preformatted text (same as `[literal]`).
 
@@ -67,10 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sections (`[preface]`, `[glossary]`, etc.) and their subsections are left unnumbered.
   Appendix subsections are numbered with the appendix letter as the top component
   (`A.1`, `A.1.1`, `B.1`); with `:!appendix-caption:` the heading shows the bare letter
-  numeral (`A.`).
+  numeral (`A.`). Changes to numbering attributes apply only to later headings,
+  matching Asciidoctor.
 - Index term collection and alphabetized index catalog rendering (`[index]` sections).
 - Table column alignment and column style support (strong, emphasis, header).
-- Alternating row shading in tables for readability.
 - Dynamic terminal width detection, capped at 120 columns.
 - Super/subscript Unicode conversion with dim-styled fallback for unsupported characters.
 - Cross-reference, callout reference, button, keyboard, menu, stem, image, and icon inline macro rendering.
@@ -82,6 +127,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Book TOC entries now use the same default, configured, or unset
+  `chapter-signifier` as their chapter headings.
+- Sections with a named `reftext` now use it for natural-reference and explicit-ID
+  display text. Their titles are not retained as second natural aliases, and
+  formatted labels keep their terminal styling.
+- Plain visible shorthand cross-references now match section titles containing
+  `pass:[...]` or `+...+` content. A shorthand target containing a passthrough
+  remains unresolved and displays its visible text.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it displays its bracketed unresolved fallback instead of a same-titled
+  section. Source-order changes apply only to later references, and explicit
+  local IDs still display the section title.
+- Interdocument `xref:` macros no longer display a same-named local section's
+  title. They keep the terminal converter's bracketed external-reference
+  fallback; natural shorthand references remain local.
+- Description lists now indent nested levels and preserve repeated
+  continuations, formatted terms, titled boundaries, named styles, and
+  trailing unanswered Q&A items.
+- Table alignment after a row or column span now follows source-cell order,
+  consistent with HTML and PDF output.
 - Book abstracts now take chapter numbers, `sectnums=all` includes special
   sections, and ordinary section numbering continues after an appendix.
 - In a book, `:partnums: false` now enables Roman part numbers because the
@@ -110,6 +175,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Terminal tables truncated to the available width now use a single ellipsis
+  (`…`) as the truncation marker, leaving more space for cell content.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed
 - Deduplicated ANSI escape skipping logic into shared `skip_ansi_escape` helper
 - **Attribution rendering** — uses `BlockMetadata.attribution`/`citetitle` fields instead of

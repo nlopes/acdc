@@ -1,0 +1,14 @@
+= Index terms
+:name: Ada
+:styled: *attribute bold*
+:linked: https://example.com[Ada]
+
+Visible formatting: ((bold *primary*)), ((italic _primary_)), and
+indexterm2:[mono `primary`].
+
+Visible attributes: ((plain {name})), ((literal {styled})), and
+((linked {linked})).
+
+Visible direct link: ((direct https://example.com[Ada])).
+
+Concealed terms disappear: (((Animals, Mammals, Cats)))after.

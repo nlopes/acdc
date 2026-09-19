@@ -28,7 +28,7 @@
 .  LINKSTYLE blue R < >
 .\}
 .SH "NAME"
-inline\-image\-test \- test image placeholders
+inline\-image\-test \- test image fallbacks
 .SH "SYNOPSIS"
 .sp
 \fBinline\-image\-test\fP
@@ -36,8 +36,22 @@ inline\-image\-test \- test image placeholders
 .sp
 An inline image: [Company Logo]\&.
 .sp
-An inline image without alt text: [IMAGE]\&.
+An inline image without alt text: [icon]\&.
 .sp
-[A block image]
+A linked inline image: \c
+.URL "https://example.com/status" "[Build status]" "\c"
+\&.
 .sp
-[IMAGE]
+A linked inline image without alt text: \c
+.URL "https://example.com/release" "[release badge]" "\c"
+\&.
+.sp
+\fBFigure 1. A block image\fP
+.br
+[Sunset photo]
+.sp
+[untitled]
+.sp
+\fBFigure 2. A linked block image\fP
+.br
+.URL "https://example.com/architecture" "[System architecture]" ""

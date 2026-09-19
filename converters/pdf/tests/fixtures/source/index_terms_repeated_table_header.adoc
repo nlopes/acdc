@@ -1,0 +1,80 @@
+= Index Terms in Repeated Table Headers
+:pdf-page-size: A5
+:index-pagenum-sequence-style: page
+
+A control term before the table (((before table))).
+
+.(((table title)))Cataloged table
+[cols="1,3",options="header,footer"]
+|===
+|Key (((Tables, Headers, concealed))) (((shared term)))
+|indexterm:[Related header,see-also=Tables]Description with indexterm2:[visible *header*], ((shared term)), and related material
+
+|1
+|The first body row contains (((body term))) and enough text to exercise normal table-cell wrapping.
+
+|2
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|3
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|4
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|5
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|6
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|7
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|8
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|9
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|10
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|11
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|12
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|13
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|14
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|15
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|16
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|17
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|18
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|19
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|20
+|A deliberately long body row that helps the table continue onto another page while keeping the fixture deterministic.
+
+|Footer (((footer term)))
+|The non-repeating footer contains a concealed term.
+|===
+
+An occurrence after the table (((after table))).
+
+[index]
+== Index

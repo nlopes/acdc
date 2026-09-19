@@ -1,5 +1,6 @@
 = Bibliography Anchors
 
+[bibliography]
 == References
 
 * [[[ref01]]] First reference

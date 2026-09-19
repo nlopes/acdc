@@ -1,0 +1,107 @@
+[#document-header]
+= Main *Title*: Subtitle _Details_
+Ada Lovelace <ada@example.com>; Grace B. Hopper <grace@example.com>
+v1.2, 2026-08-30: Stable release
+:listing-caption: Listing
+
+[#paragraph]
+.Paragraph *Title*
+Paragraph body.
+
+.Unordered List Title
+* First item
+
+.Ordered List Title
+. First item
+
+.Description List Title
+Term:: Definition
+
+[#listing]
+.Listing Title
+----
+listed text
+----
+
+.Source Title
+[source,rust]
+----
+fn main() {}
+----
+
+.Literal Title
+....
+literal text
+....
+
+.Open Block Title
+--
+Open block body.
+--
+
+.Sidebar Title
+****
+Sidebar body.
+****
+
+.Quote Block Title
+[quote, 'Ada *Lovelace*', '`Notes`']
+____
+Quoted block body.
+____
+
+.Verse Block Title
+[verse, 'Emily *Dickinson*', '`Poem 1`']
+____
+First line
+Second line
+____
+
+.Quote Paragraph Title
+[quote, 'Paragraph *Author*', '`Paragraph Work`']
+Quoted paragraph body.
+
+.Verse Paragraph Title
+[verse, 'Paragraph *Poet*', '`Paragraph Poem`']
+First paragraph line
+Second paragraph line
+
+[#example]
+.Example Title
+====
+Example body.
+====
+
+.Admonition Title
+NOTE: Admonition body.
+
+[#figure]
+.Image Title
+image::image.png[Alt text]
+
+.Audio Title
+audio::sound.mp3[]
+
+.Video Title
+video::movie.mp4[]
+
+[#table]
+.Table Title
+|===
+|Cell
+|===
+
+[#custom-figure]
+.Custom Figure
+[caption="Exhibit: "]
+image::custom.png[]
+
+:example-caption!:
+[#plain-example]
+.Plain Example
+====
+Plain example body.
+====
+
+:xrefstyle: full
+See <<figure>>, <<table>>, <<example>>, and <<listing>>.

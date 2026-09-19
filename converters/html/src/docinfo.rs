@@ -178,7 +178,10 @@ fn parse_docinfo_value(value: &str, diagnostics: &mut Diagnostics<'_>) -> Vec<En
                     position: Position::Footer,
                 }],
                 _ => {
-                    diagnostics.warn(format!("unknown docinfo value `{token}`, ignoring value"));
+                    diagnostics.warn_with_advice(
+                        format!("unknown docinfo value `{token}`, ignoring value"),
+                        "Use `shared`, `private`, or a supported scope-position value such as `shared-head`.",
+                    );
                     vec![]
                 }
             }
@@ -219,9 +222,10 @@ fn resolve_docinfo_subs(
             match token.trim() {
                 "attributes" => subs.push(Substitution::Attributes),
                 other => {
-                    diagnostics.warn(format!(
-                        "unsupported docinfosubs value `{other}`, ignoring value"
-                    ));
+                    diagnostics.warn_with_advice(
+                        format!("unsupported docinfosubs value `{other}`, ignoring value"),
+                        "Use `attributes`; other docinfo substitutions are not supported.",
+                    );
                 }
             }
         }
@@ -376,6 +380,29 @@ mod tests {
         let mut diag = test_diag(&source, &mut warnings);
         let positions = parse_docinfo_value("bogus", &mut diag);
         assert!(positions.is_empty());
+        assert!(
+            warnings
+                .first()
+                .is_some_and(|warning| warning.advice().is_some())
+        );
+    }
+
+    #[test]
+    fn unsupported_docinfo_substitution_has_advice() {
+        let mut attributes = DocumentAttributes::default();
+        attributes.insert("docinfosubs".into(), "quotes".into());
+        let source = WarningSource::new("html");
+        let mut warnings = Vec::new();
+        let mut diag = test_diag(&source, &mut warnings);
+
+        let substitutions = resolve_docinfo_subs(&attributes, &mut diag);
+
+        assert!(substitutions.is_empty());
+        assert!(
+            warnings
+                .first()
+                .is_some_and(|warning| warning.advice().is_some())
+        );
     }
 
     #[test]

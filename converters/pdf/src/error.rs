@@ -67,6 +67,10 @@ pub enum Error {
     /// Typst rendering or PDF export failed.
     #[error(transparent)]
     Render(#[from] RenderError),
+
+    /// Generated PDF page labels could not be updated.
+    #[error("could not update PDF page labels: {0}")]
+    PageLabels(#[source] lopdf::Error),
 }
 
 fn theme_too_large_message(limit: usize, actual: Option<u64>) -> String {

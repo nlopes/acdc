@@ -1,0 +1,16 @@
+= tool(1)
+:doctype: manpage
+:backend: manpage
+
+// The first level-one section supplies manpage name metadata.
+[[command-name]]
+:program-name: tool
+[.name-section]
+== COMMAND NAME
+
+{program-name}, tool-alias - performs
+ useful work
+
+== DESCRIPTION
+
+Uses {manname}.

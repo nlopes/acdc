@@ -1,0 +1,4 @@
+. Parent
+[loweralpha,start=3]
+.. Child C
+.. Child D

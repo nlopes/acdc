@@ -1,0 +1,1046 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Unindented cross-type list nesting",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 36
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 36
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Ordered parent",
+          "location": [
+            {
+              "line": 3,
+              "col": 4
+            },
+            {
+              "line": 3,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "marker": ".",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Ordered parent",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 3
+                    },
+                    {
+                      "line": 5,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "unordered",
+                  "marker": "*",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "*",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Unordered child one",
+                          "location": [
+                            {
+                              "line": 6,
+                              "col": 3
+                            },
+                            {
+                              "line": 6,
+                              "col": 21
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 1
+                        },
+                        {
+                          "line": 6,
+                          "col": 21
+                        }
+                      ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "*",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Unordered child two",
+                          "location": [
+                            {
+                              "line": 7,
+                              "col": 3
+                            },
+                            {
+                              "line": 7,
+                              "col": 21
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 7,
+                          "col": 1
+                        },
+                        {
+                          "line": 7,
+                          "col": 21
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 1
+                    },
+                    {
+                      "line": 7,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 1
+                },
+                {
+                  "line": 7,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Ordered parent two",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 3
+                    },
+                    {
+                      "line": 8,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 8,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unordered parent with immediate child metadata",
+          "location": [
+            {
+              "line": 10,
+              "col": 4
+            },
+            {
+              "line": 10,
+              "col": 49
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Unordered parent",
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 3
+                    },
+                    {
+                      "line": 12,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "ordered",
+                  "marker": ".",
+                  "metadata": {
+                    "roles": [
+                      "child-role"
+                    ],
+                    "style": "loweralpha"
+                  },
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": ".",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Ordered child one",
+                          "location": [
+                            {
+                              "line": 14,
+                              "col": 3
+                            },
+                            {
+                              "line": 14,
+                              "col": 19
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 14,
+                          "col": 1
+                        },
+                        {
+                          "line": 14,
+                          "col": 19
+                        }
+                      ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": ".",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Ordered child two",
+                          "location": [
+                            {
+                              "line": 15,
+                              "col": 3
+                            },
+                            {
+                              "line": 15,
+                              "col": 19
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 15,
+                          "col": 1
+                        },
+                        {
+                          "line": 15,
+                          "col": 19
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 1
+                    },
+                    {
+                      "line": 15,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Unordered parent two",
+                  "location": [
+                    {
+                      "line": 16,
+                      "col": 3
+                    },
+                    {
+                      "line": 16,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 16,
+                  "col": 1
+                },
+                {
+                  "line": 16,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 22
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Metadata after a blank line",
+          "location": [
+            {
+              "line": 18,
+              "col": 4
+            },
+            {
+              "line": 18,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "unordered",
+          "marker": "*",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": "*",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Unordered list",
+                  "location": [
+                    {
+                      "line": 20,
+                      "col": 3
+                    },
+                    {
+                      "line": 20,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 20,
+                  "col": 1
+                },
+                {
+                  "line": 20,
+                  "col": 16
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "marker": ".",
+          "metadata": {
+            "roles": [
+              "separate-role"
+            ],
+            "style": "loweralpha"
+          },
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Ordered list",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 3
+                    },
+                    {
+                      "line": 23,
+                      "col": 14
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 14
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Alternating levels",
+          "location": [
+            {
+              "line": 25,
+              "col": 4
+            },
+            {
+              "line": 25,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "marker": ".",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Level one",
+                  "location": [
+                    {
+                      "line": 27,
+                      "col": 3
+                    },
+                    {
+                      "line": 27,
+                      "col": 11
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "unordered",
+                  "marker": "*",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "*",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Level two",
+                          "location": [
+                            {
+                              "line": 28,
+                              "col": 3
+                            },
+                            {
+                              "line": 28,
+                              "col": 11
+                            }
+                          ]
+                        }
+                      ],
+                      "blocks": [
+                        {
+                          "name": "list",
+                          "type": "block",
+                          "variant": "ordered",
+                          "marker": "..",
+                          "items": [
+                            {
+                              "name": "listItem",
+                              "type": "block",
+                              "marker": "..",
+                              "principal": [
+                                {
+                                  "name": "text",
+                                  "type": "string",
+                                  "value": "Level three",
+                                  "location": [
+                                    {
+                                      "line": 29,
+                                      "col": 4
+                                    },
+                                    {
+                                      "line": 29,
+                                      "col": 14
+                                    }
+                                  ]
+                                }
+                              ],
+                              "location": [
+                                {
+                                  "line": 29,
+                                  "col": 1
+                                },
+                                {
+                                  "line": 29,
+                                  "col": 14
+                                }
+                              ]
+                            }
+                          ],
+                          "location": [
+                            {
+                              "line": 29,
+                              "col": 1
+                            },
+                            {
+                              "line": 29,
+                              "col": 14
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 28,
+                          "col": 1
+                        },
+                        {
+                          "line": 29,
+                          "col": 14
+                        }
+                      ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "*",
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Level two sibling",
+                          "location": [
+                            {
+                              "line": 30,
+                              "col": 3
+                            },
+                            {
+                              "line": 30,
+                              "col": 19
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 30,
+                          "col": 1
+                        },
+                        {
+                          "line": 30,
+                          "col": 19
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 1
+                    },
+                    {
+                      "line": 30,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 30,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Level one sibling",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 3
+                    },
+                    {
+                      "line": 31,
+                      "col": 19
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 31,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 31,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Checklist children",
+          "location": [
+            {
+              "line": 33,
+              "col": 4
+            },
+            {
+              "line": 33,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "blocks": [
+        {
+          "name": "list",
+          "type": "block",
+          "variant": "ordered",
+          "marker": ".",
+          "items": [
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Ordered parent",
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 3
+                    },
+                    {
+                      "line": 35,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "blocks": [
+                {
+                  "name": "list",
+                  "type": "block",
+                  "variant": "unordered",
+                  "marker": "*",
+                  "items": [
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "*",
+                      "checked": true,
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Checked child",
+                          "location": [
+                            {
+                              "line": 36,
+                              "col": 7
+                            },
+                            {
+                              "line": 36,
+                              "col": 19
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 36,
+                          "col": 1
+                        },
+                        {
+                          "line": 36,
+                          "col": 19
+                        }
+                      ]
+                    },
+                    {
+                      "name": "listItem",
+                      "type": "block",
+                      "marker": "*",
+                      "checked": false,
+                      "principal": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "Unchecked child",
+                          "location": [
+                            {
+                              "line": 37,
+                              "col": 7
+                            },
+                            {
+                              "line": 37,
+                              "col": 21
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 37,
+                          "col": 1
+                        },
+                        {
+                          "line": 37,
+                          "col": 21
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 36,
+                      "col": 1
+                    },
+                    {
+                      "line": 37,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 35,
+                  "col": 1
+                },
+                {
+                  "line": 37,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "listItem",
+              "type": "block",
+              "marker": ".",
+              "principal": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Ordered parent two",
+                  "location": [
+                    {
+                      "line": 38,
+                      "col": 3
+                    },
+                    {
+                      "line": 38,
+                      "col": 20
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 38,
+                  "col": 1
+                },
+                {
+                  "line": 38,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 33,
+          "col": 1
+        },
+        {
+          "line": 38,
+          "col": 20
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 38,
+      "col": 20
+    }
+  ]
+}

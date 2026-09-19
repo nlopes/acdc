@@ -38,7 +38,7 @@ This is the main description paragraph.
 .SS "Basic Formatting"
 .sp
 This tests \fBbold\fP, \fIitalic\fP, \f(CRmonospace\fP, \fBhighlight\fP, ^(superscript), _(subscript),
-and \fBunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe\(cqs\fP text.
+and \fIunderlined\fP text. Also curved \f(CR`double quotes'' and `single apostrophe\(cqs\fP text.
 .SS "Links and Cross References"
 .sp
 Visit \c
@@ -51,7 +51,7 @@ See \c
 .URL "https://example.com" "Example Site" ""
 for details.
 Also see \c
-.MTO "admin\(atexample.com" "the admin" "."
+.MTO "admin\(atexample.com" "the admin" "\&."
 Cross\-reference to OTHER SECTION\&.
 Man page style reference: git(1).
 .SS "Footnotes"
@@ -62,10 +62,10 @@ And a reference back.[2]
 .SH "OPTIONS"
 .RS 0
 .TP
-\fB\fB\-v\fP, *\-\-verbose*\fP
+\fB\fB\-v\fP, \fB\-\-verbose\fP\fP
 Increase verbosity level.
 .TP
-\fB\fB\-o\fP _FILE_\fP
+\fB\fB\-o\fP \fIFILE\fP\fP
 Write output to \fIFILE\fP instead of stdout.
 .RS 0
 .sp
@@ -130,13 +130,13 @@ Definition of term one.
 \fBterm two\fP
 Multi\-line definition for term two.
 .TP
-\fBterm with *formatting*\fP
+\fBterm with \fBformatting\fP\fP
 A \fIstyled\fP definition.
 .RE
 .SS "Callout List"
 .EX
-echo "hello" <1>
-echo "world" <2>
+echo "hello" \fB(1)\fP
+echo "world" \fB(2)\fP
 .EE
 .RS 0
 .IP \fB(1)\fP 4
@@ -148,6 +148,7 @@ Prints world to stdout
 .SS "Code Block"
 .sp
 \fBExample script\fP
+.br
 .EX
 #!/bin/bash
 set \-euo pipefail
@@ -171,7 +172,8 @@ On Simplicity \(em Albert Einstein
 .ll
 .SS "Example Block"
 .sp
-\fBExample title\fP
+\fBExample 1. Example title\fP
+.br
 .RS 4
 .sp
 This is an example block.
@@ -235,12 +237,13 @@ This is important.
 .RE
 .SH "TABLES"
 .sp
-\fBSimple table\fP
+\fBTable 1. Simple table\fP
+.br
 .TS
 allbox tab(:);
-ltB ltB ltB
-lt lt lt
-lt lt lt.
+ltBx ltBx ltBx
+ltx ltx ltx
+ltx ltx ltx.
 Name:Description:Status
 Alpha:T{
 First item with \fBbold\fP

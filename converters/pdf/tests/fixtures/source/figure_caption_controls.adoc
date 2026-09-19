@@ -1,0 +1,49 @@
+= Figure caption controls
+:figure-image: inline-image-dimensions.svg
+
+.Default label
+image::{figure-image}[Default,width=80]
+
+:figure-caption: Illustration
+
+.Custom document label
+image::{figure-image}[Custom,width=80]
+
+:figure-caption:
+
+.Empty document label
+image::{figure-image}[Empty,width=80]
+
+:figure-caption!:
+
+.Disabled document label
+image::{figure-image}[Disabled,width=80]
+
+:figure-caption: Figure
+
+.Restored document label
+image::{figure-image}[Restored,width=80]
+
+.Custom block prefix
+[caption="Exhibit: "]
+image::{figure-image}[Block custom,width=80]
+
+.Empty block prefix
+[caption=""]
+image::{figure-image}[Block empty,width=80]
+
+.Bare caption marker
+[caption]
+image::{figure-image}[Bare,width=80]
+
+:caption: Plate:
+
+.Generic document prefix
+image::{figure-image}[Generic,width=80]
+
+image::{figure-image}[Untitled,width=80]
+
+:caption!:
+
+.Final automatic caption
+image::{figure-image}[Final,width=80]

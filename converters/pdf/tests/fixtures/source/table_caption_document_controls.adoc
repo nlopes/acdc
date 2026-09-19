@@ -1,0 +1,47 @@
+= Table document caption controls
+
+.Default before controls
+[cols="1"]
+|===
+|Default one
+|===
+
+:table-caption: Data
+
+.Document custom caption
+[cols="1"]
+|===
+|Document custom
+|===
+
+:table-caption!:
+
+.Document caption unset
+[cols="1"]
+|===
+|Document unset
+|===
+
+:table-caption: Table
+
+.Default after unset
+[cols="1"]
+|===
+|Default three
+|===
+
+:table-caption:
+
+.Document caption blank
+[cols="1"]
+|===
+|Document blank
+|===
+
+:table-caption: Table
+
+.Default after blank
+[cols="1"]
+|===
+|Default five
+|===

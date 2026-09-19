@@ -34,9 +34,9 @@ table\-complex \- test complex table cells
 A table with non\-paragraph content in cells.
 .TS
 allbox tab(:);
-ltB ltB
-lt lt
-lt lt.
+ltBx ltBx
+ltx ltx
+ltx ltx.
 Header 1:Header 2
 Simple paragraph:T{
 .RS 0

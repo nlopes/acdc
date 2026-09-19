@@ -43,57 +43,35 @@
 //! IDs, trusting the document author to provide safe values.
 
 use std::{
+    borrow::Cow,
     io::{self, Write},
     rc::Rc,
 };
 
 use acdc_converters_core::{
-    inlines_to_string,
+    InlineTextTransform, inlines_to_string,
+    link::{autolink_fallback, link_fallback, mailto_fallback},
+    media::resolve_target,
     substitutions::{
         Replacements, TextBoundaries, restore_escaped_patterns, strip_backslash_escapes,
     },
     visitor::{Visitor, WritableVisitor},
-    xref::{XrefDisplay, resolve_xref},
+    xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    AttributeValue, Autolink, Bold, Button, CalloutRef, CrossReference, CurvedApostrophe,
-    CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image, IndexTerm,
-    IndexTermKind, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto, Menu, Monospace, Pass,
-    Plain, Raw, Stem, StemNotation, Subscript, Substitution, Superscript, Url, Verbatim,
-    parse_text_for_quotes, strip_quotes, substitute,
+    Anchor, AttributeValue, Autolink, Block, Bold, Button, CalloutRef, CrossReference,
+    CurvedApostrophe, CurvedQuotation, ElementAttributes, Footnote, Form, Highlight, Icon, Image,
+    IndexTerm, IndexTermRelationship, InlineMacro, InlineNode, Italic, Keyboard, Link, Mailto,
+    Menu, Monospace, Options as ParserOptions, Pass, Plain, Raw, Stem, StemNotation, Subscript,
+    Substitution, Superscript, Url, Verbatim, parse, parse_text_for_quotes, strip_quotes,
+    substitute,
 };
 
-/// Leak a `&str` into a `&'static str` so index term kinds can be cached
-/// beyond the parser arena's lifetime.
-///
-/// Leaks are bounded by the number of index entries encountered during a
-/// single conversion run — acceptable for short-lived converter processes.
-fn leak_str(s: &str) -> &'static str {
-    Box::leak(s.to_string().into_boxed_str())
-}
-
-/// Convert a borrowed `IndexTermKind` to one with `'static` lifetime.
-fn index_term_kind_to_static(kind: &IndexTermKind<'_>) -> IndexTermKind<'static> {
-    match kind {
-        IndexTermKind::Flow(t) => IndexTermKind::Flow(leak_str(t)),
-        IndexTermKind::Concealed {
-            term,
-            secondary,
-            tertiary,
-        } => IndexTermKind::Concealed {
-            term: leak_str(term),
-            secondary: secondary.map(leak_str),
-            tertiary: tertiary.map(leak_str),
-        },
-        // IndexTermKind is non_exhaustive
-        _ => IndexTermKind::Flow(""),
-    }
-}
-
 use crate::{
-    Error, HtmlVisitor, RenderOptions,
+    Error, HtmlVisitor, IndexCatalogRelationship, IndexTermLabel, RenderOptions,
     constants::{encode_html_entities, escape_ampersands},
     icon::write_icon,
+    image::image_link_control_attributes,
     image_helpers::{alt_text_from_filename, write_dimension_attributes},
 };
 
@@ -113,7 +91,55 @@ fn replacements() -> Replacements<'static> {
     replacements
 }
 
-/// Escape `&` to `&amp;` in URL strings for use in `href` attributes.
+fn passthrough_replacements() -> Replacements<'static> {
+    let mut replacements = replacements();
+    replacements.double_arrow_right = "=>";
+    replacements.double_arrow_left = "<=";
+    replacements.arrow_right = "->";
+    replacements.arrow_left = "<-";
+    replacements
+}
+
+fn passthrough_substitution_text(
+    text: &str,
+    subs: &[Substitution],
+    text_boundaries: TextBoundaries,
+) -> String {
+    let replacements = passthrough_replacements();
+    let mut text = text.to_string();
+    let mut applied_special_chars = false;
+
+    for substitution in subs {
+        match substitution {
+            Substitution::SpecialChars => {
+                text = text
+                    .replace('&', "&amp;")
+                    .replace('>', "&gt;")
+                    .replace('<', "&lt;");
+                applied_special_chars = true;
+            }
+            Substitution::Replacements => {
+                text = replacements.apply(&text, text_boundaries);
+            }
+            Substitution::Attributes
+            | Substitution::Macros
+            | Substitution::PostReplacements
+            | Substitution::Normal
+            | Substitution::Verbatim
+            | Substitution::Quotes
+            | Substitution::Callouts
+            | _ => {}
+        }
+    }
+
+    if applied_special_chars {
+        encode_html_entities(&text)
+    } else {
+        text
+    }
+}
+
+/// Escape `&` to `&amp;` in URL strings for use in HTML.
 pub(crate) fn escape_href(url: &str) -> String {
     url.replace('&', "&amp;")
 }
@@ -123,19 +149,19 @@ pub(crate) fn escape_href(url: &str) -> String {
 /// Only text that bypasses the inline pipeline needs this — anything the
 /// pipeline renders is escaped there. Quotes are left alone, matching
 /// asciidoctor's PCDATA encoding.
-fn escape_pcdata(text: &str) -> String {
+pub(crate) fn escape_pcdata(text: &str) -> String {
     text.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
 }
 
-/// Strip the URI scheme (e.g., `https://`, `http://`, `ftp://`) from a URL string.
-///
-/// Used when the `hide-uri-scheme` document attribute is set to display cleaner link text
-/// while preserving the full URL in the `href` attribute.
-fn strip_uri_scheme(url: &str) -> &str {
-    url.find("://")
-        .map_or(url, |pos| url.get(pos + 3..).unwrap_or(url))
+/// Escape literal text for a double-quoted HTML attribute value.
+pub(crate) fn escape_attribute(text: &str) -> String {
+    escape_pcdata(text).replace('"', "&quot;")
+}
+
+fn raw_fragment_placeholder(index: usize) -> String {
+    format!("\0{index}\0")
 }
 
 /// Extract the `role` attribute as a non-empty, unquoted string.
@@ -170,18 +196,10 @@ fn link_class_attr(role: Option<String>, bare: bool) -> String {
     }
 }
 
-/// Compute the visible fallback text for a link target when no display text was given.
-///
-/// Strips the `mailto:` prefix, or — when `hide_uri_scheme` is set — strips schemes like
-/// `https://`, `http://`, `ftp://`. Otherwise returns the target as-is.
-fn link_display_fallback(target: &str, hide_uri_scheme: bool) -> &str {
-    if let Some(email) = target.strip_prefix("mailto:") {
-        email
-    } else if hide_uri_scheme {
-        strip_uri_scheme(target)
-    } else {
-        target
-    }
+fn link_id_attr(attributes: &ElementAttributes<'_>) -> String {
+    attributes
+        .get_string("id")
+        .map_or_else(String::new, |id| format!(" id=\"{id}\""))
 }
 
 /// Extract `target` and `rel` attributes from `window` or `target` attribute values.
@@ -338,14 +356,99 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 Ok(())
             }
             InlineNode::InlineAnchor(anchor) if !options.toc_mode => {
-                write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id)?;
+                self.render_inline_anchor(anchor, options, subs)
+            }
+            // TOC links cannot contain nested anchors.
+            InlineNode::InlineAnchor(_) => Ok(()),
+            _unsupported => {
+                self.diagnostics.warn_with_advice(
+                    "an unsupported parser inline variant was omitted from HTML output",
+                    "Use another backend for this document and report the unsupported construct.",
+                );
                 Ok(())
             }
-            // Explicit InlineAnchor arm for TOC mode (no nested anchors) plus a catch-all
-            // for future `#[non_exhaustive]` variants — both render nothing, but enumerating
-            // the anchor arm keeps `wildcard_enum_match_arm` satisfied.
-            InlineNode::InlineAnchor(_) | _ => Ok(()),
         }
+    }
+
+    fn render_inline_anchor(
+        &mut self,
+        anchor: &Anchor<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        write!(self.writer_mut(), "<a id=\"{}\"></a>", anchor.id)?;
+        if !anchor.is_bibliography() {
+            return Ok(());
+        }
+
+        if let Some(source) = anchor
+            .xreflabel
+            .filter(|source| source.contains('+') || source.contains("pass:"))
+            && let Some(label) =
+                self.render_preprocessed_bibliography_label(source, options, subs)?
+        {
+            write!(self.writer_mut(), "{label}")?;
+            return Ok(());
+        }
+
+        let processor = Rc::clone(&self.processor);
+        let Some(label) = processor
+            .references
+            .get(anchor.id)
+            .and_then(|reference| reference.xreflabel.as_deref())
+        else {
+            write!(self.writer_mut(), "[{}]", escape_pcdata(anchor.id))?;
+            return Ok(());
+        };
+        let html = self.render_bibliography_inline_fragment(label, options, subs)?;
+        write!(self.writer_mut(), "{html}")?;
+        Ok(())
+    }
+
+    fn render_preprocessed_bibliography_label(
+        &mut self,
+        source: &str,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<Option<String>, Error> {
+        let wrapped = format!("({source})");
+        let parser_options =
+            ParserOptions::with_attributes(self.processor.document_attributes().clone());
+        let parsed = parse(&wrapped, &parser_options)?;
+        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+            return Ok(None);
+        };
+        let html = self.render_bibliography_inline_fragment(&paragraph.content, options, subs)?;
+        Ok(html
+            .strip_prefix('(')
+            .and_then(|html| html.strip_suffix(')'))
+            .map(|html| format!("[{html}]")))
+    }
+
+    fn render_bibliography_inline_fragment(
+        &mut self,
+        inlines: &[InlineNode<'_>],
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<String, Error> {
+        let mut fragment_options = options.clone();
+        fragment_options.toc_mode = true;
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            Rc::clone(&self.processor),
+            fragment_options,
+            self.diagnostics.reborrow(),
+        );
+        visitor.current_subs = subs.to_vec();
+        visitor.captured_raw_fragments = Some(Vec::new());
+        visitor.visit_inline_nodes(inlines)?;
+        let captured = visitor.captured_raw_fragments.take().unwrap_or_default();
+        let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
+        let mut html = html.replace('<', "&lt;").replace('>', "&gt;");
+        for (index, raw) in captured.iter().enumerate() {
+            html = html.replace(&raw_fragment_placeholder(index), raw);
+        }
+        Ok(html)
     }
 
     /// Render one of the simple inline-formatting nodes (bold, italic, monospace, sup, sub).
@@ -453,9 +556,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else if r.subs.is_empty() {
             content.to_string()
         } else {
-            substitution_text(content, &r.subs, options, self.text_boundaries())
+            passthrough_substitution_text(content, &r.subs, self.text_boundaries())
         };
-        write!(self.writer_mut(), "{text}")?;
+        if let Some(captured) = self.captured_raw_fragments.as_mut() {
+            let index = captured.len();
+            captured.push(text);
+            write!(self.writer_mut(), "{}", raw_fragment_placeholder(index))?;
+        } else {
+            write!(self.writer_mut(), "{text}")?;
+        }
         Ok(())
     }
 
@@ -744,27 +853,21 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 
     fn render_autolink(&mut self, al: &Autolink<'_>, options: &RenderOptions) -> Result<(), Error> {
-        let processor = self.processor.clone();
         let w = self.writer_mut();
-        let hide_uri_scheme = processor
-            .document_attributes()
-            .get("hide-uri-scheme")
-            .is_some();
         let href_str = al.url.to_string();
-        let inner = if al.bracketed {
-            href_str
-                .strip_prefix('<')
-                .and_then(|s| s.strip_suffix('>'))
-                .unwrap_or(&href_str)
-        } else {
-            &href_str
-        };
-        let display_text = link_display_fallback(inner, hide_uri_scheme).to_string();
+        let (display_text, angle_brackets) =
+            autolink_fallback(&href_str, al.bracketed, al.hides_uri_scheme());
+        let display_text = escape_href(display_text);
 
         if options.inlines_basic || options.toc_mode {
+            if angle_brackets {
+                write!(w, "&lt;")?;
+            }
             write!(w, "{display_text}")?;
-        } else if al.bracketed {
-            // Preserve angle brackets for bracketed autolinks (e.g., <user@example.com>)
+            if angle_brackets {
+                write!(w, "&gt;")?;
+            }
+        } else if angle_brackets {
             write!(
                 w,
                 "&lt;<a href=\"{}\">{display_text}</a>&gt;",
@@ -786,13 +889,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let hide_uri_scheme = processor
-            .document_attributes()
-            .get("hide-uri-scheme")
-            .is_some();
         let target_str = l.target.to_string();
-        let fallback = link_display_fallback(&target_str, hide_uri_scheme);
+        let fallback = escape_href(link_fallback(&target_str, l.hides_uri_scheme()));
 
         if options.inlines_basic || options.toc_mode {
             if l.text.is_empty() {
@@ -805,11 +903,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        let id_attr = link_id_attr(&l.attributes);
         let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
         let target_attr = window_attrs(&l.attributes);
         write!(
             self.writer_mut(),
-            "<a href=\"{}\"{class_attr}{target_attr}>",
+            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
             escape_href(&target_str)
         )?;
         if l.text.is_empty() {
@@ -825,6 +924,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
     fn render_inline_image(&mut self, i: &Image<'_>) -> Result<(), Error> {
         let is_semantic = self.processor.variant() == crate::HtmlVariant::Semantic;
+        let source = escape_href(&resolve_target(
+            &i.source.to_string(),
+            self.processor.document_attributes(),
+        ));
         let w = self.writer_mut();
         // Inline images use a span wrapper (not in semantic mode)
         if !is_semantic {
@@ -842,15 +945,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         };
 
         let link = i.metadata.attributes.get("link");
+        let link_controls = image_link_control_attributes(&i.metadata);
         if let Some(link) = link {
             write!(
                 w,
-                "<a class=\"image\" href=\"{}\">",
-                escape_href(&link.to_string())
+                "<a class=\"image\" href=\"{}\"{link_controls}>",
+                escape_href(&link.to_string()),
             )?;
         }
 
-        write!(w, "<img src=\"{}\" alt=\"{alt_text}\"", i.source)?;
+        write!(w, "<img src=\"{source}\" alt=\"{alt_text}\"")?;
         write_dimension_attributes(w, &i.metadata)?;
         if let Some(title) = i.metadata.attributes.get("title") {
             write!(w, " title=\"{title}\"")?;
@@ -890,13 +994,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
-        let hide_uri_scheme = processor
-            .document_attributes()
-            .get("hide-uri-scheme")
-            .is_some();
         let target_str = u.target.to_string();
-        let fallback = link_display_fallback(&target_str, hide_uri_scheme);
+        let fallback = escape_href(link_fallback(&target_str, u.hides_uri_scheme()));
 
         if options.toc_mode {
             if u.text.is_empty() {
@@ -909,11 +1008,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        let id_attr = link_id_attr(&u.attributes);
         let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
         let target_attr = window_attrs(&u.attributes);
         write!(
             self.writer_mut(),
-            "<a href=\"{}\"{class_attr}{target_attr}>",
+            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
             escape_href(&target_str)
         )?;
         if u.text.is_empty() {
@@ -934,9 +1034,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target_str = m.target.to_string();
-        // `mailto:` never uses `hide-uri-scheme` (the prefix strip handles it),
-        // and never emits `class="bare"` (asciidoctor's convention).
-        let fallback = link_display_fallback(&target_str, false);
+        // `mailto:` never emits `class="bare"` (asciidoctor's convention).
+        let fallback = escape_href(mailto_fallback(&target_str));
 
         if options.toc_mode {
             if m.text.is_empty() {
@@ -949,11 +1048,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
+        let id_attr = link_id_attr(&m.attributes);
         let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
         let target_attr = window_attrs(&m.attributes);
         write!(
             self.writer_mut(),
-            "<a href=\"{}\"{class_attr}{target_attr}>",
+            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
             escape_href(&target_str)
         )?;
         if m.text.is_empty() {
@@ -1026,10 +1126,6 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     fn render_button(&mut self, b: &Button<'_>) -> Result<(), Error> {
         let processor = self.processor.clone();
         let w = self.writer_mut();
-        if processor.document_attributes.get("experimental").is_none() {
-            write!(w, "btn:[{}]", b.label)?;
-            return Ok(());
-        }
         if processor.variant() == crate::HtmlVariant::Semantic {
             write!(w, "<kbd class=\"button\"><samp>{}</samp></kbd>", b.label)?;
         } else {
@@ -1044,9 +1140,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
+        let target = xref.target;
         if xref.text.is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
-            // xreflabel (from [[id,Custom Text]]) > target title > fallback `[id]`.
+            // xreflabel (from [[id,Custom Text]]) > caption style or target title >
+            // fallback `[id]`.
             //
             // Reference text — a title or an xreflabel — goes through the inline
             // pipeline, so its formatting (`<code>`, bold, italic, ...) survives
@@ -1058,10 +1156,28 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // the resolution guard both outlive the `&mut self` render calls.
             let processor = Rc::clone(&self.processor);
             let display = resolve_xref(
-                processor.references.get(xref.target),
-                xref.target,
+                processor.references.get(target),
+                xref,
                 &processor.xref_guard,
             );
+
+            if let XrefDisplay::External(target) = &display {
+                let Some((target, text)) = self.interdocument_xref(target) else {
+                    write!(self.writer_mut(), "{}", escape_pcdata(target))?;
+                    return Ok(());
+                };
+                if options.inlines_basic || options.toc_mode {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
+                } else {
+                    write!(
+                        self.writer_mut(),
+                        "<a href=\"{}\">{}</a>",
+                        escape_href(&target),
+                        escape_pcdata(&text)
+                    )?;
+                }
+                return Ok(());
+            }
 
             // A cross-reference inside another one's text cannot be a link: an
             // `<a>` does not nest. Everything else links, including an
@@ -1070,7 +1186,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 || options.toc_mode
                 || matches!(display, XrefDisplay::Nested(_)));
             if linked {
-                write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
+                write!(self.writer_mut(), "<a href=\"#{target}\">")?;
             }
             match display {
                 XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
@@ -1078,10 +1194,23 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                         self.render_inline_node(inline, options, subs)?;
                     }
                 }
+                XrefDisplay::ShortCaption(prefix) => {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&prefix))?;
+                }
+                XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                    write!(self.writer_mut(), "{}, &#8220;", escape_pcdata(&prefix))?;
+                    for inline in inlines {
+                        self.render_inline_node(inline, options, subs)?;
+                    }
+                    write!(self.writer_mut(), "&#8221;")?;
+                }
                 XrefDisplay::Fallback(text)
                 | XrefDisplay::Unresolved(text)
                 | XrefDisplay::Nested(text) => {
                     write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
+                }
+                XrefDisplay::External(target) => {
+                    write!(self.writer_mut(), "{}", escape_pcdata(&target))?;
                 }
             }
             if linked {
@@ -1097,12 +1226,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return Ok(());
         }
 
-        write!(self.writer_mut(), "<a href=\"#{}\">", xref.target)?;
+        if let Some((external_target, _)) = self.interdocument_xref(target) {
+            write!(
+                self.writer_mut(),
+                "<a href=\"{}\">",
+                escape_href(&external_target)
+            )?;
+            for inline in &xref.text {
+                self.render_inline_node(inline, options, subs)?;
+            }
+            write!(self.writer_mut(), "</a>")?;
+            return Ok(());
+        }
+
+        write!(self.writer_mut(), "<a href=\"#{target}\">")?;
         for inline in &xref.text {
             self.render_inline_node(inline, options, subs)?;
         }
         write!(self.writer_mut(), "</a>")?;
         Ok(())
+    }
+
+    fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {
+        let attributes = self.processor.document_attributes();
+        let extension = attributes
+            .get_string("relfilesuffix")
+            .or_else(|| attributes.get_string("outfilesuffix"))
+            .map_or_else(|| "html".to_string(), Cow::into_owned);
+        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(&extension))
     }
 
     fn render_stem(&mut self, s: &Stem<'_>) -> Result<(), Error> {
@@ -1211,8 +1362,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // label — only when index generation is enabled (`:acdc-index:` + a
         // last `[index]` section).
         if !options.toc_mode && self.processor.generate_index() {
+            let primary = self.render_index_term_label(it.term(), options, subs)?;
+            let secondary = it
+                .secondary()
+                .map(|inlines| self.render_index_term_label(inlines, options, subs))
+                .transpose()?;
+            let tertiary = it
+                .tertiary()
+                .map(|inlines| self.render_index_term_label(inlines, options, subs))
+                .transpose()?;
+            let relationship = match it.relationship.as_ref() {
+                Some(IndexTermRelationship::See { target }) => IndexCatalogRelationship::See(
+                    self.render_index_term_label(target, options, subs)?,
+                ),
+                Some(IndexTermRelationship::SeeAlso { targets }) => {
+                    IndexCatalogRelationship::SeeAlso(
+                        targets
+                            .iter()
+                            .map(|target| self.render_index_term_label(target, options, subs))
+                            .collect::<Result<_, _>>()?,
+                    )
+                }
+                None | Some(_) => IndexCatalogRelationship::None,
+            };
             let anchor_id = self.processor.clone().add_index_entry(
-                index_term_kind_to_static(&it.kind),
+                primary,
+                secondary,
+                tertiary,
+                relationship,
                 self.current_section_title.clone(),
             );
             write!(self.writer_mut(), "<a id=\"{anchor_id}\"></a>")?;
@@ -1221,10 +1398,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Flow terms (visible): also output the term text.
         // Concealed terms: no visible text.
         if it.is_visible() {
-            let text = substitution_text(it.term(), subs, options, self.text_boundaries());
-            write!(self.writer_mut(), "{text}")?;
+            for inline in it.term() {
+                self.render_inline_node(inline, options, subs)?;
+            }
         }
         Ok(())
+    }
+
+    fn render_index_term_label(
+        &mut self,
+        inlines: &[InlineNode<'_>],
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<IndexTermLabel, Error> {
+        let mut catalog_options = options.clone();
+        catalog_options.toc_mode = true;
+        let mut visitor = HtmlVisitor::new(
+            Vec::new(),
+            Rc::clone(&self.processor),
+            catalog_options,
+            self.diagnostics.reborrow(),
+        );
+        visitor.current_subs = subs.to_vec();
+        visitor.visit_inline_nodes(inlines)?;
+        let html = String::from_utf8(visitor.into_writer()).map_err(io::Error::other)?;
+        Ok(IndexTermLabel {
+            plain: InlineTextTransform::default().to_string(inlines),
+            html,
+        })
     }
 }
 
@@ -1245,10 +1446,7 @@ fn substitution_text(
         return String::new();
     }
 
-    // When escape_html is false (subs=none), return text as-is
-    if !subs.contains(&Substitution::SpecialChars) {
-        return text.to_string();
-    }
+    let should_escape = subs.contains(&Substitution::SpecialChars);
 
     // Determine if we should apply typography replacements
     // Based on substitutions list, skip for basic mode (passthrough)
@@ -1263,8 +1461,13 @@ fn substitution_text(
         text.to_string()
     };
 
-    // Escape & first (before arrow replacements that produce & entities)
-    let text = escape_ampersands(&text);
+    // Escape source ampersands before replacements so entities produced by the
+    // replacement table remain valid HTML.
+    let text = if should_escape {
+        escape_ampersands(&text)
+    } else {
+        text
+    };
 
     // Apply all typography replacements (em-dashes, arrows, symbols, ellipsis, apostrophes)
     // This must happen after & escaping (replacements produce & entities) and before <> escaping
@@ -1282,6 +1485,10 @@ fn substitution_text(
     } else {
         text
     };
+
+    if !should_escape {
+        return text;
+    }
 
     // Escape < and > after restore so that restored patterns (e.g., \=> → =>) keep literal chars
     let text = text.replace('>', "&gt;").replace('<', "&lt;");

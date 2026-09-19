@@ -1,0 +1,7 @@
+= Index Term Locations
+
+A prior paragraph.
+
+((before pass:q[*raw*] after))
+
+*before ((term)) after*

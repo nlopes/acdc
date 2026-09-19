@@ -1,0 +1,85 @@
+= Image pdfwidth
+:dimension-image: inline-image-dimensions.svg
+:pdfwidth: 40pt
+
+== Block images
+
+No local dimensions; the document attribute does not provide a default:
+
+image::{dimension-image}[Document attribute only]
+
+Generic positional width, 40px:
+
+image::{dimension-image}[Generic positional,40]
+
+Generic named width, 40px:
+
+image::{dimension-image}[Generic named,width=40]
+
+PDF width, 40pt:
+
+image::{dimension-image}[PDF points,pdfwidth=40]
+
+PDF width overrides generic width:
+
+image::{dimension-image}[Precedence,width=40,pdfwidth=60]
+
+Generic percentage, capped at the content width:
+
+image::{dimension-image}[Generic percentage,width=200%]
+
+PDF percentage, allowed to exceed the content width:
+
+image::{dimension-image}[PDF percentage,pdfwidth=200%]
+
+Generic unit-suffixed width is ignored:
+
+image::{dimension-image}[Generic units,width=40px]
+
+PDF width accepts CSS pixels:
+
+image::{dimension-image}[PDF pixels,pdfwidth=40px]
+
+PDF width accepts physical units:
+
+image::{dimension-image}[PDF inches,pdfwidth=1in]
+
+PDF width can scale the intrinsic width:
+
+image::{dimension-image}[Intrinsic ratio,pdfwidth=50iw]
+
+PDF width can use the page width:
+
+image::{dimension-image}[Viewport ratio,pdfwidth=50vw]
+
+An invalid PDF width still overrides the generic width:
+
+image::{dimension-image}[Invalid PDF width,width=40,pdfwidth=bogus]
+
+== Inline images
+
+No local dimensions: before image:{dimension-image}[Document attribute only] after.
+
+Generic positional width: before image:{dimension-image}[Generic positional,40] after.
+
+Generic named width: before image:{dimension-image}[Generic named,width=40] after.
+
+PDF width: before image:{dimension-image}[PDF points,pdfwidth=40] after.
+
+PDF width overrides generic width: before image:{dimension-image}[Precedence,width=40,pdfwidth=60] after.
+
+Generic oversized percentage: before image:{dimension-image}[Generic percentage,width=200%] after.
+
+PDF oversized percentage: before image:{dimension-image}[PDF percentage,pdfwidth=200%] after.
+
+Generic unit-suffixed width: before image:{dimension-image}[Generic units,width=40px] after.
+
+PDF width in CSS pixels: before image:{dimension-image}[PDF pixels,pdfwidth=40px] after.
+
+PDF width in inches: before image:{dimension-image}[PDF inches,pdfwidth=1in] after.
+
+PDF intrinsic ratio: before image:{dimension-image}[Intrinsic ratio,pdfwidth=50iw] after.
+
+Inline PDF viewport units fall back to points: before image:{dimension-image}[Viewport fallback,pdfwidth=50vw] after.
+
+Invalid PDF width: before image:{dimension-image}[Invalid PDF width,width=40,pdfwidth=bogus] after.

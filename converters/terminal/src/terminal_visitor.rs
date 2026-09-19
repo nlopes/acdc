@@ -8,9 +8,10 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
-    Header, Image, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section, SectionKind,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock,
+    DescriptionList, DiscreteHeader, Document, Header, Image, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, SectionKind, TableOfContents, ThematicBreak, UnorderedList,
+    Video,
 };
 use crossterm::{
     QueueableCommand,
@@ -53,6 +54,24 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
             colors: Vec::new(),
             applied_colors: (None, None),
         }
+    }
+
+    pub(crate) fn render_captioned_title_with_wrapper(
+        &mut self,
+        title: &[InlineNode],
+        metadata: &BlockMetadata<'_>,
+        fallback: Option<CaptionKind>,
+        prefix: &str,
+        suffix: &str,
+    ) -> Result<(), crate::Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+        let caption = self
+            .processor
+            .caption_prefix(metadata, fallback)
+            .unwrap_or_default();
+        self.render_title_with_wrapper(title, &format!("{prefix}{caption}"), suffix)
     }
 
     /// Open an inline span that sets colours.
@@ -102,10 +121,22 @@ impl<'a, 'd, W: Write> TerminalVisitor<'a, 'd, W> {
     pub fn into_writer(self) -> W {
         self.writer
     }
+
+    pub(crate) fn warn_unsupported_parser_variant(&mut self, kind: &str) {
+        self.diagnostics.warn_with_advice(
+            format!("an unsupported parser {kind} variant was omitted from terminal output"),
+            "Use another backend for this document and report the unsupported construct.",
+        );
+    }
 }
 
 impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
     type Error = crate::Error;
+
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_unsupported_parser_variant("block");
+        Ok(())
+    }
 
     fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
         // In embedded mode, skip header output (title, authors, revision info)
@@ -148,15 +179,11 @@ impl<W: Write> Visitor for TerminalVisitor<'_, '_, W> {
 
     fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
         let is_index_section = section.kind == SectionKind::Index;
-
-        // Index sections are only rendered if they're the last section
-        if is_index_section && !self.processor.has_valid_index_section() {
-            return Ok(());
-        }
+        let render_catalog = is_index_section && self.processor.has_valid_index_section();
 
         self.render_section(section)?;
 
-        if is_index_section {
+        if render_catalog {
             // Render the collected index catalog instead of normal content
             let processor = self.processor.clone();
             crate::index::render(self, &processor)?;

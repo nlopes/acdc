@@ -7,14 +7,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Numbered book chapters now honor a configured `chapter-signifier` in both
+  headings and TOC entries. An absent or unset signifier keeps the number-only
+  form.
+- When multiple anchors precede a document title, Markdown now emits the last
+  one as the title destination, matching Asciidoctor. Automatic references use
+  the full title and subtitle.
+
 ### Added
 
+- Inline UI macros, passthroughs, STEM expressions, and roles now retain
+  readable content. Inline STEM uses inline code and block STEM uses
+  notation-labeled fenced code, with structured fallback warnings. GFM uses
+  native strikethrough for `line-through`; other roles use portable HTML
+  fallbacks when Markdown has no equivalent.
+- Link and autolink fallback text now honors `hide-uri-scheme`, bracketed email
+  autolinks remain visible, and CommonMark footnotes keep their complete bodies
+  in a linked endnote list.
+- Inline code, source escapes, link text, and link destinations now remain
+  valid when their content contains Markdown delimiters, backticks, brackets,
+  whitespace, or parentheses.
+- Quote, verse, literal, listing, source, example, and abstract paragraph
+  styles now retain distinct Markdown treatments. Verse, literal, listing,
+  and source whitespace remains visible.
+- Passthrough blocks now preserve their raw content for Markdown renderers that
+  accept embedded HTML.
+- Source callout markers now remain visible beside the code and their complete
+  explanation lists, including attached blocks, render below it.
+- Source line numbering, selected-line highlighting, and PHP `%mixed`
+  highlighting now preserve the code and emit one structured fallback warning
+  per option per document.
+- Document headers now preserve explicit IDs, subtitles, authors and email
+  addresses, and revision numbers, dates, and remarks as readable Markdown.
+- Paragraph, list, delimited-block, admonition, image, audio, video, and table
+  titles now remain visible as strong title lines. Figure, table, example, and
+  listing titles retain their numbered, custom, or disabled caption prefixes.
+- Quote and verse paragraphs and blocks now preserve their attribution and
+  citation titles, including supported inline formatting.
+- Sections now render parser-assigned numbers for ordinary sections, book
+  parts, appendices, and numbered special sections. The `%notitle` option hides
+  only the Markdown heading while keeping its destination and body; unlike
+  Asciidoctor HTML, Markdown applies this option to section headings.
+- Tables of contents now render as nested Markdown links at the configured
+  automatic, preamble, or macro position. `toc-title`, `toclevels`, macro
+  `levels`, section numbers, and formatted section titles are preserved.
+- Standalone inline anchors and IDs on bold, italic, monospace, highlight,
+  subscript, superscript, and curved-quote spans now emit stable destinations
+  in GFM and CommonMark, so local cross-references reach the inline content.
+- Sections, discrete headings, and blocks with `[#id]` or `[[id]]` now emit
+  stable HTML destinations in GFM and CommonMark, so generated local
+  cross-references reach the referenced content.
+- Title-based shorthand cross-references now link to the matching generated or
+  explicit section ID, including when the reference supplies custom text.
+- Cross-references preserve formatted explicit text through supported nested
+  inline macros. Empty references to captioned blocks honor source-order
+  `xrefstyle=basic`, `short`, and `full`, including custom and disabled
+  captions.
+- Visible index terms preserve inline formatting, links, and attribute
+  substitutions; concealed terms remain hidden.
+- Documents with `:acdc-index:` and a final `[index]` section now produce an
+  alphabetized Markdown index with occurrence links, hierarchical terms, and
+  linked `see` / `see-also` relationships. Index terms copied into TOCs and
+  automatic cross-reference text do not create duplicate entries.
+- Ordered lists honor positive `start` values and the `reversed` option,
+  including on nested lists. Markerless ordered and unordered styles use a
+  readable marker-free layout, and CommonMark keeps visible checked and
+  unchecked states. Unsupported alphabetic and Roman styles continue to
+  produce a warning and use numeric markers.
+- Bibliography entries retain stable anchors and visible bracketed labels, so
+  their cross-references reach an identifiable entry.
+- Horizontal description lists render as term-and-definition lines, while Q&A
+  lists render as numbered questions and answers. Other styles retain the
+  content-preserving regular-list fallback.
+- GFM tables now preserve left, center, and right column alignment. Headerless
+  tables use an empty header row so every source row remains data, and table
+  footers render as final body rows instead of disappearing.
+- GFM table spans now reserve their logical positions, supported cell styles
+  remain visible, and nested cell blocks retain readable line boundaries.
+  Unsupported spans, cell styles, nested blocks, widths, and local alignment
+  emit one structured warning per capability.
+- Inline and block images now preserve alternative text, hover titles,
+  dimensions, and image links. An image link takes precedence when the image
+  appears inside another link.
+- Video posters now render as static images, and every video source renders as
+  a labeled link. Audio and video titles and IDs remain visible, and playback
+  degradation emits one structured warning per document.
 - Markdown conversion attributes now include the `markdown` backend and
   base-backend, `md` file type, `.md` output suffix, and their conditional
   convenience attributes.
 - User-facing converter warnings are now collected in `ConversionResult` for
   recoverable Markdown conversion fallbacks such as skipped unsupported blocks,
   unsupported inline constructs, and capped heading levels.
+- Document-wide fallback diagnostics now appear once per unsupported
+  capability, including fallbacks rendered through footnotes and table cells.
+  Resource-specific failures remain separate, and unknown AST features include
+  available source context.
 - **`MarkdownVariant` enum** (`CommonMark` / `GitHubFlavored`) with `FromStr`
   and `Display`. `Processor::new` defaults to `GitHubFlavored`; use
   `Processor::with_variant` for another flavour.
@@ -41,6 +130,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `mailto:` macros no longer produce destinations with a duplicate `mailto:`
+  scheme.
+- Sections with a named `reftext` now use it as the link text and destination
+  alias for natural references and explicit IDs. Their titles are not retained
+  as second natural aliases, and formatted labels keep their Markdown markup.
+- Plain visible shorthand cross-references now match section titles containing
+  `pass:[...]` or `+...+` content. A shorthand target containing a passthrough
+  remains unresolved, and its link displays and retains the visible text.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it keeps its literal fragment and bracketed unresolved fallback. Source-order
+  changes apply only to later references, and explicit local IDs still link to
+  the section title.
+- Interdocument `xref:` macros now link to the corresponding `.md` file and
+  fragment instead of a same-named local section. Empty and explicit link text
+  both keep the external destination.
+- Image destinations and audio and video fallback links honor `imagesdir`,
+  normalize relative paths, and encode spaces as `%20`.
+- Markdown output now uses one blank line between blocks and one final newline,
+  without redundant spacing around quotes and nested lists.
+- Regular description-list fallbacks now indent nested levels and preserve
+  repeated continuations, formatted terms, titled boundaries, and named
+  styles.
+- Unindented ordered and unordered markers now render as nested mixed lists,
+  matching Asciidoctor's list ownership.
 - Brackets in block attribute values no longer make the attribute line leak
   into Markdown output.
 - **Inline markup in `link:` text** — link text with nested formatting is now rendered

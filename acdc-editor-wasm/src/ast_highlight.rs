@@ -1521,7 +1521,7 @@ mod tests {
     #[test]
     fn test_macro_no_target_highlighting() {
         // kbd has no target, only bracket content
-        let result = highlight("Press kbd:[Ctrl+C]");
+        let result = highlight(":experimental:\n\nPress kbd:[Ctrl+C]");
         assert!(
             result.contains("adoc-macro-attrs"),
             "kbd content should be highlighted as attrs: {result}"

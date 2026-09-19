@@ -1,0 +1,248 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "qanda"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First list question?",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "First list answer.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 24
+                },
+                {
+                  "line": 2,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 42
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Second list title",
+          "location": [
+            {
+              "line": 4,
+              "col": 2
+            },
+            {
+              "line": 4,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "qanda"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second list question?",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 21
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Second list answer.",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 25
+                },
+                {
+                  "line": 6,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 44
+        }
+      ]
+    },
+    {
+      "name": "dlist",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Plain description-list title",
+          "location": [
+            {
+              "line": 8,
+              "col": 2
+            },
+            {
+              "line": 8,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Plain term",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 10
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Plain definition.",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 14
+                },
+                {
+                  "line": 9,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 31
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 31
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 9,
+      "col": 30
+    }
+  ]
+}

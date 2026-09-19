@@ -1,0 +1,63 @@
+= list-styles(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: List checks
+
+== NAME
+
+list-styles - verify list presentation
+
+== SYNOPSIS
+
+list-styles
+
+== DESCRIPTION
+
+[none]
+* Unordered none
+
+[no-bullet]
+* Unordered no bullet
+
+[unstyled]
+* Unordered unstyled
+
+[none]
+. Ordered none
+
+[no-bullet]
+. Ordered no bullet
+
+[unstyled]
+. Ordered unstyled
+
+[unnumbered]
+. Ordered unnumbered
+
+[%reversed]
+. Default three
+. Default two
+. Default one
+
+[%reversed,start=5]
+. Explicit five
+.. Nested one
+.. Nested two
+. Explicit four
+
+[horizontal]
+CPU:: Central processor
+RAM:: Working memory
+
+[qanda]
+What is acdc?:: An AsciiDoc converter.
+What does it preserve?:: Document meaning.
+
+[ordered]
+First term:: First definition
+Second term:: Second definition
+
+[unordered]
+Alpha term:: Alpha definition
+Beta term:: Beta definition

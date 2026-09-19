@@ -1,0 +1,111 @@
+<section class="doc-section level-1">
+<h2 id="_nested_checklist_states">Nested checklist states</h2>
+<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled> Unchecked parent<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Lowercase checked child</li>
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Uppercase checked child</li>
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Star checked child</li>
+</ul>
+</div>
+</li>
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Checked sibling</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_checklist_nested_under_an_ordered_item">Checklist nested under an ordered item</h2>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+Ordered parent<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled> Unchecked child<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Checked grandchild</li>
+</ul>
+</div>
+</li>
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Checked sibling</li>
+</ul>
+</div>
+</li>
+<li>
+Ordered sibling</li>
+</ol>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_ordered_list_nested_under_a_checklist_item">Ordered list nested under a checklist item</h2>
+<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Checklist parent<div class="olist arabic">
+<ol class="arabic">
+<li>
+Ordered child<div class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+[x] Literal lowercase marker</li>
+<li>
+[X] Literal uppercase marker</li>
+<li>
+[*] Literal star marker</li>
+<li>
+[ ] Literal unchecked marker</li>
+</ol>
+</div>
+</li>
+</ol>
+</div>
+</li>
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled> Checklist sibling</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_ordinary_bullet_nested_under_a_checklist_item">Ordinary bullet nested under a checklist item</h2>
+<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled checked> Checklist parent<div class="ulist">
+<ul>
+<li>
+Ordinary bullet<div class="ulist">
+<ul class="task-list">
+<li class="task-list-item">
+<input class="task-list-item-checkbox" type="checkbox" disabled> Nested checklist</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_checklist_like_markers_in_an_ordered_list">Checklist-like markers in an ordered list</h2>
+<div class="olist arabic">
+<ol class="arabic">
+<li>
+[ ] Literal unchecked marker</li>
+<li>
+[x] Literal lowercase marker</li>
+<li>
+[X] Literal uppercase marker</li>
+<li>
+[*] Literal star marker</li>
+</ol>
+</div>
+</section>

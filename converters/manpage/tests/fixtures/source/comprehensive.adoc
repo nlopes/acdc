@@ -5,6 +5,7 @@ Test Author <test@example.com>; Second Author <second@example.com>
 :mansource: Test Suite 1.0
 :man-linkstyle: blue R <>
 :revdate: 2025-06-01
+:experimental:
 
 == Name
 

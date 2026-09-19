@@ -1,0 +1,96 @@
+'\" t
+.\"     Title: bibliography-index
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-08-30
+.\"    Manual: Special section checks
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "BIBLIOGRAPHY\-INDEX" "1" "2026-08-30" "acdc" "Special section checks"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+bibliography\-index \- verify bibliography labels and index catalogs
+.SH "SYNOPSIS"
+.sp
+bibliography\-index
+.SH "DESCRIPTION"
+.sp
+See [ref\-one] and [Custom label]\&.
+.SS "Terms"
+.sp
+Text has  and \&.
+.sp
+Named redirect: Shockwave\&.
+.sp
+The Standards term is the redirect target.
+.sp
+Named relationship: \&.
+.SH "REFERENCES"
+.RS 0
+.TP
+\fB[ref-one]\fP
+ First reference.
+.TP
+\fB[Custom label]\fP
+ Second reference.
+.RE
+.SH "INDEX"
+.SS "A"
+.RS 4
+Animals
+.br
+.RS 4
+Mammals
+.br
+.RS 4
+Cats
+.br
+.RE
+.RE
+.RE
+.SS "R"
+.RS 4
+Related material
+.br
+.RS 4
+Web
+.br
+.RS 4
+(see also Missing Term)
+.br
+(see also Standards)
+.br
+.RE
+.RE
+.RE
+.SS "S"
+.RS 4
+Shockwave (see \fBStandards\fP)
+.br
+Standards
+.br
+.RE
+.SS "Z"
+.RS 4
+Zoology
+.br
+.RE

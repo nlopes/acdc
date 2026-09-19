@@ -1,14 +1,40 @@
 use std::path::{Path, PathBuf};
 
-use acdc_converters_core::{Converter, GeneratorMetadata, Options as ConverterOptions};
+use acdc_converters_core::{
+    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, WarningSource,
+    visitor::Visitor,
+};
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
-use acdc_converters_manpage::Processor;
-use acdc_parser::Options as ParserOptions;
+use acdc_converters_manpage::{ManpageVisitor, Processor};
+use acdc_parser::{DocumentAttributes, Options as ParserOptions};
 
 type Error = Box<dyn std::error::Error>;
 
 fn temp_output_path(name: &str, extension: &str) -> PathBuf {
     std::env::temp_dir().join(format!("acdc-{name}-{}.{extension}", std::process::id()))
+}
+
+#[test]
+fn unhandled_parser_block_warning_is_structured() -> Result<(), Error> {
+    let parsed = acdc_parser::parse("Paragraph.\n", &ParserOptions::default())?;
+    let doc = parsed.document();
+    let block = doc.blocks.first().ok_or("missing test block")?;
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = WarningSource::new("manpage");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+    {
+        let mut visitor = ManpageVisitor::new(&mut output, processor, diagnostics.reborrow());
+        visitor.visit_unhandled_block(block)?;
+    }
+
+    assert!(output.is_empty());
+    let warning = warnings.first().ok_or("missing fallback warning")?;
+    assert_eq!(warning.source.converter, "manpage");
+    assert!(warning.message.contains("omitted from manpage output"));
+    assert!(warning.advice().is_some());
+    Ok(())
 }
 
 fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Result<(), Error> {
@@ -29,8 +55,7 @@ fn run_manpage_fixture(path: &Path, expected_dir: &Path, embedded: bool) -> Resu
     let expected_path = expected_dir.join(file_name).with_extension("man");
 
     // Parse the `AsciiDoc` input with rendering defaults
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse_file(path, &parser_options)?;
     let doc = parsed.document();
 
@@ -81,8 +106,7 @@ fn test_embedded_with_fixtures(
 
 #[test]
 fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error> {
-    let parser_options =
-        ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
     let parsed = acdc_parser::parse(
         "= cmd(1)\n:doctype: manpage\n\n== OVERVIEW\n\ntext\n",
         &parser_options,
@@ -98,8 +122,268 @@ fn section_order_warning_is_returned_in_conversion_result() -> Result<(), Error>
         warning.source.converter == "manpage"
             && warning
                 .message
-                .contains("NAME should be the first section, got `OVERVIEW`")
+                .contains("name section should be first, got `OVERVIEW`")
     }));
+    Ok(())
+}
+
+#[test]
+fn custom_name_section_title_is_not_out_of_order() -> Result<(), Error> {
+    let source_path = Path::new("tests/fixtures/source/manpage_name_front_matter.adoc");
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+    let parsed = acdc_parser::parse_file(source_path, &parser_options)?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let output_path = temp_output_path("manpage-custom-name-section", "1");
+
+    let result = processor.convert_to_file(doc, Some(source_path), &output_path)?;
+    let _ = std::fs::remove_file(&output_path);
+
+    assert!(result.warnings().is_empty(), "{:?}", result.warnings());
+    Ok(())
+}
+
+#[test]
+fn static_media_playback_warning_is_deduplicated() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/video_audio.adoc");
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+
+    assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
+    let warning = warnings.first().ok_or("missing playback warning")?;
+    assert!(
+        warning
+            .message
+            .contains("audio and video playback are not available"),
+        "unexpected warning: {warnings:?}"
+    );
+    assert!(warning.advice().is_some(), "missing advice: {warnings:?}");
+    Ok(())
+}
+
+#[test]
+fn table_fallback_warnings_are_deduplicated() -> Result<(), Error> {
+    let input = r"= table-warnings(1)
+:doctype: manpage
+
+== NAME
+
+table-warnings - test table fallbacks
+
+== SYNOPSIS
+
+table-warnings
+
+== DESCRIPTION
+
+[stripes=odd,float=right]
+|===
+| one
+|===
+
+[stripes=even,float=right]
+|===
+| two
+|===
+
+[align=right]
+|===
+| three
+|===
+";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+
+    assert_eq!(warnings.len(), 3, "unexpected warnings: {warnings:?}");
+    for expected in [
+        "table row stripes are not supported",
+        "table floats are not supported",
+        "right table alignment is not supported",
+    ] {
+        let warning = warnings
+            .iter()
+            .find(|warning| warning.message.contains(expected))
+            .ok_or_else(|| format!("missing warning containing {expected:?}: {warnings:?}"))?;
+        assert!(warning.advice().is_some(), "missing advice: {warning:?}");
+    }
+    Ok(())
+}
+
+#[test]
+fn inline_role_fallback_warning_is_deduplicated() -> Result<(), Error> {
+    let source_path = Path::new("tests/fixtures/source/sections_inline_roles.adoc");
+    let parsed = acdc_parser::parse_file(source_path, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut output = Vec::new();
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+
+    processor.write_to(doc, &mut output, Some(source_path), None, &mut diagnostics)?;
+
+    assert_eq!(warnings.len(), 1, "unexpected warnings: {warnings:?}");
+    let warning = warnings.first().ok_or("missing inline role warning")?;
+    assert!(
+        warning
+            .message
+            .contains("inline roles have no exact portable roff styling"),
+        "unexpected warning: {warning:?}"
+    );
+    assert!(warning.advice().is_some(), "missing advice: {warning:?}");
+    Ok(())
+}
+
+#[test]
+fn captioned_cross_references_honor_source_order_xrefstyle() -> Result<(), Error> {
+    let input = r"= xrefstyle(1)
+:doctype: manpage
+:figure-caption: BeforeFigure
+:table-caption: BeforeTable
+
+== NAME
+
+xrefstyle - test captioned references
+
+== DESCRIPTION
+
+:xrefstyle: basic
+
+Forward basic: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: short
+
+Forward short: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: full
+
+Forward full: <<figure-target>> and <<table-target>>.
+
+:figure-caption: TargetFigure
+:table-caption: TargetTable
+
+[[figure-target]]
+.A figure title
+image::figure.svg[]
+
+[[table-target]]
+.A table title
+|===
+|Cell
+|===
+
+:figure-caption: AfterFigure
+:table-caption: AfterTable
+:xrefstyle: basic
+
+Backward basic: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: short
+
+Backward short: <<figure-target>> and <<table-target>>.
+
+:xrefstyle: full
+
+Backward full: <<figure-target>> and <<table-target>>.
+";
+    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+    let parsed = acdc_parser::parse(input, &parser_options)?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "Forward basic: A figure title and A table title",
+        "Forward short: TargetFigure 1 and BeforeTable 1",
+        "Forward full: TargetFigure 1, \\(lqA figure title\\(rq and BeforeTable 1, \\(lqA table title\\(rq",
+        "\\fBTargetFigure 1. A figure title\\fP",
+        "\\fBTargetTable 1. A table title\\fP",
+        "Backward basic: A figure title and A table title",
+        "Backward short: TargetFigure 1 and AfterTable 1",
+        "Backward full: TargetFigure 1, \\(lqA figure title\\(rq and AfterTable 1, \\(lqA table title\\(rq",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn interdocument_xref_macros_do_not_use_matching_local_titles() -> Result<(), Error> {
+    let input = "= xref-targets(1)\n:doctype: manpage\n\n== NAME\n\nxref-targets - verify xref targets\n\n== SYNOPSIS\n\nEmpty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "Empty: [Other.adoc]\\&.",
+        "Explicit: Other\\&.",
+        "Shorthand: OTHER.ADOC\\&.",
+        "Fragment: [Foo#Bar]\\&.",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
+    let input = "= passthrough-xrefs(1)\n:doctype: manpage\n\n== NAME\n\npassthrough-xrefs - verify passthrough natural references\n\n== SYNOPSIS\n\nTitle macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
+    let parsed = acdc_parser::parse(input, &ParserOptions::default())?;
+    let doc = parsed.document();
+    let mut output = Vec::new();
+    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let mut warnings = Vec::new();
+    let source = acdc_converters_core::WarningSource::new("manpage");
+    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
+    let output = String::from_utf8(output)?;
+
+    for expected in [
+        "Title macro: PASS RAW TITLE\\&.",
+        "Title plus: PLUS RAW TITLE\\&.",
+        "Target macro: [Target raw Title]\\&.",
+        "Target plus: [Target raw Title]\\&.",
+        "Missing macro: [Missing raw Title]\\&.",
+        "Missing plus: [Missing raw Title]\\&.",
+        "Control: CONTROL TITLE\\&.",
+    ] {
+        assert!(
+            output.contains(expected),
+            "expected {expected:?} in {output}"
+        );
+    }
+    assert!(!output.contains('\u{fffd}'), "{output}");
     Ok(())
 }
 
@@ -113,8 +397,7 @@ fn explicit_ordered_list_numbering_styles() -> Result<(), Error> {
     ];
     for (style, expected_tags) in cases {
         let input = format!("[{style}]\n. one\n. two\n. three\n");
-        let parser_options =
-            ParserOptions::with_attributes(acdc_converters_core::default_rendering_attributes());
+        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
         let parsed = acdc_parser::parse(&input, &parser_options)?;
         let doc = parsed.document();
         let mut output = Vec::new();

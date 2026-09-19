@@ -730,6 +730,178 @@ See <<my-section>> for details.
     }
 
     #[test]
+    fn xref_macro_hover_keeps_the_cross_file_target() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "See xref:Other.adoc[].\n\n== Other.adoc\n";
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let hover = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 0,
+                character: 10,
+            },
+        )
+        .ok_or("expected hover for xref macro")?;
+        let HoverContents::Markup(markup) = hover.contents else {
+            return Err("expected markup hover".into());
+        };
+
+        assert!(markup.value.contains("File: `Other.adoc`"), "{markup:?}");
+        assert!(!markup.value.contains("Section: Other.adoc"), "{markup:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_natural_xref_hover_is_unresolved() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let natural = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 3,
+                character: 12,
+            },
+        )
+        .ok_or("expected natural-reference hover")?;
+        let HoverContents::Markup(natural) = natural.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(
+            natural.value.contains("**Cross-reference** (unresolved)")
+                && natural.value.contains("Target: `Syntax Highlighting`"),
+            "{natural:?}"
+        );
+
+        let explicit = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 4,
+                character: 12,
+            },
+        )
+        .ok_or("expected explicit-ID hover")?;
+        let HoverContents::Markup(explicit) = explicit.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(
+            explicit.value.contains("Target: `_syntax_highlighting`")
+                && explicit.value.contains("Section: Syntax Highlighting"),
+            "{explicit:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn named_section_reftext_controls_xref_hover() -> Result<(), Box<dyn std::error::Error>> {
+        let content = "Named: <<Custom Label>>.\nTitle: <<Actual Title>>.\nExplicit: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n";
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let named = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 0,
+                character: 12,
+            },
+        )
+        .ok_or("expected named-reftext hover")?;
+        let HoverContents::Markup(named) = named.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(
+            named.value.contains("Target: `id`") && named.value.contains("Section: Actual Title"),
+            "{named:?}"
+        );
+
+        let title = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 1,
+                character: 12,
+            },
+        )
+        .ok_or("expected rejected-title hover")?;
+        let HoverContents::Markup(title) = title.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(
+            title.value.contains("**Cross-reference** (unresolved)")
+                && title.value.contains("Target: `Actual Title`"),
+            "{title:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn passthroughs_are_restored_before_natural_xref_hover()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let content = "Resolved: <<Pass raw Title>>.\nMissing: <<Missing pass:[raw] Title>>.\n\n== Pass pass:[raw] Title\n";
+        let workspace = Workspace::new();
+        let uri = "file:///project/source.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let resolved = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 0,
+                character: 14,
+            },
+        )
+        .ok_or("expected resolved hover")?;
+        let HoverContents::Markup(resolved) = resolved.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(
+            resolved.value.contains("Target: `_pass_raw_title`")
+                && resolved.value.contains("Section: Pass raw Title"),
+            "{resolved:?}"
+        );
+
+        let missing = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 1,
+                character: 14,
+            },
+        )
+        .ok_or("expected unresolved hover")?;
+        let HoverContents::Markup(missing) = missing.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(
+            missing.value.contains("**Cross-reference** (unresolved)")
+                && missing.value.contains("Target: `Missing raw Title`"),
+            "{missing:?}"
+        );
+        assert!(!missing.value.contains('\u{fffd}'), "{missing:?}");
+        Ok(())
+    }
+
+    #[test]
     fn test_hover_on_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
         let content = ":imagesdir: ./images\n\n== Section\n\nImage in {imagesdir}/logo.png\n";
         let workspace = Workspace::new();

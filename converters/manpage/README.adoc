@@ -67,15 +67,62 @@ groff -t -man mycommand.1 -T utf8 | less
 
 The manpage converter:
 
-- Escapes special roff characters (backslash, period at line start, apostrophe)
+- Escapes special roff characters in prose, UI labels, STEM fallback text, and
+  link and media arguments. Explicit passthrough blocks remain unescaped so
+  they can contain backend-native roff.
 - Disables hyphenation (`.nh`) for consistent formatting
 - Uses left-alignment only (`.ad l`) as is standard for manpages
 - Includes the tbl preprocessor directive (`'\" t`) when tables are present
 - Preserves inline formatting (bold, italic, monospace) using roff font escapes
+- Renders figure, table, example, and listing captions with their source-position
+  label, number, custom prefix, or disabled-prefix behavior
+- Renders images as readable alternative text and preserves configured image
+  links with `.URL`
+- Renders audio and video as titled static links, including every video source
+  and poster, with one playback-fallback warning per document
+- Omits markers for `[none]`, `[no-bullet]`, and `[unstyled]` lists, plus
+  `[unnumbered]` ordered lists, and honors `%reversed` with optional `start`
+- Gives `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description
+  lists distinct text layouts
+- Shows bibliography labels and renders concealed index terms, nested terms,
+  and `see` relationships in a final `[index]` section
+- Omits a section heading for `%notitle` while retaining its body and
+  cross-reference text
+- Omits automatic and macro tables of contents, matching Asciidoctor's manpage
+  backend; section headings remain visible
+- Renders cross-references as display text. Roff manpages do not provide
+  in-document jump targets, so standalone anchors remain non-visible
+- Honors `hide-uri-scheme` in visible URL, `link:`, and automatic-link text
+  without changing the full link target
+- Applies the same portable role presentation to inline spans and link labels:
+  `underline` and `subtitle` use italics, and `big` and `small` use relative
+  type sizes. Unattributed highlights and the `highlight` role use bold;
+  ID-only and custom-role spans keep plain text.
+- Preserves unsupported strikeout and overline meaning as `[deleted: ...]` and
+  `[overlined: ...]`. Unknown and color roles retain their text without added
+  formatting. These role fallbacks produce one structured warning per document.
+- Renders explicit and automatic source callouts as bold `(N)` labels in both
+  code and explanation lists. Language-appropriate and XML comment guards are
+  removed from delimited blocks and styled source paragraphs.
+- Maps table frames and grids to portable `tbl` borders and rules. Proportional
+  and percentage column widths become minimum-width hints; automatic columns
+  and `%autowidth` remain content-determined. Explicit table widths, left or
+  centered placement, and top, middle, or bottom cell alignment are retained.
 
 == Differences from Asciidoctor
 
 The `acdc` manpage converter aims for compatibility with Asciidoctor's manpage backend, but some features may differ:
 
-- Some advanced table features not yet implemented
+- Portable `tbl` has no row background fills or true floating tables. Row
+  stripes render without shading, and floats or right alignment fall back to
+  non-wrapping left alignment with structured warnings. Content can expand a
+  table beyond requested minimum widths. Mandoc may center vertically aligned
+  cell content because it ignores `tbl`'s top and bottom modifiers.
+- Interactive audio and video playback is unavailable. The converter emits one
+  structured warning and preserves the media as static links.
+- Unlike Asciidoctor's manpage backend, which drops bibliography labels and
+  index catalogs, acdc preserves both as portable roff text.
+- Unlike Asciidoctor's manpage backend, which ignores `%notitle` and inline
+  roles, acdc preserves their backend-neutral meaning with portable roff
+  fallbacks.
 - Custom macro extensions not supported

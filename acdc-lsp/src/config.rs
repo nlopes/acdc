@@ -2,7 +2,7 @@
 
 use std::path::Path;
 
-use acdc_converters_core::{BackendTraits, Doctype};
+use acdc_converters_core::{BackendProfile, Doctype};
 use acdc_parser::{DocumentAttributes, Options};
 use serde::Deserialize;
 use serde_json::Value;
@@ -52,40 +52,40 @@ pub(crate) enum AnalysisBackend {
 impl AnalysisBackend {
     /// Build parser options containing the selected backend's intrinsic attributes.
     fn parser_options(self) -> Options<'static> {
-        let (traits, doctype) = self.profile();
+        let (backend_profile, doctype) = self.profile();
         let mut attributes = DocumentAttributes::default();
-        traits.apply(&mut attributes, doctype);
+        backend_profile.apply(&mut attributes, doctype);
         Options::with_attributes(attributes)
     }
 
-    const fn profile(self) -> (BackendTraits, Doctype) {
+    const fn profile(self) -> (BackendProfile, Doctype) {
         match self {
             Self::Html5 => (
-                BackendTraits::new("html5", "html", "html", ".html").with_htmlsyntax("html"),
+                BackendProfile::new("html5", "html", "html", ".html").with_htmlsyntax("html"),
                 Doctype::Article,
             ),
             Self::Html5s => (
-                BackendTraits::new("html5s", "html", "html", ".html").with_htmlsyntax("html"),
+                BackendProfile::new("html5s", "html", "html", ".html").with_htmlsyntax("html"),
                 Doctype::Article,
             ),
             Self::Docbook5 => (
-                BackendTraits::new("docbook5", "docbook", "xml", ".xml"),
+                BackendProfile::new("docbook5", "docbook", "xml", ".xml"),
                 Doctype::Article,
             ),
             Self::Manpage => (
-                BackendTraits::new("manpage", "manpage", "man", ".man"),
+                BackendProfile::new("manpage", "manpage", "man", ".man"),
                 Doctype::Manpage,
             ),
             Self::Markdown => (
-                BackendTraits::new("markdown", "markdown", "md", ".md"),
+                BackendProfile::new("markdown", "markdown", "md", ".md"),
                 Doctype::Article,
             ),
             Self::Pdf => (
-                BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html"),
+                BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html"),
                 Doctype::Article,
             ),
             Self::Terminal => (
-                BackendTraits::new("terminal", "terminal", "terminal", ".terminal"),
+                BackendProfile::new("terminal", "terminal", "terminal", ".terminal"),
                 Doctype::Article,
             ),
         }

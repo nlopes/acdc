@@ -1,3 +1,5 @@
+use std::{fmt, num::NonZeroUsize};
+
 use serde::Serialize;
 
 use crate::{ElementAttributes, InlineNode, Location, Source, StemNotation, Substitution};
@@ -60,6 +62,8 @@ pub struct Link<'a> {
     pub target: Source<'a>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) hide_uri_scheme: bool,
 }
 
 impl<'a> Link<'a> {
@@ -71,6 +75,7 @@ impl<'a> Link<'a> {
             target,
             attributes: ElementAttributes::default(),
             location,
+            hide_uri_scheme: false,
         }
     }
 
@@ -87,6 +92,12 @@ impl<'a> Link<'a> {
         self.attributes = attributes;
         self
     }
+
+    /// Whether fallback display text omits the target's URI scheme.
+    #[must_use]
+    pub fn hides_uri_scheme(&self) -> bool {
+        self.hide_uri_scheme
+    }
 }
 
 /// An `Url` represents an inline URL in a document.
@@ -98,6 +109,16 @@ pub struct Url<'a> {
     pub target: Source<'a>,
     pub attributes: ElementAttributes<'a>,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) hide_uri_scheme: bool,
+}
+
+impl Url<'_> {
+    /// Whether fallback display text omits the target's URI scheme.
+    #[must_use]
+    pub fn hides_uri_scheme(&self) -> bool {
+        self.hide_uri_scheme
+    }
 }
 
 /// An `Mailto` represents an inline `mailto:` in a document.
@@ -149,13 +170,26 @@ impl<'a> Keyboard<'a> {
 pub type Key<'a> = &'a str;
 
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
-#[derive(Clone, Debug, PartialEq, Serialize)]
+///
+/// Equality and debug output include `target`, `text`, `location`, `xrefstyle`,
+/// and `caption_label`; parser-only state is excluded.
+#[derive(Clone, Serialize)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
+    /// The effective link target. A resolved natural reference contains the
+    /// matching ID; an unresolved reference retains its reference text.
     pub target: &'a str,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub location: Location,
+    #[serde(skip)]
+    pub xrefstyle: XrefStyle,
+    #[serde(skip)]
+    pub caption_label: XrefCaptionLabel<'a>,
+    #[serde(skip)]
+    pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
+    #[serde(skip)]
+    pub(crate) resolve_natural_target: bool,
 }
 
 impl<'a> CrossReference<'a> {
@@ -166,6 +200,10 @@ impl<'a> CrossReference<'a> {
             target,
             text: Vec::new(),
             location,
+            xrefstyle: XrefStyle::Basic,
+            caption_label: XrefCaptionLabel::AtTarget,
+            caption_label_snapshot_id: None,
+            resolve_natural_target: false,
         }
     }
 
@@ -174,6 +212,65 @@ impl<'a> CrossReference<'a> {
     pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
         self.text = text;
         self
+    }
+}
+
+impl fmt::Debug for CrossReference<'_> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CrossReference")
+            .field("target", &self.target)
+            .field("text", &self.text)
+            .field("location", &self.location)
+            .field("xrefstyle", &self.xrefstyle)
+            .field("caption_label", &self.caption_label)
+            .finish()
+    }
+}
+
+impl PartialEq for CrossReference<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.target == other.target
+            && self.text == other.text
+            && self.location == other.location
+            && self.xrefstyle == other.xrefstyle
+            && self.caption_label == other.caption_label
+    }
+}
+
+/// Selects the label used by an automatic cross-reference to a numbered caption.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum XrefCaptionLabel<'a> {
+    /// Use the caption label recorded on the target.
+    #[default]
+    AtTarget,
+    /// Use the caption label active at the reference position.
+    AtReference(&'a str),
+    /// Omit the label and show only the caption number.
+    NumberOnly,
+}
+
+/// The display style for an automatic cross-reference.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum XrefStyle {
+    /// Use the target title without its caption prefix.
+    #[default]
+    Basic,
+    /// Use only the target's caption label and number or custom prefix.
+    Short,
+    /// Use the caption prefix followed by the target title.
+    Full,
+}
+
+impl XrefStyle {
+    pub(crate) fn from_attribute(value: Option<&str>) -> Self {
+        match value {
+            Some("short") => Self::Short,
+            Some("full") => Self::Full,
+            _ => Self::Basic,
+        }
     }
 }
 
@@ -187,6 +284,16 @@ pub struct Autolink<'a> {
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bracketed: bool,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) hide_uri_scheme: bool,
+}
+
+impl Autolink<'_> {
+    /// Whether fallback display text omits the target's URI scheme.
+    #[must_use]
+    pub fn hides_uri_scheme(&self) -> bool {
+        self.hide_uri_scheme
+    }
 }
 
 /// A `Stem` represents an inline mathematical expression.
@@ -202,15 +309,35 @@ pub struct Stem<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub enum IndexTermKind<'a> {
-    /// Visible in output, single term only.
-    Flow(&'a str),
+    /// A single term that is visible in the document and included in the index.
+    Flow(Vec<InlineNode<'a>>),
     /// Hidden from output, supports hierarchical entries.
     Concealed {
-        term: &'a str,
+        /// The fully substituted primary term.
+        term: Vec<InlineNode<'a>>,
+        /// The fully substituted secondary term, if present.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        secondary: Option<&'a str>,
+        secondary: Option<Vec<InlineNode<'a>>>,
+        /// The fully substituted tertiary term, if present.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        tertiary: Option<&'a str>,
+        tertiary: Option<Vec<InlineNode<'a>>>,
+    },
+}
+
+/// A relationship from an index entry to another index term.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(tag = "kind", rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum IndexTermRelationship<'a> {
+    /// Readers should use the target term instead of this entry.
+    See {
+        /// The replacement index term.
+        target: Vec<InlineNode<'a>>,
+    },
+    /// Readers can also consult the related terms.
+    SeeAlso {
+        /// The related index terms.
+        targets: Vec<Vec<InlineNode<'a>>>,
     },
 }
 
@@ -220,13 +347,16 @@ pub enum IndexTermKind<'a> {
 pub struct IndexTerm<'a> {
     /// The kind and content of this index term.
     pub kind: IndexTermKind<'a>,
+    /// The relationship from this entry to other index terms.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relationship: Option<IndexTermRelationship<'a>>,
     pub location: Location,
 }
 
-impl IndexTerm<'_> {
+impl<'a> IndexTerm<'a> {
     /// Returns the primary term.
     #[must_use]
-    pub fn term(&self) -> &str {
+    pub fn term(&self) -> &[InlineNode<'a>] {
         match &self.kind {
             IndexTermKind::Flow(term) | IndexTermKind::Concealed { term, .. } => term,
         }
@@ -234,19 +364,19 @@ impl IndexTerm<'_> {
 
     /// Returns the secondary term, if any.
     #[must_use]
-    pub fn secondary(&self) -> Option<&str> {
+    pub fn secondary(&self) -> Option<&[InlineNode<'a>]> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
-            IndexTermKind::Concealed { secondary, .. } => *secondary,
+            IndexTermKind::Concealed { secondary, .. } => secondary.as_deref(),
         }
     }
 
     /// Returns the tertiary term, if any.
     #[must_use]
-    pub fn tertiary(&self) -> Option<&str> {
+    pub fn tertiary(&self) -> Option<&[InlineNode<'a>]> {
         match &self.kind {
             IndexTermKind::Flow(_) => None,
-            IndexTermKind::Concealed { tertiary, .. } => *tertiary,
+            IndexTermKind::Concealed { tertiary, .. } => tertiary.as_deref(),
         }
     }
 

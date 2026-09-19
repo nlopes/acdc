@@ -1,0 +1,54 @@
+[1m[4mIndex Term Relationships[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mTerms[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+Visible shorthand redirect: Flash.
+Named visible redirect: Shockwave.
+The HTML 5 term is the redirect target.
+Primary related terms: Desserts.
+The Cakes entry is nested.
+Cookies and Candies are related primary entries.
+The Cougars entry has a relationship.
+Puma is another primary entry.
+Named concealed relationship: .
+Missing delimiter spacing stays literal: A>>B and C &>D.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mIndex[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+[38;5;14m[1mA[0m
+  A>>B
+
+[38;5;14m[1mB[0m
+  Big Cats
+    Cougars
+      (see also Puma)
+
+[38;5;14m[1mC[0m
+  C &>D
+  Candies
+  Cookies
+
+[38;5;14m[1mD[0m
+  Desserts
+    (see also Candies)
+    (see also Cookies)
+    Cakes
+
+[38;5;14m[1mF[0m
+  Flash (see HTML 5)
+
+[38;5;14m[1mH[0m
+  HTML 5
+
+[38;5;14m[1mP[0m
+  Puma
+
+[38;5;14m[1mS[0m
+  Shockwave (see [1mHTML 5[22m)
+  Standards
+    Web
+      (see also HTML 5)
+      (see also Missing Term)

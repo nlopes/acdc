@@ -25,34 +25,108 @@ Stream from stdin to stdout:
 cat document.adoc | acdc convert --backend markdown --stdin
 ....
 
-The CLI always uses the GFM variant. To produce plain CommonMark output, consume the crate as a library and call `Processor::with_variant(MarkdownVariant::CommonMark)`.
+The CLI defaults to GFM. Pass `--variant commonmark` for plain CommonMark
+output. Library users can select the same behavior with
+`Processor::with_variant(MarkdownVariant::CommonMark)`.
 
 == Features
 
 Supported constructs:
 
-- **Headings**: mapped to ATX (`#`, `##`, …). The document title renders as a top-level heading.
-- **Paragraphs** and inline formatting: bold, italic, monospace, strikethrough (GFM), links, autolinks, images.
-- **Lists**: ordered, unordered, description (emitted as bullet list + emphasis), task lists (GFM). Nested lists are preserved.
-- **Code blocks**: fenced with the source language when specified, plus the callout annotations stripped and rendered as trailing references.
-- **Blockquotes** and quote/verse blocks.
-- **Tables**: GFM tables with column alignment. Skipped with a warning in CommonMark mode.
+- **Headings**: mapped to ATX (`#`, `##`, …).
+  The document title renders as a top-level heading.
+  Sections preserve parser-assigned section, part, and appendix numbers.
+  `%notitle` hides only the section heading and keeps its destination and body.
+  Numbered book chapter headings and TOC entries use the active `chapter-signifier`; an absent or unset signifier keeps the number-only form.
+- **Document metadata**: explicit header IDs, subtitles, authors and email addresses, and revision numbers, dates, and remarks remain visible beneath the document title.
+  When several anchors precede the title, the last anchor becomes its destination, and automatic references use the full title and subtitle.
+- **Block titles and captions**: paragraph, list, delimited-block, admonition,
+  image, audio, video, and table titles render as strong title lines adjacent
+  to their content. Numbered, custom, and disabled figure, table, example, and
+  listing captions are preserved.
+- **Cross-reference destinations**: section and discrete-heading IDs, explicit
+  block IDs, block and standalone inline anchors, and IDs on formatted spans
+  render as portable HTML anchors in both variants. Bibliography entries keep
+  their destinations and visible bracketed labels.
+- **Table of contents**: rendered as a nested Markdown list of section links at
+  the configured automatic, preamble, or macro position. Custom titles and
+  depth limits are preserved.
+- **Paragraphs** and inline formatting: bold, italic, robust monospace,
+  strikethrough (GFM), links, autolinks, footnotes, roles, passthroughs, UI
+  macros, and images. Link fallback text honors `hide-uri-scheme`; bracketed
+  email autolinks remain visible. Quote, verse, literal, listing, source,
+  example, and abstract paragraph styles retain distinct blockquote or
+  preformatted treatments.
+- **Lists**: ordered lists preserve reversed numbering. Ordered and unordered
+  lists preserve markerless presentation, including in nested contexts. GFM
+  uses native task-list markers, while CommonMark keeps checked and unchecked
+  state as literal text. Horizontal and Q&A description lists retain distinct
+  layouts; other description styles use a content-preserving regular-list
+  fallback.
+- **Code blocks**: fenced with the source language when specified. Source
+  callouts use readable `(n)` markers beside the code and bold numbered list
+  labels for their explanations, including content attached with `+`
+  continuations.
+- **Blockquotes** and quote/verse blocks, including attribution and citation
+  titles.
+- **Passthrough blocks**: raw content remains available as embedded HTML. Its
+  display depends on whether the Markdown renderer accepts and sanitizes HTML.
+- **Tables**: GFM tables preserve column-level horizontal alignment and every
+  source row.
+  Headerless tables use an empty header row, and footers become final body
+  rows. Cell spans reserve empty positions, supported cell styles remain
+  visible, and nested blocks use HTML line breaks. CommonMark skips tables
+  with a warning.
 - **Admonitions** (NOTE, TIP, IMPORTANT, WARNING, CAUTION): GitHub Alerts (`> [!NOTE]`) in GFM; plain blockquotes with a bold label in CommonMark.
-- **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected at document end; HTML superscript fallback in CommonMark.
-- **Images / videos / audio**: images render natively; video and audio degrade to links with a warning.
+- **Footnotes**: GFM footnote syntax (`[^1]`) with the footnote bodies collected
+  at document end; linked superscripts and a readable endnote list in
+  CommonMark.
+- **Images / videos / audio**: images preserve alternative text, hover titles,
+  dimensions, and links. Native Markdown is used when possible; dimensions
+  use embedded HTML. An image's own link takes precedence over an outer link.
+  Video posters render as static Markdown images, and every video source
+  renders as a labeled link. Audio and video IDs and titles remain visible,
+  and playback degradation emits one structured warning per document.
 - **Thematic breaks** and page breaks (rendered as `---`).
 - **Collapsible example blocks** (`[%collapsible]`, `[%collapsible%open]`): rendered as embedded `<details>/<summary>` HTML. Works in GitHub, GitLab, and most Markdown renderers that allow inline HTML.
+- **Index catalogs**: `:acdc-index:` plus a final `[index]` section generates an
+  alphabetized, linked catalog with hierarchical and `see` / `see-also` terms.
+  Without both opt-ins, visible terms stay in the body, concealed terms remain
+  hidden, and the index section stays empty, matching the HTML converter's
+  policy.
 
 == Limitations
 
-Some `AsciiDoc` features have no faithful Markdown equivalent. When the converter hits one of these, it records a structured warning (surfaced as a diagnostic) and falls back — usually leaving an inline `<!-- Warning: ... -->` marker in the output:
+Some `AsciiDoc` features have no faithful Markdown equivalent. When the
+converter hits one of these, it records a structured warning and uses a
+documented fallback. Document-wide capability warnings appear once per
+capability; any resource-specific failures remain separate. Some block
+fallbacks also leave an inline `<!-- Warning: ... -->` marker in the output:
 
 - **Include directives** - not expanded at render time (the preprocessor handles them before conversion).
 - **Substitution control** (`subs=...`) - no way to express this in Markdown.
-- **Callouts inside source blocks** - Markdown has no native equivalent; rendered as plain text.
-- **Table cell spanning** (`2+|`, `.2+|`) - GFM tables are single-cell only.
-- **Complex tables** (nested, AsciiDoc-content cells) - flattened to the extent possible.
-- **Arbitrary block metadata** (roles, options) - dropped.
+- **Source line presentation** - line numbering, selected-line highlighting,
+  and PHP `%mixed` highlighting are not portable Markdown. The source remains
+  in its code fence and each active option emits one structured warning per
+  document.
+- **Table presentation** - GFM cannot represent cell spans, structural
+  footers, table and column widths, table-level alignment, per-cell alignment,
+  or nested block structure exactly. The converter preserves all cell text,
+  flattens these features to readable rows and line breaks, and emits one
+  structured warning for each affected capability.
+- **Arbitrary block roles and options** - dropped when they have no portable
+  Markdown representation. Block IDs and anchors remain available as HTML
+  destinations.
+- **STEM** - inline expressions use inline code and block expressions use
+  notation-labeled fenced code. Each fallback emits one structured warning
+  until Markdown math extensions are supported.
+- **Inline roles and passthroughs** - use embedded HTML where Markdown has no
+  equivalent. Arbitrary roles remain as HTML classes, but their appearance and
+  raw passthrough behavior depend on the renderer's HTML support and
+  sanitization policy.
+- **Media playback** - audio and video controls cannot be represented in
+  portable Markdown. Posters and labeled source links remain available, with
+  one structured warning per document.
 
 See the crate's `src/lib.rs` module docs for the full list.
 
@@ -71,7 +145,7 @@ Markdown fixtures live in `tests/fixtures/source/` (inputs) and `tests/fixtures/
 
 [source,console]
 ....
-bash converters/markdown/tests/regenerate_expected.sh
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features
 # or for a single fixture:
-bash converters/markdown/tests/regenerate_expected.sh <fixture_name>
+cargo run -p acdc-converters-markdown --example generate_markdown_fixtures --all-features -- <fixture_name>
 ....

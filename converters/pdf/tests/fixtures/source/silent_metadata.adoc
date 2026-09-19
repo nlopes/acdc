@@ -1,0 +1,126 @@
+= Silent Metadata
+:toc: macro
+:icons: image
+:iconsdir: .
+:icontype: svg
+:source-highlighter: rouge
+
+[%noheader%nofooter]
+toc::[]
+
+== Built-in paragraph roles
+
+[.big]
+Big paragraph role.
+
+[.small]
+Small paragraph role.
+
+[.subtitle]
+Subtitle paragraph role.
+
+[.underline]
+Underlined paragraph role.
+
+[.line-through]
+Struck paragraph role.
+
+Inline pre-wrap keeps [.pre-wrap]#two  spaces  together# and [.pre-wrap]`two  monospace  spaces`.
+
+== List marker styles
+
+[disc]
+* Disc marker
+** Nested default circle marker
+
+[circle]
+* Circle marker
+** Nested default circle marker
+
+[square]
+* Square marker
+** Nested default circle marker
+
+[none]
+* Unordered item without a marker
+** Nested item with the default circle marker
+
+[no-bullet]
+* Unordered item without a marker
+** Nested item with the default circle marker
+
+[unstyled]
+* Unordered item without a marker or marker indentation
+** Nested item with the default circle marker
+
+[unnumbered]
+. Ordered item without a marker
+.. Nested item with default lower-alpha numbering
+
+[no-bullet]
+. Ordered item without a marker or marker indentation
+.. Nested item with default lower-alpha numbering
+
+[unstyled]
+. Ordered item without a marker or marker indentation
+.. Nested item with default lower-alpha numbering
+
+[none]
+. Ordered item with empty marker spacing
+.. Nested item with default lower-alpha numbering
+
+== Admonition icon override
+
+[icon=inline-image-dimensions]
+NOTE: This admonition uses a block-specific image icon.
+
+== Image sizing and fitting
+
+image::inline-image-dimensions.svg[Intrinsic scale,scale=50]
+
+image::inline-image-dimensions.svg[Oversized intrinsic scale capped to the available width,scale=1000]
+
+image::inline-image-dimensions.svg[Content width percentage,scaledwidth=40%]
+
+image::inline-image-dimensions.svg[Physical print width,scaledwidth=72pt]
+
+[%align-to-page]
+image::inline-image-dimensions.svg[Page-aligned viewport image,pdfwidth=100vw,align=left]
+
+****
+[%align-to-page]
+image::inline-image-dimensions.svg[Page-aligned image with nested content width,pdfwidth=100%,align=left]
+****
+
+Inline intrinsic scale image:inline-image-dimensions.svg[Inline scale,scale=25] and inline content width image:inline-image-dimensions.svg[Inline content width,scaledwidth=20%].
+
+Inline line fit image:inline-image-dimensions.svg[Line fit,fit=line] and inline unrestricted fit image:inline-image-dimensions.svg[No fit,fit=none].
+
+== Source highlighting fallback
+
+[source,php,options=mixed]
+----
+<p><?php echo "mixed mode"; ?></p>
+----
+
+== Breakable table
+
+.Caption kept with the first row
+[#breakable-table%breakable]
+|===
+|First row
+
+|Second row
+|===
+
+== Page layout fallback
+
+[page-layout=landscape]
+<<<
+
+The landscape request keeps the document layout and produces a diagnostic.
+
+[.portrait]
+<<<
+
+The portrait request also keeps the document layout.

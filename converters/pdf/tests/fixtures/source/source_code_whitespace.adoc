@@ -1,0 +1,58 @@
+= Source code whitespace
+:source-highlighter: rouge
+:tabsize: 3
+
+== Listing whitespace
+
+----
+  leading spaces
+repeated    spaces
+a	value
+
+after blank
+
+----
+
+== Literal whitespace
+
+....
+  leading literal
+literal    spaces
+
+after literal blank
+
+....
+
+== Source whitespace and block tab size
+
+[source,rust,tabsize=6]
+----
+  let value    = 5;
+a	value
+
+println!("after blank");
+
+----
+
+== Styled paragraphs
+
+[source,rust]
+  source indentation    stays
+
+[listing]
+  listing indentation    stays
+
+[literal]
+  literal indentation    stays
+
+== Long lines
+
+----
+space-separated content that is deliberately long enough to cross the usable width of an A4 page and confirm that the PDF wraps at spaces without clipping any words from the source line
+unbroken_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+----
+
+[source,rust]
+----
+fn highlighted_line_with_no_breaks() { let token = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"; }
+----

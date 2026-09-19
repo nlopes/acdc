@@ -1,0 +1,100 @@
+= Wide table content
+
+.Many columns with wrapping prose
+[cols="1,1,1,1,1,1,1,1"]
+|===
+|One two three
+|Four five six
+|Seven eight nine
+|Ten eleven twelve
+|Thirteen fourteen
+|Fifteen sixteen
+|Seventeen eighteen
+|Nineteen twenty
+|===
+
+.Long unbreakable token
+|===
+|Label
+|ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+|===
+
+.Formatted long token
+|===
+|*ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*
+|===
+
+.Inline monospace long token
+|===
+|`ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`
+|===
+
+.Long URL
+|===
+|Site
+|https://example.com/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789/ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789[]
+|===
+
+.Literal cell with long token
+[cols="l,"]
+|===
+|ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+|Literal neighbor
+|===
+
+.Explicit narrow columns
+[cols="10%,10%,10%,10%,10%,10%,10%,30%"]
+|===
+|One |Two |Three |Four |Five |Six |Seven |Eight with enough prose to wrap
+|===
+
+.Explicit narrow column with long token
+[cols="10%,90%"]
+|===
+|ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+|Wide neighbor
+|===
+
+.Content-sized autowidth with wide content
+[%autowidth]
+|===
+|First long heading |Second long heading |Third long heading |Fourth long heading |Fifth long heading
+|===
+
+.Content-sized autowidth with long token
+[%autowidth]
+|===
+|Alpha |ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 |Omega
+|===
+
+.Wide colspan content
+[cols="1,1,1,1"]
+|===
+4+|This spanning cell has enough ordinary prose to wrap within the full table width rather than cross the page edge.
+|One |Two |Three |Four
+|===
+
+.Nested AsciiDoc and source content
+[cols="1a,1a"]
+|===
+|
+A paragraph with enough ordinary prose to wrap inside the first table cell without crossing the page edge.
+
+|
+[source,rust]
+----
+fn this_long_source_line_should_wrap_inside_the_table_cell_without_crossing_the_page_edge() {}
+----
+|===
+
+.Nested table with long content
+[cols="1a,1"]
+|===
+|
+!===
+!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
+!Nested neighbor
+!===
+
+|Outer neighbor
+|===

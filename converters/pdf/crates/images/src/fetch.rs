@@ -68,7 +68,8 @@ impl Fetcher {
             let path = self.allowed_local_path(file_url_path(url)?)?;
             read_file_capped(&path, self.max_bytes)?
         } else {
-            let path = self.allowed_local_path(self.base_dir.join(url))?;
+            let decoded = percent_decode_str(url).decode_utf8_lossy();
+            let path = self.allowed_local_path(self.base_dir.join(decoded.as_ref()))?;
             read_file_capped(&path, self.max_bytes)?
         };
         if bytes.len() as u64 > self.max_bytes {

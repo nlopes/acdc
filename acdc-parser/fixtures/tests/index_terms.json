@@ -54,7 +54,56 @@
         {
           "name": "indexterm",
           "type": "inline",
-          "term": "Arthur",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold ",
+              "location": [
+                {
+                  "line": 3,
+                  "col": 17
+                },
+                {
+                  "line": 3,
+                  "col": 21
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Arthur",
+                  "location": [
+                    {
+                      "line": 3,
+                      "col": 23
+                    },
+                    {
+                      "line": 3,
+                      "col": 28
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 3,
+                  "col": 22
+                },
+                {
+                  "line": 3,
+                  "col": 29
+                }
+              ]
+            }
+          ],
           "visible": true,
           "location": [
             {
@@ -63,7 +112,7 @@
             },
             {
               "line": 3,
-              "col": 24
+              "col": 31
             }
           ]
         },
@@ -74,11 +123,11 @@
           "location": [
             {
               "line": 3,
-              "col": 25
+              "col": 32
             },
             {
               "line": 3,
-              "col": 34
+              "col": 41
             }
           ]
         }
@@ -90,7 +139,7 @@
         },
         {
           "line": 3,
-          "col": 34
+          "col": 41
         }
       ]
     },
@@ -101,8 +150,123 @@
         {
           "name": "indexterm",
           "type": "inline",
-          "term": "Sword",
-          "secondary": "Broadsword",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "italic ",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 4
+                },
+                {
+                  "line": 5,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Sword",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 12
+                    },
+                    {
+                      "line": 5,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 11
+                },
+                {
+                  "line": 5,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "secondary": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "secondary ",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 20
+                },
+                {
+                  "line": 5,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Broadsword",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 31
+                    },
+                    {
+                      "line": 5,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 30
+                },
+                {
+                  "line": 5,
+                  "col": 41
+                }
+              ]
+            }
+          ],
+          "tertiary": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "tertiary",
+              "location": [
+                {
+                  "line": 5,
+                  "col": 44
+                },
+                {
+                  "line": 5,
+                  "col": 51
+                }
+              ]
+            }
+          ],
           "visible": false,
           "location": [
             {
@@ -111,7 +275,7 @@
             },
             {
               "line": 5,
-              "col": 23
+              "col": 54
             }
           ]
         },
@@ -122,11 +286,11 @@
           "location": [
             {
               "line": 5,
-              "col": 24
+              "col": 55
             },
             {
               "line": 5,
-              "col": 51
+              "col": 82
             }
           ]
         }
@@ -138,7 +302,7 @@
         },
         {
           "line": 5,
-          "col": 51
+          "col": 82
         }
       ]
     },
@@ -164,7 +328,56 @@
         {
           "name": "indexterm",
           "type": "inline",
-          "term": "Excalibur",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "mono ",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 32
+                },
+                {
+                  "line": 7,
+                  "col": 36
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "code",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Excalibur",
+                  "location": [
+                    {
+                      "line": 7,
+                      "col": 38
+                    },
+                    {
+                      "line": 7,
+                      "col": 46
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 7,
+                  "col": 37
+                },
+                {
+                  "line": 7,
+                  "col": 47
+                }
+              ]
+            }
+          ],
           "visible": true,
           "location": [
             {
@@ -173,7 +386,7 @@
             },
             {
               "line": 7,
-              "col": 41
+              "col": 48
             }
           ]
         },
@@ -184,11 +397,11 @@
           "location": [
             {
               "line": 7,
-              "col": 42
+              "col": 49
             },
             {
               "line": 7,
-              "col": 42
+              "col": 49
             }
           ]
         }
@@ -200,7 +413,7 @@
         },
         {
           "line": 7,
-          "col": 42
+          "col": 49
         }
       ]
     },
@@ -226,8 +439,90 @@
         {
           "name": "indexterm",
           "type": "inline",
-          "term": "Knights",
-          "secondary": "Round Table",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "bold ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 33
+                },
+                {
+                  "line": 9,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Knights",
+                  "location": [
+                    {
+                      "line": 9,
+                      "col": 39
+                    },
+                    {
+                      "line": 9,
+                      "col": 45
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 9,
+                  "col": 38
+                },
+                {
+                  "line": 9,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "secondary": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Round Table",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 49
+                },
+                {
+                  "line": 9,
+                  "col": 59
+                }
+              ]
+            }
+          ],
+          "tertiary": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "tertiary",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 62
+                },
+                {
+                  "line": 9,
+                  "col": 69
+                }
+              ]
+            }
+          ],
           "visible": false,
           "location": [
             {
@@ -236,7 +531,7 @@
             },
             {
               "line": 9,
-              "col": 53
+              "col": 70
             }
           ]
         },
@@ -247,11 +542,11 @@
           "location": [
             {
               "line": 9,
-              "col": 54
+              "col": 71
             },
             {
               "line": 9,
-              "col": 54
+              "col": 71
             }
           ]
         }
@@ -263,7 +558,197 @@
         },
         {
           "line": 9,
-          "col": 54
+          "col": 71
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Quoted hierarchy: ",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "primary, one",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 31
+                },
+                {
+                  "line": 11,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "secondary": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "secondary, two",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 47
+                },
+                {
+                  "line": 11,
+                  "col": 60
+                }
+              ]
+            }
+          ],
+          "tertiary": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "tertiary",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 64
+                },
+                {
+                  "line": 11,
+                  "col": 71
+                }
+              ]
+            }
+          ],
+          "visible": false,
+          "location": [
+            {
+              "line": 11,
+              "col": 19
+            },
+            {
+              "line": 11,
+              "col": 72
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 11,
+              "col": 73
+            },
+            {
+              "line": 11,
+              "col": 73
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 11,
+          "col": 73
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Nested terms stay literal: ",
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 27
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "outer indexterm:[inner]",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 30
+                },
+                {
+                  "line": 13,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 28
+            },
+            {
+              "line": 13,
+              "col": 54
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 13,
+              "col": 55
+            },
+            {
+              "line": 13,
+              "col": 55
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 13,
+          "col": 1
+        },
+        {
+          "line": 13,
+          "col": 55
         }
       ]
     }
@@ -274,8 +759,8 @@
       "col": 1
     },
     {
-      "line": 9,
-      "col": 54
+      "line": 13,
+      "col": 55
     }
   ]
 }

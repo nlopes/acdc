@@ -239,46 +239,48 @@ pub(super) fn derive_manpage_header_attrs<'a>(
     Ok(true)
 }
 
-/// Parse NAME section content to extract manname and manpurpose.
-///
-/// The NAME section format is: `name - purpose`
-///
-/// This should be called when the NAME section is encountered during parsing.
-///
-/// # Arguments
-///
-/// * `content` - The text content of the NAME section paragraph
-/// * `attrs` - Mutable reference to document attributes
-///
-/// # Returns
-///
-/// true if manname/manpurpose were derived, false otherwise
+/// Values read from the required first section of a manpage document.
+#[derive(Debug, PartialEq)]
+pub(super) struct NameSectionAttributes {
+    pub(super) name: String,
+    pub(super) purpose: String,
+}
+
+/// Derive manpage name metadata from the paragraph lines found by the grammar.
 pub(super) fn derive_name_section_attrs<'a>(
-    content: &'a str,
-    attrs: &mut DocumentAttributes<'a>,
-) -> bool {
-    // Split on " - " (with spaces) to get name and purpose
-    if let Some(idx) = content.find(" - ") {
-        let name = content[..idx].trim();
-        let purpose = content[idx + 3..].trim();
+    lines: impl IntoIterator<Item = Option<&'a str>>,
+) -> Option<NameSectionAttributes> {
+    let content = lines
+        .into_iter()
+        .flatten()
+        .map(str::trim_start)
+        .collect::<Vec<_>>()
+        .join(" ");
+    let (name, purpose) = split_name_purpose(&content)?;
 
-        if !name.is_empty() {
-            attrs.insert("manname".into(), AttributeValue::String(name.into()));
+    Some(NameSectionAttributes {
+        name: name.to_string(),
+        purpose: purpose.to_string(),
+    })
+}
 
-            if !purpose.is_empty() {
-                attrs.insert("manpurpose".into(), AttributeValue::String(purpose.into()));
-            }
-
-            tracing::debug!(
-                manname = name,
-                manpurpose = purpose,
-                "derived NAME section attributes"
-            );
-            return true;
+fn split_name_purpose(content: &str) -> Option<(&str, &str)> {
+    for (index, character) in content.char_indices() {
+        if character != '-' {
+            continue;
+        }
+        let name = content.get(..index)?.trim_end();
+        let purpose = content.get(index + 1..)?.trim_start();
+        if !name.is_empty()
+            && !purpose.is_empty()
+            && content.get(..index)?.ends_with(' ')
+            && content.get(index + 1..)?.starts_with(' ')
+        {
+            return Some((name, purpose));
         }
     }
 
-    false
+    None
 }
 
 #[cfg(test)]
@@ -323,26 +325,20 @@ mod tests {
 
     #[test]
     fn test_derive_name_section_attrs() {
-        let mut attrs = DocumentAttributes::default();
-        assert!(derive_name_section_attrs(
-            "myprogram - a test program",
-            &mut attrs
-        ));
-        assert_eq!(
-            attrs.get("manname"),
-            Some(&AttributeValue::String("myprogram".into()))
-        );
-        assert_eq!(
-            attrs.get("manpurpose"),
-            Some(&AttributeValue::String("a test program".into()))
-        );
+        let attrs = derive_name_section_attrs([
+            Some("myprogram, myalias - a test"),
+            None,
+            Some(" program"),
+        ])
+        .expect("valid NAME paragraph");
+        assert_eq!(attrs.name, "myprogram, myalias");
+        assert_eq!(attrs.purpose, "a test program");
     }
 
     #[test]
-    fn test_derive_name_section_attrs_no_separator() {
-        let mut attrs = DocumentAttributes::default();
-        assert!(!derive_name_section_attrs("just a name", &mut attrs));
-        assert!(attrs.get("manname").is_none());
+    fn test_derive_name_section_attrs_requires_a_spaced_separator() {
+        assert!(derive_name_section_attrs([Some("cmd-test")]).is_none());
+        assert!(derive_name_section_attrs([Some("cmd - ")]).is_none());
     }
 
     #[test]

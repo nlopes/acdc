@@ -1,0 +1,24 @@
+= Static Media Fallbacks
+:imagesdir: media assets
+
+Inline image: image:icons/mark.png[Inline mark,32,16,link=https://images.example/mark,title="Inline title"].
+
+Native inline image: image:icons/native.png[Native mark,title="Native title"].
+
+Inner link precedence: link:https://outer.example[image:icons/nested.png[Nested mark,link=https://images.example/nested]].
+
+[[block-image]]
+.Block image caption
+image::photos/view.png[Scenic view,640,360,link=https://images.example/view,title="Block title"]
+
+[[video-id]]
+.Demonstration video
+video::clips/demo.mp4,clips/demo.webm[poster=posters/demo.jpg]
+
+video::clips/standalone.mp4[]
+
+[[audio-id]]
+.Demonstration audio
+audio::clips/demo.ogg[]
+
+audio::clips/standalone.ogg[]

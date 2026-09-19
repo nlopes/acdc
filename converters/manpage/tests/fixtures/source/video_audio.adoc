@@ -3,10 +3,11 @@
 :manmanual: Test Manual
 :mansource: Test 1.0
 :revdate: 2025-06-01
+:imagesdir: media assets
 
 == Name
 
-video-audio-test - test video and audio placeholders
+video-audio-test - test static media fallbacks
 
 == Synopsis
 
@@ -17,11 +18,15 @@ video-audio-test - test video and audio placeholders
 === Video
 
 .A tutorial video
-video::video.mp4[]
+video::video.mp4,video.webm[poster=cover.jpg]
 
-video::[]
+video::standalone.mp4[]
+
+video::[poster=orphan-cover.jpg]
 
 === Audio
 
 .A podcast episode
-audio::podcast.mp3[]
+audio::podcast.mp3[start=2,end=4]
+
+audio::standalone.ogg[]

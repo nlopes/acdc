@@ -6,7 +6,7 @@ Here's some ASCII art:
 
 ```
 ┌─────────────────────────┐
-│   Welcome to ACDC!      │
+│   Welcome to acdc!      │
 │                         │
 │   ┌─────┐   ┌─────┐    │
 │   │ Box │   │ Box │    │

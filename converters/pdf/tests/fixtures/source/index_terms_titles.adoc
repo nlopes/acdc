@@ -1,0 +1,13 @@
+= Index terms in titles and references
+:reproducible:
+:toc:
+
+[#source]
+== Source ((Source term))
+
+An automatic reference does not add an occurrence: <<source>>.
+
+An explicit reference does: <<source,Explicit ((Explicit term))>>.
+
+[index]
+== Index ((Index title term))

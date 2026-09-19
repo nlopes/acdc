@@ -1,0 +1,56 @@
+= source-callouts(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: Source callout checks
+
+== NAME
+
+source-callouts - verify source callout presentation
+
+== SYNOPSIS
+
+source-callouts
+
+== DESCRIPTION
+
+=== Explicit C-style guard
+
+[source,rust]
+----
+let value = 1; // <1>
+----
+<1> Defines the value.
+
+=== Automatic hash guards
+
+[source,python]
+----
+print("one") # <.>
+print("two") # <.>
+----
+<.> Prints one.
+<.> Prints two.
+
+=== SQL guard
+
+[source,sql]
+----
+SELECT 1; -- <1>
+----
+<1> Selects one.
+
+=== XML callout
+
+[source,xml]
+----
+<value>one</value> <!--1-->
+----
+<1> Describes the element.
+
+=== Styled source paragraph
+
+[source,ruby]
+puts "paragraph" # <1>
+
+<1> Prints from a source paragraph.

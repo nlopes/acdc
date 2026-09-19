@@ -13,7 +13,7 @@ use acdc_converters_html::HtmlVariant;
 #[cfg(feature = "markdown")]
 use acdc_converters_markdown::MarkdownVariant;
 #[cfg(feature = "pdf")]
-use acdc_converters_pdf::{PageSize, PdfOptions};
+use acdc_converters_pdf::{PageLayout, PageSize, PdfOptions};
 use acdc_parser::{AttributeValue, DocumentAttributes, ParseResult, SafeMode};
 use clap::{ArgAction, Args as ClapArgs};
 use rayon::prelude::*;
@@ -111,6 +111,11 @@ pub struct Args {
     #[arg(long, value_enum, value_name = "SIZE")]
     pub page: Option<PdfPageArg>,
 
+    /// PDF page layout.
+    #[cfg(feature = "pdf")]
+    #[arg(long, value_enum, value_name = "LAYOUT")]
+    pub page_layout: Option<PdfPageLayoutArg>,
+
     /// PDF theme YAML file. Defaults to the bundled neutral theme.
     #[cfg(feature = "pdf")]
     #[arg(long, value_name = "FILE")]
@@ -203,6 +208,7 @@ impl Args {
             || self.watermark.is_some()
             || self.watermark_timestamp
             || self.page.is_some()
+            || self.page_layout.is_some()
             || self.theme.is_some()
             || self.plain
             || self.toc
@@ -336,7 +342,7 @@ fn validate_pdf_options(args: &Args, backend: Backend) -> miette::Result<()> {
     if args.has_pdf_only_options() {
         return Err(miette::miette!(
             "PDF-only options such as --font-dir, --logo, --title, --watermark, \
-             --watermark-timestamp, --page, --theme, --plain, --toc, and \
+             --watermark-timestamp, --page, --page-layout, --theme, --plain, --toc, and \
              --emit-typst require `--backend pdf`"
         ));
     }
@@ -354,6 +360,8 @@ fn pdf_options_from_args(args: &Args) -> PdfOptions {
             .watermark_timestamp
             .then(|| chrono::Local::now().format("%Y-%m-%d %H:%M").to_string()),
         page: args.page.map(PdfPageArg::to_page_size),
+        page_layout: args.page_layout.map(PdfPageLayoutArg::to_page_layout),
+        page_margin: None,
         theme: args.theme.clone(),
         plain: args.plain,
         toc: args.toc,
@@ -882,7 +890,9 @@ mod tests {
             "Draft",
             "--watermark-timestamp",
             "--page",
-            "letter",
+            "a3",
+            "--page-layout",
+            "landscape",
             "--theme",
             "theme.yml",
             "--plain",
@@ -905,7 +915,8 @@ mod tests {
         assert_eq!(options.title.as_deref(), Some("Architecture"));
         assert_eq!(options.watermark.as_deref(), Some("Draft"));
         assert!(options.watermark_timestamp.is_some());
-        assert_eq!(options.page, Some(PageSize::Letter));
+        assert_eq!(options.page, Some(PageSize::A3));
+        assert_eq!(options.page_layout, Some(PageLayout::Landscape));
         assert_eq!(options.theme, Some(PathBuf::from("theme.yml")));
         assert!(options.plain);
         assert!(options.toc);
@@ -1314,16 +1325,44 @@ pub enum BackendArg {
 #[cfg(feature = "pdf")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum PdfPageArg {
+    A3,
     A4,
+    A5,
+    Executive,
+    Legal,
     Letter,
+    Tabloid,
 }
 
 #[cfg(feature = "pdf")]
 impl PdfPageArg {
     const fn to_page_size(self) -> PageSize {
         match self {
+            Self::A3 => PageSize::A3,
             Self::A4 => PageSize::A4,
+            Self::A5 => PageSize::A5,
+            Self::Executive => PageSize::Executive,
+            Self::Legal => PageSize::Legal,
             Self::Letter => PageSize::Letter,
+            Self::Tabloid => PageSize::Tabloid,
+        }
+    }
+}
+
+/// PDF page layout parsed from `--page-layout`.
+#[cfg(feature = "pdf")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum PdfPageLayoutArg {
+    Portrait,
+    Landscape,
+}
+
+#[cfg(feature = "pdf")]
+impl PdfPageLayoutArg {
+    const fn to_page_layout(self) -> PageLayout {
+        match self {
+            Self::Portrait => PageLayout::Portrait,
+            Self::Landscape => PageLayout::Landscape,
         }
     }
 }
@@ -1489,26 +1528,67 @@ impl BackendArg {
 }
 
 fn build_attributes_map(values: &[String]) -> DocumentAttributes<'static> {
-    // Start with rendering defaults (from converters/core)
-    // CLI-provided attributes will override these defaults
-    let mut map = acdc_converters_core::default_rendering_attributes();
+    let mut map = DocumentAttributes::default();
 
-    // Add CLI-provided attributes (these take precedence over defaults)
     for raw_attr in values {
-        let (name, val): (Cow<'static, str>, AttributeValue<'static>) =
-            if let Some(stripped) = raw_attr.strip_suffix('!') {
-                (stripped.to_string().into(), AttributeValue::None)
-            } else if let Some((name, val)) = raw_attr.split_once('=') {
-                (
-                    name.to_string().into(),
-                    AttributeValue::String(val.to_string().into()),
-                )
-            } else {
-                (raw_attr.clone().into(), AttributeValue::Bool(true))
-            };
-        map.set(name, val); // use set() to override defaults
+        let attribute = parse_attribute(raw_attr);
+        map.set(attribute.name, attribute.value);
     }
     map
+}
+
+struct ParsedAttribute {
+    name: Cow<'static, str>,
+    value: AttributeValue<'static>,
+    locked: bool,
+}
+
+fn strip_soft_modifier(value: &str) -> (&str, bool) {
+    value
+        .strip_suffix('@')
+        .map_or((value, false), |value| (value, true))
+}
+
+fn parse_attribute(raw_attr: &str) -> ParsedAttribute {
+    let (name, value, locked) = if let Some((raw_name, raw_value)) = raw_attr.split_once('=') {
+        let (name, name_is_soft) = strip_soft_modifier(raw_name);
+        let (value, value_is_soft) = strip_soft_modifier(raw_value);
+
+        if value_is_soft
+            && value.is_empty()
+            && let Some(name) = name.strip_prefix('!')
+        {
+            (name, AttributeValue::Bool(false), false)
+        } else {
+            (
+                name,
+                AttributeValue::String(value.to_string().into()),
+                !(name_is_soft || value_is_soft),
+            )
+        }
+    } else {
+        let (raw_attr, is_soft) = strip_soft_modifier(raw_attr);
+
+        if let Some(name) = raw_attr
+            .strip_prefix('!')
+            .or_else(|| raw_attr.strip_suffix('!'))
+        {
+            let value = if is_soft {
+                AttributeValue::Bool(false)
+            } else {
+                AttributeValue::None
+            };
+            (name, value, !is_soft)
+        } else {
+            (raw_attr, AttributeValue::Bool(true), !is_soft)
+        }
+    };
+
+    ParsedAttribute {
+        name: name.to_string().into(),
+        value,
+        locked,
+    }
 }
 
 /// Build parser options from CLI args and base options
@@ -1517,9 +1597,14 @@ fn build_parser_options(
     base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
 ) -> acdc_parser::Options<'static> {
-    let mut builder = acdc_parser::Options::builder()
-        .with_safe_mode(base_options.safe_mode())
-        .with_attributes(document_attributes);
+    let mut builder = acdc_parser::Options::builder().with_safe_mode(base_options.safe_mode());
+
+    for raw_attr in &args.attributes {
+        let attribute = parse_attribute(raw_attr);
+        if attribute.locked {
+            builder = builder.with_attribute(attribute.name, attribute.value);
+        }
+    }
 
     if base_options.timings() {
         builder = builder.with_timings();
@@ -1534,5 +1619,7 @@ fn build_parser_options(
         builder = builder.with_setext();
     }
 
-    builder.build()
+    let mut options = builder.build();
+    options.document_attributes.merge(document_attributes);
+    options
 }

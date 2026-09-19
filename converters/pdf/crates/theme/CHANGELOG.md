@@ -14,6 +14,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Themes can control the page-header alignment, title size and weight, logo
+  height, page-one visibility, footer size, and page-number position. Existing
+  themes retain the previous header and footer appearance.
+- Themes can set `page_numbering_start_at` to `cover`, `title`, `toc`,
+  `after-toc`, `body`, or a positive body-page number. Earlier pages use
+  lower-Roman labels, and Arabic numbering restarts at 1.
+- Themes can control the normal and minimum block-code sizes used by PDF
+  autofit. Existing themes retain the current 0.8 em normal size and use a
+  0.6 em minimum.
+- Themes can control the number of index catalog columns and their gap. The
+  bundled defaults are two columns with a 12 pt gap; custom themes without a
+  gap use the body font size, matching Asciidoctor PDF.
+- Themes can place tables at the left, centre, or right of the available page
+  width. The default is left.
+- Themes can control table borders, the header divider, row stripes, and header
+  and footer backgrounds. The defaults match Asciidoctor PDF.
+- Themes can control the vertical margin between document blocks. The 12 pt
+  default matches Asciidoctor PDF.
+- Themes can control the alignment, colour, size, weight, style, and spacing of
+  block titles and captions. The defaults closely match Asciidoctor PDF.
 - Themes can control page breaks before book parts and chapters and can avoid a
   forced break before a part's first chapter.
 - This crate - the starting code.

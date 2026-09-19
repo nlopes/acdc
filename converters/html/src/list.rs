@@ -49,16 +49,16 @@ fn numbering_class_and_type(
     }
 }
 
-/// Resolve an ordered list's `(class, type)`: an explicit `[style]` attribute wins,
-/// otherwise the style cycles by nesting `depth`.
-fn resolve_ordered_list_style(
-    style: Option<&str>,
-    depth: u8,
-) -> (&'static str, Option<&'static str>) {
-    let numbering = style
-        .and_then(OrderedListNumbering::from_explicit_style)
-        .unwrap_or_else(|| numbering_for_depth(depth));
-    numbering_class_and_type(numbering)
+/// Resolve an ordered list's CSS class and optional `<ol type>` value.
+fn resolve_ordered_list_style(style: Option<&str>, depth: u8) -> (&str, Option<&'static str>) {
+    if let Some(style) = style {
+        return match OrderedListNumbering::from_explicit_style(style) {
+            Some(numbering) => numbering_class_and_type(numbering),
+            None => (style, None),
+        };
+    }
+
+    numbering_class_and_type(numbering_for_depth(depth))
 }
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
@@ -85,22 +85,21 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else if let Some(anchor) = list.metadata.anchors.first() {
             write!(self.writer, " id=\"{}\"", anchor.id)?;
         }
-        if semantic {
-            // Semantic mode: no "checklist" on wrapper div
-            if is_bibliography {
-                let class = build_class("ulist bibliography", &list.metadata.roles);
-                writeln!(self.writer, " class=\"{class}\">")?;
-            } else {
-                let class = build_class("ulist", &list.metadata.roles);
-                writeln!(self.writer, " class=\"{class}\">")?;
-            }
-        } else if is_checklist {
-            writeln!(self.writer, " class=\"ulist checklist\">")?;
-        } else if is_bibliography {
-            writeln!(self.writer, " class=\"ulist bibliography\">")?;
-        } else {
-            writeln!(self.writer, " class=\"ulist\">")?;
+        let mut wrapper_class = String::from("ulist");
+        if is_checklist && !semantic {
+            wrapper_class.push_str(" checklist");
         }
+        if is_bibliography {
+            wrapper_class.push_str(" bibliography");
+        }
+        if let Some(style) = list.metadata.style
+            && !wrapper_class.split_whitespace().any(|class| class == style)
+        {
+            wrapper_class.push(' ');
+            wrapper_class.push_str(style);
+        }
+        wrapper_class = build_class(&wrapper_class, &list.metadata.roles);
+        writeln!(self.writer, " class=\"{wrapper_class}\">")?;
         if semantic && has_title {
             self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
         } else {
@@ -113,6 +112,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "<ul class=\"checklist\">")?;
         } else if is_bibliography {
             writeln!(self.writer, "<ul class=\"bibliography\">")?;
+        } else if let Some(style) = list.metadata.style {
+            writeln!(self.writer, "<ul class=\"{style}\">")?;
         } else {
             writeln!(self.writer, "<ul>")?;
         }
@@ -125,9 +126,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
         let raw_depth = list.marker.matches('.').count().max(1);
         if raw_depth > usize::from(u8::MAX) {
-            self.diagnostics.warn(format!(
-                "ordered list marker depth {raw_depth} exceeds 255, clamping"
-            ));
+            self.diagnostics.warn_with_advice(
+                format!("ordered list marker depth {raw_depth} exceeds 255, clamping"),
+                "Reduce the ordered-list nesting depth to 255 levels or fewer.",
+            );
         }
         let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
         let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
@@ -155,11 +157,23 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
         }
 
-        if let Some(t) = type_attr {
-            writeln!(self.writer, "<ol class=\"{style}\" type=\"{t}\">")?;
-        } else {
-            writeln!(self.writer, "<ol class=\"{style}\">")?;
+        write!(self.writer, "<ol class=\"{style}\"")?;
+        if let Some(value) = type_attr {
+            write!(self.writer, " type=\"{value}\"")?;
         }
+        if let Some(start) = list
+            .metadata
+            .attributes
+            .get_string("start")
+            .and_then(|start| start.parse::<usize>().ok())
+            .filter(|start| *start > 0)
+        {
+            write!(self.writer, " start=\"{start}\"")?;
+        }
+        if list.metadata.options.contains(&"reversed") {
+            write!(self.writer, " reversed")?;
+        }
+        writeln!(self.writer, ">")?;
         render_nested_list_items(&list.items, self, 1, true, 1, !semantic, semantic)?;
         writeln!(self.writer, "</ol>")?;
         writeln!(self.writer, "</{wrapper_tag}>")?;
@@ -171,7 +185,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_callout_list_semantic(list, self);
         }
 
-        writeln!(self.writer, "<div class=\"colist arabic\">")?;
+        let class = build_class("colist arabic", &list.metadata.roles);
+        write!(self.writer, "<div")?;
+        crate::write_id(&mut self.writer, &list.metadata)?;
+        writeln!(self.writer, " class=\"{class}\">")?;
         self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
 
         if self.processor.is_font_icons_mode() {
@@ -220,9 +237,23 @@ fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
     list: &CalloutList,
     visitor: &mut V,
 ) -> Result<(), Error> {
-    let writer = visitor.writer_mut();
-    writeln!(writer, "<ol class=\"callout-list arabic\">")?;
-    let _ = writer;
+    let has_title = !list.title.is_empty();
+    if has_title {
+        let writer = visitor.writer_mut();
+        let class = build_class("colist arabic", &list.metadata.roles);
+        write!(writer, "<section")?;
+        crate::write_id(writer, &list.metadata)?;
+        writeln!(writer, " class=\"{class}\">")?;
+        let _ = writer;
+        visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+        writeln!(visitor.writer_mut(), "<ol class=\"callout-list arabic\">")?;
+    } else {
+        let writer = visitor.writer_mut();
+        let class = build_class("callout-list arabic", &list.metadata.roles);
+        write!(writer, "<ol")?;
+        crate::write_id(writer, &list.metadata)?;
+        writeln!(writer, " class=\"{class}\">")?;
+    }
 
     for item in &list.items {
         let writer = visitor.writer_mut();
@@ -238,6 +269,9 @@ fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
 
     let writer = visitor.writer_mut();
     writeln!(writer, "</ol>")?;
+    if has_title {
+        writeln!(writer, "</section>")?;
+    }
     Ok(())
 }
 
@@ -585,6 +619,8 @@ fn render_bare_ulist_semantic<W: Write>(
 
     if is_checklist {
         writeln!(visitor.writer, "<ul class=\"task-list\">")?;
+    } else if let Some(style) = list.metadata.style {
+        writeln!(visitor.writer, "<ul class=\"{style}\">")?;
     } else {
         writeln!(visitor.writer, "<ul>")?;
     }

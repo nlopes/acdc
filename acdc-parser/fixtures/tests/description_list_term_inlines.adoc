@@ -1,0 +1,4 @@
+[qanda]
+What has *strong* and _emphasized_ words?:: The mixed term must preserve both formats.
+*Whole strong question?*:: A whole-term format.
+What contains `code` and https://example.com[a link]?:: Code and link formats.

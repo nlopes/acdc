@@ -1,0 +1,150 @@
+= caption-source-order(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: Caption checks
+:figure-caption: Before Figure
+:table-caption: Before Table
+:example-caption: Before Example
+:listing-caption: Before Listing
+
+== NAME
+
+caption-source-order - verify source-position caption behavior
+
+== SYNOPSIS
+
+caption-source-order
+
+== DESCRIPTION
+
+.Before figure
+image::https://example.com/before.svg[]
+
+.Before table
+|===
+|Before table cell
+|===
+
+.Before outer example
+====
+.Before inner example
+[example]
+Before inner example content.
+====
+
+.Before listing paragraph
+[source,rust]
+let before = 1;
+
+:figure-caption: After Figure
+:table-caption: After Table
+:example-caption: After Example
+:listing-caption: After Listing
+
+.After figure
+image::https://example.com/after.svg[]
+
+.After table
+|===
+|After table cell
+|===
+
+.After example
+[example]
+After example content.
+
+.After listing block
+[source,rust]
+----
+let after = 2;
+----
+
+:figure-caption!:
+:table-caption!:
+:example-caption!:
+:listing-caption!:
+
+.Disabled figure
+image::https://example.com/disabled.svg[]
+
+.Disabled table
+|===
+|Disabled table cell
+|===
+
+.Disabled example
+====
+Disabled example content.
+====
+
+.Disabled listing
+----
+disabled listing content
+----
+
+[caption="Custom Figure: "]
+.Custom figure
+image::https://example.com/custom.svg[]
+
+[caption="Custom Table: "]
+.Custom table
+|===
+|Custom table cell
+|===
+
+[caption="Custom Example: "]
+.Custom example
+====
+Custom example content.
+====
+
+[caption="Custom Listing: "]
+.Custom listing
+----
+custom listing content
+----
+
+:caption: Document:
+
+.Document figure
+image::https://example.com/document.svg[]
+
+.Document table
+|===
+|Document table cell
+|===
+
+.Document example
+====
+Document example content.
+====
+
+.Document listing
+----
+document listing content
+----
+
+:caption!:
+:figure-caption: Restored Figure
+:table-caption: Restored Table
+:example-caption: Restored Example
+:listing-caption: Restored Listing
+
+.Restored figure
+image::https://example.com/restored.svg[]
+
+.Restored table
+|===
+|Restored table cell
+|===
+
+.Restored example
+====
+Restored example content.
+====
+
+.Restored listing
+----
+restored listing content
+----

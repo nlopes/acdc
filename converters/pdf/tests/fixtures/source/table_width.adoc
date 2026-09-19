@@ -1,0 +1,66 @@
+= Table width and autowidth
+
+.Default width
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Explicit 75 percent width
+[width=75%]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Unitless 50 width
+[width=50]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Explicit full width
+[width=100%]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Invalid width falls back to full width
+[width=invalid]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Content-sized autowidth
+[%autowidth]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Autowidth with explicit 75 percent width
+[%autowidth,width=75%]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Stretched autowidth
+[.stretch%autowidth]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Local width overrides stretch
+[.stretch%autowidth,width=75%]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Invalid autowidth width falls back to full width
+[%autowidth,width=invalid]
+|===
+|Short |A deliberately wider second cell
+|===
+
+.Zero width
+[width=0]
+|===
+|This table is omitted because its contents cannot fit in zero width.
+|===

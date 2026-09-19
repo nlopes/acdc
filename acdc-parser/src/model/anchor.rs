@@ -5,10 +5,13 @@ use serde::{
     ser::{SerializeMap, Serializer},
 };
 
-use super::inlines::InlineNode;
-use super::location::Location;
-use super::section::SectionKind;
-use super::title::Title;
+use super::{
+    caption::Caption,
+    inlines::InlineNode,
+    location::Location,
+    section::{SectionKind, SectionNumber},
+    title::Title,
+};
 
 /// Section styles that should not receive automatic numbering.
 ///
@@ -36,6 +39,8 @@ pub struct Anchor<'a> {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub xreflabel: Option<&'a str>,
     pub location: Location,
+    #[serde(skip)]
+    pub(crate) bibliography: bool,
 }
 
 impl<'a> Anchor<'a> {
@@ -46,6 +51,7 @@ impl<'a> Anchor<'a> {
             id,
             xreflabel: None,
             location,
+            bibliography: false,
         }
     }
 
@@ -54,6 +60,12 @@ impl<'a> Anchor<'a> {
     pub fn with_xreflabel(mut self, xreflabel: Option<&'a str>) -> Self {
         self.xreflabel = xreflabel;
         self
+    }
+
+    /// Returns whether this anchor identifies a bibliography entry.
+    #[must_use]
+    pub fn is_bibliography(&self) -> bool {
+        self.bibliography
     }
 }
 
@@ -69,14 +81,47 @@ pub struct TocEntry<'a> {
     pub title: Title<'a>,
     /// Section level (1 for top-level, 2 for subsection, etc.)
     pub level: u8,
-    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax)
+    /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`.
     pub xreflabel: Option<&'a str>,
     /// The section's structural category (special-section style, or `Normal`).
-    /// Converters use it to decide e.g. appendix labelling and which entries are
-    /// excluded from `:sectnums:` numbering.
+    /// Converters use it for presentation, such as appendix labels.
     pub kind: SectionKind,
+    number: Option<SectionNumber>,
     /// Location of the section heading (the cross-reference target).
     pub location: Location,
+}
+
+impl<'a> TocEntry<'a> {
+    pub(crate) fn for_section(
+        id: &'a str,
+        title: Title<'a>,
+        level: u8,
+        xreflabel: Option<&'a str>,
+        kind: SectionKind,
+        location: Location,
+    ) -> Self {
+        Self {
+            id,
+            title,
+            level,
+            xreflabel,
+            kind,
+            number: None,
+            location,
+        }
+    }
+
+    pub(super) fn set_number(&mut self, number: Option<SectionNumber>) {
+        self.number = number;
+    }
+
+    /// Return the assigned number without presentation punctuation or a signifier.
+    ///
+    /// Examples are `1`, `1.2`, `IV`, and `A.1`.
+    #[must_use]
+    pub fn number(&self) -> Option<&str> {
+        self.number.as_ref().map(SectionNumber::as_str)
+    }
 }
 
 impl Serialize for TocEntry<'_> {
@@ -98,7 +143,7 @@ impl Serialize for TocEntry<'_> {
     }
 }
 
-/// The resolved text of a cross-reference target (a section or a titled block).
+/// Reference metadata for a cross-reference target.
 ///
 /// Collected during parsing into the `id → Reference` map on
 /// [`Document::references`](crate::Document), so a `<<id>>` reference resolves
@@ -106,19 +151,36 @@ impl Serialize for TocEntry<'_> {
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct Reference<'a> {
-    /// Optional cross-reference label (from `[[id,xreflabel]]` syntax), parsed
-    /// as inline content: a label carries formatting, so `[[id,*Bold* label]]`
-    /// renders bold. When set, it is the reference text; otherwise `title` is
-    /// used.
+    /// Optional cross-reference label from `reftext=` or `[[id,xreflabel]]`,
+    /// parsed as inline content. A label carries formatting, so `*Bold* label`
+    /// renders bold. When set, it is the reference text; otherwise converters
+    /// use `title` and, for captioned targets, `caption`.
     pub xreflabel: Option<Vec<InlineNode<'a>>>,
-    /// The target's title (section or block title), when it has one. `None` for
-    /// a referenceable element with no title (e.g. an untitled block with an
-    /// `[[id]]`): such a reference exists but has no reference text, so an
-    /// `<<id>>` to it renders the literal `[id]` — distinct from an id that is
-    /// absent from the catalog entirely (an unresolved/broken reference).
+    /// The target's title, when it has one. `None` for a referenceable element
+    /// with no title, such as an untitled block or an inline link with an `id`
+    /// attribute. A reference to such a target renders the literal `[id]`,
+    /// unlike an ID that is absent from the catalog and therefore unresolved.
     pub title: Option<Title<'a>>,
     /// Location of the target element (for navigation, e.g. LSP go-to-definition).
     pub location: Location,
+    /// The target block's resolved caption, when it has one.
+    pub caption: Option<Caption<'a>>,
+    pub(crate) bibliography: bool,
+    pub(crate) automatic_citation: bool,
+}
+
+impl Reference<'_> {
+    /// Returns whether this target is a bibliography entry.
+    #[must_use]
+    pub fn is_bibliography(&self) -> bool {
+        self.bibliography
+    }
+
+    /// Returns whether the document contains an automatic citation to this target.
+    #[must_use]
+    pub fn has_automatic_citation(&self) -> bool {
+        self.automatic_citation
+    }
 }
 
 #[cfg(test)]
@@ -126,14 +188,14 @@ mod tests {
     use super::*;
 
     fn toc_entry(kind: SectionKind) -> TocEntry<'static> {
-        TocEntry {
-            id: "_intro",
-            title: Title::default(),
-            level: 1,
-            xreflabel: None,
+        TocEntry::for_section(
+            "_intro",
+            Title::default(),
+            1,
+            None,
             kind,
-            location: Location::default(),
-        }
+            Location::default(),
+        )
     }
 
     #[test]

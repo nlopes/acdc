@@ -542,23 +542,29 @@
           "value": "Bibliography",
           "location": [
             {
-              "line": 29,
+              "line": 30,
               "col": 4
             },
             {
-              "line": 29,
+              "line": 30,
               "col": 15
             }
           ]
         }
       ],
       "level": 1,
+      "metadata": {
+        "style": "bibliography"
+      },
       "blocks": [
         {
           "name": "list",
           "type": "block",
           "variant": "unordered",
           "marker": "*",
+          "metadata": {
+            "style": "bibliography"
+          },
           "items": [
             {
               "name": "listItem",
@@ -571,11 +577,11 @@
                   "id": "doc-ref01",
                   "location": [
                     {
-                      "line": 31,
+                      "line": 32,
                       "col": 3
                     },
                     {
-                      "line": 31,
+                      "line": 32,
                       "col": 22
                     }
                   ]
@@ -586,11 +592,11 @@
                   "value": " First reference with substituted ID",
                   "location": [
                     {
-                      "line": 31,
+                      "line": 32,
                       "col": 23
                     },
                     {
-                      "line": 31,
+                      "line": 32,
                       "col": 58
                     }
                   ]
@@ -598,11 +604,11 @@
               ],
               "location": [
                 {
-                  "line": 31,
+                  "line": 32,
                   "col": 1
                 },
                 {
-                  "line": 31,
+                  "line": 32,
                   "col": 58
                 }
               ]
@@ -619,11 +625,11 @@
                   "xreflabel": "Introduction Reference",
                   "location": [
                     {
-                      "line": 32,
+                      "line": 33,
                       "col": 3
                     },
                     {
-                      "line": 32,
+                      "line": 33,
                       "col": 47
                     }
                   ]
@@ -634,11 +640,11 @@
                   "value": " Second reference with substituted ID and label",
                   "location": [
                     {
-                      "line": 32,
+                      "line": 33,
                       "col": 48
                     },
                     {
-                      "line": 32,
+                      "line": 33,
                       "col": 94
                     }
                   ]
@@ -646,11 +652,11 @@
               ],
               "location": [
                 {
-                  "line": 32,
+                  "line": 33,
                   "col": 1
                 },
                 {
-                  "line": 32,
+                  "line": 33,
                   "col": 94
                 }
               ]
@@ -658,11 +664,11 @@
           ],
           "location": [
             {
-              "line": 31,
+              "line": 32,
               "col": 1
             },
             {
-              "line": 32,
+              "line": 33,
               "col": 94
             }
           ]
@@ -674,7 +680,7 @@
           "col": 1
         },
         {
-          "line": 32,
+          "line": 33,
           "col": 94
         }
       ]
@@ -686,7 +692,7 @@
       "col": 1
     },
     {
-      "line": 32,
+      "line": 33,
       "col": 94
     }
   ]

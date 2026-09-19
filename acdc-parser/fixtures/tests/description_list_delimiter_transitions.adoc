@@ -1,0 +1,15 @@
+.Shorter second delimiter
+First deep term::: First deep description.
+Root term:: Root description.
+
+.Skipped delimiter depth
+Root jump:: Root jump description.
+Deep jump:::: Deep jump description.
+
+.Semicolon to colon
+Semicolon term;; Semicolon description.
+Colon child:: Colon child description.
+
+.Colon to semicolon
+Colon term:: Colon description.
+Semicolon child;; Semicolon child description.

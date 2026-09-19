@@ -1,13 +1,29 @@
+Before bare URL: https://before.example/path
+
+Before URL macro: https://before.example/path[]
+
+Before link macro: link:https://before.example/path[]
+
 :hide-uri-scheme:
 
-Bare URL: https://example.com
+Enabled bare URL: https://enabled.example/path
 
-URL macro: https://example.com[example site]
+Enabled URL macro: https://enabled.example/path[]
 
-URL macro without text: https://example.com[]
+Enabled link macro: link:https://enabled.example/path[]
 
-Link macro: link:https://example.com[]
+Explicit text: https://enabled.example/path[example site]
 
-HTTP link: http://example.org/page
+FTP URL: ftp://files.example/readme.txt
 
-FTP link: ftp://files.example.com/readme.txt
+:hide-uri-scheme: false
+
+False value: http://false.example/page
+
+:hide-uri-scheme!:
+
+After unset: https://after.example/path[]
+
+.Metadata-local setting
+:hide-uri-scheme:
+link:irc://irc.example/channel[]

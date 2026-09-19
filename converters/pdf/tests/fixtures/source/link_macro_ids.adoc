@@ -1,0 +1,23 @@
+= Link macro IDs
+
+Before: <<link-id>>, <<url-id>>, <<mailto-id>>, <<bare-link-id>>, <<bare-mailto-id>>, and <<duplicate-id>>.
+
+Explicit link: link:https://example.com[Link text,id=link-id,role=hot]
+
+Direct URL: https://example.org[URL text,id=url-id]
+
+Mail link: mailto:person@example.com[Mail text,id=mailto-id]
+
+Mail text without a comma: mailto:nocomma@example.com[id=not-mailto-id]
+
+Bare link: link:https://example.net[,id=bare-link-id]
+
+Bare mail link: mailto:other@example.com[,id=bare-mailto-id]
+
+First duplicate: link:https://example.com/first[First,id=duplicate-id]
+
+Second duplicate: link:https://example.com/second[Second,id=duplicate-id]
+
+Positional text: link:https://example.com/positional[Text,positional-id]
+
+After: <<link-id>>, <<url-id>>, <<mailto-id>>, <<bare-link-id>>, <<bare-mailto-id>>, and <<duplicate-id>>.

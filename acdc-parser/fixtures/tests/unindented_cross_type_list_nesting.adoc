@@ -1,0 +1,38 @@
+= Unindented cross-type list nesting
+
+== Ordered parent
+
+. Ordered parent
+* Unordered child one
+* Unordered child two
+. Ordered parent two
+
+== Unordered parent with immediate child metadata
+
+* Unordered parent
+[loweralpha,role=child-role]
+. Ordered child one
+. Ordered child two
+* Unordered parent two
+
+== Metadata after a blank line
+
+* Unordered list
+
+[loweralpha,role=separate-role]
+. Ordered list
+
+== Alternating levels
+
+. Level one
+* Level two
+.. Level three
+* Level two sibling
+. Level one sibling
+
+== Checklist children
+
+. Ordered parent
+* [x] Checked child
+* [ ] Unchecked child
+. Ordered parent two

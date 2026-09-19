@@ -1,0 +1,115 @@
+= PDF *Parity* Kitchen Sink: API Coverage
+Ada Lovelace <ada@example.com>; Grace B. Hopper <grace@example.com>
+:subject: Representative PDF converter coverage
+:keywords: parity, PDF, converter API
+:toc:
+:sectnums:
+:xrefstyle: full
+:listing-caption: Listing
+
+This document is rendered through the converter API. It links to
+https://example.com/kitchen-sink[the external test target] and refers forward to
+<<reference-table>>, <<workflow-listing>>, and <<conclusion>>.
+
+The first named note is defined here.footnote:shared[Shared footnote text.]
+
+[[overview]]
+== Overview
+
+The fixture combines representative document structure and formatting:
+
+* a nested list with *formatted text*
+** a nested item with `monospace` text
+* a captioned and linked image
+
+[[fixture-image]]
+.Fixture image
+image::inline-image-dimensions.svg[Blue fixture image,width=80,link=https://example.com/kitchen-image]
+
+[[reference-table]]
+.Repeated inventory
+[cols="1,2",options="header,footer"]
+|===
+|Item |Description
+
+|01 |Representative table entry 01
+|02 |Representative table entry 02
+|03 |Representative table entry 03
+|04 |Representative table entry 04
+|05 |Representative table entry 05
+|06 |Representative table entry 06
+|07 |Representative table entry 07
+|08 |Representative table entry 08
+|09 |Representative table entry 09
+|10 |Representative table entry 10
+|11 |Representative table entry 11
+|12 |Representative table entry 12
+|13 |Representative table entry 13
+|14 |Representative table entry 14
+|15 |Representative table entry 15
+|16 |Representative table entry 16
+|17 |Representative table entry 17
+|18 |Representative table entry 18
+|19 |Representative table entry 19
+|20 |Representative table entry 20
+|21 |Representative table entry 21
+|22 |Representative table entry 22
+|23 |Representative table entry 23
+|24 |Representative table entry 24
+|25 |Representative table entry 25
+|26 |Representative table entry 26
+|27 |Representative table entry 27
+|28 |Representative table entry 28
+|29 |Representative table entry 29
+|30 |Representative table entry 30
+|31 |Representative table entry 31
+|32 |Representative table entry 32
+
+|Total |32 representative entries
+|===
+
+<<<
+
+[[workflow]]
+== Workflow
+
+. Parse the AsciiDoc source.
+. Convert the parsed document.
++
+[[workflow-listing]]
+.API conversion
+[source,rust]
+----
+let parsed = acdc_parser::parse(source, &parser_options)?;
+let processor = Processor::new(options, parsed.document().attributes.clone());
+let mut pdf = Vec::new();
+processor.write_to(
+    parsed.document(),
+    &mut pdf,
+    Some(source_path),
+    None,
+    &mut diagnostics,
+)?;
+----
++
+The source block stays attached to its owning list item.
+. Parse the resulting PDF and inspect its structure.
+
+The workflow refers back to <<reference-table>> and repeats the named
+footnote.footnote:shared[]
+
+[[workflow-example]]
+.Expected result
+====
+The output starts with a PDF header and preserves the document's visible
+meaning.
+====
+
+<<<
+
+[[conclusion]]
+== Conclusion
+
+The final section links back to <<overview>>, <<fixture-image>>, and
+<<workflow-example>>. It also keeps a https://example.com/final[second external
+link] in the generated PDF.

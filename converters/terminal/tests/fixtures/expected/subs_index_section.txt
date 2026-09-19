@@ -1,0 +1,69 @@
+[1m[4mDocument with Index[0m
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mIntroduction[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+This document covers terminal rendering and AsciiDoc processing.
+We also discuss  and .
+Advanced topics include  and .
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mContent[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+The parser handles all input processing.
+Direct formatting: bold [1mprimary[22m, italic [3mprimary[23m, and
+mono [38;5;14mprimary[39m.
+Attributes: plain Ada, literal *attribute bold*, and linked [38;5;12mAda[39m[2m (https://example.com)[0m.
+Direct link: direct [38;5;12mAda[39m[2m (https://example.com)[0m.
+Formatted hierarchy: .
+Formatting is identity: identity, [1midentity[22m, and [3midentity[23m.
+Late substitutions: late Ada and [1mattribute bold[22m.
+
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+[38;2;215;0;135m[1mIndex[0m
+[38;2;215;0;135m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[39m
+
+[38;5;14m[1mA[0m
+  [1mAnimals[22m
+    [3mMammals[23m
+      [38;5;14mCats[39m
+  AsciiDoc processing
+
+[38;5;14m[1mB[0m
+  bold [1mprimary[22m
+
+[38;5;14m[1mD[0m
+  direct [38;5;12mAda[39m[2m (https://example.com)[0m
+
+[38;5;14m[1mF[0m
+  formatting
+    inline
+      bold
+      italic
+
+[38;5;14m[1mI[0m
+  [1midentity[22m
+  [3midentity[23m
+  identity
+  italic [3mprimary[23m
+
+[38;5;14m[1mL[0m
+  late Ada and [1mattribute bold[22m
+  linked [38;5;12mAda[39m[2m (https://example.com)[0m
+  literal *attribute bold*
+
+[38;5;14m[1mM[0m
+  mono [38;5;14mprimary[39m
+
+[38;5;14m[1mP[0m
+  parser
+  plain Ada
+
+[38;5;14m[1mR[0m
+  rendering
+    output
+      HTML
+      terminal
+
+[38;5;14m[1mT[0m
+  terminal rendering

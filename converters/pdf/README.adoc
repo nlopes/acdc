@@ -13,7 +13,7 @@ acdc convert --backend pdf document.adoc
 ....
 
 The derived output path is `document.pdf`.
-PDF-specific options can add page chrome and branding:
+PDF-specific options can add page headers, footers, and branding:
 
 [source,console]
 ....
@@ -25,25 +25,146 @@ acdc convert --backend pdf document.adoc \
   --watermark-timestamp
 ....
 
+Use `--page` and `--page-layout` to set the document paper and orientation.
+The equivalent document attributes are `pdf-page-size` and `pdf-page-layout`;
+explicit CLI or `PdfOptions` values take precedence.
+Supported named sizes are A3, A4, A5, Executive, Legal, Letter, and Tabloid.
+`pdf-page-size` also accepts custom dimensions as `[width, height]` or
+`width x height`. Dimensions can use `in`, `cm`, `mm`, `pt`, `px`, or `pc`;
+unitless values are PDF points.
+
+Use `pdf-page-margin` to override the theme margins for one document. It accepts
+one to four measurements in CSS order, such as `[1in, 0.75in, 1in, 0.75in]`.
+Invalid dimensions or margins produce a structured warning and use the standard
+page or theme fallback.
+
 == Current scope
 
 The backend currently renders:
 
-* document titles, subtitles, title pages with author and revision details, sections, discrete headings, and section numbering
+* document titles, subtitles, title pages with author and revision details, PDF metadata, sections, discrete headings, and section numbering
 * automatic, preamble, and macro-placed tables of contents, including custom titles and depth
 * bold, italic, monospace, highlight, subscript, and superscript text
 * links, cross-references, footnotes, inline anchors, and common UI macros
+* visible and concealed index terms with generated, page-linked index catalogs
 * ordered, unordered, description, checklist, and callout lists
-* tables with semantic, repeating headers and column/row spans
-* admonitions, quotes, thematic breaks, and page breaks
+* tables with widths, page placement, semantic repeating headers, column/row spans, frames, grids, and row stripes
+* admonitions, examples, open blocks, sidebars, abstracts, quotes, verse, passthrough blocks, thematic breaks, and page breaks
 * paragraph and document hard line breaks
-* listing and literal blocks with themed monospace presentation
+* listing and literal blocks, plus source blocks with bundled syntax highlighting, line numbers, highlighted lines, and callouts
+* collapsible examples as expanded disclosures with their full content visible
 * local, remote, and `data:` URI images in block and inline positions
-* a configurable page theme, header logo, watermark, footer, and page size
+* static audio and video fallbacks with clickable source links and linked video posters
+* a configurable page theme, header logo, watermark, footer, standard or custom page dimensions, per-document margins, and portrait or landscape layout
+
+== Known limitations
 
 The backend is intentionally incomplete.
-Inline icons, audio, video, and stem notation use escaped textual fallbacks.
-Source-language syntax highlighting and AsciiMath/LaTeX translation are not yet implemented.
+Stem notation uses an escaped textual fallback.
+AsciiMath and LaTeX translation are not yet implemented.
+
+When `source-highlighter` is set, source blocks use the bundled Typst syntax theme.
+PHP source blocks marked `%mixed` use Typst's normal PHP highlighter and emit one warning per document because Typst does not support that mixed mode.
+
+Audio and video blocks render as static media fallbacks because PDF cannot play embedded media through the HTML controls.
+Each source is a clickable link with a media label, and block titles render as captions below the fallback, matching Asciidoctor PDF.
+Local media links use `imagesdir`; playback options such as start and end times, autoplay, looping, and controls do not affect the static result.
+When a video has an available `poster`, the poster is linked to the first video source and any additional sources remain as separate links.
+Poster loading follows the same safe-mode, network, size, and strict-asset rules as document images, but playable media is never fetched.
+The converter emits one warning per document when it uses a static media fallback.
+
+Inline icons use text when `icons` is unset, bundled Unicode glyphs when `icons=font`, and files from `iconsdir` for other set values.
+The glyph mode covers common directional and status icons rather than the full Font Awesome catalog used by Asciidoctor PDF; an unknown name uses its text alternative.
+
+PDF output cannot preserve interactive open and closed states.
+Examples marked `%collapsible` always render expanded with a disclosure marker and their title, or `Details` when untitled.
+The `%open` and `%closed` options therefore produce the same PDF output.
+
+Normal page breaks do not add a blank page when they occur at an existing page boundary; add `%always` to force another page.
+The document-level `pdf-page-layout` attribute selects portrait or landscape output.
+The `page-layout` attribute and the `portrait` and `landscape` roles on individual page breaks do not switch orientation.
+Those page breaks keep the configured document layout.
+
+Asciidoctor PDF's default theme renders the first laid-out line of an abstract in bold italic.
+acdc uses a consistent italic weight for the full abstract body because Typst cannot style a line after layout.
+This limitation is tracked in https://linear.app/silly-muppets/issue/SC-290/match-asciidoctor-pdf-abstract-first-line-emphasis[SC-290].
+
+Source callout references use parenthesized numbers such as `(1)`.
+Asciidoctor PDF instead uses circled number glyphs such as `①`.
+
+acdc treats `[X]` as a checked list marker, alongside `[x]` and `[*]`.
+Asciidoctor PDF leaves `[X]` in the item text.
+This is an intentional parser extension shared by all acdc converters.
+
+Table row stripes continue by logical row number when a table crosses a page.
+Asciidoctor PDF restarts the stripe cycle after each repeated header.
+
+Table roles have no general PDF theme hook.
+The `left`, `center`, and `right` roles control placement, and `stretch` controls width.
+Other table roles are ignored without warnings, matching Asciidoctor PDF.
+
+Block images with `float=left` or `float=right` render on the requested side, but following text starts below the image.
+Typst does not yet support wrapping paragraph text beside a floating image, so the converter emits a warning for each affected image.
+Native side wrapping is tracked in https://github.com/typst/typst/issues/5181[Typst issue 5181].
+
+Raw inline passthrough content is always emitted through Typst's escaped text boundary.
+Unlike Asciidoctor PDF, backend-specific markup in `+++...+++` or `pass:[]` is displayed literally and cannot execute Typst code.
+
+== PDF substitutions for browser-only behavior
+
+PDF uses static, print-oriented output for features that need a browser or an interactive document.
+The detailed limitations above apply to these substitutions.
+
+[cols="2,3",options="header"]
+|===
+| Browser-only behavior
+| PDF output
+
+| Collapsible open and closed states
+| An expanded disclosure with a marker and title.
+
+| Audio and video playback controls
+| Labelled links to each source, with an available video poster linked to the first source.
+
+| CSS, webfonts, and dark mode
+| The PDF theme, explicitly trusted font directories, and fixed print colours.
+
+| Link windows, targets, tooltips, and relationship metadata
+| A normal clickable PDF link; browser-only attributes do not change it.
+
+| Text wrapping beside floated images
+| The image is aligned to the requested side, following text starts below it, and the converter reports the fallback.
+
+| HTML document frames, docinfo, CSP, and DOM or ARIA choices
+| No direct equivalent. PDF always produces a complete document and adds PDF structure and image alternative text where supported.
+
+| HTML terminal previews and asciicast replay
+| No interactive PDF equivalent; use the HTML backend when the replay is required.
+|===
+
+== Index catalogs
+
+Add an `[index]` section to generate a catalog from all index terms that occur before that section.
+Visible `((term))` and `indexterm2:[term]` forms remain in the document.
+Concealed `(((primary, secondary, tertiary)))` and `indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
+
+Use `term >> other term` or `see=other term` to direct readers to a replacement entry.
+The replacement is shown as `(see other term)` and the source entry has no page numbers.
+Use `term &> related term` or `see-also=related term` to add one or more `(see also related term)` entries while keeping the source entry's page numbers.
+For screen media, a relationship target links to an exact primary-term match; a missing target remains text.
+Non-screen media renders relationship targets without links.
+
+For screen media, each page number links to the exact term occurrence.
+The default screen sequence lists every occurrence.
+Set `:index-pagenum-sequence-style: page` to list each page once, or set it to `range` to combine consecutive pages.
+For non-screen media, the catalog ignores that sequence setting and emits unlinked, unique page numbers with contiguous ranges, matching Asciidoctor PDF.
+An empty index section is omitted, and content inside an index section is ignored, matching Asciidoctor PDF.
+
+The bundled theme uses two columns with a 12 pt gap.
+Use `[index%notitle]` to hide the visible section heading.
+The `index.columns` and `index.column_gap_pt` theme tokens set the column count and gap.
+Set `index.columns` to `1` for a single-column catalog.
+In a custom theme, a `null` or omitted `index.column_gap_pt` uses the body font size.
 
 == Document language
 
@@ -55,7 +176,24 @@ Missing or empty values use English.
 Values that Typst cannot represent also use English and produce a converter warning.
 Asciidoctor PDF accepts arbitrary `lang` values, but Typst requires separate, valid language and region codes.
 
-== Inline IDs and roles
+== Accessibility
+
+PDF output includes a semantic tag tree and document-language metadata. Typst
+maps supported headings, paragraphs, lists, tables, figures, links, and images
+to PDF structure roles. Image descriptions from AsciiDoc reach the tagged PDF
+as alternative text.
+
+This is baseline tagged PDF output, not a claim of PDF/UA-1 conformance. The
+pinned Typst release can enforce PDF/UA-1, but that mode can reject documents
+that do not meet its metadata and semantic requirements. acdc does not enable
+that stricter profile automatically.
+
+== Named destinations, inline IDs, and roles
+
+Document-title IDs and IDs on explicit `link:`, direct URL, and `mailto:` macros create named PDF destinations.
+Local cross-references can appear before or after these targets.
+When several anchors precede a document title, the last anchor is used and automatic references show the full title and subtitle.
+For duplicate link IDs, acdc keeps the first destination so the PDF remains valid.
 
 IDs on bold, italic, monospace, highlight, subscript, superscript, and quoted text create PDF link targets.
 For example, `[#term]*Term*` can be referenced with `<<term>>`.
@@ -69,8 +207,11 @@ The PDF backend supports these built-in roles:
 * Matching `*-background` roles set the background colour.
 
 Use `[.underline]#text#` to apply a role or `[.red.underline]#text#` to combine roles.
+The same roles apply to URL, link, and mailto text through the macro's `role` attribute.
+Browser-only `window`, `target`, `title`, `rel`, and `opts` attributes do not affect PDF output.
 Unknown roles are ignored without warnings and cannot yet be styled through PDF themes.
 Highlighted text keeps its default background only when it has neither an ID nor a role.
+An attribute list makes `#...#` a generic attributed span, matching Asciidoctor PDF.
 
 == Options
 
@@ -87,11 +228,11 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--logo`
 | `logo`
-| Add an SVG or raster image to the running header.
+| Add an SVG or raster image to the page header.
 
 | `--title`
 | `title`
-| Override the running-header title.
+| Override the page-header title.
   The full document title, including its subtitle, is the default.
 
 | `--watermark`
@@ -105,7 +246,15 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--page`
 | `page`
-| Set A4 or Letter. `:pdf-page-size:` is consulted next; A4 is the fallback.
+| Set A3, A4, A5, Executive, Legal, Letter, or Tabloid.
+  `PageSize::try_custom` also accepts validated dimensions for library callers.
+  `:pdf-page-size:` is consulted next and accepts named or custom sizes; A4 is
+  the fallback.
+
+| `--page-layout`
+| `page_layout`
+| Set `portrait` or `landscape`.
+  `:pdf-page-layout:` is consulted next; portrait is the fallback.
 
 | `--theme`
 | `theme`
@@ -113,7 +262,7 @@ The CLI flags map to fields on `PdfOptions` for library callers.
 
 | `--plain`
 | `plain`
-| Remove page background, header, and normal footer chrome. Explicit watermark
+| Remove the page background, header, and normal footer. Explicit watermark
   annotations remain visible.
 
 | `--toc`

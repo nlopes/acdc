@@ -14,6 +14,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Abstract and example styled paragraphs now use their matching block
+  presentation in standard and semantic HTML. Their titles, captions, IDs,
+  anchors, roles, and inline formatting are preserved.
+- Admonitions, audio, video, callout lists, and collapsible examples now keep
+  block anchors and roles on their HTML wrappers. Semantic callout lists also
+  keep their titles.
+- Standalone output now emits escaped `description` and `keywords` metadata,
+  including explicitly empty values, when those document attributes are set.
+- Unsupported non-empty parser block and inline variants now produce structured
+  converter warnings instead of disappearing silently.
+- Degraded HTML fallbacks now include actionable advice for unsupported docinfo
+  values, terminal preview and replay problems, excessive ordered-list depth,
+  highlighted-code parser variants, and the discouraged `max-width` attribute.
+- Title-based shorthand cross-references such as `<<Syntax Highlighting>>` now
+  link to the matching generated or explicit section ID, including when the
+  reference supplies custom text, matching Asciidoctor.
+- Explicit links, direct URL macros, and `mailto:` macros now preserve a named
+  `id` attribute on the rendered anchor. References before or after the link
+  target it and use the `[id]` fallback text, matching Asciidoctor.
+- Bibliography entries now show their bracketed default, custom, numeric, and
+  formatted reference labels in standard and semantic HTML. Automatic
+  citations show the same label and link to the entry, while explicit citation
+  text remains unbracketed. Passthrough labels follow Asciidoctor's distinct
+  entry and citation substitution behavior.
+- Figures, tables, examples, listings, and source blocks now honor caption
+  labels at each block's source position. Custom and disabled captions,
+  inner-first numbering, and changes made part-way through a document match
+  Asciidoctor in standard and semantic HTML.
+- Cross-references preserve formatted explicit text through supported nested
+  inline macros. Empty references to captioned blocks honor source-order
+  `xrefstyle=basic`, `short`, and `full`, including custom and disabled
+  captions, matching Asciidoctor.
+- Visible index terms and opt-in generated index labels preserve inline
+  formatting and attribute substitutions, matching Asciidoctor.
+- Index-term `see` and `see-also` relationships no longer appear as part of a
+  visible term. The opt-in `:acdc-index:` catalog renders them separately and
+  links exact matches to their primary entries; missing targets remain text.
+- Inline icon macros use their explicit alternative text or a readable form of
+  their target in text and image modes. Image icons honor `iconsdir`,
+  `icontype`, and format values such as `icons=svg`, matching Asciidoctor.
+- Inline passthroughs now honor special-character, quote, attribute,
+  replacement, macro, and post-replacement policies, including their written
+  order and the `normal` and `verbatim` groups. Escaped delimiters, numeric
+  character references, and hard line breaks match Asciidoctor.
+- Ordered lists honor a positive `start` value and the `%reversed` option,
+  including on nested lists. Standard HTML also keeps roles on unordered-list
+  wrappers, matching Asciidoctor.
+- Tables honor source-order changes to `table-frame`, `table-grid`, and
+  `table-stripes`. Local `frame`, `grid`, and `stripes` values still override
+  the document defaults, including `stripes=hover`, matching Asciidoctor.
+- List styles now match Asciidoctor: `[none]`, `[no-bullet]`, and `[unstyled]`
+  suppress markers on ordered and unordered lists; `[unnumbered]` suppresses
+  ordered markers; and `[disc]`, `[circle]`, and `[square]` select unordered
+  bullets. Checklist boxes remain visible.
+- Literal table cells now keep attributes, macros, formatting marks, and
+  whitespace as source text. Semantic header rows ignore cell and column
+  styles, matching Asciidoctor.
+- With source highlighting enabled, source blocks honor `linenums`, `start`,
+  and `highlight`, including source paragraphs and blocks without a language.
+  `%nowrap` and an unset `prewrap` prevent HTML source lines from wrapping.
 - HTML conversion attributes now identify the standard backend as `html5`
   (`basebackend=html`, `filetype=html`, `outfilesuffix=.html`,
   `htmlsyntax=html`) and the semantic variant as `html5s`, including the
@@ -119,9 +179,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `:icon-set:` or `:icon-pack:`. Supports shorthand (`fab`, `far`, `fas`, `fal`, `fat`,
   `fad`, `fass`) and long-form (`brands`, `regular`, `solid`, `light`, `thin`, `duotone`,
   `sharp-solid`) values. Defaults to `fa-solid` when no set is specified. ([#360])
-- **`:hide-uri-scheme:` support** — when the document attribute `:hide-uri-scheme:` is set, the URI
-  scheme (e.g., `https://`, `http://`, `ftp://`) is stripped from displayed link text for autolinks,
-  URL macros, and link macros without custom text. The `href` attribute retains the full URL. ([#359])
+- **`:hide-uri-scheme:` support** — when `hide-uri-scheme` is set, including to
+  `false`, URI schemes are omitted from fallback link text for the content that
+  follows. Unsetting it restores full targets. The `href` retains the complete
+  URI, matching Asciidoctor. ([#359])
 - **Collapsible blocks in standard mode** — example blocks with `[%collapsible]` and paragraphs
   with `[example%collapsible]` now render as `<details>/<summary>` elements in the standard HTML
   backend. Supports `%open` for initially expanded blocks and defaults to "Details" as the
@@ -208,7 +269,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Section numbering** - Documents with `:sectnums:` attribute now render numbered
   section headings (e.g., "1. Introduction", "1.1. Overview"). Respects `:sectnumlevels:`
   to control depth of numbering. Special-style sections (`[preface]`, `[glossary]`, etc.)
-  and every subsection nested under them are left unnumbered, matching asciidoctor.
+  and every subsection nested under them are left unnumbered. Changes to numbering
+  attributes apply only to later headings, matching Asciidoctor.
 - **ToC numbering** - Table of contents entries are now numbered when `:sectnums:` is
   set, matching asciidoctor behavior (special-style sections and their subsections stay
   unnumbered).
@@ -232,6 +294,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Numbered book chapters now honor a configured `chapter-signifier` in both
+  headings and TOC entries. An absent or unset signifier keeps the number-only
+  form, matching Asciidoctor HTML.
+- Sections with a named `reftext` now link natural references and explicit IDs
+  with that display label in standard and semantic HTML. Their titles are not
+  retained as second natural aliases, and formatted labels keep their inline
+  markup, matching Asciidoctor.
+- Plain visible shorthand cross-references now match section titles containing
+  `pass:[...]` or `+...+` content. A shorthand target containing a passthrough
+  remains unresolved and displays its visible text in standard and semantic
+  HTML, matching Asciidoctor.
+- When `:compat-mode:` is active at a title-based shorthand cross-reference,
+  it links to its literal target and displays the bracketed unresolved
+  fallback. Source-order changes apply only to later references, and explicit
+  local IDs still link to the section title, matching Asciidoctor in standard
+  and semantic HTML.
+- Interdocument `xref:` macros no longer link to a same-named local section.
+  File and fragment targets continue to map to HTML output paths in standard
+  and semantic HTML, matching Asciidoctor.
+- Image, audio, video, and video poster targets honor `imagesdir`, normalize
+  relative paths, and encode spaces as `%20`, matching Asciidoctor.
+- Link fallback text keeps `mailto:` for a `link:` target, escapes URL
+  ampersands, uses angle brackets only around bracketed email autolinks, and
+  maps inter-document references to the HTML output suffix, matching
+  Asciidoctor.
+- Keyboard, button, and menu macros remain literal unless `experimental` is
+  set, including when the attribute changes in the document body, matching
+  Asciidoctor.
+- Description lists now preserve delimiter-based nesting, repeated
+  continuations, formatted terms, titled boundaries, named styles, and
+  trailing unanswered Q&A items, matching Asciidoctor.
+- Image links now honor `window`, `nofollow`, and `noopener`, including the
+  implicit `noopener` relation for `window=_blank`, matching Asciidoctor.
+- `[listing]`, `[source]`, `[literal]`, and `[verse]` before a block image
+  macro now render the macro text in that block style instead of expanding an
+  image, matching Asciidoctor.
 - Book abstracts now take chapter numbers, `sectnums=all` includes special
   sections, and ordinary section numbering continues after an appendix,
   matching Asciidoctor.
@@ -411,9 +509,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   set, matching the standard variant's behaviour.
 - html5s semantic footnote references now render as `[<a>N</a>]` (brackets outside the
   link) instead of `<a>[N]</a>`, matching the standard variant's pattern.
-- **Section numbering types moved to `acdc-converters-core`** — `SectionNumberTracker`,
-  `PartNumberTracker`, `AppendixTracker`, `to_upper_roman`, and `DEFAULT_SECTION_LEVEL`
-  are now re-exported from `acdc-converters-core::section` instead of being defined locally.
 - **BREAKING**: Updated to new `Converter` trait API (renamed from `Processable`) ([#313])
 
 [#360]: https://github.com/nlopes/acdc/issues/360

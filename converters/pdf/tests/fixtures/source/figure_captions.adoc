@@ -1,0 +1,21 @@
+= Numbered figure captions
+:figure-image: inline-image-dimensions.svg
+
+.First figure
+image::{figure-image}[First image,width=80]
+
+image::{figure-image}[Untitled image,width=80]
+
+.Second *formatted* figure
+image::{figure-image}[Second image,width=120,align=center]
+
+.Linked figure
+image::{figure-image}[Linked image,width=80,link=https://example.com/figure]
+
+* List item
++
+.Nested figure
+image::{figure-image}[Nested image,width=80]
+
+.Missing figure
+image::missing.svg[Missing image]

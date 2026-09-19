@@ -1,4 +1,4 @@
-= ACDC - AsciiDoc Parser & Converter
+= acdc - AsciiDoc Parser & Converter
 
 image:https://github.com/nlopes/acdc/workflows/Test/badge.svg[alt="CI status",link=https://github.com/nlopes/acdc/actions] image:https://docs.rs/acdc-parser/badge.svg[alt="docs.rs",link=https://docs.rs/acdc-parser] image:https://img.shields.io/crates/v/acdc-parser.svg[alt="crates.io",link=https://crates.io/crates/acdc-parser] image:https://img.shields.io/badge/license-MIT-blue.svg[alt="MIT licensed",link=https://github.com/nlopes/acdc/blob/main/LICENSE]
 

@@ -6,7 +6,6 @@
 //! - [`Converter`] - trait that all converters implement
 //! - [`Visitor`](visitor::Visitor) - visitor pattern for AST traversal
 //! - [`Options`] - configuration for conversion
-//! - [`default_rendering_attributes`] - default document attributes for rendering
 //!
 //! # Example
 //!
@@ -24,6 +23,7 @@
 //! - [`code`] - Programming language detection for syntax highlighting
 //! - [`icon`] - Icon rendering mode configuration
 //! - [`inline_text`] - Plain-text extraction from inline nodes
+//! - [`media`] - Media target resolution for URI-producing converters
 //! - [`substitutions`] - Text substitution utilities for escape handling
 //! - [`table`] - Table column width calculations
 //! - [`toc`] - Table of contents configuration
@@ -37,7 +37,7 @@ use std::{
     time::Instant,
 };
 
-use acdc_parser::{AttributeValue, DelimitedBlockType, DocumentAttributes, SafeMode};
+use acdc_parser::{DelimitedBlockType, DocumentAttributes, SafeMode};
 
 mod backend;
 /// Source code syntax highlighting and callouts support.
@@ -45,7 +45,9 @@ pub mod code;
 mod doctype;
 pub mod icon;
 pub mod inline_text;
+pub mod link;
 pub mod list;
+pub mod media;
 pub mod section;
 pub mod substitutions;
 pub mod table;
@@ -55,7 +57,7 @@ pub mod visitor;
 mod warning;
 pub mod xref;
 
-pub use backend::BackendTraits;
+pub use backend::BackendProfile;
 pub use doctype::Doctype;
 pub use inline_text::{InlineTextTransform, inlines_to_string};
 pub use warning::{Diagnostics, Warning, WarningSource};
@@ -136,86 +138,6 @@ pub fn decode_numeric_char_refs(text: &str) -> Cow<'_, str> {
 
     result.push_str(rest);
     Cow::Owned(result)
-}
-
-/// Create default document attributes for rendering.
-///
-/// These defaults match asciidoctor's rendering behavior and are used by converters
-/// (HTML, terminal, etc.) to provide consistent output. Document-level attributes
-/// from the source always take precedence over these defaults.
-///
-/// # Default Attributes
-///
-/// - `lang`: "en" - HTML lang attribute for accessibility
-/// - `note-caption`: "Note" - Capitalized admonition label
-/// - `tip-caption`: "Tip" - Capitalized admonition label
-/// - `important-caption`: "Important" - Capitalized admonition label
-/// - `warning-caption`: "Warning" - Capitalized admonition label
-/// - `caution-caption`: "Caution" - Capitalized admonition label
-/// - `toclevels`: "2" - Table of contents depth (only used when `:toc:` is set)
-/// - `sectnumlevels`: "3" - Section numbering depth (when section numbering enabled)
-///
-/// # Usage
-///
-/// Converters should merge these defaults with document attributes:
-///
-/// ```ignore
-/// let mut attrs = default_rendering_attributes();
-/// attrs.merge(document.attributes.clone()); // Document attributes override defaults
-/// ```
-///
-/// # Note
-///
-/// The `:toc:` attribute is intentionally NOT set by default - TOC generation
-/// must be explicitly requested in the document.
-#[must_use]
-pub fn default_rendering_attributes() -> DocumentAttributes<'static> {
-    let mut attrs = DocumentAttributes::default();
-
-    // HTML lang attribute (default: "en")
-    attrs.set(
-        Cow::Borrowed("lang"),
-        AttributeValue::String(Cow::Borrowed("en")),
-    );
-
-    // Admonition captions (capitalized to match asciidoctor)
-    attrs.set(
-        Cow::Borrowed("note-caption"),
-        AttributeValue::String(Cow::Borrowed("Note")),
-    );
-    attrs.set(
-        Cow::Borrowed("tip-caption"),
-        AttributeValue::String(Cow::Borrowed("Tip")),
-    );
-    attrs.set(
-        Cow::Borrowed("important-caption"),
-        AttributeValue::String(Cow::Borrowed("Important")),
-    );
-    attrs.set(
-        Cow::Borrowed("warning-caption"),
-        AttributeValue::String(Cow::Borrowed("Warning")),
-    );
-    attrs.set(
-        Cow::Borrowed("caution-caption"),
-        AttributeValue::String(Cow::Borrowed("Caution")),
-    );
-
-    // TOC levels (only used when :toc: is set)
-    attrs.set(
-        Cow::Borrowed("toclevels"),
-        AttributeValue::String(Cow::Borrowed("2")),
-    );
-
-    // Section numbering levels (for future section numbering feature)
-    attrs.set(
-        Cow::Borrowed("sectnumlevels"),
-        AttributeValue::String(Cow::Borrowed("3")),
-    );
-
-    // NOTE: :toc: is intentionally NOT set - TOC should only appear when explicitly requested
-    // NOTE: :sectids: is enabled by default in the parser itself, no attribute needed
-
-    attrs
 }
 
 /// Output destination for conversion.
@@ -539,21 +461,22 @@ impl std::fmt::Display for GeneratorMetadata {
 ///
 /// Document attributes follow a layered precedence system (lowest to highest priority):
 ///
-/// 1. **Base rendering defaults** - from [`default_rendering_attributes()`] (admonition captions, toclevels, etc.)
+/// 1. **Base `AsciiDoc` defaults** - from [`DocumentAttributes::default()`]
 /// 2. **Converter-specific defaults** - from [`Converter::document_attributes_defaults()`] (e.g., `man-linkstyle` for manpage)
-/// 3. **CLI attributes** - user-provided via `-a name=value`
-/// 4. **Document attributes** - `:name: value` in document header
+/// 3. **Document attributes** - `:name: value` in document header or body
+/// 4. **CLI attributes** - user-provided via `-a name=value`
 ///
 /// Intrinsic backend attributes are an exception to this precedence: converters
-/// apply their [`BackendTraits`] when constructed, replacing conflicting values.
+/// apply their [`BackendProfile`] when constructed, replacing conflicting values.
 ///
 /// ## Attributes and parsing
 ///
 /// A converter establishes its full attribute set on construction (base defaults,
-/// converter defaults, backend traits, and doctype). Construct the converter
-/// first, then parse using its [`document_attributes`](Converter::document_attributes)
-/// so preprocessing and attribute substitution see the selected backend and the
-/// converter's defaults (`ifdef::backend-*[]`, `{backend}`, `{outfilesuffix}`, …).
+/// converter defaults, backend profile, and doctype). Construct the converter
+/// first, then pass its [`document_attributes`](Converter::document_attributes)
+/// to parser options after building them. Preprocessing and attribute
+/// substitution then see the selected backend and converter defaults, while
+/// only attributes present when the options were built remain caller-locked.
 ///
 /// ## Implementation
 ///

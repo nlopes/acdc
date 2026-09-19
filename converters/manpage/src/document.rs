@@ -5,7 +5,7 @@
 use std::{borrow::Cow, collections::HashMap, io::Write, rc::Rc};
 
 use acdc_converters_core::{InlineTextTransform, visitor::WritableVisitor};
-use acdc_parser::{AttributeValue, Author, Document, InlineNode, Reference};
+use acdc_parser::{Author, Document, InlineNode, Reference};
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};
 
@@ -104,6 +104,10 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// - `manpurpose`: From NAME section (after ` - `)
     /// - `_manpage_title_conforming`: Whether the title conforms to name(volume) format
     pub(crate) fn render_document_start(&mut self, doc: &Document) -> Result<(), Error> {
+        if let Some(header) = &doc.header {
+            self.collect_index_terms_from_inlines(&header.title)?;
+        }
+
         // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
         // This matches asciidoctor's --embedded behavior for manpages
         if self.processor.options.embedded() {
@@ -123,8 +127,6 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             .attributes
             .get_string("manvolnum")
             .unwrap_or(Cow::Borrowed("1"));
-
-        self.sync_name_attributes(doc, &mantitle);
 
         let mansource = doc
             .attributes
@@ -147,28 +149,6 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         self.write_preamble_header(doc, &mantitle, &manvolnum, &date, &mansource, &manmanual)?;
 
         Ok(())
-    }
-
-    /// Copy parser-derived name attributes into the visitor's document attributes.
-    fn sync_name_attributes(&mut self, doc: &Document, mantitle: &str) {
-        let attrs = &mut self.processor.document_attributes;
-        if let Some(manname) = doc.attributes.get_string("manname") {
-            attrs.insert(
-                Cow::Borrowed("manname"),
-                AttributeValue::String(Cow::Owned(manname.into_owned())),
-            );
-        } else {
-            attrs.insert(
-                Cow::Borrowed("manname"),
-                AttributeValue::String(Cow::Owned(mantitle.to_string())),
-            );
-        }
-        if let Some(manpurpose) = doc.attributes.get_string("manpurpose") {
-            attrs.insert(
-                Cow::Borrowed("manpurpose"),
-                AttributeValue::String(Cow::Owned(manpurpose.into_owned())),
-            );
-        }
     }
 
     /// Write the full roff preamble: comment block, .TH, settings, and URL macros.

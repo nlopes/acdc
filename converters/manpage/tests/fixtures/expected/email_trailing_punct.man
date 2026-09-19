@@ -32,7 +32,7 @@ email\-test \- test email autolink trailing punctuation
 .SH "DESCRIPTION"
 .sp
 Contact \c
-.MTO "user\(atexample.com" "" "."
+.MTO "user\(atexample.com" "" "\&."
 
 .sp
 In parentheses (\c
@@ -48,7 +48,7 @@ URL should not capture: \c
 \&.
 .sp
 Multiple trailing: \c
-.MTO "user\(atexample.com" "" ".,;"
+.MTO "user\(atexample.com" "" "\&.,;"
 
 .sp
 In braces {\c
@@ -56,7 +56,7 @@ In braces {\c
 
 .sp
 In quotes "\c
-.MTO "user\(atexample.com" "" """
+.MTO "user\(atexample.com" "" "\(dq"
 
 .sp
 Exclamation: \c
@@ -64,7 +64,7 @@ Exclamation: \c
 
 .sp
 Punct then bold: \c
-.MTO "user\(atexample.com" "" ".\fBbold\fP"
+.MTO "user\(atexample.com" "" "\&.\fBbold\fP"
 text
 .sp
 Space then text: \c
@@ -72,7 +72,7 @@ Space then text: \c
 more text here
 .sp
 Explicit mailto: \c
-.MTO "user\(atexample.com" "User" "."
+.MTO "user\(atexample.com" "User" "\&."
 
 .sp
 Explicit with trailing paren: (\c

@@ -11,3 +11,4 @@
 # vibe-check per-checkout theme record (personal, not shared)
 # this is a skill provided by incident-io/claude-skills
 .claude/vibe-check-themes.md
+/wip

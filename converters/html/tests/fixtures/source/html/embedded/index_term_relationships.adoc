@@ -1,0 +1,27 @@
+= Index Term Relationships
+:acdc-index:
+
+== Terms
+
+Visible shorthand redirect: ((Flash >> HTML 5)).
+
+Named visible redirect: indexterm2:[Shockwave,see=*HTML 5*].
+
+The ((HTML 5)) term is the redirect target.
+
+Primary related terms: ((Desserts &> Cookies &> Candies)).
+
+(((Desserts, Cakes)))The Cakes entry is nested.
+
+((Cookies)) and ((Candies)) are related primary entries.
+
+(((Big Cats, Cougars &> Puma)))The Cougars entry has a relationship.
+
+((Puma)) is another primary entry.
+
+Named concealed relationship: indexterm:[Standards,Web,see-also="HTML 5, Missing Term"].
+
+Missing delimiter spacing stays literal: ((A>>B)) and ((C &>D)).
+
+[index]
+== Index

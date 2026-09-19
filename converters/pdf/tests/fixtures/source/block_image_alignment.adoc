@@ -1,0 +1,47 @@
+= Block image alignment
+:alignment-image: inline-image-dimensions.svg
+
+== Default
+
+image::{alignment-image}[Default,width=120]
+
+== Named alignment
+
+image::{alignment-image}[Named left,width=120,align=left]
+
+image::{alignment-image}[Named center,width=120,align=center]
+
+image::{alignment-image}[Named right,width=120,align=right]
+
+== Alignment roles
+
+[.left]
+image::{alignment-image}[Left role,width=120]
+
+[.center]
+image::{alignment-image}[Center role,width=120]
+
+[.right]
+image::{alignment-image}[Right role,width=120]
+
+== Precedence
+
+[.right]
+image::{alignment-image}[Named beats role,width=120,align=center]
+
+[.right]
+image::{alignment-image}[Invalid named alignment,width=120,align=invalid]
+
+[.left.right]
+image::{alignment-image}[Last role wins,width=120]
+
+[.right.left]
+image::{alignment-image}[Last role wins again,width=120]
+
+== No positional alignment
+
+image::{alignment-image}[Fourth positional attribute,120,20,center]
+
+== Inline control
+
+Before image:{alignment-image}[Inline,width=40,align=right,role=center,float=left] after.

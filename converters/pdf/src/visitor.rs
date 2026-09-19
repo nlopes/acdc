@@ -1,20 +1,27 @@
-use std::fmt::Write as _;
+use std::{borrow::Cow, fmt::Write as _};
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    Doctype, decode_numeric_char_refs, inlines_to_string, section::effective_section_level,
-    shows_block_title, visitor::Visitor,
+    Doctype,
+    icon::IconMode,
+    inlines_to_string,
+    section::{
+        appendix_number_prefix, effective_section_level, part_number_prefix, section_number_prefix,
+    },
+    visitor::Visitor,
 };
 use acdc_parser::{
-    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, DelimitedBlock,
-    DelimitedBlockType, DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem,
-    OrderedList, PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList,
-    Video,
+    Admonition, AdmonitionVariant, AttributeValue, Audio, Block, CalloutList, Caption,
+    DelimitedBlock, DescriptionList, DiscreteHeader, Header, Image, InlineNode, ListItem,
+    OrderedList, PageBreak, Paragraph, Section, Source, TableOfContents, ThematicBreak,
+    UnorderedList, Video,
 };
 
 use crate::{
-    Error, PdfVisitor, author_name, encode_label, pdf_visitor::collapse_source_whitespace,
+    Error, PdfVisitor, admonition_icon_source, author_name, encode_label, is_page_breakable_table,
+    is_unbreakable_delimited_block, is_unbreakable_paragraph,
+    pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };
 
 fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<String> {
@@ -50,31 +57,97 @@ fn revision_text(attributes: &acdc_parser::DocumentAttributes<'_>) -> Option<Str
 impl Visitor for PdfVisitor<'_, '_, '_> {
     type Error = Error;
 
+    fn visit_document_start(
+        &mut self,
+        _doc: &acdc_parser::Document<'_>,
+    ) -> Result<(), Self::Error> {
+        self.page_numbering.write_initial(&mut self.writer);
+        Ok(())
+    }
+
+    fn visit_block(&mut self, block: &Block<'_>) -> Result<(), Self::Error> {
+        if self.automatic_preamble_lead_state == AutomaticPreambleLeadState::Pending
+            && !matches!(
+                block,
+                Block::Paragraph(_) | Block::DocumentAttribute(_) | Block::Comment(_)
+            )
+        {
+            self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
+        }
+
+        if !matches!(
+            block,
+            Block::PageBreak(_) | Block::DocumentAttribute(_) | Block::Comment(_)
+        ) {
+            self.explicit_page_break_state = ExplicitPageBreakState::Inactive;
+        }
+
+        match block {
+            Block::Section(section) => self.visit_section(section),
+            Block::Paragraph(para) => self.visit_paragraph(para),
+            Block::DelimitedBlock(delimited) => self.visit_delimited_block(delimited),
+            Block::OrderedList(list) => self.visit_ordered_list(list),
+            Block::UnorderedList(list) => self.visit_unordered_list(list),
+            Block::DescriptionList(list) => self.visit_description_list(list),
+            Block::CalloutList(list) => self.visit_callout_list(list),
+            Block::Admonition(admon) => self.visit_admonition(admon),
+            Block::Image(img) => self.visit_image(img),
+            Block::Video(video) => self.visit_video(video),
+            Block::Audio(audio) => self.visit_audio(audio),
+            Block::ThematicBreak(br) => self.visit_thematic_break(br),
+            Block::PageBreak(br) => self.visit_page_break(br),
+            Block::TableOfContents(toc) => self.visit_table_of_contents(toc),
+            Block::DiscreteHeader(header) => self.visit_discrete_header(header),
+            Block::DocumentAttribute(_) | Block::Comment(_) => Ok(()),
+            _ => self.visit_unhandled_block(block),
+        }
+    }
+
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_unsupported_parser_variant("block", None);
+        Ok(())
+    }
+
     fn visit_body_content_start(
         &mut self,
         _doc: &acdc_parser::Document<'_>,
     ) -> Result<(), Self::Error> {
-        self.render_toc(None, "auto")
+        if self.page_numbering.plan.starts_at_body() {
+            self.page_numbering.start_arabic(&mut self.writer);
+        }
+        self.render_toc(None, "auto")?;
+        self.page_numbering.start_arabic(&mut self.writer);
+        Ok(())
+    }
+
+    fn visit_preamble_start(
+        &mut self,
+        _doc: &acdc_parser::Document<'_>,
+    ) -> Result<(), Self::Error> {
+        self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Pending;
+        Ok(())
     }
 
     fn visit_preamble_end(&mut self, _doc: &acdc_parser::Document<'_>) -> Result<(), Self::Error> {
+        self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
         self.render_toc(None, "preamble")
     }
 
     fn visit_header(&mut self, header: &Header<'_>) -> Result<(), Self::Error> {
-        let title_page = self
-            .processor
-            .document_attributes()
-            .get("title-page")
-            .is_some_and(|value| {
-                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
-            })
-            || self
-                .processor
-                .document_attributes()
-                .get_string("doctype")
-                .as_deref()
-                == Some("book");
+        let title_page = self.page_numbering.plan.has_title_page();
+
+        if let Some(anchor) = header
+            .metadata
+            .id
+            .as_ref()
+            .or_else(|| header.metadata.anchors.last())
+        {
+            self.write_anchor_target(anchor);
+        }
+
+        if self.page_numbering.plan.starts_before_header() {
+            self.page_numbering.start_arabic(&mut self.writer);
+        }
 
         if title_page {
             self.writer
@@ -109,7 +182,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         }
         self.writer.raw("]\n");
         if title_page {
-            self.writer.raw("#counter(page).update(0)\n]\n\n");
+            self.writer.raw("]\n\n");
         } else {
             self.writer.raw("#v(1em)\n\n");
         }
@@ -117,48 +190,41 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_section(&mut self, section: &Section<'_>) -> Result<(), Self::Error> {
-        if self.section_break_before(section) {
+        let is_index_section = section.kind == acdc_parser::SectionKind::Index;
+        let id =
+            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
+        if is_index_section && !self.index_section_is_populated(&id) {
+            return Ok(());
+        }
+        let in_asciidoc_table_cell = self.in_asciidoc_table_cell();
+        if !in_asciidoc_table_cell && self.section_break_before(section) {
             self.writer.raw("#pagebreak(weak: true)\n\n");
         }
 
         let level = effective_section_level(section.level, section.kind);
-        let participates = self.special_section_tracker.enter(level, section.kind);
-        let mut prefix = String::new();
-        if section.kind == acdc_parser::SectionKind::Appendix {
-            prefix.push_str(&self.appendix_tracker.enter_appendix());
-        } else if section.level == 0
-            && section.kind == acdc_parser::SectionKind::Normal
-            && participates
-        {
-            if let Some(number) = self.part_number_tracker.enter_part() {
-                prefix.push_str(&number);
+        let prefix = section.number().map_or_else(String::new, |number| {
+            if section.kind == acdc_parser::SectionKind::Appendix {
+                appendix_number_prefix(
+                    number,
+                    appendix_caption(self.processor.document_attributes()),
+                )
+            } else if section.level == 0 && section.kind == acdc_parser::SectionKind::Normal {
+                part_number_prefix(number, part_signifier(self.processor.document_attributes()))
+            } else {
+                let signifier = (level == 1 && !in_asciidoc_table_cell)
+                    .then_some(self.chapter_signifier.as_deref())
+                    .flatten();
+                section_number_prefix(number, signifier)
             }
-        } else if participates
-            && let Some(number) = self.section_number_tracker.enter_section(level)
-        {
-            if level == 1
-                && let Some(signifier) = &self.chapter_signifier
-            {
-                prefix.push_str(signifier);
-                prefix.push(' ');
-            }
-            prefix.push_str(&number);
-        }
+        });
 
         let heading_level = level.max(1);
-        let id =
-            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
-
         if self.doctype == Doctype::Article && section.kind == acdc_parser::SectionKind::Abstract {
-            self.writer
-                .raw("#align(center)[#text(size: 1.25em)[#strong[");
-            self.write_title(&section.title)?;
-            self.writer.raw("]]]");
+            self.write_abstract_title(&section.title)?;
             if !id.is_empty() {
                 let _ = write!(self.writer, " <{}>", encode_label(&id));
             }
-            self.writer
-                .raw("\n\n#text(size: 1.2em, style: \"italic\")[\n");
+            self.writer.raw("\n#abstract[\n");
             let previous = self.in_article_abstract;
             self.in_article_abstract = true;
             let result = self.write_blocks(&section.content);
@@ -167,100 +233,98 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
             return result;
         }
 
-        let _ = write!(self.writer, "#heading(level: {heading_level}");
-        if self.in_article_abstract {
-            self.writer.raw(", outlined: false, bookmarked: false");
-        }
-        self.writer.raw(")[");
-        if self.in_article_abstract {
-            self.writer.raw("#text(style: \"normal\")[");
-        }
-        if !prefix.is_empty() {
-            self.write_text_expr(&prefix);
-        }
-        self.write_title(&section.title)?;
-        if self.in_article_abstract {
+        let hidden_title = section.metadata.options.contains(&"notitle");
+        if is_index_section && hidden_title {
+            if !id.is_empty() {
+                let _ = writeln!(self.writer, "#metadata(none) <{}>", encode_label(&id));
+            }
+        } else {
+            if hidden_title {
+                self.writer.raw("#place[#hide[");
+            }
+            let _ = write!(self.writer, "#heading(level: {heading_level}");
+            if self.in_article_abstract || in_asciidoc_table_cell {
+                self.writer.raw(", outlined: false, bookmarked: false");
+            }
+            self.writer.raw(")[");
+            if self.in_article_abstract {
+                self.writer.raw("#text(style: \"normal\")[");
+            }
+            if !prefix.is_empty() {
+                self.write_text_expr(&prefix);
+            }
+            self.write_title(&section.title)?;
+            if self.in_article_abstract {
+                self.writer.raw("]");
+            }
             self.writer.raw("]");
+            if !id.is_empty() {
+                let _ = write!(self.writer, " <{}>", encode_label(&id));
+            }
+            if hidden_title {
+                self.writer.raw("]]");
+            }
+            self.writer.raw("\n");
         }
-        self.writer.raw("]");
-        if !id.is_empty() {
-            let _ = write!(self.writer, " <{}>", encode_label(&id));
+        self.writer.raw("\n");
+        if is_index_section {
+            self.write_index_catalog();
+            Ok(())
+        } else {
+            self.write_blocks(&section.content)
         }
-        self.writer.raw("\n\n");
-        self.write_blocks(&section.content)
     }
 
     fn visit_paragraph(&mut self, para: &Paragraph<'_>) -> Result<(), Self::Error> {
+        let automatic_lead = self.automatic_preamble_lead_state
+            == AutomaticPreambleLeadState::Pending
+            && para.metadata.roles.is_empty();
+        self.automatic_preamble_lead_state = AutomaticPreambleLeadState::Inactive;
+        let unbreakable = is_unbreakable_paragraph(para);
+        if unbreakable {
+            self.writer.raw("#_acdc_unbreakable[\n");
+        }
         self.write_block_anchor(&para.metadata);
-        self.write_paragraph_content(para, true)
+        let result = self.write_paragraph_content(para, true, automatic_lead);
+        if unbreakable {
+            self.writer.raw("]\n\n");
+        }
+        result
     }
 
     fn visit_delimited_block(&mut self, block: &DelimitedBlock<'_>) -> Result<(), Self::Error> {
+        let unbreakable = is_unbreakable_delimited_block(block);
+        if unbreakable {
+            self.writer.raw("#_acdc_unbreakable[\n");
+        }
+        let sticky_anchor = is_page_breakable_table(block)
+            && (block.metadata.id.is_some() || !block.metadata.anchors.is_empty());
+        if sticky_anchor {
+            self.writer
+                .raw("#block(sticky: true, above: 0pt, below: 0pt)[\n");
+        }
         self.write_block_anchor(&block.metadata);
+        if sticky_anchor {
+            self.writer.raw("]\n");
+        }
 
         #[cfg(feature = "pre-spec-subs")]
         let previous_subs = self.processor.current_subs.replace(effective_subs_flags(
             block.metadata.substitutions.as_ref(),
             matches!(
                 block.inner,
-                DelimitedBlockType::DelimitedListing(_)
-                    | DelimitedBlockType::DelimitedLiteral(_)
-                    | DelimitedBlockType::DelimitedPass(_)
-                    | DelimitedBlockType::DelimitedVerse(_)
+                acdc_parser::DelimitedBlockType::DelimitedListing(_)
+                    | acdc_parser::DelimitedBlockType::DelimitedLiteral(_)
+                    | acdc_parser::DelimitedBlockType::DelimitedPass(_)
+                    | acdc_parser::DelimitedBlockType::DelimitedVerse(_)
             ),
         ));
 
-        let result = (|| {
-            // A sidebar sets its own title inside its box and an example sets
-            // its own numbered caption; every other block that shows a title
-            // takes it above.
-            let writes_own_title = matches!(
-                block.inner,
-                DelimitedBlockType::DelimitedSidebar(_) | DelimitedBlockType::DelimitedExample(_)
-            );
-            if shows_block_title(&block.inner) && !writes_own_title {
-                self.write_block_title(&block.title)?;
-            }
-            match &block.inner {
-                // Each container reads differently in print: an example takes a
-                // light frame, a sidebar a shaded box, and an open block is a
-                // transparent container that takes neither.
-                DelimitedBlockType::DelimitedExample(blocks) => {
-                    self.write_example(&block.title, blocks)
-                }
-                DelimitedBlockType::DelimitedSidebar(blocks) => {
-                    self.write_sidebar(&block.title, blocks)
-                }
-                // An `[abstract]` open block reads as a quote, matching the HTML
-                // backend. Asciidoctor PDF drops it; acdc keeps the content.
-                DelimitedBlockType::DelimitedOpen(blocks)
-                    if block.metadata.style == Some("abstract") =>
-                {
-                    self.write_quote_block(&block.metadata, |visitor| visitor.write_blocks(blocks))
-                }
-                DelimitedBlockType::DelimitedOpen(blocks) => {
-                    self.write_framed_blocks(None, None, blocks)
-                }
-                DelimitedBlockType::DelimitedQuote(blocks) => {
-                    self.write_quote_block(&block.metadata, |visitor| visitor.write_blocks(blocks))
-                }
-                DelimitedBlockType::DelimitedVerse(nodes) => {
-                    self.write_verse_block(nodes, &block.metadata)
-                }
-                DelimitedBlockType::DelimitedListing(nodes)
-                | DelimitedBlockType::DelimitedLiteral(nodes)
-                | DelimitedBlockType::DelimitedPass(nodes) => {
-                    self.write_verbatim_block(nodes);
-                    Ok(())
-                }
-                DelimitedBlockType::DelimitedTable(table) => self.write_table(table),
-                DelimitedBlockType::DelimitedStem(stem) => {
-                    self.write_stem_fallback(stem.content, true);
-                    Ok(())
-                }
-                DelimitedBlockType::DelimitedComment(_) | _ => Ok(()),
-            }
-        })();
+        let result = self.write_delimited_block_content(block);
+
+        if unbreakable {
+            self.writer.raw("]\n\n");
+        }
 
         #[cfg(feature = "pre-spec-subs")]
         self.processor.current_subs.set(previous_subs);
@@ -270,11 +334,15 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_ordered_list(&mut self, list: &OrderedList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
+        self.write_ordered_list_start(&list.metadata, list.marker);
         self.list_depth += 1;
         for item in &list.items {
             self.write_list_item("+", item)?;
         }
         self.list_depth -= 1;
+        let indent = "  ".repeat(self.list_depth);
+        let _ = writeln!(self.writer, "{indent}]");
+        self.write_ordered_list_end(&list.metadata);
         self.writer.raw("\n");
         Ok(())
     }
@@ -282,46 +350,59 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_unordered_list(&mut self, list: &UnorderedList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
+        if list.metadata.style == Some("bibliography") {
+            return self.write_bibliography_list(list);
+        }
+        let styled = self.write_unordered_list_start(&list.metadata);
         self.list_depth += 1;
+        self.unordered_list_depth += 1;
         for item in &list.items {
             self.write_list_item("-", item)?;
         }
+        self.unordered_list_depth -= 1;
         self.list_depth -= 1;
+        if styled {
+            let indent = "  ".repeat(self.list_depth);
+            let _ = writeln!(self.writer, "{indent}]");
+            self.write_unordered_list_end();
+        }
         self.writer.raw("\n");
         Ok(())
     }
 
     fn visit_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
-        self.write_block_title(&list.title)?;
-        for item in &list.items {
-            for anchor in &item.anchors {
-                self.write_anchor_target(anchor);
-            }
-            self.writer.raw("#text(weight: \"bold\")[");
-            self.write_inlines(&item.term)?;
-            self.writer.raw("]\n");
-            if !item.principal_text.is_empty() {
-                self.write_inlines(&item.principal_text)?;
-                self.writer.raw("\n");
-            }
-            self.write_blocks(&item.description)?;
+        if matches!(list.metadata.style, Some("ordered" | "unordered")) {
+            return self.write_marker_description_list(list);
         }
-        self.writer.raw("\n");
-        Ok(())
+        self.write_block_title(&list.title)?;
+        if list.metadata.style == Some("horizontal") {
+            return self.write_horizontal_description_list(list);
+        }
+        if list.metadata.style == Some("qanda") {
+            return self.write_qanda_description_list(list);
+        }
+        self.write_description_list(list)
     }
 
     fn visit_callout_list(&mut self, list: &CalloutList<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&list.metadata);
         self.write_block_title(&list.title)?;
+        self.writer.raw(
+            "#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },\n",
+        );
         for item in &list.items {
-            self.writer.raw("- ");
-            self.write_text_expr(&format!("({}) ", item.callout.number));
+            self.writer.raw("[");
+            self.write_text_expr(&format!("({})", item.callout.number));
+            self.writer.raw("], [");
             self.write_inlines(&item.principal)?;
-            self.writer.raw("\n");
+            if !item.principal.is_empty() && !item.blocks.is_empty() {
+                self.writer.raw("\n\n");
+            }
             self.write_blocks(&item.blocks)?;
+            self.writer.raw("],\n");
         }
-        self.writer.raw("\n");
+        self.writer.raw(")\n\n");
         Ok(())
     }
 
@@ -330,30 +411,59 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     }
 
     fn visit_admonition(&mut self, admon: &Admonition<'_>) -> Result<(), Self::Error> {
-        self.write_block_anchor(&admon.metadata);
-        let kind = match admon.variant {
-            AdmonitionVariant::Note => "note",
-            AdmonitionVariant::Tip => "tip",
-            AdmonitionVariant::Important => "important",
-            AdmonitionVariant::Caution => "caution",
-            AdmonitionVariant::Warning => "warning",
-        };
-        self.write_block_title(&admon.title)?;
-        self.writer.raw("#callout(");
-        self.writer.string_literal(kind);
-        self.writer.raw(")[\n");
-        match admon.blocks.as_slice() {
-            [Block::Paragraph(para)] if para.metadata == admon.metadata => {
-                // The parser copies a simple admonition's metadata to its
-                // synthetic paragraph. Render that paragraph without its anchor
-                // and title, which the admonition wrapper already wrote, but
-                // through the same content path so `[subs=…]` still applies.
-                self.write_paragraph_content(para, false)?;
-            }
-            blocks => self.write_blocks(blocks)?,
+        let unbreakable = admon.metadata.options.contains(&"unbreakable");
+        if unbreakable {
+            self.writer.raw("#_acdc_unbreakable[\n");
         }
-        self.writer.raw("]\n\n");
-        Ok(())
+        let result = (|| {
+            self.write_block_anchor(&admon.metadata);
+            let kind = match admon.variant {
+                AdmonitionVariant::Note => "note",
+                AdmonitionVariant::Tip => "tip",
+                AdmonitionVariant::Important => "important",
+                AdmonitionVariant::Caution => "caution",
+                AdmonitionVariant::Warning => "warning",
+            };
+            let image_icon = (IconMode::from(self.processor.document_attributes())
+                != IconMode::Text)
+                .then(|| admon.metadata.attributes.get_string("icon"))
+                .flatten()
+                .filter(|icon| !icon.is_empty())
+                .map(|icon| admonition_icon_source(self.processor.document_attributes(), &icon))
+                .and_then(|source| self.asset_virtual_path(&source));
+            if let Some(path) = image_icon {
+                self.writer.raw("#_acdc_image_callout(image(");
+                self.writer.string_literal(&path);
+                self.writer.raw(", width: 36pt, alt: ");
+                self.writer.string_literal(kind);
+                self.writer.raw("))[\n");
+            } else {
+                self.writer.raw("#callout(");
+                self.writer.string_literal(kind);
+                self.writer.raw(")[\n");
+            }
+            if !admon.title.is_empty() {
+                self.writer.raw("#admonitiontitle[");
+                self.write_title(&admon.title)?;
+                self.writer.raw("]\n");
+            }
+            match admon.blocks.as_slice() {
+                [Block::Paragraph(para)] if para.metadata == admon.metadata => {
+                    // The parser copies a simple admonition's metadata to its
+                    // synthetic paragraph. Render that paragraph without its anchor
+                    // and title, which the admonition wrapper already wrote, but
+                    // through the same content path so `[subs=…]` still applies.
+                    self.write_paragraph_content(para, false, false)?;
+                }
+                blocks => self.write_blocks(blocks)?,
+            }
+            self.writer.raw("]\n\n");
+            Ok(())
+        })();
+        if unbreakable {
+            self.writer.raw("]\n\n");
+        }
+        result
     }
 
     fn visit_image(&mut self, img: &Image<'_>) -> Result<(), Self::Error> {
@@ -363,24 +473,77 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_video(&mut self, video: &Video<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&video.metadata);
-        self.warn_unsupported("video blocks", "rendering the video target as text");
-        self.write_block_title(&video.title)?;
+        self.warn_static_media_fallback(&video.location);
+        let youtube = matches!(
+            video.metadata.attributes.get("youtube"),
+            Some(AttributeValue::Bool(true))
+        );
+        let is_vimeo = matches!(
+            video.metadata.attributes.get("vimeo"),
+            Some(AttributeValue::Bool(true))
+        );
         let sources = video
             .sources
             .iter()
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(", ");
-        self.write_text_expr(&format!("[video: {sources}]"));
+            .map(|source| {
+                if youtube {
+                    (
+                        format!("https://www.youtube.com/watch?v={source}"),
+                        "YouTube video",
+                    )
+                } else if is_vimeo {
+                    (format!("https://vimeo.com/{source}"), "Vimeo video")
+                } else {
+                    (self.static_media_source_target(source), "video")
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let poster = video
+            .metadata
+            .attributes
+            .get_string("poster")
+            .filter(|poster| !poster.is_empty());
+        let poster_target = poster
+            .as_deref()
+            .map(|poster| self.static_media_target(poster));
+        let poster_rendered = if let (Some(poster), Some(poster_target), Some((target, _))) =
+            (poster.as_deref(), poster_target.as_deref(), sources.first())
+            && self.has_asset(poster_target)
+        {
+            let mut metadata = video.metadata.clone();
+            metadata.caption = Some(Caption::Unnumbered);
+            metadata.attributes.set(
+                Cow::Borrowed("link"),
+                AttributeValue::String(Cow::Owned(target.clone())),
+            );
+            let image = Image::new(Source::from_str_borrowed(poster)?, video.location.clone())
+                .with_title(video.title.clone())
+                .with_metadata(metadata);
+            self.write_block_image(&image)?;
+            true
+        } else {
+            false
+        };
+
+        for (target, kind) in sources.iter().skip(usize::from(poster_rendered)) {
+            self.write_static_media_link(target, kind);
+            self.writer.raw("\n");
+        }
+        if !poster_rendered {
+            self.write_static_media_caption(&video.title)?;
+        }
         self.writer.raw("\n\n");
         Ok(())
     }
 
     fn visit_audio(&mut self, audio: &Audio<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&audio.metadata);
-        self.warn_unsupported("audio blocks", "rendering the audio target as text");
-        self.write_block_title(&audio.title)?;
-        self.write_text_expr(&format!("[audio: {}]", audio.source));
+        self.warn_static_media_fallback(&audio.location);
+        let target = self.static_media_source_target(&audio.source);
+        self.write_static_media_link(&target, "audio");
+        self.writer.raw("\n");
+        self.write_static_media_caption(&audio.title)?;
         self.writer.raw("\n\n");
         Ok(())
     }
@@ -395,7 +558,30 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
 
     fn visit_page_break(&mut self, br: &PageBreak<'_>) -> Result<(), Self::Error> {
         self.write_block_anchor(&br.metadata);
-        self.writer.raw("#pagebreak()\n\n");
+        if br.metadata.attributes.get_string("page-layout").is_some()
+            || br
+                .metadata
+                .roles
+                .iter()
+                .any(|role| matches!(*role, "landscape" | "portrait"))
+        {
+            self.warn_unsupported_once(
+                "page-layout-change",
+                "page-break layout changes are not supported by the PDF backend; keeping the document page layout",
+                "Use Asciidoctor PDF when a document must switch between portrait and landscape pages.",
+                br.metadata.location.as_ref().or(Some(&br.location)),
+            );
+        }
+        if br.metadata.options.contains(&"always") {
+            if self.explicit_page_break_state == ExplicitPageBreakState::Weak {
+                self.writer.raw("#pagebreak()\n");
+            }
+            self.writer.raw("#pagebreak()\n\n");
+            self.explicit_page_break_state = ExplicitPageBreakState::Inactive;
+        } else {
+            self.writer.raw("#pagebreak(weak: true)\n\n");
+            self.explicit_page_break_state = ExplicitPageBreakState::Weak;
+        }
         Ok(())
     }
 
@@ -422,9 +608,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
         let result = (|| {
             match node {
                 InlineNode::PlainText(plain) => self.write_plain(plain.content),
-                InlineNode::RawText(raw) => {
-                    self.write_text_expr(&decode_numeric_char_refs(raw.content));
-                }
+                InlineNode::RawText(raw) => self.write_raw(raw),
                 InlineNode::VerbatimText(verbatim) => self.write_text_expr(verbatim.content),
                 InlineNode::BoldText(bold) => {
                     self.write_quoted_span(bold.id, bold.role, "#strong[", &bold.content, "]")?;
@@ -433,13 +617,11 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_quoted_span(italic.id, italic.role, "#emph[", &italic.content, "]")?;
                 }
                 InlineNode::MonospaceText(mono) => {
-                    let wrappers = self.write_inline_span_start(mono.id, mono.role);
+                    let state = self.write_inline_span_start(mono.id, mono.role);
                     let text = inlines_to_string(&mono.content);
-                    let text = collapse_source_whitespace(&text);
-                    self.writer.raw("#raw(");
-                    self.writer.string_literal(&text);
-                    self.writer.raw(")");
-                    self.write_inline_span_end(wrappers);
+                    let text = self.normalize_prose_whitespace(&text);
+                    self.write_inline_verbatim(&text);
+                    self.write_inline_span_end(state);
                 }
                 InlineNode::HighlightText(highlight) => {
                     let (prefix, suffix) = if highlight.id.is_some() || highlight.role.is_some() {
@@ -462,18 +644,18 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                     self.write_quoted_span(sup.id, sup.role, "#super[", &sup.content, "]")?;
                 }
                 InlineNode::CurvedQuotationText(quoted) => {
-                    let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
+                    let state = self.write_inline_span_start(quoted.id, quoted.role);
                     self.write_text_expr("\u{201C}");
                     self.write_inlines(&quoted.content)?;
                     self.write_text_expr("\u{201D}");
-                    self.write_inline_span_end(wrappers);
+                    self.write_inline_span_end(state);
                 }
                 InlineNode::CurvedApostropheText(quoted) => {
-                    let wrappers = self.write_inline_span_start(quoted.id, quoted.role);
+                    let state = self.write_inline_span_start(quoted.id, quoted.role);
                     self.write_text_expr("\u{2018}");
                     self.write_inlines(&quoted.content)?;
                     self.write_text_expr("\u{2019}");
-                    self.write_inline_span_end(wrappers);
+                    self.write_inline_span_end(state);
                 }
                 InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
                 InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),
@@ -484,7 +666,7 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
                 InlineNode::CalloutRef(callout) => {
                     self.write_text_expr(&format!("({})", callout.number));
                 }
-                _ => {}
+                _ => self.warn_unsupported_parser_variant("inline node", Some(node.location())),
             }
             Ok(())
         })();
@@ -496,5 +678,21 @@ impl Visitor for PdfVisitor<'_, '_, '_> {
     fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
         self.write_plain(text);
         Ok(())
+    }
+}
+
+fn appendix_caption<'a>(attributes: &'a acdc_parser::DocumentAttributes<'_>) -> Option<&'a str> {
+    match attributes.get("appendix-caption") {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) => None,
+        None => Some("Appendix"),
+    }
+}
+
+fn part_signifier<'a>(attributes: &'a acdc_parser::DocumentAttributes<'_>) -> Option<&'a str> {
+    match attributes.get("part-signifier") {
+        Some(AttributeValue::String(value)) => Some(value.as_ref()),
+        Some(_) => None,
+        None => Some("Part"),
     }
 }

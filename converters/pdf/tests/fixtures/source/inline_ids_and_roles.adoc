@@ -4,6 +4,10 @@ A [#bold-id]*bold*, [#italic-id]_italic_, [#mono-id]`mono`, [#mark-id]#mark#, [#
 
 See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mark link>>, <<sub-id,sub link>>, <<super-id,super link>>, <<double-id,double link>>, and <<single-id,single link>>.
 
+#plain highlight#
+
+[#mark-open-id.underline]#attributed span with an ID and role#
+
 [.line-through]#line-through#
 
 [.underline]#underline#
@@ -21,6 +25,8 @@ See <<bold-id>>, <<italic-id,italic link>>, <<mono-id,mono link>>, <<mark-id,mar
 [.black-background]#black-background#
 
 [.red-background]#red-background#
+
+[#background-role-id.red-background.underline]#background span with an ID and role#
 
 [.red.underline]#combined known#
 

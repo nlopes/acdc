@@ -21,3 +21,151 @@
 | Bottom 3 | Bottom 4
 4+| Full width footer
 |===
+
+.Inferred equal widths
+|===
+|one |two |three
+|===
+
+.Proportional widths
+[cols="1,3"]
+|===
+|one |three
+|===
+
+.Percentage widths
+[cols="25%,75%"]
+|===
+|twenty-five |seventy-five
+|===
+
+.Mixed numeric and percentage widths
+[cols="1,25%"]
+|===
+|one |twenty-five
+|===
+
+.Automatic widths
+[cols="2*~"]
+|===
+|one |two
+|===
+
+.Automatic width with fixed widths
+[cols="~,20,30"]
+|===
+|fifty |twenty |thirty
+|===
+
+.Content-sized table
+[%autowidth,cols="1,3"]
+|===
+|one |three
+|===
+
+.Horizontal column alignment
+[cols="<,^,>"]
+|===
+|Left |Center |Right
+|===
+
+.Vertical column alignment
+[cols=".<,.^,.>,<"]
+|===
+|Top |Middle |Bottom
+|This deliberately long cell makes the row tall enough to show each vertical alignment.
+|===
+
+.Cell alignment overrides
+[cols=">.>,>.>,>.>,>.>"]
+|===
+<|Left
+^|Center
+>|Right
+|This deliberately long cell makes the row tall enough to show horizontal overrides while retaining bottom alignment.
+
+.<|Top
+.^|Middle
+.>|Bottom
+|This deliberately long cell makes the row tall enough to show vertical overrides while retaining right alignment.
+
+<.<|Left and top
+^.^|Center and middle
+>.>|Right and bottom
+|This deliberately long cell makes the row tall enough to show combined alignment overrides.
+|===
+
+.Cell alignment after spans
+[cols=">,<,^"]
+|===
+2+|Spans logical columns one and two
+.>|Bottom in logical column three
+
+.2+|Spans two rows
+|First row, logical column two
+|First row, logical column three
+
+.>|Bottom in logical column two
+|This deliberately long cell makes the second row tall enough to show its first real cell at the bottom.
+|===
+
+.Cell alignment in table sections
+[%header%footer,cols=">.>,<"]
+|===
+^.^|Header center and middle
+.>|Header bottom
+
+<.<|Body left and top
+|This deliberately long cell makes the body row tall enough to show its first cell at the top.
+
+^.>|Footer center and bottom
+.<|Footer top
+|===
+
+.Column cell styles
+:table-name: Ada
+[cols="d,e,h,l,m,s"]
+|===
+|Default *bold* {table-name}
+|Emphasis *bold* {table-name}
+|Header _italic_ {table-name}
+|Literal *bold* {table-name}
+|Monospace *bold* {table-name}
+|Strong _italic_ {table-name}
+|===
+
+.Cell style overrides
+[cols="3*s"]
+|===
+d|Default
+e|Emphasis
+h|Header
+l|Literal *bold* {table-name}
+m|Monospace *bold* {table-name}
+s|Strong _italic_ {table-name}
+|===
+
+.Cell styles in table sections
+[%header%footer,cols="l,e,s"]
+|===
+l|Header *bold* {table-name}
+m|Header _italic_ {table-name}
+s|Header _italic_ {table-name}
+
+|Body literal *bold* {table-name}
+|Body emphasis *bold* {table-name}
+|Body strong _italic_ {table-name}
+
+l|Footer literal *bold* {table-name}
+m|Footer monospace *bold* {table-name}
+h|Footer header _italic_ {table-name}
+|===
+
+.Literal and monospace whitespace
+[cols="l,m"]
+|===
+|Literal  keeps
+  spaces and *marks* {table-name}
+|Monospace  collapses
+  spaces and *formats* {table-name}
+|===

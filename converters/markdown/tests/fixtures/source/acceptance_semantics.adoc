@@ -1,0 +1,80 @@
+= Acceptance Semantics
+:toc: macro
+:acdc-index:
+
+== Generated Section
+
+[#explicit-section]
+=== Explicit Section
+
+[#discrete-id,discrete]
+==== Discrete Heading
+
+[[paragraph-id]]
+Paragraph.
+
+[#list-id]
+* Parent
+** Child
+
+[[ordered-list-id]]
+. Ordered item
+
+[#description-list-id]
+Term:: Definition
+
+[[admonition-id]]
+NOTE: Note.
+
+[[listing-id]]
+----
+code
+----
+
+[#image-id]
+.Overview image
+image::photo.png[Scenic view]
+
+[[audio-id]]
+audio::audio.mp3[]
+
+[#video-id]
+video::video.mp4[]
+
+[[table-id]]
+.Records
+[cols="1,1",options=header]
+|===
+|Name |Value
+
+|Ada |One
+|===
+
+[#toc-id]
+toc::[]
+
+[source]
+----
+callout <1>
+----
+[[callout-list-id]]
+<1> Explanation.
+
+[#page-id]
+<<<
+
+[[thematic-id]]
+'''
+
+A footnote keeps its body.footnote:[Footnote body.]
+
+A (((Concept, Details))) location.
+
+See <<Generated Section>>, <<explicit-section>>, <<discrete-id>>,
+<<paragraph-id>>, <<list-id>>, <<ordered-list-id>>, <<description-list-id>>,
+<<admonition-id>>, <<listing-id>>, <<image-id>>, <<audio-id>>, <<video-id>>,
+<<table-id>>, <<toc-id>>, <<callout-list-id>>, <<page-id>>, and
+<<thematic-id>>.
+
+[index]
+== Index

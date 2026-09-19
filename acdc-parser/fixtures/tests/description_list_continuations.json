@@ -1,0 +1,251 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "style": "horizontal"
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Owner",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 5
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Principal description text.",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 9
+                },
+                {
+                  "line": 2,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "description": [
+            {
+              "name": "paragraph",
+              "type": "block",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "An attached paragraph owned by Owner.",
+                  "location": [
+                    {
+                      "line": 4,
+                      "col": 1
+                    },
+                    {
+                      "line": 4,
+                      "col": 37
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 4,
+                  "col": 1
+                },
+                {
+                  "line": 4,
+                  "col": 37
+                }
+              ]
+            },
+            {
+              "name": "admonition",
+              "type": "block",
+              "variant": "note",
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "An attached admonition owned by Owner.",
+                      "location": [
+                        {
+                          "line": 6,
+                          "col": 7
+                        },
+                        {
+                          "line": 6,
+                          "col": 44
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 6,
+                      "col": 7
+                    },
+                    {
+                      "line": 6,
+                      "col": 44
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 6,
+                  "col": 1
+                },
+                {
+                  "line": 6,
+                  "col": 44
+                }
+              ]
+            },
+            {
+              "name": "listing",
+              "type": "block",
+              "form": "delimited",
+              "delimiter": "----",
+              "metadata": {
+                "attributes": {
+                  "language": "rust",
+                  "rust": null
+                },
+                "style": "source"
+              },
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "fn owned() {\n    println!(\"owner\");\n}",
+                  "location": [
+                    {
+                      "line": 10,
+                      "col": 1
+                    },
+                    {
+                      "line": 12,
+                      "col": 1
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 8,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Sibling",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 1
+                },
+                {
+                  "line": 14,
+                  "col": 7
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "This sibling must remain a separate row.",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 11
+                },
+                {
+                  "line": 14,
+                  "col": 50
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 51
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 14,
+      "col": 50
+    }
+  ]
+}

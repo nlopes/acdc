@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- PDF export explicitly keeps Typst's semantic structure tagging enabled. The
+  tagged output carries document language and supported content roles but does
+  not claim PDF/UA-1 conformance.
 - The crate now lives under `converters/pdf/crates` as a non-publishable implementation
   component of `acdc-converters-pdf`; its Cargo package name remains unchanged.
 
 ### Added
 
+- Consumers can identify source-language names and tags supported by Typst.
 - Initial Typst-backed PDF renderer with bundled fallback fonts, optional
   runtime font directories, on-demand resolved image embedding, and non-fatal
   Typst warning reporting.

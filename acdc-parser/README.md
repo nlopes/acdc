@@ -116,8 +116,18 @@ The implementation here follows from:
 * **Strict mode** - Stricter parsing rules
 * **Base directory** - Entry-input include resolution through
   `Options::builder().with_base_dir(path)`
+* **Document attributes** - Caller attributes passed with `with_attribute` or
+  `with_attributes` cannot be replaced or unset by document entries. The parser
+  also protects the built-in read-only and API-only attribute names internally.
 * **Setext headers** - Optional feature flag for two-line underlined headers
 * **Manpage doctype** - `doctype=manpage` with derived attributes
+
+## Recoverable document warnings
+
+A section directly nested in a `[bibliography]` section remains in the AST and
+adds a located warning to `ParseResult::warnings()`. Parsing and conversion
+continue. Asciidoctor keeps the same content but reports the condition at error
+severity.
 
 ## Include targets
 
@@ -324,6 +334,10 @@ Run `acdc lint` over new or changed AsciiDoc fixtures before handing them off.
 ## Deliberate divergences from asciidoctor
 
 acdc's references are the [AsciiDoc Language draft specification](https://gitlab.eclipse.org/eclipse/asciidoc-lang/asciidoc-lang/) and [asciidoctor](https://asciidoctor.org). A handful of parser behaviours intentionally differ from asciidoctor where the draft spec and asciidoctor diverge, or where asciidoctor's output is an implementation artifact.
+
+* **Uppercase checklist marker**: acdc treats `[X]` as checked, alongside `[x]`
+  and `[*]`. Asciidoctor leaves `[X]` in the item's text. This acceptance
+  difference is an intentional acdc extension.
 
 * **Remote include response limit**: Each decoded HTTP(S) include response is limited
   to 10 MiB. See [Remote includes](#remote-includes) for the authority requirements

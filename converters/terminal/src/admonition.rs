@@ -1,6 +1,9 @@
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    icon::IconMode,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 use crossterm::{
     QueueableCommand,
@@ -22,12 +25,10 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         writeln!(w)?;
 
         // Get icon, caption attribute, and theme color for this admonition type
-        let (icon, caption_attr, color) = match admon.variant {
-            AdmonitionVariant::Note => (
-                "ℹ️ ",
-                "note-caption",
-                processor.appearance.colors.admon_note,
-            ),
+        let (glyph, caption_attr, color) = match admon.variant {
+            AdmonitionVariant::Note => {
+                ("ℹ️", "note-caption", processor.appearance.colors.admon_note)
+            }
             AdmonitionVariant::Tip => ("💡", "tip-caption", processor.appearance.colors.admon_tip),
             AdmonitionVariant::Important => (
                 "❗",
@@ -35,7 +36,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 processor.appearance.colors.admon_important,
             ),
             AdmonitionVariant::Warning => (
-                "⚠️ ",
+                "⚠️",
                 "warning-caption",
                 processor.appearance.colors.admon_warning,
             ),
@@ -45,6 +46,9 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 processor.appearance.colors.admon_caution,
             ),
         };
+        let icon = (IconMode::from(&processor.document_attributes) != IconMode::Text
+            && processor.appearance.capabilities.unicode)
+            .then_some(glyph);
 
         let caption = processor
             .document_attributes
@@ -63,7 +67,10 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         };
 
         // Header line with icon, bold caption, and left border
-        write!(w, "{} {icon}", border.with(color))?;
+        write!(w, "{} ", border.with(color))?;
+        if let Some(icon) = icon {
+            write!(w, "{icon} ")?;
+        }
         let styled_caption = format!("{caption}:").bold();
         QueueableCommand::queue(w, PrintStyledContent(styled_caption))?;
 

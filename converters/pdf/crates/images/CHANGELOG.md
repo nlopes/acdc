@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Percent-encoded local image targets load files whose paths contain the
+  corresponding decoded characters, including spaces encoded as `%20`.
+
 ### Changed
 
 - The crate now lives under `converters/pdf/crates` as a non-publishable implementation

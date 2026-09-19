@@ -1,0 +1,38 @@
+= Block image dimensions
+:dimension-image: data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%221000%22%20height=%22500%22%20viewBox=%220%200%20200%20100%22%3E%3Crect%20width=%22200%22%20height=%22100%22%20fill=%22%23e7edf3%22/%3E%3Cpath%20d=%22M0%200L200%20100M200%200L0%20100%22%20stroke=%22%232f4054%22%20stroke-width=%224%22/%3E%3C/svg%3E
+
+== Intrinsic syntax
+
+image::{dimension-image}[Intrinsic syntax]
+
+== Numeric width
+
+image::{dimension-image}[Numeric width,120]
+
+== Named numeric width
+
+image::{dimension-image}[Named numeric width,width=120]
+
+== Percentage width
+
+image::{dimension-image}[Percentage width,width=40%]
+
+== Width and height
+
+image::{dimension-image}[Width and height,120,40]
+
+== Named width and height
+
+image::{dimension-image}[Named width and height,width=120,height=40]
+
+== Height only
+
+image::{dimension-image}[Height only,height=40]
+
+== Invalid unit
+
+image::{dimension-image}[Invalid unit,width=120px]
+
+== Oversized width
+
+image::{dimension-image}[Oversized width,width=1000]

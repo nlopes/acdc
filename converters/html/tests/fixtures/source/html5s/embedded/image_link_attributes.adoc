@@ -1,0 +1,27 @@
+= Image link attributes
+
+[link=https://example.com/block-attribute]
+image::block.png[Block attribute]
+
+[link=https://example.com/overridden]
+image::block.png[Macro attribute,link=https://example.com/macro]
+
+image::block.png[Blank window,link=https://example.com/blank,window=_blank]
+
+image::block.png[No follow,link=https://example.com/nofollow,opts=nofollow]
+
+image::block.png[Custom window,link=https://example.com/custom,window=reader,opts=noopener]
+
+image::block.png[Combined controls,link=https://example.com/combined,window=_blank,opts=nofollow]
+
+Inline image:apply.png[Inline blank window,link=https://example.com/inline-blank,window=_blank].
+
+Inline image:apply.png[Inline no follow,link=https://example.com/inline-nofollow,opts=nofollow].
+
+Inline image:apply.png[Inline custom window,link=https://example.com/inline-custom,window=reader,opts=noopener].
+
+Inline image:apply.png[Inline combined controls,link=https://example.com/inline-combined,window=_blank,opts=nofollow].
+
+Inline image:apply.png[Empty inline link,link=].
+
+Inline image:apply.png[Repeated inline link,link=https://example.com/first,link=https://example.com/last].

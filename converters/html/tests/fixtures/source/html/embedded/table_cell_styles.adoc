@@ -1,9 +1,23 @@
+:who: Ada
+
 [cols="1,1,1,1,1,1"]
 |===
 |normal
 s|strong
 e|emphasis
 m|monospace
-l|literal
+l|literal *bold* {who}
 h|header
+|===
+
+[cols="l,s",options="header,footer"]
+|===
+l|header *bold* {who}
+e|header _italic_ {who}
+
+|literal *bold* {who}
+d|default *bold* {who}
+
+l|footer *bold* {who}
+s|footer _italic_ {who}
 |===

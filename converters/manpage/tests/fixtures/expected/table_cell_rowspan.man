@@ -34,10 +34,10 @@ table\-cell\-rowspan \- test table cell rowspan
 A table with rowspan cells.
 .TS
 allbox tab(:);
-ltB ltB ltB
-lt lt lt
-^ lt lt
-lt lt lt.
+ltBx ltBx ltBx
+ltx ltx ltx
+^ ltx ltx
+ltx ltx ltx.
 A:B:C
 Spans rows:D:E
 \^:F:G

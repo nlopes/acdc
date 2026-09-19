@@ -8,12 +8,12 @@ use acdc_converters_core::{
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    Admonition, Audio, CalloutList, DelimitedBlock, DescriptionList, DiscreteHeader, Document,
-    Header, Image, InlineMacro, InlineNode, ListItem, OrderedList, PageBreak, Paragraph, Section,
-    TableOfContents, ThematicBreak, UnorderedList, Video,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, Caption, DelimitedBlock, DescriptionList,
+    DiscreteHeader, Document, Header, Image, InlineMacro, InlineNode, ListItem, OrderedList,
+    PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
-use crate::escape::{EscapeMode, manify};
+use crate::escape::{EscapeMode, escape_roff_macro_argument, manify};
 
 use crate::{Error, Processor};
 
@@ -21,6 +21,12 @@ use crate::{Error, Processor};
 pub(crate) enum TextCase {
     Preserve,
     Uppercase,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub(crate) enum IndexCollection {
+    Enabled,
+    Disabled,
 }
 
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
@@ -31,7 +37,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
     pub(crate) list_depth: usize,
-    /// Whether we're currently in the NAME section (which shouldn't have .sp before content).
+    /// Whether the current section supplies the manpage name metadata.
     pub(crate) in_name_section: bool,
     /// Whether the next text node should have leading whitespace stripped.
     /// Set after `.URL`/`.MTO` macros which end with a newline.
@@ -39,10 +45,11 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
     pub(crate) in_inline_span: bool,
+    pub(crate) index_collection: IndexCollection,
     pub(crate) text_boundaries: TextBoundaries,
     /// Text casing applied while preserving inline markup.
     pub(crate) text_case: TextCase,
-    /// Title of the first level-1 section (for NAME validation).
+    /// Title of the first level-1 section for name-section validation.
     first_section_title: Option<String>,
     /// Title of the second level-1 section (for SYNOPSIS validation).
     second_section_title: Option<String>,
@@ -59,6 +66,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
             in_name_section: false,
             strip_next_leading_space: false,
             in_inline_span: false,
+            index_collection: IndexCollection::Enabled,
             text_boundaries: TextBoundaries::BOTH,
             text_case: TextCase::Preserve,
             first_section_title: None,
@@ -94,6 +102,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         let processor = self.processor.clone();
         let mut visitor = ManpageVisitor::new(writer, processor, self.diagnostics.reborrow());
         visitor.text_case = self.text_case;
+        visitor.index_collection = self.index_collection;
         visitor
     }
 
@@ -112,9 +121,49 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         self.writer
     }
 
+    pub(crate) fn warn_unsupported_parser_variant(&mut self, kind: &str) {
+        self.diagnostics.warn_with_advice(
+            format!("an unsupported parser {kind} variant was omitted from manpage output"),
+            "Use another backend for this document and report the unsupported construct.",
+        );
+    }
+
     /// Write a blank line for spacing.
     pub(crate) fn write_sp(&mut self) -> Result<(), Error> {
         writeln!(self.writer, ".sp")?;
+        Ok(())
+    }
+
+    /// Render a block title with the caption resolved by the parser.
+    pub(crate) fn render_captioned_title(
+        &mut self,
+        title: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
+    ) -> Result<(), Error> {
+        if title.is_empty() {
+            return Ok(());
+        }
+
+        write!(self.writer_mut(), "\\fB")?;
+        let prefix = match metadata.caption.as_ref() {
+            Some(Caption::Numbered {
+                label,
+                number: Some(number),
+                ..
+            }) => Some(format!("{label} {number}. ")),
+            Some(Caption::Custom(prefix)) => Some(prefix.to_string()),
+            Some(_) | None => None,
+        };
+        if let Some(prefix) = prefix {
+            write!(
+                self.writer_mut(),
+                "{}",
+                manify(&prefix, EscapeMode::Normalize)
+            )?;
+        }
+        self.visit_inline_nodes(title)?;
+        writeln!(self.writer_mut(), "\\fP")?;
+        writeln!(self.writer_mut(), ".br")?;
         Ok(())
     }
 
@@ -146,16 +195,13 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                     // If text contains whitespace, render only up to it and stop
                     if let Some(ws_pos) = text.content.find(char::is_whitespace) {
                         let partial = &text.content[..ws_pos];
-                        // For trailing content inside quotes, only escape hyphens
-                        // (don't escape leading periods - they won't be interpreted as macros)
-                        let escaped = partial.replace('-', "\\-");
+                        let escaped = manify(partial, EscapeMode::Collapse);
                         write!(trailing_visitor.writer, "{escaped}")?;
                         // Record how many bytes we consumed from this node
                         partial_bytes = ws_pos;
                         break;
                     }
-                    // Render entire PlainText - only escape hyphens for trailing content
-                    let escaped = text.content.replace('-', "\\-");
+                    let escaped = manify(text.content, EscapeMode::Collapse);
                     write!(trailing_visitor.writer, "{escaped}")?;
                     skip_count += 1;
                 }
@@ -189,6 +235,11 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
 
 impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     type Error = Error;
+
+    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+        self.warn_unsupported_parser_variant("block");
+        Ok(())
+    }
 
     fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
         self.render_document_start(doc)
@@ -230,7 +281,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
                 let name = crate::document::format_author_name(author);
                 write!(w, "\\fB{}\\fP", manify(&name, EscapeMode::Normalize))?;
                 if let Some(email) = &author.email {
-                    let escaped_email = email.replace('@', "\\(at");
+                    let escaped_email = escape_roff_macro_argument(email).replace('@', "\\(at");
                     writeln!(w, " \\c\n.MTO \"{escaped_email}\" \"\" \"\"")?;
                 } else {
                     writeln!(w)?;
@@ -244,13 +295,18 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
         // Validate manpage section order conventions
         const SECTION_ORDER_ADVICE: &str =
-            "Manpage output conventionally starts with NAME followed by SYNOPSIS.";
+            "Manpage output conventionally starts with the name section followed by SYNOPSIS.";
 
+        let name_section_title = self
+            .processor
+            .document_attributes
+            .get_string("manname-title")
+            .unwrap_or_else(|| "Name".into());
         if let Some(ref first) = self.first_section_title
-            && !first.eq_ignore_ascii_case("NAME")
+            && !first.eq_ignore_ascii_case(name_section_title.as_ref())
         {
             self.diagnostics.warn_with_advice(
-                format!("manpage convention: NAME should be the first section, got `{first}`"),
+                format!("manpage convention: name section should be first, got `{first}`"),
                 SECTION_ORDER_ADVICE,
             );
         }
@@ -311,35 +367,15 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
     }
 
     fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        // Images cannot be embedded in man pages - show title as alt text
-        self.write_sp()?;
-        if img.title.is_empty() {
-            writeln!(self.writer, "[IMAGE]")?;
-        } else {
-            write!(self.writer, "[")?;
-            self.visit_inline_nodes(&img.title)?;
-            writeln!(self.writer, "]")?;
-        }
-        Ok(())
+        self.render_image(img)
     }
 
     fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        // Videos cannot be embedded in man pages - show placeholder
-        // Video has multiple sources, use the first one or empty
-        self.write_sp()?;
-        if let Some(first_source) = video.sources.first() {
-            writeln!(self.writer, "[VIDEO: {first_source}]")?;
-        } else {
-            writeln!(self.writer, "[VIDEO]")?;
-        }
-        Ok(())
+        self.render_video(video)
     }
 
     fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        // Audio cannot be embedded in man pages - show placeholder
-        self.write_sp()?;
-        writeln!(self.writer, "[AUDIO: {}]", audio.source)?;
-        Ok(())
+        self.render_audio(audio)
     }
 
     fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {

@@ -1,0 +1,26 @@
+= Book styled paragraph captions
+:doctype: book
+:listing-caption: Listing
+
+== First Chapter
+
+.First example
+[example]
+First example content.
+
+.First listing
+[listing]
+first listing
+
+== Second Chapter
+
+.Second example
+====
+Second example content.
+====
+
+.Second source
+[source,rust]
+----
+let second = 2;
+----

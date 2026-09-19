@@ -27,4 +27,4 @@ pub(crate) use inlines::inline_parser;
 pub(crate) use line_map::LineMap;
 pub use passthrough_processing::parse_text_for_quotes;
 pub(crate) use source_remap::{remap_document_to_source, remap_inlines_to_source};
-pub(crate) use state::ParserState;
+pub(crate) use state::{InlineRules, ParserState};

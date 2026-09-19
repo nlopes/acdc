@@ -3,13 +3,18 @@
 //! This converter renders the acdc AST into Typst markup and delegates themed
 //! preamble generation, asset resolution, font loading, and PDF compilation to
 //! the shared `acdc-pdf-*` crates.
+//!
+//! Passthrough blocks render as unframed monospace text. Their content is
+//! always escaped data and is never interpreted as Typst source.
 
 use std::{
+    borrow::Cow,
     cell::Cell,
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeSet, HashMap, HashSet},
     fmt::Write as _,
     fs::File,
     io::Read,
+    num::NonZeroUsize,
     path::{Path, PathBuf},
     rc::Rc,
     time::{Duration, Instant},
@@ -18,37 +23,74 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendTraits, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
-    visitor::Visitor, xref::XrefGuard,
+    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration, Warning,
+    icon::{IconMode, image_source as icon_image_source},
+    media::resolve_target,
+    toc::Config as TocConfig,
+    visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
-    Author, Block, DelimitedBlockType, Document, DocumentAttributes, InlineMacro, InlineNode,
-    ListItem, Reference, SafeMode, Source, Table, TableRow,
+    Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
+    Document, DocumentAttributes, ElementAttributes, IndexTerm, IndexTermRelationship, InlineMacro,
+    InlineNode, ListItem, Location, Reference, SafeMode, Source, SourceLocation, Table,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
 };
-use acdc_pdf_render::{RenderConfig, render_pdf};
-use acdc_pdf_theme::Theme;
+use acdc_pdf_render::{NamedDestination, RenderConfig, render_pdf};
+use acdc_pdf_theme::{PageNumberingStart, Theme};
 use acdc_pdf_typst::{
-    DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, preamble,
+    DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
-
+use lopdf::dictionary;
 mod converter;
 mod error;
+mod index;
 mod pdf_visitor;
 mod visitor;
 
-pub use acdc_pdf_typst::PageSize;
+pub use acdc_pdf_typst::{PageDimensions, PageGeometryError, PageLayout, PageMargins, PageSize};
 pub use error::Error;
 
-/// Intrinsic traits for the PDF backend.
-pub(crate) const BACKEND_TRAITS: BackendTraits =
-    BackendTraits::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
+pub(crate) const PDF_BACKEND: BackendProfile =
+    BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
-use pdf_visitor::PdfVisitor;
+use pdf_visitor::{PdfVisitor, builtin_icon_glyph};
+
+pub(crate) fn warn_with_advice_at(
+    diagnostics: &mut Diagnostics<'_>,
+    location: Option<&Location>,
+    message: impl Into<Cow<'static, str>>,
+    advice: impl Into<Cow<'static, str>>,
+) {
+    let mut warning = Warning::new(diagnostics.source().clone(), message).with_advice(advice);
+    if let Some(location) =
+        location.filter(|location| location.start.file.is_none() && location.end.file.is_none())
+    {
+        warning = warning.at(SourceLocation::at_location(None, location.clone()));
+    }
+    diagnostics.emit(warning);
+}
 
 const MAX_THEME_FILE_BYTES: usize = 1024 * 1024;
+const TYPST_RAW_SIZE_EM: f64 = 0.8;
+const UNBREAKABLE_HELPER: &str = r"#let _acdc_unbreakable(body) = layout(size => {
+  let kept = block(
+    width: 100%,
+    breakable: false,
+    above: 0pt,
+    below: 0pt,
+    body,
+  )
+  if measure(kept, width: size.width).height <= size.height {
+    kept
+  } else {
+    body
+  }
+})
+
+";
 
 /// PDF-specific conversion options.
 #[allow(clippy::struct_excessive_bools)]
@@ -58,7 +100,7 @@ pub struct PdfOptions {
     pub font_dirs: Vec<PathBuf>,
     /// Optional header logo. Resolved relative to the current working directory.
     pub logo: Option<PathBuf>,
-    /// Optional running-header title. Defaults to the document title when absent.
+    /// Optional page-header title. Defaults to the document title when absent.
     pub title: Option<String>,
     /// Optional diagonal watermark stamped on every page.
     pub watermark: Option<String>,
@@ -66,9 +108,13 @@ pub struct PdfOptions {
     pub watermark_timestamp: Option<String>,
     /// Optional page size override. Document `:pdf-page-size:` is used next.
     pub page: Option<PageSize>,
+    /// Optional page layout override. Document `:pdf-page-layout:` is used next.
+    pub page_layout: Option<PageLayout>,
+    /// Optional page margin override. Document `:pdf-page-margin:` is used next.
+    pub page_margin: Option<PageMargins>,
     /// Optional theme YAML file. Defaults to the bundled neutral theme.
     pub theme: Option<PathBuf>,
-    /// Strip page background, header, and footer chrome.
+    /// Strip the page background, header, and footer.
     pub plain: bool,
     /// Emit an automatic table of contents when the document does not set `:toc:`.
     pub toc: bool,
@@ -76,6 +122,140 @@ pub struct PdfOptions {
     pub strict_assets: bool,
     /// Also write the generated Typst markup to this path for debugging.
     pub emit_typst: Option<PathBuf>,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct PageSetup {
+    page: PageSize,
+    layout: PageLayout,
+    margin: PageMarginSelection,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum PageMarginSelection {
+    Theme,
+    Override(PageMargins),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PageNumberingPlan {
+    start: PageNumberingStart,
+    has_title_page: bool,
+    has_automatic_toc: bool,
+}
+
+impl PageNumberingPlan {
+    const fn new(start: PageNumberingStart, has_title_page: bool, has_automatic_toc: bool) -> Self {
+        Self {
+            start,
+            has_title_page,
+            has_automatic_toc,
+        }
+    }
+
+    pub(crate) const fn has_title_page(self) -> bool {
+        self.has_title_page
+    }
+
+    pub(crate) const fn starts_before_header(self) -> bool {
+        if self.has_title_page {
+            matches!(
+                self.start,
+                PageNumberingStart::Cover | PageNumberingStart::Title
+            )
+        } else {
+            self.starts_at_body()
+        }
+    }
+
+    pub(crate) const fn starts_before_toc(self) -> bool {
+        self.has_automatic_toc
+            && (matches!(self.start, PageNumberingStart::Toc)
+                || !self.has_title_page
+                    && matches!(
+                        self.start,
+                        PageNumberingStart::Cover | PageNumberingStart::Title
+                    ))
+    }
+
+    pub(crate) const fn starts_after_toc(self) -> bool {
+        self.has_automatic_toc && matches!(self.start, PageNumberingStart::AfterToc)
+    }
+
+    pub(crate) const fn starts_at_body(self) -> bool {
+        matches!(self.start, PageNumberingStart::Body)
+            || matches!(self.start, PageNumberingStart::BodyPage(page) if page.get() == 1)
+            || !self.has_automatic_toc
+                && matches!(
+                    self.start,
+                    PageNumberingStart::Cover
+                        | PageNumberingStart::Title
+                        | PageNumberingStart::Toc
+                        | PageNumberingStart::AfterToc
+                )
+    }
+
+    pub(crate) fn conditional_arabic_start(self) -> Option<NonZeroUsize> {
+        let PageNumberingStart::BodyPage(page) = self.start else {
+            return None;
+        };
+        if page.get() == 1 {
+            return None;
+        }
+        NonZeroUsize::new(page.get().saturating_add(usize::from(self.has_title_page)))
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct TypstSourceConfig<'a> {
+    theme: &'a Theme,
+    emit_options: &'a EmitOptions,
+    page_numbering: PageNumberingPlan,
+}
+
+impl<'a> TypstSourceConfig<'a> {
+    const fn new(
+        theme: &'a Theme,
+        emit_options: &'a EmitOptions,
+        page_numbering: PageNumberingPlan,
+    ) -> Self {
+        Self {
+            theme,
+            emit_options,
+            page_numbering,
+        }
+    }
+}
+
+impl PageSetup {
+    const fn with_theme_margin(page: PageSize, layout: PageLayout) -> Self {
+        Self {
+            page,
+            layout,
+            margin: PageMarginSelection::Theme,
+        }
+    }
+
+    const fn with_margin(page: PageSize, layout: PageLayout, margin: PageMargins) -> Option<Self> {
+        let dimensions = page.dimensions(layout);
+        if margin.left_points() + margin.right_points() >= dimensions.width_points()
+            || margin.top_points() + margin.bottom_points() >= dimensions.height_points()
+        {
+            return None;
+        }
+        Some(Self {
+            page,
+            layout,
+            margin: PageMarginSelection::Override(margin),
+        })
+    }
+
+    const fn margin_override(self) -> Option<PageMargins> {
+        match self.margin {
+            PageMarginSelection::Theme => None,
+            PageMarginSelection::Override(margin) => Some(margin),
+        }
+    }
 }
 
 /// PDF converter processor.
@@ -89,8 +269,14 @@ pub struct Processor<'a> {
     references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
-    /// Shared counter for numbering example captions.
-    pub(crate) example_counter: Rc<Cell<usize>>,
+    /// Fallback counter for example captions the parser did not number.
+    pub(crate) example_counter: Rc<Cell<u32>>,
+    /// Fallback counter for figure captions the parser did not number.
+    pub(crate) figure_counter: Rc<Cell<u32>>,
+    /// Fallback counter for listing and source captions the parser did not number.
+    pub(crate) listing_counter: Rc<Cell<u32>>,
+    /// Fallback counter for table captions the parser did not number.
+    pub(crate) table_counter: Rc<Cell<u32>>,
     pdf_options: PdfOptions,
     #[cfg(feature = "pre-spec-subs")]
     pub(crate) current_subs: Rc<Cell<SubsFlags>>,
@@ -111,10 +297,18 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let theme = self.load_theme()?;
+        let page_numbering = self.page_numbering_plan(doc, &theme);
         let assets = ImageMap::new();
         let font_dirs = self.pdf_options.font_dirs.clone();
         let emit_options = self.emit_options(doc, None, &font_dirs, diagnostics);
-        self.emit_typst_source(doc, &assets, &theme, &emit_options, diagnostics)
+        let preparation = collect_pdf_preparation(doc);
+        self.emit_typst_source(
+            doc,
+            &assets,
+            &preparation,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            diagnostics,
+        )
     }
 
     pub(crate) fn options(&self) -> &Options {
@@ -136,6 +330,7 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<RenderedPdf, Error> {
         let theme = self.load_theme()?;
+        let page_numbering = self.page_numbering_plan(doc, &theme);
 
         // Validated image snapshots are spooled here so their bytes are read on
         // demand and cannot change between validation and rendering. The
@@ -145,9 +340,10 @@ impl Processor<'_> {
             .tempdir()?;
 
         let asset_start = Instant::now();
-        let image_urls = collect_image_urls(doc);
+        let preparation = collect_pdf_preparation(doc);
+        Self::report_unsupported_font_icons(&preparation.unsupported_font_icons, diagnostics);
         let mut assets =
-            self.resolve_images(doc, &image_urls, source_file, spool.path(), diagnostics)?;
+            self.resolve_images(doc, &preparation, source_file, spool.path(), diagnostics)?;
         let resolved_document_image_count = assets.images().count();
         let font_dirs = self.pdf_options.font_dirs.clone();
         let logo = self.resolve_logo(&mut assets, spool.path(), diagnostics)?;
@@ -155,12 +351,35 @@ impl Processor<'_> {
 
         let emit_start = Instant::now();
         let emit_options = self.emit_options(doc, logo, &font_dirs, diagnostics);
-        let typst = self.emit_typst_source(doc, &assets, &theme, &emit_options, diagnostics)?;
+        let typst = self.emit_typst_source(
+            doc,
+            &assets,
+            &preparation,
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            diagnostics,
+        )?;
         self.write_debug_typst(&typst)?;
         let emit_duration = emit_start.elapsed();
 
         let render_start = Instant::now();
-        let rendered = render_pdf(&typst, &assets, &RenderConfig { font_dirs })?;
+        let named_destinations = preparation
+            .named_destination_ids
+            .iter()
+            .map(|id| NamedDestination::new(encode_label(id), id))
+            .collect();
+        let mut rendered = render_pdf(
+            &typst,
+            &assets,
+            &RenderConfig {
+                font_dirs,
+                named_destinations,
+            },
+        )?;
+        if let Some(start) = page_numbering.conditional_arabic_start() {
+            // Typst exports PDF labels only for fixed numbering patterns. A body-relative
+            // transition uses a numbering function, so add its equivalent label ranges here.
+            apply_pdf_page_labels(&mut rendered.pdf, start)?;
+        }
         let render_duration = render_start.elapsed();
         for warning in rendered.warnings {
             diagnostics.warn(format!("Typst warning: {warning}"));
@@ -181,23 +400,52 @@ impl Processor<'_> {
         &self,
         doc: &Document<'_>,
         assets: &ImageMap,
-        theme: &Theme,
-        emit_options: &EmitOptions,
+        preparation: &PdfPreparation,
+        config: TypstSourceConfig<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
         let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
             .with_pdf_options(self.pdf_options.clone());
         processor.references = Rc::new(doc.references.clone());
+        // The parser numbers every caption it resolved. These counters only number a title it
+        // could not — one on a caller-built block, or added after parsing — so they start past
+        // every assigned ordinal instead of colliding with one. Assigning rather than raising
+        // keeps a repeated render deterministic.
+        processor
+            .example_counter
+            .set(doc.highest_caption_number(CaptionKind::Example));
+        processor
+            .figure_counter
+            .set(doc.highest_caption_number(CaptionKind::Figure));
+        processor
+            .listing_counter
+            .set(doc.highest_caption_number(CaptionKind::Listing));
+        processor
+            .table_counter
+            .set(doc.highest_caption_number(CaptionKind::Table));
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
-            theme.heading,
+            config,
             doc.toc_entries.clone(),
             diagnostics.reborrow(),
-        );
-        preamble::write(&mut visitor.writer, theme, emit_options);
+        )
+        .with_populated_index_sections(preparation.populated_index_sections.clone());
+        preamble::write(&mut visitor.writer, config.theme, config.emit_options);
+        if preparation.has_unbreakable_blocks {
+            visitor.writer.raw(UNBREAKABLE_HELPER);
+        }
+        if preparation.has_autofit_blocks {
+            write_autofit_helper(&mut visitor.writer, config.theme);
+        }
+        if preparation.admonition_image_icon_count > 0 {
+            write_admonition_image_helper(&mut visitor.writer, config.theme);
+        }
         visitor.visit_document(doc)?;
-        Ok(visitor.writer.into_string())
+        let mut source = visitor.writer.into_string();
+        source.truncate(source.trim_end_matches('\n').len());
+        source.push('\n');
+        Ok(source)
     }
 
     fn load_theme(&self) -> Result<Theme, Error> {
@@ -211,6 +459,35 @@ impl Processor<'_> {
         })
     }
 
+    fn page_numbering_plan(&self, doc: &Document<'_>, theme: &Theme) -> PageNumberingPlan {
+        let has_title_page = doc.header.is_some()
+            && (self
+                .document_attributes
+                .get("title-page")
+                .is_some_and(|value| {
+                    !matches!(
+                        value,
+                        acdc_parser::AttributeValue::Bool(false)
+                            | acdc_parser::AttributeValue::None
+                    )
+                })
+                || self.document_attributes.get_string("doctype").as_deref() == Some("book")
+                || self.options.doctype() == acdc_converters_core::Doctype::Book);
+        let toc = TocConfig::from_attributes(None, &self.document_attributes);
+        let placement = if toc.placement() == "none" && self.pdf_options.toc {
+            "auto"
+        } else {
+            toc.placement()
+        };
+        let has_automatic_toc = !doc.toc_entries.is_empty()
+            && matches!(placement, "auto" | "left" | "right" | "top" | "bottom");
+        PageNumberingPlan::new(
+            theme.page_numbering_start_at,
+            has_title_page,
+            has_automatic_toc,
+        )
+    }
+
     fn emit_options(
         &self,
         doc: &Document<'_>,
@@ -219,18 +496,21 @@ impl Processor<'_> {
         diagnostics: &mut Diagnostics<'_>,
     ) -> EmitOptions {
         let metadata = document_metadata(doc);
-        let running_header_title = self
+        let page_header_title = self
             .pdf_options
             .title
             .clone()
             .or_else(|| metadata.title.clone());
+        let page_setup = self.page_setup(doc, diagnostics);
         EmitOptions {
             metadata,
             locale: document_locale(doc, diagnostics),
-            page: self.page_size(doc, diagnostics),
+            page: page_setup.page,
+            page_layout: page_setup.layout,
+            page_margin: page_setup.margin_override(),
             plain: self.pdf_options.plain,
             brand_fonts: !font_dirs.is_empty(),
-            running_header_title,
+            page_header_title,
             logo,
             watermark: self.pdf_options.watermark.clone(),
             watermark_timestamp: self.pdf_options.watermark_timestamp.clone(),
@@ -244,15 +524,72 @@ impl Processor<'_> {
         let Some(value) = doc.attributes.get_string("pdf-page-size") else {
             return PageSize::A4;
         };
+        if let Some(page) = parse_page_size(value.as_ref()) {
+            page
+        } else {
+            diagnostics.warn_with_advice(
+                format!("unsupported or invalid PDF page size '{value}', using A4"),
+                "Use a supported name or two positive dimensions, such as `:pdf-page-size: 8.5in x 11in`.",
+            );
+            PageSize::A4
+        }
+    }
+
+    fn page_margin(
+        &self,
+        doc: &Document<'_>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Option<PageMargins> {
+        if let Some(margin) = self.pdf_options.page_margin {
+            return Some(margin);
+        }
+        let value = doc.attributes.get_string("pdf-page-margin")?;
+        if value.trim().is_empty() {
+            return None;
+        }
+        if let Some(margin) = parse_page_margin(value.as_ref()) {
+            Some(margin)
+        } else {
+            diagnostics.warn_with_advice(
+                format!("invalid PDF page margin '{value}', using theme margins"),
+                "Use one to four non-negative measurements, such as `:pdf-page-margin: [1in, 0.75in, 1in, 0.75in]`.",
+            );
+            None
+        }
+    }
+
+    fn page_setup(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageSetup {
+        let page = self.page_size(doc, diagnostics);
+        let page_layout = self.page_layout(doc, diagnostics);
+        let Some(page_margin) = self.page_margin(doc, diagnostics) else {
+            return PageSetup::with_theme_margin(page, page_layout);
+        };
+        if let Some(page_setup) = PageSetup::with_margin(page, page_layout, page_margin) {
+            return page_setup;
+        }
+        diagnostics.warn_with_advice(
+            "PDF page margins do not fit the selected page, using theme margins",
+            "Reduce `:pdf-page-margin:` or select a larger `:pdf-page-size:`.",
+        );
+        PageSetup::with_theme_margin(page, page_layout)
+    }
+
+    fn page_layout(&self, doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> PageLayout {
+        if let Some(layout) = self.pdf_options.page_layout {
+            return layout;
+        }
+        let Some(value) = doc.attributes.get_string("pdf-page-layout") else {
+            return PageLayout::Portrait;
+        };
         match value.as_ref().to_ascii_lowercase().as_str() {
-            "a4" => PageSize::A4,
-            "letter" | "us-letter" => PageSize::Letter,
+            "landscape" => PageLayout::Landscape,
+            "portrait" => PageLayout::Portrait,
             other => {
                 diagnostics.warn_with_advice(
-                    format!("unsupported PDF page size '{other}', using A4"),
-                    "Use `--page a4`, `--page letter`, or set `:pdf-page-size:` to `a4` or `letter`.",
+                    format!("unsupported PDF page layout '{other}', using portrait"),
+                    "Use `--page-layout` or `:pdf-page-layout:` with `portrait` or `landscape`.",
                 );
-                PageSize::A4
+                PageLayout::Portrait
             }
         }
     }
@@ -260,12 +597,12 @@ impl Processor<'_> {
     fn resolve_images(
         &self,
         doc: &Document<'_>,
-        image_urls: &[String],
+        preparation: &PdfPreparation,
         source_file: Option<&Path>,
         spool_dir: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<ImageMap, Error> {
-        if image_urls.is_empty() {
+        if preparation.image_urls.is_empty() {
             return Ok(ImageMap::new());
         }
         let base_dir = base_dir_for_source(source_file);
@@ -275,15 +612,78 @@ impl Processor<'_> {
         );
         let mut config = ResolveConfig::new(base_dir, spool_dir);
         config.source_policy = source_policy;
-        let url_refs: Vec<&str> = image_urls.iter().map(String::as_str).collect();
+        let url_refs: Vec<&str> = preparation.image_urls.iter().map(String::as_str).collect();
         let resolved = resolve(&url_refs, &config);
-        self.report_asset_failures(
-            "image",
-            "render fallback text for that image",
-            resolved.failures,
-            diagnostics,
-        )?;
+        self.report_image_failures(preparation, resolved.failures, diagnostics)?;
         Ok(resolved.assets)
+    }
+
+    fn report_unsupported_font_icons(
+        icons: &[UnsupportedFontIcon],
+        diagnostics: &mut Diagnostics<'_>,
+    ) {
+        for icon in icons {
+            warn_with_advice_at(
+                diagnostics,
+                Some(&icon.location),
+                format!(
+                    "{} is not a valid icon name in the built-in icon set",
+                    icon.name
+                ),
+                "The PDF will use the icon's alternative text. Use a supported built-in icon or switch to image icon mode and provide the icon file.",
+            );
+        }
+    }
+
+    fn report_image_failures(
+        &self,
+        preparation: &PdfPreparation,
+        failures: Vec<ResolveFailure>,
+        diagnostics: &mut Diagnostics<'_>,
+    ) -> Result<(), Error> {
+        if failures.is_empty() {
+            return Ok(());
+        }
+        if self.pdf_options.strict_assets {
+            return self.report_asset_failures(
+                "image",
+                "render fallback text for that image",
+                failures,
+                diagnostics,
+            );
+        }
+
+        let failures_by_url = failures
+            .iter()
+            .map(|failure| (failure.url.as_str(), &failure.error))
+            .collect::<HashMap<_, _>>();
+        for failure in &failures {
+            if let Some(location) = preparation.ordinary_image_locations.get(&failure.url) {
+                warn_with_advice_at(
+                    diagnostics,
+                    Some(location),
+                    format!(
+                        "image {} could not be embedded: {}",
+                        failure.url, failure.error
+                    ),
+                    "The PDF will render fallback text for that image.",
+                );
+            }
+        }
+        for icon in &preparation.image_icons {
+            if let Some(error) = failures_by_url.get(icon.source.as_str()) {
+                warn_with_advice_at(
+                    diagnostics,
+                    Some(&icon.location),
+                    format!(
+                        "image icon for '{}' not found or not readable at {}: {error}",
+                        icon.target, icon.source
+                    ),
+                    format!("The PDF will render [{}] instead.", icon.target),
+                );
+            }
+        }
+        Ok(())
     }
 
     fn resolve_logo(
@@ -366,6 +766,204 @@ impl Processor<'_> {
             source,
         })
     }
+}
+
+fn parse_page_size(value: &str) -> Option<PageSize> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "a3" => Some(PageSize::A3),
+        "a4" => Some(PageSize::A4),
+        "a5" => Some(PageSize::A5),
+        "executive" | "us-executive" => Some(PageSize::Executive),
+        "legal" | "us-legal" => Some(PageSize::Legal),
+        "letter" | "us-letter" => Some(PageSize::Letter),
+        "tabloid" | "us-tabloid" => Some(PageSize::Tabloid),
+        _ => parse_custom_page_size(value),
+    }
+}
+
+fn parse_custom_page_size(value: &str) -> Option<PageSize> {
+    let value = value.trim();
+    let dimensions = if let Some(inner) = value
+        .strip_prefix('[')
+        .and_then(|inner| inner.strip_suffix(']'))
+    {
+        let mut parts = inner.split(',');
+        let dimensions = (parts.next(), parts.next());
+        if parts.next().is_some() {
+            return None;
+        }
+        dimensions
+    } else if let Some((width, height)) = value.split_once('x') {
+        if height.contains('x') {
+            return None;
+        }
+        (Some(width), Some(height))
+    } else {
+        return None;
+    };
+    let (Some(width), Some(height)) = dimensions else {
+        return None;
+    };
+    PageSize::try_custom(
+        parse_measurement_points(width)?,
+        parse_measurement_points(height)?,
+    )
+    .ok()
+}
+
+fn parse_page_margin(value: &str) -> Option<PageMargins> {
+    let value = value.trim();
+    if value.is_empty() {
+        return None;
+    }
+    let measurements = if let Some(inner) = value
+        .strip_prefix('[')
+        .and_then(|inner| inner.strip_suffix(']'))
+    {
+        inner.split(',').collect::<Vec<_>>()
+    } else if value.starts_with('[') || value.ends_with(']') {
+        return None;
+    } else {
+        vec![value]
+    };
+    let points = measurements
+        .into_iter()
+        .map(parse_measurement_points)
+        .collect::<Option<Vec<_>>>()?;
+    let (top, right, bottom, left) = match points.as_slice() {
+        [all] => (*all, *all, *all, *all),
+        [vertical, horizontal] => (*vertical, *horizontal, *vertical, *horizontal),
+        [top, horizontal, bottom] => (*top, *horizontal, *bottom, *horizontal),
+        [top, right, bottom, left] => (*top, *right, *bottom, *left),
+        _ => return None,
+    };
+    PageMargins::try_new(top, right, bottom, left).ok()
+}
+
+fn parse_measurement_points(value: &str) -> Option<f64> {
+    let value = value.trim();
+    let (number, factor) = [
+        ("in", 72.0),
+        ("cm", 72.0 / 2.54),
+        ("mm", 72.0 / 25.4),
+        ("pt", 1.0),
+        ("px", 0.75),
+        ("pc", 12.0),
+    ]
+    .into_iter()
+    .find_map(|(unit, factor)| value.strip_suffix(unit).map(|number| (number, factor)))
+    .unwrap_or((value, 1.0));
+    if number.is_empty()
+        || !number.bytes().any(|byte| byte.is_ascii_digit())
+        || number.bytes().filter(|byte| *byte == b'.').count() > 1
+        || !number
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+    {
+        return None;
+    }
+    number
+        .parse::<f64>()
+        .ok()
+        .map(|points| points * factor)
+        .filter(|points| points.is_finite())
+}
+
+fn apply_pdf_page_labels(pdf: &mut Vec<u8>, arabic_start: NonZeroUsize) -> Result<(), Error> {
+    fn update(pdf: &[u8], arabic_start: NonZeroUsize) -> lopdf::Result<Vec<u8>> {
+        let mut document = lopdf::Document::load_mem(pdf)?;
+        let page_count = document.get_pages().len();
+        let arabic_index = arabic_start.get() - 1;
+        let roman = dictionary! {
+            "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
+            "S" => lopdf::Object::Name(b"r".to_vec()),
+            "St" => 1,
+        };
+        let mut nums = vec![0.into(), roman.into()];
+        if arabic_index < page_count {
+            let arabic = dictionary! {
+                "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
+                "S" => lopdf::Object::Name(b"D".to_vec()),
+                "St" => 1,
+            };
+            nums.push(i64::try_from(arabic_index)?.into());
+            nums.push(arabic.into());
+        }
+        document
+            .catalog_mut()?
+            .set("PageLabels", dictionary! { "Nums" => nums });
+        let mut output = Vec::new();
+        document.save_to(&mut output)?;
+        Ok(output)
+    }
+
+    *pdf = update(pdf, arabic_start).map_err(Error::PageLabels)?;
+    Ok(())
+}
+
+#[allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss,
+    reason = "validated theme dimensions are clamped before conversion"
+)]
+fn code_wrap_columns(
+    theme: &Theme,
+    page: PageSize,
+    page_layout: PageLayout,
+    page_margin: Option<PageMargins>,
+) -> usize {
+    const CM_TO_PT: f64 = 72.0 / 2.54;
+    const MONOSPACE_CELL_WIDTH_EM: f64 = 0.6;
+
+    let page_width_pt = page.width_points(page_layout);
+    let horizontal_margin_pt = page_margin
+        .map_or(2.0 * theme.spacing.margin_x_cm * CM_TO_PT, |margin| {
+            margin.left_points() + margin.right_points()
+        });
+    let content_width_pt = page_width_pt - horizontal_margin_pt - 2.0 * theme.spacing.code_pad_pt;
+    let cell_width_pt =
+        theme.typography.body_size_pt * theme.typography.code_size_em * MONOSPACE_CELL_WIDTH_EM;
+    (content_width_pt / cell_width_pt)
+        .floor()
+        .clamp(20.0, 160.0) as usize
+}
+
+fn write_autofit_helper(writer: &mut Writer, theme: &Theme) {
+    let code_measure_size = theme.typography.code_size_em / TYPST_RAW_SIZE_EM;
+    let minimum_scale = theme.typography.code_min_size_em / theme.typography.code_size_em;
+    let code_padding = 2.0 * theme.spacing.code_pad_pt;
+    let _ = writeln!(
+        writer,
+        r#"#let _acdc_autofit_code(source, body, language: none, extra-width: 0em) = layout(size => {{
+  let available = calc.max(0pt, size.width - {code_padding}pt)
+  let decoration-width = measure(h(extra-width)).width
+  let widest = source.split("\n").map(line => {{
+    let code = if language == none {{ raw(line) }} else {{ raw(line, lang: language) }}
+    measure(text(size: {code_measure_size}em, code)).width + decoration-width
+  }}).fold(0pt, calc.max)
+  let scale = if widest > available {{ available / widest }} else {{ 1.0 }}
+  text(size: calc.max({minimum_scale}, scale) * 1em, body)
+}})
+"#,
+    );
+}
+
+fn write_admonition_image_helper(writer: &mut Writer, theme: &Theme) {
+    let spacing = &theme.spacing;
+    let _ = write!(
+        writer,
+        "#let _acdc_image_callout(label, body) = pad(left: {}pt, block(width: 100%, inset: (x: {}pt, y: 4pt), grid(columns: (auto, 1fr), column-gutter: {}pt, align: (x, _) => if x == 0 {{ center + horizon }} else {{ left + top }}, label, grid.cell(stroke: (left: {}pt + rgb(",
+        spacing.callout_indent_pt,
+        spacing.callout_pad_x_pt,
+        spacing.callout_pad_x_pt,
+        spacing.border_pt,
+    );
+    writer.string_literal(&theme.palette.border);
+    let _ = writeln!(
+        writer,
+        ")), inset: (left: {}pt), body))))",
+        spacing.callout_pad_x_pt,
+    );
 }
 
 fn read_theme_file(path: &Path) -> Result<String, Error> {
@@ -543,71 +1141,214 @@ fn author_name(author: &Author<'_>) -> String {
     .join(" ")
 }
 
-fn collect_image_urls(doc: &Document<'_>) -> Vec<String> {
-    let mut urls = BTreeSet::new();
+fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
+    let mut preparation = PdfPreparation::default();
+    let context = PreparationContext {
+        attributes: &doc.attributes,
+        icon_mode: IconMode::from(&doc.attributes),
+        references: &doc.references,
+    };
     if let Some(header) = &doc.header {
-        collect_inline_images(header.title.as_ref(), &mut urls);
+        if let Some(anchor) = header
+            .metadata
+            .id
+            .as_ref()
+            .or_else(|| header.metadata.anchors.last())
+        {
+            preparation.named_destination_ids.push(anchor.id.to_owned());
+        }
+        collect_inline_preparation(header.title.as_ref(), &context, &mut preparation);
         if let Some(subtitle) = &header.subtitle {
-            collect_inline_images(subtitle.as_ref(), &mut urls);
+            collect_inline_preparation(subtitle.as_ref(), &context, &mut preparation);
         }
     }
-    collect_block_images(&doc.blocks, &mut urls);
-    urls.into_iter().collect()
+    collect_block_preparation(&doc.blocks, &context, &mut preparation);
+    preparation
 }
 
-fn collect_block_images(blocks: &[Block<'_>], urls: &mut BTreeSet<String>) {
+struct PreparationContext<'attributes, 'source> {
+    attributes: &'attributes DocumentAttributes<'source>,
+    icon_mode: IconMode,
+    references: &'attributes HashMap<&'source str, Reference<'source>>,
+}
+
+#[derive(Default)]
+struct PdfPreparation {
+    image_urls: BTreeSet<String>,
+    ordinary_image_locations: HashMap<String, Location>,
+    image_icons: Vec<ImageIconReference>,
+    unsupported_font_icons: Vec<UnsupportedFontIcon>,
+    has_index_terms: bool,
+    has_unbreakable_blocks: bool,
+    has_autofit_blocks: bool,
+    admonition_image_icon_count: usize,
+    populated_index_sections: HashSet<String>,
+    named_destination_ids: Vec<String>,
+}
+
+struct ImageIconReference {
+    source: String,
+    target: String,
+    location: Location,
+}
+
+struct UnsupportedFontIcon {
+    name: String,
+    location: Location,
+}
+
+pub(crate) fn admonition_icon_source(attributes: &DocumentAttributes<'_>, target: &str) -> String {
+    let target = if Path::new(target.split(['?', '#']).next().unwrap_or(target))
+        .extension()
+        .is_some()
+    {
+        Cow::Borrowed(target)
+    } else {
+        let extension = attributes
+            .get_string("icontype")
+            .or_else(|| {
+                attributes.get_string("icons").filter(|value| {
+                    !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
+                })
+            })
+            .unwrap_or_else(|| "png".into());
+        Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
+    };
+    if target.starts_with('/') || target.contains("://") {
+        return target.into_owned();
+    }
+    let directory = attributes.get_string("iconsdir").map_or_else(
+        || {
+            attributes.get_string("imagesdir").map_or_else(
+                || "./images/icons".to_string(),
+                |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
+            )
+        },
+        |iconsdir| iconsdir.trim_end_matches(['/', '\\']).to_string(),
+    );
+    if directory.is_empty() {
+        target.into_owned()
+    } else {
+        format!("{directory}/{target}")
+    }
+}
+
+impl PdfPreparation {
+    fn insert_image(&mut self, source: String, location: &Location) {
+        self.image_urls.insert(source.clone());
+        self.ordinary_image_locations
+            .entry(source)
+            .or_insert_with(|| location.clone());
+    }
+
+    fn insert_image_icon(&mut self, source: String, target: &Source<'_>, location: &Location) {
+        self.insert_named_image_icon(source, target.to_string(), location);
+    }
+
+    fn insert_named_image_icon(&mut self, source: String, target: String, location: &Location) {
+        self.image_urls.insert(source.clone());
+        self.image_icons.push(ImageIconReference {
+            source,
+            target,
+            location: location.clone(),
+        });
+    }
+}
+
+fn collect_block_preparation(
+    blocks: &[Block<'_>],
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
     for block in blocks {
         match block {
             Block::Section(section) => {
-                collect_inline_images(section.title.as_ref(), urls);
-                collect_block_images(&section.content, urls);
+                if section.kind == acdc_parser::SectionKind::Index {
+                    collect_inline_preparation(section.title.as_ref(), context, preparation);
+                    if preparation.has_index_terms {
+                        preparation.populated_index_sections.insert(
+                            acdc_parser::Section::generate_id_string(
+                                &section.metadata,
+                                section.title.as_ref(),
+                            ),
+                        );
+                    }
+                    continue;
+                }
+                collect_inline_preparation(section.title.as_ref(), context, preparation);
+                collect_block_preparation(&section.content, context, preparation);
             }
             Block::Paragraph(paragraph) => {
-                collect_inline_images(paragraph.title.as_ref(), urls);
-                collect_inline_images(&paragraph.content, urls);
+                preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
+                preparation.has_autofit_blocks |=
+                    is_autofit_paragraph(paragraph, context.attributes);
+                collect_inline_preparation(paragraph.title.as_ref(), context, preparation);
+                collect_metadata_preparation(&paragraph.metadata, context, preparation);
+                collect_inline_preparation(&paragraph.content, context, preparation);
             }
             Block::DelimitedBlock(block) => {
-                collect_inline_images(block.title.as_ref(), urls);
-                collect_delimited_block_images(&block.inner, urls);
+                preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
+                preparation.has_autofit_blocks |=
+                    is_autofit_delimited_block(block, context.attributes);
+                collect_inline_preparation(block.title.as_ref(), context, preparation);
+                collect_metadata_preparation(&block.metadata, context, preparation);
+                collect_delimited_block_preparation(&block.inner, context, preparation);
             }
             Block::OrderedList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_list_item_images(item, urls);
+                    collect_list_item_preparation(item, context, preparation);
                 }
             }
             Block::UnorderedList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_list_item_images(item, urls);
+                    collect_list_item_preparation(item, context, preparation);
                 }
             }
             Block::DescriptionList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_inline_images(&item.term, urls);
-                    collect_inline_images(&item.principal_text, urls);
-                    collect_block_images(&item.description, urls);
+                    collect_inline_preparation(&item.term, context, preparation);
+                    collect_inline_preparation(&item.principal_text, context, preparation);
+                    collect_block_preparation(&item.description, context, preparation);
                 }
             }
             Block::CalloutList(list) => {
-                collect_inline_images(list.title.as_ref(), urls);
+                collect_inline_preparation(list.title.as_ref(), context, preparation);
                 for item in &list.items {
-                    collect_inline_images(&item.principal, urls);
-                    collect_block_images(&item.blocks, urls);
+                    collect_inline_preparation(&item.principal, context, preparation);
+                    collect_block_preparation(&item.blocks, context, preparation);
                 }
             }
             Block::Admonition(admonition) => {
-                collect_inline_images(admonition.title.as_ref(), urls);
-                collect_block_images(&admonition.blocks, urls);
+                collect_admonition_preparation(admonition, context, preparation);
             }
             Block::Image(image) => {
-                collect_inline_images(image.title.as_ref(), urls);
-                collect_source(&image.source, urls);
+                collect_inline_preparation(image.title.as_ref(), context, preparation);
+                preparation.insert_image(
+                    resolve_target(&image.source.to_string(), context.attributes),
+                    &image.location,
+                );
             }
-            Block::DiscreteHeader(header) => collect_inline_images(header.title.as_ref(), urls),
-            Block::Audio(audio) => collect_inline_images(audio.title.as_ref(), urls),
-            Block::Video(video) => collect_inline_images(video.title.as_ref(), urls),
+            Block::DiscreteHeader(header) => {
+                collect_inline_preparation(header.title.as_ref(), context, preparation);
+            }
+            Block::Audio(audio) => {
+                collect_inline_preparation(audio.title.as_ref(), context, preparation);
+            }
+            Block::Video(video) => {
+                collect_inline_preparation(video.title.as_ref(), context, preparation);
+                if let Some(poster) = video
+                    .metadata
+                    .attributes
+                    .get_string("poster")
+                    .filter(|poster| !poster.is_empty())
+                {
+                    preparation
+                        .insert_image(resolve_target(&poster, context.attributes), &video.location);
+                }
+            }
             Block::TableOfContents(_)
             | Block::DocumentAttribute(_)
             | Block::ThematicBreak(_)
@@ -618,13 +1359,102 @@ fn collect_block_images(blocks: &[Block<'_>], urls: &mut BTreeSet<String>) {
     }
 }
 
-fn collect_delimited_block_images(block: &DelimitedBlockType<'_>, urls: &mut BTreeSet<String>) {
+fn collect_admonition_preparation(
+    admonition: &Admonition<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
+    if context.icon_mode != IconMode::Text
+        && let Some(icon) = admonition
+            .metadata
+            .attributes
+            .get_string("icon")
+            .filter(|icon| !icon.is_empty())
+    {
+        preparation.admonition_image_icon_count += 1;
+        preparation.insert_named_image_icon(
+            admonition_icon_source(context.attributes, &icon),
+            icon.into_owned(),
+            admonition
+                .metadata
+                .location
+                .as_ref()
+                .unwrap_or(&admonition.location),
+        );
+    }
+    collect_inline_preparation(admonition.title.as_ref(), context, preparation);
+    collect_block_preparation(&admonition.blocks, context, preparation);
+}
+
+fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
+    paragraph.metadata.options.contains(&"unbreakable")
+        && matches!(
+            paragraph.metadata.style,
+            Some("example" | "listing" | "literal" | "quote" | "sidebar" | "source" | "verse")
+        )
+}
+
+fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
+    block.metadata.options.contains(&"unbreakable")
+        && matches!(
+            block.inner,
+            DelimitedBlockType::DelimitedExample(_)
+                | DelimitedBlockType::DelimitedListing(_)
+                | DelimitedBlockType::DelimitedLiteral(_)
+                | DelimitedBlockType::DelimitedOpen(_)
+                | DelimitedBlockType::DelimitedQuote(_)
+                | DelimitedBlockType::DelimitedSidebar(_)
+                | DelimitedBlockType::DelimitedStem(_)
+                | DelimitedBlockType::DelimitedTable(_)
+                | DelimitedBlockType::DelimitedVerse(_)
+        )
+}
+
+fn is_page_breakable_table(block: &DelimitedBlock<'_>) -> bool {
+    !block.metadata.options.contains(&"unbreakable")
+        && matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
+}
+
+fn is_autofit_paragraph(
+    paragraph: &acdc_parser::Paragraph<'_>,
+    attributes: &DocumentAttributes<'_>,
+) -> bool {
+    matches!(
+        paragraph.metadata.style,
+        Some("listing" | "literal" | "source")
+    ) && has_autofit_option(&paragraph.metadata, attributes)
+}
+
+fn is_autofit_delimited_block(
+    block: &DelimitedBlock<'_>,
+    attributes: &DocumentAttributes<'_>,
+) -> bool {
+    matches!(
+        block.inner,
+        DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
+    ) && has_autofit_option(&block.metadata, attributes)
+}
+
+fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &DocumentAttributes<'_>) -> bool {
+    metadata.options.contains(&"autofit") || attributes.contains_key("autofit-option")
+}
+
+fn collect_delimited_block_preparation(
+    block: &DelimitedBlockType<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
     match block {
         DelimitedBlockType::DelimitedExample(blocks)
         | DelimitedBlockType::DelimitedOpen(blocks)
         | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => collect_block_images(blocks, urls),
-        DelimitedBlockType::DelimitedTable(table) => collect_table_images(table, urls),
+        | DelimitedBlockType::DelimitedQuote(blocks) => {
+            collect_block_preparation(blocks, context, preparation);
+        }
+        DelimitedBlockType::DelimitedTable(table) => {
+            collect_table_preparation(table, context, preparation);
+        }
         DelimitedBlockType::DelimitedComment(_)
         | DelimitedBlockType::DelimitedListing(_)
         | DelimitedBlockType::DelimitedLiteral(_)
@@ -635,50 +1465,126 @@ fn collect_delimited_block_images(block: &DelimitedBlockType<'_>, urls: &mut BTr
     }
 }
 
-fn collect_table_images(table: &Table<'_>, urls: &mut BTreeSet<String>) {
+fn collect_table_preparation(
+    table: &Table<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
     for row in table
         .header
         .iter()
         .chain(table.rows.iter())
         .chain(table.footer.iter())
     {
-        collect_table_row_images(row, urls);
+        for column in &row.columns {
+            collect_block_preparation(&column.content, context, preparation);
+        }
     }
 }
 
-fn collect_table_row_images(row: &TableRow<'_>, urls: &mut BTreeSet<String>) {
-    for column in &row.columns {
-        collect_block_images(&column.content, urls);
+fn collect_list_item_preparation(
+    item: &ListItem<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    collect_inline_preparation(&item.principal, context, preparation);
+    collect_block_preparation(&item.blocks, context, preparation);
+}
+
+fn collect_metadata_preparation(
+    metadata: &BlockMetadata<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    if let Some(attribution) = &metadata.attribution {
+        collect_inline_preparation(attribution, context, preparation);
+    }
+    if let Some(citetitle) = &metadata.citetitle {
+        collect_inline_preparation(citetitle, context, preparation);
     }
 }
 
-fn collect_list_item_images(item: &ListItem<'_>, urls: &mut BTreeSet<String>) {
-    collect_inline_images(&item.principal, urls);
-    collect_block_images(&item.blocks, urls);
-}
-
-fn collect_inline_images(nodes: &[InlineNode<'_>], urls: &mut BTreeSet<String>) {
+fn collect_inline_preparation(
+    nodes: &[InlineNode<'_>],
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
     for node in nodes {
         match node {
-            InlineNode::BoldText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::ItalicText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::MonospaceText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::HighlightText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::SubscriptText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::SuperscriptText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::CurvedQuotationText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::CurvedApostropheText(text) => collect_inline_images(&text.content, urls),
-            InlineNode::Macro(InlineMacro::Image(image)) => collect_source(&image.source, urls),
-            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
-                collect_inline_images(&footnote.content, urls);
+            InlineNode::BoldText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
             }
-            InlineNode::Macro(InlineMacro::Url(url)) => collect_inline_images(&url.text, urls),
-            InlineNode::Macro(InlineMacro::Link(link)) => collect_inline_images(&link.text, urls),
+            InlineNode::ItalicText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::MonospaceText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::HighlightText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::SubscriptText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::SuperscriptText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::CurvedQuotationText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::CurvedApostropheText(text) => {
+                collect_inline_preparation(&text.content, context, preparation);
+            }
+            InlineNode::Macro(InlineMacro::Image(image)) => {
+                preparation.insert_image(
+                    resolve_target(&image.source.to_string(), context.attributes),
+                    &image.location,
+                );
+            }
+            InlineNode::Macro(InlineMacro::Icon(icon)) => match context.icon_mode {
+                IconMode::Image => preparation.insert_image_icon(
+                    icon_image_source(context.attributes, &icon.target),
+                    &icon.target,
+                    &icon.location,
+                ),
+                IconMode::Font => {
+                    let icon_name = icon.target.to_string();
+                    if builtin_icon_glyph(&icon_name).is_none() {
+                        preparation
+                            .unsupported_font_icons
+                            .push(UnsupportedFontIcon {
+                                name: icon_name,
+                                location: icon.location.clone(),
+                            });
+                    }
+                }
+                IconMode::Text | _ => {}
+            },
+            InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
+                collect_inline_preparation(&footnote.content, context, preparation);
+            }
+            InlineNode::Macro(InlineMacro::Url(url)) => {
+                collect_link_destination(&url.attributes, &url.location, context, preparation);
+                collect_inline_preparation(&url.text, context, preparation);
+            }
+            InlineNode::Macro(InlineMacro::Link(link)) => {
+                collect_link_destination(&link.attributes, &link.location, context, preparation);
+                collect_inline_preparation(&link.text, context, preparation);
+            }
             InlineNode::Macro(InlineMacro::Mailto(mailto)) => {
-                collect_inline_images(&mailto.text, urls);
+                collect_link_destination(
+                    &mailto.attributes,
+                    &mailto.location,
+                    context,
+                    preparation,
+                );
+                collect_inline_preparation(&mailto.text, context, preparation);
             }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
-                collect_inline_images(&xref.text, urls);
+                collect_inline_preparation(&xref.text, context, preparation);
+            }
+            InlineNode::Macro(InlineMacro::IndexTerm(term)) => {
+                collect_index_term_preparation(term, context, preparation);
             }
             InlineNode::PlainText(_)
             | InlineNode::RawText(_)
@@ -693,8 +1599,48 @@ fn collect_inline_images(nodes: &[InlineNode<'_>], urls: &mut BTreeSet<String>) 
     }
 }
 
-fn collect_source(source: &Source<'_>, urls: &mut BTreeSet<String>) {
-    urls.insert(source.to_string());
+fn collect_index_term_preparation(
+    term: &IndexTerm<'_>,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    preparation.has_index_terms = true;
+    collect_inline_preparation(term.term(), context, preparation);
+    if let Some(secondary) = term.secondary() {
+        collect_inline_preparation(secondary, context, preparation);
+    }
+    if let Some(tertiary) = term.tertiary() {
+        collect_inline_preparation(tertiary, context, preparation);
+    }
+    match term.relationship.as_ref() {
+        Some(IndexTermRelationship::See { target }) => {
+            collect_inline_preparation(target, context, preparation);
+        }
+        Some(IndexTermRelationship::SeeAlso { targets }) => {
+            for target in targets {
+                collect_inline_preparation(target, context, preparation);
+            }
+        }
+        None | Some(_) => {}
+    }
+}
+
+fn collect_link_destination(
+    attributes: &ElementAttributes<'_>,
+    location: &Location,
+    context: &PreparationContext<'_, '_>,
+    preparation: &mut PdfPreparation,
+) {
+    let Some(id) = attributes.get_string("id") else {
+        return;
+    };
+    if context
+        .references
+        .get(id.as_ref())
+        .is_some_and(|reference| reference.location == *location)
+    {
+        preparation.named_destination_ids.push(id.into_owned());
+    }
 }
 
 fn encode_label(value: &str) -> String {
@@ -710,16 +1656,1730 @@ fn encode_label(value: &str) -> String {
     out
 }
 
+fn encode_bibliography_reference_label(value: &str) -> String {
+    format!("bibref-{}", encode_label(value))
+}
+
 fn encode_footnote_label(value: &str) -> String {
     encode_label(&format!("footnote:{value}"))
 }
 
 #[cfg(test)]
 mod tests {
-    use acdc_converters_core::{Converter, WarningSource};
+    use acdc_converters_core::{Converter, Warning, WarningSource};
+    use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title};
     use tempfile::NamedTempFile;
 
     use super::*;
+
+    fn title(content: &'static str) -> Title<'static> {
+        Title::new(vec![InlineNode::PlainText(Plain {
+            content,
+            location: Location::default(),
+            escaped: false,
+        })])
+    }
+
+    fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+            assert!(rendered.pdf.starts_with(b"%PDF-"));
+        }
+        Ok(warnings)
+    }
+
+    #[test]
+    fn admonition_icon_source_honors_icon_directory_and_type() {
+        let mut attributes = DocumentAttributes::default();
+        attributes.set("imagesdir".into(), "media".into());
+        attributes.set("icons".into(), "svg".into());
+
+        assert_eq!(
+            admonition_icon_source(&attributes, "custom-note"),
+            "media/icons/custom-note.svg"
+        );
+        attributes.set("iconsdir".into(), "assets/icons/".into());
+        assert_eq!(
+            admonition_icon_source(&attributes, "custom-note.png"),
+            "assets/icons/custom-note.png"
+        );
+        assert_eq!(
+            admonition_icon_source(&attributes, "https://example.com/note"),
+            "https://example.com/note.svg"
+        );
+    }
+
+    fn rendered_page_count(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(pdf.get_pages().len())
+    }
+
+    fn rendered_page_texts(input: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                plain: true,
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf
+            .get_pages()
+            .into_keys()
+            .map(|page| pdf.extract_text(&[page]))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(pages)
+    }
+
+    type PageLabelRange = (i64, String, i64);
+
+    fn page_label_ranges(
+        pdf: &lopdf::Document,
+    ) -> Result<Vec<PageLabelRange>, Box<dyn std::error::Error>> {
+        let labels = pdf.catalog()?.get(b"PageLabels")?;
+        let (_, labels) = pdf.dereference(labels)?;
+        let nums = labels.as_dict()?.get(b"Nums")?;
+        let (_, nums) = pdf.dereference(nums)?;
+        let mut ranges = Vec::new();
+        for [page_index, label] in nums.as_array()?.as_chunks::<2>().0 {
+            let page_index = page_index.as_i64()?;
+            let (_, label) = pdf.dereference(label)?;
+            let label = label.as_dict()?;
+            let style = String::from_utf8(label.get(b"S")?.as_name()?.to_vec())?;
+            let start = match label.get(b"St") {
+                Ok(value) => value.as_i64()?,
+                Err(_) => 1,
+            };
+            ranges.push((page_index, style, start));
+        }
+        Ok(ranges)
+    }
+
+    fn page_numbering_theme(start: &str) -> Result<NamedTempFile, Box<dyn std::error::Error>> {
+        let theme = include_str!("../crates/theme/assets/theme/default.yaml").replace(
+            "page_numbering_start_at: body",
+            &format!("page_numbering_start_at: {start}"),
+        );
+        let file = NamedTempFile::new()?;
+        std::fs::write(file.path(), theme)?;
+        Ok(file)
+    }
+
+    #[test]
+    fn page_numbering_plan_resolves_missing_front_matter_boundaries() {
+        let body = PageNumberingPlan::new(PageNumberingStart::Body, false, true);
+        assert!(body.starts_before_header());
+        assert!(body.starts_at_body());
+
+        let title = PageNumberingPlan::new(PageNumberingStart::Title, true, true);
+        assert!(title.starts_before_header());
+        assert!(!title.starts_before_toc());
+
+        let missing_title = PageNumberingPlan::new(PageNumberingStart::Title, false, true);
+        assert!(!missing_title.starts_before_header());
+        assert!(missing_title.starts_before_toc());
+
+        let after_toc = PageNumberingPlan::new(PageNumberingStart::AfterToc, true, true);
+        assert!(after_toc.starts_after_toc());
+        assert!(!after_toc.starts_at_body());
+
+        let missing_toc = PageNumberingPlan::new(PageNumberingStart::Toc, true, false);
+        assert!(missing_toc.starts_at_body());
+    }
+
+    #[test]
+    fn body_page_numbering_uses_roman_title_and_arabic_body_labels()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Numbered document\n:title-page:\n\nBody.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        assert_eq!(
+            page_label_ranges(&pdf)?,
+            [(0, "r".to_owned(), 1), (1, "D".to_owned(), 1)]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn integer_page_numbering_start_labels_body_pages_relative_to_the_body()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let theme = page_numbering_theme("3")?;
+        let parsed = acdc_parser::parse(
+            "= Numbered document\n:title-page:\n\nBody page one.\n\n<<<\n\nBody page two.\n\n<<<\n\nBody page three.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.path().to_path_buf()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        assert_eq!(
+            page_label_ranges(&pdf)?,
+            [(0, "r".to_owned(), 1), (3, "D".to_owned(), 1)]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn after_toc_page_numbering_starts_after_the_automatic_toc()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let theme = page_numbering_theme("after-toc")?;
+        let parsed = acdc_parser::parse(
+            "= Numbered document\n:title-page:\n:toc:\n\n== First section\n\nBody.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.path().to_path_buf()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let toc = typst
+            .find("#let _acdc_toc_entry")
+            .ok_or_else(|| std::io::Error::other("automatic TOC helper was not emitted"))?;
+        let arabic = typst
+            .find("#set page(numbering: \"1\")")
+            .ok_or_else(|| std::io::Error::other("Arabic numbering was not emitted"))?;
+
+        assert!(toc < arabic, "{typst}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn print_index_keeps_roman_pages_separate_and_spans_the_arabic_boundary()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let theme = page_numbering_theme("5")?;
+        let parsed = acdc_parser::parse(
+            "= Mixed index labels\n:title-page:\n:media: print\n\nBody page one.\n\n<<<\n\n((term))Body page two.\n\n<<<\n\n((term))Body page three.\n\n<<<\n\n((term))Body page four.\n\n<<<\n\n((term))Body page five.\n\n<<<\n\n((term))Body page six.\n\n<<<\n\n((term))Body page seven.\n\n[index]\n== Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                theme: Some(theme.path().to_path_buf()),
+                plain: true,
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+
+        assert!(normalized.contains("term , iii, iv, v-3"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = acdc_parser::parse(
+            "[%reversed,start=5]\n. Five\n. Four\n. Three\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(", start: 5, reversed: true)"));
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn page_break_always_option_controls_blank_pages() -> Result<(), Box<dyn std::error::Error>> {
+        let default_breaks = "= Default page breaks\n\nFirst page.\n\n<<<\n\n<<<\n\nSecond page.\n";
+        let forced_break =
+            "= Forced page break\n\nFirst page.\n\n<<<\n\n[%always]\n<<<\n\nSecond page.\n";
+        let separated_breaks = "= Separated page breaks\n\nFirst page.\n\n<<<\n\nSecond page.\n\n[%always]\n<<<\n\nThird page.\n";
+
+        let parsed = acdc_parser::parse(forced_break, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#pagebreak(weak: true)\n\n#pagebreak()\n#pagebreak()"),
+            "{typst}"
+        );
+
+        assert_eq!(rendered_page_count(default_breaks)?, 2);
+        assert_eq!(rendered_page_count(forced_break)?, 3);
+        assert_eq!(rendered_page_count(separated_breaks)?, 3);
+        Ok(())
+    }
+
+    #[test]
+    fn document_page_setup_honors_named_size_and_landscape()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n\nWide content.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a3\", flipped: true"),
+            "{typst}"
+        );
+        assert!(
+            render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn document_page_setup_accepts_supported_named_sizes() -> Result<(), Box<dyn std::error::Error>>
+    {
+        for (attribute, paper) in [
+            ("A3", "a3"),
+            ("A4", "a4"),
+            ("A5", "a5"),
+            ("Executive", "us-executive"),
+            ("Legal", "us-legal"),
+            ("Letter", "us-letter"),
+            ("Tabloid", "us-tabloid"),
+        ] {
+            let input = format!("= Page setup\n:pdf-page-size: {attribute}\n\nContent.\n");
+            let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
+            let processor =
+                Processor::new(Options::default(), parsed.document().attributes.clone());
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+            let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+            assert!(
+                typst.contains(&format!("#set page(paper: \"{paper}\"")),
+                "{attribute}: {typst}"
+            );
+            assert!(warnings.is_empty(), "{attribute}: {warnings:?}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn document_page_setup_accepts_custom_dimensions_and_margins()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: [8.5in, 11in]\n:pdf-page-layout: landscape\n:pdf-page-margin: [0.5in, 0.75in, 1in, 1.25in]\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(concat!(
+            "#set page(width: 792pt, height: 612pt, ",
+            "margin: (top: 36pt, right: 54pt, bottom: 72pt, left: 90pt)",
+        )));
+        assert!(
+            render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn page_geometry_parsers_accept_reference_measurement_forms()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let custom = PageSize::try_custom(612.0, 792.0)?;
+        assert_eq!(parse_page_size("8.5in x 11in"), Some(custom));
+        let metric = parse_page_size("[215.9mm, 27.94cm]")
+            .ok_or_else(|| std::io::Error::other("metric custom page size did not parse"))?;
+        assert!((metric.width_points(PageLayout::Portrait) - 612.0).abs() < 1e-9);
+        assert!((metric.height_points(PageLayout::Portrait) - 792.0).abs() < 1e-9);
+        assert_eq!(
+            parse_page_margin("36pt"),
+            Some(PageMargins::try_new(36.0, 36.0, 36.0, 36.0)?)
+        );
+        assert_eq!(
+            parse_page_margin("[36pt, 54pt, 72pt]"),
+            Some(PageMargins::try_new(36.0, 54.0, 72.0, 54.0)?)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn invalid_page_geometry_warns_and_uses_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: 0in x 11in\n:pdf-page-margin: [-1in]\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a4\", margin: (x: 2.5cm, y: 2.5cm)"),
+            "{typst}"
+        );
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert!(warnings.iter().any(|warning| {
+            warning
+                .message
+                .starts_with("unsupported or invalid PDF page size")
+        }));
+        assert!(
+            warnings
+                .iter()
+                .any(|warning| warning.message.starts_with("invalid PDF page margin"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn page_setup_warns_when_margins_consume_the_page() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: A5\n:pdf-page-margin: 300pt\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#set page(paper: \"a5\", margin: (x: 2.5cm, y: 2.5cm)"),
+            "{typst}"
+        );
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(
+            warnings.first().map(|warning| warning.message.as_ref()),
+            Some("PDF page margins do not fit the selected page, using theme margins")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn pdf_options_override_document_page_setup() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n:pdf-page-margin: 1in\n\nContent.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                page: Some(PageSize::A5),
+                page_layout: Some(PageLayout::Portrait),
+                page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains(concat!(
+                "#set page(paper: \"a5\", ",
+                "margin: (top: 36pt, right: 54pt, bottom: 72pt, left: 90pt)",
+            )),
+            "{typst}"
+        );
+        assert!(!typst.contains("flipped: true"), "{typst}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn unbreakable_option_wraps_only_supported_pdf_block_contexts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let supported = acdc_parser::parse(
+            "[options=unbreakable]\n----\nlisting\n----\n\n[source%unbreakable]\n----\nsource\n----\n\n[%unbreakable]\n....\nliteral\n....\n\n[%unbreakable]\n====\nexample\n====\n\n[%collapsible%unbreakable]\n====\ncollapsible example\n====\n\n[%unbreakable]\n--\nopen\n--\n\n[quote%unbreakable]\n____\nquote\n____\n\n[verse%unbreakable]\n____\nverse\n____\n\n[%unbreakable]\n****\nsidebar\n****\n\n[stem%unbreakable]\n++++\nx\n++++\n\n[%unbreakable]\n|===\n|table\n|===\n\n[%unbreakable]\nNOTE: admonition\n\n[source%unbreakable]\nsource paragraph\n\n[listing%unbreakable]\nlisting paragraph\n\n[literal%unbreakable]\nliteral paragraph\n\n[example%unbreakable]\nexample paragraph\n\n[quote%unbreakable]\nquote paragraph\n\n[verse%unbreakable]\nverse paragraph\n\n[sidebar%unbreakable]\nsidebar paragraph\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let unsupported = acdc_parser::parse(
+            ":unbreakable-option:\n\n[%unbreakable]\nparagraph\n\n[%unbreakable]\n. list item\n\n[pass%unbreakable]\n++++\npassthrough\n++++\n\n----\nlisting without a local option\n----\n",
+            &acdc_parser::Options::default(),
+        )?;
+
+        let render = |document: &Document<'_>| -> Result<String, Box<dyn std::error::Error>> {
+            let processor = Processor::new(Options::default(), document.attributes.clone());
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
+            Ok(typst)
+        };
+
+        let helper = "#let _acdc_unbreakable(body) = layout";
+        let wrapper = "#_acdc_unbreakable[";
+        let supported = render(supported.document())?;
+        let unsupported = render(unsupported.document())?;
+
+        assert!(supported.contains(helper));
+        assert_eq!(supported.matches(wrapper).count(), 19);
+        assert!(!unsupported.contains(helper));
+        assert_eq!(unsupported.matches(wrapper).count(), 0);
+        assert!(
+            render_pdf(&supported, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn autofit_option_applies_only_to_listing_source_and_literal_contexts()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let local = acdc_parser::parse(
+            ".Listing caption\n[options=autofit]\n----\nlisting\n----\n\n[source%autofit]\n----\nsource\n----\n\n[%autofit]\n....\nliteral\n....\n\n[source%autofit]\nsource paragraph\n\n[listing%autofit]\nlisting paragraph\n\n[literal%autofit]\nliteral paragraph\n\n|===\na|\n[source%autofit]\n----\nnested source\n----\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let global = acdc_parser::parse(
+            ":autofit-option:\n\n----\nlisting\n----\n\n[source]\n----\nsource\n----\n\n....\nliteral\n....\n\n[source]\nsource paragraph\n\n[listing]\nlisting paragraph\n\n[literal]\nliteral paragraph\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let unsupported = acdc_parser::parse(
+            ":autofit-option:\n\nordinary paragraph\n\n[example]\nexample paragraph\n\n[quote]\nquote paragraph\n\n[verse]\nverse paragraph\n\n[sidebar]\nsidebar paragraph\n\n[pass]\n++++\npassthrough\n++++\n\n|===\n\nl|literal table cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+
+        let render = |document: &Document<'_>| -> Result<String, Box<dyn std::error::Error>> {
+            let processor = Processor::new(Options::default(), document.attributes.clone());
+            let source = WarningSource::new("pdf");
+            let mut warnings = Vec::new();
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let typst = processor.convert_to_typst_source(document, &mut diagnostics)?;
+            assert!(warnings.is_empty(), "{warnings:?}");
+            Ok(typst)
+        };
+
+        let helper = "#let _acdc_autofit_code";
+        let call = "#_acdc_autofit_code";
+        let local = render(local.document())?;
+        let global = render(global.document())?;
+        let unsupported = render(unsupported.document())?;
+
+        assert!(local.contains(helper), "{local}");
+        assert_eq!(local.matches(call).count(), 7, "{local}");
+        let caption = local
+            .find("Listing caption")
+            .ok_or_else(|| std::io::Error::other("missing listing caption in generated Typst"))?;
+        let first_autofit = local
+            .find(call)
+            .ok_or_else(|| std::io::Error::other("missing autofit call in generated Typst"))?;
+        assert!(caption < first_autofit, "{local}");
+        assert!(global.contains(helper), "{global}");
+        assert_eq!(global.matches(call).count(), 6, "{global}");
+        assert_eq!(unsupported.matches(call).count(), 0, "{unsupported}");
+        assert!(
+            render_pdf(&local, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(
+            render_pdf(&global, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn autofit_preserves_original_lines_and_keeps_minimum_size_fallback_breakable()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let medium_line = format!("medium-{}-end", "0123456789".repeat(10));
+        let oversized_line = format!("oversized-{}-end", "abcdefghij".repeat(40));
+        let input = format!(
+            ":source-highlighter: rouge\n\n[source%autofit,rust,linenums,start=98,highlight=99]\n----\n{medium_line} <1>\nshort line\nthird line\n----\n<1> Callout explanation.\n\n[%autofit]\n....\n{oversized_line}\n....\n"
+        );
+        let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(&medium_line), "{typst}");
+        assert!(typst.contains(&oversized_line), "{typst}");
+        assert!(typst.contains("language: \"rust\""), "{typst}");
+        assert!(typst.contains("extra-width: 2.6em"), "{typst}");
+        assert!(typst.contains(&format!("{medium_line} (1)")), "{typst}");
+        assert_eq!(typst.matches("#_acdc_autofit_code").count(), 2, "{typst}");
+        assert!(
+            render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn autofit_uses_theme_code_sizes_and_padding() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "[%autofit]\n----\na code line that requires the autofit helper\n----\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let mut theme = Theme::default();
+        theme.typography.code_size_em = 0.9;
+        theme.typography.code_min_size_em = 0.45;
+        theme.spacing.code_pad_pt = 12.5;
+        let assets = ImageMap::new();
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
+
+        let typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &collect_pdf_preparation(parsed.document()),
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            &mut diagnostics,
+        )?;
+
+        assert!(typst.contains("text(size: 1.125em, fill:"), "{typst}");
+        assert!(typst.contains("size.width - 25pt"), "{typst}");
+        assert!(typst.contains("calc.max(0.5, scale)"), "{typst}");
+        assert!(
+            render_pdf(&typst, &assets, &RenderConfig::default())?
+                .pdf
+                .starts_with(b"%PDF-")
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn unbreakable_option_moves_fitting_listing_and_preserves_oversized_listing()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let prefix = "= acdc Move probe\n\nFILL01 filler paragraph.\n\nFILL02 filler paragraph.\n\nFILL03 filler paragraph.\n\nFILL04 filler paragraph.\n\nFILL05 filler paragraph.\n\nFILL06 filler paragraph.\n\nFILL07 filler paragraph.\n\nFILL08 filler paragraph.\n\nFILL09 filler paragraph.\n\nFILL10 filler paragraph.\n\nFILL11 filler paragraph.\n\nFILL12 filler paragraph.\n\nFILL13 filler paragraph.\n\nFILL14 filler paragraph.\n\nFILL15 filler paragraph.\n\nFILL16 filler paragraph.\n\nFILL17 filler paragraph.\n\nFILL18 filler paragraph.\n\nFILL19 filler paragraph.\n\nFILL20 filler paragraph.\n\n.Target caption\n[listing%unbreakable]\n----\n";
+        let fitting = format!(
+            "{prefix}CODE01 target line\nCODE02 target line\nCODE03 target line\nCODE04 target line\nCODE05 target line\nCODE06 target line\nCODE07 target line\nCODE08 target line\n----\n\nAFTER target.\n"
+        );
+        let fitting_pages = rendered_page_texts(&fitting)?;
+        let first_page = fitting_pages
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing first page"))?;
+        let second_page = fitting_pages
+            .get(1)
+            .ok_or_else(|| std::io::Error::other("missing second page"))?;
+
+        assert!(first_page.contains("FILL20"), "{fitting_pages:?}");
+        assert!(!first_page.contains("Target caption"), "{fitting_pages:?}");
+        assert!(second_page.contains("Target caption"), "{fitting_pages:?}");
+        assert!(second_page.contains("CODE01"), "{fitting_pages:?}");
+        assert!(second_page.contains("CODE08"), "{fitting_pages:?}");
+
+        let mut oversized = String::from(prefix);
+        for line in 1..=80 {
+            let _ = writeln!(oversized, "CODE{line:02} target line");
+        }
+        oversized.push_str("----\n\nAFTER target.\n");
+        let oversized_pages = rendered_page_texts(&oversized)?;
+        let oversized_first_page = oversized_pages
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing first page"))?;
+
+        assert!(oversized_pages.len() > 1, "{oversized_pages:?}");
+        assert!(
+            oversized_first_page.contains("CODE01"),
+            "{oversized_pages:?}"
+        );
+        assert!(
+            oversized_pages
+                .iter()
+                .skip(1)
+                .any(|page| page.contains("CODE80")),
+            "{oversized_pages:?}"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn page_breakable_tables_keep_their_caption_with_the_first_row()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for metadata in ["[#target-table]", "[#target-table%breakable]"] {
+            let mut input = String::from("= Table pagination probe\n\n");
+            for line in 1..=24 {
+                let _ = writeln!(input, "FILL{line:02} filler paragraph.\n");
+            }
+            let _ = writeln!(input, ".TARGET TABLE CAPTION\n{metadata}");
+            input.push_str(
+                "|===\n|FIRST ROW CELL WITH ENOUGH WORDS TO WRAP ACROSS SEVERAL LINES AND REQUIRE MORE VERTICAL SPACE THAN IS LEFT AFTER THE CAPTION\n\n|SECOND ROW\n|===\n\nAFTER TABLE.\n",
+            );
+
+            let pages = rendered_page_texts(&input)?;
+            let caption_page = pages
+                .iter()
+                .position(|page| page.contains("TARGET TABLE CAPTION"))
+                .ok_or_else(|| std::io::Error::other("missing table caption"))?;
+            let first_row_page = pages
+                .iter()
+                .position(|page| page.contains("FIRST ROW CELL"))
+                .ok_or_else(|| std::io::Error::other("missing first table row"))?;
+
+            assert_eq!(caption_page, first_row_page, "{metadata}: {pages:?}");
+            let previous_page = caption_page
+                .checked_sub(1)
+                .and_then(|index| pages.get(index))
+                .ok_or_else(|| std::io::Error::other("missing page before table"))?;
+            assert!(previous_page.contains("FILL24"), "{metadata}: {pages:?}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse("text", &acdc_parser::Options::default())?;
+        let block = parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing parsed block"))?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let assets = ImageMap::new();
+        let theme = Theme::default();
+        let emit_options = EmitOptions {
+            page: PageSize::A4,
+            page_layout: PageLayout::Portrait,
+            ..EmitOptions::default()
+        };
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let diagnostics = Diagnostics::new(&source, &mut warnings);
+            let mut visitor = PdfVisitor::new(
+                processor,
+                &assets,
+                TypstSourceConfig::new(
+                    &theme,
+                    &emit_options,
+                    PageNumberingPlan::new(theme.page_numbering_start_at, false, false),
+                ),
+                Vec::new(),
+                diagnostics,
+            );
+            visitor.visit_unhandled_block(block)?;
+        }
+
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing parser variant warning"))?;
+        assert_eq!(
+            warning.message,
+            "an unsupported parser block variant was omitted from PDF output"
+        );
+        assert_eq!(
+            warning.advice(),
+            Some(
+                "Use the HTML backend or Asciidoctor PDF for this document and report the unsupported construct."
+            )
+        );
+        Ok(())
+    }
+
+    fn external_link_targets(pdf: &lopdf::Document) -> Vec<String> {
+        let mut targets = pdf
+            .objects
+            .values()
+            .filter_map(|object| {
+                let link = object.as_dict().ok()?;
+                if !matches!(link.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                {
+                    return None;
+                }
+                let action = link.get(b"A").ok()?.as_dict().ok()?;
+                let uri = action.get(b"URI").ok()?.as_str().ok()?;
+                Some(String::from_utf8_lossy(uri).into_owned())
+            })
+            .collect::<Vec<_>>();
+        targets.sort();
+        targets
+    }
+
+    fn pdf_contains_outline_title(pdf: &lopdf::Document, expected: &str) -> bool {
+        pdf.objects.values().any(|object| {
+            let Ok(dictionary) = object.as_dict() else {
+                return false;
+            };
+            let Ok(title) = dictionary.get(b"Title").and_then(lopdf::Object::as_str) else {
+                return false;
+            };
+            String::from_utf8_lossy(title) == expected
+        })
+    }
+
+    #[test]
+    fn index_notitle_hides_heading_and_catalog_uses_default_columns()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Index columns\n\nVisible ((alpha)) and ((beta)).\n\n[index%notitle]\n== Hidden Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(!typst.contains("#heading(level: 1)[#text(\"Hidden Index\")]"));
+        assert!(typst.contains(&format!(
+            "#metadata(none) <{}>",
+            encode_label("_hidden_index")
+        )));
+        assert!(typst.contains("#columns(2, gutter: 12pt)["));
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn section_notitle_hides_only_the_body_heading() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Section metadata\n:toc:\n:sectnums:\n\nSee <<hidden-section>>.\n\n[#hidden-section%notitle]\n== Hidden *Section*\n\nHidden section body.\n\n=== Child Section\n\nChild body.\n\n[discrete#visible-discrete%notitle]\n=== Visible Discrete\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let label = encode_label("hidden-section");
+
+        assert!(
+            typst.contains(&format!("#_acdc_toc_entry(<{label}>, 0,")),
+            "{typst}"
+        );
+        assert!(typst.contains(&format!("#link(<{label}>)[")), "{typst}");
+        assert!(
+            typst.contains(&format!(
+                "#place[#hide[#heading(level: 1)[#text(\"1. \")#text(\"Hidden \")#strong[#text(\"Section\")]] <{label}>]]"
+            )),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains(&format!("\n#heading(level: 1)[#text(\"1. \")#text(\"Hidden \")#strong[#text(\"Section\")]] <{label}>")),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#heading(level: 2)[#text(\"1.1. \")#text(\"Child Section\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#heading(level: 2, outlined: false)[#text(\"Visible Discrete\")]"),
+            "{typst}"
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert_eq!(
+            normalized_text.matches("1. Hidden Section").count(),
+            1,
+            "{normalized_text}"
+        );
+        assert!(text.contains("Visible Discrete"), "{text}");
+
+        assert!(pdf_contains_outline_title(&pdf, "1. Hidden Section"));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn lead_role_and_automatic_preamble_lead_use_larger_text()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Lead paragraphs\n\nAutomatic lead paragraph.\n\nSecond preamble paragraph.\n\n== Section\n\nNormal section paragraph.\n\n[.lead]\nExplicit lead paragraph.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            typst.contains("#text(size: 1.25em)[#text(\"Automatic lead paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(
+            typst.contains("#text(size: 1.25em)[#text(\"Explicit lead paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains("#text(size: 1.25em)[#text(\"Second preamble paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(
+            !typst.contains("#text(size: 1.25em)[#text(\"Normal section paragraph.\")]"),
+            "{typst}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+
+        let parsed = acdc_parser::parse(
+            "= Existing role\n\n[.other]\nRole prevents automatic lead.\n\n== Section\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(
+            !typst.contains("#text(size: 1.25em)[#text(\"Role prevents automatic lead.\")]"),
+            "{typst}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn index_catalog_uses_custom_theme_columns_and_gap() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Visible ((alpha)) and ((beta)).\n\n[index]\n== Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let mut theme = Theme::default();
+        theme.index.columns = 3;
+        theme.index.column_gap_pt = None;
+        theme.typography.body_size_pt = 12.5;
+        let assets = ImageMap::new();
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
+
+        let typst_with_default_gap = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &collect_pdf_preparation(parsed.document()),
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            &mut diagnostics,
+        )?;
+        assert!(typst_with_default_gap.contains("#columns(3, gutter: 12.5pt)["));
+
+        theme.index.column_gap_pt = Some(18.5);
+        let typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &collect_pdf_preparation(parsed.document()),
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            &mut diagnostics,
+        )?;
+        assert!(typst.contains("#columns(3, gutter: 18.5pt)["));
+        let rendered = render_pdf(&typst, &assets, &RenderConfig::default())?;
+        assert!(rendered.pdf.starts_with(b"%PDF-"));
+
+        theme.index.columns = 1;
+        let single_column_typst = processor.emit_typst_source(
+            parsed.document(),
+            &assets,
+            &collect_pdf_preparation(parsed.document()),
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
+            &mut diagnostics,
+        )?;
+        assert!(!single_column_typst.contains("#columns("));
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn print_media_index_uses_plain_unique_page_ranges() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Print index\n:media: print\n:index-pagenum-sequence-style: page\n\nFirst ((term)) and same-page ((term)).\n\n<<<\n\nSecond ((term)).\n\n<<<\n\nA page without the indexed term.\n\n<<<\n\nFourth ((term)).\n\n[index]\n== Index\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(
+            "#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,<__indexterm-3>,<__indexterm-4>,), \"print\")"
+        ));
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(normalized_text.contains("T term , 1-2, 4"), "{text}");
+        let link_annotations = pdf
+            .objects
+            .values()
+            .filter(|object| {
+                object.as_dict().is_ok_and(|dictionary| {
+                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                })
+            })
+            .count();
+        assert_eq!(link_annotations, 0);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn audio_blocks_render_clickable_static_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Audio fallbacks\n:imagesdir: media library\n\n.Local episode\n[[local-audio]]\naudio::clips/demo episode.mp3[]\n\naudio::https://example.com/podcast episode.mp3[start=5,end=10,opts=\"autoplay,loop,nocontrols\"]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.contains(
+            "#text(\"►\u{a0}\")#link(\"media%20library/clips/demo%20episode.mp3\")[#text(\"media%20library/clips/demo%20episode.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
+        ));
+        assert!(typst.contains(
+            "#text(\"►\u{a0}\")#link(\"https://example.com/podcast%20episode.mp3\")[#text(\"https://example.com/podcast%20episode.mp3\")]#text(\" \")#emph[#text(\"(audio)\")]"
+        ));
+        assert!(typst.contains("#imagecaption[#text(\"Local episode\")]"));
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing static media fallback warning"))?;
+        assert_eq!(
+            warning.message,
+            "interactive media playback is unavailable in static PDF output; rendering clickable source links",
+        );
+        assert_eq!(
+            warning.advice(),
+            Some("Use the HTML backend when in-document playback is required."),
+        );
+        assert_eq!(
+            warning
+                .source_location()
+                .map(|location| location.location.start.line),
+            Some(4)
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(normalized_text.contains("Audio fallbacks"), "{text}");
+        assert!(
+            normalized_text
+                .contains("media%20library/clips/demo%20episode.mp3 (audio) Local episode"),
+            "{text}",
+        );
+        assert!(
+            normalized_text.contains("https://example.com/podcast%20episode.mp3 (audio)"),
+            "{text}",
+        );
+        let targets = external_link_targets(&pdf);
+        assert_eq!(
+            targets,
+            [
+                "https://example.com/podcast%20episode.mp3".to_string(),
+                "media%20library/clips/demo%20episode.mp3".to_string(),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn video_blocks_preserve_clickable_static_sources() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Video fallbacks\n:imagesdir: media\n\n.Local formats\n[[local-video]]\nvideo::clips/demo clip.mp4,clips/demo clip.webm[]\n\nvideo::https://media.example.test/demo clip.mp4[]\n\nvideo::dQw4w9WgXcQ[youtube,start=10,end=20,opts=\"autoplay,loop\"]\n\nvideo::76979871[vimeo,start=10,opts=muted]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        for (target, kind) in [
+            ("media/clips/demo%20clip.mp4", "video"),
+            ("media/clips/demo%20clip.webm", "video"),
+            ("https://media.example.test/demo%20clip.mp4", "video"),
+            (
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                "YouTube video",
+            ),
+            ("https://vimeo.com/76979871", "Vimeo video"),
+        ] {
+            assert!(
+                typst.contains(&format!(
+                    "#link(\"{target}\")[#text(\"{target}\")]#text(\" \")#emph[#text(\"({kind})\")]"
+                )),
+                "missing {target} in generated Typst",
+            );
+        }
+        assert!(!typst.contains("#t="));
+        assert!(!typst.contains("&t=10"));
+        assert!(typst.contains("#imagecaption[#text(\"Local formats\")]"));
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings.first().map(|warning| warning.message.as_ref()),
+            Some(
+                "interactive media playback is unavailable in static PDF output; rendering clickable source links"
+            ),
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert_eq!(
+            external_link_targets(&pdf),
+            [
+                "https://media.example.test/demo%20clip.mp4".to_string(),
+                "https://vimeo.com/76979871".to_string(),
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ".to_string(),
+                "media/clips/demo%20clip.mp4".to_string(),
+                "media/clips/demo%20clip.webm".to_string(),
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn video_poster_is_a_linked_static_fallback() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let media_directory = directory.path().join("media library");
+        std::fs::create_dir(&media_directory)?;
+        std::fs::write(
+            media_directory.join("poster file.svg"),
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="#334155"/></svg>"##,
+        )?;
+        let parsed = acdc_parser::parse(
+            "= Video poster\n:imagesdir: media library\n\n.Poster title\n[[poster-video]]\nvideo::demo.mp4[poster=poster file.svg]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let typst_path = directory.path().join("video-poster.typ");
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                emit_typst: Some(typst_path.clone()),
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(
+            parsed.document(),
+            Some(&directory.path().join("document.adoc")),
+            &mut diagnostics,
+        )?;
+
+        assert_eq!(rendered.resolved_document_image_count, 1);
+        let typst = std::fs::read_to_string(typst_path)?;
+        assert!(
+            typst.contains("alt: \"poster file\", destination: \"media%20library/demo.mp4\")"),
+            "{typst}",
+        );
+        assert!(typst.contains("#imagecaption[#text(\"Poster title\")]"));
+        assert!(!typst.contains("Figure 1."));
+        assert!(!typst.contains("#text(\"demo.mp4\")"));
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings.first().map(|warning| warning.message.as_ref()),
+            Some(
+                "interactive media playback is unavailable in static PDF output; rendering clickable source links"
+            ),
+        );
+
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert_eq!(
+            external_link_targets(&pdf),
+            ["media%20library/demo.mp4".to_string()]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn inline_icon_failures_warn_for_each_macro_occurrence()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let font_warnings = render_warnings(
+            ":icons: font\n\nicon:not-a-real-icon[] icon:another-missing[alt=Custom,size=2x,title=Title] icon:not-a-real-icon[] icon:heart[alt=Love,size=2x,title=Title]\n",
+        )?;
+        assert_eq!(font_warnings.len(), 3);
+        assert_eq!(
+            font_warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [3, 3, 3]
+        );
+        assert_eq!(
+            font_warnings
+                .iter()
+                .map(|warning| warning.message.as_ref())
+                .collect::<Vec<_>>(),
+            [
+                "not-a-real-icon is not a valid icon name in the built-in icon set",
+                "another-missing is not a valid icon name in the built-in icon set",
+                "not-a-real-icon is not a valid icon name in the built-in icon set",
+            ]
+        );
+
+        let directory = tempfile::tempdir()?;
+        std::fs::write(
+            directory.path().join("heart.svg"),
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0h10v10H0z"/></svg>"#,
+        )?;
+        let image_warnings = render_warnings(&format!(
+            ":icons: svg\n:iconsdir: {}\n\nicon:not-a-real-icon[] icon:another-missing[alt=Custom,size=2x,title=Title] icon:not-a-real-icon[] icon:heart[alt=Love,size=2x,title=Title]\n",
+            directory.path().display()
+        ))?;
+        assert_eq!(image_warnings.len(), 3);
+        assert_eq!(
+            image_warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [4, 4, 4]
+        );
+        assert!(
+            image_warnings
+                .iter()
+                .all(|warning| { warning.message.starts_with("image icon for '") })
+        );
+        assert_eq!(
+            image_warnings
+                .iter()
+                .map(|warning| {
+                    if warning.message.contains("'not-a-real-icon'") {
+                        Some("not-a-real-icon")
+                    } else if warning.message.contains("'another-missing'") {
+                        Some("another-missing")
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>(),
+            [
+                Some("not-a-real-icon"),
+                Some("another-missing"),
+                Some("not-a-real-icon"),
+            ]
+        );
+
+        let text_warnings = render_warnings(
+            "icon:not-a-real-icon[] icon:not-a-real-icon[alt=Custom,size=2x,title=Title]\n",
+        )?;
+        assert!(text_warnings.is_empty(), "{text_warnings:?}");
+
+        let attribution_warnings = render_warnings(
+            ":icons: font\n\n[quote, 'icon:not-a-real-icon[]', 'icon:another-missing[]']\n____\nQuoted text.\n____\n",
+        )?;
+        assert_eq!(
+            attribution_warnings
+                .iter()
+                .map(|warning| warning.message.as_ref())
+                .collect::<Vec<_>>(),
+            [
+                "not-a-real-icon is not a valid icon name in the built-in icon set",
+                "another-missing is not a valid icon name in the built-in icon set",
+            ]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn caller_supplied_example_titles_keep_the_default_caption()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let caller_built = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedExample(Vec::new()),
+            "====",
+            Location::default(),
+        )
+        .with_title(title("Caller-built"));
+
+        let parsed = acdc_parser::parse(
+            "[example]\n====\nContent.\n====\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let Some(Block::DelimitedBlock(mut title_added)) =
+            parsed.document().blocks.first().cloned()
+        else {
+            return Err(std::io::Error::other("expected a delimited example").into());
+        };
+        title_added.title = title("Added later");
+
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = vec![
+            Block::DelimitedBlock(caller_built),
+            Block::DelimitedBlock(title_added),
+        ];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Example 1. Caller-built"), "{text}");
+        assert!(text.contains("Example 2. Added later"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn caller_built_listing_and_styled_paragraph_titles_take_captions()
+    -> Result<(), Box<dyn std::error::Error>> {
+        // A block built through the API carries no resolved caption, so the converter
+        // classifies it with the parser's own rules rather than dropping its caption.
+        let listing = DelimitedBlock::new(
+            DelimitedBlockType::DelimitedListing(Vec::new()),
+            "----",
+            Location::default(),
+        )
+        .with_title(title("Built listing"));
+        let mut styled_paragraph = Paragraph::new(Vec::new(), Location::default());
+        styled_paragraph.title = title("Built source paragraph");
+        styled_paragraph.metadata.style = Some("source");
+
+        let mut document = Document::default();
+        document
+            .attributes
+            .set("listing-caption".into(), "Listing".into());
+        document.blocks = vec![
+            Block::DelimitedBlock(listing),
+            Block::Paragraph(styled_paragraph),
+        ];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Listing 1. Built listing"), "{text}");
+        assert!(text.contains("Listing 2. Built source paragraph"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn caller_built_table_titles_continue_table_numbering() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let parsed = acdc_parser::parse(
+            ".Parsed table\n|===\n|Cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let Some(Block::DelimitedBlock(parsed_table)) = parsed.document().blocks.first() else {
+            return Err(std::io::Error::other("expected a delimited table").into());
+        };
+        let caller_built =
+            DelimitedBlock::new(parsed_table.inner.clone(), "|===", Location::default())
+                .with_title(title("Caller-built table"));
+
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = vec![
+            Block::DelimitedBlock(parsed_table.clone()),
+            Block::DelimitedBlock(caller_built),
+        ];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Table 1. Parsed table"), "{text}");
+        assert!(text.contains("Table 2. Caller-built table"), "{text}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn caller_built_figure_titles_continue_figure_numbering()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            ".Parsed figure\nimage::missing-one.svg[First]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
+            .with_title(title("Caller-built figure"));
+        let Some(parsed_figure) = parsed.document().blocks.first().cloned() else {
+            return Err(std::io::Error::other("expected a block image").into());
+        };
+
+        let mut document = Document::default();
+        document.attributes = parsed.document().attributes.clone();
+        document.blocks = vec![parsed_figure, Block::Image(caller_built)];
+        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(&document, None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+
+        assert!(text.contains("Figure 1. Parsed figure"), "{text}");
+        assert!(text.contains("Figure 2. Caller-built figure"), "{text}");
+        Ok(())
+    }
+
+    #[test]
+    fn captioned_block_xrefs_honor_source_order_styles() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Caption cross-references\n:figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: basic\n\nBasic: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::missing-reference-image.svg[Missing]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        let mut failures = Vec::new();
+        for expected in [
+            "Forward short: TargetFigure 1 and BeforeTable 1",
+            "Forward full: TargetFigure 1, “A figure title” and BeforeTable 1, “A table title”",
+            "Basic: A figure title and A table title",
+            "Backward short: TargetFigure 1 and AfterTable 1",
+            "Backward full: TargetFigure 1, “A figure title” and AfterTable 1, “A table title”",
+        ] {
+            if !normalized.contains(expected) {
+                failures.push(format!("expected {expected:?} in {text:?}"));
+            }
+        }
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+        Ok(())
+    }
+
+    #[test]
+    fn interdocument_xref_macros_link_to_other_pdf_documents()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for expected in [
+            "#link(\"Other.pdf\")[#text(\"Other.pdf\")]".to_string(),
+            "#link(\"Other.pdf\")[#text(\"Other\")]".to_string(),
+            format!(
+                "#link(<{}>)[#text(\"Other.adoc\")]",
+                encode_label("_other_adoc")
+            ),
+            "#link(\"Foo.pdf#Bar\")[#text(\"Foo.pdf\")]".to_string(),
+        ] {
+            assert!(
+                typst.contains(&expected),
+                "expected {expected:?} in {typst}"
+            );
+        }
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        assert_eq!(
+            external_link_targets(&pdf),
+            ["Foo.pdf#Bar", "Other.pdf", "Other.pdf"]
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn compat_mode_keeps_natural_reference_unresolved() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\n\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        let section_label = encode_label("_syntax_highlighting");
+        assert!(
+            typst.contains("#text(\"[Syntax Highlighting]\")"),
+            "{typst}"
+        );
+        assert_eq!(
+            typst.matches(&format!("#link(<{section_label}>)")).count(),
+            1
+        );
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("Natural: [Syntax Highlighting]."),
+            "{text}"
+        );
+        assert!(
+            normalized.contains("Explicit: Syntax Highlighting"),
+            "{text}"
+        );
+        let link_annotations = pdf
+            .objects
+            .values()
+            .filter(|object| {
+                object.as_dict().is_ok_and(|dictionary| {
+                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                })
+            })
+            .count();
+        assert_eq!(link_annotations, 1);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn passthroughs_are_restored_before_natural_xref_resolution()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for (target, count) in [
+            ("_pass_raw_title", 1),
+            ("_plus_raw_title", 1),
+            ("_control_title", 1),
+        ] {
+            let label = encode_label(target);
+            assert_eq!(typst.matches(&format!("#link(<{label}>)")).count(), count);
+        }
+        assert_eq!(typst.matches("#text(\"[Target raw Title]\")").count(), 2);
+        assert_eq!(typst.matches("#text(\"[Missing raw Title]\")").count(), 2);
+        assert!(!typst.contains('\u{fffd}'), "{typst}");
+
+        let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for expected in [
+            "Title macro: Pass raw Title",
+            "Title plus: Plus raw Title",
+            "Target macro: [Target raw Title].",
+            "Target plus: [Target raw Title].",
+            "Missing macro: [Missing raw Title].",
+            "Missing plus: [Missing raw Title].",
+            "Control: Control Title",
+        ] {
+            assert!(
+                normalized.contains(expected),
+                "expected {expected:?} in {text:?}"
+            );
+        }
+        let link_annotations = pdf
+            .objects
+            .values()
+            .filter(|object| {
+                object.as_dict().is_ok_and(|dictionary| {
+                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                })
+            })
+            .count();
+        assert_eq!(link_annotations, 3);
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
+
+    #[test]
+    fn captions_and_cross_reference_text_preserve_inline_formatting()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= Formatted captions and references\n:subject-name: Ada\n:xrefstyle: basic\n\nBasic: <<table-target>>.\n\nExplicit: xref:table-target[Own *bold* _italic_ `mono` {subject-name} link:https://example.com[link]].\n\n:xrefstyle: full\n\nFull: <<table-target>>.\n\n[[table-target]]\n.Caption *bold* _italic_ `mono` {subject-name}\n|===\n|Cell\n|===\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+        for expected in [
+            "#link(<id-7461626c652d746172676574>)[#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
+            "#link(<id-7461626c652d746172676574>)[#text(\"Own \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada \")#link(\"https://example.com\")[#text(\"link\")]]",
+            "#link(<id-7461626c652d746172676574>)[#text(\"Table 1\")#text(\", “\")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")#text(\"”\")]",
+            "#blocktitle[#text(\"Table 1. \")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
+        ] {
+            assert!(typst.contains(expected), "expected {expected:?} in {typst}");
+        }
+
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        for expected in [
+            "Basic: Caption bold italic mono Ada",
+            "Explicit: Own bold italic mono Ada link",
+            "Full: Table 1, “Caption bold italic mono Ada”",
+            "Table 1. Caption bold italic mono Ada",
+        ] {
+            assert!(
+                normalized.contains(expected),
+                "expected {expected:?} in {text:?}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn document_title_id_is_a_pdf_destination_and_reference_target()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "[[unused-header-anchor]]\n[[document-header]]\n= Main *Title*: Subtitle _Details_\n\nSee <<document-header>>.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
+        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+
+        let (_, names) = pdf.dereference(pdf.catalog()?.get(b"Names")?)?;
+        let (_, destinations) = pdf.dereference(names.as_dict()?.get(b"Dests")?)?;
+        let (_, entries) = pdf.dereference(destinations.as_dict()?.get(b"Names")?)?;
+        let destination_names = entries
+            .as_array()?
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|[name, _]| lopdf::decode_text_string(name))
+            .collect::<Result<Vec<_>, _>>()?;
+        assert!(
+            destination_names.contains(&"document-header".to_owned()),
+            "{destination_names:?}"
+        );
+        assert!(
+            !destination_names.contains(&"unused-header-anchor".to_owned()),
+            "{destination_names:?}"
+        );
+
+        let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+        let text = pdf.extract_text(&pages)?;
+        let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            normalized.contains("See Main Title : Subtitle Details ."),
+            "{text}"
+        );
+        assert!(warnings.is_empty(), "{warnings:?}");
+        Ok(())
+    }
 
     #[test]
     fn labels_are_typst_safe_and_collision_resistant() {
@@ -735,7 +3395,7 @@ mod tests {
     }
 
     #[test]
-    fn explicit_running_header_title_does_not_replace_document_metadata()
+    fn explicit_page_header_title_does_not_replace_document_metadata()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
             "= Main *Title*: Subtitle _Part_\n\nBody.\n",
@@ -753,7 +3413,7 @@ mod tests {
         let options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
 
         assert_eq!(
-            options.running_header_title.as_deref(),
+            options.page_header_title.as_deref(),
             Some("Explicit Header")
         );
         assert_eq!(
@@ -1068,6 +3728,59 @@ mod tests {
     }
 
     #[test]
+    fn emitted_typst_ends_with_one_newline() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert!(typst.ends_with('\n'));
+        assert!(!typst.ends_with("\n\n"));
+        Ok(())
+    }
+
+    #[test]
+    fn block_image_float_fallback_warns_for_each_block_image()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "image::one.svg[float=left]\n\nimage::two.svg[float=right]\n\nimage::three.svg[float=invalid]\n\nBefore image:four.svg[float=left] after.\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+
+        let _ = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
+
+        assert_eq!(warnings.len(), 2);
+        assert_eq!(
+            warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [1, 3]
+        );
+        for warning in warnings {
+            assert_eq!(
+                warning.message,
+                "block image side wrapping is not yet supported by the PDF backend, rendering the image on the requested side with following content below it",
+            );
+            assert_eq!(
+                warning.advice(),
+                Some(
+                    "Use the HTML backend or Asciidoctor PDF for this feature until PDF backend support is added."
+                ),
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn hostile_theme_font_name_remains_literal_typst_data() -> Result<(), Box<dyn std::error::Error>>
     {
         let hostile = r#"Acme"), size: 1pt)#undefined_function()//"#;
@@ -1085,11 +3798,12 @@ mod tests {
 
         let assets = ImageMap::new();
         let emit_options = processor.emit_options(parsed.document(), None, &[], &mut diagnostics);
+        let page_numbering = processor.page_numbering_plan(parsed.document(), &theme);
         let typst = processor.emit_typst_source(
             parsed.document(),
             &assets,
-            &theme,
-            &emit_options,
+            &collect_pdf_preparation(parsed.document()),
+            TypstSourceConfig::new(&theme, &emit_options, page_numbering),
             &mut diagnostics,
         )?;
         assert!(
@@ -1123,6 +3837,75 @@ mod tests {
                 .iter()
                 .all(|warning| warning.message.contains("stem content"))
         );
+        assert_eq!(
+            warnings
+                .iter()
+                .filter_map(Warning::source_location)
+                .map(|location| location.location.start.line)
+                .collect::<Vec<_>>(),
+            [1, 3]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn zero_width_table_warning_has_source_context_and_advice()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let warnings = render_warnings("[width=0%]\n|===\n|Cell\n|===\n")?;
+
+        assert_eq!(warnings.len(), 1);
+        let warning = warnings
+            .first()
+            .ok_or_else(|| std::io::Error::other("missing zero-width table warning"))?;
+        assert_eq!(
+            warning.message,
+            "cannot fit contents of table cell into a table with a width of 0%; omitting the table"
+        );
+        assert_eq!(
+            warning
+                .source_location()
+                .map(|location| location.location.start.line),
+            Some(1)
+        );
+        assert_eq!(
+            warning.advice(),
+            Some("Set the table width to a value greater than 0% to include it in the PDF.")
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn strict_assets_rejects_only_asset_failures() -> Result<(), Box<dyn std::error::Error>> {
+        let fallback = acdc_parser::parse("stem:[x]\n", &acdc_parser::Options::default())?;
+        let processor = Processor::new(Options::default(), fallback.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                strict_assets: true,
+                ..PdfOptions::default()
+            });
+        let source = WarningSource::new("pdf");
+        let mut warnings = Vec::new();
+        {
+            let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+            let rendered =
+                processor.render_document(fallback.document(), None, &mut diagnostics)?;
+            assert!(rendered.pdf.starts_with(b"%PDF-"));
+        }
+        assert_eq!(warnings.len(), 1);
+
+        let missing = acdc_parser::parse(
+            "image::missing-strict-asset.png[]\n",
+            &acdc_parser::Options::default(),
+        )?;
+        let processor = Processor::new(Options::default(), missing.document().attributes.clone())
+            .with_pdf_options(PdfOptions {
+                strict_assets: true,
+                ..PdfOptions::default()
+            });
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let result = processor.render_document(missing.document(), None, &mut diagnostics);
+
+        assert!(matches!(result, Err(Error::AssetResolution(_))));
+        assert_eq!(warnings.len(), 1);
         Ok(())
     }
 
@@ -1130,19 +3913,22 @@ mod tests {
     fn image_collection_matches_rendered_titles_and_skips_verbatim_content()
     -> Result<(), Box<dyn std::error::Error>> {
         let parsed = acdc_parser::parse(
-            "= Header: image:subtitle.png[] Subtitle\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
+            "= Header: image:subtitle.png[] Subtitle\n:imagesdir: media library\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
             &acdc_parser::Options::default(),
         )?;
 
         assert_eq!(
-            collect_image_urls(parsed.document()),
+            collect_pdf_preparation(parsed.document())
+                .image_urls
+                .into_iter()
+                .collect::<Vec<_>>(),
             vec![
-                "block-title.png",
-                "body.png",
-                "list-title.png",
-                "paragraph-title.png",
-                "section.png",
-                "subtitle.png",
+                "media%20library/block-title.png",
+                "media%20library/body.png",
+                "media%20library/list-title.png",
+                "media%20library/paragraph-title.png",
+                "media%20library/section.png",
+                "media%20library/subtitle.png",
             ]
         );
         Ok(())
@@ -1214,6 +4000,13 @@ mod tests {
         )?;
         assert_eq!(rendered.resolved_document_image_count, 1);
         assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            warnings
+                .first()
+                .and_then(Warning::source_location)
+                .map(|location| location.location.start.line),
+            Some(3)
+        );
         Ok(())
     }
 

@@ -1,5 +1,5 @@
 = Nextest Replay Sample
-:author: ACDC
+:author: acdc
 :toc:
 
 This sample replays a captured `cargo nextest run --all-features --color always` run from this repository.

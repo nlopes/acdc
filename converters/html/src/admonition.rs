@@ -3,7 +3,7 @@ use std::io::Write;
 use acdc_converters_core::visitor::{Visitor, WritableVisitor};
 use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
 
-use crate::{Error, HtmlVariant, HtmlVisitor};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_id};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
@@ -32,11 +32,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             return visit_admonition_semantic(self, admon, caption, processor.is_font_icons_mode());
         }
 
-        writeln!(
-            self.writer,
-            "<div class=\"admonitionblock {}\">",
-            admon.variant
-        )?;
+        let class = build_class(
+            &format!("admonitionblock {}", admon.variant),
+            &admon.metadata.roles,
+        );
+        write!(self.writer, "<div")?;
+        write_id(&mut self.writer, &admon.metadata)?;
+        writeln!(self.writer, " class=\"{class}\">")?;
         writeln!(self.writer, "<table>")?;
         writeln!(self.writer, "<tr>")?;
         writeln!(self.writer, "<td class=\"icon\">")?;

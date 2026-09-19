@@ -1,0 +1,85 @@
+= Table alignment
+
+.Default left alignment
+[width=45%]
+|===
+|Default left |A wider second cell
+|===
+
+.Explicit center alignment
+[align=center,width=45%]
+|===
+|Explicit center |A wider second cell
+|===
+
+.Explicit right alignment
+[align=right,width=45%]
+|===
+|Explicit right |A wider second cell
+|===
+
+.Role attribute alignment
+[role=center,width=45%]
+|===
+|Role attribute |A wider second cell
+|===
+
+.Alignment attribute takes precedence over role
+[.right,align=left,width=45%]
+|===
+|Attribute left |A wider second cell
+|===
+
+.Invalid alignment falls through to role
+[.right,align=invalid,width=45%]
+|===
+|Fallback right |A wider second cell
+|===
+
+.Blank alignment falls through to role
+[.center,align=,width=45%]
+|===
+|Fallback center |A wider second cell
+|===
+
+.Alignment values are case-sensitive
+[.center,align=RIGHT,width=45%]
+|===
+|Case fallback center |A wider second cell
+|===
+
+.Last valid alignment role wins
+[.left.center.right,width=45%]
+|===
+|Last role right |A wider second cell
+|===
+
+.Float attribute does not float in print
+[float=right,width=45%]
+|===
+|Float ignored |A wider second cell
+|===
+
+.Float-style role does not float in print
+[.float-right,width=45%]
+|===
+|Float role ignored |A wider second cell
+|===
+
+.Centered content-sized autowidth
+[%autowidth,align=center]
+|===
+|Auto |Width
+|===
+
+.Right-aligned content-sized autowidth
+[.right%autowidth]
+|===
+|Auto |Width
+|===
+
+.Full-width alignment has no visible effect
+[align=right,width=100%]
+|===
+|Full |Width
+|===

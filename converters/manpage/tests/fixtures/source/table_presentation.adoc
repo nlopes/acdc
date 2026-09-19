@@ -1,0 +1,43 @@
+= table-presentation(1)
+:doctype: manpage
+:revdate: 2026-08-30
+:mansource: acdc
+:manmanual: Table presentation checks
+
+== NAME
+
+table-presentation - verify table presentation
+
+== SYNOPSIS
+
+table-presentation
+
+== DESCRIPTION
+
+.Ends frame, row grid, proportional columns, header, and footer
+[frame=ends,grid=rows,cols="1,3",options="header,footer"]
+|===
+| Name | Description
+
+| one
+| first
+
+| two
+| second
+
+| Total | two rows
+|===
+
+.Sides frame, column grid, percentage widths, and centered table
+[frame=sides,grid=cols,cols="25%,75%",width=60%,align=center]
+|===
+| one | first
+| two | second
+|===
+
+.Content-determined columns without rules
+[frame=none,grid=none,cols="~,~",options=autowidth]
+|===
+| short | a longer value
+| tail | end
+|===

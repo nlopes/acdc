@@ -1,0 +1,62 @@
+= Link fallback text
+
+== URL and link macros
+
+Bare URL: https://bare.example/path
+
+URL macro: https://url.example/path[]
+
+Link macro: link:https://link.example/path[]
+
+Link macro with mailto target: link:mailto:linked@example.com[]
+
+Custom URL text: https://custom.example/path[Custom URL]
+
+Custom link text: link:https://custom.example/path[Custom link]
+
+== Email links
+
+Bare email: bare@example.com
+
+Mailto macro: mailto:macro@example.com[]
+
+Custom mailto text: mailto:custom@example.com[Custom email]
+
+== Bracketed autolinks
+
+Bracketed URL: <https://bracketed.example/path>
+
+Bracketed email: <bracketed@example.com>
+
+== Cross-references
+
+Forward section reference: <<section-target>>
+
+Forward macro reference: xref:section-target[]
+
+Explicit reference text: <<section-target,Custom section>>
+
+Label reference: <<label-target>>
+
+Untitled target reference: <<untitled-target>>
+
+Unresolved reference: <<missing-target>>
+
+External document: xref:other.adoc[]
+
+External document fragment: xref:other.adoc#part[]
+
+External document with custom text: xref:other.adoc#part[Other part]
+
+[[label-target,Reference label]]
+Label target.
+
+[[untitled-target]]
+====
+Untitled target.
+====
+
+[[section-target]]
+== Section title
+
+Target content.

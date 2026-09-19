@@ -1,0 +1,15 @@
+= Experimental UI macros
+
+Before: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].
+
+:experimental:
+
+Enabled: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].
+
+:experimental: false
+
+False value: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].
+
+:experimental!:
+
+After: kbd:[Ctrl+C], btn:[Save], menu:File[Open > Recent].

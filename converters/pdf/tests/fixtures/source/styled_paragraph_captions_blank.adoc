@@ -1,0 +1,22 @@
+= Blank styled paragraph captions
+:example-caption:
+:listing-caption:
+
+.Example paragraph
+[example]
+Example paragraph content.
+
+.Example block
+====
+Example block content.
+====
+
+.Listing paragraph
+[listing]
+listing paragraph
+
+.Source block
+[source,rust]
+----
+let block = 1;
+----

@@ -42,23 +42,29 @@
           "value": "References",
           "location": [
             {
-              "line": 3,
+              "line": 4,
               "col": 4
             },
             {
-              "line": 3,
+              "line": 4,
               "col": 13
             }
           ]
         }
       ],
       "level": 1,
+      "metadata": {
+        "style": "bibliography"
+      },
       "blocks": [
         {
           "name": "list",
           "type": "block",
           "variant": "unordered",
           "marker": "*",
+          "metadata": {
+            "style": "bibliography"
+          },
           "items": [
             {
               "name": "listItem",
@@ -71,11 +77,11 @@
                   "id": "ref01",
                   "location": [
                     {
-                      "line": 5,
+                      "line": 6,
                       "col": 3
                     },
                     {
-                      "line": 5,
+                      "line": 6,
                       "col": 13
                     }
                   ]
@@ -86,11 +92,11 @@
                   "value": " First reference",
                   "location": [
                     {
-                      "line": 5,
+                      "line": 6,
                       "col": 14
                     },
                     {
-                      "line": 5,
+                      "line": 6,
                       "col": 29
                     }
                   ]
@@ -98,11 +104,11 @@
               ],
               "location": [
                 {
-                  "line": 5,
+                  "line": 6,
                   "col": 1
                 },
                 {
-                  "line": 5,
+                  "line": 6,
                   "col": 29
                 }
               ]
@@ -119,11 +125,11 @@
                   "xreflabel": "Custom Label",
                   "location": [
                     {
-                      "line": 6,
+                      "line": 7,
                       "col": 3
                     },
                     {
-                      "line": 6,
+                      "line": 7,
                       "col": 26
                     }
                   ]
@@ -134,11 +140,11 @@
                   "value": " Second reference with custom label",
                   "location": [
                     {
-                      "line": 6,
+                      "line": 7,
                       "col": 27
                     },
                     {
-                      "line": 6,
+                      "line": 7,
                       "col": 61
                     }
                   ]
@@ -146,11 +152,11 @@
               ],
               "location": [
                 {
-                  "line": 6,
+                  "line": 7,
                   "col": 1
                 },
                 {
-                  "line": 6,
+                  "line": 7,
                   "col": 61
                 }
               ]
@@ -158,11 +164,11 @@
           ],
           "location": [
             {
-              "line": 5,
+              "line": 6,
               "col": 1
             },
             {
-              "line": 6,
+              "line": 7,
               "col": 61
             }
           ]
@@ -177,11 +183,11 @@
               "value": "See ",
               "location": [
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 1
                 },
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 4
                 }
               ]
@@ -192,11 +198,11 @@
               "target": "ref01",
               "location": [
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 5
                 },
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 13
                 }
               ]
@@ -207,11 +213,11 @@
               "value": " and ",
               "location": [
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 14
                 },
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 18
                 }
               ]
@@ -222,11 +228,11 @@
               "target": "ref02",
               "location": [
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 19
                 },
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 27
                 }
               ]
@@ -237,11 +243,11 @@
               "value": " for details.",
               "location": [
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 28
                 },
                 {
-                  "line": 8,
+                  "line": 9,
                   "col": 40
                 }
               ]
@@ -249,11 +255,11 @@
           ],
           "location": [
             {
-              "line": 8,
+              "line": 9,
               "col": 1
             },
             {
-              "line": 8,
+              "line": 9,
               "col": 40
             }
           ]
@@ -265,7 +271,7 @@
           "col": 1
         },
         {
-          "line": 8,
+          "line": 9,
           "col": 40
         }
       ]
@@ -277,7 +283,7 @@
       "col": 1
     },
     {
-      "line": 8,
+      "line": 9,
       "col": 40
     }
   ]

@@ -1,0 +1,32 @@
+:table-frame: sides
+:table-grid: rows
+:table-stripes: odd
+
+|===
+|A |1
+|B |2
+|===
+
+:table-frame: ends
+:table-grid: cols
+:table-stripes: even
+
+|===
+|C |3
+|D |4
+|===
+
+[frame=all,grid=all,stripes=hover]
+|===
+|E |5
+|F |6
+|===
+
+:table-frame!:
+:table-grid!:
+:table-stripes!:
+
+|===
+|G |7
+|H |8
+|===
