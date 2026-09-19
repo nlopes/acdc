@@ -576,7 +576,7 @@ fn build_cached_base_attributes(
         LOCAL_TIMESTAMP_ATTRIBUTE_NAMES,
         DOC_TIMESTAMP_ATTRIBUTE_NAMES,
     ] {
-        for (name, value) in timestamp_names(names).zip(timestamp.iter()) {
+        for (name, value) in names.into_iter().zip(timestamp.iter()) {
             values.insert(name.into(), value.clone().into());
         }
     }
@@ -613,12 +613,6 @@ fn cached_base_attributes(
     })
 }
 
-fn timestamp_names(
-    names: (&'static str, &'static str, &'static str, &'static str),
-) -> impl Iterator<Item = &'static str> {
-    [names.0, names.1, names.2, names.3].into_iter()
-}
-
 fn timestamp_values(time: DateTime<Utc>, utc: bool) -> [String; 4] {
     if utc {
         [
@@ -639,17 +633,17 @@ fn timestamp_values(time: DateTime<Utc>, utc: bool) -> [String; 4] {
 }
 
 fn set_source_timestamp(attributes: &mut DocumentAttributes<'_>, time: DateTime<Utc>, utc: bool) {
-    for (name, value) in
-        timestamp_names(DOC_TIMESTAMP_ATTRIBUTE_NAMES).zip(timestamp_values(time, utc))
+    for (name, value) in DOC_TIMESTAMP_ATTRIBUTE_NAMES
+        .into_iter()
+        .zip(timestamp_values(time, utc))
     {
         attributes.set_base_intrinsic(name.into(), value.into());
     }
 }
 
-const DOC_TIMESTAMP_ATTRIBUTE_NAMES: (&str, &str, &str, &str) =
-    ("docdate", "docdatetime", "doctime", "docyear");
-const LOCAL_TIMESTAMP_ATTRIBUTE_NAMES: (&str, &str, &str, &str) =
-    ("localdate", "localdatetime", "localtime", "localyear");
+const DOC_TIMESTAMP_ATTRIBUTE_NAMES: [&str; 4] = ["docdate", "docdatetime", "doctime", "docyear"];
+const LOCAL_TIMESTAMP_ATTRIBUTE_NAMES: [&str; 4] =
+    ["localdate", "localdatetime", "localtime", "localyear"];
 
 fn initialize_safe_mode(attributes: &mut DocumentAttributes<'_>, safe_mode: SafeMode) {
     attributes.remove_explicit_with_prefix("safe-mode-");
