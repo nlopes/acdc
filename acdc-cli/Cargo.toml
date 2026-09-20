@@ -19,6 +19,7 @@ doc = false
 acdc-converters-core.workspace = true
 acdc-converters-html = { workspace = true, optional = true }
 acdc-lint = { workspace = true, optional = true }
+acdc-lists = { workspace = true, optional = true }
 acdc-parser.workspace = true
 acdc-converters-terminal = { workspace = true, optional = true }
 acdc-converters-manpage = { workspace = true, optional = true }
@@ -41,7 +42,7 @@ tempfile.workspace = true
 
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html", "lint", "pre-spec-subs", "setext"]
+default = ["html", "lint", "lists", "pre-spec-subs", "setext"]
 
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
 # Forwarded to every converter dependency that honours subs=.
@@ -53,6 +54,7 @@ pre-spec-subs = [
     "acdc-converters-pdf?/pre-spec-subs",
     "acdc-converters-terminal?/pre-spec-subs",
     "acdc-lint?/pre-spec-subs",
+    "acdc-lists?/pre-spec-subs",
 ]
 
 # Output converters
@@ -64,6 +66,7 @@ terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI co
 
 # Document tools
 lint = ["dep:acdc-lint"]                       # AsciiDoc lint command
+lists = ["dep:acdc-lists"]                     # `list-of::` lists of figures, tables, and the like
 
 # Syntax highlighting for source blocks in selected HTML and terminal backends.
 highlighting = [

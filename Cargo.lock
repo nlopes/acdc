@@ -13,6 +13,7 @@ dependencies = [
  "acdc-converters-pdf",
  "acdc-converters-terminal",
  "acdc-lint",
+ "acdc-lists",
  "acdc-parser",
  "chrono",
  "clap",
@@ -160,6 +161,16 @@ version = "0.1.0"
 dependencies = [
  "acdc-parser",
  "thiserror",
+]
+
+[[package]]
+name = "acdc-lists"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "pretty_assertions",
+ "tracing",
 ]
 
 [[package]]

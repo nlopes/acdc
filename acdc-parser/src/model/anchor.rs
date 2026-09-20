@@ -169,7 +169,36 @@ pub struct Reference<'a> {
     pub(crate) automatic_citation: bool,
 }
 
-impl Reference<'_> {
+impl<'a> Reference<'a> {
+    /// Build a catalog entry for a target introduced after parsing.
+    ///
+    /// Parsing builds `Document::references` from the anchors it finds, so a
+    /// block that never had an id is absent from it. A post-parse pass that
+    /// gives such a block an id — `acdc-lists` does this so a generated list
+    /// of figures can link to an untitled-but-captioned image — has to add the
+    /// matching entry itself, or a cross-reference to the new id would resolve
+    /// to the literal `[id]`.
+    ///
+    /// `title` and `caption` should be the target block's own, so the
+    /// reference renders the same text as one written by hand. The entry is
+    /// neither a bibliography target nor automatically cited; a pass that
+    /// needs those should be part of the parser instead.
+    #[must_use]
+    pub fn for_target(
+        title: Option<Title<'a>>,
+        caption: Option<Caption<'a>>,
+        location: Location,
+    ) -> Self {
+        Self {
+            xreflabel: None,
+            title,
+            location,
+            caption,
+            bibliography: false,
+            automatic_citation: false,
+        }
+    }
+
     /// Returns whether this target is a bibliography entry.
     #[must_use]
     pub fn is_bibliography(&self) -> bool {

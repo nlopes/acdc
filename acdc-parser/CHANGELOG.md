@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ParseResult::with_document_mut` rewrites a parsed document in place, for
+  passes that run between parsing and conversion. The closure is handed a
+  `DocumentArena` alongside the document, so nodes it inserts can hold
+  generated text with the document's own lifetime instead of owning or leaking
+  it.
+- `Reference::for_target` builds a cross-reference catalog entry for a target
+  introduced after parsing, so an id assigned by such a pass resolves like one
+  written in the document.
+
 ### Fixed
 
 - Document-title IDs now enter the reference catalog and use the full title
