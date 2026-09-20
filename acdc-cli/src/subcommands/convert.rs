@@ -468,9 +468,9 @@ where
         };
         let convert_result = match parse_result {
             Ok(mut parsed) => {
-                apply_lists(&mut parsed, Some(file));
                 apply_diagrams(&mut parsed, base_options, processor.name(), Some(file))
                     .map_err(|error| error::display(&error))?;
+                apply_lists(&mut parsed, Some(file));
                 let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
                 processor.convert(parsed.document(), Some(file))
             }
@@ -575,12 +575,12 @@ where
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
-            apply_lists(&mut parsed, Some(&file));
             // A diagram failure only reaches here when the document asked to
             // abort on one; it is carried to the reporter so this worker does
             // not print out of turn.
             diagram_failure =
                 apply_diagrams(&mut parsed, base_options, processor.name(), Some(&file)).err();
+            apply_lists(&mut parsed, Some(&file));
             let result = processor.convert(parsed.document(), Some(&file));
             (result, parser_warnings)
         }
@@ -672,6 +672,12 @@ where
 /// ordinary block of cross-references and none of them needs to know a list
 /// was generated. The pass reports a call it cannot honour and leaves it
 /// alone; it has no failure that should stop a conversion.
+///
+/// It runs after [`apply_diagrams`], so a generated diagram is already an
+/// image block when a list of figures is built and therefore appears in it.
+/// Asciidoctor orders the two the same way: asciidoctor-diagram is a block
+/// processor that runs while the document is parsed, and asciidoctor-lists a
+/// treeprocessor that runs afterwards.
 #[cfg(feature = "lists")]
 fn apply_lists(parsed: &mut ParseResult, file: Option<&Path>) {
     let processor = acdc_lists::Processor::new();
@@ -808,8 +814,10 @@ impl<'a> WarningRenderContext<'a> {
         self
     }
 
-    #[cfg(feature = "lists")]
-    #[cfg(feature = "diagram")]
+    // Both post-parse passes report against an optional file: a document read
+    // from stdin has none. Stacked `cfg` attributes would require *both*
+    // features, so either one alone has to enable this.
+    #[cfg(any(feature = "lists", feature = "diagram"))]
     const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
         self.file = file;
         self
@@ -1182,8 +1190,8 @@ fn run_terminal_stdin(
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
     let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
-    apply_lists(&mut parsed, None);
     apply_diagrams_as(&mut parsed, base_options, processor.name(), None)?;
+    apply_lists(&mut parsed, None);
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
@@ -1247,8 +1255,8 @@ fn run_terminal_through_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parser_warnings = parsed.take_warnings();
-            apply_lists(&mut parsed, Some(file));
             apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+            apply_lists(&mut parsed, Some(file));
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
@@ -1292,8 +1300,8 @@ fn run_terminal_with_pager(
         for file in files_to_process {
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
-            apply_lists(&mut parsed, Some(file));
             apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+            apply_lists(&mut parsed, Some(file));
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (output_path, warnings) = result.into_parts();
@@ -1313,8 +1321,8 @@ fn run_terminal_with_pager(
         for file in files_to_process {
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
-            apply_lists(&mut parsed, Some(file));
             apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+            apply_lists(&mut parsed, Some(file));
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (_, warnings) = result.into_parts();
