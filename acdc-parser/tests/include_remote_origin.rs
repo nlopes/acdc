@@ -158,7 +158,7 @@ fn write_response(stream: &mut TcpStream, body: &str) -> io::Result<()> {
     stream.write_all(response.as_bytes())
 }
 
-fn options() -> Options<'static> {
+fn options() -> Result<Options<'static>, acdc_parser::Error> {
     Options::builder()
         .with_safe_mode(SafeMode::Server)
         .with_attribute("allow-uri-read", true)
@@ -192,7 +192,7 @@ fn assert_nested_include(
     fs::write(&document.path, format!("include::{}[]", server.uri))?;
     let parent_uri = server.uri.clone();
 
-    let result = parse_file(&document.path, &options())?;
+    let result = parse_file(&document.path, &options()?)?;
     let expected_nested = format!("Nested response for {expected_path}");
 
     assert_eq!(

@@ -1,0 +1,454 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Converter Consumers",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 15,
+        "col": 17
+      }
+    ]
+  },
+  "attributes": {
+    "figure-caption": "Figure",
+    "hide-uri-scheme": true,
+    "icons": "image",
+    "iconsdir": "icons/header",
+    "icontype": "png",
+    "imagesdir": "images/header",
+    "source-indent": "2",
+    "source-language": "rust",
+    "source-linenums-option": true,
+    "source-wrap-option": true,
+    "table-frame": "all",
+    "table-grid": "all",
+    "table-stripes": "even",
+    "tabsize": "4"
+  },
+  "blocks": [
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Before"
+        },
+        "anchors": [
+          {
+            "id": "probe-converter-before",
+            "location": [
+              {
+                "line": 17,
+                "col": 1
+              },
+              {
+                "line": 17,
+                "col": 26
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "type": "path",
+        "value": "before.png"
+      },
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 25
+        }
+      ]
+    },
+    {
+      "name": "imagesdir",
+      "type": "attribute",
+      "value": "images/body",
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "figure-caption",
+      "type": "attribute",
+      "value": "Illustration",
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "source-language",
+      "type": "attribute",
+      "value": "ruby",
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "table-frame",
+      "type": "attribute",
+      "value": "ends",
+      "location": [
+        {
+          "line": 23,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "table-grid",
+      "type": "attribute",
+      "value": "rows",
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 18
+        }
+      ]
+    },
+    {
+      "name": "table-stripes",
+      "type": "attribute",
+      "value": "odd",
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 20
+        }
+      ]
+    },
+    {
+      "name": "hide-uri-scheme",
+      "type": "attribute",
+      "value": false,
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "stem",
+      "type": "attribute",
+      "value": "latexmath",
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "After"
+        },
+        "anchors": [
+          {
+            "id": "probe-converter-after",
+            "location": [
+              {
+                "line": 29,
+                "col": 1
+              },
+              {
+                "line": 29,
+                "col": 25
+              }
+            ]
+          }
+        ]
+      },
+      "source": {
+        "type": "path",
+        "value": "after.png"
+      },
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "linenums": ""
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "puts 'source'",
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 13
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 32,
+          "col": 1
+        },
+        {
+          "line": 35,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Body table",
+                        "location": [
+                          {
+                            "line": 38,
+                            "col": 2
+                          },
+                          {
+                            "line": 38,
+                            "col": 11
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 38,
+                        "col": 2
+                      },
+                      {
+                        "line": 38,
+                        "col": 11
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "location": [
+          {
+            "line": 37,
+            "col": 1
+          },
+          {
+            "line": 39,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 37,
+          "col": 1
+        },
+        {
+          "line": 39,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/path"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Example",
+              "location": [
+                {
+                  "line": 41,
+                  "col": 26
+                },
+                {
+                  "line": 41,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 41,
+              "col": 33
+            }
+          ],
+          "attributes": {}
+        }
+      ],
+      "location": [
+        {
+          "line": 41,
+          "col": 1
+        },
+        {
+          "line": 41,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "stem",
+          "type": "inline",
+          "content": "x + y",
+          "notation": "latexmath",
+          "location": [
+            {
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 43,
+          "col": 1
+        },
+        {
+          "line": 43,
+          "col": 12
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 43,
+      "col": 12
+    }
+  ]
+}

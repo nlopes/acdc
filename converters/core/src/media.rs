@@ -1,7 +1,8 @@
 //! Media target resolution for URI-producing converters.
 
-use acdc_parser::DocumentAttributes;
 use relative_path::RelativePath;
+
+use crate::TraversalContext;
 
 fn uri_prefix_end(target: &str) -> Option<usize> {
     let scheme_end = target.find(':')?;
@@ -64,7 +65,7 @@ fn encode_spaces(target: &str) -> String {
 /// with a URI scheme ignore `imagesdir`. Local paths use forward slashes and
 /// are normalized, while literal spaces are encoded as `%20`.
 #[must_use]
-pub fn resolve_target(target: &str, attributes: &DocumentAttributes<'_>) -> String {
+pub fn resolve_target(target: &str, attributes: &TraversalContext<'_>) -> String {
     if uri_prefix_end(target).is_some() {
         return encode_spaces(target);
     }
@@ -73,7 +74,9 @@ pub fn resolve_target(target: &str, attributes: &DocumentAttributes<'_>) -> Stri
     let target = if target.starts_with('/') {
         normalize_target(&target)
     } else if let Some(images_dir) = attributes
-        .get_string("imagesdir")
+        .get("imagesdir")
+        .and_then(|value| value.text())
+        .map(acdc_parser::strip_quotes)
         .filter(|images_dir| !images_dir.is_empty())
     {
         let images_dir = images_dir.replace('\\', "/");
@@ -88,16 +91,30 @@ pub fn resolve_target(target: &str, attributes: &DocumentAttributes<'_>) -> Stri
 mod tests {
     use super::*;
 
-    fn target(target: &str, images_dir: Option<&'static str>) -> String {
-        let mut attributes = DocumentAttributes::default();
+    fn target(
+        target: &str,
+        images_dir: Option<&'static str>,
+    ) -> Result<String, acdc_parser::Error> {
+        let mut attributes = std::collections::HashMap::<
+            std::borrow::Cow<'_, str>,
+            acdc_parser::AttributeValue<'_>,
+        >::new();
         if let Some(images_dir) = images_dir {
-            attributes.set("imagesdir".into(), images_dir.into());
+            attributes.insert("imagesdir".into(), images_dir.into());
         }
-        resolve_target(target, &attributes)
+        Ok(resolve_target(
+            target,
+            &TraversalContext::new(
+                &acdc_parser::Options::builder()
+                    .with_defaults(attributes)
+                    .build()?
+                    .into_document_attributes(),
+            ),
+        ))
     }
 
     #[test]
-    fn resolves_portable_media_targets() {
+    fn resolves_portable_media_targets() -> Result<(), Box<dyn std::error::Error>> {
         for (input, images_dir, expected) in [
             ("./clips/../demo file.mp4", None, "./demo%20file.mp4"),
             (
@@ -135,7 +152,8 @@ mod tests {
                 "https://media.example/demo%20folder/../clip.mp4",
             ),
         ] {
-            assert_eq!(target(input, images_dir), expected);
+            assert_eq!(target(input, images_dir)?, expected);
         }
+        Ok(())
     }
 }

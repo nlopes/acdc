@@ -4,7 +4,10 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    TraversalContext, document_attribute_text,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{Section, SectionKind};
 
 use crate::{
@@ -13,10 +16,14 @@ use crate::{
     escape::{escape_quoted, uppercase_title},
 };
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Visit a section and its content.
-    pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
-        self.collect_index_terms_from_inlines(&section.title)?;
+    pub(crate) fn render_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Error> {
+        self.collect_index_terms_from_inlines(traversal, &section.title)?;
         let title_text = extract_heading_text(&section.title, &self.processor.references);
 
         // Track level-1 section titles for convention validation
@@ -24,13 +31,10 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             self.record_section_title(&title_text);
         }
 
-        let name_section_title = self
-            .processor
-            .document_attributes
-            .get_string("manname-title")
-            .unwrap_or_else(|| "Name".into());
+        let name_section_title =
+            document_attribute_text((traversal).get("manname-title")).unwrap_or("Name");
         let is_name_section =
-            section.level == 1 && title_text.eq_ignore_ascii_case(name_section_title.as_ref());
+            section.level == 1 && title_text.eq_ignore_ascii_case(name_section_title);
 
         // In embedded mode, skip the name section (matches asciidoctor --embedded).
         if self.processor.options.embedded() && is_name_section {
@@ -56,7 +60,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 // Levels 3+ - no roff section macro exists; render as bold paragraph heading
                 writeln!(w, ".sp")?;
                 write!(w, "\\fB")?;
-                self.visit_inline_nodes(&section.title)?;
+                self.visit_inline_nodes(traversal, &section.title)?;
                 let w = self.writer_mut();
                 writeln!(w, "\\fP")?;
             }
@@ -69,8 +73,8 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         if section.kind == SectionKind::Index && self.processor.has_valid_index_section {
             self.render_index_catalog()?;
         } else {
-            for block in &section.content.clone() {
-                self.visit_block(block)?;
+            for block in &section.content {
+                traversal.visit_block(self, block)?;
             }
         }
 

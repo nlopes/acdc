@@ -1,8 +1,9 @@
 use bumpalo::Bump;
+use std::mem::take;
 
 use crate::{
-    AttributeValue, InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass,
-    PassthroughKind, Plain, ProcessedContent, Raw, Substitution,
+    InlineMacro, InlineNode, LineBreak, Location, ParseInlineResult, Pass, PassthroughKind, Plain,
+    ProcessedContent, Raw, Substitution,
     model::substitution::{SubstitutionPlan, resolve_passthrough_substitutions},
     parsed::OwnedInput,
 };
@@ -262,8 +263,7 @@ fn process_inline_children<'a>(
 ) {
     macro_rules! process_content {
         ($value:expr) => {
-            $value.content =
-                process_inline_nodes(std::mem::take(&mut $value.content), substitutions, state)
+            $value.content = process_inline_nodes(take(&mut $value.content), substitutions, state)
         };
     }
 
@@ -279,20 +279,16 @@ fn process_inline_children<'a>(
         InlineNode::Macro(macro_node) => match macro_node {
             InlineMacro::Footnote(value) => process_content!(value),
             InlineMacro::Url(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::Link(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::Mailto(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::CrossReference(value) => {
-                value.text =
-                    process_inline_nodes(std::mem::take(&mut value.text), substitutions, state);
+                value.text = process_inline_nodes(take(&mut value.text), substitutions, state);
             }
             InlineMacro::Icon(_)
             | InlineMacro::Image(_)
@@ -317,6 +313,7 @@ fn process_inline_children<'a>(
 fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<InlineNode<'a>> {
     let mut result = Vec::new();
     let mut cursor = 0;
+    let mut copied_until = 0;
     while let Some(relative_start) = raw.content[cursor..].find('{') {
         let start = cursor + relative_start;
         let Some(relative_end) = raw.content[start + 1..].find('}') else {
@@ -333,29 +330,35 @@ fn expand_raw_attributes<'a>(raw: &Raw<'a>, state: &ParserState<'a>) -> Vec<Inli
             continue;
         }
 
-        let Some(value) = state.document_attributes.get(name) else {
+        let Some(resolved) = state.document_attributes.get(name) else {
             cursor = end;
             continue;
         };
-        push_raw_segment(&mut result, raw, cursor, start, raw.subs.clone(), state);
+        push_raw_segment(
+            &mut result,
+            raw,
+            copied_until,
+            start,
+            raw.subs.clone(),
+            state,
+        );
         let reference_location = raw_segment_location(raw, start, end, state);
-        match value {
-            AttributeValue::String(value) => result.push(InlineNode::RawText(Raw {
-                content: state.intern_str(value),
+        let mut value = String::new();
+        let _ = resolved.write_text(&mut value);
+        if !value.is_empty() {
+            result.push(InlineNode::RawText(Raw {
+                content: state.intern_str(&value),
                 location: reference_location,
                 subs: vec![Substitution::SpecialChars],
-            })),
-            AttributeValue::Bool(true) => {}
-            AttributeValue::Bool(false) | AttributeValue::None => {
-                push_raw_segment(&mut result, raw, start, end, raw.subs.clone(), state);
-            }
+            }));
         }
         cursor = end;
+        copied_until = end;
     }
     push_raw_segment(
         &mut result,
         raw,
-        cursor,
+        copied_until,
         raw.content.len(),
         raw.subs.clone(),
         state,
@@ -613,7 +616,7 @@ fn plain_text_at<'a>(text: &'a str, base_location: &Location, offset: usize) -> 
 /// substitution settings.
 pub(crate) fn process_passthrough_placeholders<'a>(
     content: &'a str,
-    processed: &'a ProcessedContent<'a>,
+    processed: &ProcessedContent<'a>,
     state: &ParserState<'a>,
     base_location: &Location,
 ) -> Vec<InlineNode<'a>> {
@@ -681,15 +684,6 @@ pub(crate) fn process_passthrough_placeholders<'a>(
             }
             result.push(node);
         }
-    }
-
-    // If no placeholders were found, return the original content as plain text
-    if result.is_empty() {
-        result.push(InlineNode::PlainText(Plain {
-            content,
-            location: base_location.clone(),
-            escaped: false,
-        }));
     }
 
     // Clamp all locations to valid bounds within the input string

@@ -131,7 +131,7 @@ fn xref_text_accepts_a_nested_link_macro() -> Result<(), Error> {
 fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
     let options = Options::builder()
         .with_attribute("experimental", true)
-        .build();
+        .build()?;
     for (nested, expected_kind) in [
         ("mailto:user@example.com[mail]", "mailto"),
         ("image:missing.png[alt]", "image"),

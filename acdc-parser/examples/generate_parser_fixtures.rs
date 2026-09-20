@@ -1,8 +1,12 @@
 //! Regenerate JSON test fixtures from .adoc files
 //!
-//! Run with: `cargo run --example generate_parser_fixtures`
+//! Run all fixtures with: `cargo run --example generate_parser_fixtures`
+//! Run selected fixtures by passing exact `.adoc` file names as arguments.
 
-use std::path::PathBuf;
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+};
 
 use crossterm::style::{PrintStyledContent, Stylize};
 
@@ -11,6 +15,22 @@ const EXPECTED_ERRORING_ADOCS: &[&str] = &["section_with_invalid_subsection.adoc
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fixtures_dir = PathBuf::from("acdc-parser/fixtures/tests");
+    let requested: Vec<OsString> = std::env::args_os().skip(1).collect();
+    for name in &requested {
+        let path = Path::new(name);
+        if path.file_name() != Some(name.as_os_str())
+            || path.extension().is_none_or(|ext| ext != "adoc")
+        {
+            return Err(format!(
+                "fixture filter must be an .adoc file name: {}",
+                path.display()
+            )
+            .into());
+        }
+        if !fixtures_dir.join(path).is_file() {
+            return Err(format!("fixture does not exist: {}", path.display()).into());
+        }
+    }
 
     println!("Generating parser JSON fixtures...\n");
 
@@ -21,6 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let file_name = e.file_name();
         !EXPECTED_ERRORING_ADOCS.contains(&file_name.to_str().unwrap_or("_THIS_WILL_NEVER_MATCH_"))
             && e.path().extension().is_some_and(|ext| ext == "adoc")
+            && (requested.is_empty() || requested.contains(&file_name))
     }) {
         let path = entry.path();
         let json_path = path.with_extension("json");
@@ -53,7 +74,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         } else {
             builder
         };
-        let options = builder.build();
+        let options = builder.build()?;
         match acdc_parser::parse_file(&path, &options) {
             Ok(parsed) => {
                 let json = serde_json::to_string_pretty(parsed.document())?;

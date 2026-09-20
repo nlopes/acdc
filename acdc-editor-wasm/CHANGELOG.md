@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preview parsing now uses the selected semantic HTML backend, so backend
+  conditionals and attribute references agree with the rendered output.
+
 ### Added
 
 - Non-fatal warnings from both the parser and the HTML converter surface in the
@@ -15,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The preview now applies accepted body document attributes to later blocks
+  while keeping changes inside AsciiDoc table cells local to those cells.
 - Parser compatibility knobs (`pre-spec-subs`, `setext`) are now forwarded as
   explicit editor features, so `--no-default-features` disables them
   consistently.
@@ -38,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The preview enables math rendering when `stem` is set in the body or an
+  AsciiDoc table cell, not only in the header.
 - Hide resize handle dots on mobile for a cleaner small-screen experience.
 
 ## [0.4.0] - 2026-02-25

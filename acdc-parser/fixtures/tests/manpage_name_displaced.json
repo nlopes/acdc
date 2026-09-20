@@ -32,9 +32,9 @@
   },
   "attributes": {
     "backend": "manpage",
-    "docname": "command",
+    "docname": "manpage_name_displaced",
     "doctype": "manpage",
-    "manname": "command",
+    "manname": "manpage_name_displaced",
     "mantitle": "tool",
     "manvolnum": "1",
     "outfilesuffix": ".1"
@@ -165,7 +165,7 @@
             {
               "name": "text",
               "type": "string",
-              "value": "Uses command.",
+              "value": "Uses manpage_name_displaced.",
               "location": [
                 {
                   "line": 13,

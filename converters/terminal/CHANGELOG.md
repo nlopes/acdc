@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Bibliography entries substitute attributes at their source position while
+  citation labels retain their original attribute references, matching Asciidoctor.
+- AsciiDoc table cells apply their child document settings without changing
+  parent or sibling settings.
+- Attribute changes inside admonitions, examples, quotes, sidebars, and list
+  continuations also apply to later content. Output buffers no longer act as
+  unintended document scopes.
+- Body document attributes now apply in source order to later terminal media
+  targets, UI macros, admonition and section labels, and section numbering.
+  Nested AsciiDoc table-cell changes remain local to the cell.
+- Terminal parser attributes now expose `embedded` only when embedded output is selected.
+
 ### Performance
 
+- Nested rendering reuses the active document-attribute view, and inline macros
+  no longer rebuild the complete attribute map for each node.
 - **Streaming output.** Rendering writes directly to the caller's `Write`
   target, keeping allocations flat on large documents.
 
@@ -175,6 +191,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** configure conversion with the parser options builder, then use
+  the converter's validated parser options for parsing. Invalid attribute values
+  are rejected before conversion.
+- **Breaking:** direct visitor callbacks now receive the current traversal
+  context, including source-ordered and nested-cell attributes.
 - Terminal tables truncated to the available width now use a single ellipsis
   (`…`) as the truncation marker, leaving more space for cell content.
 - `pad_to_width` returns `Cow<str>` to avoid allocation when padding is not needed

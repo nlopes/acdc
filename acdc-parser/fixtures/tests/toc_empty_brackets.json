@@ -31,7 +31,9 @@
     ]
   },
   "attributes": {
-    "toc": "macro",
+    "toc": "",
+    "toc-placement": "macro",
+    "toc-position": "content",
     "toclevels": "2"
   },
   "blocks": [

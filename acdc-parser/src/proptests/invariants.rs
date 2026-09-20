@@ -7,6 +7,7 @@
 //! - P2: Behavioral invariants (`SafeMode`, preprocessing)
 
 use proptest::prelude::*;
+use std::rc::Rc;
 
 use crate::{
     Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location, Options,
@@ -79,12 +80,12 @@ proptest! {
     fn byte_offsets_utf8_safe(input in unicode_stress_test()) {
         let options = Options::default();
         // Preprocess the input first to get the actual string the parser works on
-        if let Ok(result) = crate::Preprocessor::process(&input, &options, std::rc::Rc::default()) {
+        if let Ok(result) = crate::Preprocessor::process(&input, &options, Rc::default()) {
             // Parse the preprocessed input
             let arena = bumpalo::Bump::new();
             let mut state = crate::grammar::ParserState::new(&result.text, &arena);
-            state.document_attributes = std::rc::Rc::new(options.document_attributes.clone());
-            state.options = std::rc::Rc::new(options.clone());
+            state.document_attributes = Rc::new(options.document_attributes.clone());
+            state.options = Rc::new(options.clone());
             state.leveloffset_ranges = result.leveloffset_ranges;
             if let Ok(Ok(doc)) = crate::grammar::document_parser::document(&result.text, &mut state) {
                 let text = &result.text;
@@ -416,14 +417,23 @@ fn walk_inline_locations(inline: &InlineNode, visitor: &mut impl FnMut(&Location
 /// Verify positions are monotonically increasing within scopes
 fn verify_monotonic_positions(prefix: &str, blocks: &[Block]) {
     let mut last_end = 0;
+    let mut previous: Option<&Block<'_>> = None;
     for block in blocks {
         let location = block.location();
         let start = location.absolute_start;
+        // Metadata-line events precede the block whose source range contains them.
+        let contained_metadata_event = matches!(
+            previous,
+            Some(Block::DocumentAttribute(attribute))
+                if location.absolute_start <= attribute.location.absolute_start
+                    && location.absolute_end >= attribute.location.absolute_end
+        );
         assert!(
-            start >= last_end,
+            start >= last_end || contained_metadata_event,
             "{prefix} starts at {start} but previous ended at {last_end}"
         );
         last_end = location.absolute_end;
+        previous = Some(block);
 
         verify_block_monotonic(block);
     }

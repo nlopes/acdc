@@ -7,8 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- TOC placement and CSS classes follow Asciidoctor's normalized header settings.
+- Bibliography labels preserve the document safe mode and keep the home
+  directory hidden in server and secure modes. Entry links remain clickable,
+  and attribute values do not become new passthroughs.
+- AsciiDoc table cells use their own document type and title/TOC settings while
+  retaining the parent settings outside the cell.
+- `source-indent` and block `indent` remove common leading whitespace before
+  applying the requested indentation, including explicit zero, with or without
+  syntax highlighting. Negative values retain existing indentation. Unlike
+  Asciidoctor, invalid values and widths above 1024 produce a warning and retain
+  the input indentation instead of permitting unbounded output growth.
+- Body document attributes now affect only later HTML blocks. This includes
+  media and icon paths, icon modes, captions and section labels, cross-reference
+  suffixes, source language and indentation, table presentation, and STEM
+  notation. MathJax and font-icon resources are discovered before the document
+  head is written, and nested AsciiDoc table-cell changes do not escape.
+- HTML parser attributes now expose `embedded` only when embedded output is selected.
+
 ### Performance
 
+- Documents with many body attributes and inline icons convert faster.
 - **Streaming output.** Rendering writes directly to the caller's `Write`
   target, keeping allocations flat on large documents.
 
@@ -497,6 +518,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** configure HTML conversion with the parser options builder and use
+  the converter's validated parser options for parsing. Construction and HTML
+  variant changes can reject invalid configuration.
+- **Breaking:** direct visitor callbacks receive the current traversal context.
+  Embedded consumers can still detect math enabled in headers, bodies, and nested cells.
 - **Use shared `replace_apostrophes` from converters-core** — smart apostrophe logic moved to
   converters-core for reuse across converters.
 - **Use `strip_quotes` for attribute value handling** — replaced manual `trim_matches('"')`

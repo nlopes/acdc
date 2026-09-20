@@ -1,12 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use acdc_converters_core::{
-    Converter, GeneratorMetadata, Options as ConverterOptions, visitor::Visitor,
+    Converter, Diagnostics, GeneratorMetadata, Options as ConverterOptions, TraversalContext,
+    Warning, WarningSource, visitor::Visitor,
 };
 use acdc_converters_dev::output::remove_lines_trailing_whitespace;
 use acdc_converters_html::Processor as HtmlProcessor;
 use acdc_converters_markdown::{MarkdownVariant, MarkdownVisitor, Processor};
-use acdc_parser::{DocumentAttributes, Options as ParserOptions};
+use acdc_parser::{Options as ParserOptions, parse};
 use pulldown_cmark::{
     Alignment, CodeBlockKind, Event, Options as MarkdownParserOptions, Parser as MarkdownParser,
     Tag, TagEnd,
@@ -67,7 +68,7 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
         .with_extension("md");
 
     // Parse the AsciiDoc input with rendering defaults
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+    let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let doc = parsed.document();
 
@@ -76,11 +77,14 @@ fn test_gfm_fixtures(#[files("tests/fixtures/source/*.adoc")] path: PathBuf) -> 
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone())
-        .with_variant(MarkdownVariant::GitHubFlavored);
+    let processor = Processor::new(
+        converter_options,
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+    )?
+    .with_variant(MarkdownVariant::GitHubFlavored);
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("markdown");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("markdown");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
@@ -117,7 +121,7 @@ fn test_commonmark_variant(
         .with_extension("md");
 
     // Parse the AsciiDoc input
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+    let parser_options = ParserOptions::default();
     let parsed = acdc_parser::parse_file(&path, &parser_options)?;
     let doc = parsed.document();
 
@@ -126,11 +130,14 @@ fn test_commonmark_variant(
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone())
-        .with_variant(MarkdownVariant::CommonMark);
+    let processor = Processor::new(
+        converter_options,
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+    )?
+    .with_variant(MarkdownVariant::CommonMark);
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("markdown");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("markdown");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(doc, &mut output, Some(&path), None, &mut diagnostics)?;
 
     // Read expected output
@@ -153,31 +160,35 @@ fn test_commonmark_variant(
 fn convert_str_with_variant(
     input: &str,
     variant: MarkdownVariant,
-) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
-    let parsed = acdc_parser::parse(input, &parser_options)?;
+) -> Result<(String, Vec<Warning>), Error> {
+    let parser_options = ParserOptions::default();
+    let parsed = parse(input, &parser_options)?;
     let doc = parsed.document();
 
     let mut output = Vec::new();
     let converter_options = ConverterOptions::builder()
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = Processor::new(converter_options, doc.attributes.clone()).with_variant(variant);
+    let processor = Processor::new(
+        converter_options,
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+    )?
+    .with_variant(variant);
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("markdown");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("markdown");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
 }
 
-fn convert_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
+fn convert_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
     convert_str_with_variant(input, MarkdownVariant::GitHubFlavored)
 }
 
-fn convert_html_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Warning>), Error> {
-    let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
-    let parsed = acdc_parser::parse(input, &parser_options)?;
+fn convert_html_str(input: &str) -> Result<(String, Vec<Warning>), Error> {
+    let parser_options = ParserOptions::default();
+    let parsed = parse(input, &parser_options)?;
     let doc = parsed.document();
 
     let mut output = Vec::new();
@@ -185,10 +196,13 @@ fn convert_html_str(input: &str) -> Result<(String, Vec<acdc_converters_core::Wa
         .embedded(false)
         .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
         .build();
-    let processor = HtmlProcessor::new(converter_options, doc.attributes.clone());
+    let processor = HtmlProcessor::new(
+        converter_options,
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+    )?;
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("html");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("html");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
     Ok((String::from_utf8(output)?, warnings))
@@ -309,7 +323,7 @@ fn maximum_list_depth(events: &[Event<'_>]) -> usize {
     maximum
 }
 
-fn has_numbering_style_warning(warnings: &[acdc_converters_core::Warning]) -> bool {
+fn has_numbering_style_warning(warnings: &[Warning]) -> bool {
     warnings.iter().any(|warning| {
         warning
             .message
@@ -975,17 +989,23 @@ fn document_wide_fallback_warnings_are_deduplicated_across_subvisitors() -> Resu
 
 #[test]
 fn unhandled_blocks_emit_a_structured_warning_with_source_context() -> Result<(), Error> {
-    let parsed = acdc_parser::parse("Paragraph.\n", &ParserOptions::default())?;
+    let parsed = parse("Paragraph.\n", &ParserOptions::default())?;
     let doc = parsed.document();
     let block = doc.blocks.first().ok_or("missing test block")?;
-    let processor = Processor::new(ConverterOptions::default(), doc.attributes.clone());
+    let processor = Processor::new(
+        ConverterOptions::default(),
+        ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+    )?;
     let mut output = Vec::new();
     let mut warnings = Vec::new();
-    let source = acdc_converters_core::WarningSource::new("markdown");
-    let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+    let source = WarningSource::new("markdown");
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
     {
-        let mut visitor = MarkdownVisitor::new(&mut output, processor, diagnostics.reborrow());
-        visitor.visit_unhandled_block(block)?;
+        let attribute_header =
+            acdc_converters_core::Converter::document_attributes(&processor).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = MarkdownVisitor::new(&mut output, &processor, diagnostics.reborrow());
+        visitor.visit_unhandled_block(&mut traversal, block)?;
     }
 
     assert!(output.is_empty());

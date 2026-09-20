@@ -4,7 +4,9 @@
 
 use std::{borrow::Cow, collections::HashMap, io::Write, rc::Rc};
 
-use acdc_converters_core::{InlineTextTransform, visitor::WritableVisitor};
+use acdc_converters_core::{
+    InlineTextTransform, TraversalContext, document_attribute_text, visitor::WritableVisitor,
+};
 use acdc_parser::{Author, Document, InlineNode, Reference};
 
 use crate::{Error, ManpageVisitor, escape::escape_quoted};
@@ -94,7 +96,7 @@ pub(crate) fn extract_heading_text(
         .to_string(nodes)
 }
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Visit document start - generates the .TH header and preamble.
     ///
     /// Reads manpage attributes that were derived by the parser:
@@ -103,9 +105,13 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// - `manname`: From NAME section (or falls back to mantitle)
     /// - `manpurpose`: From NAME section (after ` - `)
     /// - `_manpage_title_conforming`: Whether the title conforms to name(volume) format
-    pub(crate) fn render_document_start(&mut self, doc: &Document) -> Result<(), Error> {
+    pub(crate) fn render_document_start(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Error> {
         if let Some(header) = &doc.header {
-            self.collect_index_terms_from_inlines(&header.title)?;
+            self.collect_index_terms_from_inlines(traversal, &header.title)?;
         }
 
         // In embedded mode, skip the entire preamble (comment block, .TH, macros, settings)
@@ -119,34 +125,30 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             return Err(Error::MissingHeader);
         }
 
-        let mantitle = doc
-            .attributes
-            .get_string("mantitle")
+        let mantitle = document_attribute_text((doc.attributes).get("mantitle"))
             .ok_or_else(|| Error::InvalidManpageTitle("missing mantitle attribute".to_string()))?;
-        let manvolnum = doc
-            .attributes
-            .get_string("manvolnum")
-            .unwrap_or(Cow::Borrowed("1"));
+        let manvolnum = document_attribute_text((doc.attributes).get("manvolnum")).unwrap_or("1");
 
-        let mansource = doc
-            .attributes
-            .get_string("mansource")
-            .or_else(|| doc.attributes.get_string("man source"))
-            .or_else(|| doc.attributes.get_string("man-source"))
+        let mansource = document_attribute_text((doc.attributes).get("mansource"))
+            .or_else(|| document_attribute_text((doc.attributes).get("man source")))
+            .or_else(|| document_attribute_text((doc.attributes).get("man-source")))
             .unwrap_or_default();
-        let manmanual = doc
-            .attributes
-            .get_string("manmanual")
-            .or_else(|| doc.attributes.get_string("man manual"))
-            .or_else(|| doc.attributes.get_string("man-manual"))
+        let manmanual = document_attribute_text((doc.attributes).get("manmanual"))
+            .or_else(|| document_attribute_text((doc.attributes).get("man manual")))
+            .or_else(|| document_attribute_text((doc.attributes).get("man-manual")))
             .unwrap_or_default();
-        let date = doc
-            .attributes
-            .get_string("revdate")
-            .or_else(|| self.processor.document_attributes.get_string("revdate"))
-            .unwrap_or_else(|| Cow::Owned(chrono::Local::now().format("%Y-%m-%d").to_string()));
+        let date = document_attribute_text((doc.attributes).get("revdate"))
+            .or_else(|| {
+                document_attribute_text(
+                    (self.processor.parser_options.document_attributes()).get("revdate"),
+                )
+            })
+            .map_or_else(
+                || chrono::Local::now().format("%Y-%m-%d").to_string(),
+                str::to_owned,
+            );
 
-        self.write_preamble_header(doc, &mantitle, &manvolnum, &date, &mansource, &manmanual)?;
+        self.write_preamble_header(doc, mantitle, manvolnum, &date, mansource, manmanual)?;
 
         Ok(())
     }
@@ -154,7 +156,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Write the full roff preamble: comment block, .TH, settings, and URL macros.
     fn write_preamble_header(
         &mut self,
-        doc: &Document,
+        doc: &'a Document<'a>,
         mantitle: &str,
         manvolnum: &str,
         date: &str,
@@ -228,11 +230,9 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".nh")?;
         writeln!(w, ".ad l")?;
 
-        let linkstyle = doc
-            .attributes
-            .get_string("man-linkstyle")
-            .unwrap_or(Cow::Borrowed("blue R < >"));
-        write_url_macros(w, &linkstyle)?;
+        let linkstyle =
+            document_attribute_text((doc.attributes).get("man-linkstyle")).unwrap_or("blue R < >");
+        write_url_macros(w, linkstyle)?;
 
         Ok(())
     }

@@ -1,10 +1,8 @@
 //! Workspace symbols: extract navigable symbols from documents for cross-file search
 
 use acdc_converters_core::inlines_to_string;
-use acdc_parser::{Block, DelimitedBlockType, Document, Section};
+use acdc_parser::{Block, DelimitedBlockType, Document, Location, Section};
 use tower_lsp_server::ls_types::SymbolKind;
-
-use acdc_parser::Location;
 
 /// A symbol extracted from a document for workspace-wide search
 #[derive(Debug, Clone)]
@@ -57,11 +55,16 @@ fn extract_block_symbols(block: &Block, symbols: &mut Vec<IndexedSymbol>) {
             extract_metadata_anchors(&header.metadata, &header.location, symbols);
         }
         Block::DocumentAttribute(attr) => {
+            let assigned = attr.assignment().value();
+            let mut value = String::new();
+            if let Some(assigned) = assigned {
+                let _ = assigned.write_text(&mut value);
+            }
             symbols.push(IndexedSymbol {
                 name: attr.name.to_string(),
                 kind: SymbolKind::CONSTANT,
                 location: attr.location.clone(),
-                detail: Some(attr.value.to_string()),
+                detail: Some(if assigned.is_some() { value } else { "unset".to_string() }),
             });
         }
         Block::Paragraph(para) => {
@@ -237,13 +240,13 @@ const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::Options;
+    use acdc_parser::{Error, Options, parse};
 
     #[test]
-    fn test_extract_symbols_sections() -> Result<(), acdc_parser::Error> {
+    fn test_extract_symbols_sections() -> Result<(), Error> {
         let content =
             "= Document Title\n\n== Section One\n\nContent.\n\n== Section Two\n\n=== Subsection\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
@@ -260,9 +263,9 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_symbols_anchors() -> Result<(), acdc_parser::Error> {
+    fn test_extract_symbols_anchors() -> Result<(), Error> {
         let content = "= Doc\n\n[[my-anchor]]\n== Section\n\nContent.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
@@ -275,9 +278,9 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_symbols_discrete_header() -> Result<(), acdc_parser::Error> {
+    fn test_extract_symbols_discrete_header() -> Result<(), Error> {
         let content = "= Doc\n\n[discrete]\n== Discrete Title\n\nContent.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 
@@ -291,10 +294,10 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_symbols_document_attributes() -> Result<(), acdc_parser::Error> {
+    fn test_extract_symbols_document_attributes() -> Result<(), Error> {
         // Body document attributes produce Block::DocumentAttribute
         let content = "= Doc\n\n== Section\n\n:my-attr: some value\n\nContent.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = extract_workspace_symbols(doc);
 

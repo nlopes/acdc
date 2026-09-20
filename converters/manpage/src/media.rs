@@ -3,7 +3,8 @@
 use std::{borrow::Cow, fmt::Write as _, io::Write, path::Path};
 
 use acdc_converters_core::{
-    InlineTextTransform, media::resolve_target, video::TryUrl, visitor::WritableVisitor,
+    InlineTextTransform, TraversalContext, media::resolve_target, video::TryUrl,
+    visitor::WritableVisitor,
 };
 use acdc_parser::{AttributeValue, Audio, Image, InlineNode, Source, Video};
 
@@ -52,10 +53,14 @@ fn media_title(title: &[InlineNode<'_>], source: Option<&Source<'_>>, fallback: 
     }
 }
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
-    pub(crate) fn render_image(&mut self, image: &Image<'_>) -> Result<(), Error> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
+    pub(crate) fn render_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &Image<'_>,
+    ) -> Result<(), Error> {
         self.write_sp()?;
-        self.render_captioned_title(&image.title, &image.metadata)?;
+        self.render_captioned_title(traversal, &image.title, &image.metadata)?;
         let alt = block_image_alt(image);
         let label = format!("[{alt}]");
         let link = image.metadata.attributes.get_string("link");
@@ -68,10 +73,14 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         self.write_static_link(link.as_deref(), &label, true)
     }
 
-    pub(crate) fn render_video(&mut self, video: &Video<'_>) -> Result<(), Error> {
+    pub(crate) fn render_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video<'_>,
+    ) -> Result<(), Error> {
         self.warn_static_media_fallback();
         self.write_sp()?;
-        self.render_captioned_title(&video.title, &video.metadata)?;
+        self.render_captioned_title(traversal, &video.title, &video.metadata)?;
         let title = media_title(&video.title, video.sources.first(), "video");
         let source_count = video.sources.len();
         if source_count == 0 {
@@ -86,7 +95,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             let mut single_source = video.clone();
             single_source.sources = vec![source.clone()];
             let target = single_source.try_url(false)?;
-            let target = resolve_target(&target, &self.processor.document_attributes);
+            let target = resolve_target(&target, traversal);
             let label = if source_count == 1 {
                 format!("[Video: {title}]")
             } else {
@@ -100,22 +109,23 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             if has_link || source_count == 0 {
                 writeln!(self.writer_mut(), ".br")?;
             }
-            let target = resolve_target(&poster, &self.processor.document_attributes);
+            let target = resolve_target(&poster, traversal);
             let label = format!("[Poster: {poster}]");
             self.write_static_link(Some(&target), &label, false)?;
         }
         Ok(())
     }
 
-    pub(crate) fn render_audio(&mut self, audio: &Audio<'_>) -> Result<(), Error> {
+    pub(crate) fn render_audio(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        audio: &Audio<'_>,
+    ) -> Result<(), Error> {
         self.warn_static_media_fallback();
         self.write_sp()?;
-        self.render_captioned_title(&audio.title, &audio.metadata)?;
+        self.render_captioned_title(traversal, &audio.title, &audio.metadata)?;
         let title = media_title(&audio.title, Some(&audio.source), "audio");
-        let mut target = resolve_target(
-            &audio.source.to_string(),
-            &self.processor.document_attributes,
-        );
+        let mut target = resolve_target(&audio.source.to_string(), traversal);
         match (
             audio.metadata.attributes.get("start"),
             audio.metadata.attributes.get("end"),

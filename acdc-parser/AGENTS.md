@@ -25,10 +25,11 @@ Converter-side plumbing (`SubsFlags`, `effective_subs`, fixture naming) lives in
 
 ## Document attribute policy
 
-- `constants.rs` owns the static built-in read-only and API-only attribute protection.
-- `Options` combines built-in protection with locks supplied by the caller.
-- The CLI parses attribute assignment syntax, and converters may add unlocked defaults. Neither duplicates the parser's lock policy.
-- Keep the policy internal. The public parser API should expose only stable caller intent, never converter-specific or test-specific fields and functions.
+- `document_attribute.rs` owns the registry, intrinsic initialization, typed configuration validation, and assignment policy.
+- `DocumentAttributes` owns explicit values, effective values, presentation values, and assignment provenance.
+- `Options` classifies API-supplied values as caller input and supplies the per-parse input context.
+- The CLI parses assignment syntax, and converters may add processor defaults. Consumers use the parser's value and text views; they do not duplicate parser policy.
+- Keep policy inputs and decisions internal. The public parser API exposes stable semantic and presentation views, not converter-specific or test-specific controls.
 - When changing the policy, test document entries, parser `Options` and builder input, CLI `-a` input, locked and soft `@` assignments and unsets, and header/body exceptions. Compare both the official attribute documentation and the current asciidoctor implementation.
 
 ## Debugging

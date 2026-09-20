@@ -5,7 +5,7 @@
 //! (not conversion) so they're available for attribute substitution in the body.
 
 use crate::{
-    AttributeValue, DocumentAttributes, Header, InlineNode,
+    DocumentAttributes, Header, InlineNode,
     error::{Error, SourceLocation},
 };
 
@@ -142,7 +142,7 @@ fn sanitize_mantitle(name: &str) -> String {
 /// - `mantitle`: The program name from the document title (lowercase)
 /// - `manvolnum`: The volume number from the document title
 ///
-/// These attributes are set using `insert()` which won't overwrite user-provided values.
+/// Existing caller values are preserved.
 ///
 /// When the title doesn't conform to `name(volume)` format:
 /// - In strict mode: returns an error
@@ -174,18 +174,12 @@ pub(super) fn derive_manpage_header_attrs<'a>(
 
     if let Some(manpage_title) = parse_manpage_title(&title_text) {
         // Conforming title: use parsed name and volume
-        attrs.insert(
-            "mantitle".into(),
-            AttributeValue::String(manpage_title.name.to_lowercase().into()),
-        );
-        attrs.insert(
-            "manvolnum".into(),
-            AttributeValue::String(manpage_title.volume.into()),
-        );
+        attrs.insert_text("mantitle".into(), manpage_title.name.to_lowercase().into());
+        attrs.insert_text("manvolnum".into(), manpage_title.volume.into());
 
         tracing::debug!(
             mantitle = manpage_title.name,
-            manvolnum = ?attrs.get("manvolnum"),
+            manvolnum = ?attrs.text("manvolnum"),
             "derived manpage attributes from header"
         );
     } else {
@@ -217,23 +211,20 @@ pub(super) fn derive_manpage_header_attrs<'a>(
             "doctype=manpage but title doesn't match name(volume) format; using filename as fallback"
         );
 
-        attrs.insert("mantitle".into(), AttributeValue::String(sanitized.into()));
-        attrs.insert("manvolnum".into(), AttributeValue::String("1".into()));
+        attrs.insert_text("mantitle".into(), sanitized.into());
+        attrs.insert_text("manvolnum".into(), "1".into());
 
         tracing::debug!(
-            mantitle = ?attrs.get("mantitle"),
+            mantitle = ?attrs.text("mantitle"),
             manvolnum = "1",
             "using fallback manpage attributes for non-conforming title"
         );
     }
 
-    if attrs.get_string("backend").as_deref() == Some("manpage")
-        && let Some(manvolnum) = attrs.get_string("manvolnum")
+    if attrs.text("backend").map(crate::strip_quotes) == Some("manpage")
+        && let Some(manvolnum) = attrs.text("manvolnum").map(crate::strip_quotes)
     {
-        attrs.set(
-            "outfilesuffix".into(),
-            AttributeValue::String(format!(".{manvolnum}").into()),
-        );
+        attrs.set_text("outfilesuffix".into(), format!(".{manvolnum}").into());
     }
 
     Ok(true)
@@ -344,19 +335,15 @@ mod tests {
     #[test]
     fn test_manpage_backend_uses_volume_as_output_suffix() -> Result<(), Error> {
         let mut attrs = DocumentAttributes::default();
-        attrs.set("backend".into(), "manpage".into());
-        attrs.set("doctype".into(), "manpage".into());
-        attrs.set("outfilesuffix".into(), ".man".into());
-        let options = crate::Options::with_attributes(attrs);
+        assert!(attrs.set("backend".into(), "manpage".into()).is_ok());
+        assert!(attrs.set("doctype".into(), "manpage".into()).is_ok());
+        assert!(attrs.set("outfilesuffix".into(), ".man".into()).is_ok());
+        let options = crate::Options::with_attributes(attrs.into_inputs())?;
 
         let parsed = crate::parse("= cmd(7)\n\n== Name\n\ncmd - test\n", &options)?;
 
         assert_eq!(
-            parsed
-                .document()
-                .attributes
-                .get_string("outfilesuffix")
-                .as_deref(),
+            parsed.document().attributes.text("outfilesuffix"),
             Some(".7")
         );
         Ok(())

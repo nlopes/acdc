@@ -1,0 +1,11 @@
+= Escaped macros with substitutions
+:value: expanded
+
+[subs=none]
+\pass:[<tag> *bold* {value}</tag>]
+
+[subs=quotes]
+\pass:[<tag> *bold* {value}</tag>]
+
+[subs="normal,-macros"]
+\pass:[<tag> *bold* {value}</tag>]

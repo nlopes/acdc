@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    Diagnostics,
+    Diagnostics, TraversalContext, document_attribute_text,
     substitutions::TextBoundaries,
     visitor::{Visitor, WritableVisitor},
 };
@@ -13,9 +13,10 @@ use acdc_parser::{
     PageBreak, Paragraph, Section, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
-use crate::escape::{EscapeMode, escape_roff_macro_argument, manify};
-
-use crate::{Error, Processor};
+use crate::{
+    Error, Processor,
+    escape::{EscapeMode, escape_roff_macro_argument, manify},
+};
 
 #[derive(Clone, Copy)]
 pub(crate) enum TextCase {
@@ -32,7 +33,8 @@ pub(crate) enum IndexCollection {
 /// Manpage visitor that generates roff/troff output from `AsciiDoc` AST.
 pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
-    pub(crate) processor: Processor<'a>,
+    pub(crate) processor: &'d Processor<'a>,
+
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Current nesting depth for lists (used for .RS/.RE indentation).
@@ -57,10 +59,11 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
 
 impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Create a new manpage visitor.
-    pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
+    pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
             processor,
+
             diagnostics,
             list_depth: 0,
             in_name_section: false,
@@ -99,7 +102,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
         &mut self,
         writer: &'w mut W2,
     ) -> ManpageVisitor<'a, '_, &'w mut W2> {
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let mut visitor = ManpageVisitor::new(writer, processor, self.diagnostics.reborrow());
         visitor.text_case = self.text_case;
         visitor.index_collection = self.index_collection;
@@ -137,6 +140,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// Render a block title with the caption resolved by the parser.
     pub(crate) fn render_captioned_title(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
@@ -161,7 +165,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                 manify(&prefix, EscapeMode::Normalize)
             )?;
         }
-        self.visit_inline_nodes(title)?;
+        self.visit_inline_nodes(traversal, title)?;
         writeln!(self.writer_mut(), "\\fP")?;
         writeln!(self.writer_mut(), ".br")?;
         Ok(())
@@ -176,10 +180,11 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     /// - The number of bytes consumed from a partially consumed `PlainText` (0 if none)
     fn collect_trailing_for_mailto(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode],
     ) -> Result<(String, usize, usize), Error> {
         let mut buf = Vec::new();
-        let processor = self.processor.clone();
+        let processor = self.processor;
         let mut trailing_visitor =
             ManpageVisitor::new(&mut buf, processor, self.diagnostics.reborrow());
         let mut skip_count = 0;
@@ -214,7 +219,7 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
                 | InlineNode::SuperscriptText(_)
                 | InlineNode::CurvedQuotationText(_)
                 | InlineNode::CurvedApostropheText(_) => {
-                    trailing_visitor.visit_inline_node(next_node)?;
+                    trailing_visitor.visit_inline_node(traversal, next_node)?;
                     skip_count += 1;
                 }
                 // Stop on these node types
@@ -233,19 +238,31 @@ impl<'a, 'd, W: Write> ManpageVisitor<'a, 'd, W> {
     }
 }
 
-impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
     type Error = Error;
 
-    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+    fn visit_unhandled_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _block: &'a Block<'a>,
+    ) -> Result<(), Self::Error> {
         self.warn_unsupported_parser_variant("block");
         Ok(())
     }
 
-    fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
-        self.render_document_start(doc)
+    fn visit_document_start(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_document_start(traversal, doc)
     }
 
-    fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_supplements(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // In embedded mode, skip NOTES and AUTHOR(S) sections (matches asciidoctor --embedded)
         if self.processor.options.embedded() {
             return Ok(());
@@ -259,7 +276,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
             for footnote in &doc.footnotes {
                 let w = self.writer_mut();
                 writeln!(w, ".IP [{}] 4", footnote.number)?;
-                self.visit_inline_nodes(&footnote.content)?;
+                self.visit_inline_nodes(traversal, &footnote.content)?;
                 let w = self.writer_mut();
                 writeln!(w)?;
             }
@@ -292,18 +309,19 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_end(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // Validate manpage section order conventions
         const SECTION_ORDER_ADVICE: &str =
             "Manpage output conventionally starts with the name section followed by SYNOPSIS.";
 
-        let name_section_title = self
-            .processor
-            .document_attributes
-            .get_string("manname-title")
-            .unwrap_or_else(|| "Name".into());
+        let name_section_title =
+            document_attribute_text((traversal).get("manname-title")).unwrap_or("Name");
         if let Some(ref first) = self.first_section_title
-            && !first.eq_ignore_ascii_case(name_section_title.as_ref())
+            && !first.eq_ignore_ascii_case(name_section_title)
         {
             self.diagnostics.warn_with_advice(
                 format!("manpage convention: name section should be first, got `{first}`"),
@@ -323,62 +341,118 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_header(&mut self, _header: &Header) -> Result<(), Self::Error> {
+    fn visit_header(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _header: &Header,
+    ) -> Result<(), Self::Error> {
         // Header is handled in visit_document_start for manpages
         // The .TH macro contains all header information
         Ok(())
     }
 
-    fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
-        self.render_section(section)
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_section(traversal, section)
     }
 
-    fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
-        self.render_paragraph(para)
+    fn visit_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Self::Error> {
+        self.render_paragraph(traversal, para)
     }
 
-    fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
-        self.render_delimited_block(block)
+    fn visit_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_delimited_block(traversal, block)
     }
 
-    fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        self.render_ordered_list(list)
+    fn visit_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_ordered_list(traversal, list)
     }
 
-    fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
-        self.render_unordered_list(list)
+    fn visit_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_unordered_list(traversal, list)
     }
 
-    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        self.render_description_list(list)
+    fn visit_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_description_list(traversal, list)
     }
 
-    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        self.render_callout_list(list)
+    fn visit_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_callout_list(traversal, list)
     }
 
-    fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
+    fn visit_list_item(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _item: &'a ListItem<'a>,
+    ) -> Result<(), Self::Error> {
         // List items are handled by their parent list visitors
         Ok(())
     }
 
-    fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        self.render_admonition(admon)
+    fn visit_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admon: &'a Admonition<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_admonition(traversal, admon)
     }
 
-    fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        self.render_image(img)
+    fn visit_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        img: &Image,
+    ) -> Result<(), Self::Error> {
+        self.render_image(traversal, img)
     }
 
-    fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        self.render_video(video)
+    fn visit_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Self::Error> {
+        self.render_video(traversal, video)
     }
 
-    fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        self.render_audio(audio)
+    fn visit_audio(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        audio: &Audio,
+    ) -> Result<(), Self::Error> {
+        self.render_audio(traversal, audio)
     }
 
-    fn visit_thematic_break(&mut self, _br: &ThematicBreak) -> Result<(), Self::Error> {
+    fn visit_thematic_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _br: &ThematicBreak,
+    ) -> Result<(), Self::Error> {
         // Thematic break as a centered line of dashes
         self.write_sp()?;
         writeln!(self.writer, ".ce")?;
@@ -387,28 +461,43 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_page_break(&mut self, _br: &PageBreak) -> Result<(), Self::Error> {
+    fn visit_page_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _br: &PageBreak,
+    ) -> Result<(), Self::Error> {
         // Page break in roff
         writeln!(self.writer, ".bp")?;
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, _toc: &TableOfContents) -> Result<(), Self::Error> {
-        // TOC is not typically included in man pages
-        // Could optionally generate a list of sections, but skip for now
+    fn visit_table_of_contents(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _toc: &TableOfContents,
+    ) -> Result<(), Self::Error> {
+        // Man pages do not include a table of contents.
         Ok(())
     }
 
-    fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
+    fn visit_discrete_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &DiscreteHeader,
+    ) -> Result<(), Self::Error> {
         // Discrete headers are rendered as bold text, not as sections
         self.write_sp()?;
         write!(self.writer, "\\fB")?;
-        self.visit_inline_nodes(&header.title)?;
+        self.visit_inline_nodes(traversal, &header.title)?;
         writeln!(self.writer, "\\fP")?;
         Ok(())
     }
 
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode],
+    ) -> Result<(), Self::Error> {
         let previous_boundaries = self.text_boundaries;
         let last = nodes.len().saturating_sub(1);
         let result = (|| {
@@ -435,8 +524,10 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
                 if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
                     && al.url.to_string().starts_with("mailto:")
                 {
-                    let (trailing, skip_count, partial_bytes) =
-                        self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
+                    let (trailing, skip_count, partial_bytes) = self.collect_trailing_for_mailto(
+                        traversal,
+                        nodes.get(i + 1..).unwrap_or_default(),
+                    )?;
 
                     self.write_autolink_with_trailing(al, &trailing)?;
                     i += 1 + skip_count;
@@ -453,10 +544,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
                             remaining
                         };
                         if !content.is_empty() {
-                            let escaped = crate::escape::manify(
-                                content,
-                                crate::escape::EscapeMode::Normalize,
-                            );
+                            let escaped = manify(content, EscapeMode::Normalize);
                             write!(self.writer_mut(), "{escaped}")?;
                         }
                         i += 1;
@@ -466,10 +554,12 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
 
                 // Check if this is an explicit mailto macro - collect trailing non-whitespace
                 if let InlineNode::Macro(InlineMacro::Mailto(mailto)) = node {
-                    let (trailing, skip_count, partial_bytes) =
-                        self.collect_trailing_for_mailto(nodes.get(i + 1..).unwrap_or_default())?;
+                    let (trailing, skip_count, partial_bytes) = self.collect_trailing_for_mailto(
+                        traversal,
+                        nodes.get(i + 1..).unwrap_or_default(),
+                    )?;
 
-                    self.write_mailto_with_trailing(mailto, &trailing)?;
+                    self.write_mailto_with_trailing(traversal, mailto, &trailing)?;
                     i += 1 + skip_count;
 
                     // If a PlainText node was partially consumed, render only the remainder
@@ -484,10 +574,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
                             remaining
                         };
                         if !content.is_empty() {
-                            let escaped = crate::escape::manify(
-                                content,
-                                crate::escape::EscapeMode::Normalize,
-                            );
+                            let escaped = manify(content, EscapeMode::Normalize);
                             write!(self.writer_mut(), "{escaped}")?;
                         }
                         i += 1;
@@ -495,7 +582,7 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
                     continue;
                 }
 
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
                 i += 1;
             }
             Ok(())
@@ -504,26 +591,34 @@ impl<W: Write> Visitor for ManpageVisitor<'_, '_, W> {
         result
     }
 
-    fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+    ) -> Result<(), Self::Error> {
         let saved = self.in_inline_span;
         if acdc_converters_core::visitor::is_formatting_span(node) {
             self.in_inline_span = true;
         }
 
-        let result = self.render_inline_node(node);
+        let result = self.render_inline_node(traversal, node);
 
         self.in_inline_span = saved;
         result
     }
 
-    fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
-        let escaped = crate::escape::manify(text, crate::escape::EscapeMode::Normalize);
+    fn visit_text(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        text: &str,
+    ) -> Result<(), Self::Error> {
+        let escaped = manify(text, EscapeMode::Normalize);
         write!(self.writer, "{escaped}")?;
         Ok(())
     }
 }
 
-impl<W: Write> WritableVisitor for ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> WritableVisitor<'a> for ManpageVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

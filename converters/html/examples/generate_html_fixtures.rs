@@ -24,8 +24,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let options = Options::builder()
                     .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
                     .build();
-                let processor =
-                    Processor::new_with_variant(options, doc.attributes.clone(), html_variant);
+                let processor = Processor::new_with_variant(
+                    options,
+                    acdc_parser::Options::builder()
+                        .with_attributes(doc.attributes.clone().into_inputs()),
+                    html_variant,
+                )?;
                 let render_options = RenderOptions {
                     embedded,
                     ..RenderOptions::default()

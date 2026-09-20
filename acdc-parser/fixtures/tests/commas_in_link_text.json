@@ -1,9 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "fn-test": "footnote:fn-test[https://example.com/path[Link text, with comma].]"
-  },
   "blocks": [
     {
       "name": "paragraph",

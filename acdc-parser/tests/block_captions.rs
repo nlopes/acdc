@@ -231,8 +231,11 @@ fn blocks_keep_the_caption_active_at_their_source_position() -> Result<(), Error
     )?;
     let document = parsed.document();
     assert_eq!(
-        document.attributes.get_string("example-caption").as_deref(),
-        Some("Later")
+        document
+            .attributes
+            .get("example-caption")
+            .and_then(|value| value.text()),
+        Some("Header")
     );
 
     let captions: Vec<_> = document
@@ -263,21 +266,18 @@ fn blocks_keep_the_caption_active_at_their_source_position() -> Result<(), Error
 
 #[test]
 fn a_metadata_line_applies_to_its_own_block() -> Result<(), Error> {
-    // An attribute entry between a title and its block never becomes a `DocumentAttribute`
-    // block, but it still applies to the block it sits on.
+    // An accepted attribute entry between a title and its block becomes an ordered event and
+    // still applies to the block it sits on.
     let parsed = parse(
         "= T\n:example-caption: Header\n\n.First\n:example-caption: Metadata\n[example]\none\n\n.Second\n[example]\ntwo\n",
         &Options::default(),
     )?;
     let document = parsed.document();
-    assert!(
-        !document
-            .blocks
-            .iter()
-            .any(|block| matches!(block, Block::DocumentAttribute(_))),
-        "a metadata-region entry produces no block: {:?}",
-        document.blocks
-    );
+    assert!(matches!(
+        document.blocks.first(),
+        Some(Block::DocumentAttribute(attribute))
+            if attribute.name == "example-caption" && attribute.assignment().value().and_then(acdc_parser::DocumentAttributeValue::text) == Some("Metadata")
+    ));
 
     let labels: Vec<_> = document
         .blocks
@@ -564,11 +564,14 @@ fn an_empty_element_caption_takes_no_prefix_and_no_ordinal() -> Result<(), Error
 
 #[test]
 fn caption_labels_come_from_api_supplied_attributes() -> Result<(), Error> {
-    let mut attributes = acdc_parser::DocumentAttributes::default();
-    attributes.set("example-caption".into(), AttributeValue::from("Sample"));
+    let mut attributes = std::collections::HashMap::<
+        std::borrow::Cow<'_, str>,
+        acdc_parser::AttributeValue<'_>,
+    >::new();
+    attributes.insert("example-caption".into(), AttributeValue::from("Sample"));
     let parsed = parse(
         "= T\n\n.Titled\n====\nc\n====\n",
-        &Options::builder().with_attributes(attributes).build(),
+        &Options::builder().with_attributes(attributes).build()?,
     )?;
     let document = parsed.document();
     let block = document.blocks.first().ok_or("expected a block")?;

@@ -1,21 +1,30 @@
 use std::io::Write;
 
-use acdc_converters_core::code::detect_language;
 #[cfg(not(feature = "pre-spec-subs"))]
 use acdc_converters_core::substitutions::baseline_subs;
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs;
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    TraversalContext,
+    code::detect_language,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::{CaptionKind, Paragraph};
 
-use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_attribution, write_id};
+use crate::{
+    Error, HtmlVariant, HtmlVisitor, build_class, render_pre_code, write_attribution, write_id,
+};
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     /// Render a paragraph to HTML.
     ///
-    /// This is called from the `HtmlVisitor` trait implementation.
+    /// Called by the HTML visitor's paragraph callback.
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    pub(crate) fn render_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         // Check if this paragraph should be rendered as a literal block
         if let Some(style) = para.metadata.style
             && style == "literal"
@@ -24,10 +33,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             write!(self.writer, "<div")?;
             write_id(&mut self.writer, &para.metadata)?;
             writeln!(self.writer, " class=\"{class}\">")?;
-            self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+            self.render_title_with_wrapper(
+                traversal,
+                &para.title,
+                "<div class=\"title\">",
+                "</div>\n",
+            )?;
             writeln!(self.writer, "<div class=\"content\">")?;
             write!(self.writer, "<pre>")?;
-            self.visit_inline_nodes(&para.content)?;
+            self.visit_indented_inlines(traversal, &para.content, &para.metadata)?;
             writeln!(self.writer, "</pre>")?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
@@ -35,7 +49,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         if para.metadata.style == Some("abstract") {
-            return self.render_abstract_paragraph(para);
+            return self.render_abstract_paragraph(traversal, para);
         }
 
         // Check if this paragraph should be rendered as a collapsible example block
@@ -56,13 +70,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 writeln!(self.writer, "<summary class=\"title\">Details</summary>")?;
             } else {
                 self.render_title_with_wrapper(
+                    traversal,
                     &para.title,
                     "<summary class=\"title\">",
                     "</summary>\n",
                 )?;
             }
             writeln!(self.writer, "<div class=\"content\">")?;
-            self.visit_inline_nodes(&para.content)?;
+            self.visit_inline_nodes(traversal, &para.content)?;
             writeln!(self.writer)?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</details>")?;
@@ -70,7 +85,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         if para.metadata.style == Some("example") {
-            return self.render_example_paragraph(para);
+            return self.render_example_paragraph(traversal, para);
         }
 
         if let Some(style) = para.metadata.style {
@@ -80,12 +95,17 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write!(self.writer, "<div")?;
                 write_id(&mut self.writer, &para.metadata)?;
                 writeln!(self.writer, " class=\"{class}\">")?;
-                self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+                self.render_title_with_wrapper(
+                    traversal,
+                    &para.title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
                 writeln!(self.writer, "<blockquote>")?;
-                self.visit_inline_nodes(&para.content)?;
+                self.visit_inline_nodes(traversal, &para.content)?;
                 writeln!(self.writer)?;
                 writeln!(self.writer, "</blockquote>")?;
-                write_attribution(self, &para.metadata)?;
+                write_attribution(traversal, self, &para.metadata)?;
                 writeln!(self.writer, "</div>")?;
                 return Ok(());
             }
@@ -96,18 +116,23 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write!(self.writer, "<div")?;
                 write_id(&mut self.writer, &para.metadata)?;
                 writeln!(self.writer, " class=\"{class}\">")?;
-                self.render_title_with_wrapper(&para.title, "<div class=\"title\">", "</div>\n")?;
+                self.render_title_with_wrapper(
+                    traversal,
+                    &para.title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
                 write!(self.writer, "<pre class=\"content\">")?;
-                self.visit_inline_nodes(&para.content)?;
+                self.visit_inline_nodes(traversal, &para.content)?;
                 writeln!(self.writer, "</pre>")?;
-                write_attribution(self, &para.metadata)?;
+                write_attribution(traversal, self, &para.metadata)?;
                 writeln!(self.writer, "</div>")?;
                 return Ok(());
             }
 
             // Check if this paragraph should be rendered as a listing/source block
             if matches!(style, "listing" | "source") {
-                return self.render_listing_paragraph(para);
+                return self.render_listing_paragraph(traversal, para);
             }
         }
 
@@ -124,6 +149,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write_id(&mut self.writer, &para.metadata)?;
                 writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_captioned_title_with_wrapper(
+                    traversal,
                     &para.title,
                     &para.metadata,
                     CaptionKind::for_style(para.metadata.style),
@@ -131,7 +157,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     "</h6>\n",
                 )?;
                 write!(self.writer, "<p>")?;
-                self.visit_inline_nodes(&para.content)?;
+                self.visit_inline_nodes(traversal, &para.content)?;
                 writeln!(self.writer, "</p>")?;
                 writeln!(self.writer, "</section>")?;
             } else if has_id || has_roles {
@@ -142,12 +168,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 }
                 write_id(&mut self.writer, &para.metadata)?;
                 write!(self.writer, ">")?;
-                self.visit_inline_nodes(&para.content)?;
+                self.visit_inline_nodes(traversal, &para.content)?;
                 writeln!(self.writer, "</p>")?;
             } else {
                 // Bare paragraph — no wrapper
                 write!(self.writer, "<p>")?;
-                self.visit_inline_nodes(&para.content)?;
+                self.visit_inline_nodes(traversal, &para.content)?;
                 writeln!(self.writer, "</p>")?;
             }
         } else {
@@ -156,6 +182,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             write_id(&mut self.writer, &para.metadata)?;
             writeln!(self.writer, " class=\"{class}\">")?;
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &para.title,
                 &para.metadata,
                 CaptionKind::for_style(para.metadata.style),
@@ -163,14 +190,18 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 "</div>\n",
             )?;
             write!(self.writer, "<p>")?;
-            self.visit_inline_nodes(&para.content)?;
+            self.visit_inline_nodes(traversal, &para.content)?;
             writeln!(self.writer, "</p>")?;
             writeln!(self.writer, "</div>")?;
         }
         Ok(())
     }
 
-    fn render_abstract_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_abstract_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
         let has_title = !para.title.is_empty();
         let tag = if semantic && has_title {
@@ -194,17 +225,21 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             } else {
                 ("<div class=\"title\">", "</div>\n")
             };
-            self.render_title_with_wrapper(&para.title, open, close)?;
+            self.render_title_with_wrapper(traversal, &para.title, open, close)?;
         }
         writeln!(self.writer, "<blockquote>")?;
-        self.visit_inline_nodes(&para.content)?;
+        self.visit_inline_nodes(traversal, &para.content)?;
         writeln!(self.writer)?;
         writeln!(self.writer, "</blockquote>")?;
         writeln!(self.writer, "</{tag}>")?;
         Ok(())
     }
 
-    fn render_example_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_example_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
         let has_title = !para.title.is_empty();
         let tag = if semantic && has_title {
@@ -229,6 +264,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 ("<div class=\"title\">", "</div>\n")
             };
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &para.title,
                 &para.metadata,
                 Some(CaptionKind::Example),
@@ -238,7 +274,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
         let content_class = if semantic { "example" } else { "content" };
         writeln!(self.writer, "<div class=\"{content_class}\">")?;
-        self.visit_inline_nodes(&para.content)?;
+        self.visit_inline_nodes(traversal, &para.content)?;
         writeln!(self.writer)?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</{tag}>")?;
@@ -246,8 +282,25 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 
     /// Render a listing/source-styled paragraph as a listing block.
-    fn render_listing_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
-        let language = detect_language(&para.metadata);
+    fn render_listing_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
+        let language = detect_language(&para.metadata)
+            .map(str::to_owned)
+            .or_else(|| {
+                (para.metadata.style == Some("source"))
+                    .then(|| {
+                        traversal
+                            .get("source-language")
+                            .and_then(|value| value.text())
+                    })
+                    .flatten()
+                    .map(str::to_owned)
+            });
+        let source_indent =
+            crate::source_indent::resolve(&para.metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
         let subs = effective_subs(para.metadata.substitutions.as_ref(), true);
         #[cfg(not(feature = "pre-spec-subs"))]
@@ -259,7 +312,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 write_id(&mut self.writer, &para.metadata)?;
                 let class = build_class("listing-block", &para.metadata.roles);
                 writeln!(self.writer, " class=\"{class}\">")?;
-                crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
+                render_pre_code(
+                    traversal,
+                    &para.content,
+                    &para.metadata,
+                    language.as_deref(),
+                    self,
+                    &subs,
+                    source_indent,
+                )?;
                 writeln!(self.writer, "</div>")?;
             } else {
                 write!(self.writer, "<figure")?;
@@ -267,13 +328,22 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 let class = build_class("listing-block", &para.metadata.roles);
                 writeln!(self.writer, " class=\"{class}\">")?;
                 self.render_captioned_title_with_wrapper(
+                    traversal,
                     &para.title,
                     &para.metadata,
                     Some(CaptionKind::Listing),
                     "<figcaption>",
                     "</figcaption>\n",
                 )?;
-                crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
+                render_pre_code(
+                    traversal,
+                    &para.content,
+                    &para.metadata,
+                    language.as_deref(),
+                    self,
+                    &subs,
+                    source_indent,
+                )?;
                 writeln!(self.writer, "</figure>")?;
             }
         } else {
@@ -283,6 +353,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, " class=\"{class}\">")?;
 
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &para.title,
                 &para.metadata,
                 Some(CaptionKind::Listing),
@@ -291,7 +362,15 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             )?;
 
             writeln!(self.writer, "<div class=\"content\">")?;
-            crate::render_pre_code(&para.content, &para.metadata, language, self, &subs)?;
+            render_pre_code(
+                traversal,
+                &para.content,
+                &para.metadata,
+                language.as_deref(),
+                self,
+                &subs,
+                source_indent,
+            )?;
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
         }

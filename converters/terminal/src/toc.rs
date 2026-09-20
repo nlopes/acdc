@@ -1,11 +1,12 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    Converter, TraversalContext,
     section::book_chapter_signifier,
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{AttributeValue, SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{SectionKind, TableOfContents, TocEntry};
 
 use crate::TerminalVisitor;
 
@@ -15,10 +16,11 @@ struct TocRenderConfig<'a> {
     has_real_parts: bool,
 }
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     #[allow(clippy::too_many_arguments)]
     fn render_toc_entries(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         entries: &[TocEntry],
         config: &TocRenderConfig<'_>,
         current_level: u8,
@@ -55,7 +57,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             if let Some(Some(number)) = config.section_numbers.get(base_index + entry_index) {
                 write!(self.writer, "{number}")?;
             }
-            self.visit_inline_nodes(&entry.title)?;
+            self.visit_inline_nodes(traversal, &entry.title)?;
             writeln!(self.writer)?;
 
             let start = entry_index + 1;
@@ -72,6 +74,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 && children.iter().any(|child| child.level == child_level)
             {
                 self.render_toc_entries(
+                    traversal,
                     children,
                     config,
                     child_level,
@@ -86,6 +89,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
     pub(crate) fn render_toc(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         toc_macro: Option<&TableOfContents>,
         placement: &str,
     ) -> Result<(), crate::Error> {
@@ -94,8 +98,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             style::{PrintStyledContent, Stylize},
         };
 
-        let processor = self.processor.clone();
-        let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
+        let processor = self.processor;
+        let config = TocConfig::from_attributes(
+            toc_macro,
+            &TraversalContext::new(processor.document_attributes()),
+        );
         let should_render = match placement {
             "auto" => matches!(
                 config.placement(),
@@ -113,17 +120,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         ))?;
         writeln!(w)?;
 
-        let part_signifier = match processor.document_attributes.get("part-signifier") {
-            Some(AttributeValue::String(value)) => Some(value.as_ref()),
-            Some(_) | None => None,
-        };
-        let chapter_signifier =
-            book_chapter_signifier(&processor.document_attributes, Some("Chapter"));
-        let numbering_config = NumberingConfig::new(
-            &processor.document_attributes,
-            part_signifier,
-            chapter_signifier,
-        );
+        let part_signifier = traversal
+            .get("part-signifier")
+            .and_then(|value| value.text());
+        let chapter_signifier = book_chapter_signifier(traversal, Some("Chapter"));
+        let numbering_config = NumberingConfig::new(traversal, part_signifier, chapter_signifier);
         let numbers = section_numbers(&processor.toc_entries, &numbering_config);
         let real_parts = has_real_parts(&processor.toc_entries);
         let first_level = processor
@@ -142,6 +143,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             has_real_parts: real_parts,
         };
         self.render_toc_entries(
+            traversal,
             &processor.toc_entries,
             &render_config,
             start_level,

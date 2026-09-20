@@ -12,7 +12,7 @@ use std::{
     cell::Cell,
     collections::{BTreeSet, HashMap, HashSet},
     fmt::Write as _,
-    fs::File,
+    fs::{File, write},
     io::Read,
     num::NonZeroUsize,
     path::{Path, PathBuf},
@@ -23,7 +23,8 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration, Warning,
+    BackendProfile, Converter, Diagnostics, InlineTextTransform, Options, PrettyDuration,
+    TraversalContext, Warning, document_attribute_text,
     icon::{IconMode, image_source as icon_image_source},
     media::resolve_target,
     toc::Config as TocConfig,
@@ -33,7 +34,7 @@ use acdc_converters_core::{
 use acdc_parser::{
     Admonition, Author, Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType,
     Document, DocumentAttributes, ElementAttributes, IndexTerm, IndexTermRelationship, InlineMacro,
-    InlineNode, ListItem, Location, Reference, SafeMode, Source, SourceLocation, Table,
+    InlineNode, Location, Options as ParserOptions, Reference, SafeMode, Source, SourceLocation,
 };
 use acdc_pdf_images::{
     Error as ImageError, ImageMap, ResolveConfig, ResolveFailure, SourcePolicy, resolve,
@@ -43,7 +44,7 @@ use acdc_pdf_theme::{PageNumberingStart, Theme};
 use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
-use lopdf::dictionary;
+use lopdf::{Document as PdfDocument, Object, dictionary};
 mod converter;
 mod error;
 mod index;
@@ -262,7 +263,7 @@ impl PageSetup {
 #[derive(Clone, Debug)]
 pub struct Processor<'a> {
     options: Options,
-    document_attributes: DocumentAttributes<'a>,
+    parser_options: ParserOptions<'a>,
     /// Cross-reference targets keyed by id, cloned from `Document::references`.
     /// Shared so a resolved target's reference text can be borrowed while the
     /// visitor renders it.
@@ -316,7 +317,7 @@ impl Processor<'_> {
     }
 
     pub(crate) fn document_attributes(&self) -> &DocumentAttributes<'_> {
-        &self.document_attributes
+        self.parser_options.document_attributes()
     }
 
     pub(crate) fn pdf_options(&self) -> &PdfOptions {
@@ -404,8 +405,10 @@ impl Processor<'_> {
         config: TypstSourceConfig<'_>,
         diagnostics: &mut Diagnostics<'_>,
     ) -> Result<String, Error> {
-        let mut processor = Processor::new(self.options.clone(), doc.attributes.clone())
+        let mut processor = Processor::new(self.options.clone(), ParserOptions::builder())?
             .with_pdf_options(self.pdf_options.clone());
+        processor.parser_options =
+            ParserOptions::default().with_document_attributes(doc.attributes.clone());
         processor.references = Rc::new(doc.references.clone());
         // The parser numbers every caption it resolved. These counters only number a title it
         // could not — one on a caller-built block, or added after parsing — so they start past
@@ -423,6 +426,7 @@ impl Processor<'_> {
         processor
             .table_counter
             .set(doc.highest_caption_number(CaptionKind::Table));
+        let mut traversal = TraversalContext::new(&doc.attributes);
         let mut visitor = PdfVisitor::new(
             processor,
             assets,
@@ -441,7 +445,7 @@ impl Processor<'_> {
         if preparation.admonition_image_icon_count > 0 {
             write_admonition_image_helper(&mut visitor.writer, config.theme);
         }
-        visitor.visit_document(doc)?;
+        visitor.visit_document(&mut traversal, doc)?;
         let mut source = visitor.writer.into_string();
         source.truncate(source.trim_end_matches('\n').len());
         source.push('\n');
@@ -462,18 +466,19 @@ impl Processor<'_> {
     fn page_numbering_plan(&self, doc: &Document<'_>, theme: &Theme) -> PageNumberingPlan {
         let has_title_page = doc.header.is_some()
             && (self
-                .document_attributes
+                .parser_options
+                .document_attributes()
                 .get("title-page")
-                .is_some_and(|value| {
-                    !matches!(
-                        value,
-                        acdc_parser::AttributeValue::Bool(false)
-                            | acdc_parser::AttributeValue::None
-                    )
-                })
-                || self.document_attributes.get_string("doctype").as_deref() == Some("book")
+                .is_some()
+                || matches!(
+                    self.parser_options.document_attributes().get("doctype"),
+                    Some(value) if value.as_str() == Some("book")
+                )
                 || self.options.doctype() == acdc_converters_core::Doctype::Book);
-        let toc = TocConfig::from_attributes(None, &self.document_attributes);
+        let toc = TocConfig::from_attributes(
+            None,
+            &TraversalContext::new(self.parser_options.document_attributes()),
+        );
         let placement = if toc.placement() == "none" && self.pdf_options.toc {
             "auto"
         } else {
@@ -521,10 +526,10 @@ impl Processor<'_> {
         if let Some(page) = self.pdf_options.page {
             return page;
         }
-        let Some(value) = doc.attributes.get_string("pdf-page-size") else {
+        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-size")) else {
             return PageSize::A4;
         };
-        if let Some(page) = parse_page_size(value.as_ref()) {
+        if let Some(page) = parse_page_size(value) {
             page
         } else {
             diagnostics.warn_with_advice(
@@ -543,11 +548,11 @@ impl Processor<'_> {
         if let Some(margin) = self.pdf_options.page_margin {
             return Some(margin);
         }
-        let value = doc.attributes.get_string("pdf-page-margin")?;
+        let value = document_attribute_text((doc.attributes).get("pdf-page-margin"))?;
         if value.trim().is_empty() {
             return None;
         }
-        if let Some(margin) = parse_page_margin(value.as_ref()) {
+        if let Some(margin) = parse_page_margin(value) {
             Some(margin)
         } else {
             diagnostics.warn_with_advice(
@@ -578,10 +583,10 @@ impl Processor<'_> {
         if let Some(layout) = self.pdf_options.page_layout {
             return layout;
         }
-        let Some(value) = doc.attributes.get_string("pdf-page-layout") else {
+        let Some(value) = document_attribute_text((doc.attributes).get("pdf-page-layout")) else {
             return PageLayout::Portrait;
         };
-        match value.as_ref().to_ascii_lowercase().as_str() {
+        match value.to_ascii_lowercase().as_str() {
             "landscape" => PageLayout::Landscape,
             "portrait" => PageLayout::Portrait,
             other => {
@@ -608,7 +613,7 @@ impl Processor<'_> {
         let base_dir = base_dir_for_source(source_file);
         let source_policy = image_source_policy(
             self.options.safe_mode(),
-            doc.attributes.contains_key("allow-uri-read"),
+            doc.attributes.get("allow-uri-read").is_some(),
         );
         let mut config = ResolveConfig::new(base_dir, spool_dir);
         config.source_policy = source_policy;
@@ -761,7 +766,7 @@ impl Processor<'_> {
         let Some(path) = &self.pdf_options.emit_typst else {
             return Ok(());
         };
-        std::fs::write(path, typst).map_err(|source| Error::TypstWrite {
+        write(path, typst).map_err(|source| Error::TypstWrite {
             path: path.clone(),
             source,
         })
@@ -871,19 +876,19 @@ fn parse_measurement_points(value: &str) -> Option<f64> {
 
 fn apply_pdf_page_labels(pdf: &mut Vec<u8>, arabic_start: NonZeroUsize) -> Result<(), Error> {
     fn update(pdf: &[u8], arabic_start: NonZeroUsize) -> lopdf::Result<Vec<u8>> {
-        let mut document = lopdf::Document::load_mem(pdf)?;
+        let mut document = PdfDocument::load_mem(pdf)?;
         let page_count = document.get_pages().len();
         let arabic_index = arabic_start.get() - 1;
         let roman = dictionary! {
-            "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
-            "S" => lopdf::Object::Name(b"r".to_vec()),
+            "Type" => Object::Name(b"PageLabel".to_vec()),
+            "S" => Object::Name(b"r".to_vec()),
             "St" => 1,
         };
         let mut nums = vec![0.into(), roman.into()];
         if arabic_index < page_count {
             let arabic = dictionary! {
-                "Type" => lopdf::Object::Name(b"PageLabel".to_vec()),
-                "S" => lopdf::Object::Name(b"D".to_vec()),
+                "Type" => Object::Name(b"PageLabel".to_vec()),
+                "S" => Object::Name(b"D".to_vec()),
                 "St" => 1,
             };
             nums.push(i64::try_from(arabic_index)?.into());
@@ -1064,9 +1069,7 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
             (!title.is_empty()).then_some(title)
         })
         .or_else(|| {
-            doc.attributes
-                .get_string("untitled-label")
-                .map(std::borrow::Cow::into_owned)
+            document_attribute_text((doc.attributes).get("untitled-label")).map(str::to_owned)
         });
     let mut authors = doc
         .header
@@ -1077,9 +1080,9 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
     if authors.is_empty()
         && let Some(author) = ["authors", "author"]
             .into_iter()
-            .find_map(|name| doc.attributes.get_string(name))
+            .find_map(|name| document_attribute_text((doc.attributes).get(name)))
     {
-        authors.push(author.into_owned());
+        authors.push(author.to_owned());
     }
 
     DocumentMetadata {
@@ -1091,13 +1094,13 @@ fn document_metadata(doc: &Document<'_>) -> DocumentMetadata {
 }
 
 fn document_locale(doc: &Document<'_>, diagnostics: &mut Diagnostics<'_>) -> DocumentLocale {
-    let Some(value) = doc.attributes.get_string("lang") else {
+    let Some(value) = document_attribute_text((doc.attributes).get("lang")) else {
         return DocumentLocale::default();
     };
     if value.is_empty() {
         return DocumentLocale::default();
     }
-    let error = match parse_document_locale(&value) {
+    let error = match parse_document_locale(value) {
         Ok(locale) => return locale,
         Err(error) => error,
     };
@@ -1117,15 +1120,7 @@ fn parse_document_locale(value: &str) -> Result<DocumentLocale, TypstError> {
 }
 
 fn metadata_attribute(attributes: &DocumentAttributes<'_>, name: &str) -> Option<String> {
-    attributes.get_string(name).map_or_else(
-        || {
-            attributes
-                .get(name)
-                .is_some_and(|value| matches!(value, acdc_parser::AttributeValue::Bool(true)))
-                .then(String::new)
-        },
-        |value| Some(value.into_owned()),
-    )
+    document_attribute_text((attributes).get(name)).map(str::to_owned)
 }
 
 fn author_name(author: &Author<'_>) -> String {
@@ -1143,9 +1138,9 @@ fn author_name(author: &Author<'_>) -> String {
 
 fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
     let mut preparation = PdfPreparation::default();
+    let mut traversal = TraversalContext::new(&doc.attributes);
     let context = PreparationContext {
-        attributes: &doc.attributes,
-        icon_mode: IconMode::from(&doc.attributes),
+        attributes: &traversal,
         references: &doc.references,
     };
     if let Some(header) = &doc.header {
@@ -1162,13 +1157,16 @@ fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
             collect_inline_preparation(subtitle.as_ref(), &context, &mut preparation);
         }
     }
-    collect_block_preparation(&doc.blocks, &context, &mut preparation);
-    preparation
+    let mut visitor = PreparationVisitor {
+        references: &doc.references,
+        preparation,
+    };
+    let Ok(()) = traversal.visit_blocks(&mut visitor, &doc.blocks);
+    visitor.preparation
 }
 
-struct PreparationContext<'attributes, 'source> {
-    attributes: &'attributes DocumentAttributes<'source>,
-    icon_mode: IconMode,
+struct PreparationContext<'attributes, 'source: 'attributes> {
+    attributes: &'attributes TraversalContext<'source>,
     references: &'attributes HashMap<&'source str, Reference<'source>>,
 }
 
@@ -1197,29 +1195,27 @@ struct UnsupportedFontIcon {
     location: Location,
 }
 
-pub(crate) fn admonition_icon_source(attributes: &DocumentAttributes<'_>, target: &str) -> String {
+pub(crate) fn admonition_icon_source(attributes: &TraversalContext<'_>, target: &str) -> String {
     let target = if Path::new(target.split(['?', '#']).next().unwrap_or(target))
         .extension()
         .is_some()
     {
         Cow::Borrowed(target)
     } else {
-        let extension = attributes
-            .get_string("icontype")
+        let extension = document_attribute_text((attributes).get("icontype"))
             .or_else(|| {
-                attributes.get_string("icons").filter(|value| {
-                    !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
-                })
+                document_attribute_text((attributes).get("icons"))
+                    .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
             })
-            .unwrap_or_else(|| "png".into());
+            .unwrap_or("png");
         Cow::Owned(format!("{target}.{}", extension.trim_start_matches('.')))
     };
     if target.starts_with('/') || target.contains("://") {
         return target.into_owned();
     }
-    let directory = attributes.get_string("iconsdir").map_or_else(
+    let directory = document_attribute_text((attributes).get("iconsdir")).map_or_else(
         || {
-            attributes.get_string("imagesdir").map_or_else(
+            document_attribute_text((attributes).get("imagesdir")).map_or_else(
                 || "./images/icons".to_string(),
                 |imagesdir| format!("{}/icons", imagesdir.trim_end_matches(['/', '\\'])),
             )
@@ -1255,117 +1251,116 @@ impl PdfPreparation {
     }
 }
 
-fn collect_block_preparation(
-    blocks: &[Block<'_>],
-    context: &PreparationContext<'_, '_>,
-    preparation: &mut PdfPreparation,
-) {
-    for block in blocks {
+struct PreparationVisitor<'doc> {
+    references: &'doc HashMap<&'doc str, Reference<'doc>>,
+    preparation: PdfPreparation,
+}
+
+impl<'doc> Visitor<'doc> for PreparationVisitor<'doc> {
+    type Error = std::convert::Infallible;
+
+    fn before_block(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        block: &'doc Block<'doc>,
+    ) -> Result<(), Self::Error> {
+        let context = PreparationContext {
+            attributes: traversal,
+            references: self.references,
+        };
+        let preparation = &mut self.preparation;
         match block {
-            Block::Section(section) => {
-                if section.kind == acdc_parser::SectionKind::Index {
-                    collect_inline_preparation(section.title.as_ref(), context, preparation);
-                    if preparation.has_index_terms {
-                        preparation.populated_index_sections.insert(
-                            acdc_parser::Section::generate_id_string(
-                                &section.metadata,
-                                section.title.as_ref(),
-                            ),
-                        );
-                    }
-                    continue;
-                }
-                collect_inline_preparation(section.title.as_ref(), context, preparation);
-                collect_block_preparation(&section.content, context, preparation);
-            }
             Block::Paragraph(paragraph) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_paragraph(paragraph);
-                preparation.has_autofit_blocks |=
-                    is_autofit_paragraph(paragraph, context.attributes);
-                collect_inline_preparation(paragraph.title.as_ref(), context, preparation);
-                collect_metadata_preparation(&paragraph.metadata, context, preparation);
-                collect_inline_preparation(&paragraph.content, context, preparation);
+                preparation.has_autofit_blocks |= is_autofit_paragraph(paragraph, traversal);
+                collect_metadata_preparation(&paragraph.metadata, &context, preparation);
             }
             Block::DelimitedBlock(block) => {
                 preparation.has_unbreakable_blocks |= is_unbreakable_delimited_block(block);
-                preparation.has_autofit_blocks |=
-                    is_autofit_delimited_block(block, context.attributes);
-                collect_inline_preparation(block.title.as_ref(), context, preparation);
-                collect_metadata_preparation(&block.metadata, context, preparation);
-                collect_delimited_block_preparation(&block.inner, context, preparation);
-            }
-            Block::OrderedList(list) => {
-                collect_inline_preparation(list.title.as_ref(), context, preparation);
-                for item in &list.items {
-                    collect_list_item_preparation(item, context, preparation);
-                }
-            }
-            Block::UnorderedList(list) => {
-                collect_inline_preparation(list.title.as_ref(), context, preparation);
-                for item in &list.items {
-                    collect_list_item_preparation(item, context, preparation);
-                }
+                preparation.has_autofit_blocks |= is_autofit_delimited_block(block, traversal);
+                collect_inline_preparation(&block.title, &context, preparation);
+                collect_metadata_preparation(&block.metadata, &context, preparation);
             }
             Block::DescriptionList(list) => {
-                collect_inline_preparation(list.title.as_ref(), context, preparation);
-                for item in &list.items {
-                    collect_inline_preparation(&item.term, context, preparation);
-                    collect_inline_preparation(&item.principal_text, context, preparation);
-                    collect_block_preparation(&item.description, context, preparation);
-                }
+                collect_inline_preparation(&list.title, &context, preparation);
             }
             Block::CalloutList(list) => {
-                collect_inline_preparation(list.title.as_ref(), context, preparation);
-                for item in &list.items {
-                    collect_inline_preparation(&item.principal, context, preparation);
-                    collect_block_preparation(&item.blocks, context, preparation);
-                }
+                collect_inline_preparation(&list.title, &context, preparation);
             }
             Block::Admonition(admonition) => {
-                collect_admonition_preparation(admonition, context, preparation);
+                collect_admonition_preparation(admonition, &context, preparation);
             }
             Block::Image(image) => {
-                collect_inline_preparation(image.title.as_ref(), context, preparation);
+                collect_inline_preparation(&image.title, &context, preparation);
                 preparation.insert_image(
-                    resolve_target(&image.source.to_string(), context.attributes),
+                    resolve_target(&image.source.to_string(), traversal),
                     &image.location,
                 );
             }
-            Block::DiscreteHeader(header) => {
-                collect_inline_preparation(header.title.as_ref(), context, preparation);
-            }
-            Block::Audio(audio) => {
-                collect_inline_preparation(audio.title.as_ref(), context, preparation);
-            }
+            Block::Audio(audio) => collect_inline_preparation(&audio.title, &context, preparation),
             Block::Video(video) => {
-                collect_inline_preparation(video.title.as_ref(), context, preparation);
+                collect_inline_preparation(&video.title, &context, preparation);
                 if let Some(poster) = video
                     .metadata
                     .attributes
                     .get_string("poster")
                     .filter(|poster| !poster.is_empty())
                 {
-                    preparation
-                        .insert_image(resolve_target(&poster, context.attributes), &video.location);
+                    preparation.insert_image(resolve_target(&poster, traversal), &video.location);
                 }
             }
-            Block::TableOfContents(_)
+            Block::Section(_)
+            | Block::OrderedList(_)
+            | Block::UnorderedList(_)
+            | Block::DiscreteHeader(_)
             | Block::DocumentAttribute(_)
+            | Block::TableOfContents(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
             | Block::Comment(_)
             | _ => {}
         }
+        Ok(())
+    }
+
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        section: &'doc acdc_parser::Section<'doc>,
+    ) -> Result<(), Self::Error> {
+        self.visit_inline_nodes(traversal, &section.title)?;
+        if section.kind == acdc_parser::SectionKind::Index {
+            if self.preparation.has_index_terms {
+                self.preparation.populated_index_sections.insert(
+                    acdc_parser::Section::generate_id_string(&section.metadata, &section.title),
+                );
+            }
+            return Ok(());
+        }
+        traversal.visit_blocks(self, &section.content)
+    }
+
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        nodes: &[InlineNode<'_>],
+    ) -> Result<(), Self::Error> {
+        let context = PreparationContext {
+            attributes: traversal,
+            references: self.references,
+        };
+        collect_inline_preparation(nodes, &context, &mut self.preparation);
+        Ok(())
     }
 }
 
-fn collect_admonition_preparation(
-    admonition: &Admonition<'_>,
+fn collect_admonition_preparation<'a>(
+    admonition: &'a Admonition<'a>,
     context: &PreparationContext<'_, '_>,
     preparation: &mut PdfPreparation,
 ) {
     preparation.has_unbreakable_blocks |= admonition.metadata.options.contains(&"unbreakable");
-    if context.icon_mode != IconMode::Text
+    if IconMode::from_attributes(context.attributes) != IconMode::Text
         && let Some(icon) = admonition
             .metadata
             .attributes
@@ -1384,7 +1379,6 @@ fn collect_admonition_preparation(
         );
     }
     collect_inline_preparation(admonition.title.as_ref(), context, preparation);
-    collect_block_preparation(&admonition.blocks, context, preparation);
 }
 
 fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
@@ -1395,7 +1389,7 @@ fn is_unbreakable_paragraph(paragraph: &acdc_parser::Paragraph<'_>) -> bool {
         )
 }
 
-fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
+fn is_unbreakable_delimited_block<'a>(block: &'a DelimitedBlock<'a>) -> bool {
     block.metadata.options.contains(&"unbreakable")
         && matches!(
             block.inner,
@@ -1411,14 +1405,14 @@ fn is_unbreakable_delimited_block(block: &DelimitedBlock<'_>) -> bool {
         )
 }
 
-fn is_page_breakable_table(block: &DelimitedBlock<'_>) -> bool {
+fn is_page_breakable_table<'a>(block: &'a DelimitedBlock<'a>) -> bool {
     !block.metadata.options.contains(&"unbreakable")
         && matches!(block.inner, DelimitedBlockType::DelimitedTable(_))
 }
 
 fn is_autofit_paragraph(
     paragraph: &acdc_parser::Paragraph<'_>,
-    attributes: &DocumentAttributes<'_>,
+    attributes: &TraversalContext<'_>,
 ) -> bool {
     matches!(
         paragraph.metadata.style,
@@ -1426,9 +1420,9 @@ fn is_autofit_paragraph(
     ) && has_autofit_option(&paragraph.metadata, attributes)
 }
 
-fn is_autofit_delimited_block(
-    block: &DelimitedBlock<'_>,
-    attributes: &DocumentAttributes<'_>,
+fn is_autofit_delimited_block<'a>(
+    block: &'a DelimitedBlock<'a>,
+    attributes: &TraversalContext<'_>,
 ) -> bool {
     matches!(
         block.inner,
@@ -1436,59 +1430,8 @@ fn is_autofit_delimited_block(
     ) && has_autofit_option(&block.metadata, attributes)
 }
 
-fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &DocumentAttributes<'_>) -> bool {
-    metadata.options.contains(&"autofit") || attributes.contains_key("autofit-option")
-}
-
-fn collect_delimited_block_preparation(
-    block: &DelimitedBlockType<'_>,
-    context: &PreparationContext<'_, '_>,
-    preparation: &mut PdfPreparation,
-) {
-    match block {
-        DelimitedBlockType::DelimitedExample(blocks)
-        | DelimitedBlockType::DelimitedOpen(blocks)
-        | DelimitedBlockType::DelimitedSidebar(blocks)
-        | DelimitedBlockType::DelimitedQuote(blocks) => {
-            collect_block_preparation(blocks, context, preparation);
-        }
-        DelimitedBlockType::DelimitedTable(table) => {
-            collect_table_preparation(table, context, preparation);
-        }
-        DelimitedBlockType::DelimitedComment(_)
-        | DelimitedBlockType::DelimitedListing(_)
-        | DelimitedBlockType::DelimitedLiteral(_)
-        | DelimitedBlockType::DelimitedPass(_)
-        | DelimitedBlockType::DelimitedVerse(_)
-        | DelimitedBlockType::DelimitedStem(_)
-        | _ => {}
-    }
-}
-
-fn collect_table_preparation(
-    table: &Table<'_>,
-    context: &PreparationContext<'_, '_>,
-    preparation: &mut PdfPreparation,
-) {
-    for row in table
-        .header
-        .iter()
-        .chain(table.rows.iter())
-        .chain(table.footer.iter())
-    {
-        for column in &row.columns {
-            collect_block_preparation(&column.content, context, preparation);
-        }
-    }
-}
-
-fn collect_list_item_preparation(
-    item: &ListItem<'_>,
-    context: &PreparationContext<'_, '_>,
-    preparation: &mut PdfPreparation,
-) {
-    collect_inline_preparation(&item.principal, context, preparation);
-    collect_block_preparation(&item.blocks, context, preparation);
+fn has_autofit_option(metadata: &BlockMetadata<'_>, attributes: &TraversalContext<'_>) -> bool {
+    metadata.options.contains(&"autofit") || attributes.get("autofit-option").is_some()
 }
 
 fn collect_metadata_preparation(
@@ -1541,25 +1484,27 @@ fn collect_inline_preparation(
                     &image.location,
                 );
             }
-            InlineNode::Macro(InlineMacro::Icon(icon)) => match context.icon_mode {
-                IconMode::Image => preparation.insert_image_icon(
-                    icon_image_source(context.attributes, &icon.target),
-                    &icon.target,
-                    &icon.location,
-                ),
-                IconMode::Font => {
-                    let icon_name = icon.target.to_string();
-                    if builtin_icon_glyph(&icon_name).is_none() {
-                        preparation
-                            .unsupported_font_icons
-                            .push(UnsupportedFontIcon {
-                                name: icon_name,
-                                location: icon.location.clone(),
-                            });
+            InlineNode::Macro(InlineMacro::Icon(icon)) => {
+                match IconMode::from_attributes(context.attributes) {
+                    IconMode::Image => preparation.insert_image_icon(
+                        icon_image_source(context.attributes, &icon.target),
+                        &icon.target,
+                        &icon.location,
+                    ),
+                    IconMode::Font => {
+                        let icon_name = icon.target.to_string();
+                        if builtin_icon_glyph(&icon_name).is_none() {
+                            preparation
+                                .unsupported_font_icons
+                                .push(UnsupportedFontIcon {
+                                    name: icon_name,
+                                    location: icon.location.clone(),
+                                });
+                        }
                     }
+                    IconMode::Text | _ => {}
                 }
-                IconMode::Text | _ => {}
-            },
+            }
             InlineNode::Macro(InlineMacro::Footnote(footnote)) => {
                 collect_inline_preparation(&footnote.content, context, preparation);
             }
@@ -1667,8 +1612,9 @@ fn encode_footnote_label(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use acdc_converters_core::{Converter, Warning, WarningSource};
-    use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title};
-    use tempfile::NamedTempFile;
+    use acdc_parser::{DelimitedBlock, Image, Location, Paragraph, Plain, Title, parse};
+    use std::{error::Error as StdError, io::Error as IoError};
+    use tempfile::{NamedTempFile, tempdir};
 
     use super::*;
 
@@ -1680,9 +1626,13 @@ mod tests {
         })])
     }
 
-    fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+    fn render_warnings(input: &str) -> Result<Vec<Warning>, Box<dyn StdError>> {
+        let parsed = parse(input, &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         {
@@ -1694,52 +1644,88 @@ mod tests {
     }
 
     #[test]
-    fn admonition_icon_source_honors_icon_directory_and_type() {
-        let mut attributes = DocumentAttributes::default();
-        attributes.set("imagesdir".into(), "media".into());
-        attributes.set("icons".into(), "svg".into());
+    fn admonition_icon_source_honors_icon_directory_and_type() -> Result<(), Box<dyn StdError>> {
+        let mut attributes = std::collections::HashMap::<
+            std::borrow::Cow<'_, str>,
+            acdc_parser::AttributeValue<'_>,
+        >::new();
+        attributes.insert("imagesdir".into(), "media".into());
+        attributes.insert("icons".into(), "svg".into());
 
         assert_eq!(
-            admonition_icon_source(&attributes, "custom-note"),
+            admonition_icon_source(
+                &TraversalContext::new(
+                    &ParserOptions::builder()
+                        .with_defaults(attributes.clone())
+                        .build()?
+                        .into_document_attributes()
+                ),
+                "custom-note"
+            ),
             "media/icons/custom-note.svg"
         );
-        attributes.set("iconsdir".into(), "assets/icons/".into());
+        attributes.insert("iconsdir".into(), "assets/icons/".into());
         assert_eq!(
-            admonition_icon_source(&attributes, "custom-note.png"),
+            admonition_icon_source(
+                &TraversalContext::new(
+                    &ParserOptions::builder()
+                        .with_defaults(attributes.clone())
+                        .build()?
+                        .into_document_attributes()
+                ),
+                "custom-note.png"
+            ),
             "assets/icons/custom-note.png"
         );
         assert_eq!(
-            admonition_icon_source(&attributes, "https://example.com/note"),
+            admonition_icon_source(
+                &TraversalContext::new(
+                    &ParserOptions::builder()
+                        .with_defaults(attributes.clone())
+                        .build()?
+                        .into_document_attributes()
+                ),
+                "https://example.com/note"
+            ),
             "https://example.com/note.svg"
         );
+        Ok(())
     }
 
-    fn rendered_page_count(input: &str) -> Result<usize, Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+    fn rendered_page_count(input: &str) -> Result<usize, Box<dyn StdError>> {
+        let parsed = parse(input, &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         assert!(warnings.is_empty(), "{warnings:?}");
         Ok(pdf.get_pages().len())
     }
 
-    fn rendered_page_texts(input: &str) -> Result<Vec<String>, Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                plain: true,
-                ..PdfOptions::default()
-            });
+    fn rendered_page_texts(input: &str) -> Result<Vec<String>, Box<dyn StdError>> {
+        let parsed = parse(input, &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            plain: true,
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf
             .get_pages()
             .into_keys()
@@ -1752,9 +1738,7 @@ mod tests {
 
     type PageLabelRange = (i64, String, i64);
 
-    fn page_label_ranges(
-        pdf: &lopdf::Document,
-    ) -> Result<Vec<PageLabelRange>, Box<dyn std::error::Error>> {
+    fn page_label_ranges(pdf: &PdfDocument) -> Result<Vec<PageLabelRange>, Box<dyn StdError>> {
         let labels = pdf.catalog()?.get(b"PageLabels")?;
         let (_, labels) = pdf.dereference(labels)?;
         let nums = labels.as_dict()?.get(b"Nums")?;
@@ -1774,13 +1758,13 @@ mod tests {
         Ok(ranges)
     }
 
-    fn page_numbering_theme(start: &str) -> Result<NamedTempFile, Box<dyn std::error::Error>> {
+    fn page_numbering_theme(start: &str) -> Result<NamedTempFile, Box<dyn StdError>> {
         let theme = include_str!("../crates/theme/assets/theme/default.yaml").replace(
             "page_numbering_start_at: body",
             &format!("page_numbering_start_at: {start}"),
         );
         let file = NamedTempFile::new()?;
-        std::fs::write(file.path(), theme)?;
+        write(file.path(), theme)?;
         Ok(file)
     }
 
@@ -1807,19 +1791,23 @@ mod tests {
     }
 
     #[test]
-    fn body_page_numbering_uses_roman_title_and_arabic_body_labels()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn body_page_numbering_uses_roman_title_and_arabic_body_labels() -> Result<(), Box<dyn StdError>>
+    {
+        let parsed = parse(
             "= Numbered document\n:title-page:\n\nBody.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         assert_eq!(
             page_label_ranges(&pdf)?,
@@ -1831,23 +1819,27 @@ mod tests {
 
     #[test]
     fn integer_page_numbering_start_labels_body_pages_relative_to_the_body()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn StdError>> {
         let theme = page_numbering_theme("3")?;
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "= Numbered document\n:title-page:\n\nBody page one.\n\n<<<\n\nBody page two.\n\n<<<\n\nBody page three.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                theme: Some(theme.path().to_path_buf()),
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            theme: Some(theme.path().to_path_buf()),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         assert_eq!(
             page_label_ranges(&pdf)?,
@@ -1858,18 +1850,21 @@ mod tests {
     }
 
     #[test]
-    fn after_toc_page_numbering_starts_after_the_automatic_toc()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn after_toc_page_numbering_starts_after_the_automatic_toc() -> Result<(), Box<dyn StdError>> {
         let theme = page_numbering_theme("after-toc")?;
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "= Numbered document\n:title-page:\n:toc:\n\n== First section\n\nBody.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                theme: Some(theme.path().to_path_buf()),
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            theme: Some(theme.path().to_path_buf()),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -1877,10 +1872,10 @@ mod tests {
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         let toc = typst
             .find("#let _acdc_toc_entry")
-            .ok_or_else(|| std::io::Error::other("automatic TOC helper was not emitted"))?;
+            .ok_or_else(|| IoError::other("automatic TOC helper was not emitted"))?;
         let arabic = typst
             .find("#set page(numbering: \"1\")")
-            .ok_or_else(|| std::io::Error::other("Arabic numbering was not emitted"))?;
+            .ok_or_else(|| IoError::other("Arabic numbering was not emitted"))?;
 
         assert!(toc < arabic, "{typst}");
         assert!(warnings.is_empty(), "{warnings:?}");
@@ -1889,24 +1884,28 @@ mod tests {
 
     #[test]
     fn print_index_keeps_roman_pages_separate_and_spans_the_arabic_boundary()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn StdError>> {
         let theme = page_numbering_theme("5")?;
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "= Mixed index labels\n:title-page:\n:media: print\n\nBody page one.\n\n<<<\n\n((term))Body page two.\n\n<<<\n\n((term))Body page three.\n\n<<<\n\n((term))Body page four.\n\n<<<\n\n((term))Body page five.\n\n<<<\n\n((term))Body page six.\n\n<<<\n\n((term))Body page seven.\n\n[index]\n== Index\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                theme: Some(theme.path().to_path_buf()),
-                plain: true,
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            theme: Some(theme.path().to_path_buf()),
+            plain: true,
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -1917,13 +1916,16 @@ mod tests {
     }
 
     #[test]
-    fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let parsed = acdc_parser::parse(
+    fn ordered_list_reversed_option_reverses_typst_enum() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "[%reversed,start=5]\n. Five\n. Four\n. Three\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -1938,14 +1940,18 @@ mod tests {
     }
 
     #[test]
-    fn page_break_always_option_controls_blank_pages() -> Result<(), Box<dyn std::error::Error>> {
+    fn page_break_always_option_controls_blank_pages() -> Result<(), Box<dyn StdError>> {
         let default_breaks = "= Default page breaks\n\nFirst page.\n\n<<<\n\n<<<\n\nSecond page.\n";
         let forced_break =
             "= Forced page break\n\nFirst page.\n\n<<<\n\n[%always]\n<<<\n\nSecond page.\n";
         let separated_breaks = "= Separated page breaks\n\nFirst page.\n\n<<<\n\nSecond page.\n\n[%always]\n<<<\n\nThird page.\n";
 
-        let parsed = acdc_parser::parse(forced_break, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let parsed = parse(forced_break, &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -1963,13 +1969,16 @@ mod tests {
     }
 
     #[test]
-    fn document_page_setup_honors_named_size_and_landscape()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn document_page_setup_honors_named_size_and_landscape() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n\nWide content.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -1990,8 +1999,7 @@ mod tests {
     }
 
     #[test]
-    fn document_page_setup_accepts_supported_named_sizes() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn document_page_setup_accepts_supported_named_sizes() -> Result<(), Box<dyn StdError>> {
         for (attribute, paper) in [
             ("A3", "a3"),
             ("A4", "a4"),
@@ -2002,9 +2010,12 @@ mod tests {
             ("Tabloid", "us-tabloid"),
         ] {
             let input = format!("= Page setup\n:pdf-page-size: {attribute}\n\nContent.\n");
-            let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
-            let processor =
-                Processor::new(Options::default(), parsed.document().attributes.clone());
+            let parsed = parse(&input, &ParserOptions::default())?;
+            let processor = Processor::new(
+                Options::default(),
+                ParserOptions::builder()
+                    .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2021,13 +2032,17 @@ mod tests {
     }
 
     #[test]
-    fn document_page_setup_accepts_custom_dimensions_and_margins()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn document_page_setup_accepts_custom_dimensions_and_margins() -> Result<(), Box<dyn StdError>>
+    {
+        let parsed = parse(
             "= Page setup\n:pdf-page-size: [8.5in, 11in]\n:pdf-page-layout: landscape\n:pdf-page-margin: [0.5in, 0.75in, 1in, 1.25in]\n\nContent.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2048,12 +2063,11 @@ mod tests {
     }
 
     #[test]
-    fn page_geometry_parsers_accept_reference_measurement_forms()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn page_geometry_parsers_accept_reference_measurement_forms() -> Result<(), Box<dyn StdError>> {
         let custom = PageSize::try_custom(612.0, 792.0)?;
         assert_eq!(parse_page_size("8.5in x 11in"), Some(custom));
         let metric = parse_page_size("[215.9mm, 27.94cm]")
-            .ok_or_else(|| std::io::Error::other("metric custom page size did not parse"))?;
+            .ok_or_else(|| IoError::other("metric custom page size did not parse"))?;
         assert!((metric.width_points(PageLayout::Portrait) - 612.0).abs() < 1e-9);
         assert!((metric.height_points(PageLayout::Portrait) - 792.0).abs() < 1e-9);
         assert_eq!(
@@ -2068,12 +2082,16 @@ mod tests {
     }
 
     #[test]
-    fn invalid_page_geometry_warns_and_uses_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn invalid_page_geometry_warns_and_uses_fallbacks() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Page setup\n:pdf-page-size: 0in x 11in\n:pdf-page-margin: [-1in]\n\nContent.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2099,12 +2117,16 @@ mod tests {
     }
 
     #[test]
-    fn page_setup_warns_when_margins_consume_the_page() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn page_setup_warns_when_margins_consume_the_page() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Page setup\n:pdf-page-size: A5\n:pdf-page-margin: 300pt\n\nContent.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2124,18 +2146,22 @@ mod tests {
     }
 
     #[test]
-    fn pdf_options_override_document_page_setup() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn pdf_options_override_document_page_setup() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Page setup\n:pdf-page-size: A3\n:pdf-page-layout: landscape\n:pdf-page-margin: 1in\n\nContent.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                page: Some(PageSize::A5),
-                page_layout: Some(PageLayout::Portrait),
-                page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            page: Some(PageSize::A5),
+            page_layout: Some(PageLayout::Portrait),
+            page_margin: Some(PageMargins::try_new(36.0, 54.0, 72.0, 90.0)?),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2155,19 +2181,22 @@ mod tests {
     }
 
     #[test]
-    fn unbreakable_option_wraps_only_supported_pdf_block_contexts()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let supported = acdc_parser::parse(
+    fn unbreakable_option_wraps_only_supported_pdf_block_contexts() -> Result<(), Box<dyn StdError>>
+    {
+        let supported = parse(
             "[options=unbreakable]\n----\nlisting\n----\n\n[source%unbreakable]\n----\nsource\n----\n\n[%unbreakable]\n....\nliteral\n....\n\n[%unbreakable]\n====\nexample\n====\n\n[%collapsible%unbreakable]\n====\ncollapsible example\n====\n\n[%unbreakable]\n--\nopen\n--\n\n[quote%unbreakable]\n____\nquote\n____\n\n[verse%unbreakable]\n____\nverse\n____\n\n[%unbreakable]\n****\nsidebar\n****\n\n[stem%unbreakable]\n++++\nx\n++++\n\n[%unbreakable]\n|===\n|table\n|===\n\n[%unbreakable]\nNOTE: admonition\n\n[source%unbreakable]\nsource paragraph\n\n[listing%unbreakable]\nlisting paragraph\n\n[literal%unbreakable]\nliteral paragraph\n\n[example%unbreakable]\nexample paragraph\n\n[quote%unbreakable]\nquote paragraph\n\n[verse%unbreakable]\nverse paragraph\n\n[sidebar%unbreakable]\nsidebar paragraph\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let unsupported = acdc_parser::parse(
+        let unsupported = parse(
             ":unbreakable-option:\n\n[%unbreakable]\nparagraph\n\n[%unbreakable]\n. list item\n\n[pass%unbreakable]\n++++\npassthrough\n++++\n\n----\nlisting without a local option\n----\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
 
-        let render = |document: &Document<'_>| -> Result<String, Box<dyn std::error::Error>> {
-            let processor = Processor::new(Options::default(), document.attributes.clone());
+        let render = |document: &Document<'_>| -> Result<String, Box<dyn StdError>> {
+            let processor = Processor::new(
+                Options::default(),
+                ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2194,22 +2223,25 @@ mod tests {
 
     #[test]
     fn autofit_option_applies_only_to_listing_source_and_literal_contexts()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let local = acdc_parser::parse(
+    -> Result<(), Box<dyn StdError>> {
+        let local = parse(
             ".Listing caption\n[options=autofit]\n----\nlisting\n----\n\n[source%autofit]\n----\nsource\n----\n\n[%autofit]\n....\nliteral\n....\n\n[source%autofit]\nsource paragraph\n\n[listing%autofit]\nlisting paragraph\n\n[literal%autofit]\nliteral paragraph\n\n|===\na|\n[source%autofit]\n----\nnested source\n----\n|===\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let global = acdc_parser::parse(
+        let global = parse(
             ":autofit-option:\n\n----\nlisting\n----\n\n[source]\n----\nsource\n----\n\n....\nliteral\n....\n\n[source]\nsource paragraph\n\n[listing]\nlisting paragraph\n\n[literal]\nliteral paragraph\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let unsupported = acdc_parser::parse(
+        let unsupported = parse(
             ":autofit-option:\n\nordinary paragraph\n\n[example]\nexample paragraph\n\n[quote]\nquote paragraph\n\n[verse]\nverse paragraph\n\n[sidebar]\nsidebar paragraph\n\n[pass]\n++++\npassthrough\n++++\n\n|===\n\nl|literal table cell\n|===\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
 
-        let render = |document: &Document<'_>| -> Result<String, Box<dyn std::error::Error>> {
-            let processor = Processor::new(Options::default(), document.attributes.clone());
+        let render = |document: &Document<'_>| -> Result<String, Box<dyn StdError>> {
+            let processor = Processor::new(
+                Options::default(),
+                ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+            )?;
             let source = WarningSource::new("pdf");
             let mut warnings = Vec::new();
             let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2228,10 +2260,10 @@ mod tests {
         assert_eq!(local.matches(call).count(), 7, "{local}");
         let caption = local
             .find("Listing caption")
-            .ok_or_else(|| std::io::Error::other("missing listing caption in generated Typst"))?;
+            .ok_or_else(|| IoError::other("missing listing caption in generated Typst"))?;
         let first_autofit = local
             .find(call)
-            .ok_or_else(|| std::io::Error::other("missing autofit call in generated Typst"))?;
+            .ok_or_else(|| IoError::other("missing autofit call in generated Typst"))?;
         assert!(caption < first_autofit, "{local}");
         assert!(global.contains(helper), "{global}");
         assert_eq!(global.matches(call).count(), 6, "{global}");
@@ -2251,14 +2283,18 @@ mod tests {
 
     #[test]
     fn autofit_preserves_original_lines_and_keeps_minimum_size_fallback_breakable()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn StdError>> {
         let medium_line = format!("medium-{}-end", "0123456789".repeat(10));
         let oversized_line = format!("oversized-{}-end", "abcdefghij".repeat(40));
         let input = format!(
             ":source-highlighter: rouge\n\n[source%autofit,rust,linenums,start=98,highlight=99]\n----\n{medium_line} <1>\nshort line\nthird line\n----\n<1> Callout explanation.\n\n[%autofit]\n....\n{oversized_line}\n....\n"
         );
-        let parsed = acdc_parser::parse(&input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let parsed = parse(&input, &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2281,12 +2317,16 @@ mod tests {
     }
 
     #[test]
-    fn autofit_uses_theme_code_sizes_and_padding() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn autofit_uses_theme_code_sizes_and_padding() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "[%autofit]\n----\na code line that requires the autofit helper\n----\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let mut theme = Theme::default();
         theme.typography.code_size_em = 0.9;
         theme.typography.code_min_size_em = 0.45;
@@ -2320,7 +2360,7 @@ mod tests {
 
     #[test]
     fn unbreakable_option_moves_fitting_listing_and_preserves_oversized_listing()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn StdError>> {
         let prefix = "= acdc Move probe\n\nFILL01 filler paragraph.\n\nFILL02 filler paragraph.\n\nFILL03 filler paragraph.\n\nFILL04 filler paragraph.\n\nFILL05 filler paragraph.\n\nFILL06 filler paragraph.\n\nFILL07 filler paragraph.\n\nFILL08 filler paragraph.\n\nFILL09 filler paragraph.\n\nFILL10 filler paragraph.\n\nFILL11 filler paragraph.\n\nFILL12 filler paragraph.\n\nFILL13 filler paragraph.\n\nFILL14 filler paragraph.\n\nFILL15 filler paragraph.\n\nFILL16 filler paragraph.\n\nFILL17 filler paragraph.\n\nFILL18 filler paragraph.\n\nFILL19 filler paragraph.\n\nFILL20 filler paragraph.\n\n.Target caption\n[listing%unbreakable]\n----\n";
         let fitting = format!(
             "{prefix}CODE01 target line\nCODE02 target line\nCODE03 target line\nCODE04 target line\nCODE05 target line\nCODE06 target line\nCODE07 target line\nCODE08 target line\n----\n\nAFTER target.\n"
@@ -2328,10 +2368,10 @@ mod tests {
         let fitting_pages = rendered_page_texts(&fitting)?;
         let first_page = fitting_pages
             .first()
-            .ok_or_else(|| std::io::Error::other("missing first page"))?;
+            .ok_or_else(|| IoError::other("missing first page"))?;
         let second_page = fitting_pages
             .get(1)
-            .ok_or_else(|| std::io::Error::other("missing second page"))?;
+            .ok_or_else(|| IoError::other("missing second page"))?;
 
         assert!(first_page.contains("FILL20"), "{fitting_pages:?}");
         assert!(!first_page.contains("Target caption"), "{fitting_pages:?}");
@@ -2347,7 +2387,7 @@ mod tests {
         let oversized_pages = rendered_page_texts(&oversized)?;
         let oversized_first_page = oversized_pages
             .first()
-            .ok_or_else(|| std::io::Error::other("missing first page"))?;
+            .ok_or_else(|| IoError::other("missing first page"))?;
 
         assert!(oversized_pages.len() > 1, "{oversized_pages:?}");
         assert!(
@@ -2365,8 +2405,8 @@ mod tests {
     }
 
     #[test]
-    fn page_breakable_tables_keep_their_caption_with_the_first_row()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn page_breakable_tables_keep_their_caption_with_the_first_row() -> Result<(), Box<dyn StdError>>
+    {
         for metadata in ["[#target-table]", "[#target-table%breakable]"] {
             let mut input = String::from("= Table pagination probe\n\n");
             for line in 1..=24 {
@@ -2381,31 +2421,35 @@ mod tests {
             let caption_page = pages
                 .iter()
                 .position(|page| page.contains("TARGET TABLE CAPTION"))
-                .ok_or_else(|| std::io::Error::other("missing table caption"))?;
+                .ok_or_else(|| IoError::other("missing table caption"))?;
             let first_row_page = pages
                 .iter()
                 .position(|page| page.contains("FIRST ROW CELL"))
-                .ok_or_else(|| std::io::Error::other("missing first table row"))?;
+                .ok_or_else(|| IoError::other("missing first table row"))?;
 
             assert_eq!(caption_page, first_row_page, "{metadata}: {pages:?}");
             let previous_page = caption_page
                 .checked_sub(1)
                 .and_then(|index| pages.get(index))
-                .ok_or_else(|| std::io::Error::other("missing page before table"))?;
+                .ok_or_else(|| IoError::other("missing page before table"))?;
             assert!(previous_page.contains("FILL24"), "{metadata}: {pages:?}");
         }
         Ok(())
     }
 
     #[test]
-    fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse("text", &acdc_parser::Options::default())?;
+    fn unhandled_parser_block_warning_is_structured() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse("text", &ParserOptions::default())?;
         let block = parsed
             .document()
             .blocks
             .first()
-            .ok_or_else(|| std::io::Error::other("missing parsed block"))?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+            .ok_or_else(|| IoError::other("missing parsed block"))?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let assets = ImageMap::new();
         let theme = Theme::default();
         let emit_options = EmitOptions {
@@ -2417,6 +2461,7 @@ mod tests {
         let mut warnings = Vec::new();
         {
             let diagnostics = Diagnostics::new(&source, &mut warnings);
+            let mut traversal = TraversalContext::new(&parsed.document().attributes);
             let mut visitor = PdfVisitor::new(
                 processor,
                 &assets,
@@ -2428,13 +2473,13 @@ mod tests {
                 Vec::new(),
                 diagnostics,
             );
-            visitor.visit_unhandled_block(block)?;
+            visitor.visit_unhandled_block(&mut traversal, block)?;
         }
 
         assert_eq!(warnings.len(), 1);
         let warning = warnings
             .first()
-            .ok_or_else(|| std::io::Error::other("missing parser variant warning"))?;
+            .ok_or_else(|| IoError::other("missing parser variant warning"))?;
         assert_eq!(
             warning.message,
             "an unsupported parser block variant was omitted from PDF output"
@@ -2448,14 +2493,13 @@ mod tests {
         Ok(())
     }
 
-    fn external_link_targets(pdf: &lopdf::Document) -> Vec<String> {
+    fn external_link_targets(pdf: &PdfDocument) -> Vec<String> {
         let mut targets = pdf
             .objects
             .values()
             .filter_map(|object| {
                 let link = object.as_dict().ok()?;
-                if !matches!(link.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
-                {
+                if !matches!(link.get(b"Subtype"), Ok(Object::Name(name)) if name == b"Link") {
                     return None;
                 }
                 let action = link.get(b"A").ok()?.as_dict().ok()?;
@@ -2467,12 +2511,12 @@ mod tests {
         targets
     }
 
-    fn pdf_contains_outline_title(pdf: &lopdf::Document, expected: &str) -> bool {
+    fn pdf_contains_outline_title(pdf: &PdfDocument, expected: &str) -> bool {
         pdf.objects.values().any(|object| {
             let Ok(dictionary) = object.as_dict() else {
                 return false;
             };
-            let Ok(title) = dictionary.get(b"Title").and_then(lopdf::Object::as_str) else {
+            let Ok(title) = dictionary.get(b"Title").and_then(Object::as_str) else {
                 return false;
             };
             String::from_utf8_lossy(title) == expected
@@ -2481,12 +2525,16 @@ mod tests {
 
     #[test]
     fn index_notitle_hides_heading_and_catalog_uses_default_columns()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Index columns\n\nVisible ((alpha)) and ((beta)).\n\n[index%notitle]\n== Hidden Index\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2506,12 +2554,16 @@ mod tests {
     }
 
     #[test]
-    fn section_notitle_hides_only_the_body_heading() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn section_notitle_hides_only_the_body_heading() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Section metadata\n:toc:\n:sectnums:\n\nSee <<hidden-section>>.\n\n[#hidden-section%notitle]\n== Hidden *Section*\n\nHidden section body.\n\n=== Child Section\n\nChild body.\n\n[discrete#visible-discrete%notitle]\n=== Visible Discrete\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2545,7 +2597,7 @@ mod tests {
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -2562,13 +2614,16 @@ mod tests {
     }
 
     #[test]
-    fn lead_role_and_automatic_preamble_lead_use_larger_text()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn lead_role_and_automatic_preamble_lead_use_larger_text() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Lead paragraphs\n\nAutomatic lead paragraph.\n\nSecond preamble paragraph.\n\n== Section\n\nNormal section paragraph.\n\n[.lead]\nExplicit lead paragraph.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2595,11 +2650,15 @@ mod tests {
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
 
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "= Existing role\n\n[.other]\nRole prevents automatic lead.\n\n== Section\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
@@ -2614,12 +2673,16 @@ mod tests {
     }
 
     #[test]
-    fn index_catalog_uses_custom_theme_columns_and_gap() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn index_catalog_uses_custom_theme_columns_and_gap() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "Visible ((alpha)) and ((beta)).\n\n[index]\n== Index\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let mut theme = Theme::default();
         theme.index.columns = 3;
         theme.index.column_gap_pt = None;
@@ -2666,12 +2729,16 @@ mod tests {
     }
 
     #[test]
-    fn print_media_index_uses_plain_unique_page_ranges() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn print_media_index_uses_plain_unique_page_ranges() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Print index\n:media: print\n:index-pagenum-sequence-style: page\n\nFirst ((term)) and same-page ((term)).\n\n<<<\n\nSecond ((term)).\n\n<<<\n\nA page without the indexed term.\n\n<<<\n\nFourth ((term)).\n\n[index]\n== Index\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2682,7 +2749,7 @@ mod tests {
             "#_acdc_index_pages((<__indexterm-1>,<__indexterm-2>,<__indexterm-3>,<__indexterm-4>,), \"print\")"
         ));
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -2692,7 +2759,7 @@ mod tests {
             .values()
             .filter(|object| {
                 object.as_dict().is_ok_and(|dictionary| {
-                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                    matches!(dictionary.get(b"Subtype"), Ok(Object::Name(name)) if name == b"Link")
                 })
             })
             .count();
@@ -2702,12 +2769,16 @@ mod tests {
     }
 
     #[test]
-    fn audio_blocks_render_clickable_static_fallbacks() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn audio_blocks_render_clickable_static_fallbacks() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Audio fallbacks\n:imagesdir: media library\n\n.Local episode\n[[local-audio]]\naudio::clips/demo episode.mp3[]\n\naudio::https://example.com/podcast episode.mp3[start=5,end=10,opts=\"autoplay,loop,nocontrols\"]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2724,7 +2795,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         let warning = warnings
             .first()
-            .ok_or_else(|| std::io::Error::other("missing static media fallback warning"))?;
+            .ok_or_else(|| IoError::other("missing static media fallback warning"))?;
         assert_eq!(
             warning.message,
             "interactive media playback is unavailable in static PDF output; rendering clickable source links",
@@ -2741,7 +2812,7 @@ mod tests {
         );
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized_text = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -2767,12 +2838,16 @@ mod tests {
     }
 
     #[test]
-    fn video_blocks_preserve_clickable_static_sources() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn video_blocks_preserve_clickable_static_sources() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Video fallbacks\n:imagesdir: media\n\n.Local formats\n[[local-video]]\nvideo::clips/demo clip.mp4,clips/demo clip.webm[]\n\nvideo::https://media.example.test/demo clip.mp4[]\n\nvideo::dQw4w9WgXcQ[youtube,start=10,end=20,opts=\"autoplay,loop\"]\n\nvideo::76979871[vimeo,start=10,opts=muted]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2808,7 +2883,7 @@ mod tests {
         );
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         assert_eq!(
             external_link_targets(&pdf),
             [
@@ -2823,24 +2898,28 @@ mod tests {
     }
 
     #[test]
-    fn video_poster_is_a_linked_static_fallback() -> Result<(), Box<dyn std::error::Error>> {
-        let directory = tempfile::tempdir()?;
+    fn video_poster_is_a_linked_static_fallback() -> Result<(), Box<dyn StdError>> {
+        let directory = tempdir()?;
         let media_directory = directory.path().join("media library");
         std::fs::create_dir(&media_directory)?;
-        std::fs::write(
+        write(
             media_directory.join("poster file.svg"),
             r##"<svg xmlns="http://www.w3.org/2000/svg" width="160" height="90"><rect width="160" height="90" fill="#334155"/></svg>"##,
         )?;
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "= Video poster\n:imagesdir: media library\n\n.Poster title\n[[poster-video]]\nvideo::demo.mp4[poster=poster file.svg]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         let typst_path = directory.path().join("video-poster.typ");
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                emit_typst: Some(typst_path.clone()),
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            emit_typst: Some(typst_path.clone()),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -2868,7 +2947,7 @@ mod tests {
             ),
         );
 
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         assert_eq!(
             external_link_targets(&pdf),
             ["media%20library/demo.mp4".to_string()]
@@ -2877,8 +2956,7 @@ mod tests {
     }
 
     #[test]
-    fn inline_icon_failures_warn_for_each_macro_occurrence()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn inline_icon_failures_warn_for_each_macro_occurrence() -> Result<(), Box<dyn StdError>> {
         let font_warnings = render_warnings(
             ":icons: font\n\nicon:not-a-real-icon[] icon:another-missing[alt=Custom,size=2x,title=Title] icon:not-a-real-icon[] icon:heart[alt=Love,size=2x,title=Title]\n",
         )?;
@@ -2903,8 +2981,8 @@ mod tests {
             ]
         );
 
-        let directory = tempfile::tempdir()?;
-        std::fs::write(
+        let directory = tempdir()?;
+        write(
             directory.path().join("heart.svg"),
             r#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><path d="M0 0h10v10H0z"/></svg>"#,
         )?;
@@ -2968,8 +3046,7 @@ mod tests {
     }
 
     #[test]
-    fn caller_supplied_example_titles_keep_the_default_caption()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn caller_supplied_example_titles_keep_the_default_caption() -> Result<(), Box<dyn StdError>> {
         let caller_built = DelimitedBlock::new(
             DelimitedBlockType::DelimitedExample(Vec::new()),
             "====",
@@ -2977,14 +3054,14 @@ mod tests {
         )
         .with_title(title("Caller-built"));
 
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "[example]\n====\nContent.\n====\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         let Some(Block::DelimitedBlock(mut title_added)) =
             parsed.document().blocks.first().cloned()
         else {
-            return Err(std::io::Error::other("expected a delimited example").into());
+            return Err(IoError::other("expected a delimited example").into());
         };
         title_added.title = title("Added later");
 
@@ -2994,13 +3071,16 @@ mod tests {
             Block::DelimitedBlock(caller_built),
             Block::DelimitedBlock(title_added),
         ];
-        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(&document, None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
 
@@ -3012,7 +3092,7 @@ mod tests {
 
     #[test]
     fn caller_built_listing_and_styled_paragraph_titles_take_captions()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn StdError>> {
         // A block built through the API carries no resolved caption, so the converter
         // classifies it with the parser's own rules rather than dropping its caption.
         let listing = DelimitedBlock::new(
@@ -3026,20 +3106,22 @@ mod tests {
         styled_paragraph.metadata.style = Some("source");
 
         let mut document = Document::default();
-        document
-            .attributes
-            .set("listing-caption".into(), "Listing".into());
+        document.attributes = ParserOptions::with_attributes([("listing-caption", "Listing")])?
+            .into_document_attributes();
         document.blocks = vec![
             Block::DelimitedBlock(listing),
             Block::Paragraph(styled_paragraph),
         ];
-        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(&document, None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
 
@@ -3050,14 +3132,13 @@ mod tests {
     }
 
     #[test]
-    fn caller_built_table_titles_continue_table_numbering() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let parsed = acdc_parser::parse(
+    fn caller_built_table_titles_continue_table_numbering() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             ".Parsed table\n|===\n|Cell\n|===\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         let Some(Block::DelimitedBlock(parsed_table)) = parsed.document().blocks.first() else {
-            return Err(std::io::Error::other("expected a delimited table").into());
+            return Err(IoError::other("expected a delimited table").into());
         };
         let caller_built =
             DelimitedBlock::new(parsed_table.inner.clone(), "|===", Location::default())
@@ -3069,13 +3150,16 @@ mod tests {
             Block::DelimitedBlock(parsed_table.clone()),
             Block::DelimitedBlock(caller_built),
         ];
-        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(&document, None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
 
@@ -3086,28 +3170,30 @@ mod tests {
     }
 
     #[test]
-    fn caller_built_figure_titles_continue_figure_numbering()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn caller_built_figure_titles_continue_figure_numbering() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             ".Parsed figure\nimage::missing-one.svg[First]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         let caller_built = Image::new(Source::Name("missing-two.svg"), Location::default())
             .with_title(title("Caller-built figure"));
         let Some(parsed_figure) = parsed.document().blocks.first().cloned() else {
-            return Err(std::io::Error::other("expected a block image").into());
+            return Err(IoError::other("expected a block image").into());
         };
 
         let mut document = Document::default();
         document.attributes = parsed.document().attributes.clone();
         document.blocks = vec![parsed_figure, Block::Image(caller_built)];
-        let processor = Processor::new(Options::default(), document.attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder().with_attributes(document.attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(&document, None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
 
@@ -3117,18 +3203,22 @@ mod tests {
     }
 
     #[test]
-    fn captioned_block_xrefs_honor_source_order_styles() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn captioned_block_xrefs_honor_source_order_styles() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Caption cross-references\n:figure-caption: BeforeFigure\n:table-caption: BeforeTable\n:xrefstyle: short\n\nForward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nForward full: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: basic\n\nBasic: <<figure-target>> and <<table-target>>.\n\n:figure-caption: TargetFigure\n:table-caption: TargetTable\n\n[[figure-target]]\n.A figure title\nimage::missing-reference-image.svg[Missing]\n\n[[table-target]]\n.A table title\n|===\n|Cell\n|===\n\n:figure-caption: AfterFigure\n:table-caption: AfterTable\n:xrefstyle: short\n\nBackward short: <<figure-target>> and <<table-target>>.\n\n:xrefstyle: full\n\nBackward full: <<figure-target>> and <<table-target>>.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
 
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -3150,13 +3240,16 @@ mod tests {
     }
 
     #[test]
-    fn interdocument_xref_macros_link_to_other_pdf_documents()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn interdocument_xref_macros_link_to_other_pdf_documents() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "Empty: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\nFragment: xref:Foo#Bar[].\n\n== Other.adoc\n\n== Foo#Bar\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3178,7 +3271,7 @@ mod tests {
         }
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         assert_eq!(
             external_link_targets(&pdf),
             ["Foo.pdf#Bar", "Other.pdf", "Other.pdf"]
@@ -3188,12 +3281,16 @@ mod tests {
     }
 
     #[test]
-    fn compat_mode_keeps_natural_reference_unresolved() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn compat_mode_keeps_natural_reference_unresolved() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\n\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3210,7 +3307,7 @@ mod tests {
         );
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -3227,7 +3324,7 @@ mod tests {
             .values()
             .filter(|object| {
                 object.as_dict().is_ok_and(|dictionary| {
-                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                    matches!(dictionary.get(b"Subtype"), Ok(Object::Name(name)) if name == b"Link")
                 })
             })
             .count();
@@ -3237,13 +3334,16 @@ mod tests {
     }
 
     #[test]
-    fn passthroughs_are_restored_before_natural_xref_resolution()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3262,7 +3362,7 @@ mod tests {
         assert!(!typst.contains('\u{fffd}'), "{typst}");
 
         let rendered = render_pdf(&typst, &ImageMap::new(), &RenderConfig::default())?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -3285,7 +3385,7 @@ mod tests {
             .values()
             .filter(|object| {
                 object.as_dict().is_ok_and(|dictionary| {
-                    matches!(dictionary.get(b"Subtype"), Ok(lopdf::Object::Name(name)) if name == b"Link")
+                    matches!(dictionary.get(b"Subtype"), Ok(Object::Name(name)) if name == b"Link")
                 })
             })
             .count();
@@ -3296,12 +3396,16 @@ mod tests {
 
     #[test]
     fn captions_and_cross_reference_text_preserve_inline_formatting()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Formatted captions and references\n:subject-name: Ada\n:xrefstyle: basic\n\nBasic: <<table-target>>.\n\nExplicit: xref:table-target[Own *bold* _italic_ `mono` {subject-name} link:https://example.com[link]].\n\n:xrefstyle: full\n\nFull: <<table-target>>.\n\n[[table-target]]\n.Caption *bold* _italic_ `mono` {subject-name}\n|===\n|Cell\n|===\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3317,7 +3421,7 @@ mod tests {
         }
 
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -3336,20 +3440,24 @@ mod tests {
     }
 
     #[test]
-    fn document_title_id_is_a_pdf_destination_and_reference_target()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn document_title_id_is_a_pdf_destination_and_reference_target() -> Result<(), Box<dyn StdError>>
+    {
+        let parsed = parse(
             "[[unused-header-anchor]]\n[[document-header]]\n= Main *Title*: Subtitle _Details_\n\nSee <<document-header>>.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
 
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
 
         let (_, names) = pdf.dereference(pdf.catalog()?.get(b"Names")?)?;
         let (_, destinations) = pdf.dereference(names.as_dict()?.get(b"Dests")?)?;
@@ -3396,16 +3504,20 @@ mod tests {
 
     #[test]
     fn explicit_page_header_title_does_not_replace_document_metadata()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Main *Title*: Subtitle _Part_\n\nBody.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                title: Some("Explicit Header".to_owned()),
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            title: Some("Explicit Header".to_owned()),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3459,13 +3571,16 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_document_language_warns_and_uses_english()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn unsupported_document_language_warns_and_uses_english() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Invalid Language\n:lang: english\n\nBody.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3476,7 +3591,7 @@ mod tests {
         assert_eq!(warnings.len(), 1);
         let warning = warnings
             .first()
-            .ok_or_else(|| std::io::Error::other("missing document language warning"))?;
+            .ok_or_else(|| IoError::other("missing document language warning"))?;
         assert_eq!(
             warning.message,
             "invalid language code `english`: expected two or three ASCII letters; using English for PDF text",
@@ -3491,11 +3606,11 @@ mod tests {
     }
 
     #[test]
-    fn named_footnote_references_preserve_parser_assigned_numbers()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn named_footnote_references_preserve_parser_assigned_numbers() -> Result<(), Box<dyn StdError>>
+    {
+        let parsed = parse(
             "Alpha marker.footnote:alpha[Alpha note.]\n\nBeta marker.footnote:beta[Beta note.]\n\nAlpha repeat.footnote:alpha[].\n\nBeta repeat.footnote:beta[].\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         assert_eq!(
             parsed
@@ -3507,14 +3622,18 @@ mod tests {
             [1, 2]
         );
 
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
 
         assert!(rendered.pdf.starts_with(b"%PDF-"));
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         let lines = text
@@ -3526,19 +3645,19 @@ mod tests {
         let alpha_marker = lines
             .iter()
             .position(|line| *line == "Alpha marker.")
-            .ok_or_else(|| std::io::Error::other("missing alpha marker"))?;
+            .ok_or_else(|| IoError::other("missing alpha marker"))?;
         let beta_marker = lines
             .iter()
             .position(|line| *line == "Beta marker.")
-            .ok_or_else(|| std::io::Error::other("missing beta marker"))?;
+            .ok_or_else(|| IoError::other("missing beta marker"))?;
         let alpha_repeat = lines
             .iter()
             .position(|line| *line == "Alpha repeat.")
-            .ok_or_else(|| std::io::Error::other("missing alpha repeat"))?;
+            .ok_or_else(|| IoError::other("missing alpha repeat"))?;
         let beta_repeat = lines
             .iter()
             .position(|line| *line == "Beta repeat.")
-            .ok_or_else(|| std::io::Error::other("missing beta repeat"))?;
+            .ok_or_else(|| IoError::other("missing beta repeat"))?;
         assert_eq!(lines.get(alpha_marker + 1), Some(&"1"), "{text}");
         assert_eq!(lines.get(beta_marker + 1), Some(&"2"), "{text}");
         assert_eq!(lines.get(alpha_repeat + 1), Some(&"1"), "{text}");
@@ -3547,11 +3666,11 @@ mod tests {
         let alpha_note = lines
             .iter()
             .position(|line| *line == "Alpha note.")
-            .ok_or_else(|| std::io::Error::other("missing alpha footnote"))?;
+            .ok_or_else(|| IoError::other("missing alpha footnote"))?;
         let beta_note = lines
             .iter()
             .position(|line| *line == "Beta note.")
-            .ok_or_else(|| std::io::Error::other("missing beta footnote"))?;
+            .ok_or_else(|| IoError::other("missing beta footnote"))?;
         assert_eq!(
             alpha_note.checked_sub(1).and_then(|index| lines.get(index)),
             Some(&"1"),
@@ -3567,11 +3686,10 @@ mod tests {
     }
 
     #[test]
-    fn covers_unnamed_and_named_footnote_reference_matrix() -> Result<(), Box<dyn std::error::Error>>
-    {
-        let parsed = acdc_parser::parse(
+    fn covers_unnamed_and_named_footnote_reference_matrix() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "Unnamed marker.footnote:[Anonymous note.]\n\nSingle definition.footnote:single[Single note.]\n\nSingle reference.footnote:single[].\n\nMultiple definition.footnote:multiple[Multiple note.]\n\nMultiple reference one.footnote:multiple[].\n\nMultiple reference two.footnote:multiple[].\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         assert_eq!(
             parsed
@@ -3583,13 +3701,17 @@ mod tests {
             [None, Some("single"), Some("multiple")]
         );
 
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         for expected in [
@@ -3608,10 +3730,10 @@ mod tests {
 
     #[test]
     fn supports_footnotes_in_formatted_text_table_cells_titles_and_list_items()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Document\n\n== Heading footnote:title[Title note.]\n\nA *formatted footnote:formatted[Formatted note.]*.\n\n|===\n|Cell footnote:cell[Cell note.]\n|===\n\n* Item footnote:list[List note.]\n\nReferences footnote:title[], footnote:formatted[], footnote:cell[], and footnote:list[].\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
         assert_eq!(
             parsed
@@ -3628,13 +3750,17 @@ mod tests {
             ]
         );
 
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
         assert!(rendered.pdf.starts_with(b"%PDF-"));
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
         let text = pdf.extract_text(&pages)?;
         for expected in [
@@ -3684,8 +3810,7 @@ mod tests {
     }
 
     #[test]
-    fn oversized_theme_file_is_rejected_with_path_and_size()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn oversized_theme_file_is_rejected_with_path_and_size() -> Result<(), Box<dyn StdError>> {
         let theme_file = NamedTempFile::new()?;
         let oversized = u64::try_from(MAX_THEME_FILE_BYTES)?.saturating_add(1);
         theme_file.as_file().set_len(oversized)?;
@@ -3696,7 +3821,7 @@ mod tests {
             actual,
         }) = read_theme_file(theme_file.path())
         else {
-            return Err(std::io::Error::other("oversized theme unexpectedly accepted").into());
+            return Err(IoError::other("oversized theme unexpectedly accepted").into());
         };
         assert_eq!(path, theme_file.path());
         assert_eq!(limit, MAX_THEME_FILE_BYTES);
@@ -3705,15 +3830,19 @@ mod tests {
     }
 
     #[test]
-    fn invalid_custom_theme_reports_its_path() -> Result<(), Box<dyn std::error::Error>> {
+    fn invalid_custom_theme_reports_its_path() -> Result<(), Box<dyn StdError>> {
         let theme_file = NamedTempFile::new()?;
-        std::fs::write(theme_file.path(), "palette: [")?;
-        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                theme: Some(theme_file.path().to_path_buf()),
-                ..PdfOptions::default()
-            });
+        write(theme_file.path(), "palette: [")?;
+        let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            theme: Some(theme_file.path().to_path_buf()),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3721,16 +3850,20 @@ mod tests {
         let Err(Error::ThemeParse { path, .. }) =
             processor.convert_to_typst_source(parsed.document(), &mut diagnostics)
         else {
-            return Err(std::io::Error::other("invalid theme unexpectedly accepted").into());
+            return Err(IoError::other("invalid theme unexpectedly accepted").into());
         };
         assert_eq!(path, theme_file.path());
         Ok(())
     }
 
     #[test]
-    fn emitted_typst_ends_with_one_newline() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+    fn emitted_typst_ends_with_one_newline() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3743,13 +3876,16 @@ mod tests {
     }
 
     #[test]
-    fn block_image_float_fallback_warns_for_each_block_image()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    fn block_image_float_fallback_warns_for_each_block_image() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "image::one.svg[float=left]\n\nimage::two.svg[float=right]\n\nimage::three.svg[float=invalid]\n\nBefore image:four.svg[float=left] after.\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3781,8 +3917,7 @@ mod tests {
     }
 
     #[test]
-    fn hostile_theme_font_name_remains_literal_typst_data() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn hostile_theme_font_name_remains_literal_typst_data() -> Result<(), Box<dyn StdError>> {
         let hostile = r#"Acme"), size: 1pt)#undefined_function()//"#;
         let mut theme = Theme::default();
         theme
@@ -3790,8 +3925,12 @@ mod tests {
             .body_font
             .fallback
             .insert(0, hostile.to_owned());
-        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3819,12 +3958,15 @@ mod tests {
     }
 
     #[test]
-    fn stem_content_is_escaped_literal_text_with_warnings() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn stem_content_is_escaped_literal_text_with_warnings() -> Result<(), Box<dyn StdError>> {
         let input =
             "stem:[#panic() $ x \\\\ path]\n\n[stem]\n++++\n#panic() $ [y] \\\\ path\n++++\n";
-        let parsed = acdc_parser::parse(input, &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let parsed = parse(input, &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -3849,14 +3991,13 @@ mod tests {
     }
 
     #[test]
-    fn zero_width_table_warning_has_source_context_and_advice()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn zero_width_table_warning_has_source_context_and_advice() -> Result<(), Box<dyn StdError>> {
         let warnings = render_warnings("[width=0%]\n|===\n|Cell\n|===\n")?;
 
         assert_eq!(warnings.len(), 1);
         let warning = warnings
             .first()
-            .ok_or_else(|| std::io::Error::other("missing zero-width table warning"))?;
+            .ok_or_else(|| IoError::other("missing zero-width table warning"))?;
         assert_eq!(
             warning.message,
             "cannot fit contents of table cell into a table with a width of 0%; omitting the table"
@@ -3875,13 +4016,17 @@ mod tests {
     }
 
     #[test]
-    fn strict_assets_rejects_only_asset_failures() -> Result<(), Box<dyn std::error::Error>> {
-        let fallback = acdc_parser::parse("stem:[x]\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), fallback.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                strict_assets: true,
-                ..PdfOptions::default()
-            });
+    fn strict_assets_rejects_only_asset_failures() -> Result<(), Box<dyn StdError>> {
+        let fallback = parse("stem:[x]\n", &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(fallback.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            strict_assets: true,
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         {
@@ -3892,15 +4037,19 @@ mod tests {
         }
         assert_eq!(warnings.len(), 1);
 
-        let missing = acdc_parser::parse(
+        let missing = parse(
             "image::missing-strict-asset.png[]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), missing.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                strict_assets: true,
-                ..PdfOptions::default()
-            });
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(missing.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            strict_assets: true,
+            ..PdfOptions::default()
+        });
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let result = processor.render_document(missing.document(), None, &mut diagnostics);
 
@@ -3911,10 +4060,10 @@ mod tests {
 
     #[test]
     fn image_collection_matches_rendered_titles_and_skips_verbatim_content()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
+    -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
             "= Header: image:subtitle.png[] Subtitle\n:imagesdir: media library\n\n. image:paragraph-title.png[]\nParagraph image:body.png[] and image:body.png[] again.\n\n.List image:list-title.png[]\n* item\n\n== image:section.png[] Section\n\n.Block image:block-title.png[]\n....\nimage:literal.png[]\n....\n\n////\nimage:comment.png[]\n////\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
 
         assert_eq!(
@@ -3935,31 +4084,52 @@ mod tests {
     }
 
     #[test]
-    fn renders_simple_pdf_bytes() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(
-            "= Title\n\n== Section\n\nA paragraph.\n",
-            &acdc_parser::Options::default(),
+    fn canonical_body_attributes_apply_in_source_order() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
+            include_str!("../../../acdc-parser/fixtures/tests/document_attributes_consumers.adoc"),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+
+        let images = collect_pdf_preparation(parsed.document()).image_urls;
+        assert!(images.contains("images/header/before.png"));
+        assert!(images.contains("images/body/after.png"));
+        Ok(())
+    }
+
+    #[test]
+    fn renders_simple_pdf_bytes() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse(
+            "= Title\n\n== Section\n\nA paragraph.\n",
+            &ParserOptions::default(),
+        )?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
         let rendered = processor.render_document(parsed.document(), None, &mut diagnostics)?;
 
         assert!(rendered.pdf.starts_with(b"%PDF-"));
-        let pdf = lopdf::Document::load_mem(&rendered.pdf)?;
+        let pdf = PdfDocument::load_mem(&rendered.pdf)?;
         assert!(!pdf.get_pages().is_empty());
         Ok(())
     }
 
     #[test]
-    fn logo_failure_advice_describes_omission() -> Result<(), Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone())
-            .with_pdf_options(PdfOptions {
-                logo: Some(PathBuf::from("missing-pdf-logo.png")),
-                ..PdfOptions::default()
-            });
+    fn logo_failure_advice_describes_omission() -> Result<(), Box<dyn StdError>> {
+        let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?
+        .with_pdf_options(PdfOptions {
+            logo: Some(PathBuf::from("missing-pdf-logo.png")),
+            ..PdfOptions::default()
+        });
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         {
@@ -3977,18 +4147,21 @@ mod tests {
     }
 
     #[test]
-    fn timing_count_includes_only_resolved_document_images()
-    -> Result<(), Box<dyn std::error::Error>> {
-        let dir = tempfile::tempdir()?;
-        std::fs::write(
+    fn timing_count_includes_only_resolved_document_images() -> Result<(), Box<dyn StdError>> {
+        let dir = tempdir()?;
+        write(
             dir.path().join("resolved.png"),
             include_bytes!("../../terminal/images/simple.adoc.png"),
         )?;
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             "image::resolved.png[]\n\nimage::missing.png[]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);
@@ -4012,15 +4185,19 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
-    fn ambient_font_directories_are_not_read() -> Result<(), Box<dyn std::error::Error>> {
+    fn ambient_font_directories_are_not_read() -> Result<(), Box<dyn StdError>> {
         use std::os::unix::fs::PermissionsExt as _;
 
-        let dir = tempfile::tempdir()?;
+        let dir = tempdir()?;
         let fonts = dir.path().join("fonts");
         std::fs::create_dir(&fonts)?;
         std::fs::set_permissions(&fonts, std::fs::Permissions::from_mode(0o000))?;
-        let parsed = acdc_parser::parse("A paragraph.\n", &acdc_parser::Options::default())?;
-        let processor = Processor::new(Options::default(), parsed.document().attributes.clone());
+        let parsed = parse("A paragraph.\n", &ParserOptions::default())?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
         let source = WarningSource::new("pdf");
         let mut warnings = Vec::new();
         let mut diagnostics = Diagnostics::new(&source, &mut warnings);

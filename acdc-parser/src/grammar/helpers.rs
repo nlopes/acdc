@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, Title,
+    Anchor, AttributeValue, BlockMetadata, Location, Title,
     grammar::ParserState,
     model::{PositionalAttribute, SectionLevel, substitution::SubstitutionPlan},
 };
@@ -25,7 +25,7 @@ pub(crate) enum BlockMetadataLine<'input> {
     Anchor(Anchor<'input>),
     Attributes((bool, Box<BlockMetadata<'input>>)),
     Title(Title<'input>),
-    DocumentAttribute(Cow<'input, str>, AttributeValue<'input>, bool),
+    DocumentAttribute(Cow<'input, str>, AttributeValue<'input>, bool, Location),
 }
 
 // Used purely in the grammar where only anchors and attribute lists are valid metadata.
@@ -150,6 +150,7 @@ pub(crate) fn process_attribute_list<'input>(
                     }
                 };
                 metadata.id = Some(Anchor {
+                    bibliography_label: None,
                     id,
                     xreflabel: None,
                     location: state.create_location(id_start, id_end),

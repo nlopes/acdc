@@ -12,6 +12,14 @@ fn parse_benchmark(c: &mut Criterion) {
         "stem_blocks",
         "video_comprehensive",
         "inline_heavy",
+        "document_attributes_nested",
+        "passthrough_nested_markup",
+        "table_cell_styles",
+        "table_cell_colspan",
+        "table_cell_duplication",
+        "table_cell_span_combined",
+        "table_csv_multiline",
+        "table_nested_basic",
     ];
 
     for name in fixture_files_without_ext {
@@ -24,6 +32,17 @@ fn parse_benchmark(c: &mut Criterion) {
             });
         });
     }
+
+    let duplicated_table = format!(
+        ":name: World\n\n[cols=\"3*\"]\n|===\n{}|===\n",
+        "3*|Hello *{name}* and _text_.\n".repeat(500)
+    );
+    assert!(Parser::new(&duplicated_table).parse().is_ok());
+    group.bench_with_input(
+        BenchmarkId::new("parse", "table_duplication_500"),
+        &duplicated_table,
+        |b, input| b.iter(|| black_box(Parser::new(black_box(input)).parse())),
+    );
 
     // Additional benchmark with a larger file
     let content =

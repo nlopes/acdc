@@ -1,17 +1,18 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    TraversalContext,
     section::{
         appendix_number_prefix, book_chapter_signifier, effective_section_level,
         part_number_prefix, section_number_prefix,
     },
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{AttributeValue, DiscreteHeader, DocumentAttributes, Section, SectionKind};
+use acdc_parser::{DiscreteHeader, Section, SectionKind};
 
-use crate::{Error, HtmlVariant, HtmlVisitor};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class};
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     /// Visit a section using the visitor pattern
     ///
     /// Renders the section header, walks nested blocks, then renders footer.
@@ -20,13 +21,17 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// empty — see `crate::index`) only when it's the document's last section;
     /// any other `[index]` section renders like a normal section, so its
     /// heading is still emitted (matching asciidoctor) rather than dropped.
-    pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
+    pub(crate) fn render_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
 
         let is_index_section = section.kind == SectionKind::Index;
         let render_catalog = is_index_section && processor.generate_index();
 
-        self.render_section_header(section)?;
+        self.render_section_header(traversal, section)?;
 
         if render_catalog {
             // Render the collected index catalog
@@ -34,7 +39,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else {
             // Normal section (and non-last index sections): render nested blocks
             for nested_block in &section.content {
-                self.visit_block(nested_block)?;
+                traversal.visit_block(self, nested_block)?;
             }
         }
 
@@ -45,7 +50,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render the section header (opening tags and title)
     ///
     /// Call this before walking the section's nested blocks.
-    fn render_section_header(&mut self, section: &Section) -> Result<(), Error> {
+    fn render_section_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
         let id = Section::generate_id_string(&section.metadata, &section.title);
         let effective_level = effective_section_level(section.level, section.kind);
@@ -56,42 +65,36 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         if is_part {
             // Parts (level 0) in book doctype: standalone h1 with class="sect0", no wrapper div
-            let class = crate::build_class("sect0", &section.metadata.roles);
+            let class = build_class("sect0", &section.metadata.roles);
             write!(
                 self.writer,
                 "<h{heading_level} id=\"{id}\" class=\"{class}\">"
             )?;
 
             if let Some(number) = section.number() {
-                let prefix = part_number_prefix(
-                    number,
-                    string_attribute(processor.document_attributes(), "part-signifier"),
-                );
+                let prefix =
+                    part_number_prefix(number, string_attribute(traversal, "part-signifier"));
                 write!(self.writer, "{prefix}")?;
             }
         } else {
             if processor.variant() == HtmlVariant::Semantic {
-                let class = crate::build_class(
+                let class = build_class(
                     &format!("doc-section level-{effective_level}"),
                     &section.metadata.roles,
                 );
                 writeln!(self.writer, "<section class=\"{class}\">")?;
             } else {
-                let class =
-                    crate::build_class(&format!("sect{effective_level}"), &section.metadata.roles);
+                let class = build_class(&format!("sect{effective_level}"), &section.metadata.roles);
                 writeln!(self.writer, "<div class=\"{class}\">")?;
             }
             write!(self.writer, "<h{heading_level} id=\"{id}\">")?;
 
             if let Some(number) = section.number() {
                 let prefix = if is_appendix {
-                    appendix_number_prefix(
-                        number,
-                        string_attribute(processor.document_attributes(), "appendix-caption"),
-                    )
+                    appendix_number_prefix(number, string_attribute(traversal, "appendix-caption"))
                 } else {
                     let signifier = (section.level == 1 && section.kind == SectionKind::Normal)
-                        .then(|| book_chapter_signifier(processor.document_attributes(), None))
+                        .then(|| book_chapter_signifier(traversal, None))
                         .flatten();
                     section_number_prefix(number, signifier)
                 };
@@ -99,7 +102,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
         }
 
-        self.visit_inline_nodes(&section.title)?;
+        self.visit_inline_nodes(traversal, &section.title)?;
         writeln!(self.writer, "</h{heading_level}>")?;
 
         // sect1 (or appendix demoted to sect1) gets a sectionbody wrapper in standard mode
@@ -112,7 +115,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Render the section footer (closing tags)
     ///
     /// Call this after walking the section's nested blocks.
-    fn render_section_footer(&mut self, section: &Section) -> Result<(), Error> {
+    fn render_section_footer(&mut self, section: &'a Section<'a>) -> Result<(), Error> {
         let processor = self.processor.clone();
         let effective_level = effective_section_level(section.level, section.kind);
         let is_part = section.level == 0 && section.kind == SectionKind::Normal;
@@ -135,14 +138,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 }
 
-fn string_attribute<'a>(attributes: &'a DocumentAttributes<'_>, name: &str) -> Option<&'a str> {
-    match attributes.get(name) {
-        Some(AttributeValue::String(value)) => Some(value.as_ref()),
-        Some(_) | None => None,
-    }
+fn string_attribute<'a>(attributes: &'a TraversalContext<'_>, name: &str) -> Option<&'a str> {
+    attributes.get(name).and_then(|value| value.text())
 }
 
-pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = Error>>(
+pub(crate) fn visit_discrete_header<'a, V: WritableVisitor<'a, Error = Error>>(
+    traversal: &mut TraversalContext<'a>,
     header: &DiscreteHeader,
     visitor: &mut V,
 ) -> Result<(), Error> {
@@ -153,9 +154,7 @@ pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = Error>>(
     // `discrete`/`float` block style (`[discrete]` → `class="discrete"`, plus any
     // roles). The bare positional form (`[#id,discrete]`) renders no class at all.
     let class = match header.metadata.style {
-        Some(style @ ("discrete" | "float")) => {
-            Some(crate::build_class(style, &header.metadata.roles))
-        }
+        Some(style @ ("discrete" | "float")) => Some(build_class(style, &header.metadata.roles)),
         _ => None,
     };
 
@@ -166,7 +165,7 @@ pub(crate) fn visit_discrete_header<V: WritableVisitor<Error = Error>>(
         write!(w, "<h{level} id=\"{id}\">")?;
     }
     let _ = w;
-    visitor.visit_inline_nodes(&header.title)?;
+    visitor.visit_inline_nodes(traversal, &header.title)?;
     w = visitor.writer_mut();
     writeln!(w, "</h{level}>")?;
     Ok(())

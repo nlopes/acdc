@@ -1,0 +1,10 @@
+= Literal counters
+
+[subs=quotes]
+Literal {counter:seq}, {counter:seq:4}, and {counter2:seq} with *bold*.
+
+[subs=none]
+Keep {counter:seq} and {counter2:seq:5}.
+
+[subs="normal,-attributes"]
+Still {counter:seq} with *bold*.

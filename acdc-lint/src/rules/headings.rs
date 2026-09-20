@@ -418,9 +418,9 @@ pub(crate) fn lint_document_title_revision(
 
     let header_lines = collect_header_lines(lines);
 
-    let has_revision_attribute = document.attributes.contains_key("revnumber")
-        || document.attributes.contains_key("revdate")
-        || document.attributes.contains_key("revremark");
+    let has_revision_attribute = document.attributes.get("revnumber").is_some()
+        || document.attributes.get("revdate").is_some()
+        || document.attributes.get("revremark").is_some();
     if has_revision_attribute || header_lines.revision.is_some() {
         return;
     }

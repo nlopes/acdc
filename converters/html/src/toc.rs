@@ -1,11 +1,12 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    TraversalContext,
     section::book_chapter_signifier,
     toc::{Config as TocConfig, NumberingConfig, effective_level, has_real_parts, section_numbers},
     visitor::WritableVisitor,
 };
-use acdc_parser::{AttributeValue, SectionKind, TableOfContents, TocEntry};
+use acdc_parser::{SectionKind, TableOfContents, TocEntry};
 
 use crate::{Error, HtmlVariant, HtmlVisitor};
 
@@ -23,9 +24,10 @@ struct TocRenderConfig<'a> {
 /// When `parts_at_current_level` is true, level-0 entries (parts) are rendered
 /// alongside level-1 entries in the same list. This matches asciidoctor behavior
 /// when pre-part sections exist before the first level-0 section.
-fn render_entries<W: Write>(
+fn render_entries<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
     entries: &[TocEntry],
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
     config: &TocRenderConfig,
     current_level: u8,
     base_index: usize,
@@ -98,7 +100,7 @@ fn render_entries<W: Write>(
         // Enable TOC mode to render inline nodes without nested links
         let was_toc_mode = visitor.render_options.toc_mode;
         visitor.render_options.toc_mode = true;
-        visitor.visit_inline_nodes(&entry.title)?;
+        visitor.visit_inline_nodes(traversal, &entry.title)?;
         visitor.render_options.toc_mode = was_toc_mode;
 
         writeln!(visitor.writer_mut(), "</a>")?;
@@ -124,6 +126,7 @@ fn render_entries<W: Write>(
 
             if has_children && child_level <= config.max_level {
                 render_entries(
+                    traversal,
                     direct_children,
                     visitor,
                     config,
@@ -144,24 +147,26 @@ fn render_entries<W: Write>(
     Ok(())
 }
 
-fn section_number_config<'p>(processor: &'p crate::Processor<'_>) -> NumberingConfig<'p> {
-    let attributes = processor.document_attributes();
-    let part_signifier = match attributes.get("part-signifier") {
-        Some(AttributeValue::String(value)) => Some(value.as_ref()),
-        Some(_) | None => None,
-    };
+fn section_number_config<'a>(attributes: &'a TraversalContext<'_>) -> NumberingConfig<'a> {
+    let part_signifier = attributes
+        .get("part-signifier")
+        .and_then(|value| value.text());
     let chapter_signifier = book_chapter_signifier(attributes, None);
     NumberingConfig::new(attributes, part_signifier, chapter_signifier)
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_toc(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         toc_macro: Option<&TableOfContents>,
         placement: &str,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let config = TocConfig::from_attributes(toc_macro, &processor.document_attributes);
+        let config = TocConfig::from_attributes(
+            toc_macro,
+            &TraversalContext::new(processor.document_attributes()),
+        );
 
         // Determine if TOC should render at this placement point
         // - "auto" placement point accepts: auto, left, right, top, bottom (all render in header)
@@ -189,10 +194,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // toc::[] macro adds class="title" to the toctitle div
             let is_macro = placement == "macro";
 
-            let section_numbers = section_numbers(
-                &processor.toc_entries,
-                &section_number_config(&self.processor),
-            );
+            let section_numbers =
+                section_numbers(&processor.toc_entries, &section_number_config(traversal));
 
             if semantic {
                 writeln!(
@@ -242,6 +245,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 has_real_parts,
             };
             render_entries(
+                traversal,
                 &processor.toc_entries,
                 self,
                 &render_config,

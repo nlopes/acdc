@@ -1,22 +1,20 @@
 use std::io::Write;
 
 use acdc_converters_core::{inlines_to_string, visitor::WritableVisitor};
-use acdc_parser::{AttributeValue, Author, Header};
+use acdc_parser::{Author, Header};
 
 use crate::{Error, HtmlVisitor, inlines::escape_attribute};
 
 impl<W: Write> HtmlVisitor<'_, '_, W> {
     pub(crate) fn render_document_metadata(&mut self) -> Result<(), Error> {
         for name in ["description", "keywords"] {
-            let value =
-                self.processor
-                    .document_attributes()
-                    .get(name)
-                    .and_then(|value| match value {
-                        AttributeValue::String(value) => Some(escape_attribute(value.as_ref())),
-                        AttributeValue::Bool(true) => Some(String::new()),
-                        AttributeValue::Bool(false) | AttributeValue::None | _ => None,
-                    });
+            let mut value = String::new();
+            let value = self
+                .processor
+                .document_attributes()
+                .get(name)
+                .is_some_and(|attribute| attribute.write_text(&mut value).is_ok())
+                .then(|| escape_attribute(&value));
             if let Some(value) = value {
                 writeln!(
                     self.writer_mut(),

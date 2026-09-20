@@ -39,10 +39,24 @@
     "manpurpose": "performs useful work",
     "mantitle": "tool",
     "manvolnum": "1",
-    "outfilesuffix": ".1",
-    "program-name": "tool"
+    "outfilesuffix": ".1"
   },
   "blocks": [
+    {
+      "name": "program-name",
+      "type": "attribute",
+      "value": "tool",
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 20
+        }
+      ]
+    },
     {
       "name": "section",
       "type": "block",

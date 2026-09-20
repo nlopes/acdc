@@ -1,12 +1,11 @@
-use std::borrow::Cow;
-use std::ops::Range;
+use std::{borrow::Cow, ops::Range};
 
 use crate::{
     Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
     SourceLocation,
     grammar::{inline_preprocessor::SourceMap, utf8_utils},
     inline_preprocessing,
-    model::{SourceRange, Substitution},
+    model::{BibliographyLabel, SourceRange, Substitution},
 };
 
 use super::{
@@ -221,7 +220,7 @@ fn inline_context(
 
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
 fn parse_processed_inlines<'a>(
-    processed: &'a ProcessedContent<'a>,
+    processed: &ProcessedContent<'a>,
     text: &'a str,
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
@@ -242,7 +241,7 @@ fn parse_processed_inlines<'a>(
         inline_parser::inlines(text, &mut inline_peg_state)
     };
 
-    let inlines = match inlines {
+    let mut inlines = match inlines {
         Ok(inlines) => inlines,
         Err(err) => {
             return Err(adjust_peg_error_position(
@@ -254,7 +253,63 @@ fn parse_processed_inlines<'a>(
         }
     };
 
+    for inline in &mut inlines {
+        if let InlineNode::InlineAnchor(anchor) = inline {
+            anchor.bibliography_label =
+                parse_bibliography_label(&inline_peg_state, &anchor.location)?;
+        }
+    }
     Ok(inlines)
+}
+
+fn parse_bibliography_label<'a>(
+    state: &ParserState<'a>,
+    location: &Location,
+) -> Result<Option<Box<BibliographyLabel<'a>>>, Error> {
+    let Some(start) = location.absolute_start.checked_sub(1) else {
+        return Ok(None);
+    };
+    let Some(anchor) = state.input.get(start..location.absolute_end + 2) else {
+        return Ok(None);
+    };
+    let Some(body) = anchor
+        .strip_prefix("[[[")
+        .and_then(|s| s.strip_suffix("]]]"))
+    else {
+        return Ok(None);
+    };
+    let Some((_, label)) = body.split_once(',') else {
+        return Ok(None);
+    };
+    let label = label.trim_start();
+    let offset = start + anchor.len() - 3 - label.len();
+    let mut inline_ctx = state.inline_ctx;
+    inline_ctx.offset = 0;
+    inline_ctx.rules.remove(InlineRules::EOI_HARD_BREAK);
+    let mut child = ParserState::for_inline_parsing(label, state, inline_ctx);
+    child.attribute_value_ranges = state
+        .attribute_value_ranges
+        .iter()
+        .filter_map(|range| {
+            let start = range.start.max(offset);
+            let end = range.end.min(offset + label.len());
+            (start < end).then_some(start.saturating_sub(offset)..end.saturating_sub(offset))
+        })
+        .collect();
+    // Passthroughs and attributes were already processed with the list item.
+    // Keep their placeholders and ranges until the enclosing location mapping.
+    let mut content = inline_parser::inlines(label, &mut child)
+        .map_err(|error| adjust_peg_error_position(&error, label, offset, state))?;
+    for inline in &mut content {
+        super::location_walk::walk_inline_locations_mut(inline, &mut |location| {
+            location.absolute_start += offset;
+            location.absolute_end += offset;
+        });
+    }
+    Ok(Some(Box::new(BibliographyLabel {
+        source: Some(label),
+        content,
+    })))
 }
 
 /// Process inline content and retain its preprocessed source without internal placeholders.
@@ -281,24 +336,21 @@ pub(crate) fn process_inlines<'a>(
             .substitutions
             .enabled(&Substitution::Attributes),
     )?;
-    // Promote `processed` to `'a` so both the source text and parsed inline nodes can
-    // borrow from the parser arena.
-    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
-    let source = processed_text_as_outer(processed, state);
+    let source = processed_text_as_outer(&processed, state);
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
     if processed.text.trim().is_empty() {
         return Ok((Vec::new(), source));
     }
     let content =
-        parse_processed_inlines(processed, source, state, block_metadata, &location, true)?;
+        parse_processed_inlines(&processed, source, state, block_metadata, &location, true)?;
     let inlines =
-        super::location_mapping::map_inline_locations(state, processed, &content, &location)?;
+        super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
         source
     } else {
         let restored =
-            super::passthrough_processing::replace_passthrough_placeholders(source, processed);
+            super::passthrough_processing::replace_passthrough_placeholders(source, &processed);
         state.intern_str(&restored)
     };
     Ok((inlines, source))
@@ -344,10 +396,8 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
             escaped: false,
         })]);
     }
-    // Promote `processed` to `'a` by interning into the parser arena.
-    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
-    let source = processed_text_as_outer(processed, state);
+    let source = processed_text_as_outer(&processed, state);
     let content =
-        parse_processed_inlines(processed, source, state, block_metadata, &location, false)?;
-    super::location_mapping::map_inline_locations(state, processed, &content, &location)
+        parse_processed_inlines(&processed, source, state, block_metadata, &location, false)?;
+    super::location_mapping::map_inline_locations(state, &processed, content, &location)
 }

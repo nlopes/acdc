@@ -67,7 +67,7 @@ pub fn run(_args: &Args) -> Result<(), Error> {
     // Parse the AsciiDoc content based on type
     let parser_options = acdc_parser::Options::builder()
         .with_safe_mode(acdc_parser::SafeMode::Unsafe)
-        .build();
+        .build()?;
 
     let mut stdout = io::stdout();
     match tck_input.r#type.as_str() {

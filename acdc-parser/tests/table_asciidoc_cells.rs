@@ -1,9 +1,226 @@
 use acdc_parser::{
-    AttributeValue, Block, DelimitedBlockType, Document, InlineNode, Options, Paragraph, Table,
-    TableColumn, parse,
+    Block, DelimitedBlockType, Document, DocumentAttributeAssignment, DocumentAttributeValue,
+    InlineMacro, InlineNode, Options, Paragraph, Table, TableColumn, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
+
+#[test]
+fn nested_attribute_locks_distinguish_values_and_unset_origins() -> Result<(), Error> {
+    let cases = [
+        ("absent", "", "", Options::default(), "child", "{value}"),
+        (
+            "header value",
+            ":value: parent\n",
+            "",
+            Options::default(),
+            "parent",
+            "parent",
+        ),
+        (
+            "body value",
+            "",
+            ":value: parent\n",
+            Options::default(),
+            "parent",
+            "parent",
+        ),
+        (
+            "header unset",
+            ":value!:\n",
+            "",
+            Options::default(),
+            "child",
+            "{value}",
+        ),
+        (
+            "body unset",
+            "",
+            ":value!:\n",
+            Options::default(),
+            "child",
+            "{value}",
+        ),
+        (
+            "caller value",
+            "",
+            "",
+            Options::builder()
+                .with_attribute("value", "caller")
+                .build()?,
+            "caller",
+            "caller",
+        ),
+        (
+            "caller unset",
+            "",
+            "",
+            Options::builder().with_attribute("value", ()).build()?,
+            "{value}",
+            "{value}",
+        ),
+        (
+            "default value",
+            "",
+            "",
+            Options::builder()
+                .with_default_attribute("value", "default")
+                .build()?,
+            "default",
+            "default",
+        ),
+        (
+            "default unset",
+            "",
+            "",
+            Options::builder()
+                .with_default_attribute("value", false)
+                .build()?,
+            "child",
+            "{value}",
+        ),
+    ];
+    for (name, header, body, options, inside, outside) in cases {
+        let input = format!(
+            "= T\n{header}\n{body}\n[cols=\"2*a\"]\n|===\n|\n:value: child\n\nInside: {{value}}.\n|\nSibling: {{value}}.\n|===\n\nOutside: {{value}}.\n"
+        );
+        let parsed = parse(&input, &options)?;
+        let table = first_table(parsed.document())?;
+        let cells = &table.rows.first().ok_or("missing table row")?.columns;
+        assert_eq!(
+            cell_paragraphs(cells.first().ok_or("missing first cell")?),
+            [format!("Inside: {inside}.")],
+            "{name}"
+        );
+        assert_eq!(
+            cell_paragraphs(cells.get(1).ok_or("missing sibling cell")?),
+            [format!("Sibling: {outside}.")],
+            "{name}"
+        );
+        let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+            return Err("missing outer paragraph".into());
+        };
+        assert_eq!(
+            paragraph_text(paragraph),
+            format!("Outside: {outside}."),
+            "{name}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_cells_lock_inherited_universal_defaults() -> Result<(), Error> {
+    for (name, value) in [
+        ("caution-caption", "Caution"),
+        ("version-label", "Version"),
+        ("toc-title", "Table of Contents"),
+    ] {
+        let input = format!("[cols=a]\n|===\n|\n:{name}: child\n\n{{{name}}}\n|===\n");
+        let parsed = parse(&input, &Options::default())?;
+        let table = table(
+            parsed
+                .document()
+                .blocks
+                .first()
+                .ok_or("missing table block")?,
+        )?;
+        assert_eq!(
+            cell_paragraphs(
+                table
+                    .rows
+                    .first()
+                    .ok_or("missing table row")?
+                    .columns
+                    .first()
+                    .ok_or("missing table cell")?
+            ),
+            [value],
+            "{name}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn nested_cells_initialize_and_unlock_document_exceptions() -> Result<(), Error> {
+    for (name, parent, child) in [
+        ("doctype", "book", "article"),
+        ("toc-placement", "preamble", "macro"),
+        ("toc-position", "left", "right"),
+        ("compat-mode", "", "changed"),
+    ] {
+        let input = format!(
+            "= T\n\n[cols=a]\n|===\n|\n:{name}: {child}\n\n{{{name}}}\n|===\n\n{{{name}}}\n"
+        );
+        let options = Options::builder().with_attribute(name, parent).build()?;
+        let parsed = parse(&input, &options)?;
+        let table = table(
+            parsed
+                .document()
+                .blocks
+                .first()
+                .ok_or("missing table block")?,
+        )?;
+        assert_eq!(
+            cell_paragraphs(
+                table
+                    .rows
+                    .first()
+                    .ok_or("missing table row")?
+                    .columns
+                    .first()
+                    .ok_or("missing table cell")?
+            ),
+            [child],
+            "{name}"
+        );
+        assert_eq!(
+            parsed
+                .document()
+                .attributes
+                .get(name)
+                .and_then(DocumentAttributeValue::as_str),
+            Some(parent)
+        );
+    }
+    let parsed = parse(
+        "= T\n:doctype: book\n:toc:\n:showtitle:\n:my-doctype-note: retained\n:compat-mode: parent\n\n[cols=a]\n|===\n|\n{doctype}; {toc}; {showtitle}; {notitle}; {my-doctype-note}; {compat-mode}\n|===\n",
+        &Options::default(),
+    )?;
+    let table = table(
+        parsed
+            .document()
+            .blocks
+            .first()
+            .ok_or("missing table block")?,
+    )?;
+    let cell = table
+        .rows
+        .first()
+        .ok_or("missing table row")?
+        .columns
+        .first()
+        .ok_or("missing table cell")?;
+    assert_eq!(
+        cell_paragraphs(cell),
+        ["article; {toc}; {showtitle}; ; retained; "]
+    );
+    assert!(
+        cell.initial_attributes()
+            .any(|(name, value)| name == "doctype"
+                && value.value().and_then(DocumentAttributeValue::as_str) == Some("article"))
+    );
+    Ok(())
+}
+
+fn first_table<'doc, 'a>(document: &'doc Document<'a>) -> Result<&'doc Table<'a>, Error> {
+    document
+        .blocks
+        .iter()
+        .find_map(|block| table(block).ok())
+        .ok_or_else(|| "missing table".into())
+}
 
 fn table<'block, 'a>(block: &'block Block<'a>) -> Result<&'block Table<'a>, Error> {
     let Block::DelimitedBlock(block) = block else {
@@ -83,27 +300,29 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
             Some(attribute)
         })
         .collect();
-    assert_eq!(attribute_entries.len(), 5);
-    let changed_outer = attribute_entries
-        .get(2)
-        .ok_or("expected changed outer entry")?;
-    let unset_outer = attribute_entries
-        .get(3)
-        .ok_or("expected unset outer entry")?;
-    assert_eq!(changed_outer.name.as_ref(), "outer");
+    assert_eq!(attribute_entries.len(), 3);
+    let local_set = attribute_entries.first().ok_or("expected local set")?;
+    let local_unset = attribute_entries.last().ok_or("expected local unset")?;
+    assert_eq!(local_set.name.as_ref(), "cell-local");
     assert_eq!(
-        changed_outer.value,
-        AttributeValue::String("changed".into())
+        *local_set.assignment(),
+        DocumentAttributeAssignment::Set(DocumentAttributeValue::from("local"))
     );
-    assert_eq!(unset_outer.name.as_ref(), "outer");
-    assert_eq!(unset_outer.value, AttributeValue::Bool(false));
+    assert_eq!(local_unset.name.as_ref(), "cell-local");
+    assert_eq!(
+        *local_unset.assignment(),
+        DocumentAttributeAssignment::Unset
+    );
     assert_eq!(
         cell_paragraphs(row.columns.get(1).ok_or("expected the second cell")?),
         ["Sibling {cell-local} and inherited."]
     );
     assert_eq!(
-        document.attributes.get("outer"),
-        Some(&AttributeValue::String("inherited".into()))
+        document
+            .attributes
+            .get("outer")
+            .and_then(|value| value.text()),
+        Some("inherited")
     );
     assert!(!document.attributes.contains_key("cell-local"));
     assert!(!document.attributes.contains_key("sectnums"));
@@ -112,6 +331,29 @@ fn attributes_in_asciidoc_cells_have_nested_document_scope() -> Result<(), Error
         return Err("expected a trailing paragraph".into());
     };
     assert_eq!(paragraph_text(after), "After {cell-local} and inherited.");
+    Ok(())
+}
+
+#[test]
+fn attribute_syntax_in_plain_cells_is_literal_text() -> Result<(), Error> {
+    let parsed = parse(
+        "= T\n\n|===\n|\n:cell-local: value\n\nCell sees {cell-local}.\n|===\n",
+        &Options::default(),
+    )?;
+    let table = table(parsed.document().blocks.first().ok_or("expected a table")?)?;
+    let content = &table
+        .rows
+        .first()
+        .and_then(|row| row.columns.first())
+        .ok_or("expected a cell")?
+        .content;
+
+    let [Block::Paragraph(assignment), Block::Paragraph(after)] = content.as_slice() else {
+        return Err("expected two literal paragraphs, not an attribute event".into());
+    };
+    assert_eq!(paragraph_text(assignment), ":cell-local: value");
+    assert_eq!(paragraph_text(after), "Cell sees {cell-local}.");
+    assert!(!parsed.document().attributes.contains_key("cell-local"));
     Ok(())
 }
 
@@ -210,5 +452,47 @@ fn nested_sections_are_not_outer_toc_entries_but_remain_xref_targets() -> Result
         .and_then(|row| row.columns.first())
         .ok_or("expected an AsciiDoc cell")?;
     assert!(matches!(cell.content.first(), Some(Block::Section(_))));
+    Ok(())
+}
+
+#[test]
+fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
+    let parsed = parse(
+        ":who: Ada\n\n[cols=\"2*\"]\n|===\n2*|{who} footnote:[duplicated].\n|===\n",
+        &Options::default(),
+    )?;
+    let row = first_table(parsed.document())?
+        .rows
+        .first()
+        .ok_or("missing duplicated row")?;
+    assert_eq!(row.columns.len(), 2);
+    let numbers: Vec<_> = row
+        .columns
+        .iter()
+        .flat_map(|column| &column.content)
+        .filter_map(|block| {
+            if let Block::Paragraph(paragraph) = block {
+                Some(&paragraph.content)
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .filter_map(|inline| {
+            if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = inline {
+                Some(footnote.number)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(numbers, [1, 2]);
+    let registered: Vec<_> = parsed
+        .document()
+        .footnotes
+        .iter()
+        .map(|footnote| footnote.number)
+        .collect();
+    assert_eq!(registered, [1, 2]);
     Ok(())
 }

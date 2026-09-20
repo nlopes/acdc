@@ -1,14 +1,18 @@
 use std::{fmt::Write as _, io::Write};
 
-use acdc_converters_core::{media::resolve_target, visitor::Visitor};
-use acdc_parser::{AttributeValue, Audio, DocumentAttributes};
+use acdc_converters_core::{TraversalContext, media::resolve_target, visitor::Visitor};
+use acdc_parser::{AttributeValue, Audio};
 
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class, inlines::escape_href, write_id};
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
-    pub(crate) fn render_audio(&mut self, audio: &Audio) -> Result<(), Error> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn render_audio(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        audio: &Audio,
+    ) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
-            return visit_audio_semantic(audio, self);
+            return visit_audio_semantic(traversal, audio, self);
         }
 
         write!(self.writer, "<div")?;
@@ -18,13 +22,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         if !audio.title.is_empty() {
             write!(self.writer, "<div class=\"title\">")?;
-            self.visit_inline_nodes(&audio.title)?;
+            self.visit_inline_nodes(traversal, &audio.title)?;
             writeln!(self.writer, "</div>")?;
         }
 
         writeln!(self.writer, "<div class=\"content\">")?;
 
-        let src = audio_target(audio, self.processor.document_attributes())?;
+        let src = audio_target(audio, traversal)?;
         write!(self.writer, "<audio src=\"{}\"", escape_href(&src))?;
 
         // Add autoplay option if present
@@ -54,7 +58,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
 fn audio_target(
     audio: &Audio<'_>,
-    attributes: &DocumentAttributes<'_>,
+    attributes: &TraversalContext<'_>,
 ) -> Result<String, std::fmt::Error> {
     let mut src = resolve_target(&audio.source.to_string(), attributes);
     let start = audio.metadata.attributes.get("start");
@@ -75,7 +79,7 @@ fn audio_target(
 
 fn render_audio_element(
     audio: &Audio,
-    attributes: &DocumentAttributes<'_>,
+    attributes: &TraversalContext<'_>,
     w: &mut dyn std::io::Write,
 ) -> Result<(), Error> {
     let src = audio_target(audio, attributes)?;
@@ -101,9 +105,10 @@ fn render_audio_element(
     Ok(())
 }
 
-fn visit_audio_semantic<W: Write>(
+fn visit_audio_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
     audio: &Audio,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !audio.title.is_empty();
 
@@ -114,15 +119,11 @@ fn visit_audio_semantic<W: Write>(
     write!(visitor.writer, " class=\"{class}\"")?;
     writeln!(visitor.writer, ">")?;
 
-    render_audio_element(
-        audio,
-        visitor.processor.document_attributes(),
-        &mut visitor.writer,
-    )?;
+    render_audio_element(audio, traversal, &mut visitor.writer)?;
 
     if has_title {
         write!(visitor.writer, "<figcaption>")?;
-        visitor.visit_inline_nodes(&audio.title)?;
+        visitor.visit_inline_nodes(traversal, &audio.title)?;
         writeln!(visitor.writer, "</figcaption>")?;
     }
 

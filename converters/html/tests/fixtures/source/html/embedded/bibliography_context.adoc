@@ -1,0 +1,23 @@
+= Labels
+:value: header
+:raw: +++<mark>raw</mark>+++
+
+:value: entry
+
+Cites: <<attribute>>, <<raw>>, and <<escaped>>.
+
+[[target,Target label]]
+Target.
+
+[bibliography]
+* [[[attribute,{value} +]]] Attribute entry.
+* [[[raw,{raw}]]] Attribute markup.
+* [[[linked,<<target>> +]]] Linked entry.
+* [[[passed,pass:a[{value}]]]] Passthrough entry.
+* [[[empty,pass:a[{empty}]]]] Empty entry.
+* [[[missing,pass:a[before {missing} after]]]] Missing attribute.
+* [[[escaped,\{value}]]] Escaped attribute.
+
+:value: after
+
+After: {value}.

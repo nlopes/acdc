@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use crate::{
-    DocumentAttributes,
+    DocumentAttributes, Location,
     error::{Error, SourceLocation},
     model::{HEADER, Position, substitute},
 };
@@ -177,8 +177,8 @@ impl Conditional<'_> {
         }
 
         let result = match operation {
-            Some(Operation::Or) => attrs.iter().any(|attr| doc_attrs.get(attr).is_some()),
-            _ => attrs.iter().all(|attr| doc_attrs.get(attr).is_some()),
+            Some(Operation::Or) => attrs.iter().any(|attr| doc_attrs.contains_key(attr)),
+            _ => attrs.iter().all(|attr| doc_attrs.contains_key(attr)),
         };
 
         if negate { !result } else { result }
@@ -261,7 +261,7 @@ impl EvalCondition {
                 return Err(Error::InvalidIfEvalDirectiveMismatchedTypes(Box::new(
                     SourceLocation {
                         file: file_parent.map(Path::to_path_buf),
-                        location: crate::Location::point(Position::from_line_col(line_number, 1)),
+                        location: Location::point(Position::from_line_col(line_number, 1)),
                     },
                 )));
             }
@@ -324,7 +324,7 @@ pub(crate) fn parse_line<'input>(
         tracing::error!(?error, "failed to parse conditional directive");
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
-            location: crate::Location::point(Position::from_line_col(line_number, 1)),
+            location: Location::point(Position::from_line_col(line_number, 1)),
         }))
     })
 }
@@ -340,7 +340,7 @@ pub(crate) fn parse_endif<'input>(
         tracing::error!(?error, "failed to parse endif directive");
         Error::InvalidConditionalDirective(Box::new(SourceLocation {
             file: file_parent.map(Path::to_path_buf),
-            location: crate::Location::point(Position::from_line_col(line_number, 1)),
+            location: Location::point(Position::from_line_col(line_number, 1)),
         }))
     })
 }
@@ -412,6 +412,40 @@ mod tests {
         assert!(
             matches!(conditional, Conditional { condition: Condition::Ifndef(condition), content: None } if condition.attributes == vec!["attribute"] && condition.operation.is_none())
         );
+        Ok(())
+    }
+
+    #[test]
+    fn effective_defaults_are_defined_for_conditionals() -> Result<(), Error> {
+        let attributes = DocumentAttributes::default();
+        let defined = parse_line("ifdef::max-include-depth[]", 1, 0, None)?;
+        let undefined = parse_line("ifndef::max-include-depth[]", 1, 0, None)?;
+
+        assert!(defined.is_true(&attributes, &mut String::new(), 1, 0, None)?);
+        assert!(!undefined.is_true(&attributes, &mut String::new(), 1, 0, None)?);
+        Ok(())
+    }
+
+    #[test]
+    fn ifeval_uses_typed_default_text_presentation() -> Result<(), Error> {
+        let conditional = parse_line("ifeval::[{max-include-depth} == 64]", 1, 0, None)?;
+
+        assert!(conditional.is_true(
+            &DocumentAttributes::default(),
+            &mut String::new(),
+            1,
+            0,
+            None
+        )?);
+
+        let mut attributes = DocumentAttributes::default();
+        assert!(
+            attributes
+                .set("max-include-depth".into(), "03".into())
+                .is_ok()
+        );
+        let explicit_condition = parse_line("ifeval::[{max-include-depth} == 3]", 1, 0, None)?;
+        assert!(explicit_condition.is_true(&attributes, &mut String::new(), 1, 0, None)?);
         Ok(())
     }
 

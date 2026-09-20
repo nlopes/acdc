@@ -6,7 +6,7 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
     let options = Options::builder()
         .with_safe_mode(SafeMode::Secure)
         .with_attribute("allow-uri-read", true)
-        .build();
+        .build()?;
     let result = parse_file("fixtures/preprocessor/secure_include_main.adoc", &options)?;
 
     let expected_targets = [

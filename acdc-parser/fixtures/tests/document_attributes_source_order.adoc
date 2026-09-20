@@ -1,0 +1,58 @@
+= Attribute Source Order
+:metadata-value: header
+:position-value: header
+:state-value: header
+:idprefix: id-
+:idseparator: -
+
+.Title {metadata-value}
+:metadata-value: body
+[[probe-metadata-anchor]]
+[#probe-metadata.role-one%hardbreaks]
+Metadata paragraph: {metadata-value}.
+
+After metadata: {metadata-value}.
+
+ifdef::state-value[]
+:conditional-result: active
+endif::[]
+ifndef::state-value[]
+:inactive-result: wrong
+endif::[]
+ifeval::["{state-value}" == "header"]
+:ifeval-result: matched
+endif::[]
+
+:state-value!:
+ifndef::state-value[]
+:conditional-after-unset: active
+endif::[]
+
+Conditionals: {state-value}; {conditional-result}; {inactive-result}; {ifeval-result}; {conditional-after-unset}.
+
+:position-value: before-image
+image::pixel.png[{position-value}]
+
+:position-value: before-list
+* List {position-value}
+
+:position-value: before-block
+.Block {position-value}
+----
+block {position-value}
+----
+
+:position-value: before-table
+|===
+|Cell {position-value}
+|===
+
+:sectnums:
+:sectnumlevels: 2
+:leveloffset: +1
+:position-value: before-section
+== Generated ID
+
+Section: {position-value}.
+
+:position-value: eof

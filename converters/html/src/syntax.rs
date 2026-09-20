@@ -16,7 +16,13 @@
 //! HTML (`<i class="conum" data-value="N"></i><b>(N)</b>`) after highlighting.
 
 #[cfg(feature = "highlighting")]
-use std::{collections::HashMap, fmt::Write as _, io::Write};
+use std::{
+    collections::HashMap,
+    fmt::Write as _,
+    io::{Error as IoError, Write},
+};
+#[cfg(feature = "highlighting")]
+use syntect::parsing::SyntaxSet;
 
 #[cfg(feature = "highlighting")]
 use acdc_converters_core::{
@@ -48,6 +54,14 @@ pub(crate) enum HighlightMode {
     Class,
 }
 
+#[cfg(feature = "highlighting")]
+#[derive(Clone, Copy)]
+pub(crate) struct HighlightOptions<'a> {
+    pub(crate) language: &'a str,
+    pub(crate) theme_name: &'a str,
+    pub(crate) mode: HighlightMode,
+}
+
 /// The `ClassStyle` used for class-based output.  Every scope token is
 /// prefixed with `syntax-` so the generated classes don't collide with
 /// the rest of the page's styles.
@@ -57,9 +71,6 @@ const SYNTAX_CLASS_STYLE: syntect::html::ClassStyle =
 
 /// Highlight code, apply source-line decoration, and write HTML output.
 ///
-/// The `mode` parameter controls whether inline styles or CSS classes are
-/// emitted.
-///
 /// Callout references are preserved and rendered as proper HTML elements
 /// after the highlighted code on each line.
 #[cfg(feature = "highlighting")]
@@ -67,13 +78,16 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     writer: &mut W,
     inlines: &[InlineNode],
     metadata: &BlockMetadata<'_>,
-    language: &str,
-    theme_name: &str,
-    mode: HighlightMode,
+    options: HighlightOptions<'_>,
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
+    let HighlightOptions {
+        language,
+        theme_name,
+        mode,
+    } = options;
     let (code, callouts) = extract_text_and_callouts(inlines, diagnostics);
-    let syntax_set = syntect::parsing::SyntaxSet::load_defaults_newlines();
+    let syntax_set = SyntaxSet::load_defaults_newlines();
 
     let syntax = syntax_set
         .find_syntax_by_token(language)
@@ -235,7 +249,7 @@ fn highlight_code_inline<W: Write + ?Sized>(
     code: &str,
     callouts: &HashMap<usize, usize>,
     inlines: &[InlineNode],
-    syntax_set: &syntect::parsing::SyntaxSet,
+    syntax_set: &SyntaxSet,
     syntax: &syntect::parsing::SyntaxReference,
     theme_name: &str,
 ) -> Result<(), Error> {
@@ -247,7 +261,7 @@ fn highlight_code_inline<W: Write + ?Sized>(
     };
 
     let html = highlighted_html_for_string(code, syntax_set, syntax, theme)
-        .map_err(|e| Error::Io(std::io::Error::other(e)))?;
+        .map_err(|e| Error::Io(IoError::other(e)))?;
 
     // syntect wraps output in <pre style="..."> which we don't want
     // since we already have our own <pre> wrapper. Extract just the inner content.
@@ -269,7 +283,7 @@ fn highlight_code_classed<W: Write + ?Sized>(
     writer: &mut W,
     code: &str,
     callouts: &HashMap<usize, usize>,
-    syntax_set: &syntect::parsing::SyntaxSet,
+    syntax_set: &SyntaxSet,
     syntax: &syntect::parsing::SyntaxReference,
 ) -> Result<(), Error> {
     use syntect::html::ClassedHTMLGenerator;
@@ -279,7 +293,7 @@ fn highlight_code_classed<W: Write + ?Sized>(
     for line in syntect::util::LinesWithEndings::from(code) {
         generator
             .parse_html_for_line_which_includes_newline(line)
-            .map_err(|e| Error::Io(std::io::Error::other(e)))?;
+            .map_err(|e| Error::Io(IoError::other(e)))?;
     }
     let html = generator.finalize();
 
@@ -303,13 +317,13 @@ pub(crate) fn highlight_css(theme_name: &str) -> Result<String, Error> {
 
     let theme_set = ThemeSet::load_defaults();
     let theme = theme_set.themes.get(theme_name).ok_or_else(|| {
-        Error::Io(std::io::Error::other(format!(
+        Error::Io(IoError::other(format!(
             "unknown syntect theme: {theme_name}"
         )))
     })?;
 
     css_for_theme_with_class_style(theme, SYNTAX_CLASS_STYLE)
-        .map_err(|e| Error::Io(std::io::Error::other(e)))
+        .map_err(|e| Error::Io(IoError::other(e)))
 }
 
 /// Extract the inner content from syntect's inline-style HTML output.
@@ -560,9 +574,11 @@ mod tests {
             &mut buffer,
             &inlines,
             &BlockMetadata::new(),
-            "rust",
-            DEFAULT_THEME_LIGHT,
-            HighlightMode::Inline,
+            HighlightOptions {
+                language: "rust",
+                theme_name: DEFAULT_THEME_LIGHT,
+                mode: HighlightMode::Inline,
+            },
             None,
         )?;
 
@@ -594,9 +610,11 @@ mod tests {
             &mut buffer,
             &inlines,
             &BlockMetadata::new(),
-            "rust",
-            DEFAULT_THEME_LIGHT,
-            HighlightMode::Inline,
+            HighlightOptions {
+                language: "rust",
+                theme_name: DEFAULT_THEME_LIGHT,
+                mode: HighlightMode::Inline,
+            },
             None,
         )?;
 
@@ -620,9 +638,11 @@ mod tests {
             &mut buffer,
             &inlines,
             &BlockMetadata::new(),
-            "unknown_lang_xyz",
-            DEFAULT_THEME_LIGHT,
-            HighlightMode::Inline,
+            HighlightOptions {
+                language: "unknown_lang_xyz",
+                theme_name: DEFAULT_THEME_LIGHT,
+                mode: HighlightMode::Inline,
+            },
             None,
         )?;
 
@@ -648,9 +668,11 @@ mod tests {
             &mut buffer,
             &inlines,
             &BlockMetadata::new(),
-            "rust",
-            DEFAULT_THEME_LIGHT,
-            HighlightMode::Class,
+            HighlightOptions {
+                language: "rust",
+                theme_name: DEFAULT_THEME_LIGHT,
+                mode: HighlightMode::Class,
+            },
             None,
         )?;
 
@@ -687,9 +709,11 @@ mod tests {
             &mut buffer,
             &inlines,
             &BlockMetadata::new(),
-            "rust",
-            DEFAULT_THEME_LIGHT,
-            HighlightMode::Class,
+            HighlightOptions {
+                language: "rust",
+                theme_name: DEFAULT_THEME_LIGHT,
+                mode: HighlightMode::Class,
+            },
             None,
         )?;
 

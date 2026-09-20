@@ -24,7 +24,9 @@
 
 use std::borrow::Cow;
 
-use acdc_parser::{AttributeValue, DocumentAttributes, ElementAttributes, Source};
+use acdc_parser::{DocumentAttributes, ElementAttributes, Source, strip_quotes};
+
+use crate::TraversalContext;
 
 /// Resolve the text alternative for an icon.
 ///
@@ -49,18 +51,23 @@ pub fn alt<'a>(target: &Source<'a>, attributes: &ElementAttributes<'a>) -> Cow<'
 /// precedence over an image format supplied through `icons`, and the default
 /// extension is `png`.
 #[must_use]
-pub fn image_source(attributes: &DocumentAttributes<'_>, target: &Source<'_>) -> String {
+pub fn image_source(attributes: &TraversalContext<'_>, target: &Source<'_>) -> String {
     let directory = attributes
-        .get_string("iconsdir")
-        .unwrap_or_else(|| "./images/icons".into());
+        .get("iconsdir")
+        .and_then(|value| value.text())
+        .map_or("./images/icons", strip_quotes);
     let extension = attributes
-        .get_string("icontype")
+        .get("icontype")
+        .and_then(|value| value.text())
+        .map(strip_quotes)
         .or_else(|| {
-            attributes.get_string("icons").filter(|value| {
-                !value.is_empty() && value.as_ref() != "image" && value.as_ref() != "font"
-            })
+            attributes
+                .get("icons")
+                .and_then(|value| value.text())
+                .map(strip_quotes)
+                .filter(|value| !value.is_empty() && *value != "image" && *value != "font")
         })
-        .unwrap_or_else(|| "png".into());
+        .unwrap_or("png");
     let directory = directory.trim_end_matches(['/', '\\']);
     let extension = extension.trim_start_matches('.');
 
@@ -93,9 +100,17 @@ pub enum IconMode {
 
 impl From<&DocumentAttributes<'_>> for IconMode {
     fn from(attrs: &DocumentAttributes<'_>) -> Self {
+        Self::from_attributes(&TraversalContext::new(attrs))
+    }
+}
+
+impl IconMode {
+    /// Select the icon mode from an active document-attribute view.
+    #[must_use]
+    pub fn from_attributes(attrs: &TraversalContext<'_>) -> Self {
         match attrs.get("icons") {
-            Some(AttributeValue::String(value)) if value == "font" => Self::Font,
-            Some(AttributeValue::String(_) | AttributeValue::Bool(true)) => Self::Image,
+            Some(value) if value.as_str() == Some("font") => Self::Font,
+            Some(value) if value.as_str().is_some() || value.is_presence() => Self::Image,
             Some(_) | None => Self::Text,
         }
     }
@@ -105,36 +120,90 @@ impl From<&DocumentAttributes<'_>> for IconMode {
 mod tests {
     use std::borrow::Cow;
 
+    use acdc_parser::{AttributeValue, Options};
+
     use super::*;
 
     #[test]
-    fn mode_matches_asciidoctor_attribute_semantics() {
-        let mut attributes = DocumentAttributes::default();
-        assert_eq!(IconMode::from(&attributes), IconMode::Text);
+    fn mode_matches_asciidoctor_attribute_semantics() -> Result<(), Box<dyn std::error::Error>> {
+        let mut attributes = std::collections::HashMap::<
+            std::borrow::Cow<'_, str>,
+            acdc_parser::AttributeValue<'_>,
+        >::new();
+        assert_eq!(
+            IconMode::from(
+                &Options::builder()
+                    .with_defaults(attributes.clone())
+                    .build()?
+                    .into_document_attributes()
+            ),
+            IconMode::Text
+        );
 
-        attributes.set("icons".into(), AttributeValue::Bool(true));
-        assert_eq!(IconMode::from(&attributes), IconMode::Image);
+        attributes.insert("icons".into(), AttributeValue::Bool(true));
+        assert_eq!(
+            IconMode::from(
+                &Options::builder()
+                    .with_defaults(attributes.clone())
+                    .build()?
+                    .into_document_attributes()
+            ),
+            IconMode::Image
+        );
 
-        attributes.set(
+        attributes.insert(
             "icons".into(),
             AttributeValue::String(Cow::Borrowed("image")),
         );
-        assert_eq!(IconMode::from(&attributes), IconMode::Image);
+        assert_eq!(
+            IconMode::from(
+                &Options::builder()
+                    .with_defaults(attributes.clone())
+                    .build()?
+                    .into_document_attributes()
+            ),
+            IconMode::Image
+        );
 
-        attributes.set(
+        attributes.insert(
             "icons".into(),
             AttributeValue::String(Cow::Borrowed("custom")),
         );
-        assert_eq!(IconMode::from(&attributes), IconMode::Image);
+        assert_eq!(
+            IconMode::from(
+                &Options::builder()
+                    .with_defaults(attributes.clone())
+                    .build()?
+                    .into_document_attributes()
+            ),
+            IconMode::Image
+        );
 
-        attributes.set(
+        attributes.insert(
             "icons".into(),
             AttributeValue::String(Cow::Borrowed("font")),
         );
-        assert_eq!(IconMode::from(&attributes), IconMode::Font);
+        assert_eq!(
+            IconMode::from(
+                &Options::builder()
+                    .with_defaults(attributes.clone())
+                    .build()?
+                    .into_document_attributes()
+            ),
+            IconMode::Font
+        );
 
-        attributes.set("icons".into(), AttributeValue::Bool(false));
-        assert_eq!(IconMode::from(&attributes), IconMode::Text);
+        attributes.insert("icons".into(), AttributeValue::Bool(false));
+        assert_eq!(
+            IconMode::from(
+                &Options::builder()
+                    .with_defaults(attributes.clone())
+                    .build()?
+                    .into_document_attributes()
+            ),
+            IconMode::Text
+        );
+        Ok(())
     }
 
     #[test]
@@ -149,32 +218,61 @@ mod tests {
     }
 
     #[test]
-    fn image_source_honors_directory_and_type_attributes() {
+    fn image_source_honors_directory_and_type_attributes() -> Result<(), Box<dyn std::error::Error>>
+    {
         let target = Source::Name("arrow-left");
-        let mut attributes = DocumentAttributes::default();
+        let mut attributes = std::collections::HashMap::<
+            std::borrow::Cow<'_, str>,
+            acdc_parser::AttributeValue<'_>,
+        >::new();
 
         assert_eq!(
-            image_source(&attributes, &target),
+            image_source(
+                &TraversalContext::new(
+                    &Options::builder()
+                        .with_defaults(attributes.clone())
+                        .build()?
+                        .into_document_attributes()
+                ),
+                &target
+            ),
             "./images/icons/arrow-left.png"
         );
 
-        attributes.set(
+        attributes.insert(
             "iconsdir".into(),
             AttributeValue::String(Cow::Borrowed("assets/icons/")),
         );
-        attributes.set("icons".into(), AttributeValue::String(Cow::Borrowed("svg")));
+        attributes.insert("icons".into(), AttributeValue::String(Cow::Borrowed("svg")));
         assert_eq!(
-            image_source(&attributes, &target),
+            image_source(
+                &TraversalContext::new(
+                    &Options::builder()
+                        .with_defaults(attributes.clone())
+                        .build()?
+                        .into_document_attributes()
+                ),
+                &target
+            ),
             "assets/icons/arrow-left.svg"
         );
 
-        attributes.set(
+        attributes.insert(
             "icontype".into(),
             AttributeValue::String(Cow::Borrowed(".png")),
         );
         assert_eq!(
-            image_source(&attributes, &target),
+            image_source(
+                &TraversalContext::new(
+                    &Options::builder()
+                        .with_defaults(attributes.clone())
+                        .build()?
+                        .into_document_attributes()
+                ),
+                &target
+            ),
             "assets/icons/arrow-left.png"
         );
+        Ok(())
     }
 }

@@ -7,8 +7,10 @@ use tower_lsp_server::ls_types::{
     InsertTextFormat, Position, Range, TextEdit, Uri,
 };
 
-use crate::convert::uri_filename;
-use crate::state::{DocumentState, Workspace};
+use crate::{
+    convert::uri_filename,
+    state::{DocumentState, Workspace},
+};
 
 /// Built-in `AsciiDoc` attributes that are commonly used
 const BUILTIN_ATTRIBUTES: &[(&str, &str)] = &[
@@ -427,7 +429,7 @@ fn complete_attribute_references(doc: &DocumentState, prefix: &str) -> Vec<Compl
     if let Some(ast) = doc.ast() {
         let ast = ast.document();
         for (name, _value) in ast.attributes.iter() {
-            if name.as_ref().starts_with(prefix) {
+            if name.starts_with(prefix) {
                 items.push(CompletionItem {
                     label: name.to_string(),
                     kind: Some(CompletionItemKind::VARIABLE),
@@ -595,6 +597,10 @@ fn complete_include_paths(doc_uri: &Uri, prefix: &str, position: Position) -> Ve
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::{
+        error::Error,
+        fs::{create_dir_all, remove_dir_all, write},
+    };
 
     #[test]
     fn test_detect_xref_context() {
@@ -704,7 +710,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_anchors() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_anchors() -> Result<(), Box<dyn Error>> {
         let content = r"[[first-section]]
 == First Section
 
@@ -729,7 +735,7 @@ mod tests {
     }
 
     #[test]
-    fn max_include_depth_fallback_is_not_suggested() -> Result<(), Box<dyn std::error::Error>> {
+    fn max_include_depth_effective_default_is_suggested() -> Result<(), Box<dyn Error>> {
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
         workspace.update_document(uri.clone(), String::new(), 1);
@@ -737,27 +743,28 @@ mod tests {
 
         let items = complete_attribute_references(&doc, "max-include-depth");
 
-        assert!(
-            items.iter().all(|item| item.label != "max-include-depth"),
-            "the synthesized fallback must not appear as a document-defined completion"
+        assert_eq!(
+            items
+                .iter()
+                .filter(|item| item.label == "max-include-depth")
+                .count(),
+            1
         );
         Ok(())
     }
 
-    fn setup_include_test_dir(
-        suffix: &str,
-    ) -> Result<(std::path::PathBuf, Uri), Box<dyn std::error::Error>> {
+    fn setup_include_test_dir(suffix: &str) -> Result<(std::path::PathBuf, Uri), Box<dyn Error>> {
         let tmp = std::env::temp_dir().join(format!("acdc_lsp_test_include_completion_{suffix}"));
-        let _ = std::fs::remove_dir_all(&tmp);
-        std::fs::create_dir_all(tmp.join("chapters"))?;
-        std::fs::create_dir_all(tmp.join(".git"))?;
-        std::fs::create_dir_all(tmp.join("target"))?;
+        let _ = remove_dir_all(&tmp);
+        create_dir_all(tmp.join("chapters"))?;
+        create_dir_all(tmp.join(".git"))?;
+        create_dir_all(tmp.join("target"))?;
 
-        std::fs::write(tmp.join("intro.adoc"), "= Intro\n")?;
-        std::fs::write(tmp.join("appendix.asciidoc"), "= Appendix\n")?;
-        std::fs::write(tmp.join("data.csv"), "a,b,c\n")?;
-        std::fs::write(tmp.join("chapters/chapter-01.adoc"), "= Ch 1\n")?;
-        std::fs::write(tmp.join("chapters/chapter-02.adoc"), "= Ch 2\n")?;
+        write(tmp.join("intro.adoc"), "= Intro\n")?;
+        write(tmp.join("appendix.asciidoc"), "= Appendix\n")?;
+        write(tmp.join("data.csv"), "a,b,c\n")?;
+        write(tmp.join("chapters/chapter-01.adoc"), "= Ch 1\n")?;
+        write(tmp.join("chapters/chapter-02.adoc"), "= Ch 2\n")?;
 
         let doc_uri = Uri::from_file_path(tmp.join("main.adoc")).ok_or("bad path")?;
         Ok((tmp, doc_uri))
@@ -781,8 +788,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_include_paths_lists_files_and_dirs() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn test_complete_include_paths_lists_files_and_dirs() -> Result<(), Box<dyn Error>> {
         let (tmp, doc_uri) = setup_include_test_dir("list")?;
 
         let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
@@ -800,12 +806,12 @@ mod tests {
         assert!(!labels.contains(&".git/"), ".git should be hidden");
         assert!(!labels.contains(&"target/"), "target should be skipped");
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
     #[test]
-    fn test_complete_include_paths_subdirectory() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_include_paths_subdirectory() -> Result<(), Box<dyn Error>> {
         let (tmp, doc_uri) = setup_include_test_dir("subdir")?;
 
         let prefix = "chapters/";
@@ -823,12 +829,12 @@ mod tests {
             .ok_or("chapter-01.adoc not found")?;
         assert_eq!(edit_text(ch1), Some("chapters/chapter-01.adoc[]"));
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
     #[test]
-    fn test_complete_include_paths_filter() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_include_paths_filter() -> Result<(), Box<dyn Error>> {
         let (tmp, doc_uri) = setup_include_test_dir("filter")?;
 
         let prefix = "int";
@@ -838,12 +844,12 @@ mod tests {
         assert_eq!(first.label, "intro.adoc");
         assert_eq!(edit_text(first), Some("intro.adoc[]"));
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
     #[test]
-    fn test_complete_include_paths_nonexistent_dir() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_include_paths_nonexistent_dir() -> Result<(), Box<dyn Error>> {
         let doc_uri = "file:///nonexistent/dir/doc.adoc".parse::<Uri>()?;
         let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
         assert!(items.is_empty());
@@ -851,7 +857,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_include_paths_adoc_sorted_first() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_include_paths_adoc_sorted_first() -> Result<(), Box<dyn Error>> {
         let (tmp, doc_uri) = setup_include_test_dir("sort")?;
 
         let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
@@ -875,12 +881,12 @@ mod tests {
             .ok_or("data.csv not found")?;
         assert!(csv.sort_text.as_ref().is_some_and(|s| s.starts_with('2')));
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
     #[test]
-    fn test_complete_include_paths_dir_retriggers() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_include_paths_dir_retriggers() -> Result<(), Box<dyn Error>> {
         let (tmp, doc_uri) = setup_include_test_dir("retrigger")?;
 
         let items = complete_include_paths(&doc_uri, "", pos_for_prefix(""));
@@ -899,7 +905,7 @@ mod tests {
             "directory edit text should include trailing slash"
         );
 
-        let _ = std::fs::remove_dir_all(&tmp);
+        let _ = remove_dir_all(&tmp);
         Ok(())
     }
 
@@ -982,8 +988,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_macro_snippets_image_at_line_start() -> Result<(), Box<dyn std::error::Error>>
-    {
+    fn test_complete_macro_snippets_image_at_line_start() -> Result<(), Box<dyn Error>> {
         let items = complete_macro_snippets(
             "ima",
             true,
@@ -1011,7 +1016,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_macro_snippets_mid_line_no_block() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_macro_snippets_mid_line_no_block() -> Result<(), Box<dyn Error>> {
         let items = complete_macro_snippets(
             "ima",
             false,
@@ -1040,7 +1045,7 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_macro_snippets_kbd() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_complete_macro_snippets_kbd() -> Result<(), Box<dyn Error>> {
         let items = complete_macro_snippets(
             "kb",
             false,

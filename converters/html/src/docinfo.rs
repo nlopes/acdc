@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use acdc_converters_core::Diagnostics;
-use acdc_parser::{AttributeValue, DocumentAttributes, SafeMode, Substitution, substitute};
+use acdc_parser::{DocumentAttributes, SafeMode, Substitution, substitute};
 
 /// Resolved docinfo content for each injection position.
 ///
@@ -40,11 +40,14 @@ impl DocInfo {
         }
 
         let docinfo_val: String = match attributes.get("docinfo") {
-            Some(AttributeValue::String(s)) if !s.is_empty() => s.to_string(),
+            Some(value) if value.as_str().is_some_and(|text| !text.is_empty()) => {
+                value.as_str().unwrap_or_default().to_string()
+            }
             // `:docinfo:` set with no value defaults to "private"
-            Some(AttributeValue::Bool(true)) => "private".to_string(),
-            Some(AttributeValue::String(s)) if s.is_empty() => "private".to_string(),
-            _ => return Self::empty(),
+            Some(value) if value.as_str().is_some() || value.is_presence() => "private".to_string(),
+            Some(_) | None => {
+                return Self::empty();
+            }
         };
 
         let positions = parse_docinfo_value(&docinfo_val, diagnostics);
@@ -196,10 +199,10 @@ fn parse_docinfo_value(value: &str, diagnostics: &mut Diagnostics<'_>) -> Vec<En
 fn resolve_docinfo_dir(attributes: &DocumentAttributes, source_dir: Option<&Path>) -> PathBuf {
     let base = source_dir.unwrap_or_else(|| Path::new("."));
 
-    if let Some(AttributeValue::String(dir)) = attributes.get("docinfodir")
+    if let Some(dir) = attributes.get("docinfodir").and_then(|value| value.text())
         && !dir.is_empty()
     {
-        let dir_path = Path::new(dir.as_ref());
+        let dir_path = Path::new(dir);
         if dir_path.is_absolute() {
             return dir_path.to_path_buf();
         }
@@ -216,7 +219,7 @@ fn resolve_docinfo_subs(
     attributes: &DocumentAttributes,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Vec<Substitution> {
-    if let Some(AttributeValue::String(subs_str)) = attributes.get("docinfosubs") {
+    if let Some(subs_str) = attributes.get("docinfosubs").and_then(|value| value.text()) {
         let mut subs = Vec::new();
         for token in subs_str.split(',') {
             match token.trim() {
@@ -388,12 +391,20 @@ mod tests {
     }
 
     #[test]
-    fn unsupported_docinfo_substitution_has_advice() {
-        let mut attributes = DocumentAttributes::default();
+    fn unsupported_docinfo_substitution_has_advice() -> Result<(), Box<dyn std::error::Error>> {
+        let mut attributes = std::collections::HashMap::<
+            std::borrow::Cow<'_, str>,
+            acdc_parser::AttributeValue<'_>,
+        >::new();
         attributes.insert("docinfosubs".into(), "quotes".into());
         let source = WarningSource::new("html");
         let mut warnings = Vec::new();
         let mut diag = test_diag(&source, &mut warnings);
+
+        let attributes = acdc_parser::Options::builder()
+            .with_defaults(attributes)
+            .build()?
+            .into_document_attributes();
 
         let substitutions = resolve_docinfo_subs(&attributes, &mut diag);
 
@@ -403,6 +414,7 @@ mod tests {
                 .first()
                 .is_some_and(|warning| warning.advice().is_some())
         );
+        Ok(())
     }
 
     #[test]

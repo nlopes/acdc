@@ -3,9 +3,9 @@ mod editor;
 
 use wasm_bindgen::prelude::*;
 
-use acdc_converters_core::{Diagnostics, Options, WarningSource};
+use acdc_converters_core::{Converter, Diagnostics, Options, WarningSource};
 use acdc_converters_html::{HtmlVariant, Processor, RenderOptions};
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use acdc_parser::AttributeValue;
 
 /// Result of a single parse operation: highlighted source + rendered preview.
 pub struct ParseResult {
@@ -13,7 +13,7 @@ pub struct ParseResult {
     pub highlight_html: String,
     /// Rendered HTML preview.
     pub preview_html: String,
-    /// Whether the document has `:stem:` set (needs `MathJax`).
+    /// Whether STEM is enabled in the document, including body and nested content.
     pub has_stem: bool,
     /// Non-fatal warnings from both the parser and the converter, normalized
     /// into a single editor-facing shape so the UI does not need to care
@@ -44,21 +44,29 @@ pub fn init() -> Result<(), JsValue> {
 /// Parse `AsciiDoc` source once and produce both the syntax-highlighted source
 /// HTML and the rendered preview HTML.
 ///
-/// On parse error, returns escaped (unhighlighted) source and an empty preview.
-///
 /// # Errors
 ///
-/// Returns an error string if parsing fails (the caller can use cached output).
+/// Returns an error string if parsing or conversion fails.
 pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
-    let mut document_attributes = DocumentAttributes::default();
-    document_attributes.insert(
-        std::borrow::Cow::Borrowed("source-highlighter"),
-        AttributeValue::Bool(true),
-    );
-    let options = acdc_parser::Options::builder()
-        .with_attributes(document_attributes)
-        .build();
-    let mut parsed = acdc_parser::parse(input, &options).map_err(|e| format!("{e}"))?;
+    parse_and_render_with_attributes(input, [("source-highlighter", AttributeValue::Bool(true))])
+}
+
+fn parse_and_render_with_attributes<'a, N, V>(
+    input: &str,
+    document_attributes: impl IntoIterator<Item = (N, V)>,
+) -> Result<ParseResult, String>
+where
+    N: Into<std::borrow::Cow<'a, str>>,
+    V: Into<AttributeValue<'a>>,
+{
+    let processor = Processor::new_with_variant(
+        Options::builder().embedded(true).build(),
+        acdc_parser::Options::builder().with_attributes(document_attributes),
+        HtmlVariant::Semantic,
+    )
+    .map_err(|e| e.to_string())?;
+    let mut parsed =
+        acdc_parser::parse(input, processor.parser_options()).map_err(|e| format!("{e}"))?;
 
     let mut warnings: Vec<EditorWarning> = parsed
         .take_warnings()
@@ -78,12 +86,6 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
     let document = parsed.document();
     let highlight_html = ast_highlight::highlight_from_ast(input, document);
 
-    let html_options = Options::builder().embedded(true).build();
-    let processor = Processor::new_with_variant(
-        html_options,
-        document.attributes.to_static(),
-        HtmlVariant::Semantic,
-    );
     let render_options = RenderOptions {
         embedded: true,
         ..RenderOptions::default()
@@ -108,7 +110,7 @@ pub fn parse_and_render(input: &str) -> Result<ParseResult, String> {
         }
     }));
 
-    let has_stem = document.attributes.get("stem").is_some();
+    let has_stem = acdc_converters_html::uses_stem(document);
 
     Ok(ParseResult {
         highlight_html,
@@ -126,4 +128,66 @@ fn location_line_col(loc: Option<&acdc_parser::SourceLocation>) -> (Option<u32>,
         Some(loc.location.start.line),
         Some(loc.location.start.column),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use acdc_parser::DocumentAttributeValue;
+
+    use super::*;
+
+    #[test]
+    fn editor_uses_resolved_flags() -> Result<(), String> {
+        assert!(parse_and_render(":stem:\n\n$x$")?.has_stem);
+        assert!(!parse_and_render(":stem!:\n\n$x$")?.has_stem);
+        Ok(())
+    }
+
+    #[test]
+    fn editor_enables_math_after_body_and_cell_assignments() -> Result<(), String> {
+        for source in [
+            "= Math\n\nBefore.\n\n:stem: latexmath\n\nstem:[x^2]\n",
+            "= Math\n\n[cols=a]\n|===\n|\n:stem: latexmath\n\nstem:[x^2]\n|===\n",
+        ] {
+            let rendered = parse_and_render(source)?;
+            assert!(rendered.has_stem);
+            assert!(rendered.preview_html.contains("x^2"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn editor_preserves_original_numeric_text() -> Result<(), String> {
+        let attributes = acdc_parser::Options::with_attributes([("max-include-depth", "064")])
+            .map_err(|e| e.to_string())?
+            .into_document_attributes();
+        assert_eq!(
+            attributes
+                .get("max-include-depth")
+                .and_then(DocumentAttributeValue::as_integer),
+            Some(64)
+        );
+        assert_eq!(
+            attributes
+                .get("max-include-depth")
+                .and_then(DocumentAttributeValue::text),
+            Some("064")
+        );
+
+        let result = parse_and_render_with_attributes(
+            "depth={max-include-depth}",
+            attributes.into_inputs(),
+        )?;
+        assert!(result.preview_html.contains("depth=064"));
+        Ok(())
+    }
+    #[test]
+    fn editor_parsing_uses_the_selected_backend() -> Result<(), String> {
+        let result = parse_and_render(
+            "ifdef::backend-html5s[]\nSemantic preview.\nendif::[]\n\nbackend={backend}\n",
+        )?;
+        assert!(result.preview_html.contains("Semantic preview."));
+        assert!(result.preview_html.contains("backend=html5s"));
+        Ok(())
+    }
 }

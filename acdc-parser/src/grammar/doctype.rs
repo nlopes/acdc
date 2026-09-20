@@ -1,15 +1,17 @@
-use crate::{AttributeValue, DocumentAttributes};
+use crate::DocumentAttributes;
 
 /// Check if the document has doctype=manpage.
 pub(super) fn is_manpage_doctype(attrs: &DocumentAttributes<'_>) -> bool {
-    attrs
-        .get("doctype")
-        .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "manpage"))
+    matches!(
+        attrs.get("doctype"),
+        Some(value) if value.as_str() == Some("manpage")
+    )
 }
 
 /// Check if the document has doctype=book.
 pub(super) fn is_book_doctype(attrs: &DocumentAttributes<'_>) -> bool {
-    attrs
-        .get("doctype")
-        .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "book"))
+    matches!(
+        attrs.get("doctype"),
+        Some(value) if value.as_str() == Some("book")
+    )
 }

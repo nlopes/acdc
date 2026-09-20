@@ -1,11 +1,10 @@
-//! Inlay hints: show resolved attribute values and cross-reference text inline.
+//! Inlay hints show header attribute values and cross-reference text inline.
 
 use acdc_converters_core::{inlines_to_string, xref::reference_text};
-use acdc_parser::{AttributeValue, Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
+use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode};
 use tower_lsp_server::ls_types::{InlayHint, InlayHintLabel, Position, Range};
 
-use crate::convert::location_to_range;
-use crate::state::DocumentState;
+use crate::{convert::location_to_range, state::DocumentState};
 
 /// Maximum length for attribute value hints before truncation.
 const MAX_HINT_VALUE_LEN: usize = 50;
@@ -26,8 +25,7 @@ pub(crate) fn compute_inlay_hints(doc: &DocumentState, range: &Range) -> Vec<Inl
 
 /// Collect inlay hints for attribute references.
 ///
-/// For each `{name}` reference that resolves to a string value,
-/// shows the resolved value as a hint after the closing `}`.
+/// Show nonempty formatted values from the header snapshot after `{name}` references.
 fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<InlayHint>) {
     let Some(ast) = doc.ast() else {
         return;
@@ -40,11 +38,13 @@ fn collect_attribute_hints(doc: &DocumentState, range: &Range, hints: &mut Vec<I
             continue;
         }
 
-        if let Some(AttributeValue::String(value)) = ast.attributes.get(name) {
+        let mut value = String::new();
+        if let Some(attribute) = ast.attributes.get(name) {
+            let _ = attribute.write_text(&mut value);
             if value.is_empty() {
                 continue;
             }
-            let label = truncate_hint_value(value.as_ref());
+            let label = truncate_hint_value(&value);
             hints.push(InlayHint {
                 position: hint_pos,
                 label: InlayHintLabel::String(label),
@@ -276,6 +276,7 @@ fn truncate_hint_value(value: &str) -> String {
 mod tests {
     use super::*;
     use crate::state::Workspace;
+    use std::error::Error;
     use tower_lsp_server::ls_types::Uri;
 
     /// Full-document range for tests that don't need range filtering.
@@ -293,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_hint_resolved() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_attribute_hint_resolved() -> Result<(), Box<dyn Error>> {
         let content =
             ":product-name: Acme Cloud Platform\n\n== Section\n\nWelcome to {product-name} docs.\n";
         let workspace = Workspace::new();
@@ -315,7 +316,7 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_hint_undefined() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_attribute_hint_undefined() -> Result<(), Box<dyn Error>> {
         let content = "== Section\n\nSee {undefined-attr} here.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -332,7 +333,23 @@ mod tests {
     }
 
     #[test]
-    fn test_attribute_hint_empty_value() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_attribute_hint_formats_typed_default() -> Result<(), Box<dyn Error>> {
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), "depth={max-include-depth}\n".to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let hints = compute_inlay_hints(&doc, &full_range());
+        let hint = hints.first().ok_or("expected typed attribute hint")?;
+        let InlayHintLabel::String(label) = &hint.label else {
+            return Err("expected string hint label".into());
+        };
+        assert_eq!(label, "= 64");
+        Ok(())
+    }
+
+    #[test]
+    fn test_attribute_hint_empty_value() -> Result<(), Box<dyn Error>> {
         let content = ":empty-attr:\n\n== Section\n\nSee {empty-attr} here.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -360,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn test_xref_hint_with_title() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_xref_hint_with_title() -> Result<(), Box<dyn Error>> {
         let content = "[[setup]]\n== Initial Setup\n\nSee <<setup>> for details.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -383,7 +400,7 @@ mod tests {
 
     #[test]
     fn interdocument_xref_macro_does_not_use_a_matching_local_title_hint()
-    -> Result<(), Box<dyn std::error::Error>> {
+    -> Result<(), Box<dyn Error>> {
         let content = "Macro: xref:Other.adoc[].\n\nExplicit: xref:Other.adoc[Other].\n\nShorthand: <<Other.adoc>>.\n\n== Other.adoc\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -403,7 +420,7 @@ mod tests {
     }
 
     #[test]
-    fn compat_mode_natural_xref_has_no_title_hint() -> Result<(), Box<dyn std::error::Error>> {
+    fn compat_mode_natural_xref_has_no_title_hint() -> Result<(), Box<dyn Error>> {
         let content = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -423,7 +440,7 @@ mod tests {
     }
 
     #[test]
-    fn named_section_reftext_controls_xref_hints() -> Result<(), Box<dyn std::error::Error>> {
+    fn named_section_reftext_controls_xref_hints() -> Result<(), Box<dyn Error>> {
         let content = "Named: <<Custom Label>>.\nTitle: <<Actual Title>>.\nExplicit: <<id>>.\nExplicit text: <<id,Chosen text>>.\nFormatted: <<Custom *Formatted* Label>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n\n[#formatted,reftext=\"Custom *Formatted* Label\"]\n== Formatted Title\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -450,8 +467,7 @@ mod tests {
     }
 
     #[test]
-    fn passthroughs_are_restored_before_natural_xref_hints()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn passthroughs_are_restored_before_natural_xref_hints() -> Result<(), Box<dyn Error>> {
         let content = "Resolved: <<Pass raw Title>>.\nMissing: <<Missing pass:[raw] Title>>.\n\n== Pass pass:[raw] Title\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -471,7 +487,7 @@ mod tests {
     }
 
     #[test]
-    fn test_xref_hint_explicit_text_skipped() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_xref_hint_explicit_text_skipped() -> Result<(), Box<dyn Error>> {
         let content = "[[setup]]\n== Initial Setup\n\nSee <<setup,click here>> for details.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -492,7 +508,7 @@ mod tests {
     }
 
     #[test]
-    fn test_xref_hint_unresolved() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_xref_hint_unresolved() -> Result<(), Box<dyn Error>> {
         let content = "== Section\n\nSee <<nonexistent>> here.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -513,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn test_hints_filtered_by_range() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_hints_filtered_by_range() -> Result<(), Box<dyn Error>> {
         let content = ":name: Value\n\n== Section\n\n{name} on line 5.\n\n{name} on line 7.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -538,7 +554,7 @@ mod tests {
     }
 
     #[test]
-    fn test_multiple_hints() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_multiple_hints() -> Result<(), Box<dyn Error>> {
         let content = ":product: Acme\n:version: 2.0\n\n[[intro]]\n== Introduction\n\n{product} v{version} — see <<intro>>.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -593,7 +609,7 @@ mod tests {
     }
 
     #[test]
-    fn test_xref_with_xreflabel() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_xref_with_xreflabel() -> Result<(), Box<dyn Error>> {
         let content = "[[setup,Getting Started]]\n== Initial Setup\n\nSee <<setup>> for details.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
