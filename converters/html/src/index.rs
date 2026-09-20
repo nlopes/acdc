@@ -6,6 +6,10 @@
 //! whose label is the section it appears in (the HTML analog of a page number);
 //! repeats within one section are disambiguated as `Section (2)`, `Section (3)`.
 //!
+//! The listing covers the whole document wherever the `[index]` section sits,
+//! so an index may precede a bibliography or a colophon; `lib::collect_index_terms`
+//! gathers the terms before any output is written.
+//!
 //! NOTE: this is an acdc extension, opt-in via the `:acdc-index:` document
 //! attribute. asciidoctor's html5 backend does **not** generate an index — it
 //! renders an `[index]` section with an empty body and emits no
@@ -282,7 +286,9 @@ pub(crate) fn render<'a, W: Write>(
     visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor.clone();
-    let entries = processor.index_entries().borrow();
+    // The catalog is what the collection pass gathered from the whole
+    // document, not what has been rendered up to this point.
+    let entries = processor.index_catalog().borrow();
 
     if entries.is_empty() {
         // No index terms - render empty section like asciidoctor

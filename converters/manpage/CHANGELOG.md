@@ -48,6 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Fixed
+
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits, including nested inside a part
+  of a multipart book.
+
 ### Performance
 
 - Nested and table-cell rendering reuses the active document-attribute view.
