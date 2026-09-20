@@ -59,14 +59,15 @@ use crate::{Document, InlineNode, Warning};
 ///
 /// Option 3 is what this is. Allocating into the arena while the AST borrows
 /// from it is sound because bumpalo never moves or invalidates earlier
-/// allocations — it is what `ParserState::intern_str` does during parsing,
-/// just at a later moment.
+/// allocations — it is exactly what `ParserState::intern_str` does during
+/// parsing, just at a later moment.
 ///
-/// The newtype exists so `bumpalo` stays out of acdc's public signatures,
-/// which this module treats as a standing rule: swapping the allocator later
-/// should not be a breaking change for consumers. If option 2 ever happens,
-/// this type can go away without disturbing callers that only ever called
-/// [`alloc_str`](Self::alloc_str).
+/// The newtype exists purely so `bumpalo` stays out of acdc's public
+/// signatures, which this module treats as a standing rule: swapping the
+/// allocator later should not be a breaking change for consumers.
+///
+/// If option 2 ever happens, this type can go away without disturbing
+/// callers that only ever called [`alloc_str`](Self::alloc_str).
 #[derive(Debug)]
 pub struct DocumentArena(Bump);
 
@@ -74,8 +75,8 @@ impl DocumentArena {
     /// Copy `text` into the arena.
     ///
     /// The returned slice lives as long as the parsed document, so AST nodes
-    /// may hold it. Copies are never reclaimed individually — the whole arena
-    /// is released when the `ParseResult` drops — so this is for text that
+    /// may hold it. Copies are never reclaimed individually: the whole arena
+    /// is released when the `ParseResult` drops, so this is for text that
     /// becomes part of the document, not for scratch buffers.
     #[must_use]
     pub fn alloc_str<'a>(&'a self, text: &str) -> &'a str {
@@ -174,13 +175,14 @@ impl ParseResult {
 
     /// Rewrite the document AST in place.
     ///
-    /// Extension-style passes run between parsing and conversion and replace
-    /// nodes the parser produced: `acdc-lists` turns a `list-of::image[]`
-    /// paragraph into the cross-references that make up a list of figures.
+    /// Extension-style passes run between parsing and conversion and need to
+    /// replace nodes the parser produced: `acdc-diagram` turns `[plantuml]`
+    /// blocks into image blocks that point at the file it just generated.
     ///
     /// The closure sees the AST under the arena's own lifetime, so nodes it
-    /// inserts either own their data or borrow from the [`DocumentArena`] it
-    /// is handed, which lives exactly as long as the AST does.
+    /// inserts either own their data (`Cow::Owned`, `PathBuf`) or borrow from
+    /// the [`DocumentArena`] it is handed, which lives exactly as long as the
+    /// AST does.
     ///
     /// Borrowing the AST mutably outside a closure would let a caller store a
     /// shorter-lived `Document` back into the cell, so the mutation is scoped

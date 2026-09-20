@@ -46,6 +46,7 @@
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
 | `lists` | on | cli | Builds `list-of::` lists of figures, tables, and the like; see `acdc-lists/AGENTS.md` |
+| `diagram` | on | cli | Renders `[plantuml]`, `[graphviz]`, … blocks via `acdc-diagram`; see `acdc-diagram/AGENTS.md` |
 
 New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.
 
@@ -57,6 +58,7 @@ When tests fail, identify the category and follow the appropriate path:
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
 - **`list-of::` list failures** → `acdc-lists/AGENTS.md`
+- **Diagram generation failures** → `acdc-diagram/AGENTS.md`
 
 ## Benchmarks
 

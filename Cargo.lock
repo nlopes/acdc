@@ -12,6 +12,7 @@ dependencies = [
  "acdc-converters-markdown",
  "acdc-converters-pdf",
  "acdc-converters-terminal",
+ "acdc-diagram",
  "acdc-lint",
  "acdc-lists",
  "acdc-parser",
@@ -139,6 +140,22 @@ dependencies = [
  "tracing",
  "unicode-width 0.2.2",
  "viuer",
+]
+
+[[package]]
+name = "acdc-diagram"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tracing",
 ]
 
 [[package]]

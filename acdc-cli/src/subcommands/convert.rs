@@ -435,6 +435,8 @@ where
         let mut reader = BufReader::new(stdin.lock());
         let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
             .map_err(|error| error::display(&error))?;
+        apply_diagrams(&mut parsed, base_options, processor.name(), None)
+            .map_err(|error| error::display(&error))?;
         apply_lists(&mut parsed, None);
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
@@ -467,6 +469,8 @@ where
         let convert_result = match parse_result {
             Ok(mut parsed) => {
                 apply_lists(&mut parsed, Some(file));
+                apply_diagrams(&mut parsed, base_options, processor.name(), Some(file))
+                    .map_err(|error| error::display(&error))?;
                 let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
                 processor.convert(parsed.document(), Some(file))
             }
@@ -476,6 +480,7 @@ where
             path: file.clone(),
             result: convert_result,
             parser_warnings: Vec::new(),
+            diagram_failure: None,
             parse_dur: None,
             convert_dur: None,
         }]
@@ -539,7 +544,7 @@ where
                 let result = acdc_parser::parse_file(file, &parser_options);
                 (file.clone(), result, None)
             };
-            convert_parse_result(entry, &processor, show_timings)
+            convert_parse_result(entry, &processor, base_options, show_timings)
         })
         .collect();
 
@@ -558,6 +563,7 @@ where
 fn convert_parse_result<P>(
     (file, parse_result, parse_dur): TimedParseResult,
     processor: &P,
+    base_options: &Options,
     show_timings: bool,
 ) -> FileResult<P::Error>
 where
@@ -565,10 +571,16 @@ where
     P::Error: From<acdc_parser::Error>,
 {
     let now = Instant::now();
+    let mut diagram_failure = None;
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
             apply_lists(&mut parsed, Some(&file));
+            // A diagram failure only reaches here when the document asked to
+            // abort on one; it is carried to the reporter so this worker does
+            // not print out of turn.
+            diagram_failure =
+                apply_diagrams(&mut parsed, base_options, processor.name(), Some(&file)).err();
             let result = processor.convert(parsed.document(), Some(&file));
             (result, parser_warnings)
         }
@@ -580,6 +592,7 @@ where
         path: file,
         result,
         parser_warnings,
+        diagram_failure,
         parse_dur,
         convert_dur,
     }
@@ -589,6 +602,8 @@ struct FileResult<E> {
     path: PathBuf,
     result: Result<ConversionResult, E>,
     parser_warnings: Vec<acdc_parser::Warning>,
+    /// Set only when the document asked to abort on a diagram failure.
+    diagram_failure: Option<DiagramError>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
 }
@@ -613,12 +628,15 @@ where
 {
     fn report(self) -> miette::Result<Vec<PathBuf>> {
         let mut output_paths = Vec::new();
-        let mut errors = Vec::new();
+        let mut errors: Vec<(PathBuf, miette::Report)> = Vec::new();
 
         for file_result in self {
             file_result
                 .parser_warnings
                 .render(WarningRenderContext::new().with_file(&file_result.path));
+            if let Some(failure) = &file_result.diagram_failure {
+                errors.push((file_result.path.clone(), error::display(failure)));
+            }
             match file_result.result {
                 Ok(result) => {
                     let (output_path, warnings) = result.into_parts();
@@ -627,15 +645,14 @@ where
                         output_paths.push(output_path);
                     }
                 }
-                Err(error) => errors.push((file_result.path, error)),
+                Err(error) => errors.push((file_result.path, error::display(&error))),
             }
         }
 
         if !errors.is_empty() {
             eprintln!("\nFailed to process {} file(s):", errors.len());
-            for (idx, (file, err)) in errors.iter().enumerate() {
+            for (idx, (file, report)) in errors.iter().enumerate() {
                 eprintln!("\n{}. File: {}", idx + 1, file.display());
-                let report = error::display(err);
                 eprintln!("{report:?}");
             }
             return Err(miette::miette!(
@@ -668,6 +685,96 @@ fn apply_lists(parsed: &mut ParseResult, file: Option<&Path>) {
 /// No-op stand-in so the conversion paths read the same either way.
 #[cfg(not(feature = "lists"))]
 fn apply_lists(_parsed: &mut ParseResult, _file: Option<&Path>) {}
+/// The failure type of the diagram pass, or an uninhabited stand-in when the
+/// `diagram` feature is off, so the call sites need no `cfg` of their own.
+#[cfg(feature = "diagram")]
+type DiagramError = acdc_diagram::Error;
+#[cfg(not(feature = "diagram"))]
+type DiagramError = std::convert::Infallible;
+
+/// Generate the document's diagrams, rewriting each diagram block into the
+/// image it produced.
+///
+/// This runs between parsing and conversion, so every backend sees ordinary
+/// image blocks and none of them needs to know about diagrams. Warnings are
+/// rendered as they are produced; a document that sets
+/// `:diagram-on-error: abort` returns its first failure instead, and the
+/// conversion stops.
+#[cfg(feature = "diagram")]
+fn apply_diagrams(
+    parsed: &mut ParseResult,
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> Result<(), DiagramError> {
+    let processor = acdc_diagram::Processor::new(diagram_options(base_options, backend, file));
+    let mut warnings = Vec::new();
+    let outcome = parsed
+        .with_document_mut(|document, arena| processor.process(document, arena, &mut warnings));
+    warnings.render(WarningRenderContext::new().with_optional_file(file));
+    outcome
+}
+
+/// Tell the diagram pass where the document lives and where its output goes.
+///
+/// `imagesdir` and the diagram cache are resolved against the output
+/// directory, which is the directory `--out-file` names, or the document's own
+/// directory when the output path is derived or goes to stdout.
+#[cfg(feature = "diagram")]
+fn diagram_options(
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> acdc_diagram::Options {
+    fn directory_of(path: &Path) -> Option<PathBuf> {
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(Path::to_path_buf)
+    }
+
+    let base_dir = file
+        .and_then(directory_of)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let output_dir = match base_options.output_destination() {
+        OutputDestination::File(path) => directory_of(path).unwrap_or_else(|| base_dir.clone()),
+        OutputDestination::Stdout | OutputDestination::Derived => base_dir.clone(),
+    };
+
+    acdc_diagram::Options::builder()
+        .base_dir(base_dir)
+        .output_dir(output_dir)
+        .backend(backend)
+        .unsafe_mode(matches!(base_options.safe_mode(), SafeMode::Unsafe))
+        .build()
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "diagram"))]
+#[allow(clippy::unnecessary_wraps)]
+fn apply_diagrams(
+    _parsed: &mut ParseResult,
+    _base_options: &Options,
+    _backend: &'static str,
+    _file: Option<&Path>,
+) -> Result<(), DiagramError> {
+    Ok(())
+}
+
+/// The diagram pass for the terminal paths, whose only error channel is the
+/// terminal converter's own error type.
+///
+/// An abort is carried through as an I/O error holding the diagram failure's
+/// message, which is what the caller ends up printing.
+#[cfg(feature = "terminal")]
+fn apply_diagrams_as(
+    parsed: &mut ParseResult,
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> Result<(), acdc_converters_terminal::Error> {
+    apply_diagrams(parsed, base_options, backend, file)
+        .map_err(|error| std::io::Error::other(error.to_string()).into())
+}
 
 /// A parsed document paired with its source path and optional parse timing.
 /// Used by the timing-aware multi-file path.
@@ -701,7 +808,11 @@ impl<'a> WarningRenderContext<'a> {
         self
     }
 
+<<<<<<< HEAD
     #[cfg(feature = "lists")]
+=======
+    #[cfg(feature = "diagram")]
+>>>>>>> feat/asciidoctor-diagram
     const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
         self.file = file;
         self
@@ -1074,7 +1185,11 @@ fn run_terminal_stdin(
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
     let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+<<<<<<< HEAD
     apply_lists(&mut parsed, None);
+=======
+    apply_diagrams_as(&mut parsed, base_options, processor.name(), None)?;
+>>>>>>> feat/asciidoctor-diagram
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
@@ -1138,7 +1253,11 @@ fn run_terminal_through_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parser_warnings = parsed.take_warnings();
+<<<<<<< HEAD
             apply_lists(&mut parsed, Some(file));
+=======
+            apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+>>>>>>> feat/asciidoctor-diagram
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
@@ -1183,6 +1302,7 @@ fn run_terminal_with_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             apply_lists(&mut parsed, Some(file));
+            apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (output_path, warnings) = result.into_parts();
@@ -1203,6 +1323,7 @@ fn run_terminal_with_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             apply_lists(&mut parsed, Some(file));
+            apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (_, warnings) = result.into_parts();

@@ -15,6 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attributes that control them. Build without the `lists` feature to leave
   `list-of::` calls untouched.
 
+- `convert` generates the document's diagrams before conversion, so `[graphviz]`,
+  `[plantuml]`, `[ditaa]` and the other diagram blocks and macros render as
+  images in every backend. Each diagram's tool has to be installed; generated
+  images are cached next to the output under `.asciidoctor/diagram` and are only
+  re-rendered when the diagram changes. A diagram that cannot be generated leaves
+  its source in the output and reports why. See the `acdc-diagram` changelog for
+  the recognised diagram types and the attributes that control them. Build
+  without the `diagram` feature to leave diagram blocks untouched.
+
 ### Fixed
 
 - `convert -a` attributes now remain locked against matching set or unset

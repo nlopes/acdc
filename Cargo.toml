@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "acdc-cli",
+  "acdc-diagram",
   "acdc-editor-wasm",
   "acdc-lint",
   "acdc-lists",
@@ -17,6 +18,7 @@ members = [
 ]
 default-members = [
   "acdc-cli",
+  "acdc-diagram",
   "acdc-lint",
   "acdc-lists",
   "acdc-lsp",
@@ -45,6 +47,7 @@ acdc-converters-manpage = { path = "converters/manpage", default-features = fals
 acdc-converters-markdown = { path = "converters/markdown" }
 acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
+acdc-diagram = { path = "acdc-diagram", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-lists = { path = "acdc-lists", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
