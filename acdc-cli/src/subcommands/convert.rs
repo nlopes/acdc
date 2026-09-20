@@ -283,7 +283,6 @@ pub fn run(args: &Args) -> miette::Result<()> {
         Backend::Terminal => {
             // Terminal outputs to stdout with optional pager support
             run_terminal_with_pager(args, &options, document_attributes)
-                .map_err(|e| error::display(&e))
         }
 
         #[cfg(feature = "manpage")]
@@ -433,8 +432,9 @@ where
             build_parser_options(args, base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
-        let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
+        let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
             .map_err(|error| error::display(&error))?;
+        apply_bibtex(&mut parsed, None).map_err(|error| error::display(&error))?;
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
@@ -464,7 +464,8 @@ where
             acdc_parser::parse_file(file, &parser_options)
         };
         let convert_result = match parse_result {
-            Ok(parsed) => {
+            Ok(mut parsed) => {
+                apply_bibtex(&mut parsed, Some(file)).map_err(|error| error::display(&error))?;
                 let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
                 processor.convert(parsed.document(), Some(file))
             }
@@ -474,6 +475,7 @@ where
             path: file.clone(),
             result: convert_result,
             parser_warnings: Vec::new(),
+            bibtex_failure: None,
             parse_dur: None,
             convert_dur: None,
         }]
@@ -563,9 +565,14 @@ where
     P::Error: From<acdc_parser::Error>,
 {
     let now = Instant::now();
+    let mut bibtex_failure = None;
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
+            // A bibliography failure only reaches here when the document
+            // asked to stop on one; it travels to the reporter so this worker
+            // does not print out of turn.
+            bibtex_failure = apply_bibtex(&mut parsed, Some(&file)).err();
             let result = processor.convert(parsed.document(), Some(&file));
             (result, parser_warnings)
         }
@@ -577,6 +584,7 @@ where
         path: file,
         result,
         parser_warnings,
+        bibtex_failure,
         parse_dur,
         convert_dur,
     }
@@ -586,6 +594,8 @@ struct FileResult<E> {
     path: PathBuf,
     result: Result<ConversionResult, E>,
     parser_warnings: Vec<acdc_parser::Warning>,
+    /// Set only when the document asked to stop on an unresolved citation.
+    bibtex_failure: Option<BibtexError>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
 }
@@ -610,12 +620,15 @@ where
 {
     fn report(self) -> miette::Result<Vec<PathBuf>> {
         let mut output_paths = Vec::new();
-        let mut errors = Vec::new();
+        let mut errors: Vec<(PathBuf, miette::Report)> = Vec::new();
 
         for file_result in self {
             file_result
                 .parser_warnings
                 .render(WarningRenderContext::new().with_file(&file_result.path));
+            if let Some(failure) = &file_result.bibtex_failure {
+                errors.push((file_result.path.clone(), error::display(failure)));
+            }
             match file_result.result {
                 Ok(result) => {
                     let (output_path, warnings) = result.into_parts();
@@ -624,15 +637,14 @@ where
                         output_paths.push(output_path);
                     }
                 }
-                Err(error) => errors.push((file_result.path, error)),
+                Err(error) => errors.push((file_result.path, error::display(&error))),
             }
         }
 
         if !errors.is_empty() {
             eprintln!("\nFailed to process {} file(s):", errors.len());
-            for (idx, (file, err)) in errors.iter().enumerate() {
+            for (idx, (file, report)) in errors.iter().enumerate() {
                 eprintln!("\n{}. File: {}", idx + 1, file.display());
-                let report = error::display(err);
                 eprintln!("{report:?}");
             }
             return Err(miette::miette!(
@@ -643,6 +655,45 @@ where
 
         Ok(output_paths)
     }
+}
+
+/// The failure type of the bibliography pass, or an uninhabited stand-in when
+/// the `bibtex` feature is off, so the call sites need no `cfg` of their own.
+#[cfg(feature = "bibtex")]
+type BibtexError = acdc_bibtex::Error;
+#[cfg(not(feature = "bibtex"))]
+type BibtexError = std::convert::Infallible;
+
+/// Resolve the document's citations against its bibtex database.
+///
+/// This runs between parsing and conversion, so every backend renders
+/// ordinary text and links. A document that cites nothing and asks for no
+/// bibliography needs no database and is left alone; an unknown key is
+/// reported and rendered as written unless `:bibtex-throw: true` asks for it
+/// to stop the conversion.
+#[cfg(feature = "bibtex")]
+fn apply_bibtex(parsed: &mut ParseResult, file: Option<&Path>) -> Result<(), BibtexError> {
+    let base_dir = file
+        .and_then(Path::parent)
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map_or_else(
+            || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            Path::to_path_buf,
+        );
+    let processor =
+        acdc_bibtex::Processor::new(acdc_bibtex::Options::builder().base_dir(base_dir).build());
+    let mut warnings = Vec::new();
+    let outcome = parsed
+        .with_document_mut(|document, arena| processor.process(document, arena, &mut warnings));
+    warnings.render(WarningRenderContext::new().with_optional_file(file));
+    outcome
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "bibtex"))]
+#[allow(clippy::unnecessary_wraps)]
+fn apply_bibtex(_parsed: &mut ParseResult, _file: Option<&Path>) -> Result<(), BibtexError> {
+    Ok(())
 }
 
 /// A parsed document paired with its source path and optional parse timing.
@@ -674,6 +725,12 @@ impl<'a> WarningRenderContext<'a> {
 
     const fn with_file(mut self, file: &'a Path) -> Self {
         self.file = Some(file);
+        self
+    }
+
+    #[cfg(feature = "bibtex")]
+    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
         self
     }
 }
@@ -1006,9 +1063,9 @@ fn parse_terminal_file(
     base_options: &Options,
     document_attributes: &DocumentAttributes<'static>,
     file: &Path,
-) -> Result<ParseResult, acdc_parser::Error> {
+) -> miette::Result<ParseResult> {
     let parser_options = build_parser_options(args, base_options, document_attributes.clone());
-    if base_options.timings() {
+    let parsed = if base_options.timings() {
         let now = Instant::now();
         let result = acdc_parser::parse_file(file, &parser_options);
         if result.is_ok() {
@@ -1022,7 +1079,10 @@ fn parse_terminal_file(
         result
     } else {
         acdc_parser::parse_file(file, &parser_options)
-    }
+    };
+    let mut parsed = parsed.map_err(|error| error::display(&error))?;
+    apply_bibtex(&mut parsed, Some(file)).map_err(|error| error::display(&error))?;
+    Ok(parsed)
 }
 
 /// Run terminal converter with optional pager support.
@@ -1033,7 +1093,7 @@ fn run_terminal_stdin(
     base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
     output_to_file: bool,
-) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
+) -> miette::Result<Vec<PathBuf>> {
     use std::io::BufWriter;
 
     use acdc_converters_terminal::Processor;
@@ -1043,21 +1103,23 @@ fn run_terminal_stdin(
         build_parser_options(args, base_options, processor.document_attributes().clone());
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
-    let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+    let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
+        .map_err(|error| error::display(&error))?;
+    apply_bibtex(&mut parsed, None).map_err(|error| error::display(&error))?;
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
-            .map(|result| result.report(WarningRenderContext::new()));
+            .map(|result| result.report(WarningRenderContext::new()))
+            .map_err(|error| error::display(&error));
     }
 
     // Try pager. The pager's screen takeover would visually bury anything we
     // eprintln! before it exits, so we drain warnings up front and print them
     // after pager.wait().
     if let Some(mut pager) = spawn_pager(args.no_pager) {
-        let mut parsed = parsed;
         let parser_warnings = parsed.take_warnings();
         let mut converter_warnings = Vec::new();
         if let Some(pager_stdin) = pager.stdin.take() {
@@ -1065,17 +1127,21 @@ fn run_terminal_stdin(
             let source = processor.warning_source();
             let mut diagnostics =
                 acdc_converters_core::Diagnostics::new(&source, &mut converter_warnings);
-            processor.write_to(parsed.document(), writer, None, None, &mut diagnostics)?;
+            processor
+                .write_to(parsed.document(), writer, None, None, &mut diagnostics)
+                .map_err(|error| error::display(&error))?;
         }
         // `parsed` and its arena drop here; the pager output is already in flight.
         drop(parsed);
-        let _ = pager.wait()?;
+        let _ = pager.wait().map_err(|error| error::display(&error))?;
         parser_warnings.render(WarningRenderContext::new());
         converter_warnings.render(WarningRenderContext::new());
         return Ok(Vec::new());
     }
     let parsed = parsed.report_warnings(WarningRenderContext::new());
-    let result = processor.convert(parsed.document(), None)?;
+    let result = processor
+        .convert(parsed.document(), None)
+        .map_err(|error| error::display(&error))?;
     result.report(WarningRenderContext::new());
     Ok(Vec::new())
 }
@@ -1093,7 +1159,7 @@ fn run_terminal_through_pager(
     base_options: &Options,
     files: &[PathBuf],
     mut pager: std::process::Child,
-) -> Result<(), acdc_converters_terminal::Error> {
+) -> miette::Result<()> {
     use std::io::BufWriter;
 
     let mut deferred: Vec<(Vec<acdc_parser::Warning>, PathBuf)> = Vec::new();
@@ -1107,14 +1173,16 @@ fn run_terminal_through_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parser_warnings = parsed.take_warnings();
-            processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
+            processor
+                .write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)
+                .map_err(|error| error::display(&error))?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
         }
         drop(writer); // Flush and close stdin
     }
     // Wait for pager, ignore exit status (user may quit with 'q')
-    let _ = pager.wait()?;
+    let _ = pager.wait().map_err(|error| error::display(&error))?;
     for (warnings, file) in &deferred {
         warnings.render(WarningRenderContext::new().with_file(file));
     }
@@ -1127,7 +1195,7 @@ fn run_terminal_with_pager(
     args: &Args,
     base_options: &Options,
     document_attributes: DocumentAttributes<'static>,
-) -> Result<Vec<PathBuf>, acdc_converters_terminal::Error> {
+) -> miette::Result<Vec<PathBuf>> {
     use acdc_converters_terminal::Processor;
 
     // Check if --out-file specifies a file (not stdout)
@@ -1151,7 +1219,9 @@ fn run_terminal_with_pager(
             let parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
-            let result = processor.convert(parsed.document(), Some(file))?;
+            let result = processor
+                .convert(parsed.document(), Some(file))
+                .map_err(|error| error::display(&error))?;
             let (output_path, warnings) = result.into_parts();
             warnings.render(WarningRenderContext::new().with_file(file));
             if let Some(output_path) = output_path {
@@ -1170,7 +1240,9 @@ fn run_terminal_with_pager(
             let parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
-            let result = processor.convert(parsed.document(), Some(file))?;
+            let result = processor
+                .convert(parsed.document(), Some(file))
+                .map_err(|error| error::display(&error))?;
             let (_, warnings) = result.into_parts();
             warnings.render(WarningRenderContext::new().with_file(file));
         }

@@ -56,6 +56,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- BibTeX citations are resolved before conversion, for every backend. A
+  document that uses `cite:`, `citenp:`, `bibitem:` or `bibliography::[]` gets
+  formatted citations and a reference list built from the `.bib` file that
+  `:bibtex-file:` names, or the one beside the document. This is the default-on
+  `bibtex` feature; build with `--no-default-features` to leave the macros as
+  written. An unknown citation key is reported as a warning, or fails the
+  conversion when the document sets `:bibtex-throw: true`.
+
 - A new `lint` command is available by default. It accepts files or `--stdin`
   and Clippy-style lint level flags (`--allow`/`-A`, `--warn`/`-W`,
   `--deny`/`-D`, `--forbid`/`-F`) for the initial Asciidoctor recommended

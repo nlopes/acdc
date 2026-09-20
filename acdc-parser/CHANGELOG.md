@@ -74,6 +74,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A parsed document can now be rewritten in place before it is converted, with
+  `ParseResult::with_document_mut`. The closure is handed the document and the
+  `DocumentArena` its text is allocated from, so a pass can generate new text
+  that lives exactly as long as the rest of the document. This is what
+  extension-style passes such as `acdc-bibtex` run on.
+
 - Index terms now parse Asciidoctor's named `see` and `see-also` attributes
   and the spaced `>>` and `&>` shorthand forms. `IndexTerm::relationship`
   exposes this data as `IndexTermRelationship`; serialized ASG output includes

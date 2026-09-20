@@ -16,6 +16,7 @@ path = "src/main.rs"
 doc = false
 
 [dependencies]
+acdc-bibtex = { workspace = true, optional = true }
 acdc-converters-core.workspace = true
 acdc-converters-html = { workspace = true, optional = true }
 acdc-lint = { workspace = true, optional = true }
@@ -41,12 +42,13 @@ tempfile.workspace = true
 
 [features]
 # Default features - HTML converter is always included as the primary output format
-default = ["html", "lint", "pre-spec-subs", "setext"]
+default = ["bibtex", "html", "lint", "pre-spec-subs", "setext"]
 
 # Asciidoctor-compatible subs= attribute. Experimental - may be removed when AsciiDoc spec finalizes.
 # Forwarded to every converter dependency that honours subs=.
 pre-spec-subs = [
     "acdc-parser/pre-spec-subs",
+    "acdc-bibtex?/pre-spec-subs",
     "acdc-converters-core/pre-spec-subs",
     "acdc-converters-html?/pre-spec-subs",
     "acdc-converters-manpage?/pre-spec-subs",
@@ -63,6 +65,7 @@ pdf = ["dep:acdc-converters-pdf", "dep:chrono"] # PDF converter backed by the Ru
 terminal = ["dep:acdc-converters-terminal"]    # Terminal converter with ANSI color support
 
 # Document tools
+bibtex = ["dep:acdc-bibtex"]                   # `cite:`/`bibliography::[]` from a .bib database
 lint = ["dep:acdc-lint"]                       # AsciiDoc lint command
 
 # Syntax highlighting for source blocks in selected HTML and terminal backends.

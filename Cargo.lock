@@ -3,9 +3,21 @@
 version = 4
 
 [[package]]
+name = "acdc-bibtex"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "pretty_assertions",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "acdc-cli"
 version = "0.2.0"
 dependencies = [
+ "acdc-bibtex",
  "acdc-converters-core",
  "acdc-converters-html",
  "acdc-converters-manpage",
