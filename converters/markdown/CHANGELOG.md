@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits — before a bibliography or a
+  colophon, or nested inside a part of a multipart book — and lists every term
+  in the document, including those in sections that follow it. Previously such
+  an index came out empty with nothing reported.
+- An `[index]` section keeps any content the author wrote in it; the generated
+  listing is appended after it rather than replacing it.
+
+### Fixed
+
 - Numbered book chapters now honor a configured `chapter-signifier` in both
   headings and TOC entries. An absent or unset signifier keeps the number-only
   form.
