@@ -1332,6 +1332,7 @@ fn run_terminal_with_pager(
 /// stays in this enum (rather than being normalised to `Html`) so the
 /// resolver can reject the contradictory `--backend html5s --variant
 /// <anything>` form before lowering it to the typed [`Backend`].
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum BackendArg {
     #[cfg(feature = "html")]
