@@ -35,9 +35,7 @@ pub fn strip_quotes(s: &str) -> &str {
 /// Numeric values use attribute-specific validation. Text is not inferred to be
 /// numeric merely because it contains digits.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DocumentAttributeValue<'a> {
-    kind: ValueKind<'a>,
-}
+pub struct DocumentAttributeValue<'a>(ValueKind<'a>);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum ValueKind<'a> {
@@ -51,24 +49,20 @@ enum ValueKind<'a> {
 
 impl<'a> DocumentAttributeValue<'a> {
     pub(crate) const fn presence() -> Self {
-        Self {
-            kind: ValueKind::Presence,
-        }
+        Self(ValueKind::Presence)
     }
 
     pub(crate) const fn integer(value: i128) -> Self {
-        Self {
-            kind: ValueKind::Integer {
-                value,
-                source: None,
-            },
-        }
+        Self(ValueKind::Integer {
+            value,
+            source: None,
+        })
     }
 
     /// Return text only when the semantic value is textual.
     #[must_use]
     pub fn as_str(&self) -> Option<&str> {
-        match &self.kind {
+        match &self.0 {
             ValueKind::Text(value) => Some(value),
             ValueKind::Presence | ValueKind::Integer { .. } => None,
         }
@@ -77,7 +71,7 @@ impl<'a> DocumentAttributeValue<'a> {
     /// Return the validated integer, without parsing a textual value.
     #[must_use]
     pub const fn as_integer(&self) -> Option<i128> {
-        match self.kind {
+        match self.0 {
             ValueKind::Integer { value, .. } => Some(value),
             ValueKind::Text(_) | ValueKind::Presence => None,
         }
@@ -86,7 +80,7 @@ impl<'a> DocumentAttributeValue<'a> {
     /// Return whether the attribute was set without a semantic value.
     #[must_use]
     pub const fn is_presence(&self) -> bool {
-        matches!(self.kind, ValueKind::Presence)
+        matches!(self.0, ValueKind::Presence)
     }
 
     /// Return retained text, including the spelling of an explicit integer.
@@ -106,7 +100,7 @@ impl<'a> DocumentAttributeValue<'a> {
     ///
     /// Returns errors from the output buffer.
     pub fn write_text<W: fmt::Write>(&self, output: &mut W) -> fmt::Result {
-        match &self.kind {
+        match &self.0 {
             ValueKind::Text(value) => output.write_str(value),
             ValueKind::Presence => Ok(()),
             ValueKind::Integer { value, source } => match source {
@@ -117,7 +111,7 @@ impl<'a> DocumentAttributeValue<'a> {
     }
 
     fn stored_text(&self) -> Option<&Cow<'a, str>> {
-        match &self.kind {
+        match &self.0 {
             ValueKind::Text(value) => Some(value),
             ValueKind::Integer { source, .. } => source.as_ref().filter(|text| !text.is_empty()),
             ValueKind::Presence => None,
@@ -125,35 +119,31 @@ impl<'a> DocumentAttributeValue<'a> {
     }
 
     pub(crate) fn as_borrowed(&self) -> DocumentAttributeValue<'_> {
-        DocumentAttributeValue {
-            kind: match &self.kind {
-                ValueKind::Text(value) => ValueKind::Text(Cow::Borrowed(value)),
-                ValueKind::Presence => ValueKind::Presence,
-                ValueKind::Integer { value, source } => ValueKind::Integer {
-                    value: *value,
-                    source: source.as_deref().map(Cow::Borrowed),
-                },
+        DocumentAttributeValue(match &self.0 {
+            ValueKind::Text(value) => ValueKind::Text(Cow::Borrowed(value)),
+            ValueKind::Presence => ValueKind::Presence,
+            ValueKind::Integer { value, source } => ValueKind::Integer {
+                value: *value,
+                source: source.as_deref().map(Cow::Borrowed),
             },
-        }
+        })
     }
 
     /// Consume the value, retaining existing allocations for owned text.
     #[must_use]
     pub fn into_static(self) -> DocumentAttributeValue<'static> {
-        DocumentAttributeValue {
-            kind: match self.kind {
-                ValueKind::Text(value) => ValueKind::Text(Cow::Owned(value.into_owned())),
-                ValueKind::Presence => ValueKind::Presence,
-                ValueKind::Integer { value, source } => ValueKind::Integer {
-                    value,
-                    source: source.map(|text| Cow::Owned(text.into_owned())),
-                },
+        DocumentAttributeValue(match self.0 {
+            ValueKind::Text(value) => ValueKind::Text(Cow::Owned(value.into_owned())),
+            ValueKind::Presence => ValueKind::Presence,
+            ValueKind::Integer { value, source } => ValueKind::Integer {
+                value,
+                source: source.map(|text| Cow::Owned(text.into_owned())),
             },
-        }
+        })
     }
 
     fn into_input(self) -> AttributeValue<'a> {
-        match self.kind {
+        match self.0 {
             ValueKind::Text(text) => AttributeValue::String(text),
             ValueKind::Presence => AttributeValue::Bool(true),
             ValueKind::Integer { value, source } => match source {
@@ -165,7 +155,7 @@ impl<'a> DocumentAttributeValue<'a> {
     }
 
     fn serialized_value(&self, presence_as_empty: bool) -> SerializedDocumentAttributeValue<'_> {
-        match &self.kind {
+        match &self.0 {
             ValueKind::Text(value) => SerializedDocumentAttributeValue::Text(value),
             ValueKind::Presence if presence_as_empty => SerializedDocumentAttributeValue::Text(""),
             ValueKind::Presence => SerializedDocumentAttributeValue::Bool(true),
@@ -180,9 +170,7 @@ impl<'a> DocumentAttributeValue<'a> {
 
 impl<'a> From<Cow<'a, str>> for DocumentAttributeValue<'a> {
     fn from(value: Cow<'a, str>) -> Self {
-        Self {
-            kind: ValueKind::Text(value),
-        }
+        Self(ValueKind::Text(value))
     }
 }
 
@@ -218,9 +206,8 @@ pub enum DocumentAttributeAssignment<'a> {
 
 impl<'a> DocumentAttributeAssignment<'a> {
     pub(crate) fn new(mut assignment: Self, original_source_text: Option<Cow<'a, str>>) -> Self {
-        if let Self::Set(DocumentAttributeValue {
-            kind: ValueKind::Integer { source, .. },
-        }) = &mut assignment
+        if let Self::Set(DocumentAttributeValue(ValueKind::Integer { source, .. })) =
+            &mut assignment
         {
             *source = original_source_text;
         }
