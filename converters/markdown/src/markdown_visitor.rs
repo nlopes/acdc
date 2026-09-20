@@ -1469,11 +1469,13 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             let prev_level = self.heading_level;
             self.heading_level = level as usize;
 
+            // The section's own blocks are the author's; the generated listing
+            // is appended after them, so an `[index]` section can carry a note
+            // of its own without it being swallowed by the index.
+            self.visit_separated_blocks(&section.content, true)?;
             if section.kind == SectionKind::Index && self.processor.generate_index() {
                 let processor = self.processor.clone();
                 crate::index::render(self, &processor, self.heading_level + 1)?;
-            } else {
-                self.visit_separated_blocks(&section.content, true)?;
             }
 
             self.heading_level = prev_level;

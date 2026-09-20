@@ -38,7 +38,7 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, Doctype, Options, section::last_section_has_style,
+    BackendProfile, Converter, Diagnostics, Doctype, Options, section::has_index_section,
     visitor::Visitor, xref::XrefGuard,
 };
 
@@ -150,7 +150,7 @@ impl Processor<'_> {
             static_media_warning: Rc::new(Cell::new(false)),
             inline_role_warning: Rc::new(Cell::new(false)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: last_section_has_style(&doc.blocks, "index"),
+            has_valid_index_section: has_index_section(&doc.blocks),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };

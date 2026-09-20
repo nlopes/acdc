@@ -17,9 +17,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     /// Renders the section header, walks nested blocks, then renders footer.
     /// A section with the `[index]` style gets acdc's generated index catalog
     /// (an extension over asciidoctor's html5 backend, which leaves `[index]`
-    /// empty — see `crate::index`) only when it's the document's last section;
-    /// any other `[index]` section renders like a normal section, so its
-    /// heading is still emitted (matching asciidoctor) rather than dropped.
+    /// empty — see `crate::index`), wherever in the document it sits. With the
+    /// extension off it renders like a normal section, so its heading is still
+    /// emitted (matching asciidoctor) rather than dropped.
     pub(crate) fn render_section(&mut self, section: &Section) -> Result<(), Error> {
         let processor = self.processor.clone();
 
@@ -28,14 +28,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         self.render_section_header(section)?;
 
+        // The section's own blocks are the author's; the generated listing is
+        // appended after them, so an `[index]` section can carry a note of its
+        // own without it being swallowed by the index.
+        for nested_block in &section.content {
+            self.visit_block(nested_block)?;
+        }
         if render_catalog {
-            // Render the collected index catalog
             crate::index::render(section, self)?;
-        } else {
-            // Normal section (and non-last index sections): render nested blocks
-            for nested_block in &section.content {
-                self.visit_block(nested_block)?;
-            }
         }
 
         self.render_section_footer(section)?;
