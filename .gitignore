@@ -13,8 +13,6 @@
 .claude/vibe-check-themes.md
 /wip
 *.DS_Store
-cspell.json
-.claude/agents/compare-asciidoc-output.md
 # Reference checkouts of the upstream Ruby extensions, and local documents
 asciidoctor-bibtex/
 asciidoctor-diagram/
