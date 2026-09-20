@@ -28,6 +28,9 @@ pub(crate) enum Rendered {
         /// The `target` attribute the author wrote, if any, which feeds the
         /// alt-text fallback.
         explicit_target: Option<String>,
+        /// An explicit `caption=` prefix from the diagram block, which
+        /// replaces the figure caption the image would otherwise take.
+        caption: Option<String>,
     },
     /// A literal block holding generated text.
     Text {
@@ -57,14 +60,14 @@ pub(crate) fn render(options: &Options, request: Request<'_>) -> Result<Rendered
 
     let format = choose_format(options, converter.as_ref(), &mut source)?;
 
-    // acdc has no figure-caption attribute of its own; consume asciidoctor's
-    // so it does not end up as an HTML attribute on the image.
-    source.take_attribute("caption");
+    // Taken off the attributes so it does not reach the image as an HTML
+    // attribute; it becomes the node's caption prefix instead.
+    let caption = source.take_attribute("caption");
 
     if format.is_text() {
         return render_text(converter.as_ref(), &mut source, format);
     }
-    render_image(options, converter.as_ref(), &mut source, format)
+    render_image(options, converter.as_ref(), &mut source, format, caption)
 }
 
 /// Resolve the output format, honouring the block, the document, and the
@@ -134,6 +137,7 @@ fn render_image(
     converter: &dyn DiagramConverter,
     source: &mut DiagramSource<'_>,
     format: Format,
+    caption: Option<String>,
 ) -> Result<Rendered> {
     let image_name = format!("{}.{format}", source.image_name());
     let image_dir = image_output_dir(options, source);
@@ -199,6 +203,7 @@ fn render_image(
         format,
         &metadata,
         &ImagePaths { image_file },
+        caption,
     )
 }
 
@@ -216,6 +221,7 @@ fn image_node(
     format: Format,
     metadata: &ImageMetadata,
     paths: &ImagePaths,
+    caption: Option<String>,
 ) -> Result<Rendered> {
     let explicit_target = source.attr(&["target"]);
     let svg_type = source.global_attr("svg-type");
@@ -256,6 +262,7 @@ fn image_node(
         target,
         attributes,
         explicit_target,
+        caption,
     })
 }
 

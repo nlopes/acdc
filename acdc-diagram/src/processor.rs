@@ -13,13 +13,18 @@
 //! (`graphviz:file[]` inside a sentence) is not supported at all, because the
 //! parser has already turned it into plain text by then.
 
-use std::{cell::RefCell, collections::BTreeMap, path::PathBuf};
+use std::{
+    borrow::Cow,
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+    path::PathBuf,
+};
 
 use acdc_converters_core::{Diagnostics, Warning, WarningSource};
 use acdc_parser::{
-    Anchor, AttributeValue, Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, Document,
-    DocumentArena, DocumentAttributes, ElementAttributes, Image, InlineNode, Location, Source,
-    SourceLocation, Table, Title, Verbatim,
+    Anchor, AttributeValue, Block, BlockMetadata, Caption, CaptionKind, DelimitedBlock,
+    DelimitedBlockType, Document, DocumentArena, DocumentAttributes, ElementAttributes, Image,
+    InlineNode, Location, Source, SourceLocation, Table, Title, Verbatim,
 };
 
 use crate::{
@@ -93,9 +98,22 @@ impl Processor {
             attributes,
             arena,
             abort_on_error,
+            produced_image: Cell::new(false),
         };
         let mut diagnostics = Diagnostics::new(&self.warning_source, warnings);
-        walk_blocks(&context, &mut document.blocks, &mut diagnostics)
+        walk_blocks(&context, &mut document.blocks, &mut diagnostics)?;
+
+        // Each generated image took a figure caption with no ordinal, because
+        // the parser numbered the document before any of them existed. One
+        // pass now settles the whole document, so a generated diagram is
+        // numbered among the hand-written images in the order it appears.
+        //
+        // A document that produced no image is left exactly as parsed: the
+        // pass should be invisible to one that holds no diagrams.
+        if context.produced_image.get() {
+            document.renumber_captions();
+        }
+        Ok(())
     }
 }
 
@@ -106,9 +124,22 @@ struct Context<'ctx, 'arena> {
     attributes: &'ctx DocumentAttributes<'ctx>,
     arena: &'arena DocumentArena,
     abort_on_error: bool,
+    /// Whether any diagram became an image, which is what makes renumbering
+    /// the document's captions necessary.
+    produced_image: Cell<bool>,
 }
 
 impl Context<'_, '_> {
+    /// The label a figure caption carries, from `figure-caption`.
+    ///
+    /// Asciidoctor's own default is `Figure`; setting the attribute to nothing
+    /// suppresses the label and leaves the bare ordinal.
+    fn figure_label(&self) -> String {
+        self.attributes
+            .get_string("figure-caption")
+            .map_or_else(|| "Figure".to_string(), Cow::into_owned)
+    }
+
     /// Report a generation failure, or propagate it when the document asked
     /// for that.
     fn report(
@@ -377,11 +408,15 @@ fn apply<'arena>(context: &Context<'_, 'arena>, block: &mut Block<'arena>, rende
             target,
             attributes,
             explicit_target,
+            caption,
         } => {
+            context.produced_image.set(true);
             let parts = ImageBlock {
                 target,
                 attributes,
                 explicit_target,
+                caption,
+                figure_label: context.figure_label(),
                 title: std::mem::take(&mut delimited.title),
                 metadata: std::mem::take(&mut delimited.metadata),
                 location: delimited.location.clone(),
@@ -434,14 +469,20 @@ fn apply_to_paragraph<'arena>(
             target,
             attributes,
             explicit_target,
-        } => image_block(ImageBlock {
-            target,
-            attributes,
-            explicit_target,
-            title,
-            metadata,
-            location,
-        }),
+            caption,
+        } => {
+            context.produced_image.set(true);
+            image_block(ImageBlock {
+                target,
+                attributes,
+                explicit_target,
+                caption,
+                figure_label: context.figure_label(),
+                title,
+                metadata,
+                location,
+            })
+        }
     };
 }
 
@@ -450,6 +491,11 @@ struct ImageBlock<'a> {
     target: String,
     attributes: BTreeMap<String, String>,
     explicit_target: Option<String>,
+    /// An explicit `caption=` prefix written on the diagram block.
+    caption: Option<String>,
+    /// The document's `figure-caption` label, for the caption the image takes
+    /// when the block gave it none.
+    figure_label: String,
     title: Title<'a>,
     metadata: BlockMetadata<'a>,
     location: Location,
@@ -460,6 +506,8 @@ fn image_block(parts: ImageBlock<'_>) -> Block<'_> {
         target,
         mut attributes,
         explicit_target,
+        caption,
+        figure_label,
         title,
         mut metadata,
         location,
@@ -468,6 +516,20 @@ fn image_block(parts: ImageBlock<'_>) -> Block<'_> {
     if !attributes.contains_key("alt") {
         attributes.insert("alt".to_string(), alt_text(explicit_target.as_deref()));
     }
+
+    // The block was a listing or a literal when the parser handed out caption
+    // ordinals, so whatever caption it carries belongs to the wrong counter.
+    // The node is an image now and takes a figure caption; the ordinal is left
+    // for `Document::renumber_captions`, which assigns it in document order
+    // once every diagram in the document has been replaced.
+    metadata.caption = Some(match caption {
+        Some(prefix) => Caption::Custom(Cow::Owned(prefix)),
+        None => Caption::Numbered {
+            kind: CaptionKind::Figure,
+            label: Cow::Owned(figure_label),
+            number: None,
+        },
+    });
 
     metadata.style = None;
     metadata.attributes = element_attributes(attributes);

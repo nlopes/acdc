@@ -92,6 +92,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `[tape]` diagrams run the shell commands in their body, so they are generated
   only in unsafe mode.
 
+### Fixed
+
+- A generated diagram is now numbered among the document's figures, so it takes
+  a `Figure N` caption of its own and appears in a cross-reference or a list of
+  figures with that number, as it does under `asciidoctor-diagram`. The label
+  follows `figure-caption`, and a `caption=` written on the diagram block still
+  overrides it with that prefix. Numbering runs once over the whole document
+  after every diagram has been generated, so hand-written images and generated
+  ones share one sequence in document order.
+
 ### Divergences from `asciidoctor-diagram`
 
 - Cached images live exactly where the gem puts them — the image in
