@@ -10,7 +10,9 @@ use std::{
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, InlineTextTransform, Options,
-    section::has_index_section, visitor::Visitor, xref::XrefGuard,
+    section::{has_index_section, index_generation_enabled},
+    visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
     BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode, Reference,
@@ -226,7 +228,8 @@ impl<'a> Converter<'a> for Processor<'a> {
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
             index_catalog: Rc::new(RefCell::new(Vec::new())),
-            has_valid_index_section: has_index_section(&doc.blocks),
+            has_valid_index_section: index_generation_enabled(&doc.attributes)
+                && has_index_section(&doc.blocks),
             list_indent: Rc::new(Cell::new(0)),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]

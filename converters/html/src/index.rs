@@ -10,16 +10,18 @@
 //! so an index may precede a bibliography or a colophon; `lib::collect_index_terms`
 //! gathers the terms before any output is written.
 //!
-//! NOTE: this is an acdc extension, opt-in via the `:acdc-index:` document
-//! attribute. asciidoctor's html5 backend does **not** generate an index — it
-//! renders an `[index]` section with an empty body and emits no
-//! `<a id="_indexterm_N">` anchors (index generation only happens in `DocBook`
-//! output or via extensions such as asciidoctor-pdf). When `:acdc-index:` is
-//! unset, acdc matches asciidoctor exactly; when set, acdc emits a back-linked
-//! anchor per index-term occurrence (see `inlines::render_indexterm`) and builds
-//! the listing below. The `index_catalog*` test fixtures (attribute set)
-//! therefore intentionally diverge from asciidoctor; fixtures without the
-//! attribute stay byte-identical.
+//! NOTE: this is an acdc extension. asciidoctor's html5 backend does **not**
+//! generate an index — it renders an `[index]` section with an empty body and
+//! emits no `<a id="_indexterm_N">` anchors (index generation only happens in
+//! `DocBook` output or via extensions such as asciidoctor-pdf). acdc builds
+//! the listing whenever a document seeds an `[index]` section, because writing
+//! that section is the author asking for an index, and because acdc's pdf
+//! backend has always done so — a document should not come out with an index
+//! in one format and an empty heading in the other.
+//!
+//! `:!acdc-index:` turns the extension off and is the way back to
+//! byte-identical asciidoctor output; the fixtures that carry it document
+//! exactly that.
 
 use std::{
     collections::{BTreeMap, BTreeSet},

@@ -914,20 +914,25 @@ fn stem_fixtures_preserve_expressions_and_structured_warnings() -> Result<(), Er
 }
 
 #[test]
-fn linked_index_catalog_requires_both_opt_ins() -> Result<(), Error> {
+fn linked_index_catalog_follows_the_index_section() -> Result<(), Error> {
     let body = "== Terms\n\nVisible ((Cats)) and concealed (((Animals, Mammals))).\n";
     let index = "\n[index]\n== Index\n";
 
-    let (section_only, _) = convert_str(&format!("= Doc\n\n{body}{index}"))?;
+    // The `[index]` section is the request for an index; the attribute alone
+    // is not, and the soft unset takes it back.
     let (attribute_only, _) = convert_str(&format!("= Doc\n:acdc-index:\n\n{body}"))?;
-    for output in [&section_only, &attribute_only] {
+    let (opted_out, _) = convert_str(&format!("= Doc\n:!acdc-index:\n\n{body}{index}"))?;
+    for output in [&attribute_only, &opted_out] {
         assert!(!output.contains("_indexterm_"), "{output}");
         assert!(!output.contains("### A"), "{output}");
     }
 
+    let (section_only, _) = convert_str(&format!("= Doc\n\n{body}{index}"))?;
+    assert!(section_only.contains("_indexterm_"), "{section_only}");
+    assert!(section_only.contains("### A"), "{section_only}");
+
     for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
-        let (enabled, _) =
-            convert_str_with_variant(&format!("= Doc\n:acdc-index:\n\n{body}{index}"), variant)?;
+        let (enabled, _) = convert_str_with_variant(&format!("= Doc\n\n{body}{index}"), variant)?;
         for expected in [
             "<a id=\"_indexterm_0\"></a>Cats",
             "<a id=\"_indexterm_1\"></a>",

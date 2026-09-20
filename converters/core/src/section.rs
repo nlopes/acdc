@@ -36,6 +36,26 @@ pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
     })
 }
 
+/// Whether the generated index is wanted.
+///
+/// A document earns an index by seeding an `[index]` section — writing that
+/// section is the author asking for one — so generation is on by default and
+/// `:!acdc-index:` turns it off. A document with no such section never reaches
+/// this question.
+///
+/// Index generation is an acdc extension: asciidoctor's html5 backend leaves
+/// `[index]` empty, while asciidoctor-pdf populates it. Every acdc backend
+/// answers this the same way, so one document does not come out with an index
+/// in one format and an empty heading in another. The soft unset is the way
+/// back to byte-identical asciidoctor output.
+#[must_use]
+pub fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
+    !matches!(
+        attributes.get("acdc-index"),
+        Some(AttributeValue::Bool(false) | AttributeValue::None)
+    )
+}
+
 /// Return the rendered level for a section.
 ///
 /// Converters present a source level-zero special section at the chapter tier without changing

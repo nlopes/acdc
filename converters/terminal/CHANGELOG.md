@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A document that seeds an `[index]` section now gets its index without also
+  having to set `:acdc-index:`, and `:!acdc-index:` turns the extension off.
+  Every backend now answers this the same way, so one document no longer comes
+  out with an index in one format and an empty heading in another.
+
 ### Fixed
 
 - A generated index no longer has to be the document's last section. An

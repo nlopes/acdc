@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
 
+### Changed
+
+- `:!acdc-index:` now turns index generation off, matching the other backends.
+  A document that seeds an `[index]` section still gets its index by default.
+
 ### Fixed
 
 - A generated index no longer has to be the document's last section. An

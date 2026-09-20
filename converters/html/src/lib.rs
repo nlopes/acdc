@@ -41,7 +41,7 @@ mod terminal;
 mod toc;
 mod video;
 
-pub(crate) use acdc_converters_core::section::has_index_section;
+pub(crate) use acdc_converters_core::section::{has_index_section, index_generation_enabled};
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::HtmlVisitor;
@@ -182,9 +182,9 @@ pub struct Processor<'a> {
     /// into "record a term" and "take the next anchor" would let the
     /// collected list serve as the catalog and let this field go.
     index_catalog: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Whether to generate acdc's index catalog: true only when the
-    /// `:acdc-index:` document attribute is set AND the document's last section
-    /// has the `[index]` style. When false the feature is fully off — no
+    /// Whether to generate acdc's index catalog: true when the document seeds
+    /// an `[index]` section and has not turned the feature off with
+    /// `:!acdc-index:`. When false the feature is fully off — no
     /// `_indexterm_` anchors and `[index]` sections render empty, matching
     /// asciidoctor (index generation is an acdc extension; see `crate::index`).
     generate_index: bool,
@@ -205,8 +205,8 @@ impl<'a> Processor<'a> {
         &self.index_catalog
     }
 
-    /// Whether acdc's index catalog should be generated (the `:acdc-index:`
-    /// attribute is set and the document seeds an `[index]` section).
+    /// Whether acdc's index catalog should be generated (the document seeds
+    /// an `[index]` section and did not set `:!acdc-index:`).
     #[must_use]
     pub fn generate_index(&self) -> bool {
         self.generate_index
@@ -464,17 +464,6 @@ fn collect_index_terms<'doc>(
     }
     processor.index_term_counter.set(index_term_start);
     Ok(())
-}
-
-/// Whether acdc's index generation is opted into via the `:acdc-index:`
-/// document attribute. Index generation is an acdc extension over asciidoctor's
-/// html5 backend (see `crate::index`), so it is off unless the author asks for
-/// it. Treated as a boolean attribute: present and not soft-unset (`:!acdc-index:`)
-/// turns it on.
-pub(crate) fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
-    attributes
-        .get("acdc-index")
-        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
 }
 
 pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {

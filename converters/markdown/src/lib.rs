@@ -61,7 +61,7 @@
 //! Images retain alternative text, titles, dimensions, and links. Video
 //! posters render as static images, and every audio or video source remains
 //! available as a labeled link, with one playback warning per document.
-//! With `:acdc-index:` and a final `[index]` section, index terms produce an
+//! With an `[index]` section, index terms produce an
 //! alphabetized catalog with occurrence links, hierarchy, and `see` /
 //! `see-also` relationships. This extension uses the same opt-in policy as the
 //! HTML converter.
@@ -106,12 +106,13 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, Options, WarningSource, section::has_index_section,
-    visitor::Visitor, xref::XrefGuard,
+    BackendProfile, Converter, Diagnostics, Options, WarningSource,
+    section::{has_index_section, index_generation_enabled},
+    visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
-    AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Reference,
-    TocEntry,
+    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Reference, TocEntry,
 };
 
 mod error;
@@ -437,12 +438,6 @@ fn collect_index_terms(
     }
     processor.index_term_counter.set(index_term_start);
     Ok(())
-}
-
-fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
-    attributes
-        .get("acdc-index")
-        .is_some_and(|value| !matches!(value, AttributeValue::Bool(false) | AttributeValue::None))
 }
 
 #[cfg(test)]

@@ -1359,8 +1359,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // generated `[index]` section (an extension; asciidoctor's html5 backend
         // emits no anchor and leaves `[index]` empty). So emit one — and feed
         // the index catalog, recording the enclosing section for the back-link
-        // label — only when index generation is enabled (`:acdc-index:` + a
-        // last `[index]` section).
+        // label — only when index generation is enabled (the document seeds
+        // an `[index]` section and did not set `:!acdc-index:`).
         if !options.toc_mode && self.processor.generate_index() {
             let primary = self.render_index_term_label(it.term(), options, subs)?;
             let secondary = it

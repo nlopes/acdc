@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - An `[index]` section keeps any content the author wrote in it; the generated
   listing is appended after it rather than replacing it.
 
+### Changed
+
+- A document that seeds an `[index]` section now gets its index without also
+  having to set `:acdc-index:`. Writing that section is the request for an
+  index, and the pdf backend already honoured it, so the same source no longer
+  produces an index in one format and an empty heading in the other. Set
+  `:!acdc-index:` to turn the extension off and keep the output byte-identical
+  to `asciidoctor`, whose html backend leaves `[index]` empty.
+
 ### Performance
 
 - **Streaming output.** Rendering writes directly to the caller's `Write`
