@@ -2,7 +2,8 @@ use std::rc::Rc;
 
 use crate::{
     AttributeName, Block, ColumnStyle, DocumentAttribute, DocumentAttributeAssignment, Error,
-    InlineNode, Paragraph, TableColumn, Verbatim, blocks::table::ParsedCell, model::SectionLevel,
+    InlineNode, Paragraph, TableColumn, Verbatim, blocks::table::CellSpecifier,
+    model::SectionLevel,
 };
 
 use super::{ParserState, document_parser, inline_processing::adjust_and_log_parse_error};
@@ -12,11 +13,11 @@ pub(crate) fn parse_table_cell<'a>(
     state: &mut ParserState<'a>,
     cell_start_offset: usize,
     parent_section_level: Option<SectionLevel>,
-    cell: &ParsedCell,
+    spec: &CellSpecifier,
 ) -> Result<TableColumn<'a>, Error> {
     // Literal cells keep their source text intact. Unlike listing blocks, they
     // do not run attribute, macro, quote, or callout substitutions.
-    if cell.style == Some(ColumnStyle::Literal) {
+    if spec.style == Some(ColumnStyle::Literal) {
         let location = if content.is_empty() {
             state.create_location(cell_start_offset, cell_start_offset)
         } else {
@@ -31,18 +32,18 @@ pub(crate) fn parse_table_cell<'a>(
         ))];
         return Ok(TableColumn::with_format(
             blocks,
-            cell.colspan,
-            cell.rowspan,
-            cell.halign,
-            cell.valign,
-            cell.style,
+            spec.colspan,
+            spec.rowspan,
+            spec.halign,
+            spec.valign,
+            spec.style,
         ));
     }
 
     // Markdown blockquotes are only parsed when cell has AsciiDoc style ('a' prefix).
     // This matches asciidoctor behavior where `> text` is only a blockquote in 'a' style cells.
     let mut initial_attributes = Vec::new();
-    let blocks = if cell.style == Some(ColumnStyle::AsciiDoc) {
+    let blocks = if spec.style == Some(ColumnStyle::AsciiDoc) {
         // An AsciiDoc-style cell is a nested document. It inherits the outer
         // attributes, but its local attributes, section catalog, hard-break
         // state, and callout adjacency do not escape into sibling cells or the
@@ -94,11 +95,11 @@ pub(crate) fn parse_table_cell<'a>(
     })?;
     let mut column = TableColumn::with_format(
         blocks,
-        cell.colspan,
-        cell.rowspan,
-        cell.halign,
-        cell.valign,
-        cell.style,
+        spec.colspan,
+        spec.rowspan,
+        spec.halign,
+        spec.valign,
+        spec.style,
     );
     column.initial_attributes = initial_attributes;
     Ok(column)

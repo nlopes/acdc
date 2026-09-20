@@ -2338,42 +2338,37 @@ fn parse_table_block_impl<'input>(
         // produces more but is bounded by the table's column limit.
         let mut columns = Vec::with_capacity(row.len());
         for cell in row {
-            let cell_count = if cell.is_duplication {
-                cell.duplication_count
+            let cell_count = if cell.spec.is_duplication {
+                cell.spec.duplication_count
             } else {
                 1
             };
+            if cell_count == 0 {
+                continue;
+            }
+            let cell_content = state.intern_str(&cell.content);
+            // Duplicates share source text, but each parse must apply its own
+            // footnote and document-attribute effects.
             for _ in 0..cell_count {
                 // Column defaults follow generated cell order; spans do not
-                // advance this source-row index in Asciidoctor.
+                // advance this source-row index in asciidoctor.
                 let column_index = columns.len();
-                // Apply column format style if cell doesn't have explicit style
-                let effective_cell = if is_header_row {
-                    // A semantic header row always uses normal substitutions and
-                    // header presentation, regardless of column or cell styles.
-                    let mut cell_without_style = cell.clone();
-                    cell_without_style.style = None;
-                    cell_without_style
-                } else if cell.style.is_none()
+                let mut spec = cell.spec;
+                if is_header_row {
+                    // Semantic header rows always use normal substitutions.
+                    spec.style = None;
+                } else if spec.style.is_none()
                     && let Some(col_format) = column_formats.get(column_index)
                     && col_format.style != ColumnStyle::Default
                 {
-                    let mut cell_with_style = cell.clone();
-                    cell_with_style.style = Some(col_format.style);
-                    cell_with_style
-                } else {
-                    cell.clone()
-                };
-
-                // Cell content is owned by the ParsedCell; intern into the parser
-                // arena so downstream block parsing can borrow at `'input`.
-                let cell_content: &'input str = state.intern_str(&effective_cell.content);
+                    spec.style = Some(col_format.style);
+                }
                 let parsed = parse_table_cell(
                     cell_content,
                     state,
-                    effective_cell.content_start,
+                    cell.content_start,
                     block_metadata.parent_section_level,
-                    &effective_cell,
+                    &spec,
                 )?;
                 columns.push(parsed);
             }

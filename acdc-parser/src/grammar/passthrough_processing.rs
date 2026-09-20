@@ -616,7 +616,7 @@ fn plain_text_at<'a>(text: &'a str, base_location: &Location, offset: usize) -> 
 /// substitution settings.
 pub(crate) fn process_passthrough_placeholders<'a>(
     content: &'a str,
-    processed: &'a ProcessedContent<'a>,
+    processed: &ProcessedContent<'a>,
     state: &ParserState<'a>,
     base_location: &Location,
 ) -> Vec<InlineNode<'a>> {

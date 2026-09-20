@@ -285,3 +285,32 @@ fn building_inputs_retains_owned_text_allocations() -> Result<(), Error> {
     assert_eq!(value.as_ptr(), value_address);
     Ok(())
 }
+
+#[test]
+fn document_empty_expansion_stays_distinct_from_presence() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_attribute("empty-source", "")
+        .build()?;
+    let parsed = parse(
+        "= T\n:present:\n:expanded: {empty-source}\n\nContent.\n",
+        &options,
+    )?;
+    let attributes = &parsed.document().attributes;
+    assert!(
+        attributes
+            .get("present")
+            .is_some_and(DocumentAttributeValue::is_presence)
+    );
+    assert_eq!(
+        attributes
+            .get("expanded")
+            .and_then(DocumentAttributeValue::text),
+        Some("")
+    );
+    assert!(
+        !attributes
+            .get("expanded")
+            .is_some_and(DocumentAttributeValue::is_presence)
+    );
+    Ok(())
+}

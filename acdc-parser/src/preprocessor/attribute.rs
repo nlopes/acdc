@@ -97,6 +97,20 @@ mod tests {
     }
 
     #[test]
+    fn empty_expansion_becomes_presence_during_preprocessing() -> Result<(), Error> {
+        let mut options = options();
+        parse_line(&mut options, ":source:")?;
+        parse_line(&mut options, ":expanded: {source}")?;
+        assert!(
+            options
+                .document_attributes
+                .get("expanded")
+                .is_some_and(crate::DocumentAttributeValue::is_presence)
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_parse_complex_name() -> Result<(), Error> {
         let mut options = options();
         parse_line(&mut options, ":complex-name_123: value")?;

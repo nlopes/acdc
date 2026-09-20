@@ -220,7 +220,7 @@ fn inline_context(
 
 #[tracing::instrument(skip_all, fields(processed=?processed, block_metadata=?block_metadata))]
 fn parse_processed_inlines<'a>(
-    processed: &'a ProcessedContent<'a>,
+    processed: &ProcessedContent<'a>,
     text: &'a str,
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
@@ -336,24 +336,21 @@ pub(crate) fn process_inlines<'a>(
             .substitutions
             .enabled(&Substitution::Attributes),
     )?;
-    // Promote `processed` to `'a` so both the source text and parsed inline nodes can
-    // borrow from the parser arena.
-    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
-    let source = processed_text_as_outer(processed, state);
+    let source = processed_text_as_outer(&processed, state);
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
     if processed.text.trim().is_empty() {
         return Ok((Vec::new(), source));
     }
     let content =
-        parse_processed_inlines(processed, source, state, block_metadata, &location, true)?;
+        parse_processed_inlines(&processed, source, state, block_metadata, &location, true)?;
     let inlines =
-        super::location_mapping::map_inline_locations(state, processed, &content, &location)?;
+        super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
         source
     } else {
         let restored =
-            super::passthrough_processing::replace_passthrough_placeholders(source, processed);
+            super::passthrough_processing::replace_passthrough_placeholders(source, &processed);
         state.intern_str(&restored)
     };
     Ok((inlines, source))
@@ -399,10 +396,8 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
             escaped: false,
         })]);
     }
-    // Promote `processed` to `'a` by interning into the parser arena.
-    let processed: &'a ProcessedContent<'a> = state.arena.alloc_with(|| processed);
-    let source = processed_text_as_outer(processed, state);
+    let source = processed_text_as_outer(&processed, state);
     let content =
-        parse_processed_inlines(processed, source, state, block_metadata, &location, false)?;
-    super::location_mapping::map_inline_locations(state, processed, &content, &location)
+        parse_processed_inlines(&processed, source, state, block_metadata, &location, false)?;
+    super::location_mapping::map_inline_locations(state, &processed, content, &location)
 }

@@ -1,8 +1,13 @@
-use crate::{Error, Form, InlineNode, Location, PassthroughKind, Plain, ProcessedContent, Source};
+use std::mem::take;
+
+use crate::{
+    Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Location,
+    PassthroughKind, Plain, ProcessedContent, Source,
+};
 
 use super::{
     ParserState,
-    marked_text::WithLocationMappingContext,
+    marked_text::map_marked_text_locations,
     utf8_utils::{self, RoundDirection, snap_to_boundary},
 };
 
@@ -45,62 +50,26 @@ pub(crate) fn clamp_inline_node_locations(node: &mut InlineNode, input: &str) {
     });
 }
 
-/// Context for location mapping operations
+/// Source text and substitutions for inline locations relative to one base.
 pub(crate) struct LocationMappingContext<'a, 'b> {
     pub state: &'a ParserState<'b>,
-    pub processed: &'b ProcessedContent<'b>,
+    pub processed: &'a ProcessedContent<'b>,
     pub base_location: &'a Location,
 }
 
-/// Type alias for location mapping closures
-pub(crate) type LocationMapper<'a> = dyn Fn(&Location) -> Result<Location, Error> + 'a;
-
-/// Location mapping coordinate transformations during inline processing.
-///
-/// # Location Mapping Overview
-///
-/// The inline parser operates on preprocessed text that may have undergone attribute
-/// substitutions and other transformations. This creates a complex coordinate mapping problem:
-///
-/// 1. **Original document coordinates**: Character positions in the raw `AsciiDoc` source
-/// 2. **Preprocessed coordinates**: Character positions after attribute substitution/processing
-/// 3. **Parsed inline coordinates**: Relative positions within the preprocessed content
-///
-/// ## Coordinate Transformation Pipeline
-///
-/// ```text
-/// Original:      "{greeting} _world_!"
-/// Preprocessed:  "hello _world_!"
-/// Parsed inline: ["hello ", ItalicText("world"), "!"]
-/// ```
-///
-/// The mapping process:
-/// 1. Take parsed inline locations (relative to preprocessed text)
-/// 2. Convert to preprocessed absolute coordinates
-/// 3. Use source map to find original document coordinates
-/// 4. Convert to human-readable line/column positions
-///
-/// ## Special Cases
-///
-/// **Attribute Substitutions**: When `{greeting}` becomes `hello`, the location mapping
-/// may collapse to a single point. We detect this and expand the location to cover the
-/// full original attribute span for better error reporting and IDE support.
-///
-/// **Nested Content**: Formatted text like `**{greeting}**` requires mapping both the
-/// outer formatting markers and inner content locations correctly.
-/// Map a single location from preprocessed coordinates to original document coordinates.
-///
-/// This is the core coordinate transformation that:
-/// 1. Converts preprocessed-relative offsets to document-absolute offsets
-/// 2. Uses the preprocessor source map to find original positions
-/// 3. Computes human-readable line/column positions
-pub(crate) fn create_location_mapper<'a>(
-    state: &'a ParserState<'_>,
-    processed: &'a ProcessedContent<'_>,
-    base_location: &'a Location,
-    form: Option<&'a Form>,
-) -> Box<LocationMapper<'a>> {
-    Box::new(move |loc: &Location| -> Result<Location, Error> {
+impl LocationMappingContext<'_, '_> {
+    /// Map a preprocessed location to source coordinates, preserving delimiter
+    /// handling for constrained formatting and the end bias of substitutions.
+    pub(crate) fn map_location(
+        &self,
+        loc: &Location,
+        form: Option<&Form>,
+    ) -> Result<Location, Error> {
+        let Self {
+            state,
+            processed,
+            base_location,
+        } = *self;
         tracing::info!(?base_location, ?loc, "mapping inline location");
 
         // Convert processed-relative absolute offsets into document-absolute offsets
@@ -121,17 +90,13 @@ pub(crate) fn create_location_mapper<'a>(
                         base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
                 } else {
                     // General case: expand collapsed locations to the next UTF-8 boundary
-                    processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
-                        state.input,
-                        processed_abs_end,
-                    );
+                    processed_abs_end =
+                        utf8_utils::safe_increment_offset(state.input, processed_abs_end);
                 }
             } else {
                 // General case: expand collapsed locations to the next UTF-8 boundary
-                processed_abs_end = crate::grammar::utf8_utils::safe_increment_offset(
-                    state.input,
-                    processed_abs_end,
-                );
+                processed_abs_end =
+                    utf8_utils::safe_increment_offset(state.input, processed_abs_end);
             }
         }
 
@@ -157,7 +122,6 @@ pub(crate) fn create_location_mapper<'a>(
             .line_map
             .offset_to_position(mapped_abs_end, state.input);
 
-        // For single-character content inside constrained formatting, ensure both start and end column point to the same character
         let is_single_char_fix = mapped_abs_end == mapped_abs_start + 1
             && loc.absolute_start == 0
             && base_location.absolute_start < base_location.absolute_end;
@@ -173,13 +137,10 @@ pub(crate) fn create_location_mapper<'a>(
             start: start_pos,
             end: end_pos,
         })
-    })
+    }
 }
 
-/// Apply attribute substitution location extension if needed.
-///
-/// When attribute substitutions collapse locations to a single point (e.g., `{attr}` -> `value`),
-/// we need to extend the location back to cover the original attribute span for better UX.
+/// Expand a collapsed location to its original attribute reference span.
 pub(crate) fn extend_attribute_location_if_needed(
     state: &ParserState<'_>,
     processed: &ProcessedContent<'_>,
@@ -221,37 +182,21 @@ pub(crate) fn extend_attribute_location_if_needed(
 /// passthrough placeholders and extending attribute-substituted spans.
 pub(crate) fn map_inner_content_locations<'a>(
     content: Vec<InlineNode<'a>>,
-    map_loc: &LocationMapper<'_>,
-    state: &ParserState<'a>,
-    processed: &'a ProcessedContent<'a>,
-    base_location: &Location,
+    ctx: &LocationMappingContext<'_, 'a>,
+    form: Option<&Form>,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
-    let mut mapped_content = Vec::with_capacity(content.len());
-    for node in content {
+    map_nodes(content, |node| {
         match node {
-            InlineNode::PlainText(inner_plain) => {
-                let mut mapped_location = map_loc(&inner_plain.location)?;
-                if contains_passthrough_placeholders(inner_plain.content, processed) {
-                    mapped_content.extend(
-                        super::passthrough_processing::process_passthrough_placeholders(
-                            inner_plain.content,
-                            processed,
-                            state,
-                            &mapped_location,
-                        ),
+            InlineNode::PlainText(plain) => {
+                let expanded = map_plain_text_inline_locations(plain, ctx, form)?;
+                if expanded.is_none() {
+                    plain.location = extend_attribute_location_if_needed(
+                        ctx.state,
+                        ctx.processed,
+                        plain.location.clone(),
                     );
-                } else {
-                    if inner_plain.content.chars().count() == 1 {
-                        mapped_location.end.column = mapped_location.start.column;
-                    }
-                    mapped_location =
-                        extend_attribute_location_if_needed(state, processed, mapped_location);
-                    mapped_content.push(InlineNode::PlainText(Plain {
-                        content: inner_plain.content,
-                        location: mapped_location,
-                        escaped: inner_plain.escaped,
-                    }));
                 }
+                return Ok(expanded);
             }
             marked_text @ (InlineNode::ItalicText(_)
             | InlineNode::BoldText(_)
@@ -260,30 +205,50 @@ pub(crate) fn map_inner_content_locations<'a>(
             | InlineNode::SubscriptText(_)
             | InlineNode::SuperscriptText(_)
             | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)) => {
-                let mapping_ctx = LocationMappingContext {
-                    state,
-                    processed,
-                    base_location,
-                };
-                mapped_content.push(marked_text.with_location_mapping_context(&mapping_ctx)?);
-            }
-            InlineNode::Macro(inline_macro) => mapped_content.push(map_inline_macro(
-                &inline_macro,
-                state,
-                processed,
-                base_location,
-                map_loc,
-            )?),
-            other @ (InlineNode::RawText(_)
+            | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, ctx)?,
+            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, ctx, form)?,
+            InlineNode::RawText(_)
             | InlineNode::VerbatimText(_)
             | InlineNode::StandaloneCurvedApostrophe(_)
             | InlineNode::LineBreak(_)
             | InlineNode::InlineAnchor(_)
-            | InlineNode::CalloutRef(_)) => mapped_content.push(other),
+            | InlineNode::CalloutRef(_) => {}
+        }
+        Ok(None)
+    })
+}
+
+/// Keep the original buffer unless a node expands into a replacement sequence.
+fn map_nodes<'a>(
+    mut content: Vec<InlineNode<'a>>,
+    mut map_node: impl FnMut(&mut InlineNode<'a>) -> Result<Option<Vec<InlineNode<'a>>>, Error>,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let mut expansion = None;
+    for (index, node) in content.iter_mut().enumerate() {
+        if let Some(nodes) = map_node(node)? {
+            expansion = Some((index, nodes));
+            break;
         }
     }
-    Ok(mapped_content)
+    let Some((index, nodes)) = expansion else {
+        return Ok(content);
+    };
+
+    // After the first expansion, append into a new buffer so later expansions
+    // do not repeatedly shift the remaining nodes.
+    let mut mapped = Vec::with_capacity(content.len() - 1 + nodes.len());
+    let mut remaining = content.into_iter();
+    mapped.extend(remaining.by_ref().take(index));
+    let _ = remaining.next();
+    mapped.extend(nodes);
+    for mut node in remaining {
+        if let Some(nodes) = map_node(&mut node)? {
+            mapped.extend(nodes);
+        } else {
+            mapped.push(node);
+        }
+    }
+    Ok(mapped)
 }
 
 fn contains_passthrough_placeholders(content: &str, processed: &ProcessedContent<'_>) -> bool {
@@ -294,37 +259,26 @@ fn contains_passthrough_placeholders(content: &str, processed: &ProcessedContent
         })
 }
 
-/// Map inline node locations from preprocessed coordinates to original document coordinates.
-///
-/// This is the main entry point for location mapping during inline processing. It handles
-/// the complex coordinate transformations needed to map parsed inline content back to
-/// original document positions while accounting for preprocessing changes like attribute
-/// substitutions.
-///
-/// See the module-level documentation for a detailed explanation of the coordinate
-/// transformation pipeline and special cases.
+/// Map parsed inline locations to source coordinates and expand passthrough placeholders.
 #[tracing::instrument(skip_all, fields(location=?location, processed=?processed, content=?content))]
 pub(crate) fn map_inline_locations<'a>(
     state: &ParserState<'a>,
-    processed: &'a ProcessedContent<'a>,
-    content: &[InlineNode<'a>],
+    processed: &ProcessedContent<'a>,
+    content: Vec<InlineNode<'a>>,
     location: &Location,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     tracing::info!(?location, "mapping inline locations");
 
-    let map_loc = create_location_mapper(state, processed, location, None);
+    let ctx = LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    };
 
-    // `PlainText` is the only variant that can expand to multiple output nodes
-    // (passthrough placeholder substitution). Every other variant maps 1:1, so
-    // sizing `acc` at `content.len()` is a lower bound; growth beyond that is
-    // rare and cheap.
-    let mut acc: Vec<InlineNode<'a>> = Vec::with_capacity(content.len());
-    for inline in content {
+    map_nodes(content, |inline| {
         match inline {
             InlineNode::PlainText(plain) => {
-                // May expand to N nodes (placeholder splits); push in place.
-                let nodes = map_plain_text_inline_locations(plain, state, processed, &map_loc)?;
-                acc.extend(nodes);
+                return map_plain_text_inline_locations(plain, &ctx, None);
             }
             marked_text @ (InlineNode::ItalicText(_)
             | InlineNode::BoldText(_)
@@ -333,59 +287,27 @@ pub(crate) fn map_inline_locations<'a>(
             | InlineNode::SubscriptText(_)
             | InlineNode::SuperscriptText(_)
             | InlineNode::CurvedQuotationText(_)
-            | InlineNode::CurvedApostropheText(_)) => {
-                let mapping_ctx = LocationMappingContext {
-                    state,
-                    processed,
-                    base_location: location,
-                };
-                acc.push(
-                    marked_text
-                        .clone()
-                        .with_location_mapping_context(&mapping_ctx)?,
-                );
-            }
+            | InlineNode::CurvedApostropheText(_)) => map_marked_text_locations(marked_text, &ctx)?,
             InlineNode::StandaloneCurvedApostrophe(standalone) => {
-                let mut mapped_standalone = standalone.clone();
-                mapped_standalone.location = map_loc(&standalone.location)?;
-                acc.push(InlineNode::StandaloneCurvedApostrophe(mapped_standalone));
+                standalone.location = ctx.map_location(&standalone.location, None)?;
             }
-            InlineNode::Macro(inline_macro) => {
-                acc.push(map_inline_macro(
-                    inline_macro,
-                    state,
-                    processed,
-                    location,
-                    &map_loc,
-                )?);
-            }
-            InlineNode::LineBreak(lb) => {
-                let mut mapped_lb = lb.clone();
-                mapped_lb.location = map_loc(&lb.location)?;
-                acc.push(InlineNode::LineBreak(mapped_lb));
-            }
-            InlineNode::RawText(raw) => {
-                let mut mapped = raw.clone();
-                mapped.location = map_loc(&raw.location)?;
-                acc.push(InlineNode::RawText(mapped));
-            }
+            InlineNode::Macro(inline_macro) => map_inline_macro(inline_macro, &ctx, None)?,
+            InlineNode::LineBreak(lb) => lb.location = ctx.map_location(&lb.location, None)?,
+            InlineNode::RawText(raw) => raw.location = ctx.map_location(&raw.location, None)?,
             InlineNode::VerbatimText(verbatim) => {
-                let mut mapped = verbatim.clone();
-                mapped.location = map_loc(&verbatim.location)?;
-                acc.push(InlineNode::VerbatimText(mapped));
+                verbatim.location = ctx.map_location(&verbatim.location, None)?;
             }
             InlineNode::InlineAnchor(anchor) => {
-                let mut mapped = anchor.clone();
-                mapped.location = map_loc(&anchor.location)?;
-                if let Some(label) = &mut mapped.bibliography_label {
+                anchor.location = ctx.map_location(&anchor.location, None)?;
+                if let Some(label) = &mut anchor.bibliography_label {
                     label.content =
-                        map_inline_locations(state, processed, &label.content, location)?;
+                        map_inline_locations(state, processed, take(&mut label.content), location)?;
                     // Citation registration uses source lines before passthrough extraction.
-                    label.source = mapped
+                    label.source = anchor
                         .location
                         .absolute_start
                         .checked_sub(1)
-                        .and_then(|start| state.input.get(start..mapped.location.absolute_end + 2))
+                        .and_then(|start| state.input.get(start..anchor.location.absolute_end + 2))
                         .and_then(|source| source.strip_prefix("[[["))
                         .and_then(|source| source.split_once("]]]").map(|(label, _)| label))
                         .and_then(|source| {
@@ -393,19 +315,16 @@ pub(crate) fn map_inline_locations<'a>(
                         })
                         .filter(|source| !source.contains(['\n', '\r']));
                 }
-                mapped.xreflabel = mapped
+                anchor.xreflabel = anchor
                     .xreflabel
                     .map(|label| restore_reference_label_passthroughs(label, state, processed));
-                acc.push(InlineNode::InlineAnchor(mapped));
             }
             InlineNode::CalloutRef(callout) => {
-                let mut mapped = callout.clone();
-                mapped.location = map_loc(&callout.location)?;
-                acc.push(InlineNode::CalloutRef(mapped));
+                callout.location = ctx.map_location(&callout.location, None)?;
             }
         }
-    }
-    Ok(acc)
+        Ok(None)
+    })
 }
 
 fn restore_reference_label_passthroughs<'a>(
@@ -440,18 +359,20 @@ fn restore_reference_label_passthroughs<'a>(
 }
 
 fn map_inline_macro<'a>(
-    inline_macro: &crate::InlineMacro<'a>,
-    state: &ParserState<'a>,
-    processed: &'a ProcessedContent<'a>,
-    location: &Location,
-    map_loc: &LocationMapper<'_>,
-) -> Result<InlineNode<'a>, Error> {
-    use crate::InlineMacro;
-    let mut mapped_macro = inline_macro.clone();
-    match &mut mapped_macro {
+    inline_macro: &mut InlineMacro<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+    form: Option<&Form>,
+) -> Result<(), Error> {
+    let LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    } = *ctx;
+    match inline_macro {
         InlineMacro::Footnote(footnote) => {
-            footnote.location = map_loc(&footnote.location)?;
-            footnote.content = map_inline_locations(state, processed, &footnote.content, location)?;
+            footnote.location = ctx.map_location(&footnote.location, form)?;
+            footnote.content =
+                map_inline_locations(state, processed, take(&mut footnote.content), location)?;
             // The footnote tracker captured this footnote during parsing in
             // preprocessed-local coordinates; propagate the now document-absolute
             // location/content to its `Document.footnotes` entry so the post-parse
@@ -459,16 +380,16 @@ fn map_inline_macro<'a>(
             state.footnote_tracker.borrow_mut().finalize(footnote);
         }
         InlineMacro::Url(url) => {
-            url.location = map_loc(&url.location)?;
-            url.text = map_inline_locations(state, processed, &url.text, location)?;
+            url.location = ctx.map_location(&url.location, form)?;
+            url.text = map_inline_locations(state, processed, take(&mut url.text), location)?;
         }
         InlineMacro::Mailto(mailto) => {
-            mailto.location = map_loc(&mailto.location)?;
-            mailto.text = map_inline_locations(state, processed, &mailto.text, location)?;
+            mailto.location = ctx.map_location(&mailto.location, form)?;
+            mailto.text = map_inline_locations(state, processed, take(&mut mailto.text), location)?;
         }
         InlineMacro::Link(link) => {
-            link.location = map_loc(&link.location)?;
-            link.text = map_inline_locations(state, processed, &link.text, location)?;
+            link.location = ctx.map_location(&link.location, form)?;
+            link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
             if !processed.passthroughs.is_empty() {
                 let target = link.target.to_string();
                 let restored = super::passthrough_processing::replace_passthrough_placeholders(
@@ -479,14 +400,18 @@ fn map_inline_macro<'a>(
                 }
             }
         }
-        InlineMacro::Icon(icon) => icon.location = map_loc(&icon.location)?,
-        InlineMacro::Button(button) => button.location = map_loc(&button.location)?,
-        InlineMacro::Image(image) => image.location = map_loc(&image.location)?,
-        InlineMacro::Menu(menu) => menu.location = map_loc(&menu.location)?,
-        InlineMacro::Keyboard(keyboard) => keyboard.location = map_loc(&keyboard.location)?,
+        InlineMacro::Icon(icon) => icon.location = ctx.map_location(&icon.location, form)?,
+        InlineMacro::Button(button) => {
+            button.location = ctx.map_location(&button.location, form)?;
+        }
+        InlineMacro::Image(image) => image.location = ctx.map_location(&image.location, form)?,
+        InlineMacro::Menu(menu) => menu.location = ctx.map_location(&menu.location, form)?,
+        InlineMacro::Keyboard(keyboard) => {
+            keyboard.location = ctx.map_location(&keyboard.location, form)?;
+        }
         InlineMacro::CrossReference(xref) => {
-            xref.location = map_loc(&xref.location)?;
-            xref.text = map_inline_locations(state, processed, &xref.text, location)?;
+            xref.location = ctx.map_location(&xref.location, form)?;
+            xref.text = map_inline_locations(state, processed, take(&mut xref.text), location)?;
             if !processed.passthroughs.is_empty() {
                 let restored = super::passthrough_processing::replace_passthrough_placeholders(
                     xref.target,
@@ -498,86 +423,72 @@ fn map_inline_macro<'a>(
                 }
             }
         }
-        InlineMacro::Autolink(autolink) => autolink.location = map_loc(&autolink.location)?,
-        InlineMacro::Stem(stem) => stem.location = map_loc(&stem.location)?,
-        InlineMacro::Pass(pass) => pass.location = map_loc(&pass.location)?,
+        InlineMacro::Autolink(autolink) => {
+            autolink.location = ctx.map_location(&autolink.location, form)?;
+        }
+        InlineMacro::Stem(stem) => stem.location = ctx.map_location(&stem.location, form)?,
+        InlineMacro::Pass(pass) => pass.location = ctx.map_location(&pass.location, form)?,
         InlineMacro::IndexTerm(index_term) => {
-            index_term.location = map_loc(&index_term.location)?;
+            index_term.location = ctx.map_location(&index_term.location, form)?;
             match &mut index_term.kind {
-                crate::IndexTermKind::Flow(term) => {
-                    *term = map_inline_locations(state, processed, term, location)?;
+                IndexTermKind::Flow(term) => {
+                    *term = map_inline_locations(state, processed, take(term), location)?;
                 }
-                crate::IndexTermKind::Concealed {
+                IndexTermKind::Concealed {
                     term,
                     secondary,
                     tertiary,
                 } => {
-                    *term = map_inline_locations(state, processed, term, location)?;
+                    *term = map_inline_locations(state, processed, take(term), location)?;
                     if let Some(secondary) = secondary {
-                        *secondary = map_inline_locations(state, processed, secondary, location)?;
+                        *secondary =
+                            map_inline_locations(state, processed, take(secondary), location)?;
                     }
                     if let Some(tertiary) = tertiary {
-                        *tertiary = map_inline_locations(state, processed, tertiary, location)?;
+                        *tertiary =
+                            map_inline_locations(state, processed, take(tertiary), location)?;
                     }
                 }
             }
             if let Some(relationship) = &mut index_term.relationship {
                 match relationship {
-                    crate::IndexTermRelationship::See { target } => {
-                        *target = map_inline_locations(state, processed, target, location)?;
+                    IndexTermRelationship::See { target } => {
+                        *target = map_inline_locations(state, processed, take(target), location)?;
                     }
-                    crate::IndexTermRelationship::SeeAlso { targets } => {
+                    IndexTermRelationship::SeeAlso { targets } => {
                         for target in targets {
-                            *target = map_inline_locations(state, processed, target, location)?;
+                            *target =
+                                map_inline_locations(state, processed, take(target), location)?;
                         }
                     }
                 }
             }
         }
     }
-    Ok(InlineNode::Macro(mapped_macro))
+    Ok(())
 }
 
 fn map_plain_text_inline_locations<'a>(
-    plain: &Plain<'a>,
-    state: &ParserState<'a>,
-    processed: &'a ProcessedContent<'a>,
-    map_loc: &LocationMapper<'_>,
-) -> Result<Vec<InlineNode<'a>>, Error> {
-    // Extract plain text at `'a` so the passthrough-processing path can hand
-    // back `InlineNode<'a>`. The content is already arena-allocated `&'a str`.
-    let original_content: &'a str = plain.content;
-
-    // Check if this PlainText contains passthrough placeholders
-    let contains_passthroughs = contains_passthrough_placeholders(original_content, processed);
-
-    let mut mapped_location = map_loc(&plain.location)?;
-
-    if contains_passthroughs {
-        // Split only after converting this nested location to document coordinates.
-        // Passthrough processing uses the supplied location as its source base.
-
-        tracing::debug!(content = ?original_content, "Processing passthrough placeholders in PlainText");
-        Ok(
+    plain: &mut Plain<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+    form: Option<&Form>,
+) -> Result<Option<Vec<InlineNode<'a>>>, Error> {
+    plain.location = ctx.map_location(&plain.location, form)?;
+    if contains_passthrough_placeholders(plain.content, ctx.processed) {
+        // Passthrough locations use the mapped document coordinates as their base.
+        return Ok(Some(
             super::passthrough_processing::process_passthrough_placeholders(
-                original_content,
-                processed,
-                state,
-                &mapped_location,
+                plain.content,
+                ctx.processed,
+                ctx.state,
+                &plain.location,
             ),
-        )
-    } else {
-        // For single-character content, ensure start and end columns are the same
-        if original_content.chars().count() == 1 {
-            mapped_location.end.column = mapped_location.start.column;
-        }
-
-        Ok(vec![InlineNode::PlainText(Plain {
-            content: original_content,
-            location: mapped_location,
-            escaped: plain.escaped,
-        })])
+        ));
     }
+    if plain.content.chars().count() == 1 {
+        plain.location.end.column = plain.location.start.column;
+    }
+    Ok(None)
 }
 
 #[cfg(test)]

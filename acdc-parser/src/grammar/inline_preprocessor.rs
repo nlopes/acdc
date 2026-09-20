@@ -2,7 +2,7 @@ use bumpalo::Bump;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::HashMap,
+    mem::take,
     ops::Range,
     rc::Rc,
 };
@@ -29,7 +29,6 @@ use crate::AttributeValue;
 pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) pass_found_count: Cell<usize>,
     pub(crate) passthroughs: RefCell<Vec<Pass<'a>>>,
-    pub(crate) attributes: RefCell<HashMap<usize, Location>>,
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
     /// Pre-computed line map for O(log n) offset→position lookups.
@@ -75,7 +74,6 @@ impl<'a> InlinePreprocessorParserState<'a> {
         Self {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
-            attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
             line_map,
             full_input,
@@ -161,7 +159,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
     /// Drain collected warnings (for transfer to main `ParserState`).
     pub(crate) fn drain_warnings(&self) -> Vec<Warning> {
-        self.warnings.borrow_mut().drain(..).collect()
+        take(&mut *self.warnings.borrow_mut())
     }
 
     /// Extract the subs-spec string, content, and parsed substitutions from
@@ -405,10 +403,12 @@ impl<'a> InlinePreprocessorParserState<'a> {
         };
 
         if is_character_reference && let Some(value) = resolved.as_str() {
+            let absolute_start = location.absolute_start;
+            let absolute_end = location.absolute_end;
             self.passthroughs.borrow_mut().push(Pass {
                 text: Some(self.arena.alloc_str(value.as_ref())),
                 substitutions: Vec::new(),
-                location: location.clone(),
+                location,
                 kind: PassthroughKind::AttributeRef,
             });
             let placeholder = format!(
@@ -416,8 +416,8 @@ impl<'a> InlinePreprocessorParserState<'a> {
                 self.pass_found_count.get()
             );
             self.source_map.borrow_mut().add_replacement(
-                location.absolute_start,
-                location.absolute_end,
+                absolute_start,
+                absolute_end,
                 placeholder.len(),
                 ProcessedKind::Passthrough,
             );
@@ -433,9 +433,6 @@ impl<'a> InlinePreprocessorParserState<'a> {
             value.len(),
             ProcessedKind::Attribute,
         );
-        self.attributes
-            .borrow_mut()
-            .insert(self.source_map.borrow().replacements.len(), location);
         value
     }
 
@@ -672,7 +669,7 @@ parser!(
 
         pub rule run() -> ProcessedContent<'input>
             = content:inlines()+ {
-                let mut source_map = state.source_map.borrow().clone();
+                let mut source_map = take(&mut *state.source_map.borrow_mut());
                 // Mapping is not read during preprocessing, so sort once after all
                 // actions finish.
                 source_map
@@ -680,7 +677,7 @@ parser!(
                     .sort_by_key(|replacement| replacement.absolute_start);
                 ProcessedContent {
                     text: Cow::Owned(content.join("")),
-                    passthroughs: state.passthroughs.borrow().clone(),
+                    passthroughs: take(&mut *state.passthroughs.borrow_mut()),
                     source_map,
                 }
             }
@@ -1097,7 +1094,6 @@ mod tests {
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
-            attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
             line_map: Rc::new(LineMap::new(content)),
             full_input: content,
@@ -1122,7 +1118,7 @@ mod tests {
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
         );
         assert_eq!(state.pass_found_count.get(), 1);
-        let passthroughs = state.passthroughs.into_inner();
+        let passthroughs = result.passthroughs;
         assert_eq!(passthroughs.len(), 1);
         let Some(first) = passthroughs.first() else {
             panic!("expected first passthrough");
@@ -1834,7 +1830,6 @@ mod tests {
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
-            attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
             line_map: Rc::new(LineMap::new(content)),
             full_input: content,
@@ -1855,7 +1850,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:a[1.0]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 
@@ -1866,7 +1861,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:[{version}]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 
@@ -1877,7 +1872,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:q[text]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 
@@ -1888,7 +1883,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:a,q[1.0]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 }

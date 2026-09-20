@@ -260,15 +260,23 @@ impl SourceOrigin {
     }
 }
 
-/// Original source coordinates for one line of a selected include buffer.
-///
-/// `Preprocessor::process_mapped` consumes a compacted selection while retaining
-/// these coordinates for diagnostics and output source ranges.
+/// One-based source line, byte offset, and indentation shift for an emitted line
+/// or the first line of a contiguous source range.
 #[derive(Debug, Clone, Copy)]
-pub(super) struct InputLineOrigin {
+pub(super) struct SourceLineOrigin {
     pub(super) line: usize,
     pub(super) offset: usize,
     pub(super) column_shift: isize,
+}
+
+impl SourceLineOrigin {
+    fn one_to_one(line: usize, offset: usize) -> Self {
+        Self {
+            line,
+            offset,
+            column_shift: 0,
+        }
+    }
 }
 
 /// Make a path absolute and collapse `.` and `..` without resolving symlinks.
@@ -327,7 +335,7 @@ struct PreprocessorState<'input> {
     src_line_starts: Vec<usize>,
     /// Original coordinates for compacted include input. Empty for ordinary
     /// whole-source preprocessing, where input and source lines are identical.
-    line_origins: Vec<InputLineOrigin>,
+    line_origins: Vec<SourceLineOrigin>,
     /// The open main-file source range: byte offset in the output where the
     /// current contiguous run began, and the original source line/offset it maps to.
     run: Option<MainFileRun>,
@@ -342,35 +350,14 @@ struct PreprocessorState<'input> {
 #[derive(Debug, Clone, Copy)]
 struct MainFileRun {
     out_start: usize,
-    origin: OriginMapping,
-}
-
-/// How a recorded preprocessed span maps back to its origin file: the origin
-/// line/offset of the span's first byte plus the per-line column shift from an
-/// `indent=` re-indent (`0` = byte-for-byte 1:1 copy).
-#[derive(Debug, Clone, Copy)]
-struct OriginMapping {
-    start_line: usize,
-    source_start_offset: usize,
-    column_shift: isize,
-}
-
-impl OriginMapping {
-    /// A 1:1 (un-transformed) mapping — content copied verbatim, no re-indent.
-    fn one_to_one(start_line: usize, source_start_offset: usize) -> Self {
-        Self {
-            start_line,
-            source_start_offset,
-            column_shift: 0,
-        }
-    }
+    origin: SourceLineOrigin,
 }
 
 impl<'input> PreprocessorState<'input> {
     fn new(
         input: &'input str,
         source_origin: Option<&SourceOrigin>,
-        line_origins: Vec<InputLineOrigin>,
+        line_origins: Vec<SourceLineOrigin>,
     ) -> Self {
         let mut src_line_starts = vec![0];
         src_line_starts.extend(
@@ -438,17 +425,13 @@ impl<'input> PreprocessorState<'input> {
             .unwrap_or(0)
     }
 
-    fn origin_of_line(&self, input_line: usize) -> OriginMapping {
+    fn origin_of_line(&self, input_line: usize) -> SourceLineOrigin {
         self.line_origins
             .get(input_line.saturating_sub(1))
-            .map_or_else(
-                || OriginMapping::one_to_one(input_line, self.src_offset_of_line(input_line)),
-                |origin| OriginMapping {
-                    start_line: origin.line,
-                    source_start_offset: origin.offset,
-                    column_shift: origin.column_shift,
-                },
-            )
+            .copied()
+            .unwrap_or_else(|| {
+                SourceLineOrigin::one_to_one(input_line, self.src_offset_of_line(input_line))
+            })
     }
 
     /// Account a simple one-source-line → one-output-line emission, extending the
@@ -457,7 +440,7 @@ impl<'input> PreprocessorState<'input> {
     fn note_source_line(&mut self, input_line: usize) {
         let origin = self.origin_of_line(input_line);
         if self.run.is_some()
-            && (origin.start_line != self.run_expected_src_line
+            && (origin.line != self.run_expected_src_line
                 || self
                     .run
                     .is_some_and(|run| run.origin.column_shift != origin.column_shift))
@@ -470,7 +453,7 @@ impl<'input> PreprocessorState<'input> {
                 origin,
             });
         }
-        self.run_expected_src_line = origin.start_line + 1;
+        self.run_expected_src_line = origin.line + 1;
     }
 
     /// Record a [`SourceRange`] mapping the preprocessed span `[start_offset,
@@ -482,15 +465,15 @@ impl<'input> PreprocessorState<'input> {
         end_offset: usize,
         file: Option<PathBuf>,
         file_chain: Vec<String>,
-        origin: OriginMapping,
+        origin: SourceLineOrigin,
     ) {
         self.source_ranges.push(SourceRange {
             start_offset,
             end_offset,
             file,
             file_chain,
-            start_line: origin.start_line,
-            source_start_offset: origin.source_start_offset,
+            start_line: origin.line,
+            source_start_offset: origin.offset,
             column_shift: origin.column_shift,
         });
     }
@@ -870,7 +853,7 @@ impl Preprocessor {
                 .strip_suffix(']')
                 .and_then(|directive| directive.split_once('['))
                 .map_or("", |(_, attributes)| attributes);
-            return Ok(Some(include.lines(attribute_list_as_written)?));
+            return Ok(Some(include.process(attribute_list_as_written)?));
         }
         tracing::error!(%line, "source origin is missing - include directive cannot be processed");
         Ok(None)
@@ -963,14 +946,7 @@ impl Preprocessor {
         input_line: usize,
     ) {
         if include_result.synthetic {
-            let mut lines = include_result.lines.into_iter();
-            if let Some(line) = lines.next() {
-                state.push_chunk(line, input_line);
-            }
-            debug_assert!(
-                lines.next().is_none(),
-                "synthetic include fallback must be one line"
-            );
+            state.push_chunk(include_result.content, input_line);
             return;
         }
 
@@ -986,12 +962,16 @@ impl Preprocessor {
         state.flush_borrowed_run();
         let start_offset = state.byte_offset;
 
-        // Calculate the byte length of the included content
-        let content_len: usize = include_result
-            .lines
-            .iter()
-            .map(|l| l.len() + 1) // +1 for newline
-            .sum();
+        let mut content = include_result.content;
+        let has_content = !content.is_empty();
+        // An empty buffer emits no lines; a single newline emits one empty line.
+        if content.contains("\r\n") {
+            content = content.replace("\r\n", "\n");
+        }
+        if content.ends_with('\n') {
+            content.pop();
+        }
+        let content_len = if has_content { content.len() + 1 } else { 0 };
 
         // If there's an effective leveloffset, record the range
         if let Some(leveloffset) = include_result.effective_leveloffset {
@@ -1043,18 +1023,18 @@ impl Preprocessor {
                 source_range.end_offset + start_offset,
                 source_range.file,
                 file_chain,
-                OriginMapping {
-                    start_line: source_range.start_line,
-                    source_start_offset: source_range.source_start_offset,
+                SourceLineOrigin {
+                    line: source_range.start_line,
+                    offset: source_range.source_start_offset,
                     column_shift: source_range.column_shift,
                 },
             );
         }
 
         state.byte_offset += content_len;
-        state
-            .output
-            .extend(include_result.lines.into_iter().map(Cow::Owned));
+        if has_content {
+            state.output.push(Cow::Owned(content));
+        }
     }
 
     /// Process a block or single-line conditional directive.
@@ -1225,13 +1205,13 @@ impl Preprocessor {
     /// in the original target.
     fn process_mapped(
         &self,
-        input: &str,
+        mut input: String,
         source_origin: &SourceOrigin,
         options: &Options<'_>,
-        line_origins: Vec<InputLineOrigin>,
+        line_origins: Vec<SourceLineOrigin>,
     ) -> Result<NestedPreprocessorResult, Error> {
         let mut options = options.clone();
-        let normalized = Preprocessor::normalize(input);
+        let normalized = Preprocessor::normalize(&input);
         let setext = comment::setext_enabled(&options);
         let front_matter = options
             .document_attributes
@@ -1254,7 +1234,14 @@ impl Preprocessor {
                 state.source_ranges
             };
             let result = PreprocessorResult {
-                text: Cow::Owned(normalized.into_owned()),
+                text: Cow::Owned(match normalized {
+                    Cow::Borrowed(text) => {
+                        let len = text.len();
+                        input.truncate(len);
+                        input
+                    }
+                    Cow::Owned(text) => text,
+                }),
                 leveloffset_ranges: Vec::new(),
                 source_ranges,
                 front_matter: None,
@@ -1291,7 +1278,7 @@ impl Preprocessor {
         source_origin: Option<&SourceOrigin>,
         options: &mut Options<'_>,
         setext: bool,
-        line_origins: Vec<InputLineOrigin>,
+        line_origins: Vec<SourceLineOrigin>,
         front_matter: Option<SkimmedFrontMatter>,
     ) -> Result<PreprocessorResult<'input>, Error> {
         // Slow path: at least one trigger fires (include, conditional,
@@ -1325,8 +1312,8 @@ impl Preprocessor {
                 let origin = out.origin_of_line(line_number);
                 let ctx = DirectiveContext {
                     input_line: line_number,
-                    source_line: origin.start_line,
-                    current_offset: origin.source_start_offset,
+                    source_line: origin.line,
+                    current_offset: origin.offset,
                     source_origin,
                 };
                 self.process_conditional_line(
@@ -1387,8 +1374,8 @@ impl Preprocessor {
                 let origin = out.origin_of_line(line_number);
                 let ctx = DirectiveContext {
                     input_line: line_number,
-                    source_line: origin.start_line,
-                    current_offset: origin.source_start_offset,
+                    source_line: origin.line,
+                    current_offset: origin.offset,
                     source_origin,
                 };
                 self.process_directive_line(line, &ctx, options, &mut out)?;
@@ -1435,6 +1422,66 @@ mod tests {
             ),
             Some(&DocumentAttributeValue::integer(actual))
         );
+    }
+
+    #[test]
+    fn mapped_include_fast_path_preserves_normalization() -> Result<(), Error> {
+        let options = Options::default();
+        let preprocessor = Preprocessor::new(&options, Rc::default());
+        let origin = SourceOrigin::Memory { base_dir: None };
+        for (input, expected) in [
+            ("", ""),
+            ("\n", ""),
+            ("\n\n", "\n"),
+            ("a\n\n", "a\n"),
+            ("a \n", "a"),
+            ("é\r\nb\r\n", "é\nb"),
+        ] {
+            let result =
+                preprocessor.process_mapped(input.to_owned(), &origin, &options, Vec::new())?;
+            assert_eq!(result.result.text, expected, "{input:?}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn include_handoff_preserves_blank_lines_and_following_offsets() {
+        for (content, expected, following_offset) in [
+            ("", "after", 0),
+            ("\n", "\nafter", 1),
+            ("\n\n", "\n\nafter", 2),
+            ("a", "a\nafter", 2),
+            ("a\n", "a\nafter", 2),
+            ("a\n\n", "a\n\nafter", 3),
+            ("a\r\nb\n", "a\nb\nafter", 4),
+            ("a\rb", "a\rb\nafter", 4),
+            ("é\n", "é\nafter", 3),
+        ] {
+            let mut state = PreprocessorState::new("after", None, Vec::new());
+            let included = IncludeResult {
+                content: content.to_owned(),
+                synthetic: false,
+                effective_leveloffset: Some(1),
+                leveloffset_ranges: Vec::new(),
+                target: "included.adoc".into(),
+                source_ranges: Vec::new(),
+                document_attributes: None,
+            };
+            Preprocessor::handle_regular_include_result(included, &mut state);
+            assert_eq!(state.byte_offset, following_offset, "{content:?}");
+            assert_eq!(
+                state
+                    .leveloffset_ranges
+                    .first()
+                    .map(|range| range.end_offset),
+                Some(following_offset),
+                "{content:?}"
+            );
+            state.push_source_line("after", 1);
+            state.flush_borrowed_run();
+            assert_eq!(state.output.join("\n"), expected, "{content:?}");
+            assert_eq!(state.byte_offset, expected.len() + 1, "{content:?}");
+        }
     }
 
     #[test]

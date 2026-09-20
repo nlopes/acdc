@@ -1,6 +1,6 @@
 use acdc_parser::{
     Block, DelimitedBlockType, Document, DocumentAttributeAssignment, DocumentAttributeValue,
-    InlineNode, Options, Paragraph, Table, TableColumn, parse,
+    InlineMacro, InlineNode, Options, Paragraph, Table, TableColumn, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -452,5 +452,47 @@ fn nested_sections_are_not_outer_toc_entries_but_remain_xref_targets() -> Result
         .and_then(|row| row.columns.first())
         .ok_or("expected an AsciiDoc cell")?;
     assert!(matches!(cell.content.first(), Some(Block::Section(_))));
+    Ok(())
+}
+
+#[test]
+fn duplicated_cells_parse_footnotes_independently() -> Result<(), Error> {
+    let parsed = parse(
+        ":who: Ada\n\n[cols=\"2*\"]\n|===\n2*|{who} footnote:[duplicated].\n|===\n",
+        &Options::default(),
+    )?;
+    let row = first_table(parsed.document())?
+        .rows
+        .first()
+        .ok_or("missing duplicated row")?;
+    assert_eq!(row.columns.len(), 2);
+    let numbers: Vec<_> = row
+        .columns
+        .iter()
+        .flat_map(|column| &column.content)
+        .filter_map(|block| {
+            if let Block::Paragraph(paragraph) = block {
+                Some(&paragraph.content)
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .filter_map(|inline| {
+            if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = inline {
+                Some(footnote.number)
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(numbers, [1, 2]);
+    let registered: Vec<_> = parsed
+        .document()
+        .footnotes
+        .iter()
+        .map(|footnote| footnote.number)
+        .collect();
+    assert_eq!(registered, [1, 2]);
     Ok(())
 }
