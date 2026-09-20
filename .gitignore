@@ -17,5 +17,6 @@
 asciidoctor-bibtex/
 asciidoctor-diagram/
 asciidoctor-lists/
+asciidoctor-sail/
 docs-resources/
 klee/
