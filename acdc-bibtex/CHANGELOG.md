@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Citations are found wherever prose can appear: paragraphs, block and section
   titles, every kind of list, table cells, verse and quote blocks, admonitions,
   and inside footnotes and inline formatting.
+- A relative `bibtex-file` is read as written, from the directory the command
+  was run in, which is how `asciidoctor-bibtex` reads it — so
+  `:bibtex-file: papers/refs.bib` builds from the directory above `papers`. A
+  path that is not there is then looked for beside the document, so the same
+  document also builds from elsewhere; the original simply fails in that case.
+  When the document names no file, the directory holding it is searched first,
+  then the one the command was run in.
 - Configuration through the document attributes `bibtex-file`, `bibtex-style`,
   `bibtex-order`, `bibtex-format`, `bibtex-throw` and
   `bibtex-citation-template`, with the same meanings and defaults as the

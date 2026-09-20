@@ -56,8 +56,18 @@ fn convert(source: &str) -> (Vec<String>, Vec<Warning>) {
 }
 
 fn convert_in(base_dir: &Path, source: &str) -> (Vec<String>, Vec<Warning>) {
+    convert_from(base_dir, base_dir, source)
+}
+
+/// Run the pass with the document and the command in different directories.
+fn convert_from(base_dir: &Path, working_dir: &Path, source: &str) -> (Vec<String>, Vec<Warning>) {
     let mut parsed = acdc_parser::parse(source, &acdc_parser::Options::default()).expect("parse");
-    let processor = Processor::new(Options::builder().base_dir(base_dir).build());
+    let processor = Processor::new(
+        Options::builder()
+            .base_dir(base_dir)
+            .working_dir(working_dir)
+            .build(),
+    );
     let mut warnings = Vec::new();
     parsed
         .with_document_mut(|document, arena| processor.process(document, arena, &mut warnings))
@@ -238,6 +248,52 @@ fn the_macro_names_the_database_when_no_attribute_does() {
         lines[1],
         "[[Lane12a]]Lane, P. (2000). _Book title_. Publisher."
     );
+}
+
+#[test]
+fn a_named_database_is_relative_to_where_the_command_runs() {
+    // What asciidoctor-bibtex does: the path is opened as written, so
+    // `sub/references.bib` is right for a command run one level up.
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let document = directory.path().join("sub");
+    fs::create_dir(&document).expect("create directory");
+    fs::write(document.join("references.bib"), DATABASE).expect("write database");
+    let (lines, warnings) = convert_from(
+        &document,
+        directory.path(),
+        "= Paper\n:bibtex-file: sub/references.bib\n\ncite:[Lane12a]\n",
+    );
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(lines[0], "[.citation]#[<<Lane12a,1>>]#");
+}
+
+#[test]
+fn a_named_database_is_also_looked_for_beside_the_document() {
+    // The gem fails here, so accepting it changes nothing that already
+    // works — it just lets the same document build from anywhere.
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let document = directory.path().join("sub");
+    fs::create_dir(&document).expect("create directory");
+    fs::write(document.join("references.bib"), DATABASE).expect("write database");
+    let (lines, warnings) = convert_from(
+        &document,
+        directory.path(),
+        "= Paper\n:bibtex-file: references.bib\n\ncite:[Lane12a]\n",
+    );
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(lines[0], "[.citation]#[<<Lane12a,1>>]#");
+}
+
+#[test]
+fn a_document_that_names_no_database_uses_the_one_beside_it() {
+    let directory = tempfile::tempdir().expect("temporary directory");
+    let document = directory.path().join("sub");
+    fs::create_dir(&document).expect("create directory");
+    fs::write(document.join("references.bib"), DATABASE).expect("write database");
+    let (lines, warnings) =
+        convert_from(&document, directory.path(), "= Paper\n\ncite:[Lane12a]\n");
+    assert!(warnings.is_empty(), "{warnings:?}");
+    assert_eq!(lines[0], "[.citation]#[<<Lane12a,1>>]#");
 }
 
 #[test]

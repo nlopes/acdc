@@ -38,6 +38,10 @@ lifetime.
   written *and* in `Document::footnotes`, which is what the backends render
   the definitions from. Both copies have to be rewritten; `walk::document`
   does this, `walk::inline_containers` alone does not.
+- **`bibtex-file` is relative to the command, not the document.** The gem
+  hands the attribute straight to `File.open`, so `:bibtex-file: sub/refs.bib`
+  is written for a build run one level above `sub`. Resolving it against the
+  document's own directory doubles the path (`sub/sub/refs.bib`).
 - **`true` and `false` are not strings.** acdc normalises them to
   `AttributeValue::Bool`, so `get_string` returns `None` for
   `:bibtex-throw: true`. Yes-or-no attributes go through `settings::flag`.
@@ -70,10 +74,15 @@ deliberate:
   when it is not linking entries, which never happens when it runs as an
   extension.
 
-Two differences that look like this crate's fault but are not: acdc does not
-strip the trailing `==` from a closed ATX heading, and it does not start a new
-description-list term on the line after a nested list without a blank line.
-Both reproduce on a document with no citations in it.
+Three differences that look like this crate's fault but are not, and all
+reproduce on a document with no citations in it:
+
+- acdc does not strip the trailing `==` from a closed ATX heading;
+- it does not start a new description-list term on the line after a nested
+  list with no blank line between them;
+- a failed `include::` in the document header makes it drop every attribute
+  entry after that line, so `:bibtex-style:` set below a missing include is
+  silently ignored and the bibliography comes out in the default style.
 
 ## Testing
 

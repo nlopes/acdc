@@ -53,6 +53,11 @@
 //! | `bibtex-throw` | `true`, `false` | `false` |
 //! | `bibtex-citation-template` | any text containing `$id` | `[$id]` |
 //!
+//! A relative `bibtex-file` is read the way the original extension reads it:
+//! as written, from the directory the command was run in. A path that is not
+//! there is then looked for beside the document, so the same document also
+//! builds from elsewhere.
+//!
 //! `bibliography::refs.bib[apa]` names the database and the style too, for a
 //! document that sets neither attribute; an attribute wins where both are
 //! given.

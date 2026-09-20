@@ -36,6 +36,7 @@ const BIBLIOGRAPHY_MACRO: &str = "bibliography::";
 #[non_exhaustive]
 pub struct Options {
     base_dir: PathBuf,
+    working_dir: PathBuf,
 }
 
 impl Default for Options {
@@ -51,11 +52,16 @@ impl Options {
         OptionsBuilder::default()
     }
 
-    /// The directory a relative `bibtex-file` resolves against, and the one
-    /// searched when the document names no file.
+    /// The directory holding the document.
     #[must_use]
     pub fn base_dir(&self) -> &Path {
         &self.base_dir
+    }
+
+    /// The directory a relative `bibtex-file` is written against.
+    #[must_use]
+    pub fn working_dir(&self) -> &Path {
+        &self.working_dir
     }
 }
 
@@ -63,24 +69,34 @@ impl Options {
 #[derive(Debug, Clone, Default)]
 pub struct OptionsBuilder {
     base_dir: Option<PathBuf>,
+    working_dir: Option<PathBuf>,
 }
 
 impl OptionsBuilder {
-    /// Set the directory relative paths resolve against, normally the one
-    /// holding the document.
+    /// Set the directory holding the document.
     #[must_use]
     pub fn base_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.base_dir = Some(dir.into());
         self
     }
 
+    /// Set the directory a relative `bibtex-file` is written against.
+    ///
+    /// Defaults to the process's own working directory, which is what a
+    /// document written for asciidoctor-bibtex expects.
+    #[must_use]
+    pub fn working_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.working_dir = Some(dir.into());
+        self
+    }
+
     /// Finish building.
     #[must_use]
     pub fn build(self) -> Options {
+        let here = || std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         Options {
-            base_dir: self
-                .base_dir
-                .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+            base_dir: self.base_dir.unwrap_or_else(here),
+            working_dir: self.working_dir.unwrap_or_else(here),
         }
     }
 }
@@ -174,15 +190,12 @@ impl Processor {
     /// Read the database the document names, or the one beside it.
     fn load(&self, settings: &Settings) -> Result<Database, Error> {
         let path = match &settings.file {
-            Some(file) => {
-                let named = Path::new(file);
-                if named.is_absolute() {
-                    named.to_path_buf()
-                } else {
-                    self.options.base_dir.join(named)
-                }
-            }
-            None => find_database(&self.options.base_dir).ok_or(Error::NoDatabase)?,
+            Some(file) => self.resolve(Path::new(file)),
+            None => search([
+                self.options.base_dir.as_path(),
+                self.options.working_dir.as_path(),
+            ])
+            .ok_or(Error::NoDatabase)?,
         };
         let source = std::fs::read_to_string(&path).map_err(|source| Error::Read {
             path: path.clone(),
@@ -190,6 +203,47 @@ impl Processor {
         })?;
         Database::parse(&source)
     }
+
+    /// Where the `.bib` file the document names actually is.
+    ///
+    /// asciidoctor-bibtex opens the path exactly as written, so it is read
+    /// against the working directory the command was run from — a document
+    /// that says `:bibtex-file: papers/refs.bib` is written to be built from
+    /// the directory above `papers`. A path that is not there is then looked
+    /// for beside the document, so that the same document also builds when
+    /// the command is run from somewhere else; the gem simply fails in that
+    /// case, so nothing that works with the gem is changed.
+    fn resolve(&self, named: &Path) -> PathBuf {
+        if named.is_absolute() {
+            return named.to_path_buf();
+        }
+        let as_written = self.options.working_dir.join(named);
+        if as_written.is_file() {
+            return as_written;
+        }
+        let beside_document = self.options.base_dir.join(named);
+        if beside_document.is_file() {
+            return beside_document;
+        }
+        // Neither exists: report the one the document asked for.
+        as_written
+    }
+}
+
+/// The database to use when the document names none: the first `.bib` file
+/// found by looking through `directories` in turn.
+fn search<'dir>(directories: impl IntoIterator<Item = &'dir Path>) -> Option<PathBuf> {
+    let mut seen: Vec<&Path> = Vec::new();
+    for directory in directories {
+        if seen.contains(&directory) {
+            continue;
+        }
+        seen.push(directory);
+        if let Some(found) = find_database(directory) {
+            return Some(found);
+        }
+    }
+    None
 }
 
 /// Everything the replacement passes need.
