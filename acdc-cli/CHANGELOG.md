@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert` resolves the document's BibTeX citations before conversion, so a
+  document that uses `cite:`, `citenp:`, `bibitem:` or `bibliography::[]` gets
+  formatted citations and a reference list in every backend. The database is
+  the `.bib` file `:bibtex-file:` names — read from the directory the command
+  was run in, then looked for beside the document — or, when the document names
+  none, the single `.bib` file in either of those directories. An unknown
+  citation key is reported as a warning, or fails the conversion when the
+  document sets `:bibtex-throw: true`. See the `acdc-bibtex` changelog for the
+  styles and the attributes that control them. Build without the `bibtex`
+  feature to leave the macros untouched.
+
 - `convert` builds the document's `list-of::` lists before conversion, so a
   list of figures, tables, or any other captioned block renders in every
   backend. See the `acdc-lists` changelog for the element names and the

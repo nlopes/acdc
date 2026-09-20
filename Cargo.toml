@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "acdc-bibtex",
   "acdc-cli",
   "acdc-diagram",
   "acdc-editor-wasm",
@@ -17,6 +18,7 @@ members = [
   "converters/terminal",
 ]
 default-members = [
+  "acdc-bibtex",
   "acdc-cli",
   "acdc-diagram",
   "acdc-lint",
@@ -40,6 +42,7 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+acdc-bibtex = { path = "acdc-bibtex", default-features = false }
 acdc-converters-core = { path = "converters/core", default-features = false }
 acdc-converters-dev = { path = "converters/dev" }
 acdc-converters-html = { path = "converters/html", default-features = false }

@@ -37,10 +37,12 @@ use crate::{Document, InlineNode, Warning};
 ///
 /// That suffices for the parser, which allocates everything it needs while it
 /// still holds the arena, but not for a pass that runs *after* parsing and
-/// produces text that was never in the source. `acdc-lists` is the first such
-/// pass: it gives an untitled-but-captioned figure an id so the generated list
-/// can link to it, and that id has to become an `Anchor<'a>` and a key in
-/// `Document::references`.
+/// produces text that was never in the source. `acdc-lists` is one such pass:
+/// it gives an untitled-but-captioned figure an id so the generated list can
+/// link to it, and that id has to become an `Anchor<'a>` and a key in
+/// `Document::references`. `acdc-bibtex` is another: it replaces `cite:[key]`
+/// with an author and year read out of a `.bib` file, text that has to become
+/// `Plain` nodes borrowing with the document's lifetime.
 ///
 /// `with_document_mut` quantifies `'a` universally — it has to, or a caller
 /// could store a shorter-lived `Document` back into the self-referential cell
@@ -177,7 +179,9 @@ impl ParseResult {
     ///
     /// Extension-style passes run between parsing and conversion and need to
     /// replace nodes the parser produced: `acdc-diagram` turns `[plantuml]`
-    /// blocks into image blocks that point at the file it just generated.
+    /// blocks into image blocks that point at the file it just generated, and
+    /// `acdc-bibtex` turns a `cite:[key]` into the formatted citation it
+    /// stands for.
     ///
     /// The closure sees the AST under the arena's own lifetime, so nodes it
     /// inserts either own their data (`Cow::Owned`, `PathBuf`) or borrow from
