@@ -433,8 +433,9 @@ where
             build_parser_options(args, base_options, processor.document_attributes().clone());
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
-        let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
+        let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)
             .map_err(|error| error::display(&error))?;
+        apply_lists(&mut parsed, None);
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
@@ -464,7 +465,8 @@ where
             acdc_parser::parse_file(file, &parser_options)
         };
         let convert_result = match parse_result {
-            Ok(parsed) => {
+            Ok(mut parsed) => {
+                apply_lists(&mut parsed, Some(file));
                 let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
                 processor.convert(parsed.document(), Some(file))
             }
@@ -566,6 +568,7 @@ where
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
+            apply_lists(&mut parsed, Some(&file));
             let result = processor.convert(parsed.document(), Some(&file));
             (result, parser_warnings)
         }
@@ -645,6 +648,27 @@ where
     }
 }
 
+/// Build the document's `list-of::` lists, rewriting each call into the
+/// cross-references it asks for.
+///
+/// This runs between parsing and conversion, so every backend renders an
+/// ordinary block of cross-references and none of them needs to know a list
+/// was generated. The pass reports a call it cannot honour and leaves it
+/// alone; it has no failure that should stop a conversion.
+#[cfg(feature = "lists")]
+fn apply_lists(parsed: &mut ParseResult, file: Option<&Path>) {
+    let processor = acdc_lists::Processor::new();
+    let mut warnings = Vec::new();
+    parsed.with_document_mut(|document, arena| {
+        processor.process(document, arena, &mut warnings);
+    });
+    warnings.render(WarningRenderContext::new().with_optional_file(file));
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "lists"))]
+fn apply_lists(_parsed: &mut ParseResult, _file: Option<&Path>) {}
+
 /// A parsed document paired with its source path and optional parse timing.
 /// Used by the timing-aware multi-file path.
 type TimedParseResult = (
@@ -674,6 +698,12 @@ impl<'a> WarningRenderContext<'a> {
 
     const fn with_file(mut self, file: &'a Path) -> Self {
         self.file = Some(file);
+        self
+    }
+
+    #[cfg(feature = "lists")]
+    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
         self
     }
 }
@@ -1043,7 +1073,8 @@ fn run_terminal_stdin(
         build_parser_options(args, base_options, processor.document_attributes().clone());
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
-    let parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+    let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
+    apply_lists(&mut parsed, None);
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
@@ -1107,6 +1138,7 @@ fn run_terminal_through_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parser_warnings = parsed.take_warnings();
+            apply_lists(&mut parsed, Some(file));
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
@@ -1148,8 +1180,9 @@ fn run_terminal_with_pager(
     if output_to_file {
         let mut output_paths = Vec::new();
         for file in files_to_process {
-            let parsed =
+            let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
+            apply_lists(&mut parsed, Some(file));
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (output_path, warnings) = result.into_parts();
@@ -1167,8 +1200,9 @@ fn run_terminal_with_pager(
     } else {
         // No pager - use convert() which writes to stdout
         for file in files_to_process {
-            let parsed =
+            let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
+            apply_lists(&mut parsed, Some(file));
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (_, warnings) = result.into_parts();

@@ -10,7 +10,8 @@
 //! fallback.
 //!
 //! Consumers reach the AST via `.document()` (or `.inlines()`); bumpalo
-//! never appears in a public signature.
+//! never appears in a public signature — [`DocumentArena`] is the newtype
+//! that keeps it that way while still letting an in-place rewrite allocate.
 //!
 //! `OwnedSource` covers the parse-failure case (we have the text but no
 //! AST) without paying for an empty arena.
@@ -21,6 +22,72 @@ use bumpalo::Bump;
 
 use crate::{Document, InlineNode, Warning};
 
+/// The arena that every string in a parsed AST lives in.
+///
+/// This is the same `bumpalo::Bump` the parser has always allocated interned
+/// strings into; it is only given a name and a two-method surface so that
+/// [`ParseResult::with_document_mut`] can hand it out.
+///
+/// # Why this is public
+///
+/// Every string in the AST is borrowed: `Plain`, `Verbatim`, an anchor's `id`
+/// and a `CrossReference`'s `target` all hold a `&'a str` pointing either into
+/// the preprocessed source or into this arena. Nothing in the AST owns its
+/// text.
+///
+/// That suffices for the parser, which allocates everything it needs while it
+/// still holds the arena, but not for a pass that runs *after* parsing and
+/// produces text that was never in the source. `acdc-lists` is the first such
+/// pass: it gives an untitled-but-captioned figure an id so the generated list
+/// can link to it, and that id has to become an `Anchor<'a>` and a key in
+/// `Document::references`.
+///
+/// `with_document_mut` quantifies `'a` universally — it has to, or a caller
+/// could store a shorter-lived `Document` back into the self-referential cell
+/// — so no buffer the caller owns can ever yield a `&'a str`. The three ways
+/// out were:
+///
+/// 1. `Box::leak` the generated strings. Works, but leaks for the life of the
+///    process — tolerable in the one-shot CLI, not in `acdc-lsp`, which
+///    reparses on every keystroke.
+/// 2. Widen the AST's string fields to `Cow<'a, str>`. The "right" model, but
+///    it touches every converter's inline hot path and every fixture, for one
+///    caller.
+/// 3. Hand the pass the arena the AST already borrows from. Allocation is a
+///    pointer bump, the text is freed with the rest of the document, and no
+///    existing type changes.
+///
+/// Option 3 is what this is. Allocating into the arena while the AST borrows
+/// from it is sound because bumpalo never moves or invalidates earlier
+/// allocations — it is what `ParserState::intern_str` does during parsing,
+/// just at a later moment.
+///
+/// The newtype exists so `bumpalo` stays out of acdc's public signatures,
+/// which this module treats as a standing rule: swapping the allocator later
+/// should not be a breaking change for consumers. If option 2 ever happens,
+/// this type can go away without disturbing callers that only ever called
+/// [`alloc_str`](Self::alloc_str).
+#[derive(Debug)]
+pub struct DocumentArena(Bump);
+
+impl DocumentArena {
+    /// Copy `text` into the arena.
+    ///
+    /// The returned slice lives as long as the parsed document, so AST nodes
+    /// may hold it. Copies are never reclaimed individually — the whole arena
+    /// is released when the `ParseResult` drops — so this is for text that
+    /// becomes part of the document, not for scratch buffers.
+    #[must_use]
+    pub fn alloc_str<'a>(&'a self, text: &str) -> &'a str {
+        self.0.alloc_str(text)
+    }
+
+    /// The underlying arena, for the parser's own interning paths.
+    pub(crate) fn bump(&self) -> &Bump {
+        &self.0
+    }
+}
+
 /// Owner-side of the self-referential parse cell: holds the preprocessed
 /// source text and the arena that parser-allocated strings live in. The
 /// AST dependent borrows from both fields simultaneously via their shared
@@ -28,7 +95,7 @@ use crate::{Document, InlineNode, Warning};
 #[derive(Debug)]
 pub(crate) struct OwnedInput {
     pub(crate) source: Box<str>,
-    pub(crate) arena: Bump,
+    pub(crate) arena: DocumentArena,
 }
 
 impl OwnedInput {
@@ -38,7 +105,7 @@ impl OwnedInput {
         // footprint correlates with source length, so this avoids the
         // first ~10 chunk-grow round-trips through the global allocator
         // on documents larger than a few KB.
-        let arena = Bump::with_capacity(source.len());
+        let arena = DocumentArena(Bump::with_capacity(source.len()));
         Self { source, arena }
     }
 }
@@ -103,6 +170,27 @@ impl ParseResult {
     #[must_use]
     pub fn document(&self) -> &Document<'_> {
         self.cell.borrow_dependent()
+    }
+
+    /// Rewrite the document AST in place.
+    ///
+    /// Extension-style passes run between parsing and conversion and replace
+    /// nodes the parser produced: `acdc-lists` turns a `list-of::image[]`
+    /// paragraph into the cross-references that make up a list of figures.
+    ///
+    /// The closure sees the AST under the arena's own lifetime, so nodes it
+    /// inserts either own their data or borrow from the [`DocumentArena`] it
+    /// is handed, which lives exactly as long as the AST does.
+    ///
+    /// Borrowing the AST mutably outside a closure would let a caller store a
+    /// shorter-lived `Document` back into the cell, so the mutation is scoped
+    /// to `f` instead.
+    pub fn with_document_mut<'outer, R>(
+        &'outer mut self,
+        f: impl for<'a> FnOnce(&'outer mut Document<'a>, &'a DocumentArena) -> R,
+    ) -> R {
+        self.cell
+            .with_dependent_mut(|owner, document| f(document, &owner.arena))
     }
 
     /// Borrow the preprocessed source the AST was parsed from.

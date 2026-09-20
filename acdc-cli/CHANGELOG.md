@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `convert` builds the document's `list-of::` lists before conversion, so a
+  list of figures, tables, or any other captioned block renders in every
+  backend. See the `acdc-lists` changelog for the element names and the
+  attributes that control them. Build without the `lists` feature to leave
+  `list-of::` calls untouched.
+
 ### Fixed
 
 - `convert -a` attributes now remain locked against matching set or unset
