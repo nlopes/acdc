@@ -30,79 +30,6 @@ pub fn strip_quotes(s: &str) -> &str {
         .trim_end_matches(['"', '\''])
 }
 
-#[derive(Debug, PartialEq, Clone)]
-struct AttributeMap<'a> {
-    all: FxHashMap<AttributeName<'a>, AttributeValue<'a>>,
-}
-
-impl<'a> AttributeMap<'a> {
-    fn empty() -> Self {
-        Self {
-            all: FxHashMap::default(),
-        }
-    }
-
-    fn iter(&self) -> impl Iterator<Item = (&AttributeName<'a>, &AttributeValue<'a>)> {
-        self.all.iter()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.all.is_empty()
-    }
-
-    fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
-        self.all.entry(name).or_insert(value);
-    }
-
-    fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
-        self.all.insert(name, value);
-    }
-
-    fn get(&self, name: &str) -> Option<&AttributeValue<'a>> {
-        self.all.get(name)
-    }
-
-    fn contains_key(&self, name: &str) -> bool {
-        self.all.contains_key(name)
-    }
-
-    fn remove(&mut self, name: &str) -> Option<AttributeValue<'a>> {
-        self.all.remove(name)
-    }
-
-    fn merge_with_default(&mut self, other: Self) {
-        for (key, value) in other.all {
-            self.insert(key, value);
-        }
-    }
-}
-
-impl Serialize for AttributeMap<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut entries: Vec<_> = self.all.iter().collect();
-        entries.sort_by_key(|(key, _)| *key);
-
-        let mut state = serializer.serialize_map(Some(entries.len()))?;
-        for (key, value) in entries {
-            match value {
-                AttributeValue::Bool(true) if key == "toc" => {
-                    state.serialize_entry(key, "")?;
-                }
-                AttributeValue::Bool(true) => {
-                    state.serialize_entry(key, &true)?;
-                }
-                AttributeValue::Bool(false) | AttributeValue::String(_) | AttributeValue::None => {
-                    state.serialize_entry(key, value)?;
-                }
-            }
-        }
-        state.end()
-    }
-}
-
 /// A defined document attribute, including its retained text representation.
 ///
 /// Numeric values use attribute-specific validation. Text is not inferred to be
@@ -1507,14 +1434,8 @@ mod document_attribute_tests {
 /// These attributes are specific to individual elements and start empty.
 ///
 /// Use `ElementAttributes::default()` to get an empty attribute map.
-#[derive(Debug, PartialEq, Clone)]
-pub struct ElementAttributes<'a>(AttributeMap<'a>);
-
-impl Default for ElementAttributes<'_> {
-    fn default() -> Self {
-        ElementAttributes(AttributeMap::empty())
-    }
-}
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct ElementAttributes<'a>(FxHashMap<AttributeName<'a>, AttributeValue<'a>>);
 
 impl<'a> ElementAttributes<'a> {
     /// Iterate over all attributes.
@@ -1530,12 +1451,12 @@ impl<'a> ElementAttributes<'a> {
 
     /// Insert an attribute without replacing an existing value.
     pub fn insert(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
-        self.0.insert(name, value);
+        self.0.entry(name).or_insert(value);
     }
 
     /// Set an attribute, overwriting any existing value.
     pub fn set(&mut self, name: AttributeName<'a>, value: AttributeValue<'a>) {
-        self.0.set(name, value);
+        self.0.insert(name, value);
     }
 
     /// Get an attribute value by name.
@@ -1557,28 +1478,30 @@ impl<'a> ElementAttributes<'a> {
 
     /// Merge attributes without replacing existing values.
     pub fn merge(&mut self, other: Self) {
-        self.0.merge_with_default(other.0);
+        for (key, value) in other.0 {
+            self.insert(key, value);
+        }
     }
 
     /// Convert all borrowed content to owned, producing `'static` lifetime attributes.
     #[must_use]
     pub fn into_static(self) -> ElementAttributes<'static> {
-        let convert_map = |map: FxHashMap<AttributeName<'a>, AttributeValue<'a>>| -> FxHashMap<AttributeName<'static>, AttributeValue<'static>> {
-            map.into_iter()
+        ElementAttributes(
+            self.0
+                .into_iter()
                 .map(|(k, v)| {
                     let key: AttributeName<'static> = Cow::Owned(k.into_owned());
                     let val = match v {
-                        AttributeValue::String(s) => AttributeValue::String(Cow::Owned(s.into_owned())),
+                        AttributeValue::String(s) => {
+                            AttributeValue::String(Cow::Owned(s.into_owned()))
+                        }
                         AttributeValue::Bool(b) => AttributeValue::Bool(b),
                         AttributeValue::None => AttributeValue::None,
                     };
                     (key, val)
                 })
-                .collect()
-        };
-        ElementAttributes(AttributeMap {
-            all: convert_map(self.0.all),
-        })
+                .collect(),
+        )
     }
 
     /// Get a string attribute value as an owned `String`.
@@ -1601,7 +1524,24 @@ impl Serialize for ElementAttributes<'_> {
     where
         S: Serializer,
     {
-        self.0.serialize(serializer)
+        let mut entries: Vec<_> = self.0.iter().collect();
+        entries.sort_by_key(|(key, _)| *key);
+
+        let mut state = serializer.serialize_map(Some(entries.len()))?;
+        for (key, value) in entries {
+            match value {
+                AttributeValue::Bool(true) if key == "toc" => {
+                    state.serialize_entry(key, "")?;
+                }
+                AttributeValue::Bool(true) => {
+                    state.serialize_entry(key, &true)?;
+                }
+                AttributeValue::Bool(false) | AttributeValue::String(_) | AttributeValue::None => {
+                    state.serialize_entry(key, value)?;
+                }
+            }
+        }
+        state.end()
     }
 }
 
