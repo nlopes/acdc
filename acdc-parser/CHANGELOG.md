@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `Document::renumber_captions` now refreshes the reference catalog as well as
+  the blocks, so a `<<id>>` to a block that moved renders the ordinal the block
+  now carries. Previously the catalog kept the number assigned at parse time,
+  and a document whose captions were renumbered could show `Figure 1` in a
+  reference to what had become `Figure 2`.
+
 ### Added
 
 - `ParseResult::with_document_mut` rewrites a parsed document in place, for

@@ -86,8 +86,12 @@ impl Document<'_> {
     /// or inserting a block whose `metadata.caption` has been set. A caller-built block whose
     /// `metadata.caption` is `None` stays unnumbered: nothing knows the document attributes at
     /// a source position it never had, so a converter's own fallback owns it.
+    ///
+    /// [`references`](Self::references) is refreshed too, so a `<<id>>` to a block that moved
+    /// renders the ordinal the block now carries rather than the one it had when it was parsed.
     pub fn renumber_captions(&mut self) {
         caption::renumber_captions(&mut self.blocks);
+        caption::refresh_reference_captions(&self.blocks, &mut self.references);
     }
 
     /// The highest caption ordinal assigned to any block of `kind`, or 0 when none carries one.

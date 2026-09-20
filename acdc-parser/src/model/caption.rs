@@ -5,9 +5,11 @@
 //! in one post-order pass over the finished tree. Converters read the result and never re-derive
 //! the precedence chain.
 
-use std::{borrow::Cow, num::NonZeroU32};
+use std::{borrow::Cow, collections::HashMap, num::NonZeroU32};
 
-use super::{AttributeValue, Block, BlockMetadata, DelimitedBlockType, DocumentAttributes, Table};
+use super::{
+    AttributeValue, Block, BlockMetadata, DelimitedBlockType, DocumentAttributes, Reference, Table,
+};
 
 /// The caption a titled block takes.
 #[derive(Clone, Debug, PartialEq)]
@@ -278,12 +280,14 @@ pub(crate) fn renumber_captions(blocks: &mut [Block<'_>]) {
 /// parsed one that gained its title afterwards — starts past this so it cannot collide.
 pub(crate) fn highest_caption_number(blocks: &[Block<'_>], kind: CaptionKind) -> u32 {
     let mut highest = 0;
-    visit_captions(blocks, &mut |caption| {
-        if let Caption::Numbered {
+    visit_blocks(blocks, &mut |block| {
+        if let Some(Caption::Numbered {
             kind: caption_kind,
             number: Some(number),
             ..
-        } = caption
+        }) = block
+            .metadata()
+            .and_then(|metadata| metadata.caption.as_ref())
             && *caption_kind == kind
         {
             highest = highest.max(number.get());
@@ -292,42 +296,60 @@ pub(crate) fn highest_caption_number(blocks: &[Block<'_>], kind: CaptionKind) ->
     highest
 }
 
-fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
-    for block in blocks {
-        if let Some(caption) = block
+/// Copy each block's caption onto its entry in the reference catalog.
+///
+/// A `Reference` carries a clone of its target's caption so that `<<id>>`
+/// renders `Figure 2` without walking the tree. Renumbering rewrites the
+/// captions on the blocks, which would leave those clones one ordinal behind
+/// every block that moved, so the catalog is refreshed in the same pass.
+pub(crate) fn refresh_reference_captions<'a>(
+    blocks: &[Block<'a>],
+    references: &mut HashMap<&'a str, Reference<'a>>,
+) {
+    visit_blocks(blocks, &mut |block| {
+        let Some(anchor) = block.anchor() else {
+            return;
+        };
+        let Some(reference) = references.get_mut(anchor.id) else {
+            return;
+        };
+        reference.caption = block
             .metadata()
-            .and_then(|metadata| metadata.caption.as_ref())
-        {
-            visit(caption);
-        }
+            .and_then(|metadata| metadata.caption.clone());
+    });
+}
+
+fn visit_blocks<'a>(blocks: &[Block<'a>], visit: &mut impl FnMut(&Block<'a>)) {
+    for block in blocks {
+        visit(block);
         match block {
-            Block::Section(section) => visit_captions(&section.content, visit),
-            Block::Admonition(admonition) => visit_captions(&admonition.blocks, visit),
+            Block::Section(section) => visit_blocks(&section.content, visit),
+            Block::Admonition(admonition) => visit_blocks(&admonition.blocks, visit),
             Block::UnorderedList(list) => {
                 for item in &list.items {
-                    visit_captions(&item.blocks, visit);
+                    visit_blocks(&item.blocks, visit);
                 }
             }
             Block::OrderedList(list) => {
                 for item in &list.items {
-                    visit_captions(&item.blocks, visit);
+                    visit_blocks(&item.blocks, visit);
                 }
             }
             Block::CalloutList(list) => {
                 for item in &list.items {
-                    visit_captions(&item.blocks, visit);
+                    visit_blocks(&item.blocks, visit);
                 }
             }
             Block::DescriptionList(list) => {
                 for item in &list.items {
-                    visit_captions(&item.description, visit);
+                    visit_blocks(&item.description, visit);
                 }
             }
             Block::DelimitedBlock(delimited) => match &delimited.inner {
                 DelimitedBlockType::DelimitedExample(blocks)
                 | DelimitedBlockType::DelimitedOpen(blocks)
                 | DelimitedBlockType::DelimitedSidebar(blocks)
-                | DelimitedBlockType::DelimitedQuote(blocks) => visit_captions(blocks, visit),
+                | DelimitedBlockType::DelimitedQuote(blocks) => visit_blocks(blocks, visit),
                 DelimitedBlockType::DelimitedTable(table) => {
                     for row in table
                         .header
@@ -336,7 +358,7 @@ fn visit_captions(blocks: &[Block<'_>], visit: &mut impl FnMut(&Caption<'_>)) {
                         .chain(table.footer.iter())
                     {
                         for column in &row.columns {
-                            visit_captions(&column.content, visit);
+                            visit_blocks(&column.content, visit);
                         }
                     }
                 }

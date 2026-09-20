@@ -467,6 +467,39 @@ fn renumber_captions_restores_numbering_after_a_mutation() -> Result<(), Error> 
 }
 
 #[test]
+fn renumbering_keeps_the_reference_catalog_in_step() -> Result<(), Error> {
+    // A cross-reference reads its target's ordinal from the catalog, not from
+    // the block, so a renumber that skipped the catalog would leave every
+    // reference past the inserted block one ordinal behind.
+    let parsed = parse(
+        "= T\n\n[#first]\n.One\n====\na\n====\n\n[#second]\n.Two\n====\nb\n====\n",
+        &Options::default(),
+    )?;
+    let mut document = Document::default();
+    document.attributes = parsed.document().attributes.clone();
+    document.blocks = parsed.document().blocks.clone();
+    document.references = parsed.document().references.clone();
+
+    let ordinal = |document: &Document<'_>, id: &str| -> Option<u32> {
+        match document.references.get(id)?.caption.as_ref()? {
+            Caption::Numbered { number, .. } => number.map(NonZeroU32::get),
+            Caption::Custom(_) | Caption::Unnumbered | _ => None,
+        }
+    };
+    assert_eq!(
+        (ordinal(&document, "first"), ordinal(&document, "second")),
+        (Some(1), Some(2))
+    );
+
+    // Dropping the first block moves the second up, in the catalog as well as
+    // on the block itself.
+    document.blocks.remove(0);
+    document.renumber_captions();
+    assert_eq!(ordinal(&document, "second"), Some(1));
+    Ok(())
+}
+
+#[test]
 fn caption_labels_keep_their_quote_characters() -> Result<(), Error> {
     // A document attribute's value is literal text, and the block-attribute parser has already
     // removed the syntactic quotes around an element value. Asciidoctor renders these as
