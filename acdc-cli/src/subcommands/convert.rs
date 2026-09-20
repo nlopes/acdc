@@ -808,11 +808,8 @@ impl<'a> WarningRenderContext<'a> {
         self
     }
 
-<<<<<<< HEAD
     #[cfg(feature = "lists")]
-=======
     #[cfg(feature = "diagram")]
->>>>>>> feat/asciidoctor-diagram
     const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
         self.file = file;
         self
@@ -1185,11 +1182,8 @@ fn run_terminal_stdin(
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
     let mut parsed = acdc_parser::parse_from_reader(&mut reader, &parser_options)?;
-<<<<<<< HEAD
     apply_lists(&mut parsed, None);
-=======
     apply_diagrams_as(&mut parsed, base_options, processor.name(), None)?;
->>>>>>> feat/asciidoctor-diagram
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
@@ -1253,11 +1247,8 @@ fn run_terminal_through_pager(
             let mut parsed =
                 parse_terminal_file(args, base_options, processor.document_attributes(), file)?;
             let parser_warnings = parsed.take_warnings();
-<<<<<<< HEAD
             apply_lists(&mut parsed, Some(file));
-=======
             apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
->>>>>>> feat/asciidoctor-diagram
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
