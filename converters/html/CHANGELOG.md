@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
+- `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
+  keep double parentheses literal, matching Asciidoctor (#455).
+- Index `see` and `see also` targets can contain parentheses without a parse
+  error (#455). Backticks still allow index markup, as in Asciidoctor; use
+  passthroughs inside backticks for literal code.
 - TOC placement and CSS classes follow Asciidoctor's normalized header settings.
 - Bibliography labels preserve the document safe mode and keep the home
   directory hidden in server and secure modes. Entry links remain clickable,

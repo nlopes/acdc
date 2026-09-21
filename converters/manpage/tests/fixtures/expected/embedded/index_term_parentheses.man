@@ -1,0 +1,24 @@
+.sp
+\f(CROUTPUT \(<- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ binint(SIV[31:0]) + ctr) mod 2^(32), 32,\fP
+.sp
+\f(CROUTPUT <\- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin((int(SIV[31:0]) + ctr) mod 2^32^, 32)),\fP
+.sp
+\f(CRif rs2_val;\fP
+.sp
+visible
+.sp
+visible
+.sp
+
+.sp
+
+.sp
+visible)
+.sp
+visible)
+.sp
+
+.sp
+
+.sp
+Text after the index terms.

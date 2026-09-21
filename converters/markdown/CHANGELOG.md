@@ -28,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an index came out empty with nothing reported.
 - An `[index]` section keeps any content the author wrote in it; the generated
   listing is appended after it rather than replacing it.
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
+- `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
+  keep double parentheses literal, matching Asciidoctor (#455).
+- Index `see` and `see also` targets can contain parentheses without a parse
+  error (#455). Backticks still allow index markup, as in Asciidoctor; use
+  passthroughs inside backticks for literal code.
 - Bibliography entries substitute attributes at their source position while
   citation labels retain their original attribute references, matching Asciidoctor.
 - AsciiDoc table cells apply their child document settings without changing

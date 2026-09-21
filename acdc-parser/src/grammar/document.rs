@@ -3967,8 +3967,13 @@ peg::parser! {
               content_start:position!() content:until_block_close(open.1) content_end:position!()
               close:(eol() close_start:position!() close_delim:block_close_delim(open.1) { (close_start, close_delim) })?
         {
+            let kind = match (open.0, block_metadata.metadata.style) {
+                (DelimitedKind::Open, Some("source" | "listing")) => DelimitedKind::Listing,
+                (DelimitedKind::Open, Some("literal")) => DelimitedKind::Literal,
+                (kind, _) => kind,
+            };
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind: open.0, open_delim: open.1, lang: open.2, content,
+                kind, open_delim: open.1, lang: open.2, content,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
