@@ -750,7 +750,7 @@ peg::parser! {
         rule index_term_concealed() -> InlineNode<'input>
         = "((("
         terms:index_term_list()
-        relationship:index_term_shorthand_relationship()?
+        relationship:index_term_shorthand_relationship(<")))" !")">)?
         ")))"
         {?
             let mut iter = terms.into_iter();
@@ -781,7 +781,7 @@ peg::parser! {
         !("(")  // Ensure this is not the start of a concealed term
         term:index_term_flow_segment()
         whitespace()?
-        relationship:index_term_shorthand_relationship()?
+        relationship:index_term_shorthand_relationship(<"))">)?
         "))"
         {?
             tracing::debug!(term = %term.text, "Found flow index term");
@@ -902,19 +902,19 @@ peg::parser! {
             trimmed_index_term_segment(content, start)
         }
 
-        rule index_term_shorthand_relationship() -> IndexTermRelationshipSegments<'input>
-        = ">> " target:index_term_shorthand_see_target() {
+        rule index_term_shorthand_relationship(close: rule<()>) -> IndexTermRelationshipSegments<'input>
+        = ">> " target:index_term_shorthand_see_target(&close) {
             IndexTermRelationshipSegments::See(target)
         }
-        / "&> " targets:(index_term_shorthand_see_also_target() ** " &> ") {
+        / "&> " targets:(index_term_shorthand_see_also_target(&close) ** " &> ") {
             IndexTermRelationshipSegments::SeeAlso(targets)
         }
 
-        rule index_term_shorthand_see_target() -> IndexTermSegment<'input>
-        = start:position!() content:$([^')']+) { trimmed_index_term_segment(content, start) }
+        rule index_term_shorthand_see_target(close: rule<()>) -> IndexTermSegment<'input>
+        = start:position!() content:$((!close() [_])+) { trimmed_index_term_segment(content, start) }
 
-        rule index_term_shorthand_see_also_target() -> IndexTermSegment<'input>
-        = start:position!() content:$((!(" &> ") [^')'])+) {
+        rule index_term_shorthand_see_also_target(close: rule<()>) -> IndexTermSegment<'input>
+        = start:position!() content:$((!(" &> " / close()) [_])+) {
             trimmed_index_term_segment(content, start)
         }
 

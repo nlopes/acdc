@@ -1,0 +1,23 @@
+``OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin((int(SIV[31:0]) + ctr) mod 2^32^, 32)),``
+
+`++OUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin((int(SIV[31:0]) + ctr) mod 2^32^, 32)),++`
+
+``if ((rs2_val >> i) & 1) then output ^ (rs1_val >> (xlen - i));``
+
+((visible >> function(argument) target))
+
+((visible &> function(argument) target &> other))
+
+(((hidden >> function(argument) target)))
+
+(((hidden &> function(argument) target &> other)))
+
+((visible >> function(argument)))
+
+((visible &> function(argument)))
+
+(((hidden >> function(argument))))
+
+(((hidden &> function(argument))))
+
+Text after the index terms.
