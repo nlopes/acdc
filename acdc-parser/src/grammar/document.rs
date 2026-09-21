@@ -2,6 +2,7 @@
 // rules with just 3 explicit params exceed clippy's 7-argument threshold.
 #![allow(clippy::too_many_arguments)]
 
+use bumpalo::collections::String as BumpString;
 use std::{
     borrow::Cow,
     collections::{HashMap, HashSet, VecDeque},
@@ -10,17 +11,18 @@ use std::{
 
 use crate::{
     Admonition, AdmonitionVariant, Anchor, AttributeValue, Attribution, Audio, Author, Block,
-    BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, Comment, CommentKind,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem, DiscreteHeader,
-    Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Error, Header, Image,
-    InlineMacro, InlineNode, ListItem, ListItemCheckedStatus, Location, OrderedList, PageBreak,
-    Paragraph, Plain, Raw, Reference, Section, Source, SourceLocation, StemContent, StemNotation,
-    Subtitle, Table, TableOfContents, TablePresentation, TableRow, ThematicBreak, Title, TocEntry,
-    UnorderedList, Verbatim, Video,
+    BlockMetadata, CalloutList, CalloutListItem, CalloutRef, CiteTitle, ColumnStyle, ColumnWidth,
+    Comment, CommentKind, DelimitedBlock, DelimitedBlockType, DescriptionList, DescriptionListItem,
+    DiscreteHeader, Document, DocumentAttribute, DocumentAttributes, ElementAttributes, Error,
+    Header, HorizontalAlignment, Image, InlineMacro, InlineNode, ListItem, ListItemCheckedStatus,
+    Location, OrderedList, PageBreak, Paragraph, Plain, Position, Raw, Reference, Section, Source,
+    SourceLocation, StemContent, StemNotation, Subtitle, Table, TableOfContents, TablePresentation,
+    TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, VerticalAlignment, Video,
+    Warning, WarningKind,
     blocks::table::MAX_TABLE_COLUMNS,
+    document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         ParserState,
-        attributes::AttributeEntry,
         author::derive_author_attrs,
         doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
@@ -42,18 +44,21 @@ use crate::{
 #[cfg(feature = "pre-spec-subs")]
 use crate::model::substitution::parse_subs_attribute;
 
-use super::helpers::{
-    AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, MacroAttributeContext,
-    PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
-    RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, is_valid_bibliography_id,
-    parse_comma_separated_values, strip_url_backslash_escapes, title_looks_like_description_list,
+use super::{
+    helpers::{
+        AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, MacroAttributeContext,
+        PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
+        RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, is_valid_bibliography_id,
+        parse_comma_separated_values, strip_url_backslash_escapes,
+        title_looks_like_description_list,
+    },
+    setext,
 };
-use super::setext;
 
 struct ManpageNameSection<'input> {
     title: &'input str,
     attributes: NameSectionAttributes,
-    metadata_attributes: Vec<AttributeEntry<'input>>,
+    metadata_attributes: Vec<AttributeDeclaration<'input>>,
 }
 
 fn prepare_manpage_name_attributes<'input>(
@@ -65,22 +70,23 @@ fn prepare_manpage_name_attributes<'input>(
     }
 
     if let (Some(name), Some(purpose)) = (
-        state.document_attributes.get_string("manname"),
-        state.document_attributes.get_string("manpurpose"),
+        state.document_attributes.text("manname").map(strip_quotes),
+        state
+            .document_attributes
+            .text("manpurpose")
+            .map(strip_quotes),
     ) {
-        let name = state.intern_str(&name);
-        let purpose = state.intern_str(&purpose);
+        let name = state.intern_str(name);
+        let purpose = state.intern_str(purpose);
         set_manpage_name_attributes(state, name, Some(purpose), Some("Name"));
         return;
     }
 
     if let Some(section) = section {
         let mut attributes = DocumentAttributes::clone(&state.document_attributes);
-        for AttributeEntry { key, value, .. } in section.metadata_attributes {
-            if !state.options.is_document_attribute_locked(key, false) {
-                let value = state.resolve_document_attribute_value(value, &attributes);
-                attributes.set(key.into(), value);
-            }
+        for AttributeDeclaration { name, value } in section.metadata_attributes {
+            let value = state.resolve_document_attribute_value(&value, &attributes);
+            let _ = attributes.assign_document_value(name.into(), value, false, false, None);
         }
 
         let name = substitute(&section.attributes.name, HEADER, &attributes);
@@ -96,9 +102,9 @@ fn prepare_manpage_name_attributes<'input>(
 
     let fallback = state
         .document_attributes
-        .get_string("docname")
-        .unwrap_or(Cow::Borrowed("command"));
-    let fallback = state.intern_str(&fallback);
+        .text("docname")
+        .map_or("command", strip_quotes);
+    let fallback = state.intern_str(fallback);
     set_manpage_name_attributes(state, fallback, None, None);
 }
 
@@ -109,15 +115,15 @@ fn set_manpage_name_attributes<'input>(
     title: Option<&'input str>,
 ) {
     let attributes = Rc::make_mut(&mut state.document_attributes);
-    attributes.set("manname".into(), AttributeValue::String(name.into()));
+    attributes.set_text("manname".into(), name.into());
     if let Some(purpose) = purpose {
-        attributes.set("manpurpose".into(), AttributeValue::String(purpose.into()));
+        attributes.set_text("manpurpose".into(), purpose.into());
     }
     if let Some(title) = title {
-        attributes.insert("manname-title".into(), AttributeValue::String(title.into()));
+        attributes.insert_text("manname-title".into(), title.into());
     }
-    if attributes.get_string("backend").as_deref() == Some("manpage") {
-        attributes.set("docname".into(), AttributeValue::String(name.into()));
+    if attributes.text("backend").map(strip_quotes) == Some("manpage") {
+        attributes.set_text("docname".into(), name.into());
     }
 }
 
@@ -135,10 +141,42 @@ fn assign_block_caption<'input>(state: &ParserState<'input>, block: &mut Block<'
     }
 }
 
+fn order_document_attribute_events(blocks: Vec<Block<'_>>) -> Vec<Block<'_>> {
+    let needs_ordering = blocks.iter().any(|block| {
+        if let Block::DocumentAttribute(attribute) = block {
+            return !attribute.is_accepted();
+        }
+        block
+            .metadata()
+            .is_some_and(BlockMetadata::has_document_attributes)
+    });
+    if !needs_ordering {
+        return blocks;
+    }
+
+    let mut ordered = Vec::with_capacity(blocks.len());
+    for mut block in blocks {
+        if matches!(&block, Block::DocumentAttribute(attribute) if !attribute.is_accepted()) {
+            continue;
+        }
+        if let Some(metadata) = block.metadata_mut() {
+            ordered.extend(
+                metadata
+                    .take_document_attributes()
+                    .into_iter()
+                    .map(Block::DocumentAttribute),
+            );
+        }
+        ordered.push(block);
+    }
+    ordered
+}
+
 fn merge_attribute_metadata<'input>(
     metadata: &mut BlockMetadata<'input>,
-    attribute_metadata: BlockMetadata<'input>,
+    mut attribute_metadata: BlockMetadata<'input>,
 ) {
+    metadata.append_document_attributes(attribute_metadata.take_document_attributes());
     if attribute_metadata.id.is_some() {
         metadata.id = attribute_metadata.id;
     }
@@ -245,8 +283,8 @@ fn resolve_delimited_close<'input>(
             p.open_start + p.offset,
             p.open_start + p.offset + p.open_delim.len().saturating_sub(1),
         );
-        state.add_warning(crate::Warning::new(
-            crate::WarningKind::UnterminatedDelimitedBlock {
+        state.add_warning(Warning::new(
+            WarningKind::UnterminatedDelimitedBlock {
                 kind: p.kind.name(),
                 delimiter: p.open_delim.to_string(),
             },
@@ -575,11 +613,8 @@ fn pass_inner<'input>(
             .or_else(|| {
                 state
                     .document_attributes
-                    .get("stem")
-                    .and_then(|value| match value {
-                        AttributeValue::String(value) => value.parse::<StemNotation>().ok(),
-                        AttributeValue::Bool(_) | AttributeValue::None => None,
-                    })
+                    .text("stem")
+                    .and_then(|value| value.parse::<StemNotation>().ok())
             })
             .unwrap_or(StemNotation::Latexmath);
         metadata.move_positional_attributes_to_attributes();
@@ -898,6 +933,7 @@ fn apply_style_part<'input>(
                 id: value,
                 xreflabel: None,
                 location,
+                bibliography_label: None,
                 bibliography: false,
             });
         }
@@ -953,15 +989,17 @@ fn extract_source_attributes(state: &ParserState<'_>, metadata: &mut BlockMetada
     }
     if !metadata.attributes.contains_key("linenums")
         && (metadata.options.contains(&"linenums")
-            || state.document_attributes.is_set("source-linenums-option"))
+            || state
+                .document_attributes
+                .contains_key("source-linenums-option"))
     {
         metadata
             .attributes
             .set("linenums".into(), AttributeValue::String(Cow::Borrowed("")));
     }
     if !metadata.options.contains(&"nowrap")
-        && state.document_attributes.contains_key("prewrap")
-        && !state.document_attributes.is_set("prewrap")
+        && state.document_attributes.is_explicit("prewrap")
+        && state.document_attributes.get("prewrap").is_none()
     {
         metadata.options.push("nowrap");
     }
@@ -992,6 +1030,7 @@ fn store_named_block_attribute<'input>(
                 id: value,
                 xreflabel: None,
                 location: location.clone().unwrap_or_default(),
+                bibliography_label: None,
                 bibliography: false,
             });
         }
@@ -1662,6 +1701,9 @@ fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<
     }
 
     anchor.bibliography = true;
+    if let Some(label) = &anchor.bibliography_label {
+        anchor.xreflabel = label.source;
+    }
     anchor.location =
         state.create_location(open.location.absolute_start, close.location.absolute_start);
     let remove_close = if close.content == "]" {
@@ -1727,7 +1769,12 @@ fn collect_inline_references<'a>(
 ) {
     for inline in inlines {
         match inline {
-            InlineNode::InlineAnchor(anchor) => insert_reference(state, refs, anchor, None, None),
+            InlineNode::InlineAnchor(anchor) => {
+                insert_reference(state, refs, anchor, None, None);
+                if let Some(label) = anchor.bibliography_label() {
+                    collect_inline_references(state, label, refs, xrefs);
+                }
+            }
             InlineNode::Macro(InlineMacro::CrossReference(xref)) => {
                 xrefs.push(CrossReferenceUse {
                     target: xref.target,
@@ -1861,7 +1908,7 @@ fn assemble_principal_text<'a>(
     if continuation_lines.is_empty() {
         first_line
     } else {
-        let mut s = bumpalo::collections::String::new_in(state.arena);
+        let mut s = BumpString::new_in(state.arena);
         s.push_str(first_line);
         for line in continuation_lines {
             s.push('\n');
@@ -1906,7 +1953,8 @@ fn apply_leveloffset(
 
     // Get offset from document attributes (inline :leveloffset: settings)
     let attr_offset = document_attributes
-        .get_string("leveloffset")
+        .text("leveloffset")
+        .map(strip_quotes)
         .and_then(|s| s.parse::<isize>().ok())
         .unwrap_or(0);
 
@@ -1960,8 +2008,8 @@ fn warn_for_nested_bibliography_section(
 ) {
     if direct_parent_section_kind == Some(SectionKind::Bibliography) {
         let location = state.create_error_source_location(heading_location);
-        state.add_warning(crate::Warning::new(
-            crate::WarningKind::NestedSectionInBibliography,
+        state.add_warning(Warning::new(
+            WarningKind::NestedSectionInBibliography,
             Some(location),
         ));
     }
@@ -2037,7 +2085,8 @@ fn parse_table_block_impl<'input>(
 
     let mut metadata = block_metadata.metadata.clone();
     metadata.move_positional_attributes_to_attributes();
-    let presentation = TablePresentation::from_attributes(&metadata, &state.document_attributes);
+    let presentation =
+        TablePresentation::from_attributes(&metadata, |name| (state.document_attributes).get(name));
     let location = state.create_block_location(start, end, offset);
     let table_location = state.create_block_location(table_start, end, offset);
     let open_delimiter_location = state.create_location(
@@ -2058,8 +2107,8 @@ fn parse_table_block_impl<'input>(
             Some(state.create_block_location(close_start, end, offset))
         }
         TableClosing::Unterminated => {
-            state.add_warning(crate::Warning::new(
-                crate::WarningKind::UnterminatedTable {
+            state.add_warning(Warning::new(
+                WarningKind::UnterminatedTable {
                     delimiter: open_delim.to_string(),
                 },
                 Some(state.create_error_source_location(open_delimiter_location.clone())),
@@ -2080,8 +2129,8 @@ fn parse_table_block_impl<'input>(
             "dsv" => ":",
             "tsv" => "\t",
             unknown_format => {
-                state.add_warning(crate::Warning::new(
-                    crate::WarningKind::TableUnknownFormat {
+                state.add_warning(Warning::new(
+                    WarningKind::TableUnknownFormat {
                         format: unknown_format.to_string(),
                     },
                     Some(state.create_error_source_location(table_location.clone())),
@@ -2120,40 +2169,40 @@ fn parse_table_block_impl<'input>(
                 (1, s)
             };
 
-            let mut halign = crate::HorizontalAlignment::default();
-            let mut valign = crate::VerticalAlignment::default();
-            let mut width = crate::ColumnWidth::default();
-            let mut style = crate::ColumnStyle::default();
+            let mut halign = HorizontalAlignment::default();
+            let mut valign = VerticalAlignment::default();
+            let mut width = ColumnWidth::default();
+            let mut style = ColumnStyle::default();
 
             // Parse style (last character if it's a letter: a, d, e, h, l, m, s)
             let spec_str = if let Some(last_char) = spec_str.chars().last() {
                 match last_char {
                     'a' => {
-                        style = crate::ColumnStyle::AsciiDoc;
+                        style = ColumnStyle::AsciiDoc;
                         &spec_str[..spec_str.len() - 1]
                     }
                     'd' => {
-                        style = crate::ColumnStyle::Default;
+                        style = ColumnStyle::Default;
                         &spec_str[..spec_str.len() - 1]
                     }
                     'e' => {
-                        style = crate::ColumnStyle::Emphasis;
+                        style = ColumnStyle::Emphasis;
                         &spec_str[..spec_str.len() - 1]
                     }
                     'h' => {
-                        style = crate::ColumnStyle::Header;
+                        style = ColumnStyle::Header;
                         &spec_str[..spec_str.len() - 1]
                     }
                     'l' => {
-                        style = crate::ColumnStyle::Literal;
+                        style = ColumnStyle::Literal;
                         &spec_str[..spec_str.len() - 1]
                     }
                     'm' => {
-                        style = crate::ColumnStyle::Monospace;
+                        style = ColumnStyle::Monospace;
                         &spec_str[..spec_str.len() - 1]
                     }
                     's' => {
-                        style = crate::ColumnStyle::Strong;
+                        style = ColumnStyle::Strong;
                         &spec_str[..spec_str.len() - 1]
                     }
                     _ => spec_str,
@@ -2164,11 +2213,11 @@ fn parse_table_block_impl<'input>(
 
             // Parse vertical alignment markers: .<, .^, .>
             if spec_str.contains(".<") {
-                valign = crate::VerticalAlignment::Top;
+                valign = VerticalAlignment::Top;
             } else if spec_str.contains(".^") {
-                valign = crate::VerticalAlignment::Middle;
+                valign = VerticalAlignment::Middle;
             } else if spec_str.contains(".>") {
-                valign = crate::VerticalAlignment::Bottom;
+                valign = VerticalAlignment::Bottom;
             }
 
             // Parse horizontal alignment markers: <, ^, > (not preceded by .)
@@ -2182,9 +2231,9 @@ fn parse_table_block_impl<'input>(
                     continue; // This is a vertical alignment marker
                 }
                 match c {
-                    '<' => halign = crate::HorizontalAlignment::Left,
-                    '^' => halign = crate::HorizontalAlignment::Center,
-                    '>' => halign = crate::HorizontalAlignment::Right,
+                    '<' => halign = HorizontalAlignment::Left,
+                    '^' => halign = HorizontalAlignment::Center,
+                    '>' => halign = HorizontalAlignment::Right,
                     _ => {}
                 }
             }
@@ -2199,13 +2248,13 @@ fn parse_table_block_impl<'input>(
                 .collect();
             if !width_str.is_empty() {
                 if width_str == "~" {
-                    width = crate::ColumnWidth::Auto;
+                    width = ColumnWidth::Auto;
                 } else if width_str.ends_with('%') {
                     if let Ok(pct) = width_str.trim_end_matches('%').parse::<u32>() {
-                        width = crate::ColumnWidth::Percentage(pct);
+                        width = ColumnWidth::Percentage(pct);
                     }
                 } else if let Ok(prop) = width_str.parse::<u32>() {
-                    width = crate::ColumnWidth::Proportional(prop);
+                    width = ColumnWidth::Proportional(prop);
                 }
             }
 
@@ -2260,8 +2309,8 @@ fn parse_table_block_impl<'input>(
     })?;
 
     if let Some((start, end)) = dropped_span {
-        state.add_warning(crate::Warning::new(
-            crate::WarningKind::TableIncompleteRow,
+        state.add_warning(Warning::new(
+            WarningKind::TableIncompleteRow,
             Some(state.create_error_source_location(state.create_location(start, end))),
         ));
     }
@@ -2289,42 +2338,37 @@ fn parse_table_block_impl<'input>(
         // produces more but is bounded by the table's column limit.
         let mut columns = Vec::with_capacity(row.len());
         for cell in row {
-            let cell_count = if cell.is_duplication {
-                cell.duplication_count
+            let cell_count = if cell.spec.is_duplication {
+                cell.spec.duplication_count
             } else {
                 1
             };
+            if cell_count == 0 {
+                continue;
+            }
+            let cell_content = state.intern_str(&cell.content);
+            // Duplicates share source text, but each parse must apply its own
+            // footnote and document-attribute effects.
             for _ in 0..cell_count {
                 // Column defaults follow generated cell order; spans do not
-                // advance this source-row index in Asciidoctor.
+                // advance this source-row index in asciidoctor.
                 let column_index = columns.len();
-                // Apply column format style if cell doesn't have explicit style
-                let effective_cell = if is_header_row {
-                    // A semantic header row always uses normal substitutions and
-                    // header presentation, regardless of column or cell styles.
-                    let mut cell_without_style = cell.clone();
-                    cell_without_style.style = None;
-                    cell_without_style
-                } else if cell.style.is_none()
+                let mut spec = cell.spec;
+                if is_header_row {
+                    // Semantic header rows always use normal substitutions.
+                    spec.style = None;
+                } else if spec.style.is_none()
                     && let Some(col_format) = column_formats.get(column_index)
-                    && col_format.style != crate::ColumnStyle::Default
+                    && col_format.style != ColumnStyle::Default
                 {
-                    let mut cell_with_style = cell.clone();
-                    cell_with_style.style = Some(col_format.style);
-                    cell_with_style
-                } else {
-                    cell.clone()
-                };
-
-                // Cell content is owned by the ParsedCell; intern into the parser
-                // arena so downstream block parsing can borrow at `'input`.
-                let cell_content: &'input str = state.intern_str(&effective_cell.content);
+                    spec.style = Some(col_format.style);
+                }
                 let parsed = parse_table_cell(
                     cell_content,
                     state,
-                    effective_cell.content_start,
+                    cell.content_start,
                     block_metadata.parent_section_level,
-                    &effective_cell,
+                    &spec,
                 )?;
                 columns.push(parsed);
             }
@@ -2363,16 +2407,16 @@ fn parse_table_block_impl<'input>(
             // Check if any cell's colspan exceeds the table width
             let has_overflow = columns.iter().any(|c| c.colspan > ncols);
             if has_overflow {
-                state.add_warning(crate::Warning::new(
-                    crate::WarningKind::TableCellOverflow {
+                state.add_warning(Warning::new(
+                    WarningKind::TableCellOverflow {
                         actual: logical_col_count,
                         expected: ncols,
                     },
                     Some(state.create_error_source_location(row_location)),
                 ));
             } else {
-                state.add_warning(crate::Warning::new(
-                    crate::WarningKind::TableColumnCount {
+                state.add_warning(Warning::new(
+                    WarningKind::TableColumnCount {
                         actual: logical_col_count,
                         expected: ncols,
                         occupied_from_rowspans,
@@ -2589,7 +2633,7 @@ peg::parser! {
         // it stands in our current model, it makes no sense to have comments in the
         // blocks as it is a completely separate part of the document.
         pub(crate) rule document() -> Result<Document<'input>, Error>
-        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
+        = eol()* start:position() comments_before_header:comment_line_block(0)* header_result:header() prepare_manpage_front_matter() header_attributes:header_attribute_snapshot() blocks:blocks(0, None, None) end:position!() (eol()* / ![_]) {
             let header = header_result?;
             let mut blocks: Vec<Block<'_>> = comments_before_header.into_iter().collect::<Result<Vec<_>, Error>>()?.into_iter().chain(blocks?).collect();
 
@@ -2622,7 +2666,7 @@ peg::parser! {
             // Only for zero-byte input, not whitespace-only
             let (start_position, end_position) = if state.input.is_empty() || (absolute_start == 0 && absolute_end == 0) {
                 // Whitespace-only documents should use column 1
-                (crate::Position::new(1, 0), crate::Position::new(1, 0))
+                (Position::new(1, 0), Position::new(1, 0))
             } else {
                 (
                     start.position,
@@ -2664,8 +2708,8 @@ peg::parser! {
                         if section.level > 1 {
                             let location = state
                                 .create_error_source_location(section.location.clone());
-                            state.add_warning(crate::Warning::new(
-                                crate::WarningKind::SectionLevelOutOfSequence {
+                            state.add_warning(Warning::new(
+                                WarningKind::SectionLevelOutOfSequence {
                                     expected: 1,
                                     got: section.level,
                                 },
@@ -2690,7 +2734,7 @@ peg::parser! {
             section::number_parsed_sections(
                 &mut blocks,
                 &mut state.toc_entries,
-                is_book_doctype(&state.document_attributes),
+                is_book_doctype(&header_attributes),
             );
 
             // Build the id -> reference catalog for O(1) `<<id>>` resolution:
@@ -2772,7 +2816,7 @@ peg::parser! {
                     start: start_position,
                     end: end_position,
                 },
-                attributes: DocumentAttributes::clone(&state.document_attributes),
+                attributes: header_attributes,
                 blocks,
                 footnotes: state.footnote_tracker.borrow().footnotes.clone(),
                 toc_entries,
@@ -2798,8 +2842,8 @@ peg::parser! {
                 }
                 if is_internal_reference(target) && !reference_ids.contains(target) {
                     let source_location = state.create_error_source_location(xref.location);
-                    state.add_warning(crate::Warning::new(
-                        crate::WarningKind::UnresolvedReference {
+                    state.add_warning(Warning::new(
+                        WarningKind::UnresolvedReference {
                             target: target.to_string(),
                         },
                         Some(source_location),
@@ -2815,6 +2859,12 @@ peg::parser! {
             Ok(document)
         }
 
+        rule header_attribute_snapshot() -> DocumentAttributes<'input>
+        = {
+            crate::document_attribute::normalize_toc_attributes(Rc::make_mut(&mut state.document_attributes));
+            DocumentAttributes::clone(&state.document_attributes)
+        }
+
         rule prepare_manpage_front_matter()
         = manpage_name_section_required() section:&manpage_name_section() {
             prepare_manpage_name_attributes(state, Some(section));
@@ -2826,8 +2876,8 @@ peg::parser! {
         rule manpage_name_section_required()
         = {?
             if is_manpage_doctype(&state.document_attributes)
-                && !(state.document_attributes.get_string("manname").is_some()
-                    && state.document_attributes.get_string("manpurpose").is_some())
+                && !(state.document_attributes.text("manname").is_some()
+                    && state.document_attributes.text("manpurpose").is_some())
             {
                 Ok(())
             } else {
@@ -2866,7 +2916,7 @@ peg::parser! {
                 .ok_or("not a level-one Setext manpage name section")
         }
 
-        rule manpage_name_metadata() -> Option<AttributeEntry<'input>>
+        rule manpage_name_metadata() -> Option<AttributeDeclaration<'input>>
         = manpage_comment_block() { None }
         / "//" !"/" [^'\n']* (eol() / ![_]) { None }
         / "[[" (!"]]" [^'\n'])+ "]]" (eol() / ![_]) { None }
@@ -3141,8 +3191,8 @@ peg::parser! {
                 } else {
                     tracing::debug!(?substituted, "Author line did not parse structurally; using whole line as a single author");
                     let location = state.create_error_source_location(state.create_location(start, end));
-                    state.add_warning(crate::Warning::new(
-                        crate::WarningKind::NonStandardAuthorLine { line: substituted.to_string() },
+                    state.add_warning(Warning::new(
+                        WarningKind::NonStandardAuthorLine { line: substituted.to_string() },
                         Some(location),
                     ));
                     Ok(vec![Author::new(state.arena, substituted, None, None)])
@@ -3244,8 +3294,10 @@ peg::parser! {
                     Ok(()) => {
                         // Copy revision attributes from temp_state back to main state
                         for key in ["revnumber", "revdate", "revremark"] {
-                            if let Some(value) = temp_state.document_attributes.get(key) {
-                                Rc::make_mut(&mut state.document_attributes).insert(key.into(), value.clone());
+                            if let Some(value) = temp_state.document_attributes.text(key) {
+                                let value = state.intern_str(value);
+                                Rc::make_mut(&mut state.document_attributes)
+                                    .insert_text(key.into(), value.into());
                             }
                         }
                         tracing::debug!("Parsed revision from line");
@@ -3266,28 +3318,36 @@ peg::parser! {
             }
 
         rule document_attribute() -> ()
-        = att:document_attribute_match() (&eol() / ![_])
+        = start:position!() att:document_attribute_match() end:position!() (&eol() / ![_])
         {
-            let AttributeEntry{key, value, set} = att;
-            tracing::debug!(%set, %key, %value, "Found document attribute in the document header");
-            state.apply_document_attribute(key.into(), value, set, true);
+            tracing::debug!(?att, "Found document attribute in the document header");
+            let location = state.create_location(start, end);
+            state.apply_document_attribute(&att, true, location);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
         = blocks:block(offset, parent_section_level, direct_parent_section_kind)*
         {
-            let mut blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
-            // A trusted attribute declared in document content is consumed as syntax
-            // but has no semantic node in asciidoctor's AST.
-            blocks.retain(|block| {
-                !matches!(
-                    block,
-                    Block::DocumentAttribute(attribute)
-                        if crate::constants::is_builtin_attribute_protected(&attribute.name)
-                )
-            });
-            Ok(blocks)
+            let blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            Ok(order_document_attribute_events(blocks))
         }
+
+        pub(crate) rule nested_document_blocks(offset: usize, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
+        = eol()*
+          header:(
+              comment:comment_line_block(offset) eol()* { comment }
+              / attribute:document_attribute_block(offset) (eol() / ![_]) { attribute }
+          )*
+          header:normalize_nested_header(header, initial_attributes)
+          body:blocks(offset, None, None)
+        {
+            let mut blocks = header?;
+            blocks.extend(body?);
+            Ok(order_document_attribute_events(blocks))
+        }
+
+        rule normalize_nested_header(header: Vec<Result<Block<'input>, Error>>, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
+        = { crate::grammar::table::normalize_nested_header(state, header, initial_attributes) }
 
         /// Blocks for table cells without `AsciiDoc` style - excludes block types that require full parsing.
         /// Table cells use a simplified block parser that excludes sections, document attributes,
@@ -3299,7 +3359,8 @@ peg::parser! {
             block_generic_for_table_cell(offset, parent_section_level)
         )*
         {
-            blocks.into_iter().collect::<Result<Vec<_>, Error>>()
+            let blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            Ok(order_document_attribute_events(blocks))
         }
 
         pub(crate) rule block(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
@@ -3359,7 +3420,7 @@ peg::parser! {
         //
         // Checks both ATX-style (= or #) and setext-style (underlined) sections.
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
-        = (anchor() / attributes_line() / document_attribute_line() / title_line(offset))*
+        = (anchor() / attributes_line() / document_attribute_line(offset) / title_line(offset))*
           (
             // ATX-style section check - require space after marker to avoid matching
             // description list items like `#term::` as sections
@@ -3457,8 +3518,8 @@ peg::parser! {
                 let warning_location = state.create_error_source_location(
                     state.create_block_location(span_start, span_end, offset),
                 );
-                state.add_warning(crate::Warning::new(
-                    crate::WarningKind::LegacyFloatDiscreteHeading,
+                state.add_warning(Warning::new(
+                    WarningKind::LegacyFloatDiscreteHeading,
                     Some(warning_location),
                 ));
             }
@@ -3474,13 +3535,12 @@ peg::parser! {
         pub(crate) rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
         = att:document_attribute_match()
         {
-            let AttributeEntry{ key, value, set } = att;
-            let value = state.apply_document_attribute(key.into(), value, set, false);
-            Ok(Block::DocumentAttribute(DocumentAttribute {
-                name: key.into(),
-                value,
-                location: state.create_location(span_start+offset, span_end+offset)
-            }))
+            let name = Cow::Borrowed(att.name);
+            let location = state.create_location(span_start + offset, span_end + offset);
+            let event = state
+                .apply_document_attribute(&att, false, location.clone())
+                .unwrap_or_else(|| DocumentAttribute::rejected(name, location));
+            Ok(Block::DocumentAttribute(event))
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
@@ -3533,8 +3593,8 @@ peg::parser! {
                     let location = state.create_error_source_location(
                         state.create_block_location(section_level_start, section_level_end, offset),
                     );
-                    state.add_warning(crate::Warning::new(
-                        crate::WarningKind::SectionLevelOutOfSequence {
+                    state.add_warning(Warning::new(
+                        WarningKind::SectionLevelOutOfSequence {
                             expected: parent_level,
                             got: section_level.1,
                         },
@@ -3665,10 +3725,16 @@ peg::parser! {
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
+        = metadata:block_metadata_with_attributes(offset, parent_section_level, true) { metadata }
+
+        rule document_attributes_allowed(allow: bool)
+        = {? if allow { Ok(()) } else { Err("document attributes are not allowed in plain cells") } }
+
+        rule block_metadata_with_attributes(offset: usize, parent_section_level: Option<SectionLevel>, allow_document_attributes: bool) -> Result<BlockParsingMetadata<'input>, Error>
         = meta_start:position!() lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
-            / doc_attr:document_attribute_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(Cow::Borrowed(doc_attr.key), doc_attr.value, doc_attr.set)) }
+            / document_attributes_allowed(allow_document_attributes) doc_attr:document_attribute_line(offset) { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )* meta_end:position!()
         {
@@ -3688,10 +3754,16 @@ peg::parser! {
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
                     },
-                    BlockMetadataLine::DocumentAttribute(key, value, set) => {
+                    BlockMetadataLine::DocumentAttribute(declaration, location) => {
                         // Set the document attribute immediately so it's available for
                         // subsequent attribute references (e.g., in title lines)
-                        state.apply_document_attribute(key, value, set, false);
+                        if let Some(event) = state.apply_document_attribute(
+                            &declaration,
+                            false,
+                            location,
+                        ) {
+                            metadata.push_document_attribute(event);
+                        }
                     },
                     BlockMetadataLine::Title(inner) => {
                         title = inner;
@@ -3726,11 +3798,11 @@ peg::parser! {
         // A document attribute line in block metadata context
         // This allows document attributes to be set between block attributes and the block content
         // Uses the same parsing logic as document attributes in the header
-        rule document_attribute_line() -> AttributeEntry<'input>
-        = attr:document_attribute_match() eol()
+        rule document_attribute_line(offset: usize) -> (AttributeDeclaration<'input>, Location)
+        = start:position!() attr:document_attribute_match() end:position!() eol()
         {
             tracing::debug!(?attr, "Found document attribute in block metadata");
-            attr
+            (attr, state.create_location(start + offset, end + offset))
         }
 
         rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
@@ -3854,7 +3926,7 @@ peg::parser! {
         rule block_generic_for_table_cell(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
         = eol()*
         start:position!()
-        block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+        block_metadata:(bm:block_metadata_with_attributes(offset, parent_section_level, false) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in block_generic_for_table_cell");
                 "block metadata parse error"
@@ -3921,7 +3993,7 @@ peg::parser! {
         // comparison in `block_close_delim` keeps a different-length or
         // different-character run from closing the block.
         rule until_block_close(expected: &str) -> &'input str
-            = content:$((!(eol() block_close_delim(expected)) [_])*) { content }
+            = content:$((!(eol() block_close_delim(expected)) (eol() / [^'\n']+))*) { content }
 
         // A maximal run of a single block-delimiter character equal to `expected`.
         // Per-character alternatives (not a mixed character class) so a run stops
@@ -6057,6 +6129,7 @@ peg::parser! {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_location(span_start, end),
+                bibliography_label: None,
                 bibliography: false,
             }
         }
@@ -6082,6 +6155,7 @@ peg::parser! {
                 id: substituted_id,
                 xreflabel: substituted_reftext,
                 location: state.create_block_location(span_start, span_end, offset),
+                bibliography_label: None,
                 bibliography: false,
             })
         }
@@ -6368,15 +6442,11 @@ peg::parser! {
         // Value parsing for document attributes
         // Handles both single-line values and values with continuation markers (" \" or " + \")
         // The preprocessor preserves these markers for the parser to handle
-        rule document_attribute_value() -> String
-        = " " lines:document_attribute_value_lines()
-        {
-            lines.join("\n")
-        }
-
-        // Parse value lines, continuing while lines end with backslash
-        rule document_attribute_value_lines() -> Vec<&'input str>
-        = backslash_continuation_lines() / single_line:$([^'\n']+) { vec![single_line] }
+        rule document_attribute_value() -> Cow<'input, str>
+        = " " value:(
+            lines:backslash_continuation_lines() { Cow::Owned(lines.join("\n")) }
+            / single_line:$([^'\n']+) { Cow::Borrowed(single_line) }
+        ) { value }
 
         // Lines ending with backslash continuation - keeps consuming lines until one doesn't end with backslash
         rule backslash_continuation_lines() -> Vec<&'input str>
@@ -6392,7 +6462,7 @@ peg::parser! {
 
         // Document attribute parsing
         // Works identically in both header and block metadata contexts
-        rule document_attribute_match() -> AttributeEntry<'input>
+        rule document_attribute_match() -> AttributeDeclaration<'input>
         = ":"
         key_entry:(
             "!" key:$([^':']+) { (false, key) }
@@ -6404,17 +6474,13 @@ peg::parser! {
         {
             let (set, key) = key_entry;
             let attr_value = if !set {
-                AttributeValue::Bool(false)
+                RawAttributeValue::Unset
             } else if let Some(v) = value {
-                let trimmed = v.trim();
-                match trimmed {
-                    "true" => AttributeValue::Bool(true),
-                    _ => AttributeValue::String(Cow::Owned(v)),
-                }
+                RawAttributeValue::Text(v)
             } else {
-                AttributeValue::Bool(true)
+                RawAttributeValue::Set
             };
-            AttributeEntry { set, key, value: attr_value }
+            AttributeDeclaration { name: key, value: attr_value }
         }
         / expected!("document attribute key starting with ':'")
 
@@ -6558,7 +6624,7 @@ fn verbatim_without_callouts<'a>(
     } else {
         state.create_block_location(0, text.len(), base_location.absolute_start)
     };
-    let mut content = bumpalo::collections::String::new_in(state.arena);
+    let mut content = BumpString::new_in(state.arena);
     content.push_str(text);
     (
         vec![InlineNode::VerbatimText(Verbatim {
@@ -6570,7 +6636,7 @@ fn verbatim_without_callouts<'a>(
 }
 
 struct VerbatimSegment<'a> {
-    content: bumpalo::collections::String<'a>,
+    content: BumpString<'a>,
     source_start: Option<usize>,
     source_end: usize,
 }
@@ -6578,7 +6644,7 @@ struct VerbatimSegment<'a> {
 impl<'a> VerbatimSegment<'a> {
     fn new(arena: &'a bumpalo::Bump) -> Self {
         Self {
-            content: bumpalo::collections::String::new_in(arena),
+            content: BumpString::new_in(arena),
             source_start: None,
             source_end: 0,
         }
@@ -6598,10 +6664,7 @@ impl<'a> VerbatimSegment<'a> {
     fn flush(&mut self, state: &ParserState<'a>, base_offset: usize) -> Option<InlineNode<'a>> {
         let source_start = self.source_start.take()?;
         let source_end = std::mem::take(&mut self.source_end);
-        let content = std::mem::replace(
-            &mut self.content,
-            bumpalo::collections::String::new_in(state.arena),
-        );
+        let content = std::mem::replace(&mut self.content, BumpString::new_in(state.arena));
         Some(InlineNode::VerbatimText(Verbatim {
             content: content.into_bump_str(),
             location: state.create_block_location(source_start, source_end, base_offset),
@@ -6748,6 +6811,7 @@ fn extract_callout_number(line: &str) -> Option<usize> {
 )]
 mod tests {
     use super::*;
+    use crate::{Options, XrefCaptionLabel, XrefStyle, parse};
 
     #[test]
     #[tracing_test::traced_test]
@@ -6770,8 +6834,8 @@ v2.9, 01-09-2024: Fall incarnation
                 location: Location {
                     absolute_start: 34,
                     absolute_end: 47,
-                    start: crate::Position::new(2, 3),
-                    end: crate::Position::new(2, 16),
+                    start: Position::new(2, 3),
+                    end: Position::new(2, 16),
                 },
                 escaped: false,
             })
@@ -6787,31 +6851,28 @@ v2.9, 01-09-2024: Fall incarnation
         assert_eq!(header.authors[1].last_name, "Lopes");
         assert_eq!(header.authors[1].initials, "NML");
         assert_eq!(header.authors[1].email, Some("nlopesml@gmail.com"));
+        assert_eq!(state.document_attributes.text("revnumber"), Some("2.9"));
         assert_eq!(
-            state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("2.9".into()))
+            state.document_attributes.text("revdate"),
+            Some("01-09-2024")
         );
         assert_eq!(
-            state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("01-09-2024".into()))
+            state.document_attributes.text("revremark"),
+            Some("Fall incarnation")
         );
         assert_eq!(
-            state.document_attributes.get("revremark"),
-            Some(&AttributeValue::String("Fall incarnation".into()))
+            state.document_attributes.text("description"),
+            Some("The document's description.")
+        );
+        assert!(
+            state
+                .document_attributes
+                .get("sectanchors")
+                .is_some_and(crate::DocumentAttributeValue::is_presence)
         );
         assert_eq!(
-            state.document_attributes.get("description"),
-            Some(&AttributeValue::String(
-                "The document's description.".into()
-            ))
-        );
-        assert_eq!(
-            state.document_attributes.get("sectanchors"),
-            Some(&AttributeValue::Bool(true))
-        );
-        assert_eq!(
-            state.document_attributes.get("url-repo"),
-            Some(&AttributeValue::String("https://my-git-repo.com".into()))
+            state.document_attributes.text("url-repo"),
+            Some("https://my-git-repo.com")
         );
         Ok(())
     }
@@ -6925,17 +6986,14 @@ v2.9, 01-09-2024: Fall incarnation
         let input = "v2.9, 01-09-2024: Fall incarnation";
         let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
+        assert_eq!(state.document_attributes.text("revnumber"), Some("2.9"));
         assert_eq!(
-            state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("2.9".into()))
+            state.document_attributes.text("revdate"),
+            Some("01-09-2024")
         );
         assert_eq!(
-            state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("01-09-2024".into()))
-        );
-        assert_eq!(
-            state.document_attributes.get("revremark"),
-            Some(&AttributeValue::String("Fall incarnation".into()))
+            state.document_attributes.text("revremark"),
+            Some("Fall incarnation")
         );
         Ok(())
     }
@@ -6946,13 +7004,10 @@ v2.9, 01-09-2024: Fall incarnation
         let input = "v2.9, 01-09-2024";
         let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
+        assert_eq!(state.document_attributes.text("revnumber"), Some("2.9"));
         assert_eq!(
-            state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("2.9".into()))
-        );
-        assert_eq!(
-            state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("01-09-2024".into()))
+            state.document_attributes.text("revdate"),
+            Some("01-09-2024")
         );
         assert_eq!(state.document_attributes.get("revremark"), None);
         Ok(())
@@ -6964,14 +7019,11 @@ v2.9, 01-09-2024: Fall incarnation
         let input = "v2.9: Fall incarnation";
         let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
-        assert_eq!(
-            state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("2.9".into()))
-        );
+        assert_eq!(state.document_attributes.text("revnumber"), Some("2.9"));
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(
-            state.document_attributes.get("revremark"),
-            Some(&AttributeValue::String("Fall incarnation".into()))
+            state.document_attributes.text("revremark"),
+            Some("Fall incarnation")
         );
         Ok(())
     }
@@ -6982,10 +7034,7 @@ v2.9, 01-09-2024: Fall incarnation
         let input = "v2.9";
         let mut state = ParserState::new_for_test(input);
         document_parser::revision(input, &mut state)?;
-        assert_eq!(
-            state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("2.9".into()))
-        );
+        assert_eq!(state.document_attributes.text("revnumber"), Some("2.9"));
         assert_eq!(state.document_attributes.get("revdate"), None);
         assert_eq!(state.document_attributes.get("revremark"), None);
         Ok(())
@@ -7006,18 +7055,12 @@ v2.0, 2026-01-15: rel
         let header = result.header.expect("document has a header");
         assert_eq!(header.authors.len(), 1);
         assert_eq!(header.authors[0].first_name, "Roberto");
+        assert_eq!(state.document_attributes.text("revnumber"), Some("2.0"));
         assert_eq!(
-            state.document_attributes.get("revnumber"),
-            Some(&AttributeValue::String("2.0".into()))
+            state.document_attributes.text("revdate"),
+            Some("2026-01-15")
         );
-        assert_eq!(
-            state.document_attributes.get("revdate"),
-            Some(&AttributeValue::String("2026-01-15".into()))
-        );
-        assert_eq!(
-            state.document_attributes.get("foo"),
-            Some(&AttributeValue::String("bar".into()))
-        );
+        assert_eq!(state.document_attributes.text("foo"), Some("bar"));
         Ok(())
     }
 
@@ -7027,10 +7070,7 @@ v2.0, 2026-01-15: rel
         let input = "= T\n\nbody";
         let mut state = ParserState::new_for_test(input);
         document_parser::document(input, &mut state)??;
-        assert_eq!(
-            state.document_attributes.get("authorcount"),
-            Some(&AttributeValue::String("0".into()))
-        );
+        assert_eq!(state.document_attributes.text("authorcount"), Some("0"));
         Ok(())
     }
 
@@ -7048,8 +7088,8 @@ v2.0, 2026-01-15: rel
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position::new(1, 3),
-                    end: crate::Position::new(1, 16),
+                    start: Position::new(1, 3),
+                    end: Position::new(1, 16),
                 },
                 escaped: false,
             })
@@ -7071,8 +7111,8 @@ v2.0, 2026-01-15: rel
                     location: Location {
                         absolute_start: 2,
                         absolute_end: 15,
-                        start: crate::Position::new(1, 3),
-                        end: crate::Position::new(1, 16),
+                        start: Position::new(1, 3),
+                        end: Position::new(1, 16),
                     },
                     escaped: false,
                 })]),
@@ -7081,8 +7121,8 @@ v2.0, 2026-01-15: rel
                     location: Location {
                         absolute_start: 18,
                         absolute_end: 31,
-                        start: crate::Position::new(1, 19),
-                        end: crate::Position::new(1, 32),
+                        start: Position::new(1, 19),
+                        end: Position::new(1, 32),
                     },
                     escaped: false,
                 })]))
@@ -7107,8 +7147,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 15,
-                    start: crate::Position::new(1, 3),
-                    end: crate::Position::new(1, 16),
+                    start: Position::new(1, 3),
+                    end: Position::new(1, 16),
                 },
                 escaped: false,
             })
@@ -7148,8 +7188,8 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 10,
-                    start: crate::Position::new(1, 3),
-                    end: crate::Position::new(1, 11),
+                    start: Position::new(1, 3),
+                    end: Position::new(1, 11),
                 },
                 escaped: false,
             })
@@ -7207,9 +7247,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 4,
                     absolute_end: 9,
-                    start: crate::Position::new(1, 5),
-                    end: crate::Position::new(1, 10),
+                    start: Position::new(1, 5),
+                    end: Position::new(1, 10),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7235,9 +7276,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position::new(1, 9),
-                    end: crate::Position::new(1, 13),
+                    start: Position::new(1, 9),
+                    end: Position::new(1, 13),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7263,9 +7305,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 8,
                     absolute_end: 12,
-                    start: crate::Position::new(1, 9),
-                    end: crate::Position::new(1, 13),
+                    start: Position::new(1, 9),
+                    end: Position::new(1, 13),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7292,9 +7335,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 12,
-                    start: crate::Position::new(1, 3),
-                    end: crate::Position::new(1, 13),
+                    start: Position::new(1, 3),
+                    end: Position::new(1, 13),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7319,9 +7363,10 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
                 location: Location {
                     absolute_start: 2,
                     absolute_end: 7,
-                    start: crate::Position::new(1, 3),
-                    end: crate::Position::new(1, 8),
+                    start: Position::new(1, 3),
+                    end: Position::new(1, 8),
                 },
+                bibliography_label: None,
                 bibliography: false,
             })
         );
@@ -7472,7 +7517,7 @@ Lorn_Kismet R. Lee <kismet@asciidoctor.org>; Norberto M. Lopes <nlopesml@gmail.c
 Some content.
 ";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let header = result.header.expect("document has a header");
         assert_eq!(header.title.len(), 1);
@@ -7494,7 +7539,7 @@ Section One
 Content.
 ";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Find the section
@@ -7551,7 +7596,7 @@ Section One
 Content here.
 ";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Check document title (level 0)
@@ -7605,7 +7650,7 @@ Section C
 Content C.
 ";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Check document title
@@ -7666,7 +7711,7 @@ Content C.
         // Test level 1 with -
         let input = "= Doc\n\nLevel One\n---------\n\nContent.\n";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -7684,7 +7729,7 @@ Content C.
         // Test level 2 with ~
         let input = "= Doc\n\nLevel Two\n~~~~~~~~~\n\nContent.\n";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -7702,7 +7747,7 @@ Content C.
         // Test level 3 with ^
         let input = "= Doc\n\nLevel Three\n^^^^^^^^^^^\n\nContent.\n";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -7720,7 +7765,7 @@ Content C.
         // Test level 4 with +
         let input = "= Doc\n\nLevel Four\n++++++++++\n\nContent.\n";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
         let section = result
             .blocks
@@ -7744,7 +7789,7 @@ Content C.
     fn test_setext_manpage_style_document() -> Result<(), Error> {
         let input = "gitdatamodel(7)\n===============\n\nNAME\n----\ngitdatamodel - Git's core data model\n\nSYNOPSIS\n--------\ngitdatamodel\n";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let result = document_parser::document(input, &mut state)??;
 
         // Verify document title parsed
@@ -7813,8 +7858,8 @@ REFERENCES
 
 References.
 ";
-        let options = crate::Options::builder().with_setext().build();
-        let parsed = crate::parse(input, &options)?;
+        let options = Options::builder().with_setext().build()?;
+        let parsed = parse(input, &options)?;
         let result = parsed.document();
 
         let header = result.header.as_ref().expect("document has a header");
@@ -8133,7 +8178,7 @@ References.
             .find(|w| {
                 matches!(
                     &w.kind,
-                    crate::WarningKind::SectionLevelOutOfSequence { got: 2, .. },
+                    WarningKind::SectionLevelOutOfSequence { got: 2, .. },
                 )
             })
             .expect("expected out-of-sequence warning");
@@ -8156,10 +8201,9 @@ References.
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|w| matches!(
-                &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence { .. },
-            )),
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, WarningKind::SectionLevelOutOfSequence { .. },)),
             "level-2 subsection of a level-0 appendix is in sequence, got: {warnings:?}"
         );
         Ok(())
@@ -8175,7 +8219,7 @@ References.
         assert!(
             !warnings.iter().any(|warning| matches!(
                 &warning.kind,
-                crate::WarningKind::SectionLevelOutOfSequence { .. },
+                WarningKind::SectionLevelOutOfSequence { .. },
             )),
             "level-2 subsection of a level-0 preface is in sequence, got: {warnings:?}"
         );
@@ -8194,7 +8238,7 @@ References.
         assert!(
             warnings.iter().any(|w| matches!(
                 &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence {
+                WarningKind::SectionLevelOutOfSequence {
                     expected: 2,
                     got: 3
                 },
@@ -8216,7 +8260,7 @@ References.
         assert!(
             warnings.iter().any(|w| matches!(
                 &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence {
+                WarningKind::SectionLevelOutOfSequence {
                     expected: 1,
                     got: 4
                 },
@@ -8235,10 +8279,9 @@ References.
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|w| matches!(
-                &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence { .. },
-            )),
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, WarningKind::SectionLevelOutOfSequence { .. },)),
             "expected no out-of-sequence warning, got: {warnings:?}"
         );
         Ok(())
@@ -8258,7 +8301,7 @@ References.
             .filter(|w| {
                 matches!(
                     &w.kind,
-                    crate::WarningKind::SectionLevelOutOfSequence {
+                    WarningKind::SectionLevelOutOfSequence {
                         expected: 1,
                         got: 4
                     },
@@ -8281,10 +8324,9 @@ References.
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|w| matches!(
-                &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence { .. },
-            )),
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, WarningKind::SectionLevelOutOfSequence { .. },)),
             "expected no out-of-sequence warning, got: {warnings:?}"
         );
         Ok(())
@@ -8363,7 +8405,7 @@ References.
         assert!(
             warnings.iter().any(|w| matches!(
                 &w.kind,
-                crate::WarningKind::UnresolvedReference { target } if target == "missing"
+                WarningKind::UnresolvedReference { target } if target == "missing"
             )),
             "expected an unresolved-reference warning for `missing`"
         );
@@ -8382,7 +8424,7 @@ References.
         assert!(
             !warnings
                 .iter()
-                .any(|w| matches!(&w.kind, crate::WarningKind::UnresolvedReference { .. })),
+                .any(|w| matches!(&w.kind, WarningKind::UnresolvedReference { .. })),
             "a reference to an existing inline anchor must not warn"
         );
         Ok(())
@@ -8416,10 +8458,9 @@ See <<bold-id>>, <<italic-id>>, <<mono-id>>, <<mark-id>>, <<sub-id>>, <<super-id
         }
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|warning| matches!(
-                warning.kind,
-                crate::WarningKind::UnresolvedReference { .. }
-            )),
+            !warnings
+                .iter()
+                .any(|warning| matches!(warning.kind, WarningKind::UnresolvedReference { .. })),
             "formatted inline references should resolve: {warnings:?}"
         );
         Ok(())
@@ -8451,10 +8492,9 @@ After: <<link-id>>, <<url-id>>, <<mailto-id>>, and <<bare-id>>.
         }
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|warning| matches!(
-                warning.kind,
-                crate::WarningKind::UnresolvedReference { .. }
-            )),
+            !warnings
+                .iter()
+                .any(|warning| matches!(warning.kind, WarningKind::UnresolvedReference { .. })),
             "link references should resolve: {warnings:?}"
         );
         Ok(())
@@ -8498,7 +8538,7 @@ link:https://example.net[Text,positional-id]
         assert!(
             !warnings
                 .iter()
-                .any(|w| matches!(&w.kind, crate::WarningKind::UnresolvedReference { .. })),
+                .any(|w| matches!(&w.kind, WarningKind::UnresolvedReference { .. })),
             "a reference to an anchor inside a callout item must not warn"
         );
         Ok(())
@@ -8588,7 +8628,7 @@ link:https://example.net[Text,positional-id]
             warnings
                 .iter()
                 .filter_map(|warning| {
-                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                    let WarningKind::UnresolvedReference { target } = &warning.kind else {
                         return None;
                     };
                     Some(target.as_str())
@@ -8649,7 +8689,7 @@ link:https://example.net[Text,positional-id]
                 .borrow()
                 .iter()
                 .filter_map(|warning| {
-                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                    let WarningKind::UnresolvedReference { target } = &warning.kind else {
                         return None;
                     };
                     Some(target.as_str())
@@ -8665,13 +8705,13 @@ link:https://example.net[Text,positional-id]
         let input = include_str!(
             "../../fixtures/tests/natural_title_cross_references_with_passthrough.adoc"
         );
-        let result = crate::parse(input, &crate::Options::default())?;
+        let result = parse(input, &Options::default())?;
 
         let warnings = result
             .warnings()
             .iter()
             .filter_map(|warning| {
-                let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                let WarningKind::UnresolvedReference { target } = &warning.kind else {
                     return None;
                 };
                 let location = warning.source_location()?;
@@ -8723,7 +8763,7 @@ link:https://example.net[Text,positional-id]
                 .borrow()
                 .iter()
                 .filter_map(|warning| {
-                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                    let WarningKind::UnresolvedReference { target } = &warning.kind else {
                         return None;
                     };
                     Some(target.as_str())
@@ -8765,7 +8805,7 @@ link:https://example.net[Text,positional-id]
                 .borrow()
                 .iter()
                 .filter_map(|warning| {
-                    let crate::WarningKind::UnresolvedReference { target } = &warning.kind else {
+                    let WarningKind::UnresolvedReference { target } = &warning.kind else {
                         return None;
                     };
                     Some(target.as_str())
@@ -8813,7 +8853,7 @@ link:https://example.net[Text,positional-id]
     fn natural_title_cross_references_resolve_setext_section_ids() -> Result<(), Error> {
         let input = "See <<Setext Title>>.\n\nSetext Title\n------------\n";
         let mut state = ParserState::new_for_test(input);
-        std::rc::Rc::make_mut(&mut state.options).setext = true;
+        Rc::make_mut(&mut state.options).setext = true;
         let doc = document_parser::document(input, &mut state)??;
         let xrefs = doc
             .blocks
@@ -8861,29 +8901,25 @@ link:https://example.net[Text,positional-id]
             [
                 (
                     "figure-target",
-                    crate::XrefStyle::Short,
-                    crate::XrefCaptionLabel::AtTarget,
+                    XrefStyle::Short,
+                    XrefCaptionLabel::AtTarget,
                 ),
                 (
                     "table-target",
-                    crate::XrefStyle::Full,
-                    crate::XrefCaptionLabel::AtReference("ReferenceTable"),
+                    XrefStyle::Full,
+                    XrefCaptionLabel::AtReference("ReferenceTable"),
                 ),
                 (
                     "figure-target",
-                    crate::XrefStyle::Basic,
-                    crate::XrefCaptionLabel::AtTarget,
+                    XrefStyle::Basic,
+                    XrefCaptionLabel::AtTarget,
                 ),
                 (
                     "table-target",
-                    crate::XrefStyle::Short,
-                    crate::XrefCaptionLabel::NumberOnly,
+                    XrefStyle::Short,
+                    XrefCaptionLabel::NumberOnly,
                 ),
-                (
-                    "table-target",
-                    crate::XrefStyle::Short,
-                    crate::XrefCaptionLabel::AtTarget,
-                ),
+                ("table-target", XrefStyle::Short, XrefCaptionLabel::AtTarget,),
             ]
         );
         assert!(matches!(
@@ -8936,10 +8972,11 @@ link:https://example.net[Text,positional-id]
             "{title:?}"
         );
         assert!(
-            !state.warnings.borrow().iter().any(|warning| matches!(
-                warning.kind,
-                crate::WarningKind::UnresolvedReference { .. }
-            ))
+            !state
+                .warnings
+                .borrow()
+                .iter()
+                .any(|warning| matches!(warning.kind, WarningKind::UnresolvedReference { .. }))
         );
         Ok(())
     }
@@ -9084,7 +9121,7 @@ link:https://example.net[Text,positional-id]
             .find(|w| {
                 matches!(
                     &w.kind,
-                    crate::WarningKind::NonStandardAuthorLine { line }
+                    WarningKind::NonStandardAuthorLine { line }
                         if line == "Author: Roberto Avanzi (Lead), Ruud Derwig"
                 )
             })
@@ -9108,7 +9145,7 @@ link:https://example.net[Text,positional-id]
         assert!(
             warnings
                 .iter()
-                .any(|w| matches!(&w.kind, crate::WarningKind::LegacyFloatDiscreteHeading)),
+                .any(|w| matches!(&w.kind, WarningKind::LegacyFloatDiscreteHeading)),
             "`[float]` discrete heading should warn"
         );
         Ok(())
@@ -9131,7 +9168,7 @@ link:https://example.net[Text,positional-id]
             assert!(
                 !warnings
                     .iter()
-                    .any(|w| matches!(&w.kind, crate::WarningKind::LegacyFloatDiscreteHeading)),
+                    .any(|w| matches!(&w.kind, WarningKind::LegacyFloatDiscreteHeading)),
                 "input {input:?} should not raise the legacy-float warning"
             );
         }
@@ -9149,7 +9186,7 @@ link:https://example.net[Text,positional-id]
         assert!(
             !warnings
                 .iter()
-                .any(|w| matches!(&w.kind, crate::WarningKind::NonStandardAuthorLine { .. })),
+                .any(|w| matches!(&w.kind, WarningKind::NonStandardAuthorLine { .. })),
             "structured author line should not warn"
         );
         Ok(())
@@ -9167,7 +9204,7 @@ link:https://example.net[Text,positional-id]
         let warnings = state.warnings.borrow();
         let warning = warnings
             .iter()
-            .find(|w| matches!(&w.kind, crate::WarningKind::TableIncompleteRow))
+            .find(|w| matches!(&w.kind, WarningKind::TableIncompleteRow))
             .expect("expected dropping-cells warning");
         let loc = warning
             .source_location()
@@ -9185,10 +9222,9 @@ link:https://example.net[Text,positional-id]
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|w| matches!(
-                &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence { .. }
-            )),
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, WarningKind::SectionLevelOutOfSequence { .. })),
             "should not warn without doc title, got: {warnings:?}",
         );
         Ok(())
@@ -9202,10 +9238,9 @@ link:https://example.net[Text,positional-id]
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|w| matches!(
-                &w.kind,
-                crate::WarningKind::SectionLevelOutOfSequence { .. }
-            )),
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, WarningKind::SectionLevelOutOfSequence { .. })),
             "should not warn for valid structure, got: {warnings:?}",
         );
         Ok(())
@@ -9226,7 +9261,7 @@ link:https://example.net[Text,positional-id]
             .find(|w| {
                 matches!(
                     &w.kind,
-                    crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
+                    WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
                 )
             })
             .expect("expected unterminated table warning");
@@ -9262,7 +9297,7 @@ link:https://example.net[Text,positional-id]
         assert!(
             warnings.iter().any(|w| matches!(
                 &w.kind,
-                crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
+                WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
             )),
             "expected unterminated table warning with `!===` delimiter, got: {warnings:?}",
         );
@@ -9292,7 +9327,7 @@ link:https://example.net[Text,positional-id]
             .find(|w| {
                 matches!(
                     &w.kind,
-                    crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
+                    WarningKind::UnterminatedTable { delimiter } if delimiter == "!===",
                 )
             })
             .expect("expected unterminated inner-table warning");
@@ -9317,7 +9352,7 @@ link:https://example.net[Text,positional-id]
         assert!(
             !warnings
                 .iter()
-                .any(|w| matches!(&w.kind, crate::WarningKind::UnterminatedTable { .. })),
+                .any(|w| matches!(&w.kind, WarningKind::UnterminatedTable { .. })),
             "should not warn for a properly closed table, got: {warnings:?}",
         );
         Ok(())
@@ -9336,7 +9371,7 @@ link:https://example.net[Text,positional-id]
         assert!(
             warnings.iter().any(|w| matches!(
                 &w.kind,
-                crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
+                WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
             )),
             "expected unterminated table warning for empty open, got: {warnings:?}",
         );
@@ -9349,12 +9384,12 @@ link:https://example.net[Text,positional-id]
     /// unterminated fallback.
     #[test]
     fn test_unterminated_pipe_table_empty_through_parse_entry() {
-        let opts = crate::Options::default();
-        let res = crate::parse("|===\n", &opts).expect("parse should succeed");
+        let opts = Options::default();
+        let res = parse("|===\n", &opts).expect("parse should succeed");
         let has_warning = res.warnings().iter().any(|w| {
             matches!(
                 &w.kind,
-                crate::WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
+                WarningKind::UnterminatedTable { delimiter } if delimiter == "|===",
             )
         });
         assert!(
@@ -9393,7 +9428,7 @@ link:https://example.net[Text,positional-id]
             assert!(
                 warnings.iter().any(|w| matches!(
                     &w.kind,
-                    crate::WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
+                    WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
                         if *kind == want_kind && delimiter == want_delim,
                 )),
                 "expected unterminated {want_kind} warning for input {input:?}, got: {warnings:?}",
@@ -9420,10 +9455,9 @@ link:https://example.net[Text,positional-id]
         let _ = document_parser::document(input, &mut state)??;
         let warnings = state.warnings.borrow();
         assert!(
-            !warnings.iter().any(|w| matches!(
-                &w.kind,
-                crate::WarningKind::UnterminatedDelimitedBlock { .. },
-            )),
+            !warnings
+                .iter()
+                .any(|w| matches!(&w.kind, WarningKind::UnterminatedDelimitedBlock { .. },)),
             "a closed example block should not warn, got: {warnings:?}",
         );
         Ok(())
@@ -9434,12 +9468,12 @@ link:https://example.net[Text,positional-id]
     /// source still reaches the grammar as an unterminated block.
     #[test]
     fn test_unterminated_example_through_parse_entry() {
-        let opts = crate::Options::default();
-        let res = crate::parse("====\ntext\n", &opts).expect("parse should succeed");
+        let opts = Options::default();
+        let res = parse("====\ntext\n", &opts).expect("parse should succeed");
         let has_warning = res.warnings().iter().any(|w| {
             matches!(
                 &w.kind,
-                crate::WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
+                WarningKind::UnterminatedDelimitedBlock { kind, delimiter }
                     if *kind == "example" && delimiter == "====",
             )
         });

@@ -176,15 +176,15 @@ fn caption_source<'value, 'a>(
         Some(AttributeValue::String(value)) => return CaptionSource::Custom(Some(value)),
         Some(AttributeValue::Bool(_) | AttributeValue::None) | None => {}
     }
-    match attributes.get("caption") {
-        Some(AttributeValue::String(value)) => return CaptionSource::Custom(Some(value)),
-        Some(AttributeValue::Bool(true)) => return CaptionSource::Custom(None),
-        Some(AttributeValue::Bool(false) | AttributeValue::None) | None => {}
+    match attributes.stored_text("caption") {
+        Some(value) => return CaptionSource::Custom(Some(value)),
+        None if attributes.contains_key("caption") => return CaptionSource::Custom(None),
+        None => {}
     }
-    match attributes.get(kind.attribute_name()) {
-        Some(AttributeValue::String(value)) => CaptionSource::Numbered(Some(value)),
-        Some(AttributeValue::Bool(true)) => CaptionSource::Numbered(None),
-        Some(AttributeValue::Bool(false) | AttributeValue::None) | None => CaptionSource::None,
+    match attributes.stored_text(kind.attribute_name()) {
+        Some(value) => CaptionSource::Numbered(Some(value)),
+        None if attributes.contains_key(kind.attribute_name()) => CaptionSource::Numbered(None),
+        None => CaptionSource::None,
     }
 }
 

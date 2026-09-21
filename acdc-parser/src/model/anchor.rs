@@ -41,6 +41,14 @@ pub struct Anchor<'a> {
     pub location: Location,
     #[serde(skip)]
     pub(crate) bibliography: bool,
+    #[serde(skip)]
+    pub(crate) bibliography_label: Option<Box<BibliographyLabel<'a>>>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct BibliographyLabel<'a> {
+    pub(crate) source: Option<&'a str>,
+    pub(crate) content: Vec<InlineNode<'a>>,
 }
 
 impl<'a> Anchor<'a> {
@@ -52,6 +60,7 @@ impl<'a> Anchor<'a> {
             xreflabel: None,
             location,
             bibliography: false,
+            bibliography_label: None,
         }
     }
 
@@ -66,6 +75,18 @@ impl<'a> Anchor<'a> {
     #[must_use]
     pub fn is_bibliography(&self) -> bool {
         self.bibliography
+    }
+
+    /// Return the entry label after its source-position inline substitutions.
+    ///
+    /// Citation text remains separate in [`Self::xreflabel`]. Returns `None`
+    /// for ordinary anchors and entries that use their ID as the label.
+    #[must_use]
+    pub fn bibliography_label(&self) -> Option<&[InlineNode<'a>]> {
+        self.bibliography
+            .then_some(self.bibliography_label.as_deref())
+            .flatten()
+            .map(|label| label.content.as_slice())
     }
 }
 

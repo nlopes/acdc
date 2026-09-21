@@ -49,6 +49,7 @@ dependencies = [
  "acdc-parser",
  "bitflags 2.13.1",
  "relative-path 2.0.1",
+ "rustc-hash",
  "thiserror",
  "tracing",
 ]
@@ -188,7 +189,9 @@ dependencies = [
 name = "acdc-lint"
 version = "0.1.0"
 dependencies = [
+ "acdc-converters-core",
  "acdc-parser",
+ "tempfile",
  "thiserror",
 ]
 
@@ -226,6 +229,7 @@ version = "0.9.0"
 dependencies = [
  "bitflags 2.13.1",
  "bumpalo",
+ "chrono",
  "criterion",
  "crossterm",
  "csv",

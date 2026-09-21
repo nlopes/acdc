@@ -7,7 +7,7 @@ use std::io::{BufWriter, Write};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::effective_subs_flags;
 use acdc_converters_core::{
-    inlines_to_string,
+    TraversalContext, inlines_to_string,
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{BlockMetadata, CaptionKind, InlineNode, Paragraph};
@@ -18,9 +18,13 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Render a regular or styled paragraph.
-    pub(crate) fn render_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    pub(crate) fn render_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         #[cfg(feature = "pre-spec-subs")]
         {
             // Resolve `[subs="…"]` once per paragraph so inline rendering knows
@@ -37,24 +41,28 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 is_verbatim,
             ));
 
-            let result = self.render_paragraph_inner(para);
+            let result = self.render_paragraph_inner(traversal, para);
 
             self.processor.current_subs.set(previous_subs);
             result
         }
         #[cfg(not(feature = "pre-spec-subs"))]
-        self.render_paragraph_inner(para)
+        self.render_paragraph_inner(traversal, para)
     }
 
-    fn render_paragraph_inner(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_paragraph_inner(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         if let Some(style) = para.metadata.style {
             match style {
-                "quote" => return self.render_quote_paragraph(para),
-                "verse" => return self.render_verse_paragraph(para),
-                "example" => return self.render_example_paragraph(para),
-                "abstract" => return self.render_abstract_paragraph(para),
+                "quote" => return self.render_quote_paragraph(traversal, para),
+                "verse" => return self.render_verse_paragraph(traversal, para),
+                "example" => return self.render_example_paragraph(traversal, para),
+                "abstract" => return self.render_abstract_paragraph(traversal, para),
                 "literal" | "listing" | "source" => {
-                    return self.render_literal_paragraph(para);
+                    return self.render_literal_paragraph(traversal, para);
                 }
                 _ => {}
             }
@@ -62,30 +70,35 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
 
         // Regular paragraph rendering
         self.render_captioned_title_with_wrapper(
+            traversal,
             &para.title,
             &para.metadata,
             CaptionKind::for_style(para.metadata.style),
             "",
             "",
         )?;
-        self.render_paragraph_content(para)?;
+        self.render_paragraph_content(traversal, para)?;
         let w = self.writer_mut();
         writeln!(w)?;
         Ok(())
     }
 
     /// Render a quote-styled paragraph with indentation and italic styling.
-    fn render_quote_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_quote_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         // Render title if present
-        self.render_title_with_wrapper(&para.title, "", "\n")?;
+        self.render_title_with_wrapper(traversal, &para.title, "", "\n")?;
 
         // Render content to temporary buffer for processing
         let buffer = Vec::new();
         let inner = BufWriter::new(buffer);
         let mut temp_visitor =
-            TerminalVisitor::new(inner, self.processor.clone(), self.diagnostics.reborrow());
+            TerminalVisitor::new(inner, self.processor, self.diagnostics.reborrow());
 
-        temp_visitor.visit_inline_nodes(&para.content)?;
+        temp_visitor.visit_inline_nodes(traversal, &para.content)?;
 
         let buffer = temp_visitor
             .into_writer()
@@ -108,7 +121,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
     }
 
     /// Render a verse-styled paragraph preserving line breaks.
-    fn render_verse_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_verse_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         let w = self.writer_mut();
 
         // Start marker with "VERSE" label
@@ -116,10 +133,10 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         QueueableCommand::queue(w, PrintStyledContent(styled_label))?;
         writeln!(w)?;
 
-        self.render_title_with_wrapper(&para.title, "", "\n\n")?;
+        self.render_title_with_wrapper(traversal, &para.title, "", "\n\n")?;
 
         // Render verse content
-        self.visit_inline_nodes(&para.content)?;
+        self.visit_inline_nodes(traversal, &para.content)?;
         let w = self.writer_mut();
         writeln!(w)?;
 
@@ -135,8 +152,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_example_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_example_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         self.render_captioned_title_with_wrapper(
+            traversal,
             &para.title,
             &para.metadata,
             Some(CaptionKind::Example),
@@ -144,24 +166,33 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             "\n",
         )?;
         self.writer_mut().queue(PrintStyledContent("│ ".cyan()))?;
-        self.render_paragraph_content(para)?;
+        self.render_paragraph_content(traversal, para)?;
         writeln!(self.writer_mut())?;
         Ok(())
     }
 
-    fn render_abstract_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
-        self.render_title_with_wrapper(&para.title, "", "\n")?;
+    fn render_abstract_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
+        self.render_title_with_wrapper(traversal, &para.title, "", "\n")?;
         self.writer_mut()
             .queue(PrintStyledContent("ABSTRACT ".magenta().bold()))?;
         self.writer_mut().queue(SetAttribute(Attribute::Italic))?;
-        self.render_paragraph_content(para)?;
+        self.render_paragraph_content(traversal, para)?;
         self.writer_mut().queue(SetAttribute(Attribute::NoItalic))?;
         writeln!(self.writer_mut())?;
         Ok(())
     }
 
-    fn render_literal_paragraph(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_literal_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         self.render_captioned_title_with_wrapper(
+            traversal,
             &para.title,
             &para.metadata,
             CaptionKind::for_style(para.metadata.style),
@@ -183,7 +214,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_paragraph_content(&mut self, para: &Paragraph) -> Result<(), Error> {
+    fn render_paragraph_content(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Error> {
         let roles = &para.metadata.roles;
         let strong = roles.iter().any(|role| matches!(*role, "lead" | "big"));
         let dim = roles.contains(&"small");
@@ -207,7 +242,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             self.writer_mut()
                 .queue(SetAttribute(Attribute::CrossedOut))?;
         }
-        self.visit_inline_nodes(&para.content)?;
+        self.visit_inline_nodes(traversal, &para.content)?;
         if crossed_out {
             self.writer_mut()
                 .queue(SetAttribute(Attribute::NotCrossedOut))?;

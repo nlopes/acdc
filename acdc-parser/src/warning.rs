@@ -71,6 +71,9 @@ impl Warning {
             WarningKind::LegacyFloatDiscreteHeading => Some(
                 "Replace the `float` attribute with `discrete` (e.g. `[discrete]`). `float` here does not control layout; it is an older name for a discrete (free-floating) heading.",
             ),
+            WarningKind::InvalidDocumentAttribute { .. } => {
+                Some("Use a value in the attribute's documented domain")
+            }
             WarningKind::Other(_) => None,
         }
     }
@@ -220,6 +223,18 @@ pub enum WarningKind {
     /// prefers `discrete`.
     #[error("`float` is a legacy alias for a discrete heading; prefer `discrete`")]
     LegacyFloatDiscreteHeading,
+
+    /// A document attribute value did not match its documented domain.
+    /// The previous effective value remains active.
+    #[error("invalid document attribute `{name}` value `{value}`: expected {expected}")]
+    InvalidDocumentAttribute {
+        /// Document attribute name.
+        name: String,
+        /// Value as supplied by the document.
+        value: String,
+        /// Short description of the registered value domain.
+        expected: &'static str,
+    },
 
     /// Ad-hoc message not yet categorised into a typed variant.
     #[error("{0}")]

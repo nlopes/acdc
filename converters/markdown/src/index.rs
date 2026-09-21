@@ -5,7 +5,7 @@ use std::{
     io::Write,
 };
 
-use acdc_converters_core::{Converter, visitor::WritableVisitor};
+use acdc_converters_core::{Converter, document_attribute_text, visitor::WritableVisitor};
 
 use crate::{Error, IndexCatalogRelationship, IndexTermEntry, IndexTermLabel, Processor};
 
@@ -229,7 +229,7 @@ fn render_entries<W: Write + ?Sized>(
     Ok(())
 }
 
-pub(crate) fn render<V: WritableVisitor<Error = Error>>(
+pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
     visitor: &mut V,
     processor: &Processor<'_>,
     heading_level: usize,
@@ -241,10 +241,8 @@ pub(crate) fn render<V: WritableVisitor<Error = Error>>(
         return Ok(());
     }
 
-    let fallback = processor
-        .document_attributes()
-        .get_string("doctitle")
-        .map_or_else(|| "top".to_owned(), std::borrow::Cow::into_owned);
+    let fallback = document_attribute_text((processor.document_attributes()).get("doctitle"))
+        .map_or_else(|| "top".to_owned(), str::to_owned);
     let index = build_index_structure(&entries);
     let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);

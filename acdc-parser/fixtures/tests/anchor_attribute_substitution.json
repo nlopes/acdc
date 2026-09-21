@@ -622,7 +622,7 @@
                   "name": "anchor",
                   "type": "inline",
                   "id": "doc-ref02",
-                  "xreflabel": "Introduction Reference",
+                  "xreflabel": "{section-name} Reference",
                   "location": [
                     {
                       "line": 33,

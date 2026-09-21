@@ -2,8 +2,10 @@
 
 use serde::Serialize;
 
-use super::location::Location;
-use super::{AttributeValue, Block, BlockMetadata, DocumentAttributes};
+use super::{
+    AttributeName, AttributeValue, Block, BlockMetadata, DocumentAttributeAssignment,
+    location::Location,
+};
 
 /// The outer border applied to a table.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -64,12 +66,12 @@ pub struct TablePresentation {
 impl TablePresentation {
     /// Resolve local table decoration and the document defaults in effect.
     #[must_use]
-    pub fn from_attributes(
-        metadata: &BlockMetadata<'_>,
-        attributes: &DocumentAttributes<'_>,
+    pub fn from_attributes<'value>(
+        metadata: &'value BlockMetadata<'_>,
+        mut lookup: impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
     ) -> Self {
         Self {
-            frame: resolve_table_attribute(metadata, attributes, "frame", "table-frame").map_or(
+            frame: resolve_table_attribute(metadata, &mut lookup, "frame", "table-frame").map_or(
                 TableFrame::All,
                 |value| match value {
                     "all" => TableFrame::All,
@@ -78,7 +80,7 @@ impl TablePresentation {
                     _ => TableFrame::None,
                 },
             ),
-            grid: resolve_table_attribute(metadata, attributes, "grid", "table-grid").map_or(
+            grid: resolve_table_attribute(metadata, &mut lookup, "grid", "table-grid").map_or(
                 TableGrid::All,
                 |value| match value {
                     "all" => TableGrid::All,
@@ -87,7 +89,7 @@ impl TablePresentation {
                     _ => TableGrid::None,
                 },
             ),
-            stripes: resolve_table_attribute(metadata, attributes, "stripes", "table-stripes")
+            stripes: resolve_table_attribute(metadata, &mut lookup, "stripes", "table-stripes")
                 .map_or(TableStripes::None, |value| match value {
                     "all" => TableStripes::All,
                     "odd" => TableStripes::Odd,
@@ -119,18 +121,22 @@ impl TablePresentation {
 
 fn resolve_table_attribute<'value>(
     metadata: &'value BlockMetadata<'_>,
-    attributes: &'value DocumentAttributes<'_>,
+    lookup: &mut impl FnMut(&str) -> Option<&'value crate::DocumentAttributeValue<'value>>,
     local_name: &str,
     document_name: &str,
 ) -> Option<&'value str> {
-    let value = metadata
-        .attributes
-        .get(local_name)
-        .or_else(|| attributes.get(document_name))?;
-    match value {
-        AttributeValue::String(value) => Some(value),
-        AttributeValue::Bool(true) => Some(""),
-        AttributeValue::Bool(false) | AttributeValue::None => None,
+    if let Some(value) = metadata.attributes.get(local_name) {
+        return match value {
+            AttributeValue::String(value) => Some(value),
+            AttributeValue::Bool(true) => Some(""),
+            AttributeValue::Bool(false) | AttributeValue::None => None,
+        };
+    }
+    let value = lookup(document_name)?;
+    if value.is_presence() {
+        Some("")
+    } else {
+        value.text()
     }
 }
 
@@ -366,6 +372,8 @@ impl<'a> TableRow<'a> {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct TableColumn<'a> {
+    #[serde(skip)]
+    pub(crate) initial_attributes: Vec<(AttributeName<'a>, DocumentAttributeAssignment<'a>)>,
     pub content: Vec<Block<'a>>,
     /// Number of columns this cell spans (default 1).
     /// Specified in `AsciiDoc` with `n+|` syntax (e.g., `2+|` for colspan=2).
@@ -395,6 +403,17 @@ const fn is_default_span(span: &usize) -> bool {
 }
 
 impl<'a> TableColumn<'a> {
+    /// Attribute assignments applied before this `AsciiDoc` cell's content.
+    ///
+    /// These initialize the nested scope; they do not change the parent document.
+    pub fn initial_attributes(
+        &self,
+    ) -> impl Iterator<Item = (&str, &DocumentAttributeAssignment<'a>)> {
+        self.initial_attributes
+            .iter()
+            .map(|(name, assignment)| (name.as_ref(), assignment))
+    }
+
     /// Create a new table column with full cell specifier options.
     #[must_use]
     pub(crate) fn with_format(
@@ -406,6 +425,7 @@ impl<'a> TableColumn<'a> {
         style: Option<ColumnStyle>,
     ) -> Self {
         Self {
+            initial_attributes: Vec::new(),
             content,
             colspan,
             rowspan,

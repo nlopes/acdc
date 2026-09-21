@@ -157,7 +157,7 @@ fn parse_authorized_uri(uri: &str) -> Result<(TempDocument, ParseResult), acdc_p
     let options = Options::builder()
         .with_safe_mode(SafeMode::Server)
         .with_attribute("allow-uri-read", true)
-        .build();
+        .build()?;
     let result = parse_file(&document.path, &options)?;
     Ok((document, result))
 }

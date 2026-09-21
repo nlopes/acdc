@@ -13,7 +13,7 @@
 //!     .generate(|subdir, doc, output| {
 //!         let embedded = subdir == Some("embedded");
 //!         let options = Options::builder().embedded(embedded).build();
-//!         let processor = Processor::new(options, doc.attributes.clone());
+//!         let processor = Processor::new(options, doc.attributes.clone())?;
 //!         processor.convert_to_writer(doc, output)?;
 //!         Ok(())
 //!     })?;
@@ -30,7 +30,7 @@
 
 use std::{collections::HashSet, error::Error, fs, path::Path, path::PathBuf};
 
-use acdc_parser::{Document, DocumentAttributes, Options};
+use acdc_parser::{Document, Options};
 use crossterm::style::{PrintStyledContent, Stylize};
 
 /// Builder for generating expected fixture output files.
@@ -201,9 +201,7 @@ impl FixtureGenerator {
             };
 
             // Parse AsciiDoc with rendering defaults
-            let parser_options = Options::builder()
-                .with_attributes(DocumentAttributes::default())
-                .build();
+            let parser_options = Options::default();
 
             let parsed = match acdc_parser::parse_file(&input_path, &parser_options) {
                 Ok(parsed) => parsed,

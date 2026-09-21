@@ -1,7 +1,8 @@
+use bumpalo::Bump;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::HashMap,
+    mem::take,
     ops::Range,
     rc::Rc,
 };
@@ -9,10 +10,12 @@ use std::{
 use peg::parser;
 
 use crate::{
-    AttributeValue, DocumentAttributes, Error, Location, Pass, PassthroughKind, Position,
-    SourceLocation, Substitution, Warning, WarningKind, grammar::LineMap,
-    model::substitution::parse_substitution,
+    DocumentAttributes, Error, Location, Pass, PassthroughKind, Position, SourceLocation,
+    Substitution, Warning, WarningKind, grammar::LineMap, model::substitution::parse_substitution,
 };
+
+#[cfg(test)]
+use crate::AttributeValue;
 
 /// Parser state for the inline preprocessor.
 ///
@@ -26,7 +29,6 @@ use crate::{
 pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) pass_found_count: Cell<usize>,
     pub(crate) passthroughs: RefCell<Vec<Pass<'a>>>,
-    pub(crate) attributes: RefCell<HashMap<usize, Location>>,
     /// Current byte offset in the full document input.
     pub(crate) current_offset: Cell<usize>,
     /// Pre-computed line map for O(log n) offset→position lookups.
@@ -35,7 +37,7 @@ pub(crate) struct InlinePreprocessorParserState<'a> {
     pub(crate) full_input: &'a str,
     /// Arena for interning synthesised passthrough strings produced during
     /// preprocessing (character-replacement expansions, escape-stripped text).
-    pub(crate) arena: &'a bumpalo::Bump,
+    pub(crate) arena: &'a Bump,
     pub(crate) source_map: RefCell<SourceMap>,
     /// The substring currently being parsed.
     pub(crate) input: RefCell<&'a str>,
@@ -65,14 +67,13 @@ impl<'a> InlinePreprocessorParserState<'a> {
         input: &'a str,
         line_map: Rc<LineMap>,
         full_input: &'a str,
-        arena: &'a bumpalo::Bump,
+        arena: &'a Bump,
         macros_enabled: bool,
         attributes_enabled: bool,
     ) -> Self {
         Self {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
-            attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
             line_map,
             full_input,
@@ -91,7 +92,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
         input: &'a str,
         line_map: Rc<LineMap>,
         full_input: &'a str,
-        arena: &'a bumpalo::Bump,
+        arena: &'a Bump,
     ) -> Self {
         Self::new(input, line_map, full_input, arena, true, true)
     }
@@ -158,7 +159,7 @@ impl<'a> InlinePreprocessorParserState<'a> {
 
     /// Drain collected warnings (for transfer to main `ParserState`).
     pub(crate) fn drain_warnings(&self) -> Vec<Warning> {
-        self.warnings.borrow_mut().drain(..).collect()
+        take(&mut *self.warnings.borrow_mut())
     }
 
     /// Extract the subs-spec string, content, and parsed substitutions from
@@ -397,53 +398,42 @@ impl<'a> InlinePreprocessorParserState<'a> {
                 | "quot"
         );
 
-        match document_attributes.get(attribute_name) {
-            Some(AttributeValue::String(value)) if is_character_reference => {
-                self.passthroughs.borrow_mut().push(Pass {
-                    text: Some(self.arena.alloc_str(value)),
-                    substitutions: Vec::new(),
-                    location: location.clone(),
-                    kind: PassthroughKind::AttributeRef,
-                });
-                let placeholder = format!(
-                    "\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}",
-                    self.pass_found_count.get()
-                );
-                self.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    placeholder.len(),
-                    ProcessedKind::Passthrough,
-                );
-                self.pass_found_count.set(self.pass_found_count.get() + 1);
-                placeholder
-            }
-            Some(AttributeValue::String(value)) => {
-                self.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    value.len(),
-                    ProcessedKind::Attribute,
-                );
-                self.attributes
-                    .borrow_mut()
-                    .insert(self.source_map.borrow().replacements.len(), location);
-                value.to_string()
-            }
-            Some(AttributeValue::Bool(true)) => {
-                self.source_map.borrow_mut().add_replacement(
-                    location.absolute_start,
-                    location.absolute_end,
-                    0,
-                    ProcessedKind::Attribute,
-                );
-                self.attributes
-                    .borrow_mut()
-                    .insert(self.source_map.borrow().replacements.len(), location);
-                String::new()
-            }
-            _ => format!("{{{attribute_name}}}"),
+        let Some(resolved) = document_attributes.get(attribute_name) else {
+            return format!("{{{attribute_name}}}");
+        };
+
+        if is_character_reference && let Some(value) = resolved.as_str() {
+            let absolute_start = location.absolute_start;
+            let absolute_end = location.absolute_end;
+            self.passthroughs.borrow_mut().push(Pass {
+                text: Some(self.arena.alloc_str(value.as_ref())),
+                substitutions: Vec::new(),
+                location,
+                kind: PassthroughKind::AttributeRef,
+            });
+            let placeholder = format!(
+                "\u{FFFD}\u{FFFD}\u{FFFD}{}\u{FFFD}\u{FFFD}\u{FFFD}",
+                self.pass_found_count.get()
+            );
+            self.source_map.borrow_mut().add_replacement(
+                absolute_start,
+                absolute_end,
+                placeholder.len(),
+                ProcessedKind::Passthrough,
+            );
+            self.pass_found_count.set(self.pass_found_count.get() + 1);
+            return placeholder;
         }
+
+        let mut value = String::new();
+        let _ = resolved.write_text(&mut value);
+        self.source_map.borrow_mut().add_replacement(
+            location.absolute_start,
+            location.absolute_end,
+            value.len(),
+            ProcessedKind::Attribute,
+        );
+        value
     }
 
     fn location_from_offsets(&self, absolute_start: usize, absolute_end: usize) -> Location {
@@ -679,7 +669,7 @@ parser!(
 
         pub rule run() -> ProcessedContent<'input>
             = content:inlines()+ {
-                let mut source_map = state.source_map.borrow().clone();
+                let mut source_map = take(&mut *state.source_map.borrow_mut());
                 // Mapping is not read during preprocessing, so sort once after all
                 // actions finish.
                 source_map
@@ -687,7 +677,7 @@ parser!(
                     .sort_by_key(|replacement| replacement.absolute_start);
                 ProcessedContent {
                     text: Cow::Owned(content.join("")),
-                    passthroughs: state.passthroughs.borrow().clone(),
+                    passthroughs: take(&mut *state.passthroughs.borrow_mut()),
                     source_map,
                 }
             }
@@ -704,6 +694,7 @@ parser!(
             // have a colon in the name (e.g., {counter:num}) which is not valid in
             // standard attribute names
             / counter_reference()
+            / escaped_attribute_reference()
             / attribute_reference()
             / unprocessed_text()
         } / expected!("inlines parser failed")
@@ -730,12 +721,13 @@ parser!(
         /// "a disaster" that they want to redesign or remove. We detect them, emit a warning,
         /// and return empty string (the counter syntax is silently removed from output).
         rule counter_reference() -> String
-            = start_offset:byte_offset() "{"
+            = &counter_reference_pattern() start:position!() start_offset:byte_offset() "{"
               counter_type:$("counter2" / "counter") ":"
               name:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
               (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)?
-              "}" end_offset:byte_offset()
+              "}" end:position!()
             {
+                let end_offset = start_offset + end - start;
                 let source_location = state.source_location_for(start_offset, end_offset);
                 state.add_warning(Warning::new(
                     WarningKind::Other(Cow::Owned(format!(
@@ -744,9 +736,36 @@ parser!(
                     Some(source_location),
                 ));
 
-                // Return empty string - counter is removed from output
+                // Removed counters still occupy source bytes in later labels and diagnostics.
+                state.source_map.borrow_mut().add_replacement(
+                    start_offset, end_offset, 0, ProcessedKind::Attribute,
+                );
+                state.advance_by(end - start);
                 String::new()
             }
+
+        rule escaped_attribute_reference() -> String
+            = start:position() "\\" text:$("{" attribute_name_pattern() "}") {
+                let location = state.calculate_location(start, text, 1);
+                let text = if state.attributes_enabled { text } else {
+                    state.arena.alloc_str(&format!("\\{text}"))
+                };
+                let index = state.pass_found_count.get();
+                let placeholder = format!("���{index}���");
+                state.passthroughs.borrow_mut().push(Pass {
+                    text: Some(text),
+                    substitutions: vec![Substitution::SpecialChars],
+                    location: location.clone(),
+                    kind: PassthroughKind::AttributeRef,
+                });
+                state.source_map.borrow_mut().add_replacement(
+                    location.absolute_start, location.absolute_end, placeholder.len(), ProcessedKind::Escape,
+                );
+                state.pass_found_count.set(index + 1);
+                placeholder
+            }
+
+        rule escaped_attribute_reference_pattern() = "\\{" attribute_name_pattern() "}"
 
         rule attribute_reference() -> String
             = start:position() "{" attribute_name:attribute_name() "}" {
@@ -760,7 +779,19 @@ parser!(
             }
 
         rule escaped_passthrough() -> String
-            = "\\" source:$("+++" (!"+++" [_])+ "+++") {
+            = "\\" source:$("pass:" substitutions() "[" [^']']* "]") {
+                let start = state.get_offset();
+                let expanded = if state.macros_enabled {
+                    state.extract_single_passthroughs(source, start + 1, document_attributes)
+                } else {
+                    let mut text = String::new();
+                    state.append_unprotected_text(&mut text, source, start + 1, document_attributes);
+                    text
+                };
+                state.current_offset.set(start + source.len() + 1);
+                format!("\\{expanded}")
+            }
+            / "\\" source:$("+++" (!"+++" [_])+ "+++") {
                 state.expand_escaped_passthrough(source, document_attributes, true)
             }
             / "\\" source:$("++" (!"++" [_])+ "++") {
@@ -959,14 +990,16 @@ parser!(
             = text:$((
                 [^'{' | '+' | '`' | 'k' | 'p' | '\\']+
                 /
-                !(escaped_passthrough_pattern() / passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
+                !(escaped_passthrough_pattern() / escaped_attribute_reference_pattern() / passthrough_pattern() / counter_reference_pattern() / attribute_reference_pattern() / kbd_macro_pattern() / monospace_pattern()) [_]
             )+) {
                 state.advance(text);
                 text.to_string()
             }
 
         /// Pattern for counter references: {counter:name} or {counter:name:initial} or {counter2:...}
-        rule counter_reference_pattern() = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
+        rule counter_reference_pattern()
+            = "{" ("counter2" / "counter") ":" ['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+ (":" ['a'..='z' | 'A'..='Z' | '0'..='9']+)? "}"
+              {? state.attributes_enabled.then_some(()).ok_or("attribute substitutions disabled") }
 
         rule attribute_reference_pattern() = "{" attribute_name_pattern() "}"
 
@@ -996,11 +1029,14 @@ parser!(
 
         rule attribute_reference_content() -> String
             = "{" attribute_name:attribute_name() "}" {
-                match document_attributes.get(attribute_name) {
-                    Some(AttributeValue::String(value)) => value.to_string(),
-                        // TODO(nlopes): do we need to handle other types?
-                        // For non-string attributes, keep original text
-                    _ => format!("{{{attribute_name}}}"),
+                let mut value = String::new();
+                if document_attributes
+                    .write_text(attribute_name, &mut value)
+                    .unwrap_or_default()
+                {
+                    value
+                } else {
+                    format!("{{{attribute_name}}}")
                 }
             }
 
@@ -1034,19 +1070,30 @@ mod tests {
 
     fn setup_attributes() -> DocumentAttributes<'static> {
         let mut attributes = DocumentAttributes::default();
-        attributes.insert("s".into(), AttributeValue::String("link:/nonono".into()));
-        attributes.insert("version".into(), AttributeValue::String("1.0".into()));
-        attributes.insert("title".into(), AttributeValue::String("My Title".into()));
+        assert!(
+            attributes
+                .insert("s".into(), AttributeValue::String("link:/nonono".into()))
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("version".into(), AttributeValue::String("1.0".into()))
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("title".into(), AttributeValue::String("My Title".into()))
+                .is_ok()
+        );
         attributes
     }
 
     fn setup_state(content: &str) -> InlinePreprocessorParserState<'_> {
         // Leak a per-call arena so test states have the required lifetime.
-        let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
+        let arena: &'static Bump = Box::leak(Box::new(Bump::new()));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
-            attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
             line_map: Rc::new(LineMap::new(content)),
             full_input: content,
@@ -1071,7 +1118,7 @@ mod tests {
             "\u{FFFD}\u{FFFD}\u{FFFD}0\u{FFFD}\u{FFFD}\u{FFFD}"
         );
         assert_eq!(state.pass_found_count.get(), 1);
-        let passthroughs = state.passthroughs.into_inner();
+        let passthroughs = result.passthroughs;
         assert_eq!(passthroughs.len(), 1);
         let Some(first) = passthroughs.first() else {
             panic!("expected first passthrough");
@@ -1294,8 +1341,16 @@ mod tests {
     fn test_nested_passthrough_with_nested_attributes() -> Result<(), Error> {
         let mut attributes = setup_attributes();
         // Add nested attributes
-        attributes.insert("nested1".into(), AttributeValue::String("{version}".into()));
-        attributes.insert("nested2".into(), AttributeValue::String("{nested1}".into()));
+        assert!(
+            attributes
+                .insert("nested1".into(), AttributeValue::String("{version}".into()))
+                .is_ok()
+        );
+        assert!(
+            attributes
+                .insert("nested2".into(), AttributeValue::String("{nested1}".into()))
+                .is_ok()
+        );
 
         // Test passthrough containing attribute that references another attribute
         let input = "Here is a +special {nested2} value+ to test.";
@@ -1390,7 +1445,11 @@ mod tests {
     fn test_pass_macro_with_mixed_content() -> Result<(), Error> {
         let mut attributes = setup_attributes();
         // Add docname attribute
-        attributes.insert("docname".into(), AttributeValue::String("test-doc".into()));
+        assert!(
+            attributes
+                .insert("docname".into(), AttributeValue::String("test-doc".into()))
+                .is_ok()
+        );
 
         let input = "The text pass:q,a[<u>underline _{docname}_</u>] is underlined.";
         let state = setup_state(input);
@@ -1433,7 +1492,11 @@ mod tests {
     #[test]
     fn test_all_passthroughs_with_attribute() -> Result<(), Error> {
         let mut attributes = setup_attributes();
-        attributes.insert("meh".into(), AttributeValue::String("1.0".into()));
+        assert!(
+            attributes
+                .insert("meh".into(), AttributeValue::String("1.0".into()))
+                .is_ok()
+        );
 
         let input = "1 +2+, ++3++ {meh} and +++4+++ are all numbers.";
         //                 012345678901234567890123456789012345678901234567890123456789012345678901234567890123456
@@ -1763,11 +1826,10 @@ mod tests {
     }
 
     fn setup_state_macros_disabled(content: &str) -> InlinePreprocessorParserState<'_> {
-        let arena: &'static bumpalo::Bump = Box::leak(Box::new(bumpalo::Bump::new()));
+        let arena: &'static Bump = Box::leak(Box::new(Bump::new()));
         InlinePreprocessorParserState {
             pass_found_count: Cell::new(0),
             passthroughs: RefCell::new(Vec::new()),
-            attributes: RefCell::new(HashMap::new()),
             current_offset: Cell::new(0),
             line_map: Rc::new(LineMap::new(content)),
             full_input: content,
@@ -1788,7 +1850,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:a[1.0]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 
@@ -1799,7 +1861,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:[{version}]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 
@@ -1810,7 +1872,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:q[text]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 
@@ -1821,7 +1883,7 @@ mod tests {
         let state = setup_state_macros_disabled(input);
         let result = inline_preprocessing::run(input, &attributes, &state)?;
         assert_eq!(result.text, "pass:a,q[1.0]");
-        assert!(state.passthroughs.borrow().is_empty());
+        assert!(result.passthroughs.is_empty());
         Ok(())
     }
 }

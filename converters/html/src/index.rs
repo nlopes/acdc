@@ -283,8 +283,8 @@ fn render_entries<W: Write + ?Sized>(
 /// Render the index catalog for a section with `[index]` style.
 ///
 /// This generates nested definition lists organized alphabetically by first letter.
-pub(crate) fn render<W: Write>(
-    _section: &Section,
+pub(crate) fn render<'a, W: Write>(
+    _section: &'a Section<'a>,
     visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor.clone();
@@ -300,8 +300,10 @@ pub(crate) fn render<W: Write>(
     // Label for occurrences outside any section (e.g. the preamble).
     let fallback = processor
         .document_attributes()
-        .get_string("doctitle")
-        .map_or_else(|| "top".to_string(), std::borrow::Cow::into_owned);
+        .get("doctitle")
+        .and_then(|value| value.text())
+        .map(acdc_parser::strip_quotes)
+        .map_or_else(|| "top".to_string(), str::to_owned);
 
     let index = build_index_structure(&entries);
     let definitions = definition_terms(&index);

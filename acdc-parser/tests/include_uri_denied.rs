@@ -80,7 +80,7 @@ fn caller_denied_uri_uses_link_fallback_and_continues_in_non_secure_modes() -> T
     let document = TempDocument::new(&format!("BEFORE\n\ninclude::{target}[]\n\nAFTER"))?;
 
     for safe_mode in [SafeMode::Unsafe, SafeMode::Safe, SafeMode::Server] {
-        let options = Options::builder().with_safe_mode(safe_mode).build();
+        let options = Options::builder().with_safe_mode(safe_mode).build()?;
         let result = parse_file(&document.path, &options)?;
 
         assert_denied_uri_fallback(&result, target)?;
@@ -94,7 +94,7 @@ fn compat_mode_omits_include_role_from_denied_uri_fallback() -> TestResult {
     let document = TempDocument::new(&format!("include::{target}[]"))?;
     let options = Options::builder()
         .with_attribute("compat-mode", true)
-        .build();
+        .build()?;
 
     let result = parse_file(&document.path, &options)?;
 

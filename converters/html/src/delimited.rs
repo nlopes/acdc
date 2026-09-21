@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    TraversalContext,
     code::{default_line_comment, detect_language},
     visitor::{Visitor, WritableVisitor},
 };
@@ -8,7 +9,7 @@ use acdc_converters_core::{
 #[cfg(not(feature = "pre-spec-subs"))]
 use acdc_converters_core::substitutions::baseline_subs;
 #[cfg(feature = "pre-spec-subs")]
-use acdc_converters_core::substitutions::effective_subs;
+use acdc_converters_core::substitutions::{effective_subs, substitute_attributes};
 
 use acdc_parser::{
     Block, BlockMetadata, CaptionKind, DelimitedBlock, DelimitedBlockType, InlineNode, StemContent,
@@ -16,10 +17,12 @@ use acdc_parser::{
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use acdc_parser::{Location, Plain, Substitution, SubstitutionSpec, substitute};
+use acdc_parser::{Location, Plain, Substitution, SubstitutionSpec};
 
+#[cfg(feature = "terminal")]
+use crate::terminal::{is_terminal_session, render_listing, render_session};
 use crate::{
-    Error, HtmlVariant, HtmlVisitor, Processor, build_class, write_attribution,
+    Error, HtmlVariant, HtmlVisitor, build_class, write_attribution, write_id,
     write_semantic_attribution,
 };
 
@@ -31,7 +34,7 @@ fn write_block_div_open<W: Write>(
     base_class: &str,
 ) -> Result<(), Error> {
     write!(w, "<div")?;
-    crate::write_id(w, metadata)?;
+    write_id(w, metadata)?;
     let class = build_class(base_class, &metadata.roles);
     writeln!(w, " class=\"{class}\">")?;
     Ok(())
@@ -47,27 +50,29 @@ fn write_semantic_tag_open<W: Write>(
     write!(w, "<{tag}")?;
     let class = build_class(base_class, &metadata.roles);
     write!(w, " class=\"{class}\"")?;
-    crate::write_id(w, metadata)?;
+    write_id(w, metadata)?;
     writeln!(w, ">")?;
     Ok(())
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn write_example_block(
         &mut self,
-        block: &DelimitedBlock,
-        blocks: &[Block],
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+        blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         let is_collapsible = block.metadata.options.contains(&"collapsible");
 
         if is_collapsible {
-            return self.write_example_block_collapsible(block, blocks);
+            return self.write_example_block_collapsible(traversal, block, blocks);
         }
 
         write_block_div_open(&mut self.writer, &block.metadata, "exampleblock")?;
 
         if !block.title.is_empty() {
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &block.title,
                 &block.metadata,
                 Some(CaptionKind::Example),
@@ -78,7 +83,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         writeln!(self.writer, "<div class=\"content\">")?;
         for nested_block in blocks {
-            self.visit_block(nested_block)?;
+            traversal.visit_block(self, nested_block)?;
         }
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
@@ -87,13 +92,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
     fn write_example_block_collapsible(
         &mut self,
-        block: &DelimitedBlock,
-        blocks: &[Block],
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+        blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         let is_open = block.metadata.options.contains(&"open");
 
         write!(self.writer, "<details")?;
-        crate::write_id(&mut self.writer, &block.metadata)?;
+        write_id(&mut self.writer, &block.metadata)?;
         if !block.metadata.roles.is_empty() {
             write!(self.writer, " class=\"{}\"", block.metadata.roles.join(" "))?;
         }
@@ -107,6 +113,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "<summary class=\"title\">Details</summary>")?;
         } else {
             self.render_title_with_wrapper(
+                traversal,
                 &block.title,
                 "<summary class=\"title\">",
                 "</summary>\n",
@@ -115,7 +122,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         writeln!(self.writer, "<div class=\"content\">")?;
         for nested_block in blocks {
-            self.visit_block(nested_block)?;
+            traversal.visit_block(self, nested_block)?;
         }
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</details>")?;
@@ -124,8 +131,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
     fn write_example_block_semantic(
         &mut self,
-        block: &DelimitedBlock,
-        blocks: &[Block],
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+        blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         let is_collapsible = block.metadata.options.contains(&"collapsible");
         let is_open = block.metadata.options.contains(&"open");
@@ -148,6 +156,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             if !block.title.is_empty() {
                 self.render_captioned_title_with_wrapper(
+                    traversal,
                     &block.title,
                     &block.metadata,
                     Some(CaptionKind::Example),
@@ -158,7 +167,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // Collapsible content wrapper
             writeln!(self.writer, "<div class=\"content\">")?;
             for nested_block in blocks {
-                self.visit_block(nested_block)?;
+                traversal.visit_block(self, nested_block)?;
             }
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</details>")?;
@@ -166,6 +175,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             // Titled: use figure/figcaption with inner div.example
             write_semantic_tag_open(&mut self.writer, "figure", &block.metadata, "example-block")?;
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &block.title,
                 &block.metadata,
                 Some(CaptionKind::Example),
@@ -174,7 +184,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             )?;
             writeln!(self.writer, "<div class=\"example\">")?;
             for nested_block in blocks {
-                self.visit_block(nested_block)?;
+                traversal.visit_block(self, nested_block)?;
             }
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</figure>")?;
@@ -183,7 +193,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             write_semantic_tag_open(&mut self.writer, "div", &block.metadata, "example-block")?;
             writeln!(self.writer, "<div class=\"example\">")?;
             for nested_block in blocks {
-                self.visit_block(nested_block)?;
+                traversal.visit_block(self, nested_block)?;
             }
             writeln!(self.writer, "</div>")?;
             writeln!(self.writer, "</div>")?;
@@ -192,10 +202,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     /// Render a delimited block to HTML.
     #[allow(clippy::too_many_lines)]
-    pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
+    pub(crate) fn render_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
         let caption_kind = CaptionKind::for_delimited(&block.inner, block.metadata.style);
         match &block.inner {
@@ -210,6 +224,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                             "quote-block",
                         )?;
                         self.render_title_with_wrapper(
+                            traversal,
                             &block.title,
                             "<h6 class=\"block-title\">",
                             "</h6>\n",
@@ -224,10 +239,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     }
                     writeln!(self.writer, "<blockquote>")?;
                     for nested_block in blocks {
-                        self.visit_block(nested_block)?;
+                        traversal.visit_block(self, nested_block)?;
                     }
                     // Attribution goes inside blockquote as <footer>
-                    write_semantic_attribution(self, &block.metadata)?;
+                    write_semantic_attribution(traversal, self, &block.metadata)?;
                     writeln!(self.writer, "</blockquote>")?;
                     if has_title {
                         writeln!(self.writer, "</section>")?;
@@ -243,10 +258,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     write_block_div_open(&mut self.writer, &block.metadata, &base_class)?;
                     writeln!(self.writer, "<blockquote>")?;
                     for nested_block in blocks {
-                        self.visit_block(nested_block)?;
+                        traversal.visit_block(self, nested_block)?;
                     }
                     writeln!(self.writer, "</blockquote>")?;
-                    write_attribution(self, &block.metadata)?;
+                    write_attribution(traversal, self, &block.metadata)?;
                     writeln!(self.writer, "</div>")?;
                 }
             }
@@ -266,6 +281,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                             }
                             writeln!(self.writer, ">")?;
                             self.render_captioned_title_with_wrapper(
+                                traversal,
                                 &block.title,
                                 &block.metadata,
                                 caption_kind,
@@ -282,7 +298,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                         }
                         writeln!(self.writer, "<blockquote>")?;
                         for nested_block in blocks {
-                            self.visit_block(nested_block)?;
+                            traversal.visit_block(self, nested_block)?;
                         }
                         writeln!(self.writer, "</blockquote>")?;
                         if has_title {
@@ -301,6 +317,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                                 "open-block",
                             )?;
                             self.render_captioned_title_with_wrapper(
+                                traversal,
                                 &block.title,
                                 &block.metadata,
                                 caption_kind,
@@ -317,7 +334,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                         }
                         writeln!(self.writer, "<div class=\"content\">")?;
                         for nested_block in blocks {
-                            self.visit_block(nested_block)?;
+                            traversal.visit_block(self, nested_block)?;
                         }
                         writeln!(self.writer, "</div>")?;
                         if has_title {
@@ -329,6 +346,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 } else {
                     write_block_div_open(&mut self.writer, &block.metadata, "openblock")?;
                     self.render_captioned_title_with_wrapper(
+                        traversal,
                         &block.title,
                         &block.metadata,
                         caption_kind,
@@ -337,7 +355,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     )?;
                     writeln!(self.writer, "<div class=\"content\">")?;
                     for nested_block in blocks {
-                        self.visit_block(nested_block)?;
+                        traversal.visit_block(self, nested_block)?;
                     }
                     writeln!(self.writer, "</div>")?;
                     writeln!(self.writer, "</div>")?;
@@ -345,33 +363,35 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
                 if processor.variant() == HtmlVariant::Semantic {
-                    self.write_example_block_semantic(block, blocks)?;
+                    self.write_example_block_semantic(traversal, block, blocks)?;
                 } else {
-                    self.write_example_block(block, blocks)?;
+                    self.write_example_block(traversal, block, blocks)?;
                 }
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 if processor.variant() == HtmlVariant::Semantic {
                     write_semantic_tag_open(&mut self.writer, "aside", &block.metadata, "sidebar")?;
                     self.render_title_with_wrapper(
+                        traversal,
                         &block.title,
                         "<h6 class=\"block-title\">",
                         "</h6>\n",
                     )?;
                     for nested_block in blocks {
-                        self.visit_block(nested_block)?;
+                        traversal.visit_block(self, nested_block)?;
                     }
                     writeln!(self.writer, "</aside>")?;
                 } else {
                     write_block_div_open(&mut self.writer, &block.metadata, "sidebarblock")?;
                     writeln!(self.writer, "<div class=\"content\">")?;
                     self.render_title_with_wrapper(
+                        traversal,
                         &block.title,
                         "<div class=\"title\">",
                         "</div>\n",
                     )?;
                     for nested_block in blocks {
-                        self.visit_block(nested_block)?;
+                        traversal.visit_block(self, nested_block)?;
                     }
                     writeln!(self.writer, "</div>")?;
                     writeln!(self.writer, "</div>")?;
@@ -382,6 +402,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 let processor = self.processor.clone();
                 let options = self.render_options.clone();
                 crate::table::render_table(
+                    traversal,
                     t,
                     self,
                     &processor,
@@ -397,6 +418,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 if processor.variant() == HtmlVariant::Semantic =>
             {
                 self.render_delimited_block_inner_semantic(
+                    traversal,
                     &block.inner,
                     &block.title,
                     &block.metadata,
@@ -410,7 +432,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             | DelimitedBlockType::DelimitedComment(_)
             | DelimitedBlockType::DelimitedVerse(_)
             | _ => {
-                self.render_delimited_block_inner(&block.inner, &block.title, &block.metadata)?;
+                self.render_delimited_block_inner(
+                    traversal,
+                    &block.inner,
+                    &block.title,
+                    &block.metadata,
+                )?;
             }
         }
         Ok(())
@@ -467,15 +494,27 @@ fn process_callout_guards<'a>(
     result
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     fn render_listing_code(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         metadata: &BlockMetadata,
     ) -> Result<(), Error> {
-        let language = detect_language(metadata);
-        let comment_prefix = default_line_comment(language);
+        let language = detect_language(metadata).map(str::to_owned).or_else(|| {
+            (metadata.style == Some("source"))
+                .then(|| {
+                    traversal
+                        .get("source-language")
+                        .and_then(|value| value.text())
+                })
+                .flatten()
+                .map(str::to_owned)
+        });
+        let comment_prefix = default_line_comment(language.as_deref());
         let processed_inlines = process_callout_guards(inlines, comment_prefix);
+        let source_indent =
+            crate::source_indent::resolve(metadata, traversal, &mut self.diagnostics);
         #[cfg(feature = "pre-spec-subs")]
         let subs = effective_subs(metadata.substitutions.as_ref(), true);
         #[cfg(not(feature = "pre-spec-subs"))]
@@ -484,11 +523,20 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             baseline_subs(true)
         };
 
-        crate::render_pre_code(&processed_inlines, metadata, language, self, &subs)
+        crate::render_pre_code(
+            traversal,
+            &processed_inlines,
+            metadata,
+            language.as_deref(),
+            self,
+            &subs,
+            source_indent,
+        )
     }
 
     fn render_listing_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
@@ -496,48 +544,8 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
         if processor.variant() == HtmlVariant::Semantic {
-            return self.render_listing_block_semantic(inlines, title, metadata, caption_kind);
-        }
-
-        #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
-            return self.render_terminal_session_block(inlines, title, metadata, caption_kind);
-        }
-
-        #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(&processor.document_attributes, metadata)
-            && self.terminal_emulator_allowed()
-        {
-            return self.render_terminal_listing_block(inlines, title, metadata, caption_kind);
-        }
-
-        write_block_div_open(&mut self.writer, metadata, "listingblock")?;
-
-        self.render_captioned_title_with_wrapper(
-            title,
-            metadata,
-            caption_kind,
-            "<div class=\"title\">",
-            "</div>\n",
-        )?;
-
-        writeln!(self.writer, "<div class=\"content\">")?;
-        self.render_listing_code(inlines, metadata)?;
-        writeln!(self.writer, "</div>")?;
-        writeln!(self.writer, "</div>")?;
-        Ok(())
-    }
-
-    fn render_listing_block_semantic(
-        &mut self,
-        inlines: &[InlineNode],
-        title: &[InlineNode],
-        metadata: &BlockMetadata,
-        caption_kind: Option<CaptionKind>,
-    ) -> Result<(), Error> {
-        #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_session(metadata) && self.terminal_emulator_allowed() {
-            return self.render_terminal_session_block_semantic(
+            return self.render_listing_block_semantic(
+                traversal,
                 inlines,
                 title,
                 metadata,
@@ -546,10 +554,72 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         }
 
         #[cfg(feature = "terminal")]
-        if crate::terminal::is_terminal_listing(&self.processor.document_attributes, metadata)
+        if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
+            return self.render_terminal_session_block(
+                traversal,
+                inlines,
+                title,
+                metadata,
+                caption_kind,
+            );
+        }
+
+        #[cfg(feature = "terminal")]
+        if crate::terminal::is_terminal_listing(processor.document_attributes(), metadata)
+            && self.terminal_emulator_allowed()
+        {
+            return self.render_terminal_listing_block(
+                traversal,
+                inlines,
+                title,
+                metadata,
+                caption_kind,
+            );
+        }
+
+        write_block_div_open(&mut self.writer, metadata, "listingblock")?;
+
+        self.render_captioned_title_with_wrapper(
+            traversal,
+            title,
+            metadata,
+            caption_kind,
+            "<div class=\"title\">",
+            "</div>\n",
+        )?;
+
+        writeln!(self.writer, "<div class=\"content\">")?;
+        self.render_listing_code(traversal, inlines, metadata)?;
+        writeln!(self.writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
+        Ok(())
+    }
+
+    fn render_listing_block_semantic(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        inlines: &[InlineNode],
+        title: &[InlineNode],
+        metadata: &BlockMetadata,
+        caption_kind: Option<CaptionKind>,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "terminal")]
+        if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
+            return self.render_terminal_session_block_semantic(
+                traversal,
+                inlines,
+                title,
+                metadata,
+                caption_kind,
+            );
+        }
+
+        #[cfg(feature = "terminal")]
+        if crate::terminal::is_terminal_listing(self.processor.document_attributes(), metadata)
             && self.terminal_emulator_allowed()
         {
             return self.render_terminal_listing_block_semantic(
+                traversal,
                 inlines,
                 title,
                 metadata,
@@ -560,19 +630,20 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         if title.is_empty() {
             // Untitled: use div
             write_semantic_tag_open(&mut self.writer, "div", metadata, "listing-block")?;
-            self.render_listing_code(inlines, metadata)?;
+            self.render_listing_code(traversal, inlines, metadata)?;
             writeln!(self.writer, "</div>")?;
         } else {
             // Titled: use figure/figcaption
             write_semantic_tag_open(&mut self.writer, "figure", metadata, "listing-block")?;
             self.render_captioned_title_with_wrapper(
+                traversal,
                 title,
                 metadata,
                 caption_kind,
                 "<figcaption>",
                 "</figcaption>\n",
             )?;
-            self.render_listing_code(inlines, metadata)?;
+            self.render_listing_code(traversal, inlines, metadata)?;
             writeln!(self.writer, "</figure>")?;
         }
         Ok(())
@@ -602,16 +673,18 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     #[cfg(feature = "terminal")]
     fn render_terminal_session_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        let attrs = self.processor.document_attributes.clone();
+        let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
         write_block_div_open(&mut self.writer, metadata, "terminalblock terminal-block")?;
 
         self.render_captioned_title_with_wrapper(
+            traversal,
             title,
             metadata,
             caption_kind,
@@ -622,7 +695,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         writeln!(self.writer, "<div class=\"content\">")?;
         // Direct field access so the writer and diagnostics borrows stay
         // disjoint; `writer_mut()` would borrow all of `self`.
-        crate::terminal::render_session(
+        render_session(
             &mut self.writer,
             inlines,
             metadata,
@@ -638,18 +711,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     #[cfg(feature = "terminal")]
     fn render_terminal_session_block_semantic(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        let attrs = self.processor.document_attributes.clone();
+        let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
         // Direct field access so the writer and diagnostics borrows stay
         // disjoint; `writer_mut()` would borrow all of `self`.
         if title.is_empty() {
             write_semantic_tag_open(&mut self.writer, "div", metadata, "terminal-block")?;
-            crate::terminal::render_session(
+            render_session(
                 &mut self.writer,
                 inlines,
                 metadata,
@@ -661,13 +735,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else {
             write_semantic_tag_open(&mut self.writer, "figure", metadata, "terminal-block")?;
             self.render_captioned_title_with_wrapper(
+                traversal,
                 title,
                 metadata,
                 caption_kind,
                 "<figcaption>",
                 "</figcaption>\n",
             )?;
-            crate::terminal::render_session(
+            render_session(
                 &mut self.writer,
                 inlines,
                 metadata,
@@ -683,16 +758,18 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     #[cfg(feature = "terminal")]
     fn render_terminal_listing_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        let attrs = self.processor.document_attributes.clone();
+        let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
         write_block_div_open(&mut self.writer, metadata, "listingblock terminal-block")?;
 
         self.render_captioned_title_with_wrapper(
+            traversal,
             title,
             metadata,
             caption_kind,
@@ -701,7 +778,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         )?;
 
         writeln!(self.writer, "<div class=\"content\">")?;
-        crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
+        render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
         writeln!(self.writer, "</div>")?;
         writeln!(self.writer, "</div>")?;
         Ok(())
@@ -710,12 +787,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     #[cfg(feature = "terminal")]
     fn render_terminal_listing_block_semantic(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
         caption_kind: Option<CaptionKind>,
     ) -> Result<(), Error> {
-        let attrs = self.processor.document_attributes.clone();
+        let attrs = self.processor.document_attributes().clone();
         let options = self.processor.options.clone();
         if title.is_empty() {
             write_semantic_tag_open(
@@ -724,7 +802,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 metadata,
                 "listing-block terminal-block",
             )?;
-            crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
+            render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
             writeln!(self.writer, "</div>")?;
         } else {
             write_semantic_tag_open(
@@ -734,13 +812,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 "listing-block terminal-block",
             )?;
             self.render_captioned_title_with_wrapper(
+                traversal,
                 title,
                 metadata,
                 caption_kind,
                 "<figcaption>",
                 "</figcaption>\n",
             )?;
-            crate::terminal::render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
+            render_listing(&mut self.writer, inlines, metadata, options, &attrs)?;
             writeln!(self.writer, "</figure>")?;
         }
         Ok(())
@@ -754,10 +833,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     #[cfg(feature = "pre-spec-subs")]
     fn render_pass_block_with_subs(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         spec: &SubstitutionSpec,
     ) -> Result<(), Error> {
-        let processor = self.processor.clone();
         // Passthrough blocks default to no subs, so the baseline is empty.
         let effective = spec.resolve(&[]);
 
@@ -771,12 +850,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Apply attribute substitution if enabled (not done by parser for
         // passthrough blocks)
         if effective.contains(&Substitution::Attributes) {
-            content = substitute(
-                &content,
-                &[Substitution::Attributes],
-                processor.document_attributes(),
-            )
-            .into_owned();
+            content = substitute_attributes(&content, traversal).into_owned();
         }
 
         // If quotes substitution is enabled, parse the content for inline
@@ -788,22 +862,78 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             let parsed = acdc_parser::parse_text_for_quotes(&content);
             let options = self.render_options.clone();
             for node in parsed.inlines() {
-                self.render_inline_node(node, &options, &effective)?;
+                self.render_inline_node(traversal, node, &options, &effective)?;
             }
         } else {
             let plain = InlineNode::PlainText(Plain {
-                content: Box::leak(content.into_boxed_str()),
+                content: &content,
                 location: Location::default(),
                 escaped: false,
             });
             let options = self.render_options.clone();
-            self.render_inline_node(&plain, &options, &effective)?;
+            self.render_inline_node(traversal, &plain, &options, &effective)?;
         }
+        Ok(())
+    }
+
+    fn render_literal_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        inlines: &[InlineNode<'_>],
+        title: &[InlineNode<'_>],
+        metadata: &BlockMetadata<'_>,
+        caption_kind: Option<CaptionKind>,
+    ) -> Result<(), Error> {
+        #[cfg(feature = "terminal")]
+        if is_terminal_session(metadata) && self.terminal_emulator_allowed() {
+            if self.processor.variant() == HtmlVariant::Semantic {
+                self.render_terminal_session_block_semantic(
+                    traversal,
+                    inlines,
+                    title,
+                    metadata,
+                    caption_kind,
+                )?;
+            } else {
+                self.render_terminal_session_block(
+                    traversal,
+                    inlines,
+                    title,
+                    metadata,
+                    caption_kind,
+                )?;
+            }
+            return Ok(());
+        }
+
+        let base_class = if let Some(style) = &metadata.style
+            && *style != "source"
+        {
+            format!("{style}block")
+        } else {
+            "literalblock".to_string()
+        };
+        write_block_div_open(&mut self.writer, metadata, &base_class)?;
+        self.render_captioned_title_with_wrapper(
+            traversal,
+            title,
+            metadata,
+            caption_kind,
+            "<div class=\"title\">",
+            "</div>\n",
+        )?;
+        writeln!(self.writer, "<div class=\"content\">")?;
+        write!(self.writer, "<pre>")?;
+        self.visit_indented_inlines(traversal, inlines, metadata)?;
+        writeln!(self.writer, "</pre>")?;
+        writeln!(self.writer, "</div>")?;
+        writeln!(self.writer, "</div>")?;
         Ok(())
     }
 
     fn render_delimited_block_inner(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inner: &DelimitedBlockType,
         title: &[InlineNode],
         metadata: &BlockMetadata,
@@ -813,64 +943,34 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             DelimitedBlockType::DelimitedPass(inlines) => {
                 #[cfg(feature = "pre-spec-subs")]
                 if let Some(spec) = &metadata.substitutions {
-                    self.render_pass_block_with_subs(inlines, spec)?;
+                    self.render_pass_block_with_subs(traversal, inlines, spec)?;
                 } else {
-                    self.visit_inline_nodes(inlines)?;
+                    self.visit_inline_nodes(traversal, inlines)?;
                 }
                 #[cfg(not(feature = "pre-spec-subs"))]
-                self.visit_inline_nodes(inlines)?;
+                self.visit_inline_nodes(traversal, inlines)?;
             }
             DelimitedBlockType::DelimitedListing(inlines) => {
-                self.render_listing_block(inlines, title, metadata, caption_kind)?;
+                self.render_listing_block(traversal, inlines, title, metadata, caption_kind)?;
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
-                #[cfg(feature = "terminal")]
-                if crate::terminal::is_terminal_session(metadata)
-                    && self.terminal_emulator_allowed()
-                {
-                    if self.processor.variant() == HtmlVariant::Semantic {
-                        self.render_terminal_session_block_semantic(
-                            inlines,
-                            title,
-                            metadata,
-                            caption_kind,
-                        )?;
-                    } else {
-                        self.render_terminal_session_block(inlines, title, metadata, caption_kind)?;
-                    }
-                    return Ok(());
-                }
-
-                // Check for custom style other than "source" - I've done this because
-                // `asciidoctor` seems to always use "literalblock" for source blocks or
-                // so I think!
-                let base_class = if let Some(style) = &metadata.style
-                    && *style != "source"
-                {
-                    format!("{style}block")
-                } else {
-                    "literalblock".to_string()
-                };
-                write_block_div_open(&mut self.writer, metadata, &base_class)?;
-                self.render_captioned_title_with_wrapper(
-                    title,
-                    metadata,
-                    caption_kind,
-                    "<div class=\"title\">",
-                    "</div>\n",
-                )?;
-                writeln!(self.writer, "<div class=\"content\">")?;
-                write!(self.writer, "<pre>")?;
-                self.visit_inline_nodes(inlines)?;
-                writeln!(self.writer, "</pre>")?;
-                writeln!(self.writer, "</div>")?;
-                writeln!(self.writer, "</div>")?;
+                self.render_literal_block(traversal, inlines, title, metadata, caption_kind)?;
             }
             DelimitedBlockType::DelimitedStem(stem) => {
                 write_block_div_open(&mut self.writer, metadata, "stemblock")?;
-                self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+                self.render_title_with_wrapper(
+                    traversal,
+                    title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
                 let processor = self.processor.clone();
-                render_stem_content(stem, &mut self.writer, &processor)?;
+                render_stem_content(
+                    stem,
+                    &mut self.writer,
+                    processor.variant() == HtmlVariant::Semantic,
+                    traversal,
+                )?;
                 writeln!(self.writer, "</div>")?;
             }
             DelimitedBlockType::DelimitedComment(_) => {
@@ -878,11 +978,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedVerse(inlines) => {
                 write_block_div_open(&mut self.writer, metadata, "verseblock")?;
-                self.render_title_with_wrapper(title, "<div class=\"title\">", "</div>\n")?;
+                self.render_title_with_wrapper(
+                    traversal,
+                    title,
+                    "<div class=\"title\">",
+                    "</div>\n",
+                )?;
                 write!(self.writer, "<pre class=\"content\">")?;
-                self.visit_inline_nodes(inlines)?;
+                self.visit_inline_nodes(traversal, inlines)?;
                 writeln!(self.writer, "</pre>")?;
-                write_attribution(self, metadata)?;
+                write_attribution(traversal, self, metadata)?;
                 writeln!(self.writer, "</div>")?;
             }
             DelimitedBlockType::DelimitedQuote(_)
@@ -905,13 +1010,14 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 fn render_stem_content<W: Write + ?Sized>(
     stem: &StemContent,
     w: &mut W,
-    processor: &Processor<'_>,
+    semantic: bool,
+    attributes: &TraversalContext<'_>,
 ) -> Result<(), Error> {
-    let forced = if processor.variant() == HtmlVariant::Semantic {
-        processor
-            .document_attributes()
+    let forced = if semantic {
+        attributes
             .get("html5s-force-stem-type")
-            .and_then(|v| v.to_string().parse::<StemNotation>().ok())
+            .and_then(|value| value.text())
+            .and_then(|value| value.parse::<StemNotation>().ok())
     } else {
         None
     };
@@ -933,12 +1039,12 @@ fn render_stem_content<W: Write + ?Sized>(
 fn render_stem_content_semantic<W: Write + ?Sized>(
     stem: &StemContent,
     w: &mut W,
-    processor: &Processor<'_>,
+    attributes: &TraversalContext<'_>,
 ) -> Result<(), Error> {
-    let forced = processor
-        .document_attributes()
+    let forced = attributes
         .get("html5s-force-stem-type")
-        .and_then(|v| v.to_string().parse::<StemNotation>().ok());
+        .and_then(|value| value.text())
+        .and_then(|value| value.parse::<StemNotation>().ok());
     let notation = forced.as_ref().unwrap_or(&stem.notation);
     let data_lang = match notation {
         StemNotation::Latexmath => "tex",
@@ -957,10 +1063,11 @@ fn render_stem_content_semantic<W: Write + ?Sized>(
     Ok(())
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     /// Render verse, literal, and stem blocks in semantic HTML5 mode.
     fn render_delimited_block_inner_semantic(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inner: &DelimitedBlockType,
         title: &[InlineNode],
         metadata: &BlockMetadata,
@@ -968,7 +1075,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let caption_kind = CaptionKind::for_delimited(inner, metadata.style);
         match inner {
             DelimitedBlockType::DelimitedVerse(inlines) => {
-                self.render_verse_block_semantic(inlines, title, metadata)?;
+                self.render_verse_block_semantic(traversal, inlines, title, metadata)?;
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
                 let has_title = !title.is_empty();
@@ -980,6 +1087,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                         "literal-block",
                     )?;
                     self.render_captioned_title_with_wrapper(
+                        traversal,
                         title,
                         metadata,
                         caption_kind,
@@ -990,7 +1098,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     write_semantic_tag_open(&mut self.writer, "div", metadata, "literal-block")?;
                 }
                 write!(self.writer, "<pre>")?;
-                self.visit_inline_nodes(inlines)?;
+                self.visit_indented_inlines(traversal, inlines, metadata)?;
                 writeln!(self.writer, "</pre>")?;
                 if has_title {
                     writeln!(self.writer, "</section>")?;
@@ -1002,12 +1110,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                 let has_title = !title.is_empty();
                 if has_title {
                     write_semantic_tag_open(&mut self.writer, "figure", metadata, "stem-block")?;
-                    self.render_title_with_wrapper(title, "<figcaption>", "</figcaption>\n")?;
+                    self.render_title_with_wrapper(
+                        traversal,
+                        title,
+                        "<figcaption>",
+                        "</figcaption>\n",
+                    )?;
                 } else {
                     write_semantic_tag_open(&mut self.writer, "div", metadata, "stem-block")?;
                 }
-                let processor = self.processor.clone();
-                render_stem_content_semantic(stem, &mut self.writer, &processor)?;
+                render_stem_content_semantic(stem, &mut self.writer, traversal)?;
                 if has_title {
                     writeln!(self.writer, "</figure>")?;
                 } else {
@@ -1035,6 +1147,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
     fn render_verse_block_semantic(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode],
         title: &[InlineNode],
         metadata: &BlockMetadata,
@@ -1045,7 +1158,12 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         if has_title {
             write_semantic_tag_open(&mut self.writer, "section", metadata, "verse-block")?;
-            self.render_title_with_wrapper(title, "<h6 class=\"block-title\">", "</h6>\n")?;
+            self.render_title_with_wrapper(
+                traversal,
+                title,
+                "<h6 class=\"block-title\">",
+                "</h6>\n",
+            )?;
         } else {
             write_semantic_tag_open(&mut self.writer, "div", metadata, "verse-block")?;
         }
@@ -1053,13 +1171,13 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         if has_attribution {
             writeln!(self.writer, "<blockquote class=\"verse\">")?;
             write!(self.writer, "<pre class=\"verse\">")?;
-            self.visit_inline_nodes(inlines)?;
+            self.visit_inline_nodes(traversal, inlines)?;
             writeln!(self.writer, "</pre>")?;
-            write_semantic_attribution(self, metadata)?;
+            write_semantic_attribution(traversal, self, metadata)?;
             writeln!(self.writer, "</blockquote>")?;
         } else {
             write!(self.writer, "<pre class=\"verse\">")?;
-            self.visit_inline_nodes(inlines)?;
+            self.visit_inline_nodes(traversal, inlines)?;
             writeln!(self.writer, "</pre>")?;
         }
 
@@ -1075,15 +1193,16 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Processor, RenderOptions};
 
     use std::{cell::Cell, rc::Rc};
 
-    use acdc_converters_core::{Doctype, Options, visitor::Visitor};
+    use acdc_converters_core::{
+        Converter, Diagnostics, Doctype, Options, WarningSource, visitor::Visitor,
+    };
     use acdc_parser::{
         BlockMetadata, DocumentAttributes, InlineNode, Location, Plain, SafeMode, Title,
     };
-
-    use crate::RenderOptions;
 
     fn create_test_inlines(content: &str) -> Vec<InlineNode<'_>> {
         vec![InlineNode::PlainText(Plain {
@@ -1101,7 +1220,8 @@ mod tests {
         let document_attributes = DocumentAttributes::default();
         Processor {
             options,
-            document_attributes,
+            parser_options: acdc_parser::Options::default()
+                .with_document_attributes(document_attributes),
             toc_entries: Vec::new(),
             references: std::collections::HashMap::new(),
             xref_guard: acdc_converters_core::xref::XrefGuard::default(),
@@ -1133,12 +1253,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1160,12 +1281,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1197,12 +1319,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1235,12 +1358,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1274,12 +1398,14 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor =
-            crate::HtmlVisitor::new(output, processor.clone(), options, diagnostics.reborrow());
+            HtmlVisitor::new(output, processor.clone(), options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1300,8 +1426,6 @@ mod tests {
 
     #[test]
     fn test_listing_block_with_listing_caption_renders_title_with_number() -> Result<(), Error> {
-        use acdc_parser::AttributeValue;
-
         let title1 = Title::new(vec![InlineNode::PlainText(Plain {
             content: "First Example",
             location: Location::default(),
@@ -1331,19 +1455,21 @@ mod tests {
         let output = Vec::new();
         let processor = {
             let mut p = create_test_processor_raw();
-            // Set listing-caption attribute
-            p.document_attributes.set(
-                "listing-caption".into(),
-                AttributeValue::String("Listing".into()),
-            );
+            p.parser_options = p
+                .parser_options
+                .into_builder()
+                .with_attribute("listing-caption", "Listing")
+                .build()?;
             Rc::new(p)
         };
 
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor = crate::HtmlVisitor::new(
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(
             output,
             processor.clone(),
             options.clone(),
@@ -1351,7 +1477,7 @@ mod tests {
         );
 
         // Render first block
-        visitor.visit_delimited_block(&block1)?;
+        visitor.visit_delimited_block(&mut traversal, &block1)?;
         let html1 = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1367,11 +1493,13 @@ mod tests {
         // Render second block
         let output2 = Vec::new();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
         let mut visitor2 =
-            crate::HtmlVisitor::new(output2, processor.clone(), options, diagnostics.reborrow());
-        visitor2.visit_delimited_block(&block2)?;
+            HtmlVisitor::new(output2, processor.clone(), options, diagnostics.reborrow());
+        visitor2.visit_delimited_block(&mut traversal, &block2)?;
         let html2 = String::from_utf8(visitor2.into_writer())?;
 
         assert!(
@@ -1405,12 +1533,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1439,12 +1568,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1473,12 +1603,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1507,12 +1638,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1541,12 +1673,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1578,12 +1711,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1627,12 +1761,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1657,12 +1792,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(
@@ -1691,12 +1827,13 @@ mod tests {
         let processor = create_test_processor();
         let options = RenderOptions::default();
         let mut warnings = Vec::new();
-        let source = acdc_converters_core::WarningSource::new("html");
-        let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
-        let mut visitor =
-            crate::HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let attribute_header = Converter::document_attributes(processor.as_ref()).clone();
+        let mut traversal = TraversalContext::new(&attribute_header);
+        let mut visitor = HtmlVisitor::new(output, processor, options, diagnostics.reborrow());
 
-        visitor.visit_delimited_block(&block)?;
+        visitor.visit_delimited_block(&mut traversal, &block)?;
         let html = String::from_utf8(visitor.into_writer())?;
 
         assert!(

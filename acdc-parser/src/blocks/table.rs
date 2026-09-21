@@ -535,19 +535,13 @@ impl CellSpecifier {
 /// Recursive parsers consuming the cell content (in particular the
 /// `AsciiDoc`-style `a|` cell) must use `content_start` so that diagnostics
 /// resolve to the line of the offending token, not the cell's style prefix.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub(crate) struct ParsedCell {
     pub content: String,
     pub start: usize,
     pub content_start: usize,
     pub end: usize,
-    pub colspan: usize,
-    pub rowspan: usize,
-    pub halign: Option<HorizontalAlignment>,
-    pub valign: Option<VerticalAlignment>,
-    pub style: Option<ColumnStyle>,
-    pub is_duplication: bool,
-    pub duplication_count: usize,
+    pub spec: CellSpecifier,
 }
 
 #[derive(Debug)]
@@ -589,18 +583,6 @@ fn detect_header_after_first_row(lines: &[&str], start_idx: usize, separator: &s
         }
     }
     false
-}
-
-/// A raw cell split from the flat table-body stream, before grouping into rows.
-///
-/// Cell specifiers attach to the cell that *follows* their delimiter, so a
-/// specifier discovered while emitting one cell is carried forward to the next.
-struct RawCell {
-    spec: CellSpecifier,
-    content: String,
-    start: usize,
-    content_start: usize,
-    end: usize,
 }
 
 /// Whether cell specifiers (`a|`, `2+|`, `.3+|`, `^|`, ...) are recognized for a
@@ -653,7 +635,7 @@ fn extract_trailing_spec(content: &str, allow_at_start: bool) -> (&str, Option<C
 /// content runs until the next unescaped delimiter, spanning as many physical
 /// lines as needed. This mirrors asciidoctor's PSV/DSV model and is what makes
 /// multi-line cells and rows split across lines parse correctly.
-fn scan_cells(text: &str, separator: &str, base_offset: usize) -> Vec<RawCell> {
+fn scan_cells(text: &str, separator: &str, base_offset: usize) -> Vec<ParsedCell> {
     let Some(sep_char) = separator.chars().next() else {
         return Vec::new();
     };
@@ -689,7 +671,7 @@ fn scan_cells(text: &str, separator: &str, base_offset: usize) -> Vec<RawCell> {
             content_start + content.len().saturating_sub(1)
         };
 
-        cells.push(RawCell {
+        cells.push(ParsedCell {
             spec: carried_spec.take().unwrap_or_default(),
             content,
             start: cell_start,
@@ -724,7 +706,7 @@ fn first_line_column_count(text: &str, separator: &str) -> usize {
     }
 }
 
-fn validate_cell_specifiers(cells: &[RawCell]) -> Result<(), TableLimitViolation> {
+fn validate_cell_specifiers(cells: &[ParsedCell]) -> Result<(), TableLimitViolation> {
     for cell in cells {
         if cell.spec.colspan > MAX_TABLE_COLUMNS {
             return Err(TableLimitViolation::new(
@@ -799,7 +781,7 @@ fn validate_row_widths(rows: &[Vec<ParsedCell>]) -> Result<(), TableLimitViolati
 /// `(start, end)` document offsets are written to `dropped` so the caller can
 /// warn about it.
 fn group_cells_into_rows(
-    cells: Vec<RawCell>,
+    cells: Vec<ParsedCell>,
     ncols: usize,
     dropped: &mut Option<(usize, usize)>,
 ) -> Result<Vec<Vec<ParsedCell>>, TableLimitViolation> {
@@ -838,7 +820,7 @@ fn group_cells_into_rows(
             if cell.spec.rowspan > 1 {
                 new_spans.push((col, cell.spec.rowspan - 1, occupied));
             }
-            row.push(parsed_cell(cell));
+            row.push(cell);
             col += occupied;
             filled = col >= ncols;
         }
@@ -874,24 +856,6 @@ fn group_cells_into_rows(
     }
 
     Ok(rows)
-}
-
-/// Convert a raw cell into a `ParsedCell`, carrying span/alignment/style.
-fn parsed_cell(cell: RawCell) -> ParsedCell {
-    let spec = cell.spec;
-    ParsedCell {
-        content: cell.content,
-        start: cell.start,
-        content_start: cell.content_start,
-        end: cell.end,
-        colspan: spec.colspan,
-        rowspan: spec.rowspan,
-        halign: spec.halign,
-        valign: spec.valign,
-        style: spec.style,
-        is_duplication: spec.is_duplication,
-        duplication_count: spec.duplication_count,
-    }
 }
 
 impl Table<'_> {
@@ -987,13 +951,7 @@ impl Table<'_> {
                             start,
                             content_start: start,
                             end,
-                            colspan: 1,
-                            rowspan: 1,
-                            halign: None,
-                            valign: None,
-                            style: None,
-                            is_duplication: false,
-                            duplication_count: 1,
+                            spec: CellSpecifier::default(),
                         }
                     })
                     .collect();
@@ -1050,13 +1008,7 @@ impl Table<'_> {
                     start,
                     content_start: start,
                     end,
-                    colspan: 1,
-                    rowspan: 1,
-                    halign: None,
-                    valign: None,
-                    style: None,
-                    is_duplication: false,
-                    duplication_count: 1,
+                    spec: CellSpecifier::default(),
                 });
             }
             if !cells.is_empty() {
@@ -1264,7 +1216,7 @@ mod tests {
             contents,
             vec![vec!["spans", "b", "c"], vec!["e", "f"], vec!["g", "h", "i"]]
         );
-        assert_eq!(rows[0][0].rowspan, 2);
+        assert_eq!(rows[0][0].spec.rowspan, 2);
     }
 
     /// TSV fields use the same RFC 4180 quoting as CSV: a `"…"`-quoted value can

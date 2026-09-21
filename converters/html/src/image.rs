@@ -1,6 +1,6 @@
 use std::{io::Write, string::ToString};
 
-use acdc_converters_core::media::resolve_target;
+use acdc_converters_core::{TraversalContext, media::resolve_target};
 use acdc_parser::{BlockMetadata, CaptionKind, Image};
 
 use crate::{
@@ -9,11 +9,15 @@ use crate::{
     inlines::escape_href,
 };
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
-    pub(crate) fn render_image(&mut self, img: &Image) -> Result<(), Error> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn render_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        img: &Image,
+    ) -> Result<(), Error> {
         let processor = self.processor.clone();
         if processor.variant() == HtmlVariant::Semantic {
-            return self.render_image_semantic(img);
+            return self.render_image_semantic(traversal, img);
         }
 
         // Build class list: imageblock + alignment + float + roles
@@ -43,10 +47,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             || alt_text_from_filename(&img.source),
             std::borrow::Cow::into_owned,
         );
-        let source = escape_href(&resolve_target(
-            &img.source.to_string(),
-            self.processor.document_attributes(),
-        ));
+        let source = escape_href(&resolve_target(&img.source.to_string(), traversal));
 
         // Wrap in link if link attribute exists
         let link = img.metadata.attributes.get("link");
@@ -72,6 +73,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Caption can be disabled with :figure-caption!:
         if !img.title.is_empty() {
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &img.title,
                 &img.metadata,
                 Some(CaptionKind::Figure),
@@ -84,8 +86,11 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_image_semantic(&mut self, img: &Image) -> Result<(), Error> {
-        let processor = self.processor.clone();
+    fn render_image_semantic(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        img: &Image,
+    ) -> Result<(), Error> {
         let has_title = !img.title.is_empty();
 
         // Build class and style for wrapper
@@ -119,10 +124,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             || alt_text_from_filename(&img.source),
             std::borrow::Cow::into_owned,
         );
-        let source = escape_href(&resolve_target(
-            &img.source.to_string(),
-            self.processor.document_attributes(),
-        ));
+        let source = escape_href(&resolve_target(&img.source.to_string(), traversal));
 
         // Check for link=self, link=none, or html5s-image-default-link=self
         let link = img.metadata.attributes.get("link");
@@ -134,26 +136,23 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let use_self_link = is_link_self
             || (!is_link_none
                 && link.is_none()
-                && processor
-                    .document_attributes()
+                && traversal
                     .get("html5s-image-default-link")
-                    .is_some_and(|v| v.to_string() == "self"));
+                    .and_then(|value| value.text())
+                    == Some("self"));
 
         // Check if default-link=self but explicit link=none should suppress
         let suppress_default_self = is_link_none
-            && processor
-                .document_attributes()
+            && traversal
                 .get("html5s-image-default-link")
-                .is_some_and(|v| v.to_string() == "self");
+                .and_then(|value| value.text())
+                == Some("self");
 
         if use_self_link && !suppress_default_self {
-            let label = processor
-                .document_attributes()
+            let label = traversal
                 .get("html5s-image-self-link-label")
-                .map_or_else(
-                    || "Open the image in full size".to_string(),
-                    ToString::to_string,
-                );
+                .and_then(|value| value.text())
+                .map_or_else(|| "Open the image in full size".to_string(), str::to_owned);
             write!(
                 self.writer,
                 "<a class=\"image bare\" href=\"{source}\"{link_controls} title=\"{label}\" aria-label=\"{label}\">",
@@ -188,6 +187,7 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
         if has_title {
             self.render_captioned_title_with_wrapper(
+                traversal,
                 &img.title,
                 &img.metadata,
                 Some(CaptionKind::Figure),

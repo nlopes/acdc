@@ -1,11 +1,13 @@
 //! Visitor implementation for Markdown conversion.
 
-use std::{borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, path::Path, rc::Rc};
+use std::{
+    borrow::Cow, collections::HashSet, fmt::Write as _, io::Write, mem::take, path::Path, rc::Rc,
+};
 
 use acdc_converters_core::{
-    Converter, Diagnostics, Warning,
+    Converter, Diagnostics, TraversalContext, Warning,
     code::{SourceLineOptions, default_line_comment, detect_language},
-    icon,
+    document_attribute_text, icon,
     inline_text::InlineTextTransform,
     link::{autolink_fallback, link_fallback, mailto_fallback},
     list::OrderedListNumbering,
@@ -22,7 +24,7 @@ use acdc_converters_core::{
     xref::{XrefDisplay, interdocument_xref, resolve_xref},
 };
 use acdc_parser::{
-    Admonition, Anchor, AttributeValue, Audio, Author, Block, BlockMetadata, CalloutList,
+    Admonition, AdmonitionVariant, Anchor, Audio, Author, Block, BlockMetadata, CalloutList,
     CaptionKind, ColumnStyle, ColumnWidth, CrossReference, DelimitedBlock, DelimitedBlockType,
     DescriptionList, DiscreteHeader, Document, Footnote, Header, HorizontalAlignment, Image,
     IndexTerm, IndexTermRelationship, InlineMacro, InlineNode, Link, ListItem,
@@ -386,7 +388,8 @@ fn strip_callout_guard<'a>(text: &'a str, language_prefix: Option<&str>) -> Cow<
 /// Markdown visitor that generates Markdown output from `AsciiDoc` AST.
 pub struct MarkdownVisitor<'a, 'd, W: Write> {
     writer: W,
-    pub(crate) processor: Processor<'a>,
+    pub(crate) processor: &'d Processor<'a>,
+
     /// Per-conversion diagnostics handle.
     pub(crate) diagnostics: Diagnostics<'d>,
     /// Current heading level (for nested sections).
@@ -402,10 +405,11 @@ pub struct MarkdownVisitor<'a, 'd, W: Write> {
 
 impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     /// Create a new Markdown visitor.
-    pub fn new(writer: W, processor: Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
+    pub fn new(writer: W, processor: &'d Processor<'a>, diagnostics: Diagnostics<'d>) -> Self {
         Self {
             writer,
             processor,
+
             diagnostics,
             heading_level: 0,
             list_depth: 0,
@@ -422,27 +426,25 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         self.processor.variant()
     }
 
-    fn media_target(&self, source: &Source<'_>) -> String {
-        resolve_target(&source.to_string(), self.processor.document_attributes())
+    fn media_target(traversal: &TraversalContext<'a>, source: &Source<'_>) -> String {
+        resolve_target(&source.to_string(), traversal)
     }
 
-    fn section_prefix(&self, section: &Section<'_>) -> String {
+    fn section_prefix(traversal: &TraversalContext<'a>, section: &'a Section<'a>) -> String {
         section.number().map_or_else(String::new, |number| {
             if section.kind == SectionKind::Appendix {
-                let caption = match self.processor.document_attributes().get("appendix-caption") {
-                    Some(AttributeValue::String(caption)) => Some(caption.as_ref()),
-                    Some(_) | None => None,
-                };
+                let caption = traversal
+                    .get("appendix-caption")
+                    .and_then(|value| value.text());
                 appendix_number_prefix(number, caption)
             } else if section.level == 0 && section.kind == SectionKind::Normal {
-                let signifier = match self.processor.document_attributes().get("part-signifier") {
-                    Some(AttributeValue::String(signifier)) => Some(signifier.as_ref()),
-                    Some(_) | None => None,
-                };
+                let signifier = traversal
+                    .get("part-signifier")
+                    .and_then(|value| value.text());
                 part_number_prefix(number, signifier)
             } else {
                 let signifier = (section.level == 1 && section.kind == SectionKind::Normal)
-                    .then(|| book_chapter_signifier(self.processor.document_attributes(), None))
+                    .then(|| book_chapter_signifier(traversal, None))
                     .flatten();
                 section_number_prefix(number, signifier)
             }
@@ -483,23 +485,24 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn write_inline_anchor_node(&mut self, anchor: &Anchor<'_>) -> Result<(), Error> {
+    fn write_inline_anchor_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        anchor: &Anchor<'_>,
+    ) -> Result<(), Error> {
         self.write_inline_anchor(Some(anchor.id))?;
         if !anchor.is_bibliography() {
             return Ok(());
         }
 
-        let label = self
-            .processor
-            .references
-            .get(anchor.id)
-            .and_then(|reference| reference.xreflabel.as_deref())
-            .map(<[_]>::to_vec);
-        if let Some(label) = label {
-            self.visit_inline_nodes(&label)?;
-        } else {
-            write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id))?;
+        if let Some(label) = anchor.bibliography_label() {
+            write!(self.writer, "\\[")?;
+            self.visit_inline_nodes(traversal, label)?;
+            write!(self.writer, "\\]")?;
+            return Ok(());
         }
+
+        write!(self.writer, "\\[{}\\]", Self::escape_markdown(anchor.id))?;
         Ok(())
     }
 
@@ -512,6 +515,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn write_block_title_line(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
@@ -524,13 +528,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if let Some(caption) = caption {
             write!(self.writer, "{}", Self::escape_markdown(&caption))?;
         }
-        self.visit_inline_nodes(title.as_ref())?;
+        self.visit_inline_nodes(traversal, title.as_ref())?;
         writeln!(self.writer, "</strong>")?;
         Ok(())
     }
 
     fn write_block_title(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
@@ -538,13 +543,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if title.is_empty() {
             return Ok(());
         }
-        self.write_block_title_line(title, metadata, fallback)?;
+        self.write_block_title_line(traversal, title, metadata, fallback)?;
         writeln!(self.writer)?;
         Ok(())
     }
 
     fn write_attribution(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         metadata: &BlockMetadata<'_>,
         line_prefix: &str,
     ) -> Result<(), Error> {
@@ -563,21 +569,25 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         write!(self.writer, "{line_prefix}")?;
         if let Some(attribution) = attribution {
             write!(self.writer, "— ")?;
-            self.visit_inline_nodes(attribution)?;
+            self.visit_inline_nodes(traversal, attribution)?;
         }
         if let Some(citation) = citation {
             if attribution.is_some() {
                 write!(self.writer, ", ")?;
             }
             write!(self.writer, "<cite>")?;
-            self.visit_inline_nodes(citation)?;
+            self.visit_inline_nodes(traversal, citation)?;
             write!(self.writer, "</cite>")?;
         }
         writeln!(self.writer)?;
         Ok(())
     }
 
-    fn write_blockquote_inlines(&mut self, content: &[InlineNode<'_>]) -> Result<(), Error> {
+    fn write_blockquote_inlines(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        content: &[InlineNode<'_>],
+    ) -> Result<(), Error> {
         write!(self.writer, "> ")?;
         for node in content {
             match node {
@@ -603,7 +613,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 | InlineNode::InlineAnchor(_)
                 | InlineNode::Macro(_)
                 | InlineNode::CalloutRef(_)
-                | _ => self.visit_inline_node(node)?,
+                | _ => self.visit_inline_node(traversal, node)?,
             }
         }
         writeln!(self.writer)?;
@@ -836,7 +846,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         Ok(())
     }
 
-    fn record_footnote(&mut self, footnote: &Footnote<'_>) -> Result<String, Error> {
+    fn record_footnote(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        footnote: &Footnote<'_>,
+    ) -> Result<String, Error> {
         let id = footnote
             .id
             .map_or_else(|| footnote.number.to_string(), str::to_owned);
@@ -851,11 +865,8 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
         let mut buffer = Vec::new();
         {
-            let mut visitor = MarkdownVisitor::new(
-                &mut buffer,
-                self.processor.clone(),
-                self.diagnostics.reborrow(),
-            );
+            let mut visitor =
+                MarkdownVisitor::new(&mut buffer, self.processor, self.diagnostics.reborrow());
             visitor.heading_level = self.heading_level;
             visitor.list_depth = self.list_depth;
             visitor.collect_index_terms = self.collect_index_terms;
@@ -863,7 +874,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 .current_section_title
                 .clone_from(&self.current_section_title);
             for node in &footnote.content {
-                visitor.visit_inline_node(node)?;
+                visitor.visit_inline_node(traversal, node)?;
             }
         }
         let rendered = String::from_utf8(buffer).unwrap_or_default();
@@ -873,6 +884,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn render_index_term_label(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         inlines: &[InlineNode<'_>],
     ) -> Result<IndexTermLabel, Error> {
         let plain = InlineTextTransform::default()
@@ -880,17 +892,14 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             .to_string(inlines);
         let mut output = Vec::new();
         {
-            let mut visitor = MarkdownVisitor::new(
-                &mut output,
-                self.processor.clone(),
-                self.diagnostics.reborrow(),
-            );
+            let mut visitor =
+                MarkdownVisitor::new(&mut output, self.processor, self.diagnostics.reborrow());
             visitor.collect_index_terms = false;
             visitor.in_link_text = true;
             visitor
                 .current_section_title
                 .clone_from(&self.current_section_title);
-            visitor.visit_inline_nodes(inlines)?;
+            visitor.visit_inline_nodes(traversal, inlines)?;
         }
         Ok(IndexTermLabel {
             plain,
@@ -898,26 +907,30 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         })
     }
 
-    fn visit_index_term(&mut self, term: &IndexTerm<'_>) -> Result<(), Error> {
+    fn visit_index_term(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        term: &IndexTerm<'_>,
+    ) -> Result<(), Error> {
         if self.collect_index_terms && self.processor.generate_index() {
-            let primary = self.render_index_term_label(term.term())?;
+            let primary = self.render_index_term_label(traversal, term.term())?;
             let secondary = term
                 .secondary()
-                .map(|inlines| self.render_index_term_label(inlines))
+                .map(|inlines| self.render_index_term_label(traversal, inlines))
                 .transpose()?;
             let tertiary = term
                 .tertiary()
-                .map(|inlines| self.render_index_term_label(inlines))
+                .map(|inlines| self.render_index_term_label(traversal, inlines))
                 .transpose()?;
             let relationship = match term.relationship.as_ref() {
                 Some(IndexTermRelationship::See { target }) => {
-                    IndexCatalogRelationship::See(self.render_index_term_label(target)?)
+                    IndexCatalogRelationship::See(self.render_index_term_label(traversal, target)?)
                 }
                 Some(IndexTermRelationship::SeeAlso { targets }) => {
                     IndexCatalogRelationship::SeeAlso(
                         targets
                             .iter()
-                            .map(|target| self.render_index_term_label(target))
+                            .map(|target| self.render_index_term_label(traversal, target))
                             .collect::<Result<_, _>>()?,
                     )
                 }
@@ -935,7 +948,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         }
 
         if term.is_visible() {
-            self.visit_inline_nodes(term.term())?;
+            self.visit_inline_nodes(traversal, term.term())?;
         }
         Ok(())
     }
@@ -966,13 +979,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn write_revision(&mut self) -> Result<(), Error> {
         let attributes = self.processor.document_attributes();
-        let number = attributes.get_string("revnumber").map(Cow::into_owned);
-        let date = attributes.get_string("revdate").map(Cow::into_owned);
-        let remark = attributes.get_string("revremark").map(Cow::into_owned);
-        let label = attributes
-            .get_string("version-label")
+        let number = document_attribute_text((attributes).get("revnumber")).map(str::to_owned);
+        let date = document_attribute_text((attributes).get("revdate")).map(str::to_owned);
+        let remark = document_attribute_text((attributes).get("revremark")).map(str::to_owned);
+        let label = document_attribute_text((attributes).get("version-label"))
             .filter(|label| !label.is_empty())
-            .map(Cow::into_owned);
+            .map(str::to_owned);
         if number.is_none() && date.is_none() && remark.is_none() {
             return Ok(());
         }
@@ -1027,12 +1039,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
     /// `<details>` is the idiomatic way to express collapsible content.
     fn write_collapsible<F>(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &acdc_parser::Title<'_>,
         is_open: bool,
         write_body: F,
     ) -> Result<(), Error>
     where
-        F: FnOnce(&mut Self) -> Result<bool, Error>,
+        F: FnOnce(&mut Self, &mut TraversalContext<'a>) -> Result<bool, Error>,
     {
         if is_open {
             writeln!(self.writer, "<details open>")?;
@@ -1043,12 +1056,12 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if title.is_empty() {
             write!(self.writer, "Details")?;
         } else {
-            self.visit_inline_nodes(title.as_ref())?;
+            self.visit_inline_nodes(traversal, title.as_ref())?;
         }
         writeln!(self.writer, "</summary>")?;
         // Blank line so inner content is rendered as Markdown inside <details>.
         writeln!(self.writer)?;
-        if write_body(self)? {
+        if write_body(self, traversal)? {
             writeln!(self.writer)?;
         }
         writeln!(self.writer, "</details>")?;
@@ -1059,7 +1072,10 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if self.processor.toc_entries.is_empty() {
             return false;
         }
-        let config = TocConfig::from_attributes(toc_macro, self.processor.document_attributes());
+        let config = TocConfig::from_attributes(
+            toc_macro,
+            &TraversalContext::new(self.processor.document_attributes()),
+        );
         match placement {
             "auto" => matches!(
                 config.placement(),
@@ -1071,6 +1087,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn render_toc_entries(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         entries: &[TocEntry<'_>],
         config: &TocRenderConfig<'_>,
         position: TocRenderPosition,
@@ -1109,7 +1126,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 {
                     write!(visitor.writer, "{number}")?;
                 }
-                visitor.visit_inline_nodes(&entry.title)
+                visitor.visit_inline_nodes(traversal, &entry.title)
             })?;
             writeln!(self.writer)?;
 
@@ -1127,6 +1144,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 && children.iter().any(|child| child.level == child_level)
             {
                 self.render_toc_entries(
+                    traversal,
                     children,
                     config,
                     TocRenderPosition {
@@ -1143,6 +1161,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn render_toc(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         toc_macro: Option<&TableOfContents<'_>>,
         placement: &str,
     ) -> Result<(), Error> {
@@ -1150,10 +1169,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             return Ok(());
         }
 
-        let processor = self.processor.clone();
-        let config = TocConfig::from_attributes(toc_macro, processor.document_attributes());
+        let processor = self.processor;
+        let config = TocConfig::from_attributes(
+            toc_macro,
+            &TraversalContext::new(processor.document_attributes()),
+        );
         let title = config.title().or_else(|| {
-            (!processor.document_attributes().contains_key("toc-title"))
+            (processor.document_attributes().get("toc-title").is_none())
                 .then_some("Table of Contents")
         });
         if let Some(title) = title.filter(|title| !title.is_empty()) {
@@ -1161,16 +1183,11 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             writeln!(self.writer)?;
         }
 
-        let part_signifier = match processor.document_attributes().get("part-signifier") {
-            Some(AttributeValue::String(signifier)) => Some(signifier.as_ref()),
-            Some(_) | None => None,
-        };
-        let chapter_signifier = book_chapter_signifier(processor.document_attributes(), None);
-        let numbering_config = NumberingConfig::new(
-            processor.document_attributes(),
-            part_signifier,
-            chapter_signifier,
-        );
+        let part_signifier = traversal
+            .get("part-signifier")
+            .and_then(|value| value.text());
+        let chapter_signifier = book_chapter_signifier(traversal, None);
+        let numbering_config = NumberingConfig::new(traversal, part_signifier, chapter_signifier);
         let numbers = section_numbers(&processor.toc_entries, &numbering_config);
         let real_parts = has_real_parts(&processor.toc_entries);
         let first_level = processor
@@ -1184,6 +1201,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             first_level
         };
         self.render_toc_entries(
+            traversal,
             &processor.toc_entries,
             &TocRenderConfig {
                 max_level: config.levels(),
@@ -1202,6 +1220,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn render_placed_toc(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         toc_macro: Option<&TableOfContents<'_>>,
         placement: &str,
         has_output: bool,
@@ -1212,11 +1231,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         if has_output {
             writeln!(self.writer)?;
         }
-        self.with_index_collection(false, |visitor| visitor.render_toc(toc_macro, placement))?;
+        self.with_index_collection(false, |visitor| {
+            visitor.render_toc(traversal, toc_macro, placement)
+        })?;
         Ok(true)
     }
 
-    fn block_has_output(&self, block: &Block) -> bool {
+    fn block_has_output(&self, block: &'a Block<'a>) -> bool {
         match block {
             Block::DelimitedBlock(block) => match &block.inner {
                 DelimitedBlockType::DelimitedOpen(blocks) => {
@@ -1266,25 +1287,38 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn visit_separated_blocks(
         &mut self,
-        blocks: &[Block],
+        traversal: &mut TraversalContext<'a>,
+        blocks: &'a [Block<'a>],
         mut has_output: bool,
     ) -> Result<bool, Error> {
         for block in blocks {
+            if matches!(block, Block::DocumentAttribute(_)) {
+                traversal.visit_block(self, block)?;
+                continue;
+            }
             if !self.block_has_output(block) {
                 continue;
             }
             if has_output {
                 writeln!(self.writer)?;
             }
-            self.visit_block(block)?;
+            traversal.visit_block(self, block)?;
             has_output = true;
         }
         Ok(has_output)
     }
 
-    fn visit_blockquote_blocks(&mut self, blocks: &[Block]) -> Result<(), Error> {
+    fn visit_blockquote_blocks(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        blocks: &'a [Block<'a>],
+    ) -> Result<(), Error> {
         let mut has_output = false;
         for block in blocks {
+            if matches!(block, Block::DocumentAttribute(_)) {
+                traversal.visit_block(self, block)?;
+                continue;
+            }
             if !self.block_has_output(block) {
                 continue;
             }
@@ -1292,23 +1326,27 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
                 writeln!(self.writer, ">")?;
             }
             write!(self.writer, "> ")?;
-            self.visit_block(block)?;
+            traversal.visit_block(self, block)?;
             has_output = true;
         }
         Ok(())
     }
 }
 
-impl<W: Write> WritableVisitor for MarkdownVisitor<'_, '_, W> {
+impl<'a, W: Write> WritableVisitor<'a> for MarkdownVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }
 }
 
-impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
+impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
     type Error = Error;
 
-    fn visit_unhandled_block(&mut self, block: &Block<'_>) -> Result<(), Self::Error> {
+    fn visit_unhandled_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        block: &'a Block<'a>,
+    ) -> Result<(), Self::Error> {
         self.warn_once_at(
             "unknown-parser-block",
             format!(
@@ -1320,19 +1358,23 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_document(&mut self, doc: &Document) -> Result<(), Self::Error> {
-        self.visit_document_start(doc)?;
+    fn visit_document(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
+        self.visit_document_start(traversal, doc)?;
 
         let mut has_output = false;
         if let Some(header) = &doc.header
             && !header.title.is_empty()
         {
-            self.visit_header(header)?;
+            self.visit_header(traversal, header)?;
             has_output = true;
         }
 
-        self.visit_body_content_start(doc)?;
-        has_output = self.render_placed_toc(None, "auto", has_output)?;
+        self.visit_body_content_start(traversal, doc)?;
+        has_output = self.render_placed_toc(traversal, None, "auto", has_output)?;
 
         let first_section = doc
             .blocks
@@ -1349,21 +1391,21 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 .any(|block| !matches!(block, Block::Comment(_) | Block::DocumentAttribute(_)));
 
         if emit_preamble {
-            self.visit_preamble_start(doc)?;
+            self.visit_preamble_start(traversal, doc)?;
         }
-        has_output = self.visit_separated_blocks(preamble, has_output)?;
+        has_output = self.visit_separated_blocks(traversal, preamble, has_output)?;
         if emit_preamble {
-            self.visit_preamble_end(doc)?;
-            has_output = self.render_placed_toc(None, "preamble", has_output)?;
+            self.visit_preamble_end(traversal, doc)?;
+            has_output = self.render_placed_toc(traversal, None, "preamble", has_output)?;
         }
-        has_output = self.visit_separated_blocks(remaining, has_output)?;
+        has_output = self.visit_separated_blocks(traversal, remaining, has_output)?;
 
-        self.visit_document_supplements(doc)?;
+        self.visit_document_supplements(traversal, doc)?;
         if !self.footnotes.is_empty() {
             if has_output {
                 writeln!(self.writer)?;
             }
-            let footnotes = std::mem::take(&mut self.footnotes);
+            let footnotes = take(&mut self.footnotes);
             if self.variant() == MarkdownVariant::GitHubFlavored {
                 for (id, _, content) in footnotes {
                     writeln!(self.writer, "[^{id}]: {content}")?;
@@ -1383,16 +1425,24 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         if !has_output {
             writeln!(self.writer)?;
         }
-        self.visit_document_end(doc)
+        self.visit_document_end(traversal, doc)
     }
 
-    fn visit_document_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_start(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // No document-level preamble needed for Markdown
         // Title will be rendered as level-1 heading if present
         Ok(())
     }
 
-    fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
+    fn visit_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &Header,
+    ) -> Result<(), Self::Error> {
         if let Some(anchor) = header
             .metadata
             .id
@@ -1403,20 +1453,17 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         }
         if !header.title.is_empty() {
             write!(self.writer, "# ")?;
-            self.visit_inline_nodes(header.title.as_ref())?;
+            self.visit_inline_nodes(traversal, header.title.as_ref())?;
             if let Some(subtitle) = &header.subtitle {
                 write!(self.writer, ": ")?;
-                self.visit_inline_nodes(subtitle)?;
+                self.visit_inline_nodes(traversal, subtitle)?;
             }
             writeln!(self.writer)?;
         }
 
-        let has_revision = ["revnumber", "revdate", "revremark"].iter().any(|name| {
-            self.processor
-                .document_attributes()
-                .get_string(name)
-                .is_some()
-        });
+        let has_revision = ["revnumber", "revdate", "revremark"]
+            .iter()
+            .any(|name| document_attribute_text((traversal).get(name)).is_some());
         if !header.authors.is_empty() || has_revision {
             writeln!(self.writer)?;
         }
@@ -1434,7 +1481,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Self::Error> {
         let section_title = InlineTextTransform::default()
             .references(&self.processor.references)
             .to_string(section.title.as_ref());
@@ -1460,8 +1511,12 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
 
             if !section.metadata.options.contains(&"notitle") {
                 let hashes = "#".repeat(level as usize);
-                write!(self.writer, "{hashes} {}", self.section_prefix(section))?;
-                self.visit_inline_nodes(section.title.as_ref())?;
+                write!(
+                    self.writer,
+                    "{hashes} {}",
+                    Self::section_prefix(traversal, section)
+                )?;
+                self.visit_inline_nodes(traversal, section.title.as_ref())?;
                 writeln!(self.writer)?;
             }
 
@@ -1472,10 +1527,10 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             // The section's own blocks are the author's; the generated listing
             // is appended after them, so an `[index]` section can carry a note
             // of its own without it being swallowed by the index.
-            self.visit_separated_blocks(&section.content, true)?;
+            self.visit_separated_blocks(traversal, &section.content, true)?;
             if section.kind == SectionKind::Index && self.processor.generate_index() {
-                let processor = self.processor.clone();
-                crate::index::render(self, &processor, self.heading_level + 1)?;
+                let processor = self.processor;
+                crate::index::render(self, processor, self.heading_level + 1)?;
             }
 
             self.heading_level = prev_level;
@@ -1485,31 +1540,36 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         result
     }
 
-    fn visit_paragraph(&mut self, paragraph: &Paragraph) -> Result<(), Self::Error> {
+    fn visit_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        paragraph: &Paragraph,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&paragraph.metadata)?;
 
         if paragraph.metadata.style == Some("example")
             && paragraph.metadata.options.contains(&"collapsible")
         {
             let is_open = paragraph.metadata.options.contains(&"open");
-            return self.write_collapsible(&paragraph.title, is_open, |v| {
-                v.visit_inline_nodes(&paragraph.content)?;
+            return self.write_collapsible(traversal, &paragraph.title, is_open, |v, traversal| {
+                v.visit_inline_nodes(traversal, &paragraph.content)?;
                 writeln!(v.writer)?;
                 Ok(true)
             });
         }
 
         self.write_block_title(
+            traversal,
             &paragraph.title,
             &paragraph.metadata,
             CaptionKind::for_style(paragraph.metadata.style),
         )?;
         match paragraph.metadata.style {
             Some("quote" | "verse") => {
-                self.write_blockquote_inlines(&paragraph.content)?;
-                self.write_attribution(&paragraph.metadata, "> ")?;
+                self.write_blockquote_inlines(traversal, &paragraph.content)?;
+                self.write_attribution(traversal, &paragraph.metadata, "> ")?;
             }
-            Some("abstract") => self.write_blockquote_inlines(&paragraph.content)?,
+            Some("abstract") => self.write_blockquote_inlines(traversal, &paragraph.content)?,
             Some("literal" | "listing" | "source") => {
                 self.write_fenced_code_block(&paragraph.metadata, &paragraph.content)?;
             }
@@ -1519,20 +1579,25 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                     "example paragraphs",
                     "using blockquote",
                 )?;
-                self.write_blockquote_inlines(&paragraph.content)?;
+                self.write_blockquote_inlines(traversal, &paragraph.content)?;
             }
             _ => {
-                self.visit_inline_nodes(&paragraph.content)?;
+                self.visit_inline_nodes(traversal, &paragraph.content)?;
                 writeln!(self.writer)?;
             }
         }
         Ok(())
     }
 
-    fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
+    fn visit_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(&list.title, &list.metadata, None)?;
+        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
         self.visit_list_items(
+            traversal,
             &list.items,
             "-",
             1,
@@ -1541,9 +1606,13 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         )
     }
 
-    fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
+    fn visit_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(&list.title, &list.metadata, None)?;
+        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
 
         // Markdown (CommonMark/GFM) can only express numeric ordered markers.
         // An explicit numbering style that isn't already numeric (arabic/decimal)
@@ -1566,6 +1635,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         }
         let (start, reversed) = list_sequence(&list.metadata, list.items.len());
         self.visit_list_items(
+            traversal,
             &list.items,
             "1.",
             start,
@@ -1574,12 +1644,20 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         )
     }
 
-    fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
+    fn visit_list_item(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _item: &'a ListItem<'a>,
+    ) -> Result<(), Self::Error> {
         // This is handled by visit_list_items
         Ok(())
     }
 
-    fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {
+    fn visit_thematic_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        br: &ThematicBreak,
+    ) -> Result<(), Self::Error> {
         if let Some(anchor) = br.anchors.first() {
             self.write_block_anchor(anchor.id)?;
         }
@@ -1587,7 +1665,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_page_break(&mut self, page_break: &PageBreak) -> Result<(), Self::Error> {
+    fn visit_page_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        page_break: &PageBreak,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&page_break.metadata)?;
         // Page breaks don't exist in Markdown; use thematic break as fallback
         self.write_warning("page-breaks", "page breaks", "using horizontal rule")?;
@@ -1595,13 +1677,23 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
+    fn visit_table_of_contents(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        toc: &TableOfContents,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&toc.metadata)?;
-        self.with_index_collection(false, |visitor| visitor.render_toc(Some(toc), "macro"))?;
+        self.with_index_collection(false, |visitor| {
+            visitor.render_toc(traversal, Some(toc), "macro")
+        })?;
         Ok(())
     }
 
-    fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
+    fn visit_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&block.metadata)?;
 
         let collapsible = matches!(block.inner, DelimitedBlockType::DelimitedExample(_))
@@ -1611,6 +1703,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             && shows_block_title(&block.inner)
         {
             self.write_block_title(
+                traversal,
                 &block.title,
                 &block.metadata,
                 CaptionKind::for_delimited(&block.inner, block.metadata.style),
@@ -1623,14 +1716,14 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_fenced_code_block(&block.metadata, content)?;
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.visit_blockquote_blocks(blocks)?;
-                self.write_attribution(&block.metadata, "> ")?;
+                self.visit_blockquote_blocks(traversal, blocks)?;
+                self.write_attribution(traversal, &block.metadata, "> ")?;
             }
             DelimitedBlockType::DelimitedExample(blocks) => {
                 if block.metadata.options.contains(&"collapsible") {
                     let is_open = block.metadata.options.contains(&"open");
-                    self.write_collapsible(&block.title, is_open, |v| {
-                        v.visit_separated_blocks(blocks, false)
+                    self.write_collapsible(traversal, &block.title, is_open, |v, traversal| {
+                        v.visit_separated_blocks(traversal, blocks, false)
                     })?;
                 } else {
                     // Examples don't have a direct Markdown equivalent
@@ -1640,27 +1733,27 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                         "example blocks",
                         "using blockquote",
                     )?;
-                    self.visit_blockquote_blocks(blocks)?;
+                    self.visit_blockquote_blocks(traversal, blocks)?;
                 }
             }
             DelimitedBlockType::DelimitedSidebar(blocks) => {
                 // Sidebars don't have a direct Markdown equivalent
                 self.write_warning("sidebar-blocks", "sidebar blocks", "using blockquote")?;
-                self.visit_blockquote_blocks(blocks)?;
+                self.visit_blockquote_blocks(traversal, blocks)?;
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
                 // Open blocks are just containers, render contents normally
-                self.visit_separated_blocks(blocks, false)?;
+                self.visit_separated_blocks(traversal, blocks, false)?;
             }
             DelimitedBlockType::DelimitedPass(content) => {
                 self.write_raw_block_content(content)?;
             }
             DelimitedBlockType::DelimitedTable(table) => {
-                self.visit_table_inner(table, &block.metadata)?;
+                self.visit_table_inner(traversal, table, &block.metadata)?;
             }
             DelimitedBlockType::DelimitedVerse(content) => {
-                self.write_blockquote_inlines(content)?;
-                self.write_attribution(&block.metadata, "> ")?;
+                self.write_blockquote_inlines(traversal, content)?;
+                self.write_attribution(traversal, &block.metadata, "> ")?;
             }
             DelimitedBlockType::DelimitedComment(_) => {
                 // Comments don't get rendered
@@ -1689,18 +1782,22 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_admonition(&mut self, admonition: &Admonition) -> Result<(), Self::Error> {
+    fn visit_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admonition: &'a Admonition<'a>,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&admonition.metadata)?;
-        self.write_block_title(&admonition.title, &admonition.metadata, None)?;
+        self.write_block_title(traversal, &admonition.title, &admonition.metadata, None)?;
 
         // GitHub Flavored Markdown supports Alerts syntax (> [!TYPE])
         // CommonMark falls back to blockquote with bold label
         let alert_type = match admonition.variant {
-            acdc_parser::AdmonitionVariant::Note => "NOTE",
-            acdc_parser::AdmonitionVariant::Tip => "TIP",
-            acdc_parser::AdmonitionVariant::Important => "IMPORTANT",
-            acdc_parser::AdmonitionVariant::Warning => "WARNING",
-            acdc_parser::AdmonitionVariant::Caution => "CAUTION",
+            AdmonitionVariant::Note => "NOTE",
+            AdmonitionVariant::Tip => "TIP",
+            AdmonitionVariant::Important => "IMPORTANT",
+            AdmonitionVariant::Warning => "WARNING",
+            AdmonitionVariant::Caution => "CAUTION",
         };
 
         if self.variant() == MarkdownVariant::GitHubFlavored {
@@ -1709,11 +1806,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         } else {
             // CommonMark: use blockquote with bold label
             let label = match admonition.variant {
-                acdc_parser::AdmonitionVariant::Note => "Note",
-                acdc_parser::AdmonitionVariant::Tip => "Tip",
-                acdc_parser::AdmonitionVariant::Important => "Important",
-                acdc_parser::AdmonitionVariant::Warning => "Warning",
-                acdc_parser::AdmonitionVariant::Caution => "Caution",
+                AdmonitionVariant::Note => "Note",
+                AdmonitionVariant::Tip => "Tip",
+                AdmonitionVariant::Important => "Important",
+                AdmonitionVariant::Warning => "Warning",
+                AdmonitionVariant::Caution => "Caution",
             };
             self.write_warning(
                 "commonmark-admonitions",
@@ -1732,13 +1829,17 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 writeln!(self.writer, ">")?;
             }
             write!(self.writer, "> ")?;
-            self.visit_block(block)?;
+            traversal.visit_block(self, block)?;
             has_body = true;
         }
         Ok(())
     }
 
-    fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
+    fn visit_discrete_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &DiscreteHeader,
+    ) -> Result<(), Self::Error> {
         self.write_block_anchor(&Section::generate_id_string(
             &header.metadata,
             &header.title,
@@ -1748,26 +1849,39 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         let level = (header.level + 1).min(6);
         let hashes = "#".repeat(level as usize);
         write!(self.writer, "{hashes} ")?;
-        self.visit_inline_nodes(header.title.as_ref())?;
+        self.visit_inline_nodes(traversal, header.title.as_ref())?;
         writeln!(self.writer)?;
         Ok(())
     }
 
-    fn visit_image(&mut self, image: &Image) -> Result<(), Self::Error> {
+    fn visit_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &Image,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&image.metadata)?;
         let alt = block_image_alt(image);
-        self.write_image(image, &alt)?;
+        self.write_image(traversal, image, &alt)?;
         writeln!(self.writer)?;
         if !image.title.is_empty() {
             writeln!(self.writer)?;
-            self.write_block_title_line(&image.title, &image.metadata, Some(CaptionKind::Figure))?;
+            self.write_block_title_line(
+                traversal,
+                &image.title,
+                &image.metadata,
+                Some(CaptionKind::Figure),
+            )?;
         }
         Ok(())
     }
 
-    fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
+    fn visit_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&video.metadata)?;
-        self.write_block_title(&video.title, &video.metadata, None)?;
+        self.write_block_title(traversal, &video.title, &video.metadata, None)?;
         self.warn_static_media_fallback();
 
         let title = if video.title.is_empty() {
@@ -1780,7 +1894,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             InlineTextTransform::default().to_string(video.title.as_ref())
         };
         if let Some(poster) = video.metadata.attributes.get_string("poster") {
-            let poster = resolve_target(&poster, self.processor.document_attributes());
+            let poster = resolve_target(&poster, traversal);
             write!(
                 self.writer,
                 "![{}]({})",
@@ -1793,7 +1907,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
             }
         }
         for (index, source) in video.sources.iter().enumerate() {
-            let target = self.media_target(source);
+            let target = Self::media_target(traversal, source);
             let source_count = video.sources.len();
             self.write_link(&target, |visitor| {
                 if source_count == 1 {
@@ -1814,11 +1928,15 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
+    fn visit_audio(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        audio: &Audio,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&audio.metadata)?;
-        self.write_block_title(&audio.title, &audio.metadata, None)?;
+        self.write_block_title(traversal, &audio.title, &audio.metadata, None)?;
         self.warn_static_media_fallback();
-        let target = self.media_target(&audio.source);
+        let target = Self::media_target(traversal, &audio.source);
         let title = if audio.title.is_empty() {
             audio
                 .source
@@ -1835,23 +1953,31 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
+    fn visit_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(&list.title, &list.metadata, None)?;
+        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
         match list.metadata.style {
-            Some("horizontal") => self.visit_horizontal_description_list(list),
-            Some("qanda") => self.visit_qanda_description_list(list),
-            _ => self.visit_regular_description_list(list),
+            Some("horizontal") => self.visit_horizontal_description_list(traversal, list),
+            Some("qanda") => self.visit_qanda_description_list(traversal, list),
+            _ => self.visit_regular_description_list(traversal, list),
         }
     }
 
-    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
+    fn visit_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Self::Error> {
         self.write_metadata_anchor(&list.metadata)?;
-        self.write_block_title(&list.title, &list.metadata, None)?;
+        self.write_block_title(traversal, &list.title, &list.metadata, None)?;
         for item in &list.items {
             self.write_list_indent()?;
             write!(self.writer, "- **({})** ", item.callout.number)?;
-            self.visit_inline_nodes(&item.principal)?;
+            self.visit_inline_nodes(traversal, &item.principal)?;
             writeln!(self.writer)?;
 
             if !item.blocks.is_empty() {
@@ -1863,7 +1989,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                             writeln!(self.writer)?;
                         }
                         self.write_list_indent()?;
-                        self.visit_block(block)?;
+                        traversal.visit_block(self, block)?;
                     }
                     Ok(())
                 })();
@@ -1874,7 +2000,11 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+    ) -> Result<(), Self::Error> {
         match node {
             InlineNode::PlainText(text) => {
                 self.write_escaped_text(text.content)?;
@@ -1883,7 +2013,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "**")?;
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 write!(self.writer, "**")?;
                 self.write_role_end(role)?;
             }
@@ -1891,7 +2021,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "*")?;
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 write!(self.writer, "*")?;
                 self.write_role_end(role)?;
             }
@@ -1910,7 +2040,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 if role.is_none() {
                     write!(self.writer, "<mark>")?;
                 }
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 if role.is_none() {
                     write!(self.writer, "</mark>")?;
                 }
@@ -1920,7 +2050,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "<sub>")?;
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 write!(self.writer, "</sub>")?;
                 self.write_role_end(role)?;
             }
@@ -1928,7 +2058,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "<sup>")?;
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 write!(self.writer, "</sup>")?;
                 self.write_role_end(role)?;
             }
@@ -1944,7 +2074,7 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "\"")?;
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 write!(self.writer, "\"")?;
                 self.write_role_end(role)?;
             }
@@ -1952,15 +2082,15 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
                 self.write_inline_anchor(text.id)?;
                 let role = self.write_role_start(text.role)?;
                 write!(self.writer, "'")?;
-                self.visit_inline_nodes(&text.content)?;
+                self.visit_inline_nodes(traversal, &text.content)?;
                 write!(self.writer, "'")?;
                 self.write_role_end(role)?;
             }
             InlineNode::InlineAnchor(anchor) => {
-                self.write_inline_anchor_node(anchor)?;
+                self.write_inline_anchor_node(traversal, anchor)?;
             }
             InlineNode::Macro(mac) => {
-                self.visit_inline_macro_inner(mac)?;
+                self.visit_inline_macro_inner(traversal, mac)?;
             }
             InlineNode::CalloutRef(callout) => {
                 write!(self.writer, "({})", callout.number)?;
@@ -1970,13 +2100,21 @@ impl<W: Write> Visitor for MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
+    fn visit_text(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        text: &str,
+    ) -> Result<(), Self::Error> {
         self.write_escaped_text(text)
     }
 }
 
-impl<W: Write> MarkdownVisitor<'_, '_, W> {
-    fn visit_regular_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Error> {
+impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
+    fn visit_regular_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Error> {
         self.write_list_indent()?;
         self.write_warning(
             "description-list-fallback",
@@ -1986,32 +2124,33 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         for item in &list.items {
             self.write_list_indent()?;
             write!(self.writer, "- **")?;
-            self.visit_inline_nodes(&item.term)?;
+            self.visit_inline_nodes(traversal, &item.term)?;
             writeln!(self.writer, "**")?;
 
             if !item.principal_text.is_empty() {
                 self.write_list_indent()?;
                 write!(self.writer, "  ")?;
-                self.visit_inline_nodes(&item.principal_text)?;
+                self.visit_inline_nodes(traversal, &item.principal_text)?;
                 writeln!(self.writer)?;
             }
-            self.visit_description_blocks(&item.description)?;
+            self.visit_description_blocks(traversal, &item.description)?;
         }
         Ok(())
     }
 
     fn visit_horizontal_description_list(
         &mut self,
-        list: &DescriptionList<'_>,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
     ) -> Result<(), Error> {
         for item in &list.items {
             self.write_list_indent()?;
             write!(self.writer, "**")?;
-            self.visit_inline_nodes(&item.term)?;
+            self.visit_inline_nodes(traversal, &item.term)?;
             write!(self.writer, "**")?;
             if !item.principal_text.is_empty() {
                 write!(self.writer, " — ")?;
-                self.visit_inline_nodes(&item.principal_text)?;
+                self.visit_inline_nodes(traversal, &item.principal_text)?;
             }
             writeln!(self.writer, "  ")?;
 
@@ -2022,13 +2161,17 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 ) {
                     self.write_list_indent()?;
                 }
-                self.visit_block(block)?;
+                traversal.visit_block(self, block)?;
             }
         }
         Ok(())
     }
 
-    fn visit_qanda_description_list(&mut self, list: &DescriptionList<'_>) -> Result<(), Error> {
+    fn visit_qanda_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Error> {
         let (start, reversed) = list_sequence(&list.metadata, list.items.len());
         for (index, item) in list.items.iter().enumerate() {
             let number = if reversed {
@@ -2038,21 +2181,21 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
             };
             self.write_list_indent()?;
             write!(self.writer, "{number}. <em>")?;
-            self.visit_inline_nodes(&item.term)?;
+            self.visit_inline_nodes(traversal, &item.term)?;
             writeln!(self.writer, "</em>")?;
 
             if !item.principal_text.is_empty() {
                 writeln!(self.writer)?;
                 self.write_list_indent()?;
                 write!(self.writer, "    ")?;
-                self.visit_inline_nodes(&item.principal_text)?;
+                self.visit_inline_nodes(traversal, &item.principal_text)?;
                 writeln!(self.writer)?;
             }
             if !item.description.is_empty() {
                 if item.principal_text.is_empty() {
                     writeln!(self.writer)?;
                 }
-                self.visit_description_blocks(&item.description)?;
+                self.visit_description_blocks(traversal, &item.description)?;
             }
             if index + 1 < list.items.len() {
                 writeln!(self.writer)?;
@@ -2061,7 +2204,11 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_description_blocks(&mut self, blocks: &[Block<'_>]) -> Result<(), Error> {
+    fn visit_description_blocks(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        blocks: &'a [Block<'a>],
+    ) -> Result<(), Error> {
         for block in blocks {
             self.list_depth += 1;
             let result = (|| {
@@ -2071,7 +2218,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 ) {
                     self.write_list_indent()?;
                 }
-                self.visit_block(block)
+                traversal.visit_block(self, block)
             })();
             self.list_depth -= 1;
             result?;
@@ -2081,6 +2228,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
 
     fn write_macro_link(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         destination: &str,
         default_label: &str,
         label: &[InlineNode<'_>],
@@ -2090,28 +2238,34 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 write!(visitor.writer, "{}", Self::escape_markdown(default_label))?;
             } else {
                 for node in label {
-                    visitor.visit_inline_node(node)?;
+                    visitor.visit_inline_node(traversal, node)?;
                 }
             }
             Ok(())
         })
     }
 
-    fn write_link_macro_node(&mut self, link: &Link<'_>) -> Result<(), Error> {
+    fn write_link_macro_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        link: &Link<'_>,
+    ) -> Result<(), Error> {
         let target = link.target.to_string();
         if link.text.iter().any(is_linked_image) {
             for node in &link.text {
                 if is_linked_image(node) {
-                    self.visit_inline_node(node)?;
+                    self.visit_inline_node(traversal, node)?;
                 } else {
-                    self.write_link(&target, |visitor| visitor.visit_inline_node(node))?;
+                    self.write_link(&target, |visitor| {
+                        visitor.visit_inline_node(traversal, node)
+                    })?;
                 }
             }
             return Ok(());
         }
 
         let fallback = link_fallback(&target, link.hides_uri_scheme());
-        self.write_macro_link(&target, fallback, &link.text)
+        self.write_macro_link(traversal, &target, fallback, &link.text)
     }
 
     fn write_keyboard(&mut self, keys: &[&str]) -> Result<(), Error> {
@@ -2132,12 +2286,16 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_inline_macro_inner(&mut self, mac: &InlineMacro) -> Result<(), Error> {
+    fn visit_inline_macro_inner(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        mac: &InlineMacro,
+    ) -> Result<(), Error> {
         match mac {
-            InlineMacro::Link(link) => self.write_link_macro_node(link)?,
+            InlineMacro::Link(link) => self.write_link_macro_node(traversal, link)?,
             InlineMacro::Image(image) => {
                 let alt = inline_image_alt(image);
-                self.write_image(image, &alt)?;
+                self.write_image(traversal, image, &alt)?;
             }
             InlineMacro::Icon(icon_macro) => {
                 let alt = icon::alt(&icon_macro.target, &icon_macro.attributes);
@@ -2153,7 +2311,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 self.write_menu(menu.target, &menu.items)?;
             }
             InlineMacro::Footnote(footnote) => {
-                let id = self.record_footnote(footnote)?;
+                let id = self.record_footnote(traversal, footnote)?;
                 if self.in_link_text {
                     write!(self.writer, "[{}]", footnote.number)?;
                 } else if self.variant() == MarkdownVariant::GitHubFlavored {
@@ -2170,7 +2328,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
             InlineMacro::Url(url) => {
                 let target = url.target.to_string();
                 let fallback = link_fallback(&target, url.hides_uri_scheme());
-                self.write_macro_link(&target, fallback, &url.text)?;
+                self.write_macro_link(traversal, &target, fallback, &url.text)?;
             }
             InlineMacro::Mailto(mailto) => {
                 let target = mailto.target.to_string();
@@ -2179,7 +2337,12 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 } else {
                     format!("mailto:{target}")
                 };
-                self.write_macro_link(&destination, mailto_fallback(&target), &mailto.text)?;
+                self.write_macro_link(
+                    traversal,
+                    &destination,
+                    mailto_fallback(&target),
+                    &mailto.text,
+                )?;
             }
             InlineMacro::Autolink(autolink) => {
                 let target = autolink.url.to_string();
@@ -2198,8 +2361,8 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                     Ok(())
                 })?;
             }
-            InlineMacro::CrossReference(xref) => self.visit_cross_reference(xref)?,
-            InlineMacro::IndexTerm(term) => self.visit_index_term(term)?,
+            InlineMacro::CrossReference(xref) => self.visit_cross_reference(traversal, xref)?,
+            InlineMacro::IndexTerm(term) => self.visit_index_term(traversal, term)?,
             InlineMacro::Pass(pass) => {
                 if let Some(text) = pass.text {
                     self.write_passthrough(text, &pass.substitutions)?;
@@ -2232,20 +2395,24 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
     /// Local references link to the `#id` fragment. Interdocument references
     /// link to the corresponding Markdown output. The text is the reference's
     /// own text when it has one, otherwise the target's reference text.
-    fn visit_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
+    fn visit_cross_reference(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        xref: &CrossReference<'_>,
+    ) -> Result<(), Error> {
         let target = xref.target;
         if !xref.text.is_empty() {
-            if let Some((destination, _)) = self.interdocument_xref(target) {
+            if let Some((destination, _)) = Self::interdocument_xref(traversal, target) {
                 return self.write_link(&destination, |visitor| {
                     for node in &xref.text {
-                        visitor.visit_inline_node(node)?;
+                        visitor.visit_inline_node(traversal, node)?;
                     }
                     Ok(())
                 });
             }
             return self.write_anchor_link(target, |visitor| {
                 for node in &xref.text {
-                    visitor.visit_inline_node(node)?;
+                    visitor.visit_inline_node(traversal, node)?;
                 }
                 Ok(())
             });
@@ -2260,7 +2427,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
                     visitor.write_anchor_link(target, |visitor| {
                         for node in inlines {
-                            visitor.visit_inline_node(node)?;
+                            visitor.visit_inline_node(traversal, node)?;
                         }
                         Ok(())
                     })
@@ -2273,7 +2440,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                     visitor.write_anchor_link(target, |visitor| {
                         write!(visitor.writer, "{prefix}, “")?;
                         for node in inlines {
-                            visitor.visit_inline_node(node)?;
+                            visitor.visit_inline_node(traversal, node)?;
                         }
                         write!(visitor.writer, "”")?;
                         Ok(())
@@ -2285,7 +2452,8 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                         Ok(())
                     }),
                 XrefDisplay::External(target) => {
-                    if let Some((destination, text)) = visitor.interdocument_xref(&target) {
+                    if let Some((destination, text)) = Self::interdocument_xref(traversal, &target)
+                    {
                         visitor.write_link(&destination, |visitor| {
                             write!(visitor.writer, "{text}")?;
                             Ok(())
@@ -2331,16 +2499,28 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn write_image(&mut self, image: &Image<'_>, alt: &str) -> Result<(), Error> {
+    fn write_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &Image<'_>,
+        alt: &str,
+    ) -> Result<(), Error> {
         if let Some(link) = image.metadata.attributes.get_string("link") {
-            self.write_link(&link, |visitor| visitor.write_image_markup(image, alt))
+            self.write_link(&link, |visitor| {
+                visitor.write_image_markup(traversal, image, alt)
+            })
         } else {
-            self.write_image_markup(image, alt)
+            self.write_image_markup(traversal, image, alt)
         }
     }
 
-    fn write_image_markup(&mut self, image: &Image<'_>, alt: &str) -> Result<(), Error> {
-        let target = self.media_target(&image.source);
+    fn write_image_markup(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        image: &Image<'_>,
+        alt: &str,
+    ) -> Result<(), Error> {
+        let target = Self::media_target(traversal, &image.source);
         let title = image.metadata.attributes.get_string("title");
         let width = image.metadata.attributes.get_string("width");
         let height = image.metadata.attributes.get_string("height");
@@ -2389,13 +2569,21 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         );
     }
 
-    fn interdocument_xref(&self, target: &str) -> Option<(String, String)> {
-        let attributes = self.processor.document_attributes();
+    fn interdocument_xref(
+        traversal: &TraversalContext<'a>,
+        target: &str,
+    ) -> Option<(String, String)> {
+        let attributes = &traversal;
         let extension = attributes
-            .get_string("relfilesuffix")
-            .or_else(|| attributes.get_string("outfilesuffix"))
-            .unwrap_or_else(|| Cow::Borrowed(MARKDOWN_BACKEND.outfilesuffix()));
-        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(&extension))
+            .get("relfilesuffix")
+            .and_then(|value| value.text())
+            .or_else(|| {
+                attributes
+                    .get("outfilesuffix")
+                    .and_then(|value| value.text())
+            })
+            .unwrap_or_else(|| MARKDOWN_BACKEND.outfilesuffix());
+        interdocument_xref(target, extension.strip_prefix('.').unwrap_or(extension))
     }
 
     fn write_list_indent(&mut self) -> Result<(), Error> {
@@ -2407,7 +2595,8 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
 
     fn visit_list_items(
         &mut self,
-        items: &[ListItem],
+        traversal: &mut TraversalContext<'a>,
+        items: &'a [ListItem<'a>],
         marker: &str,
         start: usize,
         reversed: bool,
@@ -2442,7 +2631,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                 write!(self.writer, "\\[{checkbox}\\] ")?;
             }
 
-            self.visit_inline_nodes(&item.principal)?;
+            self.visit_inline_nodes(traversal, &item.principal)?;
             if markerless {
                 writeln!(self.writer, "  ")?;
             } else {
@@ -2456,7 +2645,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                     } else {
                         self.list_depth += 1;
                     }
-                    let result = self.visit_block(block);
+                    let result = traversal.visit_block(self, block);
                     if markerless {
                         writeln!(self.writer)?;
                     } else {
@@ -2469,7 +2658,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                     } else {
                         write!(self.writer, "    ")?;
                     }
-                    self.visit_block(block)?;
+                    traversal.visit_block(self, block)?;
                 }
             }
         }
@@ -2478,7 +2667,8 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
 
     fn visit_table_inner(
         &mut self,
-        table: &Table,
+        traversal: &mut TraversalContext<'a>,
+        table: &'a Table<'a>,
         metadata: &BlockMetadata<'_>,
     ) -> Result<(), Error> {
         if self.variant() == MarkdownVariant::CommonMark {
@@ -2491,10 +2681,10 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         }
 
         self.warn_gfm_table_fallbacks(table, metadata);
-        self.render_gfm_table(table)
+        self.render_gfm_table(traversal, table)
     }
 
-    fn warn_gfm_table_fallbacks(&mut self, table: &Table<'_>, metadata: &BlockMetadata<'_>) {
+    fn warn_gfm_table_fallbacks(&mut self, table: &'a Table<'a>, metadata: &BlockMetadata<'_>) {
         if table.header.is_none() && (!table.rows.is_empty() || table.footer.is_some()) {
             self.warn_once(
                 "gfm-headerless-tables",
@@ -2573,7 +2763,11 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         }
     }
 
-    fn render_gfm_table(&mut self, table: &Table) -> Result<(), Error> {
+    fn render_gfm_table(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        table: &'a Table<'a>,
+    ) -> Result<(), Error> {
         if table.header.is_none() && table.rows.is_empty() && table.footer.is_none() {
             return Ok(());
         }
@@ -2581,7 +2775,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         let column_count = determine_column_count(table);
         let grid = build_grid(table, column_count);
         if let Some(header) = grid.iter().find(|row| row.is_header) {
-            self.write_gfm_table_row(header, table)?;
+            self.write_gfm_table_row(traversal, header, table)?;
         } else {
             write!(self.writer, "|")?;
             for _ in 0..column_count {
@@ -2606,12 +2800,17 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
         writeln!(self.writer)?;
 
         for row in grid.iter().filter(|row| !row.is_header) {
-            self.write_gfm_table_row(row, table)?;
+            self.write_gfm_table_row(traversal, row, table)?;
         }
         Ok(())
     }
 
-    fn write_gfm_table_row(&mut self, row: &GridRow<'_>, table: &Table<'_>) -> Result<(), Error> {
+    fn write_gfm_table_row(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        row: &GridRow<'a>,
+        table: &'a Table<'a>,
+    ) -> Result<(), Error> {
         write!(self.writer, "|")?;
         for (column_index, cell_kind) in row.cells.iter().enumerate() {
             write!(self.writer, " ")?;
@@ -2623,7 +2822,7 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
                         (column.style != ColumnStyle::Default).then_some(column.style)
                     })
                 });
-                self.write_gfm_table_cell(cell, style)?;
+                self.write_gfm_table_cell(traversal, cell, style)?;
             }
             write!(self.writer, " |")?;
         }
@@ -2633,24 +2832,29 @@ impl<W: Write> MarkdownVisitor<'_, '_, W> {
 
     fn write_gfm_table_cell(
         &mut self,
-        cell: &TableColumn<'_>,
+        traversal: &mut TraversalContext<'a>,
+        cell: &'a TableColumn<'a>,
         style: Option<ColumnStyle>,
     ) -> Result<(), Error> {
         let mut buffer = Vec::new();
         let (result, emitted_anchors, footnotes) = {
-            let mut visitor = MarkdownVisitor::new(
-                &mut buffer,
-                self.processor.clone(),
-                self.diagnostics.reborrow(),
-            );
+            let mut visitor =
+                MarkdownVisitor::new(&mut buffer, self.processor, self.diagnostics.reborrow());
             visitor.heading_level = self.heading_level;
-            visitor.emitted_anchors = std::mem::take(&mut self.emitted_anchors);
+            visitor.emitted_anchors = take(&mut self.emitted_anchors);
             visitor.collect_index_terms = self.collect_index_terms;
             visitor
                 .current_section_title
                 .clone_from(&self.current_section_title);
-            visitor.footnotes = std::mem::take(&mut self.footnotes);
-            let result = visitor.visit_separated_blocks(&cell.content, false);
+            visitor.footnotes = take(&mut self.footnotes);
+            let scoped = style == Some(ColumnStyle::AsciiDoc);
+            let result = if scoped {
+                traversal.with_table_cell(cell, |traversal| {
+                    visitor.visit_separated_blocks(traversal, &cell.content, false)
+                })
+            } else {
+                visitor.visit_separated_blocks(traversal, &cell.content, false)
+            };
             (result, visitor.emitted_anchors, visitor.footnotes)
         };
         self.emitted_anchors = emitted_anchors;

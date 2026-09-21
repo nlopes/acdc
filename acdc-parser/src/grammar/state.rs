@@ -13,11 +13,12 @@ use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
-    AttributeName, AttributeValue, CalloutRef, CaptionKind, DocumentAttributes, Footnote, Location,
+    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote, Location,
     Options, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel,
+    document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
-        LeveloffsetRange, SourceRange, substitute,
+        DocumentAttributeStatus, LeveloffsetRange, SourceRange, substitute,
         substitution::{HEADER, SubstitutionPlan},
     },
 };
@@ -301,22 +302,27 @@ impl<'a> ParserState<'a> {
 
     pub(crate) fn capture_xref_caption_labels(&self) -> NonZeroUsize {
         let label = |name| match self.document_attributes.get(name) {
-            Some(AttributeValue::String(_)) => {
-                let value = self
-                    .document_attributes
-                    .get_string(name)
-                    .map(|value| self.intern_cow(value))
-                    .unwrap_or_default();
-                if value.is_empty() {
-                    XrefCaptionLabel::NumberOnly
-                } else {
-                    XrefCaptionLabel::AtReference(value)
+            Some(resolved) => match resolved.as_str() {
+                Some(value) => {
+                    let value = self.intern_str(crate::strip_quotes(value));
+                    if value.is_empty() {
+                        XrefCaptionLabel::NumberOnly
+                    } else {
+                        XrefCaptionLabel::AtReference(value)
+                    }
                 }
-            }
-            Some(AttributeValue::Bool(true)) => XrefCaptionLabel::NumberOnly,
-            Some(AttributeValue::Bool(false) | AttributeValue::None) | None => {
-                XrefCaptionLabel::AtTarget
-            }
+                None if resolved.is_presence() => XrefCaptionLabel::NumberOnly,
+                None => {
+                    let mut value = String::new();
+                    let _ = resolved.write_text(&mut value);
+                    if value.is_empty() {
+                        XrefCaptionLabel::NumberOnly
+                    } else {
+                        XrefCaptionLabel::AtReference(self.intern_str(&value))
+                    }
+                }
+            },
+            None => XrefCaptionLabel::AtTarget,
         };
         let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
         let snapshot = NonZeroUsize::MIN.saturating_add(snapshots.len());
@@ -347,61 +353,91 @@ impl<'a> ParserState<'a> {
     }
 
     /// Apply an attribute entry declared by document content: expand `{attr}`
-    /// references at definition time (matching `asciidoctor`), intern the result
+    /// references at definition time (matching `asciidoctor`), retain the result
     /// for the parse, and store it unless the built-in policy, parser options, or
     /// a nested parent lock the name against document changes.
     ///
-    /// Returns the substituted value so a caller that also builds an AST node for
-    /// the entry keeps the value the document wrote.
+    /// Returns an AST event when the assignment was accepted.
     pub(crate) fn apply_document_attribute(
         &mut self,
-        key: AttributeName<'a>,
-        value: AttributeValue<'a>,
-        set: bool,
+        declaration: &AttributeDeclaration<'a>,
         in_header: bool,
-    ) -> AttributeValue<'a> {
+        location: Location,
+    ) -> Option<DocumentAttribute<'a>> {
+        let AttributeDeclaration { name, value } = declaration;
+        let key = Cow::Borrowed(*name);
+        let set = !matches!(value, RawAttributeValue::Unset);
         let value = self.resolve_document_attribute_value(value, &self.document_attributes);
-        if self
-            .options
-            .is_document_attribute_locked(key.as_ref(), in_header)
-            || self
-                .nested_parent_attributes
-                .as_ref()
-                .is_some_and(|attributes| attributes.contains_explicit(key.as_ref()))
-        {
-            return value;
-        }
-        if matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option") {
+        let force_locked = self
+            .nested_parent_attributes
+            .as_ref()
+            .is_some_and(|attributes| attributes.locks_nested_attribute(key.as_ref()));
+        let updates_hardbreaks = matches!(key.as_ref(), "hardbreaks" | "hardbreaks-option");
+        let result = Rc::make_mut(&mut self.document_attributes).assign_document_value(
+            key.clone(),
+            value,
+            in_header,
+            force_locked,
+            None,
+        );
+        let applied = match result {
+            Ok(Some(applied)) => applied,
+            Ok(None) => return None,
+            Err(Error::InvalidDocumentAttribute {
+                name,
+                value: invalid_value,
+                expected,
+                location: _,
+            }) => {
+                let source_location = self.create_error_source_location(location.clone());
+                self.add_warning(Warning::new(
+                    WarningKind::InvalidDocumentAttribute {
+                        name,
+                        value: invalid_value,
+                        expected,
+                    },
+                    Some(source_location),
+                ));
+                return None;
+            }
+            Err(error) => {
+                self.add_generic_warning(error.to_string());
+                return None;
+            }
+        };
+        if updates_hardbreaks {
             self.hardbreaks = set;
         }
-        Rc::make_mut(&mut self.document_attributes).set(key, value.clone());
-        value
+        Some(DocumentAttribute::accepted(key, applied, location))
     }
 
     /// Expand an attribute value's references against the given attributes.
     pub(crate) fn resolve_document_attribute_value(
         &self,
-        value: AttributeValue<'a>,
+        value: &RawAttributeValue<'a>,
         attributes: &DocumentAttributes<'a>,
-    ) -> AttributeValue<'a> {
+    ) -> RawAttributeValue<'a> {
         match value {
-            AttributeValue::String(s) => {
-                let substituted = substitute(&s, HEADER, attributes);
-                AttributeValue::String(Cow::Borrowed(self.intern_str(&substituted)))
+            RawAttributeValue::Text(Cow::Borrowed(s)) => {
+                let substituted = substitute(s, HEADER, attributes);
+                RawAttributeValue::Text(Cow::Borrowed(self.intern_cow(substituted)))
             }
-            AttributeValue::Bool(_) | AttributeValue::None => value,
+            RawAttributeValue::Text(Cow::Owned(s)) => {
+                let substituted = substitute(s, HEADER, attributes);
+                RawAttributeValue::Text(Cow::Borrowed(self.intern_str(&substituted)))
+            }
+            RawAttributeValue::Set => RawAttributeValue::Set,
+            RawAttributeValue::Unset => RawAttributeValue::Unset,
         }
     }
 
     /// Initialize hard-break state from attributes supplied by the parser API.
     pub(crate) fn initialize_hardbreaks(&mut self) {
-        self.hardbreaks = self
-            .document_attributes
-            .get("hardbreaks-option")
-            .or_else(|| self.document_attributes.get("hardbreaks"))
-            .is_some_and(|value| {
-                !matches!(value, AttributeValue::Bool(false) | AttributeValue::None)
-            });
+        let hardbreaks = match self.document_attributes.status("hardbreaks-option") {
+            DocumentAttributeStatus::Absent => self.document_attributes.status("hardbreaks"),
+            status @ (DocumentAttributeStatus::Set(_) | DocumentAttributeStatus::Unset) => status,
+        };
+        self.hardbreaks = matches!(hardbreaks, DocumentAttributeStatus::Set(_));
     }
 
     /// Testing helper: constructs a `ParserState` backed by a leaked `Bump`.
@@ -476,7 +512,10 @@ impl<'a> ParserState<'a> {
             quotes_only: true,
             outer_constrained_delimiter: None,
             scope: ParserScope::Document,
-            inline_ctx: InlineContext::default(),
+            inline_ctx: InlineContext {
+                substitutions: SubstitutionPlan::only(&crate::Substitution::Quotes),
+                ..InlineContext::default()
+            },
             next_at_sign_cache: Cell::new(None),
         }
     }

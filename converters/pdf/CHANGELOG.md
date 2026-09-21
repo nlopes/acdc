@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** configure conversion with the parser options builder, then use
+  the converter's validated parser options for parsing. Invalid attribute values
+  are rejected before conversion.
+- PDF conversion borrows source-ordered attributes while preparing and rendering
+  content, reducing copies of attribute names and values.
+
 ### Fixed
+
+- Bibliography entries substitute attributes at their source position while
+  citation labels retain their original attribute references, matching Asciidoctor.
+- AsciiDoc table cells apply their child document settings without changing
+  parent or sibling settings.
+- Body document attributes now apply in source order to later PDF assets,
+  media and icon paths, source blocks, section labels and numbering,
+  cross-reference suffixes, and table autofit. Asset discovery observes the
+  same order, and nested AsciiDoc table-cell changes do not escape.
+- PDF parser attributes now expose `embedded` only when embedded output is selected.
 
 - Document-title IDs now create named PDF destinations, and automatic
   references to them use the full formatted title and subtitle. With stacked

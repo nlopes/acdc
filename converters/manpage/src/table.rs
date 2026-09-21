@@ -7,13 +7,13 @@
 use std::io::Write;
 
 use acdc_converters_core::{
-    Diagnostics,
+    Diagnostics, TraversalContext,
     table::{CellKind, GridRow, build_grid, calculate_column_widths, determine_column_count},
     visitor::{Visitor, WritableVisitor},
 };
 use acdc_parser::{
-    BlockMetadata, ColumnStyle, ColumnWidth, DelimitedBlock, HorizontalAlignment, Table,
-    TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
+    BlockMetadata, ColumnFormat, ColumnStyle, ColumnWidth, DelimitedBlock, HorizontalAlignment,
+    Table, TableColumn, TableFrame, TableGrid, TablePresentation, TableStripes, VerticalAlignment,
 };
 
 use crate::{Error, ManpageVisitor, Processor};
@@ -35,10 +35,10 @@ fn vertical_alignment_modifier(valign: VerticalAlignment) -> &'static str {
     }
 }
 
-fn effective_halign(
-    cell: &TableColumn<'_>,
+fn effective_halign<'a>(
+    cell: &'a TableColumn<'a>,
     column_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
 ) -> HorizontalAlignment {
     cell.halign.unwrap_or_else(|| {
         columns
@@ -47,10 +47,10 @@ fn effective_halign(
     })
 }
 
-fn effective_valign(
-    cell: &TableColumn<'_>,
+fn effective_valign<'a>(
+    cell: &'a TableColumn<'a>,
     column_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
 ) -> VerticalAlignment {
     cell.valign.unwrap_or_else(|| {
         columns
@@ -59,12 +59,24 @@ fn effective_valign(
     })
 }
 
+fn effective_style<'a>(
+    cell: &'a TableColumn<'a>,
+    column_index: usize,
+    columns: &[ColumnFormat],
+) -> ColumnStyle {
+    cell.style.unwrap_or_else(|| {
+        columns
+            .get(column_index)
+            .map_or(ColumnStyle::Default, |column| column.style)
+    })
+}
+
 /// Generate a tbl format entry for a single cell position.
 fn format_entry(
     kind: &CellKind,
     row: &GridRow<'_>,
     column_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
     width_modifiers: &[String],
 ) -> String {
     match kind {
@@ -105,7 +117,7 @@ fn has_hspan_origin(grid: &[GridRow<'_>], row_index: usize, column_index: usize)
 fn format_row(
     grid: &[GridRow<'_>],
     row_index: usize,
-    columns: &[acdc_parser::ColumnFormat],
+    columns: &[ColumnFormat],
     width_modifiers: &[String],
     presentation: TablePresentation,
     allbox: bool,
@@ -181,8 +193,8 @@ struct WidthPlan {
     expand: bool,
 }
 
-fn width_plan(
-    table: &Table<'_>,
+fn width_plan<'a>(
+    table: &'a Table<'a>,
     num_cols: usize,
     metadata: &BlockMetadata<'_>,
     diagnostics: &mut Diagnostics<'_>,
@@ -280,7 +292,7 @@ fn table_is_centered(metadata: &BlockMetadata<'_>, diagnostics: &mut Diagnostics
     }
 }
 
-fn has_rowspans(table: &Table<'_>) -> bool {
+fn has_rowspans<'a>(table: &'a Table<'a>) -> bool {
     table
         .header
         .iter()
@@ -291,18 +303,27 @@ fn has_rowspans(table: &Table<'_>) -> bool {
 }
 
 /// Render a data row from the grid, producing a colon-separated string.
-fn render_grid_row(
-    grid_row: &GridRow<'_>,
-    processor: &Processor<'_>,
+fn render_grid_row<'a>(
+    grid_row: &GridRow<'a>,
+    columns: &[ColumnFormat],
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
     let mut data_cells = Vec::with_capacity(grid_row.cells.len());
 
-    for kind in &grid_row.cells {
+    for (column_index, kind) in grid_row.cells.iter().enumerate() {
         match kind {
             CellKind::Content { cell_index } => {
                 if let Some(cell) = grid_row.ast_row.columns.get(*cell_index) {
-                    data_cells.push(format_cell_with_inlines(cell, processor, diagnostics)?);
+                    data_cells.push(format_cell_with_inlines(
+                        cell,
+                        column_index,
+                        columns,
+                        processor,
+                        traversal,
+                        diagnostics,
+                    )?);
                 } else {
                     data_cells.push(String::new());
                 }
@@ -320,16 +341,19 @@ fn render_grid_row(
     Ok(data_cells.join(":"))
 }
 
-pub(crate) fn visit_table<W: Write>(
-    table: &Table,
-    block: &DelimitedBlock,
-    visitor: &mut ManpageVisitor<'_, '_, W>,
+pub(crate) fn visit_table<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    table: &'a Table<'a>,
+    block: &'a DelimitedBlock<'a>,
+    visitor: &mut ManpageVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
-    let processor = visitor.processor.clone();
+    let processor = visitor.processor;
     let num_cols = determine_column_count(table);
     let grid = build_grid(table, num_cols);
     let presentation = table.presentation().unwrap_or_else(|| {
-        TablePresentation::from_attributes(&block.metadata, &processor.document_attributes)
+        TablePresentation::from_attributes(&block.metadata, |name| {
+            (processor.parser_options.document_attributes()).get(name)
+        })
     });
     if presentation.stripes() != TableStripes::None {
         warn_once(
@@ -367,7 +391,15 @@ pub(crate) fn visit_table<W: Write>(
 
     let data_rows: Vec<String> = grid
         .iter()
-        .map(|row| render_grid_row(row, &processor, &mut visitor.diagnostics))
+        .map(|row| {
+            render_grid_row(
+                row,
+                &table.columns,
+                processor,
+                traversal,
+                &mut visitor.diagnostics,
+            )
+        })
         .collect::<Result<Vec<_>, _>>()?;
 
     let w = visitor.writer_mut();
@@ -414,29 +446,40 @@ pub(crate) fn visit_table<W: Write>(
 }
 
 /// Format a table cell with inline formatting preserved.
-fn format_cell_with_inlines(
-    cell: &TableColumn,
-    processor: &Processor<'_>,
+fn format_cell_with_inlines<'a>(
+    cell: &'a TableColumn<'a>,
+    column_index: usize,
+    columns: &[ColumnFormat],
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Result<String, Error> {
     let mut buf = Vec::new();
-    let mut cell_visitor = ManpageVisitor::new(&mut buf, processor.clone(), diagnostics.reborrow());
-
-    for block in &cell.content {
-        if let acdc_parser::Block::Paragraph(para) = block {
-            cell_visitor.visit_inline_nodes(&para.content)?;
-        } else {
-            cell_visitor.visit_block(block)?;
-        }
-    }
+    let mut cell_visitor = ManpageVisitor::new(&mut buf, processor, diagnostics.reborrow());
+    let style = effective_style(cell, column_index, columns);
+    let scoped = style == ColumnStyle::AsciiDoc;
+    let mut render = |traversal: &mut TraversalContext<'a>| {
+        cell.content.iter().try_for_each(|block| {
+            if let acdc_parser::Block::Paragraph(para) = block {
+                cell_visitor.visit_inline_nodes(traversal, &para.content)
+            } else {
+                traversal.visit_block(&mut cell_visitor, block)
+            }
+        })
+    };
+    if scoped {
+        traversal.with_table_cell(cell, render)
+    } else {
+        render(traversal)
+    }?;
 
     let text = String::from_utf8_lossy(&buf).into_owned();
-    let text = match cell.style {
-        Some(ColumnStyle::Strong) => format!("\\fB{text}\\fP"),
-        Some(ColumnStyle::Emphasis) => format!("\\fI{text}\\fP"),
-        Some(ColumnStyle::Monospace) => format!("\\f(CR{text}\\fP"),
-        Some(ColumnStyle::Literal) => format!(".nf\n{text}\n.fi"),
-        None | Some(ColumnStyle::AsciiDoc | ColumnStyle::Default | ColumnStyle::Header | _) => text,
+    let text = match style {
+        ColumnStyle::Strong => format!("\\fB{text}\\fP"),
+        ColumnStyle::Emphasis => format!("\\fI{text}\\fP"),
+        ColumnStyle::Monospace => format!("\\f(CR{text}\\fP"),
+        ColumnStyle::Literal => format!(".nf\n{text}\n.fi"),
+        ColumnStyle::AsciiDoc | ColumnStyle::Default | ColumnStyle::Header | _ => text,
     };
 
     // Wrap in T{ T} if content contains tbl special characters or formatting

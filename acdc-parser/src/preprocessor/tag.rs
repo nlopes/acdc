@@ -99,7 +99,7 @@ pub(crate) fn is_tag_directive_line(line: &str) -> bool {
 /// Marker lines are never selected. Recoverable malformed-boundary and
 /// missing-selection issues are reported in reference order through `report`.
 pub(crate) fn select_tagged_lines(
-    lines: &[String],
+    lines: &[&str],
     filters: &[Filter],
     mut report: impl FnMut(Issue),
 ) -> Vec<usize> {
@@ -230,10 +230,6 @@ mod tests {
         "Untagged after.",
     ];
 
-    fn strings(lines: &[&str]) -> Vec<String> {
-        lines.iter().map(ToString::to_string).collect()
-    }
-
     fn filters(values: &[&str]) -> Vec<Filter> {
         values
             .iter()
@@ -242,9 +238,8 @@ mod tests {
     }
 
     fn select(lines: &[&str], values: &[&str]) -> (Vec<usize>, Vec<Issue>) {
-        let lines = strings(lines);
         let mut issues = Vec::new();
-        let selected = select_tagged_lines(&lines, &filters(values), |issue| issues.push(issue));
+        let selected = select_tagged_lines(lines, &filters(values), |issue| issues.push(issue));
         (selected, issues)
     }
 

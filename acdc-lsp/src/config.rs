@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use acdc_converters_core::{BackendProfile, Doctype};
-use acdc_parser::{DocumentAttributes, Options};
+use acdc_parser::Options;
 use serde::Deserialize;
 use serde_json::Value;
 use tower_lsp_server::ls_types::Uri;
@@ -51,11 +51,16 @@ pub(crate) enum AnalysisBackend {
 
 impl AnalysisBackend {
     /// Build parser options containing the selected backend's intrinsic attributes.
+    #[allow(
+        clippy::expect_used,
+        reason = "Backend profiles contain only valid built-in text attributes"
+    )]
     fn parser_options(self) -> Options<'static> {
         let (backend_profile, doctype) = self.profile();
-        let mut attributes = DocumentAttributes::default();
-        backend_profile.apply(&mut attributes, doctype);
-        Options::with_attributes(attributes)
+        backend_profile
+            .apply(Options::builder(), doctype, false)
+            .build()
+            .expect("built-in backend profile must be valid")
     }
 
     const fn profile(self) -> (BackendProfile, Doctype) {
@@ -257,6 +262,7 @@ fn uri_match_len(root: &str, document: &str) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::from_str;
 
     #[test]
     fn defaults_to_asciidoctor_html5_backend() {
@@ -264,30 +270,34 @@ mod tests {
         let options = profiles.get(AnalysisBackend::default());
 
         assert_eq!(
-            options.document_attributes.get_string("backend").as_deref(),
+            options
+                .document_attributes()
+                .get("backend")
+                .and_then(|value| value.text())
+                .map(acdc_parser::strip_quotes),
             Some("html5")
         );
-        assert!(options.document_attributes.contains_key("backend-html5"));
-        assert!(!options.document_attributes.contains_key("backend-pdf"));
+        assert!(options.document_attributes().contains_key("backend-html5"));
+        assert!(!options.document_attributes().contains_key("backend-pdf"));
     }
 
     #[test]
     fn deserializes_configured_pdf_backend() -> Result<(), serde_json::Error> {
-        let options: ServerOptions = serde_json::from_str(r#"{"backend":"pdf"}"#)?;
+        let options: ServerOptions = from_str(r#"{"backend":"pdf"}"#)?;
 
         assert_eq!(options.backend, AnalysisBackend::Pdf);
         let profiles = ParserProfiles::new();
         let parser_options = profiles.get(options.backend);
         assert_eq!(
             parser_options
-                .document_attributes
-                .get_string("backend")
-                .as_deref(),
+                .document_attributes()
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("pdf")
         );
         assert!(
             parser_options
-                .document_attributes
+                .document_attributes()
                 .contains_key("backend-pdf")
         );
         Ok(())
@@ -295,8 +305,8 @@ mod tests {
 
     #[test]
     fn canonicalizes_asciidoctor_backend_aliases() -> Result<(), serde_json::Error> {
-        let html: ServerOptions = serde_json::from_str(r#"{"backend":"html"}"#)?;
-        let docbook: ServerOptions = serde_json::from_str(r#"{"backend":"docbook"}"#)?;
+        let html: ServerOptions = from_str(r#"{"backend":"html"}"#)?;
+        let docbook: ServerOptions = from_str(r#"{"backend":"docbook"}"#)?;
 
         assert_eq!(html.backend, AnalysisBackend::Html5);
         assert_eq!(docbook.backend, AnalysisBackend::Docbook5);

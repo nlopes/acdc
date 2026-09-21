@@ -1,10 +1,11 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    TraversalContext,
     icon::IconMode,
     visitor::{Visitor, WritableVisitor},
 };
-use acdc_parser::{Admonition, AdmonitionVariant, AttributeValue};
+use acdc_parser::{Admonition, AdmonitionVariant};
 use crossterm::{
     QueueableCommand,
     style::{PrintStyledContent, Stylize},
@@ -12,17 +13,18 @@ use crossterm::{
 
 use crate::{Error, TerminalVisitor};
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
     /// Visit an admonition block (NOTE, TIP, IMPORTANT, WARNING, CAUTION).
     ///
     /// Renders with bold caption and left border.
-    pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
+    pub(crate) fn render_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admon: &'a Admonition<'a>,
+    ) -> Result<(), Error> {
         use std::io::BufWriter;
 
-        let processor = self.processor.clone();
-
-        let w = self.writer_mut();
-        writeln!(w)?;
+        let processor = self.processor;
 
         // Get icon, caption attribute, and theme color for this admonition type
         let (glyph, caption_attr, color) = match admon.variant {
@@ -46,18 +48,15 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                 processor.appearance.colors.admon_caution,
             ),
         };
-        let icon = (IconMode::from(&processor.document_attributes) != IconMode::Text
+        let icon = (IconMode::from_attributes(traversal) != IconMode::Text
             && processor.appearance.capabilities.unicode)
             .then_some(glyph);
 
-        let caption = processor
-            .document_attributes
+        let caption = traversal
             .get(caption_attr)
-            .and_then(|v| match v {
-                AttributeValue::String(s) => Some(s.clone()),
-                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-            })
-            .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?;
+            .and_then(|value| value.text())
+            .ok_or(Error::InvalidAdmonitionCaption(caption_attr.to_string()))?
+            .to_string();
 
         // Border character based on terminal capabilities
         let border = if processor.appearance.capabilities.unicode {
@@ -67,6 +66,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         };
 
         // Header line with icon, bold caption, and left border
+        let w = self.writer_mut();
+        writeln!(w)?;
         write!(w, "{} ", border.with(color))?;
         if let Some(icon) = icon {
             write!(w, "{icon} ")?;
@@ -80,13 +81,13 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         } else {
             write!(w, " ")?;
             let mut title_buffer = Vec::new();
-            let title_processor = processor.clone();
+            let title_processor = processor;
             let mut title_visitor = TerminalVisitor::new(
                 &mut title_buffer,
                 title_processor,
                 self.diagnostics.reborrow(),
             );
-            title_visitor.visit_inline_nodes(&admon.title)?;
+            title_visitor.visit_inline_nodes(traversal, &admon.title)?;
 
             let title_text = String::from_utf8_lossy(&title_buffer);
             let w = self.writer_mut();
@@ -98,8 +99,8 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
             let buffer = Vec::new();
             let inner = BufWriter::new(buffer);
             let mut temp_visitor =
-                TerminalVisitor::new(inner, processor.clone(), self.diagnostics.reborrow());
-            temp_visitor.visit_block(block)?;
+                TerminalVisitor::new(inner, processor, self.diagnostics.reborrow());
+            traversal.visit_block(&mut temp_visitor, block)?;
 
             let buffer = temp_visitor
                 .into_writer()

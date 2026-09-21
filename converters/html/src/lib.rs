@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::{Cell, RefCell},
     collections::HashMap,
     io::Write,
@@ -7,14 +8,16 @@ use std::{
 };
 
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, Options, WarningSource, visitor::Visitor,
-    xref::XrefGuard,
+    BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
+    visitor::Visitor, xref::XrefGuard,
 };
+
 #[cfg(feature = "highlighting")]
-use acdc_parser::substitute;
+use acdc_converters_core::substitutions::substitute_attributes;
+
 use acdc_parser::{
     AttributeValue, BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, InlineNode,
-    Reference, Substitution, TocEntry,
+    Options as ParserOptions, Reference, Substitution, TocEntry,
 };
 
 mod admonition;
@@ -34,6 +37,7 @@ mod inlines;
 mod list;
 mod paragraph;
 mod section;
+mod source_indent;
 mod syntax;
 mod table;
 #[cfg(feature = "terminal")]
@@ -44,7 +48,7 @@ mod video;
 pub(crate) use acdc_converters_core::section::{has_index_section, index_generation_enabled};
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
-pub use html_visitor::HtmlVisitor;
+pub use html_visitor::{HtmlVisitor, uses_stem};
 /// The `MathJax` assets acdc emits when `:stem:` is set, exposed so embedded-mode
 /// consumers can reproduce them: the inline configuration `<script>`, its CSP
 /// hash, and the loader URL.
@@ -138,7 +142,7 @@ pub(crate) enum IndexCatalogRelationship {
 #[derive(Clone, Debug)]
 pub struct Processor<'a> {
     options: Options,
-    document_attributes: DocumentAttributes<'a>,
+    parser_options: ParserOptions<'a>,
     toc_entries: Vec<TocEntry<'a>>,
     /// Cross-reference targets keyed by id (sections + titled blocks), cloned
     /// from `Document::references`, for O(1) `<<id>>` resolution. `toc_entries`
@@ -196,7 +200,7 @@ impl<'a> Processor<'a> {
     /// Get a reference to the document attributes
     #[must_use]
     pub fn document_attributes(&self) -> &DocumentAttributes<'a> {
-        &self.document_attributes
+        self.parser_options.document_attributes()
     }
 
     /// Every index term in the document, for building the catalog.
@@ -223,21 +227,31 @@ impl<'a> Processor<'a> {
     /// Useful for callers that build the processor through the [`Converter`]
     /// trait but want to flip to semantic output without going through
     /// [`Backend::Html5s`].
-    #[must_use]
-    pub fn with_variant(mut self, variant: HtmlVariant) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an attribute cannot be rebuilt for the selected backend.
+    pub fn with_variant(mut self, variant: HtmlVariant) -> Result<Self, Error> {
         self.variant = variant;
-        variant
+        self.parser_options = variant
             .backend_profile()
-            .apply(&mut self.document_attributes, self.options.doctype());
-        self
+            .apply(
+                self.parser_options.into_builder(),
+                self.options.doctype(),
+                self.options.embedded(),
+            )
+            .build()?;
+        Ok(self)
     }
 
     /// Check if font icons mode is enabled (`:icons: font`).
     #[must_use]
     pub(crate) fn is_font_icons_mode(&self) -> bool {
-        self.document_attributes
+        self.parser_options
+            .document_attributes()
             .get("icons")
-            .is_some_and(|v| v.to_string() == "font")
+            .and_then(|value| value.text())
+            == Some("font")
     }
 
     /// Return the caption prefix for a titled block.
@@ -248,7 +262,9 @@ impl<'a> Processor<'a> {
     ) -> Option<String> {
         let resolved = match (&metadata.caption, fallback) {
             (Some(caption), _) => caption.clone(),
-            (None, Some(kind)) => Caption::resolve_owned(metadata, &self.document_attributes, kind),
+            (None, Some(kind)) => {
+                Caption::resolve_owned(metadata, self.parser_options.document_attributes(), kind)
+            }
             (None, None) => return None,
         };
         match resolved {
@@ -323,7 +339,8 @@ impl<'a> Processor<'a> {
             toc_entries: doc.toc_entries.clone(),
             references: doc.references.clone(),
             xref_guard: XrefGuard::default(),
-            document_attributes: doc.attributes.clone(),
+            parser_options: ParserOptions::default()
+                .with_document_attributes(doc.attributes.clone()),
             generate_index: index_generation_enabled(&doc.attributes)
                 && has_index_section(&doc.blocks),
             options: self.options.clone(),
@@ -340,9 +357,10 @@ impl<'a> Processor<'a> {
         if processor.generate_index() {
             collect_index_terms(doc, &processor, options)?;
         }
+        let mut traversal = TraversalContext::new(&doc.attributes);
         let mut visitor =
             HtmlVisitor::new(writer, processor, options.clone(), diagnostics.reborrow());
-        visitor.visit_document(doc)
+        visitor.visit_document(&mut traversal, doc)
     }
 
     /// Convert a document to an HTML string.
@@ -448,13 +466,14 @@ fn collect_index_terms<'doc>(
     let mut discarded = Vec::new();
     let source = processor.warning_source();
     let mut diagnostics = Diagnostics::new(&source, &mut discarded);
+    let mut traversal = TraversalContext::new(&doc.attributes);
     let mut visitor = HtmlVisitor::new(
         std::io::sink(),
         Rc::clone(processor),
         options.clone(),
         diagnostics.reborrow(),
     );
-    visitor.visit_document(doc)?;
+    visitor.visit_document(&mut traversal, doc)?;
 
     processor
         .index_catalog
@@ -483,27 +502,27 @@ pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
 pub(crate) fn resolve_highlight_settings(
     document_attributes: &DocumentAttributes<'_>,
 ) -> (String, syntax::HighlightMode) {
-    let dark_mode = document_attributes
-        .get("dark-mode")
-        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
+    let dark_mode = document_attributes.get("dark-mode").is_some();
 
     let theme_name: String = document_attributes
         .get("syntect-style")
-        .and_then(|v| match v {
-            AttributeValue::String(s) if !s.is_empty() => Some(s.to_string()),
-            AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => None,
-        })
-        .unwrap_or_else(|| {
-            if dark_mode {
-                syntax::DEFAULT_THEME_DARK.to_string()
-            } else {
-                syntax::DEFAULT_THEME_LIGHT.to_string()
-            }
-        });
+        .and_then(|value| value.text())
+        .filter(|value| !value.is_empty())
+        .map_or_else(
+            || {
+                if dark_mode {
+                    syntax::DEFAULT_THEME_DARK.to_string()
+                } else {
+                    syntax::DEFAULT_THEME_LIGHT.to_string()
+                }
+            },
+            str::to_owned,
+        );
 
     let mode = if document_attributes
         .get("syntect-css")
-        .is_some_and(|v| matches!(v, AttributeValue::String(s) if s == "class"))
+        .and_then(|value| value.text())
+        == Some("class")
     {
         syntax::HighlightMode::Class
     } else {
@@ -516,41 +535,42 @@ pub(crate) fn resolve_highlight_settings(
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn document_attributes_defaults() -> DocumentAttributes<'static> {
-        let mut attrs = DocumentAttributes::default();
-        // HTML-specific defaults from asciidoctor spec
-        attrs.insert(
-            "copycss".into(),
-            AttributeValue::String(COPYCSS_DEFAULT.into()),
-        );
-        attrs.insert(
-            "stylesdir".into(),
-            AttributeValue::String(STYLESDIR_DEFAULT.into()),
-        );
-        attrs.insert(
-            "stylesheet".into(),
-            AttributeValue::String(STYLESHEET_DEFAULT.into()),
-        );
-        // Additional CSS styling attributes
-        attrs.insert(
-            "webfonts".into(),
-            AttributeValue::String(WEBFONTS_DEFAULT.into()),
-        );
-        attrs
+    fn document_attributes_defaults() -> &'static [(&'static str, AttributeValue<'static>)] {
+        &[
+            (
+                "copycss",
+                AttributeValue::String(Cow::Borrowed(COPYCSS_DEFAULT)),
+            ),
+            (
+                "stylesdir",
+                AttributeValue::String(Cow::Borrowed(STYLESDIR_DEFAULT)),
+            ),
+            (
+                "stylesheet",
+                AttributeValue::String(Cow::Borrowed(STYLESHEET_DEFAULT)),
+            ),
+            (
+                "webfonts",
+                AttributeValue::String(Cow::Borrowed(WEBFONTS_DEFAULT)),
+            ),
+        ]
     }
 
-    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
+    fn new(
+        options: Options,
+        parser_options: acdc_parser::OptionsBuilder<'a>,
+    ) -> Result<Self, Self::Error> {
         // Default to standard HTML; callers wanting semantic output use
         // [`Processor::with_variant`] (or [`Processor::new_with_variant`]).
-        Self::new_with_variant(options, document_attributes, HtmlVariant::default())
+        Self::new_with_variant(options, parser_options, HtmlVariant::default())
     }
 
     fn options(&self) -> &Options {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes<'a> {
-        &self.document_attributes
+    fn parser_options(&self) -> &ParserOptions<'a> {
+        &self.parser_options
     }
 
     fn derive_output_path(
@@ -618,23 +638,30 @@ impl<'a> Processor<'a> {
     ///
     /// Useful for tests and callers that construct `Processor` directly
     /// without going through the `Converter` trait.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if an attribute value is invalid.
     pub fn new_with_variant(
         options: Options,
-        document_attributes: DocumentAttributes<'a>,
+        parser_options: acdc_parser::OptionsBuilder<'a>,
         variant: HtmlVariant,
-    ) -> Self {
-        let mut document_attributes = document_attributes;
-        for (name, value) in <Self as Converter<'a>>::document_attributes_defaults().iter() {
-            document_attributes.insert(name.clone(), value.clone());
+    ) -> Result<Self, Error> {
+        let mut parser_options = parser_options;
+        for (name, value) in Self::document_attributes_defaults() {
+            if parser_options.attribute(name).is_none() {
+                parser_options = parser_options.with_default_attribute(*name, value.clone());
+            }
         }
-        variant
-            .backend_profile()
-            .apply(&mut document_attributes, options.doctype());
+        parser_options =
+            variant
+                .backend_profile()
+                .apply(parser_options, options.doctype(), options.embedded());
 
-        Self {
+        let parser_options = parser_options.build()?;
+        Ok(Self {
             options,
-            document_attributes,
+            parser_options,
             toc_entries: vec![],
             references: HashMap::new(),
             xref_guard: XrefGuard::default(),
@@ -647,7 +674,7 @@ impl<'a> Processor<'a> {
             generate_index: false,
             index_catalog: Rc::new(RefCell::new(Vec::new())),
             variant,
-        }
+        })
     }
 
     /// Return the appropriate default stylesheet filename for this processor's variant.
@@ -669,14 +696,12 @@ impl<'a> Processor<'a> {
     fn handle_copycss(
         &self,
         doc: &acdc_parser::Document<'_>,
-        html_path: &std::path::Path,
+        html_path: &Path,
         diagnostics: &mut Diagnostics<'_>,
     ) {
         // No-stylesheet mode — nothing to copy
-        let stylesheet_disabled = doc
-            .attributes
-            .get("stylesheet")
-            .is_some_and(|v| matches!(v, AttributeValue::Bool(false)));
+        let stylesheet_disabled =
+            !doc.attributes.contains_key("stylesheet") && doc.attributes.is_explicit("stylesheet");
         if stylesheet_disabled {
             return;
         }
@@ -686,44 +711,40 @@ impl<'a> Processor<'a> {
             return;
         }
 
-        let should_copy = doc.attributes.contains_key("copycss");
+        let should_copy = doc.attributes.get("copycss").is_some();
         tracing::debug!("linkcss={linkcss}, copycss exists={should_copy}");
 
         if !should_copy {
             return;
         }
 
-        let is_dark = doc
-            .attributes
-            .get("dark-mode")
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None));
+        let is_dark = doc.attributes.get("dark-mode").is_some();
         let default_filename = self.default_stylesheet_name(is_dark);
 
         // Determine whether the default (built-in) stylesheet is in use
         let using_default = doc
             .attributes
             .get("stylesheet")
-            .is_none_or(|v| v.to_string().is_empty());
+            .and_then(|value| value.text())
+            .is_none_or(str::is_empty);
 
         let stylesheet = doc
             .attributes
             .get("stylesheet")
-            .and_then(|v| {
-                let s = v.to_string();
-                if s.is_empty() { None } else { Some(s) }
-            })
-            .unwrap_or_else(|| default_filename.into());
+            .and_then(|value| value.text())
+            .filter(|value| !value.is_empty())
+            .map_or_else(|| default_filename.to_owned(), str::to_owned);
 
-        let output_dir = html_path
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new("."));
+        let output_dir = html_path.parent().unwrap_or_else(|| Path::new("."));
         let dest_path = output_dir.join(&stylesheet);
 
         // Check if copycss has a non-empty value (source path override)
-        let copycss_source = doc.attributes.get("copycss").and_then(|v| {
-            let s = v.to_string();
-            if s.is_empty() { None } else { Some(s) }
-        });
+        let copycss_source = doc
+            .attributes
+            .get("copycss")
+            .and_then(|value| value.text())
+            .map(str::to_owned)
+            .filter(|value| !value.is_empty());
 
         if using_default && copycss_source.is_none() {
             // Write built-in CSS content to disk (no source file exists)
@@ -744,14 +765,15 @@ impl<'a> Processor<'a> {
             let stylesdir = doc
                 .attributes
                 .get("stylesdir")
-                .map_or_else(|| STYLESDIR_DEFAULT.into(), ToString::to_string);
+                .and_then(|value| value.text())
+                .map_or_else(|| STYLESDIR_DEFAULT.into(), str::to_owned);
 
             let source_path = if let Some(ref custom_source) = copycss_source {
                 std::path::PathBuf::from(custom_source)
             } else if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
-                std::path::Path::new(&stylesheet).to_path_buf()
+                Path::new(&stylesheet).to_path_buf()
             } else {
-                std::path::Path::new(&stylesdir).join(&stylesheet)
+                Path::new(&stylesdir).join(&stylesheet)
             };
 
             if source_path != dest_path && source_path.exists() {
@@ -792,9 +814,7 @@ impl<'a> Processor<'a> {
         }
 
         let processor_attrs = &doc.attributes;
-        let source_highlighter_set = processor_attrs
-            .get("source-highlighter")
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+        let source_highlighter_set = processor_attrs.get("source-highlighter").is_some();
         if !source_highlighter_set {
             return;
         }
@@ -814,7 +834,8 @@ impl<'a> Processor<'a> {
         let stylesdir = doc
             .attributes
             .get("stylesdir")
-            .map_or_else(|| STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+            .and_then(|value| value.text())
+            .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_owned);
 
         let dest_dir = if stylesdir.is_empty() || stylesdir == STYLESDIR_DEFAULT {
             output_dir.to_path_buf()
@@ -865,7 +886,7 @@ impl<'a> Processor<'a> {
 /// Write the `id` attribute from metadata (explicit id or first anchor).
 pub(crate) fn write_id<W: std::io::Write + ?Sized>(
     w: &mut W,
-    metadata: &acdc_parser::BlockMetadata,
+    metadata: &BlockMetadata,
 ) -> Result<(), std::io::Error> {
     if let Some(id) = &metadata.id {
         write!(w, " id=\"{}\"", id.id)?;
@@ -892,18 +913,17 @@ pub(crate) fn build_class(base: &str, roles: &[&str]) -> String {
 fn apply_attribute_subs<'a>(
     inlines: &'a [InlineNode<'a>],
     subs: &[Substitution],
-    processor: &Processor<'a>,
+    attributes: &TraversalContext,
 ) -> Option<Vec<InlineNode<'a>>> {
     if !subs.contains(&Substitution::Attributes) {
         return None;
     }
-    let attrs = processor.document_attributes();
     Some(
         inlines
             .iter()
             .map(|node| {
                 if let InlineNode::VerbatimText(v) = node {
-                    let content = match substitute(v.content, &[Substitution::Attributes], attrs) {
+                    let content = match substitute_attributes(v.content, attributes) {
                         std::borrow::Cow::Borrowed(s) => s,
                         std::borrow::Cow::Owned(s) => Box::leak(s.into_boxed_str()),
                     };
@@ -923,20 +943,24 @@ fn apply_attribute_subs<'a>(
 ///
 /// With an active source highlighter, this applies syntax and source-line
 /// decoration. Otherwise it visits the inlines directly.
-pub(crate) fn render_pre_code<W: std::io::Write>(
+pub(crate) fn render_pre_code<'a, W: std::io::Write>(
+    traversal: &mut TraversalContext<'a>,
     inlines: &[InlineNode<'_>],
     metadata: &BlockMetadata<'_>,
     language: Option<&str>,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
     subs: &[Substitution],
+    source_indent: Option<u16>,
 ) -> Result<(), Error> {
-    use acdc_converters_core::visitor::Visitor;
+    let indentation = source_indent::IndentedSource::new(inlines, source_indent);
+    let indented = indentation.as_ref().map(|source| source.inlines(inlines));
+    let inlines = indented.as_deref().unwrap_or(inlines);
     #[cfg(feature = "highlighting")]
     let highlighting_enabled = visitor
         .processor
-        .document_attributes
+        .document_attributes()
         .get("source-highlighter")
-        .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)));
+        .is_some();
     let nowrap = metadata.options.contains(&"nowrap");
     let nowrap_class = if nowrap { " nowrap" } else { "" };
 
@@ -955,8 +979,8 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
             )?;
         }
         let processor = visitor.processor.clone();
-        let (theme_name, mode) = resolve_highlight_settings(&processor.document_attributes);
-        let effective_inlines = apply_attribute_subs(inlines, subs, &processor);
+        let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes());
+        let effective_inlines = apply_attribute_subs(inlines, subs, traversal);
         let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
         // Split-borrow writer and diagnostics so highlight_code can have both
         // without overlapping &mut self calls on the visitor.
@@ -964,9 +988,11 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
             &mut visitor.writer,
             highlight_inlines,
             metadata,
-            lang,
-            &theme_name,
-            mode,
+            syntax::HighlightOptions {
+                language: lang,
+                theme_name: &theme_name,
+                mode,
+            },
             Some(&mut visitor.diagnostics),
         )?;
         writeln!(visitor.writer, "</code></pre>")?;
@@ -975,7 +1001,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
             visitor.writer,
             "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
         )?;
-        visitor.visit_inline_nodes(inlines)?;
+        visitor.visit_inline_nodes(traversal, inlines)?;
         writeln!(visitor.writer, "</code></pre>")?;
     } else {
         if nowrap {
@@ -983,7 +1009,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
         } else {
             write!(visitor.writer, "<pre>")?;
         }
-        visitor.visit_inline_nodes(inlines)?;
+        visitor.visit_inline_nodes(traversal, inlines)?;
         writeln!(visitor.writer, "</pre>")?;
     }
 
@@ -995,7 +1021,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
                 visitor.writer,
                 "<pre class=\"highlight{nowrap_class}\"><code class=\"language-{lang}\" data-lang=\"{lang}\">"
             )?;
-            visitor.visit_inline_nodes(inlines)?;
+            visitor.visit_inline_nodes(traversal, inlines)?;
             writeln!(visitor.writer, "</code></pre>")?;
         } else {
             if nowrap {
@@ -1003,7 +1029,7 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
             } else {
                 write!(visitor.writer, "<pre>")?;
             }
-            visitor.visit_inline_nodes(inlines)?;
+            visitor.visit_inline_nodes(traversal, inlines)?;
             writeln!(visitor.writer, "</pre>")?;
         }
     }
@@ -1013,10 +1039,12 @@ pub(crate) fn render_pre_code<W: std::io::Write>(
 
 /// Write attribution div for quote/verse blocks if author or citation present
 pub(crate) fn write_attribution<
-    V: acdc_converters_core::visitor::WritableVisitor<Error = Error>,
+    'a,
+    V: acdc_converters_core::visitor::WritableVisitor<'a, Error = Error>,
 >(
+    traversal: &mut TraversalContext<'a>,
     visitor: &mut V,
-    metadata: &acdc_parser::BlockMetadata,
+    metadata: &BlockMetadata,
 ) -> Result<(), Error> {
     let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
     let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
@@ -1027,24 +1055,24 @@ pub(crate) fn write_attribution<
         if let (Some(attr), Some(cite)) = (attribution, citetitle) {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(attr)?;
+            visitor.visit_inline_nodes(traversal, attr)?;
             let w = visitor.writer_mut();
             writeln!(w, "<br>")?;
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(cite)?;
+            visitor.visit_inline_nodes(traversal, cite)?;
             let w = visitor.writer_mut();
             writeln!(w, "</cite>")?;
         } else if let Some(attr) = attribution {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(attr)?;
+            visitor.visit_inline_nodes(traversal, attr)?;
             let w = visitor.writer_mut();
             writeln!(w)?;
         } else if let Some(cite) = citetitle {
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(cite)?;
+            visitor.visit_inline_nodes(traversal, cite)?;
             let w = visitor.writer_mut();
             writeln!(w, "</cite>")?;
         }
@@ -1056,10 +1084,12 @@ pub(crate) fn write_attribution<
 
 /// Write quote or verse attribution in a semantic `<footer>`.
 pub(crate) fn write_semantic_attribution<
-    V: acdc_converters_core::visitor::WritableVisitor<Error = Error>,
+    'a,
+    V: acdc_converters_core::visitor::WritableVisitor<'a, Error = Error>,
 >(
+    traversal: &mut TraversalContext<'a>,
     visitor: &mut V,
-    metadata: &acdc_parser::BlockMetadata,
+    metadata: &BlockMetadata,
 ) -> Result<(), Error> {
     let attribution = metadata.attribution.as_ref().filter(|a| !a.is_empty());
     let citetitle = metadata.citetitle.as_ref().filter(|c| !c.is_empty());
@@ -1070,21 +1100,21 @@ pub(crate) fn write_semantic_attribution<
         if let (Some(attr), Some(cite)) = (attribution, citetitle) {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(attr)?;
+            visitor.visit_inline_nodes(traversal, attr)?;
             let w = visitor.writer_mut();
             write!(w, "<br><cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(cite)?;
+            visitor.visit_inline_nodes(traversal, cite)?;
             let w = visitor.writer_mut();
             write!(w, "</cite>")?;
         } else if let Some(attr) = attribution {
             write!(w, "&#8212; ")?;
             let _ = w;
-            visitor.visit_inline_nodes(attr)?;
+            visitor.visit_inline_nodes(traversal, attr)?;
         } else if let Some(cite) = citetitle {
             write!(w, "<cite>")?;
             let _ = w;
-            visitor.visit_inline_nodes(cite)?;
+            visitor.visit_inline_nodes(traversal, cite)?;
             let w = visitor.writer_mut();
             write!(w, "</cite>")?;
         }
@@ -1098,18 +1128,20 @@ pub(crate) fn write_semantic_attribution<
 mod tests {
     use super::*;
     use acdc_converters_core::Converter;
+    use acdc_parser::parse;
+    use std::error::Error as StdError;
 
-    type TestResult = Result<(), Box<dyn std::error::Error>>;
+    type TestResult = Result<(), Box<dyn StdError>>;
 
     #[test]
-    fn new_defaults_to_standard() {
-        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+    fn new_defaults_to_standard() -> Result<(), Box<dyn StdError>> {
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
         assert_eq!(processor.variant(), HtmlVariant::Standard);
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("backend")
-                .as_deref(),
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("html5")
         );
         assert!(
@@ -1117,18 +1149,19 @@ mod tests {
                 .document_attributes()
                 .contains_key("backend-html5")
         );
+        Ok(())
     }
 
     #[test]
-    fn with_variant_switches_to_semantic() {
-        let processor = Processor::new(Options::default(), DocumentAttributes::default())
-            .with_variant(HtmlVariant::Semantic);
+    fn with_variant_switches_to_semantic() -> Result<(), Box<dyn StdError>> {
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?
+            .with_variant(HtmlVariant::Semantic)?;
         assert_eq!(processor.variant(), HtmlVariant::Semantic);
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("backend")
-                .as_deref(),
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("html5s")
         );
         assert!(
@@ -1141,27 +1174,32 @@ mod tests {
                 .document_attributes()
                 .contains_key("backend-html5")
         );
+        Ok(())
     }
 
     #[test]
-    fn name_reflects_current_variant() {
-        let standard = Processor::new(Options::default(), DocumentAttributes::default());
+    fn name_reflects_current_variant() -> Result<(), Box<dyn StdError>> {
+        let standard = Processor::new(Options::default(), ParserOptions::builder())?;
         assert_eq!(standard.name(), "html");
-        let semantic = standard.with_variant(HtmlVariant::Semantic);
+        let semantic = standard.with_variant(HtmlVariant::Semantic)?;
         assert_eq!(semantic.name(), "html5s");
+        Ok(())
     }
 
     #[test]
     fn media_targets_honor_imagesdir_and_encode_spaces() -> TestResult {
-        let parsed = acdc_parser::parse(
+        let parsed = parse(
             ":imagesdir: media library\n\nimage::poster file.png[]\n\nimage::already%20encoded.png[]\n\nInline image:inline poster.png[].\n\naudio::clips/demo track.mp3[]\n\nvideo::clips/demo clip.mp4[poster=poster file.png]\n",
-            &acdc_parser::Options::default(),
+            &ParserOptions::default(),
         )?;
 
         for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
-            let processor =
-                Processor::new(Options::default(), parsed.document().attributes.clone())
-                    .with_variant(variant);
+            let processor = Processor::new(
+                Options::default(),
+                ParserOptions::builder()
+                    .with_attributes(parsed.document().attributes.clone().into_inputs()),
+            )?
+            .with_variant(variant)?;
             let html = processor.convert_to_string(
                 parsed.document(),
                 &RenderOptions {
@@ -1189,6 +1227,28 @@ mod tests {
     }
 
     #[test]
+    fn canonical_body_attributes_apply_in_source_order() -> TestResult {
+        let parsed = parse(
+            include_str!("../../../acdc-parser/fixtures/tests/document_attributes_consumers.adoc"),
+            &ParserOptions::default(),
+        )?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
+        let html = processor.convert_to_string(parsed.document(), &RenderOptions::default())?;
+
+        assert!(html.contains("images/header/before.png"));
+        assert!(html.contains("images/body/after.png"));
+        assert!(html.contains("language-ruby"));
+        assert!(html.contains("  puts 'source'"));
+        assert!(html.contains("frame-ends grid-rows stripes-odd"));
+        assert!(html.contains(MATHJAX_LOADER_URL));
+        Ok(())
+    }
+
+    #[test]
     fn test_convert_to_string_embedded_no_document_frame() -> TestResult {
         let content = r"= My Title
 
@@ -1199,14 +1259,14 @@ This is a paragraph.
 * Item 1
 * Item 2
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let render_options = RenderOptions {
             embedded: true,
             ..RenderOptions::default()
@@ -1274,14 +1334,14 @@ This is a paragraph.
 
 == Section Two
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1302,14 +1362,14 @@ This is a paragraph.
 
 == Section Three
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1342,14 +1402,14 @@ This is a paragraph.
 
 === Section 2.1
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1387,14 +1447,14 @@ This is a paragraph.
 
 ==== Subsection 1.1.1
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1425,14 +1485,14 @@ This is a paragraph.
 
 == Conclusion
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1465,14 +1525,14 @@ This is a paragraph.
 
 == Section Two
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should exist
@@ -1497,14 +1557,14 @@ This is a paragraph.
 
 == Section Three
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should have numbered entries
@@ -1536,14 +1596,14 @@ This is a paragraph.
 
 == Conclusion
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should have Introduction numbered as 1
@@ -1576,14 +1636,14 @@ This is a paragraph.
 
 == Chapter Two
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1608,14 +1668,14 @@ This is a paragraph.
     #[test]
     fn test_dark_mode_includes_dark_css_and_meta() -> TestResult {
         let content = "= Title\n:dark-mode:\n\nHello world.\n";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1637,13 +1697,13 @@ This is a paragraph.
     // Content Security Policy (:csp:) tests
     // ─────────────────────────────────────────────────────────────────────────
 
-    fn convert(content: &str, embedded: bool) -> Result<String, Box<dyn std::error::Error>> {
-        let parsed = acdc_parser::parse(content, &acdc_parser::Options::default())?;
+    fn convert(content: &str, embedded: bool) -> Result<String, Box<dyn StdError>> {
+        let parsed = parse(content, &ParserOptions::default())?;
         let doc = parsed.document();
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let render_options = RenderOptions {
             embedded,
             ..RenderOptions::default()
@@ -1721,14 +1781,14 @@ This is a paragraph.
     #[test]
     fn test_light_mode_no_dark_css() -> TestResult {
         let content = "= Title\n:light-mode:\n\nHello world.\n";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1749,14 +1809,14 @@ This is a paragraph.
     #[test]
     fn test_default_no_dark_css() -> TestResult {
         let content = "= Title\n\nHello world.\n";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1773,14 +1833,14 @@ This is a paragraph.
     #[test]
     fn test_dark_mode_unset_no_dark_css() -> TestResult {
         let content = "= Title\n:!dark-mode:\n\nHello world.\n";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1793,14 +1853,14 @@ This is a paragraph.
     #[test]
     fn test_book_doctype_body_class() -> TestResult {
         let content = "= Book Title\n:doctype: book\n\nSome content.\n";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1821,14 +1881,14 @@ This is a paragraph.
 
 Content.
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1864,14 +1924,14 @@ Content.
 
 Content.
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -1901,14 +1961,14 @@ Content.
 
 === Detail
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert_eq!(html.matches("Unit 1. First Chapter").count(), 2, "{html}");
@@ -1942,14 +2002,14 @@ Appendix content.
 
 More appendix content.
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // Appendix sections should be demoted to sect1 with h2
@@ -2003,14 +2063,14 @@ Content.
 
 Content.
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // TOC should have appendix entries with letter prefix
@@ -2055,14 +2115,14 @@ Content.
 
 === Second Sub
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // Body headings.
@@ -2109,14 +2169,14 @@ Content.
 
 Content.
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         assert!(
@@ -2138,14 +2198,14 @@ Content.
 
 Content.
 ";
-        let parser_options = acdc_parser::Options::default();
-        let parsed = acdc_parser::parse(content, &parser_options)?;
+        let parser_options = ParserOptions::default();
+        let parsed = parse(content, &parser_options)?;
         let doc = parsed.document();
 
         let processor = Processor::new(
-            acdc_converters_core::Options::default(),
-            doc.attributes.clone(),
-        );
+            Options::default(),
+            ParserOptions::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let html = processor.convert_to_string(doc, &RenderOptions::default())?;
 
         // Demoted to sect1/h2; with the caption disabled the heading still shows

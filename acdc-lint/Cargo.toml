@@ -19,7 +19,11 @@ setext = ["acdc-parser/setext"]
 
 [dependencies]
 acdc-parser.workspace = true
+acdc-converters-core.workspace = true
 thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

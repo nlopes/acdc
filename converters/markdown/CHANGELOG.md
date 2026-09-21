@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Breaking:** configure conversion with the parser options builder, then use
+  the converter's validated parser options for parsing. Invalid attribute values
+  are rejected before conversion.
+- **Breaking:** direct visitor callbacks now receive the current traversal
+  context, including source-ordered and nested-cell attributes.
 - A document that seeds an `[index]` section now gets its index without also
   having to set `:acdc-index:`, and `:!acdc-index:` turns the extension off.
   Every backend now answers this the same way, so one document no longer comes
@@ -23,8 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an index came out empty with nothing reported.
 - An `[index]` section keeps any content the author wrote in it; the generated
   listing is appended after it rather than replacing it.
-
-### Fixed
+- Bibliography entries substitute attributes at their source position while
+  citation labels retain their original attribute references, matching Asciidoctor.
+- AsciiDoc table cells apply their child document settings without changing
+  parent or sibling settings.
+- Body document attributes now apply in source order to later Markdown media
+  targets, section labels and numbering, and cross-reference suffixes. Nested
+  AsciiDoc table-cell changes remain local to the cell.
+- Markdown parser attributes now expose `embedded` only when embedded output is selected.
 
 - Numbered book chapters now honor a configured `chapter-signifier` in both
   headings and TOC entries. An absent or unset signifier keeps the number-only
@@ -32,6 +43,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - When multiple anchors precede a document title, Markdown now emits the last
   one as the title destination, matching Asciidoctor. Automatic references use
   the full title and subtitle.
+
+### Performance
+
+- Nested and table-cell rendering reuses the active document-attribute view.
 
 ### Added
 

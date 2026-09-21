@@ -1,9 +1,9 @@
 //! Visitor implementation for HTML conversion.
 
-use std::{io::Write, rc::Rc, string::ToString};
+use std::{io::Write, path::Path, rc::Rc};
 
 use acdc_converters_core::{
-    Diagnostics, inlines_to_string,
+    Diagnostics, TraversalContext, document_attribute_text, inlines_to_string,
     substitutions::TextBoundaries,
     visitor::{Visitor, WritableVisitor},
 };
@@ -14,14 +14,13 @@ use acdc_converters_core::substitutions::baseline_subs;
 use acdc_converters_core::substitutions::effective_subs;
 
 use acdc_parser::{
-    Admonition, AttributeValue, Audio, Block, BlockMetadata, CalloutList, CaptionKind,
-    DelimitedBlock, DelimitedBlockType, DescriptionList, DiscreteHeader, Document,
-    DocumentAttributes, Footnote, Header, Image, InlineNode, ListItem, NORMAL, OrderedList,
-    PageBreak, Paragraph, Section, Substitution, TableOfContents, ThematicBreak, UnorderedList,
-    Video,
+    Admonition, Audio, Block, BlockMetadata, CalloutList, CaptionKind, DelimitedBlock,
+    DelimitedBlockType, DescriptionList, DiscreteHeader, Document, DocumentAttributes, Footnote,
+    Header, Image, InlineNode, ListItem, NORMAL, OrderedList, PageBreak, Paragraph, Section,
+    Substitution, TableOfContents, ThematicBreak, UnorderedList, Video,
 };
 
-use crate::{Error, HtmlVariant, Processor, RenderOptions, docinfo::DocInfo};
+use crate::{Error, HtmlVariant, Processor, RenderOptions, STYLESDIR_DEFAULT, docinfo::DocInfo};
 
 fn link_css<W: Write>(
     writer: &mut W,
@@ -31,15 +30,14 @@ fn link_css<W: Write>(
     // Link to external stylesheet
     let stylesdir = attributes
         .get("stylesdir")
-        .map_or_else(|| crate::STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+        .and_then(|value| value.text())
+        .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_string);
 
     let stylesheet = attributes
         .get("stylesheet")
-        .and_then(|v| {
-            let s = v.to_string();
-            if s.is_empty() { None } else { Some(s) }
-        })
-        .unwrap_or_else(|| default_filename.to_string());
+        .and_then(|value| value.text())
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| default_filename.to_string(), str::to_string);
 
     writeln!(
         writer,
@@ -66,22 +64,24 @@ fn link_css<W: Write>(
 /// `None` otherwise (falls back to default CSS).
 fn resolve_custom_css(
     attributes: &DocumentAttributes,
-    source_dir: Option<&std::path::Path>,
+    source_dir: Option<&Path>,
     diagnostics: &mut Diagnostics<'_>,
 ) -> Option<String> {
-    let stylesheet = attributes.get("stylesheet").and_then(|v| {
-        let s = v.to_string();
-        if s.is_empty() { None } else { Some(s) }
-    })?;
+    let stylesheet = attributes
+        .get("stylesheet")
+        .and_then(|value| value.text())
+        .filter(|value| !value.is_empty())?
+        .to_string();
 
     let stylesdir = attributes
         .get("stylesdir")
-        .map_or_else(|| crate::STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+        .and_then(|value| value.text())
+        .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_string);
 
-    let path = if std::path::Path::new(&stylesdir).is_absolute() {
+    let path = if Path::new(&stylesdir).is_absolute() {
         std::path::PathBuf::from(&stylesdir).join(&stylesheet)
     } else {
-        let base = source_dir.unwrap_or_else(|| std::path::Path::new("."));
+        let base = source_dir.unwrap_or_else(|| Path::new("."));
         base.join(&stylesdir).join(&stylesheet)
     };
 
@@ -130,10 +130,57 @@ fn add_mathjax<W: Write>(writer: &mut W) -> Result<(), Error> {
     Ok(())
 }
 
+/// Return whether the document enables STEM in its header, body, or a nested
+/// `AsciiDoc` cell. Embedded consumers can use this to enable math rendering.
+#[must_use]
+pub fn uses_stem(document: &Document<'_>) -> bool {
+    let resources = HeadResources::collect(document);
+    resources.stem || resources.nested_stem
+}
+
+struct HeadResources {
+    stem: bool,
+    font_icons: bool,
+    nested_stem: bool,
+}
+
+impl HeadResources {
+    fn collect(document: &Document<'_>) -> Self {
+        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut resources = Self {
+            stem: traversal.contains_key("stem"),
+            font_icons: traversal.get("icons").and_then(|value| value.as_str()) == Some("font"),
+            nested_stem: false,
+        };
+        let Ok(()) = traversal.visit_blocks(&mut resources, &document.blocks);
+        resources
+    }
+}
+
+impl<'doc> Visitor<'doc> for HeadResources {
+    type Error = std::convert::Infallible;
+
+    fn visit_document_attribute(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        _attribute: &'doc acdc_parser::DocumentAttribute<'doc>,
+    ) -> Result<(), Self::Error> {
+        if traversal.is_nested_document() {
+            self.nested_stem |= traversal.contains_key("stem");
+        } else {
+            self.stem |= traversal.contains_key("stem");
+            self.font_icons |=
+                traversal.get("icons").and_then(|value| value.as_str()) == Some("font");
+        }
+        Ok(())
+    }
+}
+
 /// HTML visitor that generates HTML from `AsciiDoc` AST
 pub struct HtmlVisitor<'a, 'd, W: Write> {
     pub(crate) writer: W,
     pub(crate) processor: Rc<Processor<'a>>,
+
     pub(crate) render_options: RenderOptions,
     /// Per-conversion diagnostics handle (warning source + sink borrow).
     pub(crate) diagnostics: Diagnostics<'d>,
@@ -157,13 +204,14 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         writer: W,
         processor: Rc<Processor<'a>>,
         render_options: RenderOptions,
+
         mut diagnostics: Diagnostics<'d>,
     ) -> Self {
         let docinfo = if render_options.embedded {
             DocInfo::empty()
         } else {
             DocInfo::resolve(
-                &processor.document_attributes,
+                processor.document_attributes(),
                 processor.options.safe_mode(),
                 render_options.source_dir.as_deref(),
                 render_options.docname.as_deref(),
@@ -173,6 +221,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         Self {
             writer,
             processor,
+
             render_options,
             diagnostics,
             current_subs: NORMAL.to_vec(),
@@ -186,6 +235,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
 
     pub(crate) fn render_captioned_title_with_wrapper(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         title: &[InlineNode],
         metadata: &BlockMetadata<'_>,
         fallback: Option<CaptionKind>,
@@ -199,7 +249,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             .processor
             .caption_prefix(metadata, fallback)
             .unwrap_or_default();
-        self.render_title_with_wrapper(title, &format!("{prefix}{caption}"), suffix)
+        self.render_title_with_wrapper(traversal, title, &format!("{prefix}{caption}"), suffix)
     }
 
     /// Consume the visitor and return the writer
@@ -214,9 +264,9 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// Check if dark mode is enabled via the `:dark-mode:` document attribute.
     fn is_dark_mode(&self) -> bool {
         self.processor
-            .document_attributes
+            .document_attributes()
             .get("dark-mode")
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
+            .is_some()
     }
 
     /// Emit syntax highlighting CSS in `<head>` when class-based mode is active.
@@ -227,21 +277,26 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     fn maybe_emit_syntax_css(&mut self) -> Result<(), Error> {
         if self
             .processor
-            .document_attributes
+            .document_attributes()
             .get("source-highlighter")
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false)))
+            .is_some()
         {
             let (theme_name, mode) =
-                crate::resolve_highlight_settings(&self.processor.document_attributes);
+                crate::resolve_highlight_settings(self.processor.document_attributes());
             if mode == crate::syntax::HighlightMode::Class {
-                let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+                let linkcss = self
+                    .processor
+                    .document_attributes()
+                    .get("linkcss")
+                    .is_some();
 
                 if linkcss {
                     let stylesdir = self
                         .processor
-                        .document_attributes
+                        .document_attributes()
                         .get("stylesdir")
-                        .map_or_else(|| crate::STYLESDIR_DEFAULT.to_string(), ToString::to_string);
+                        .and_then(|value| value.text())
+                        .map_or_else(|| STYLESDIR_DEFAULT.to_string(), str::to_string);
                     writeln!(
                         self.writer,
                         r#"<link rel="stylesheet" href="{}/{}">"#,
@@ -260,28 +315,36 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     ///
     /// Skipped entirely when `:!stylesheet:` is set (no-stylesheet mode).
     fn render_stylesheet(&mut self, dark_mode: bool) -> Result<(), Error> {
-        let stylesheet_disabled = self
+        let stylesheet_disabled = !self
             .processor
-            .document_attributes
-            .get("stylesheet")
-            .is_some_and(|v| matches!(v, AttributeValue::Bool(false)));
+            .document_attributes()
+            .contains_key("stylesheet")
+            && self
+                .processor
+                .document_attributes()
+                .is_explicit("stylesheet");
 
         if stylesheet_disabled {
             return Ok(());
         }
 
         // Render Google Fonts link (controlled by :webfonts: attribute)
-        match self.processor.document_attributes.get("webfonts") {
-            Some(AttributeValue::Bool(false)) => {
+        match self
+            .processor
+            .document_attributes()
+            .get("webfonts")
+            .and_then(|value| value.text())
+        {
+            None if self.processor.document_attributes().is_explicit("webfonts") => {
                 // :!webfonts: — skip font link entirely
             }
-            Some(AttributeValue::String(custom)) if !custom.is_empty() => {
+            Some(custom) if !custom.is_empty() => {
                 writeln!(
                     self.writer,
                     r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family={custom}">"#
                 )?;
             }
-            _ => {
+            Some(_) | None => {
                 writeln!(
                     self.writer,
                     r#"<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans:300,300italic,400,400italic,600,600italic%7CNoto+Serif:400,400italic,700,700italic%7CDroid+Sans+Mono:400,700">"#
@@ -290,7 +353,11 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         }
 
         // Handle stylesheet rendering based on linkcss attribute
-        let linkcss = self.processor.document_attributes.get("linkcss").is_some();
+        let linkcss = self
+            .processor
+            .document_attributes()
+            .get("linkcss")
+            .is_some();
         let variant = self.processor.variant();
         let default_filename = match (variant, dark_mode) {
             (HtmlVariant::Semantic, true) => crate::STYLESHEET_HTML5S_DARK_MODE,
@@ -302,12 +369,12 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         if linkcss {
             link_css(
                 &mut self.writer,
-                &self.processor.document_attributes,
+                self.processor.document_attributes(),
                 default_filename,
             )?;
         } else {
             let custom_css = resolve_custom_css(
-                &self.processor.document_attributes,
+                self.processor.document_attributes(),
                 self.render_options.source_dir.as_deref(),
                 &mut self.diagnostics,
             );
@@ -321,8 +388,11 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         }
 
         // Add max-width constraint if specified
-        if let Some(AttributeValue::String(max_width)) =
-            self.processor.document_attributes.get("max-width")
+        if let Some(max_width) = self
+            .processor
+            .document_attributes()
+            .get("max-width")
+            .and_then(|value| value.text())
             && !max_width.is_empty()
         {
             self.diagnostics.warn_with_advice(
@@ -345,29 +415,30 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// Whether the `:csp:` attribute opts this document into a `<meta>` Content
     /// Security Policy (standalone output only).
     fn is_csp_enabled(&self) -> bool {
-        self.processor
-            .document_attributes
-            .get("csp")
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
+        self.processor.document_attributes().get("csp").is_some()
     }
 
     /// The acdc features this document uses, for building its CSP. Mirrors the
     /// gating the head uses to decide which scripts, fonts, and CDNs it emits.
-    fn csp_features(&self) -> crate::CspFeatures {
-        let attrs = &self.processor.document_attributes;
-        let stylesheet_disabled = attrs
-            .get("stylesheet")
-            .is_some_and(|v| matches!(v, AttributeValue::Bool(false)));
+    fn csp_features(&self, stem: bool, font_icons: bool) -> crate::CspFeatures {
+        let attrs = &self.processor.document_attributes();
+        let stylesheet_disabled =
+            !attrs.contains_key("stylesheet") && attrs.is_explicit("stylesheet");
         crate::CspFeatures {
-            stem: attrs.get("stem").is_some(),
-            webfonts: !stylesheet_disabled
-                && !matches!(attrs.get("webfonts"), Some(AttributeValue::Bool(false))),
-            icons_font: attrs.get("icons").is_some_and(|v| v.to_string() == "font"),
+            stem,
+            webfonts: !(stylesheet_disabled
+                || !attrs.contains_key("webfonts") && attrs.is_explicit("webfonts")),
+            icons_font: font_icons,
             replay: cfg!(feature = "terminal"),
         }
     }
 
-    fn render_head(&mut self, document: &Document) -> Result<(), Error> {
+    fn render_head(
+        &mut self,
+        document: &'a Document<'a>,
+        stem: bool,
+        font_icons: bool,
+    ) -> Result<(), Error> {
         let dark_mode = self.is_dark_mode();
 
         writeln!(
@@ -391,7 +462,8 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             writeln!(
                 self.writer,
                 r#"<meta http-equiv="Content-Security-Policy" content="{}">"#,
-                self.csp_features().content_security_policy()
+                self.csp_features(stem, font_icons)
+                    .content_security_policy()
             )?;
         }
 
@@ -404,17 +476,12 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
         self.render_stylesheet(dark_mode)?;
 
         // Add MathJax if stem is enabled
-        if self.processor.document_attributes.get("stem").is_some() {
+        if stem {
             add_mathjax(&mut self.writer)?;
         }
 
         // Add Font Awesome if icons are set to font mode
-        if self
-            .processor
-            .document_attributes
-            .get("icons")
-            .is_some_and(|v| v.to_string() == "font")
-        {
+        if font_icons {
             writeln!(
                 self.writer,
                 r#"<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@7.2.0/css/all.min.css">"#
@@ -468,22 +535,28 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     /// `vX.Y` revision line is already dropped by the parser; an explicit
     /// `:revnumber:` keeps whatever it was given.
     fn render_footer_version(&mut self) -> Result<(), Error> {
-        if let Some(AttributeValue::String(revnumber)) =
-            self.processor.document_attributes.get("revnumber")
+        if let Some(revnumber) = self
+            .processor
+            .document_attributes()
+            .get("revnumber")
+            .and_then(|value| value.text())
         {
-            let label = self
-                .processor
-                .document_attributes
-                .get_string("version-label");
-            let label = label.as_deref().unwrap_or("Version");
+            let label = document_attribute_text(
+                (self.processor.document_attributes()).get("version-label"),
+            )
+            .unwrap_or("Version");
             writeln!(self.writer, "{label} {revnumber}<br>")?;
         }
         Ok(())
     }
 
-    fn render_footnotes(&mut self, footnotes: &[Footnote]) -> Result<(), Error> {
+    fn render_footnotes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        footnotes: &[Footnote],
+    ) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
-            return self.render_footnotes_semantic(footnotes);
+            return self.render_footnotes_semantic(traversal, footnotes);
         }
         writeln!(self.writer, "<div id=\"footnotes\">")?;
         writeln!(self.writer, "<hr>")?;
@@ -497,14 +570,18 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                 self.writer,
                 "<a href=\"#_footnoteref_{number}\">{number}</a>. "
             )?;
-            self.visit_inline_nodes(&footnote.content)?;
+            self.visit_inline_nodes(traversal, &footnote.content)?;
             writeln!(self.writer, "</div>")?;
         }
         writeln!(self.writer, "</div>")?;
         Ok(())
     }
 
-    fn render_footnotes_semantic(&mut self, footnotes: &[Footnote]) -> Result<(), Error> {
+    fn render_footnotes_semantic(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        footnotes: &[Footnote],
+    ) -> Result<(), Error> {
         writeln!(
             self.writer,
             "<section class=\"footnotes\" aria-label=\"Footnotes\" role=\"doc-endnotes\">"
@@ -517,7 +594,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
                 self.writer,
                 "<li class=\"footnote\" id=\"_footnote_{number}\" role=\"doc-endnote\">"
             )?;
-            self.visit_inline_nodes(&footnote.content)?;
+            self.visit_inline_nodes(traversal, &footnote.content)?;
             write!(
                 self.writer,
                 " <a class=\"footnote-backref\" href=\"#_footnoteref_{number}\" role=\"doc-backlink\" title=\"Jump to the first occurrence in the text\">&#8617;</a>"
@@ -530,10 +607,14 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
     }
 }
 
-impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
     type Error = Error;
 
-    fn visit_unhandled_block(&mut self, _block: &Block<'_>) -> Result<(), Self::Error> {
+    fn visit_unhandled_block(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _block: &'a Block<'a>,
+    ) -> Result<(), Self::Error> {
         self.diagnostics.warn_with_advice(
             "an unsupported parser block variant was omitted from HTML output",
             "Use another backend for this document and report the unsupported construct.",
@@ -541,7 +622,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_document_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_start(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // In embedded mode, skip the document frame (DOCTYPE, html, head, body)
         if self.render_options.embedded {
             return Ok(());
@@ -550,16 +635,13 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         writeln!(self.writer, "<!DOCTYPE html>")?;
 
         // Add lang attribute if not suppressed by :nolang:
-        if let Some(lang) = doc.attributes.get("lang") {
-            match lang {
-                AttributeValue::String(lang_value) if !lang_value.is_empty() => {
-                    writeln!(self.writer, "<html lang=\"{lang_value}\">")?;
-                }
-                AttributeValue::String(_) | AttributeValue::Bool(_) | AttributeValue::None | _ => {
-                    writeln!(self.writer, "<html>")?;
-                }
-            }
-        } else if doc.attributes.contains_key("nolang") {
+        if let Some(lang_value) = doc.attributes.get("lang").and_then(|value| value.text())
+            && !lang_value.is_empty()
+        {
+            writeln!(self.writer, "<html lang=\"{lang_value}\">")?;
+        } else if doc.attributes.contains_key("lang") {
+            writeln!(self.writer, "<html>")?;
+        } else if doc.attributes.get("nolang").is_some() {
             // :nolang: attribute suppresses lang
             writeln!(self.writer, "<html>")?;
         } else {
@@ -567,12 +649,13 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "<html lang=\"en\">")?;
         }
 
-        self.render_head(doc)?;
+        let resources = HeadResources::collect(doc);
+        self.render_head(doc, resources.stem, resources.font_icons)?;
 
         // Check for unsupported css-signature attribute
         if self
             .processor
-            .document_attributes
+            .document_attributes()
             .contains_key("css-signature")
         {
             return Err(Error::UnsupportedCssSignature);
@@ -582,12 +665,10 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         // Prefer document attribute :doctype: over CLI option (inline attribute wins)
         let doctype_str = self
             .processor
-            .document_attributes
+            .document_attributes()
             .get("doctype")
-            .map_or_else(
-                || self.processor.options.doctype().to_string(),
-                ToString::to_string,
-            );
+            .and_then(|value| value.as_str().map(std::string::ToString::to_string))
+            .unwrap_or_else(|| self.processor.options.doctype().to_string());
         let mut body_classes = vec![doctype_str];
 
         if self.is_dark_mode() {
@@ -595,7 +676,10 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         }
 
         // Add TOC-related classes to body based on placement and custom toc-class
-        let toc_config = acdc_converters_core::toc::Config::from_attributes(None, &doc.attributes);
+        let toc_config = acdc_converters_core::toc::Config::from_attributes(
+            None,
+            &TraversalContext::new(&doc.attributes),
+        );
         let has_custom_toc_class = doc.attributes.get("toc-class").is_some();
 
         match toc_config.placement() {
@@ -645,7 +729,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_preamble_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_preamble_end(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "</section>")?;
         } else {
@@ -653,11 +741,15 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
             writeln!(self.writer, "</div>")?; // Close preamble
         }
 
-        self.render_toc(None, "preamble")?;
+        self.render_toc(traversal, None, "preamble")?;
         Ok(())
     }
 
-    fn visit_document_supplements(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_supplements(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // Close #content (only if not in embedded mode)
         if !self.render_options.embedded {
             if self.processor.variant() == HtmlVariant::Semantic {
@@ -667,7 +759,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
             }
         }
         if !doc.footnotes.is_empty() {
-            self.render_footnotes(&doc.footnotes)?;
+            self.render_footnotes(traversal, &doc.footnotes)?;
         }
         // Skip footer in embedded mode
         if !self.render_options.embedded {
@@ -679,7 +771,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_document_end(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_document_end(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         // In embedded mode, skip the closing document frame tags
         if self.render_options.embedded {
             return Ok(());
@@ -691,10 +787,14 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_header(&mut self, header: &Header) -> Result<(), Self::Error> {
+    fn visit_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &Header,
+    ) -> Result<(), Self::Error> {
         if self.render_options.embedded {
             // In embedded mode, render the TOC but skip the header chrome
-            self.render_toc(None, "auto")?;
+            self.render_toc(traversal, None, "auto")?;
             return Ok(());
         }
         if self.processor.variant() == HtmlVariant::Semantic {
@@ -704,20 +804,17 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         }
         if !header.title.is_empty() {
             write!(self.writer, "<h1>")?;
-            self.visit_inline_nodes(&header.title)?;
+            self.visit_inline_nodes(traversal, &header.title)?;
             if let Some(subtitle) = &header.subtitle {
                 write!(self.writer, ": ")?;
-                self.visit_inline_nodes(subtitle)?;
+                self.visit_inline_nodes(traversal, subtitle)?;
             }
             writeln!(self.writer, "</h1>")?;
             // Output details div if there are authors or revision info
-            let has_revision = matches!(
-                self.processor.document_attributes.get("revnumber"),
-                Some(AttributeValue::String(_))
-            ) || matches!(
-                self.processor.document_attributes.get("revdate"),
-                Some(AttributeValue::String(_))
-            );
+            let attributes = traversal.header();
+            let revnumber = attributes.get("revnumber").and_then(|value| value.text());
+            let revdate = attributes.get("revdate").and_then(|value| value.text());
+            let has_revision = revnumber.is_some() || revdate.is_some();
             if !header.authors.is_empty() || has_revision {
                 writeln!(self.writer, "<div class=\"details\">")?;
                 for (i, author) in header.authors.iter().enumerate() {
@@ -756,32 +853,20 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
                 // revision line is already dropped by the parser, while an
                 // explicit `:revnumber:` keeps whatever it was given. The
                 // trailing comma is emitted only when a revdate follows.
-                let has_revdate = matches!(
-                    self.processor.document_attributes.get("revdate"),
-                    Some(AttributeValue::String(_))
-                );
-                if let Some(AttributeValue::String(revnumber)) =
-                    self.processor.document_attributes.get("revnumber")
-                {
-                    let label = self
-                        .processor
-                        .document_attributes
-                        .get_string("version-label");
-                    let label = label.as_deref().unwrap_or("Version");
+                if let Some(revnumber) = revnumber {
+                    let label = document_attribute_text(attributes.get("version-label"))
+                        .unwrap_or("Version");
                     writeln!(
                         self.writer,
                         "<span id=\"revnumber\">{} {revnumber}{}</span>",
                         label.to_lowercase(),
-                        if has_revdate { "," } else { "" }
+                        if revdate.is_some() { "," } else { "" }
                     )?;
                 }
-                if let Some(AttributeValue::String(revdate)) =
-                    self.processor.document_attributes.get("revdate")
-                {
+                if let Some(revdate) = revdate {
                     writeln!(self.writer, "<span id=\"revdate\">{revdate}</span>")?;
                 }
-                if let Some(AttributeValue::String(revremark)) =
-                    self.processor.document_attributes.get("revremark")
+                if let Some(revremark) = attributes.get("revremark").and_then(|value| value.text())
                 {
                     writeln!(self.writer, "<br><span id=\"revremark\">{revremark}</span>")?;
                 }
@@ -790,7 +875,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         }
 
         // Render TOC after header if toc="auto"
-        self.render_toc(None, "auto")?;
+        self.render_toc(traversal, None, "auto")?;
         if self.processor.variant() == HtmlVariant::Semantic {
             writeln!(self.writer, "</header>")?;
         } else {
@@ -799,11 +884,15 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_body_content_start(&mut self, doc: &Document) -> Result<(), Self::Error> {
+    fn visit_body_content_start(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         if self.render_options.embedded {
             // When there's no header, the TOC hasn't been rendered yet
             if doc.header.is_none() {
-                self.render_toc(None, "auto")?;
+                self.render_toc(traversal, None, "auto")?;
             }
             return Ok(());
         }
@@ -812,7 +901,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         if doc.header.is_none() && !self.processor.toc_entries.is_empty() {
             let toc_config = acdc_converters_core::toc::Config::from_attributes(
                 None,
-                &self.processor.document_attributes,
+                &TraversalContext::new(self.processor.document_attributes()),
             );
             if matches!(
                 toc_config.placement(),
@@ -823,7 +912,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
                 } else {
                     writeln!(self.writer, "<div id=\"header\">")?;
                 }
-                self.render_toc(None, "auto")?;
+                self.render_toc(traversal, None, "auto")?;
                 if self.processor.variant() == HtmlVariant::Semantic {
                     writeln!(self.writer, "</header>")?;
                 } else {
@@ -839,7 +928,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_preamble_start(&mut self, _doc: &Document) -> Result<(), Self::Error> {
+    fn visit_preamble_start(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _doc: &'a Document<'a>,
+    ) -> Result<(), Self::Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
             writeln!(
                 self.writer,
@@ -852,7 +945,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_section(&mut self, section: &Section) -> Result<(), Self::Error> {
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        section: &'a Section<'a>,
+    ) -> Result<(), Self::Error> {
         let previous_style = self.section_style.clone();
         self.section_style = section
             .metadata
@@ -864,13 +961,17 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         // so nested sections pop back correctly.
         let previous_section_title = self.current_section_title.take();
         self.current_section_title = Some(inlines_to_string(&section.title));
-        let result = self.render_section(section);
+        let result = self.render_section(traversal, section);
         self.current_section_title = previous_section_title;
         self.section_style = previous_style;
         result
     }
 
-    fn visit_paragraph(&mut self, para: &Paragraph) -> Result<(), Self::Error> {
+    fn visit_paragraph(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        para: &Paragraph,
+    ) -> Result<(), Self::Error> {
         // Paragraphs with [literal], [listing], or [source] style are verbatim
         let is_verbatim = para
             .metadata
@@ -884,14 +985,18 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         let new_subs = baseline_subs(is_verbatim);
         let original_subs = std::mem::replace(&mut self.current_subs, new_subs);
 
-        let result = self.render_paragraph(para);
+        let result = self.render_paragraph(traversal, para);
 
         self.current_subs = original_subs;
 
         result
     }
 
-    fn visit_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Self::Error> {
+    fn visit_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Self::Error> {
         let is_verbatim = matches!(
             &block.inner,
             DelimitedBlockType::DelimitedListing(_) | DelimitedBlockType::DelimitedLiteral(_)
@@ -910,7 +1015,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
             self.render_options.inlines_verbatim = true;
         }
 
-        let result = self.render_delimited_block(block);
+        let result = self.render_delimited_block(traversal, block);
 
         // Restore state
         self.current_subs = original_subs;
@@ -919,45 +1024,85 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         result
     }
 
-    fn visit_ordered_list(&mut self, list: &OrderedList) -> Result<(), Self::Error> {
-        self.render_ordered_list(list)
+    fn visit_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_ordered_list(traversal, list)
     }
 
-    fn visit_unordered_list(&mut self, list: &UnorderedList) -> Result<(), Self::Error> {
+    fn visit_unordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
+    ) -> Result<(), Self::Error> {
         let section_style = self.section_style.clone();
-        self.render_unordered_list(list, section_style.as_deref())
+        self.render_unordered_list(traversal, list, section_style.as_deref())
     }
 
-    fn visit_description_list(&mut self, list: &DescriptionList) -> Result<(), Self::Error> {
-        self.render_description_list(list)
+    fn visit_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_description_list(traversal, list)
     }
 
-    fn visit_callout_list(&mut self, list: &CalloutList) -> Result<(), Self::Error> {
-        self.render_callout_list(list)
+    fn visit_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_callout_list(traversal, list)
     }
 
-    fn visit_list_item(&mut self, _item: &ListItem) -> Result<(), Self::Error> {
+    fn visit_list_item(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _item: &'a ListItem<'a>,
+    ) -> Result<(), Self::Error> {
         // List items are handled by their parent list visitors
         Ok(())
     }
 
-    fn visit_admonition(&mut self, admon: &Admonition) -> Result<(), Self::Error> {
-        self.render_admonition(admon)
+    fn visit_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admon: &'a Admonition<'a>,
+    ) -> Result<(), Self::Error> {
+        self.render_admonition(traversal, admon)
     }
 
-    fn visit_image(&mut self, img: &Image) -> Result<(), Self::Error> {
-        self.render_image(img)
+    fn visit_image(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        img: &Image,
+    ) -> Result<(), Self::Error> {
+        self.render_image(traversal, img)
     }
 
-    fn visit_video(&mut self, video: &Video) -> Result<(), Self::Error> {
-        self.render_video(video)
+    fn visit_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Self::Error> {
+        self.render_video(traversal, video)
     }
 
-    fn visit_audio(&mut self, audio: &Audio) -> Result<(), Self::Error> {
-        self.render_audio(audio)
+    fn visit_audio(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        audio: &Audio,
+    ) -> Result<(), Self::Error> {
+        self.render_audio(traversal, audio)
     }
 
-    fn visit_thematic_break(&mut self, br: &ThematicBreak) -> Result<(), Self::Error> {
+    fn visit_thematic_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        br: &ThematicBreak,
+    ) -> Result<(), Self::Error> {
         write!(self.writer, "<hr")?;
         if let Some(anchor) = br.anchors.first() {
             write!(self.writer, " id=\"{}\"", anchor.id)?;
@@ -966,7 +1111,11 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_page_break(&mut self, _br: &PageBreak) -> Result<(), Self::Error> {
+    fn visit_page_break(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        _br: &PageBreak,
+    ) -> Result<(), Self::Error> {
         writeln!(
             self.writer,
             "<div style=\"page-break-after: always;\"></div>"
@@ -974,15 +1123,27 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn visit_table_of_contents(&mut self, toc: &TableOfContents) -> Result<(), Self::Error> {
-        self.render_toc(Some(toc), "macro")
+    fn visit_table_of_contents(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        toc: &TableOfContents,
+    ) -> Result<(), Self::Error> {
+        self.render_toc(traversal, Some(toc), "macro")
     }
 
-    fn visit_discrete_header(&mut self, header: &DiscreteHeader) -> Result<(), Self::Error> {
-        crate::section::visit_discrete_header(header, self)
+    fn visit_discrete_header(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        header: &DiscreteHeader,
+    ) -> Result<(), Self::Error> {
+        crate::section::visit_discrete_header(traversal, header, self)
     }
 
-    fn visit_inline_node(&mut self, node: &InlineNode) -> Result<(), Self::Error> {
+    fn visit_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+    ) -> Result<(), Self::Error> {
         let saved = self.render_options.in_inline_span;
         if acdc_converters_core::visitor::is_formatting_span(node) {
             self.render_options.in_inline_span = true;
@@ -990,13 +1151,17 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
 
         let options = self.render_options.clone();
         let subs = self.current_subs.clone();
-        let result = self.render_inline_node(node, &options, &subs);
+        let result = self.render_inline_node(traversal, node, &options, &subs);
 
         self.render_options.in_inline_span = saved;
         result
     }
 
-    fn visit_inline_nodes(&mut self, nodes: &[InlineNode]) -> Result<(), Self::Error> {
+    fn visit_inline_nodes(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode],
+    ) -> Result<(), Self::Error> {
         let previous_boundaries = self.text_boundaries;
         let last = nodes.len().saturating_sub(1);
         let result = (|| {
@@ -1014,7 +1179,7 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
                             && previous_boundaries.at_paragraph_end()
                             && index == last),
                 );
-                self.visit_inline_node(node)?;
+                self.visit_inline_node(traversal, node)?;
             }
             Ok(())
         })();
@@ -1022,13 +1187,17 @@ impl<W: Write> Visitor for HtmlVisitor<'_, '_, W> {
         result
     }
 
-    fn visit_text(&mut self, text: &str) -> Result<(), Self::Error> {
+    fn visit_text(
+        &mut self,
+        _traversal: &mut TraversalContext<'a>,
+        text: &str,
+    ) -> Result<(), Self::Error> {
         write!(self.writer, "{text}")?;
         Ok(())
     }
 }
 
-impl<W: Write> WritableVisitor for HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> WritableVisitor<'a> for HtmlVisitor<'a, '_, W> {
     fn writer_mut(&mut self) -> &mut dyn Write {
         &mut self.writer
     }

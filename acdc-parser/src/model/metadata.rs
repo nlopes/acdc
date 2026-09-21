@@ -6,9 +6,9 @@ use super::anchor::Anchor;
 use super::attributes::{AttributeValue, ElementAttributes};
 use super::attribution::{Attribution, CiteTitle};
 use super::caption::Caption;
-use super::location::Location;
 #[cfg(feature = "pre-spec-subs")]
 use super::substitution::SubstitutionSpec;
+use super::{DocumentAttribute, location::Location};
 
 pub type Role<'a> = &'a str;
 
@@ -19,10 +19,16 @@ pub(crate) struct PositionalAttribute<'a> {
     pub(crate) location: Option<Location>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) struct DocumentAttributeEvents<'a>(Vec<DocumentAttribute<'a>>);
+
 /// A `BlockMetadata` represents the metadata of a block in a document.
 #[derive(Clone, Debug, Default, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct BlockMetadata<'a> {
+    // Store uncommon parser events separately to keep each block's metadata small.
+    #[serde(skip)]
+    pub(crate) document_attributes: Option<Box<DocumentAttributeEvents<'a>>>,
     /// Caption behavior resolved from the document attributes in effect at this block's
     /// source position, and the ordinal assigned to it. `None` means caller-built metadata
     /// or a block that takes no caption.
@@ -160,6 +166,36 @@ impl<'a> BlockMetadata<'a> {
             .map(|positional| positional.value)
     }
 
+    pub(crate) fn has_document_attributes(&self) -> bool {
+        self.document_attributes.is_some()
+    }
+
+    pub(crate) fn push_document_attribute(&mut self, attribute: DocumentAttribute<'a>) {
+        self.document_attributes
+            .get_or_insert_with(Default::default)
+            .0
+            .push(attribute);
+    }
+
+    pub(crate) fn take_document_attributes(&mut self) -> Vec<DocumentAttribute<'a>> {
+        self.document_attributes
+            .take()
+            .map_or_else(Vec::new, |attributes| attributes.0)
+    }
+
+    pub(crate) fn append_document_attributes(
+        &mut self,
+        mut attributes: Vec<DocumentAttribute<'a>>,
+    ) {
+        if attributes.is_empty() {
+            return;
+        }
+        self.document_attributes
+            .get_or_insert_with(Default::default)
+            .0
+            .append(&mut attributes);
+    }
+
     pub(crate) fn overlay_positional_attributes(&mut self, other: &[PositionalAttribute<'a>]) {
         if self.positional_attributes.len() < other.len() {
             self.positional_attributes
@@ -197,6 +233,12 @@ impl<'a> BlockMetadata<'a> {
 
     #[tracing::instrument(level = "debug")]
     pub(crate) fn merge(&mut self, other: &BlockMetadata<'a>) {
+        if let Some(attributes) = &other.document_attributes {
+            self.document_attributes
+                .get_or_insert_with(Default::default)
+                .0
+                .extend(attributes.0.iter().cloned());
+        }
         for (name, value) in other.attributes.iter() {
             self.attributes.set(name.clone(), value.clone());
         }

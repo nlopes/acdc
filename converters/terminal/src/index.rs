@@ -91,7 +91,7 @@ fn group_by_letter(
 }
 
 /// Render the index catalog for an `[index]` section.
-pub(crate) fn render<V: WritableVisitor<Error = Error>>(
+pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
     visitor: &mut V,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {

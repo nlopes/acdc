@@ -15,7 +15,7 @@
 
 use std::{alloc::System, fmt::Write as _, hint::black_box};
 
-use acdc_parser::{Options, parse};
+use acdc_parser::{Error, Options, parse};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
 
 #[global_allocator]
@@ -132,13 +132,35 @@ fn slow_path_control_document(line_count: usize) -> String {
     document
 }
 
-fn measure(input: &str, options: &Options) -> Result<Stats, acdc_parser::Error> {
+fn measure(input: &str, options: &Options) -> Result<Stats, Error> {
     let region = Region::new(GLOBAL);
     let parsed = parse(black_box(input), black_box(options))?;
     black_box(&parsed);
     let stats = region.change();
     drop(parsed);
     Ok(stats)
+}
+
+fn measure_steady_state(input: &str, options: &Options) -> Result<Stats, Error> {
+    // Intrinsic timestamp values are cached for one second. A parse that crosses
+    // that boundary rebuilds the fixed-size intrinsic map, which is unrelated to
+    // the conditional line count protected by this test. Of two back-to-back
+    // measurements, the smaller result reduces noise from cache refreshes.
+    let first = measure(input, options)?;
+    let second = measure(input, options)?;
+    let key = |stats: &Stats| {
+        (
+            stats.allocations,
+            stats.reallocations,
+            stats.bytes_allocated,
+            stats.bytes_reallocated,
+        )
+    };
+    Ok(if key(&first) <= key(&second) {
+        first
+    } else {
+        second
+    })
 }
 
 fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Budget) {
@@ -173,10 +195,10 @@ fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Bud
 }
 
 #[test]
-fn conditional_allocation_work_stays_within_budget() -> Result<(), acdc_parser::Error> {
+fn conditional_allocation_work_stays_within_budget() -> Result<(), Error> {
     let active_options = Options::builder()
         .with_attribute("bench-active", true)
-        .build();
+        .build()?;
     let inactive_options = Options::default();
 
     for budget in BUDGETS {
@@ -191,10 +213,10 @@ fn conditional_allocation_work_stays_within_budget() -> Result<(), acdc_parser::
         let _ = parse(&plain_control, &inactive_options)?;
         let _ = parse(&slow_control, &inactive_options)?;
 
-        let active = measure(&conditional, &active_options)?;
-        let inactive = measure(&conditional, &inactive_options)?;
-        let plain_control = measure(&plain_control, &inactive_options)?;
-        let slow_control = measure(&slow_control, &inactive_options)?;
+        let active = measure_steady_state(&conditional, &active_options)?;
+        let inactive = measure_steady_state(&conditional, &inactive_options)?;
+        let plain_control = measure_steady_state(&plain_control, &inactive_options)?;
+        let slow_control = measure_steady_state(&slow_control, &inactive_options)?;
 
         eprintln!(
             "conditional allocations/{line_count}: active={active:?} inactive={inactive:?} \

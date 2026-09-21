@@ -58,12 +58,17 @@ fn slow_path_control_document(line_count: usize) -> String {
     document
 }
 
+#[allow(
+    clippy::expect_used,
+    reason = "Invalid benchmark setup must fail the run"
+)]
 fn conditional_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("conditionals");
 
     let active_options = Options::builder()
         .with_attribute("bench-active", true)
-        .build();
+        .build()
+        .expect("valid benchmark attributes");
     let inactive_options = Options::default();
 
     for line_count in LINE_COUNTS {

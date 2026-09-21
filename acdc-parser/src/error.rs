@@ -44,6 +44,19 @@ pub enum Error {
     #[error("Invalid level offset: {1}, position: {0}")]
     InvalidLevelOffset(Box<SourceLocation>, String),
 
+    /// A document attribute value did not match its documented domain.
+    #[error("Invalid document attribute `{name}` value `{value}`: expected {expected}")]
+    InvalidDocumentAttribute {
+        /// Document attribute name.
+        name: String,
+        /// Value as supplied by the caller or document.
+        value: String,
+        /// Short description of the accepted value domain.
+        expected: &'static str,
+        /// Source location for a document entry, when available.
+        location: Option<Box<SourceLocation>>,
+    },
+
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
 
@@ -105,6 +118,7 @@ impl Error {
             | Self::InvalidLevelOffset(detail, ..)
             | Self::InvalidIfEvalDirectiveMismatchedTypes(detail)
             | Self::NonConformingManpageTitle(detail, ..) => Some(detail),
+            Self::InvalidDocumentAttribute { location, .. } => location.as_deref(),
             Self::ParseGrammar(_)
             | Self::Io(_)
             | Self::Url(_)
@@ -154,6 +168,9 @@ impl Error {
             Self::InvalidLevelOffset(..) => Some(
                 "The leveloffset attribute must be a signed integer (e.g., +1, -1, 0) to adjust section levels in included content",
             ),
+            Self::InvalidDocumentAttribute { .. } => {
+                Some("Use a value in the attribute's documented domain")
+            }
             Self::InvalidIncludePath(..) => Some(
                 "Include paths must have a valid parent directory. Check that the path is not empty or relative to a non-existent location",
             ),

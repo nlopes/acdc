@@ -14,7 +14,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .embedded(embedded)
             .build();
-        let processor = Processor::new(options, doc.attributes.clone());
+        let processor = Processor::new(
+            options,
+            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+        )?;
         let mut warnings = Vec::new();
         let source = acdc_converters_core::WarningSource::new("manpage");
         let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);

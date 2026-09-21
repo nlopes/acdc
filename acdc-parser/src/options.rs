@@ -5,25 +5,18 @@ use std::{
 
 pub use crate::safe_mode::SafeMode;
 
-use crate::{AttributeValue, DocumentAttributes};
-
-/// Whether the current explicit attributes have been classified as caller input.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) enum CallerAttributeLockState {
-    /// Explicit attributes must be marked when parsing starts.
-    #[default]
-    Pending,
-    /// Existing explicit attributes are locked; later merges remain defaults.
-    Initialized,
-}
+use crate::{
+    AttributeValue, DocumentAttributes, Error,
+    document_attribute::{InputKind, initialize_configuration, initialize_intrinsics},
+    model::RawAttributes,
+};
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct Options<'a> {
     pub safe_mode: SafeMode,
     pub timings: bool,
-    pub document_attributes: DocumentAttributes<'a>,
-    pub(crate) caller_attribute_lock_state: CallerAttributeLockState,
+    pub(crate) document_attributes: DocumentAttributes<'a>,
     /// Directory used to resolve relative includes from the entry input.
     ///
     /// String and reader input default to the current working directory. File
@@ -60,7 +53,8 @@ impl<'a> Options<'a> {
     ///     .with_safe_mode(SafeMode::Safe)
     ///     .with_timings()
     ///     .with_attribute("toc", "left")
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
     pub fn builder() -> OptionsBuilder<'a> {
@@ -75,67 +69,62 @@ impl<'a> Options<'a> {
         Self::default()
     }
 
-    /// Create a new `Options` with locked document attributes.
+    /// Create options from application-supplied attributes.
     ///
-    /// Explicit attributes in the map cannot be replaced or unset by document
-    /// entries.
+    /// # Errors
     ///
-    /// # Example
-    ///
-    /// ```
-    /// use acdc_parser::{Options, DocumentAttributes, AttributeValue};
-    ///
-    /// let mut attrs = DocumentAttributes::default();
-    /// attrs.insert("toc".into(), AttributeValue::String("left".into()));
-    ///
-    /// let options = Options::with_attributes(attrs);
-    /// ```
-    #[must_use]
-    pub fn with_attributes(mut document_attributes: DocumentAttributes<'a>) -> Self {
-        document_attributes.mark_explicit_as_caller_locked();
-        Self {
-            document_attributes,
-            caller_attribute_lock_state: CallerAttributeLockState::Initialized,
-            ..Default::default()
-        }
+    /// Returns a structured error for an invalid attribute value.
+    pub fn with_attributes<N, V>(
+        attributes: impl IntoIterator<Item = (N, V)>,
+    ) -> Result<Self, Error>
+    where
+        N: Into<Cow<'a, str>>,
+        V: Into<AttributeValue<'a>>,
+    {
+        Self::builder().with_attributes(attributes).build()
     }
 
-    /// Lock attributes from directly constructed options before parsing starts.
+    /// Return the validated attributes configured for parsing.
+    #[must_use]
+    pub const fn document_attributes(&self) -> &DocumentAttributes<'a> {
+        &self.document_attributes
+    }
+
+    /// Consume the options and return their validated attribute collection.
+    #[must_use]
+    pub fn into_document_attributes(self) -> DocumentAttributes<'a> {
+        self.document_attributes
+    }
+
+    /// Replace the attribute snapshot with one from an already parsed document.
     ///
-    /// Builder-created options are already initialized. Skipping a second pass
-    /// keeps attributes merged later, such as converter defaults, unlocked.
-    pub(crate) fn prepare_for_parse(mut self) -> Self {
-        if self.caller_attribute_lock_state == CallerAttributeLockState::Pending {
-            self.document_attributes.mark_explicit_as_caller_locked();
-            self.caller_attribute_lock_state = CallerAttributeLockState::Initialized;
-        }
+    /// This does not reclassify or revalidate assignments. Use the builder when
+    /// supplied values should become new application overrides.
+    #[must_use]
+    pub fn with_document_attributes(mut self, attributes: DocumentAttributes<'a>) -> Self {
+        self.document_attributes = attributes;
         self
     }
 
-    /// Whether document content must ignore an attribute entry.
-    ///
-    /// This combines the name-based protection for read-only and API-only
-    /// built-ins with locks created from caller-supplied attributes.
-    pub(crate) fn is_document_attribute_locked(&self, name: &str, in_header: bool) -> bool {
-        crate::constants::is_builtin_attribute_protected(name)
-            || self.is_caller_attribute_locked(name, in_header)
+    /// Reopen configuration while preserving application overrides and defaults.
+    #[must_use]
+    pub fn into_builder(self) -> OptionsBuilder<'a> {
+        let (attributes, defaults) = self.document_attributes.into_configuration();
+        OptionsBuilder {
+            attributes,
+            defaults,
+            safe_mode: self.safe_mode,
+            timings: self.timings,
+            base_dir: self.base_dir,
+            strict: self.strict,
+            #[cfg(feature = "setext")]
+            setext: self.setext,
+        }
     }
 
-    /// Whether a caller-supplied attribute is locked against document entries.
-    ///
-    /// Builder attributes are marked as caller values when options are built.
-    /// Directly constructed options are marked when parsing starts. Attributes
-    /// merged into built options, such as converter defaults, remain
-    /// document-overridable. A caller-set `sectnums` is locked in the header but
-    /// becomes modifiable in the body; a caller-requested unset remains locked.
-    fn is_caller_attribute_locked(&self, name: &str, in_header: bool) -> bool {
-        let locked = self.document_attributes.is_caller_locked(name);
-
-        if locked && name == "sectnums" && !in_header {
-            return !self.document_attributes.is_set(name);
-        }
-
-        locked
+    pub(crate) fn prepare_for_parse(mut self, input_kind: InputKind<'_>) -> Self {
+        initialize_intrinsics(&mut self.document_attributes, self.safe_mode, input_kind);
+        self
     }
 
     /// Consume the options, producing an independent `'static` copy.
@@ -145,7 +134,6 @@ impl<'a> Options<'a> {
             safe_mode: self.safe_mode,
             timings: self.timings,
             document_attributes: self.document_attributes.into_static(),
-            caller_attribute_lock_state: self.caller_attribute_lock_state,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
@@ -168,14 +156,16 @@ impl<'a> Options<'a> {
 ///     .with_timings()
 ///     .with_attribute("toc", "left")
 ///     .with_attribute("sectnums", true)
-///     .build();
+///     .build()?;
+/// # Ok::<(), acdc_parser::Error>(())
 /// ```
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
 pub struct OptionsBuilder<'a> {
     safe_mode: SafeMode,
     timings: bool,
-    document_attributes: DocumentAttributes<'a>,
+    attributes: RawAttributes<'a>,
+    defaults: RawAttributes<'a>,
     base_dir: Option<PathBuf>,
     strict: bool,
     #[cfg(feature = "setext")]
@@ -192,7 +182,8 @@ impl<'a> OptionsBuilder<'a> {
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
     pub fn with_safe_mode(mut self, safe_mode: SafeMode) -> Self {
@@ -209,7 +200,8 @@ impl<'a> OptionsBuilder<'a> {
     ///
     /// let options = Options::builder()
     ///     .with_timings()
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
     pub fn with_timings(mut self) -> Self {
@@ -239,7 +231,8 @@ impl<'a> OptionsBuilder<'a> {
     ///
     /// let options = Options::builder()
     ///     .with_strict()
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
     pub fn with_strict(mut self) -> Self {
@@ -247,9 +240,10 @@ impl<'a> OptionsBuilder<'a> {
         self
     }
 
-    /// Add a locked document attribute.
+    /// Supply an application attribute.
     ///
-    /// Document entries cannot replace or unset this value.
+    /// Application values take precedence over document entries, subject to the
+    /// attribute's standard assignment rules.
     ///
     /// This is a convenience method that accepts various types for the value:
     /// - `&str` becomes `AttributeValue::String`
@@ -264,7 +258,8 @@ impl<'a> OptionsBuilder<'a> {
     /// let options = Options::builder()
     ///     .with_attribute("toc", "left")
     ///     .with_attribute("sectnums", true)
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
     pub fn with_attribute(
@@ -272,31 +267,60 @@ impl<'a> OptionsBuilder<'a> {
         name: impl Into<Cow<'a, str>>,
         value: impl Into<AttributeValue<'a>>,
     ) -> Self {
-        self.document_attributes.set(name.into(), value.into());
+        self.attributes.insert(name.into(), value.into());
         self
     }
 
-    /// Set all locked document attributes at once.
-    ///
-    /// Explicit attributes in the map cannot be replaced or unset by document
-    /// entries.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use acdc_parser::{Options, DocumentAttributes, AttributeValue};
-    ///
-    /// let mut attrs = DocumentAttributes::default();
-    /// attrs.insert("toc".into(), AttributeValue::String("left".into()));
-    ///
-    /// let options = Options::builder()
-    ///     .with_attributes(attrs)
-    ///     .build();
-    /// ```
+    /// Replace the application-supplied attributes.
     #[must_use]
-    pub fn with_attributes(mut self, document_attributes: DocumentAttributes<'a>) -> Self {
-        self.document_attributes = document_attributes;
+    pub fn with_attributes<N, V>(mut self, attributes: impl IntoIterator<Item = (N, V)>) -> Self
+    where
+        N: Into<Cow<'a, str>>,
+        V: Into<AttributeValue<'a>>,
+    {
+        self.attributes = attributes
+            .into_iter()
+            .map(|(name, value)| (name.into(), value.into()))
+            .collect();
         self
+    }
+
+    /// Replace defaults for attributes not supplied by the application.
+    ///
+    /// Document entries can replace these defaults when the attribute permits it.
+    /// Intrinsic backend values retain their normal precedence.
+    /// Backend, base backend, file type, and document type defaults also determine
+    /// their convenience attributes when the options are built.
+    #[must_use]
+    pub fn with_defaults<N, V>(mut self, defaults: impl IntoIterator<Item = (N, V)>) -> Self
+    where
+        N: Into<Cow<'a, str>>,
+        V: Into<AttributeValue<'a>>,
+    {
+        self.defaults = defaults
+            .into_iter()
+            .map(|(name, value)| (name.into(), value.into()))
+            .collect();
+        self
+    }
+
+    /// Supply a default without changing an application override.
+    #[must_use]
+    pub fn with_default_attribute(
+        mut self,
+        name: impl Into<Cow<'a, str>>,
+        value: impl Into<AttributeValue<'a>>,
+    ) -> Self {
+        self.defaults.insert(name.into(), value.into());
+        self
+    }
+
+    /// Inspect a supplied override or default before validation.
+    #[must_use]
+    pub fn attribute(&self, name: &str) -> Option<&AttributeValue<'a>> {
+        self.attributes
+            .get(name)
+            .or_else(|| self.defaults.get(name))
     }
 
     /// Enable Setext-style (underlined) header parsing.
@@ -311,7 +335,8 @@ impl<'a> OptionsBuilder<'a> {
     ///
     /// let options = Options::builder()
     ///     .with_setext()
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[cfg(feature = "setext")]
     #[must_use]
@@ -329,20 +354,23 @@ impl<'a> OptionsBuilder<'a> {
     ///
     /// let options = Options::builder()
     ///     .with_safe_mode(SafeMode::Safe)
-    ///     .build();
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
     /// ```
-    #[must_use]
-    pub fn build(mut self) -> Options<'a> {
-        self.document_attributes.mark_explicit_as_caller_locked();
-        Options {
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured error for an invalid attribute value.
+    pub fn build(self) -> Result<Options<'a>, Error> {
+        let document_attributes = initialize_configuration(self.attributes, self.defaults)?;
+        Ok(Options {
             safe_mode: self.safe_mode,
             timings: self.timings,
-            document_attributes: self.document_attributes,
-            caller_attribute_lock_state: CallerAttributeLockState::Initialized,
+            document_attributes,
             base_dir: self.base_dir,
             strict: self.strict,
             #[cfg(feature = "setext")]
             setext: self.setext,
-        }
+        })
     }
 }

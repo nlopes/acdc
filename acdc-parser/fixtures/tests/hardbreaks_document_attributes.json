@@ -2,8 +2,7 @@
   "name": "document",
   "type": "block",
   "attributes": {
-    "hardbreaks": false,
-    "hardbreaks-option": false
+    "hardbreaks-option": true
   },
   "blocks": [
     {

@@ -1,12 +1,18 @@
 use std::io::Write;
 
-use acdc_converters_core::{video::TryUrl, visitor::WritableVisitor};
+use acdc_converters_core::{
+    TraversalContext, media::resolve_target, video::TryUrl, visitor::WritableVisitor,
+};
 use acdc_parser::{AttributeValue, Video};
 
 use crate::{Error, TerminalVisitor, inlines};
 
-impl<W: Write> TerminalVisitor<'_, '_, W> {
-    pub(crate) fn render_video(&mut self, video: &Video) -> Result<(), Error> {
+impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
+    pub(crate) fn render_video(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        video: &Video,
+    ) -> Result<(), Error> {
         if video.sources.is_empty() {
             if self.processor.mark_fallback("video-missing-source") {
                 self.diagnostics.warn_with_advice(
@@ -27,11 +33,11 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
         } else {
             acdc_converters_core::inlines_to_string(&video.title)
         };
-        let processor = self.processor.clone();
+        let processor = self.processor;
         for (index, source) in video.sources.iter().enumerate() {
             let mut single_source = video.clone();
             single_source.sources = vec![source.clone()];
-            let target = single_source.try_url(false)?;
+            let target = resolve_target(&single_source.try_url(false)?, traversal);
             let label = if video.sources.len() == 1 {
                 format!("[Video: {title}]")
             } else {
@@ -41,7 +47,7 @@ impl<W: Write> TerminalVisitor<'_, '_, W> {
                     video.sources.len()
                 )
             };
-            inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), &processor)?;
+            inlines::maybe_render_osc8_link(&target, &label, self.writer_mut(), processor)?;
             writeln!(self.writer_mut())?;
         }
         if let Some(AttributeValue::String(poster)) = video.metadata.attributes.get("poster") {

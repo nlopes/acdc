@@ -3,16 +3,28 @@
 //! This module provides functions for processing `AsciiDoc` text substitutions
 //! that are common across different output formats (HTML, terminal, etc.).
 
-#[cfg(feature = "pre-spec-subs")]
 use std::borrow::Cow;
 
 use acdc_parser::{NORMAL, Substitution, VERBATIM};
+
+use crate::TraversalContext;
 
 #[cfg(feature = "pre-spec-subs")]
 use acdc_parser::SubstitutionSpec;
 
 #[cfg(feature = "pre-spec-subs")]
 use bitflags::bitflags;
+
+/// Expand known attribute references, leaving unresolved references unchanged.
+///
+/// The result borrows `text` when no reference is replaced.
+#[must_use]
+pub fn substitute_attributes<'text>(
+    text: &'text str,
+    attributes: &TraversalContext<'_>,
+) -> Cow<'text, str> {
+    attributes.substitute_attributes(text)
+}
 
 #[cfg(feature = "pre-spec-subs")]
 bitflags! {
@@ -291,7 +303,7 @@ pub fn strip_backslash_escapes(text: &str) -> String {
     }
 
     // Slow path: only rebuild strings for patterns that actually appear.
-    let mut text = std::borrow::Cow::Borrowed(text);
+    let mut text = Cow::Borrowed(text);
     text = replace_if_present(text, "\\...", ESCAPED_ELLIPSIS);
     text = replace_if_present(text, "\\->", ESCAPED_ARROW_RIGHT);
     text = replace_if_present(text, "\\<-", ESCAPED_ARROW_LEFT);
@@ -339,13 +351,9 @@ pub fn strip_backslash_escapes(text: &str) -> String {
 /// Avoids the unconditional `String` allocation that `str::replace` does
 /// even on no-match inputs. Critical for hot-path text substitution where
 /// the overwhelming majority of inputs contain none of the triggers.
-fn replace_if_present<'a>(
-    text: std::borrow::Cow<'a, str>,
-    from: &str,
-    to: &str,
-) -> std::borrow::Cow<'a, str> {
+fn replace_if_present<'a>(text: Cow<'a, str>, from: &str, to: &str) -> Cow<'a, str> {
     if text.contains(from) {
-        std::borrow::Cow::Owned(text.replace(from, to))
+        Cow::Owned(text.replace(from, to))
     } else {
         text
     }
@@ -376,7 +384,7 @@ pub fn restore_escaped_patterns(text: &str) -> String {
     if !text.contains('\u{E000}') {
         return text.to_owned();
     }
-    let mut text = std::borrow::Cow::Borrowed(text);
+    let mut text = Cow::Borrowed(text);
     text = replace_if_present(text, ESCAPED_ELLIPSIS, "...");
     text = replace_if_present(text, ESCAPED_ARROW_RIGHT, "->");
     text = replace_if_present(text, ESCAPED_ARROW_LEFT, "<-");
@@ -494,7 +502,7 @@ impl Replacements<'_> {
         // 2-4. Arrows, symbols, ellipsis — only allocate when the pattern
         // is actually present, avoiding 8 unconditional string copies for
         // the common case of text that contains none of them.
-        let mut text = std::borrow::Cow::<str>::Owned(text);
+        let mut text = Cow::<str>::Owned(text);
         text = replace_if_present(text, "=>", self.double_arrow_right);
         text = replace_if_present(text, "<=", self.double_arrow_left);
         text = replace_if_present(text, "->", self.arrow_right);

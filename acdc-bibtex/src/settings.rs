@@ -3,7 +3,7 @@
 //! Every knob is a document attribute, which is how asciidoctor-bibtex is
 //! configured; the names and defaults are its.
 
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use acdc_parser::DocumentAttributes;
 
 use crate::style::Style;
 
@@ -68,7 +68,8 @@ impl Settings {
     pub(crate) fn read(attributes: &DocumentAttributes<'_>, defaults: &MacroDefaults) -> Self {
         let text = |name: &str| {
             attributes
-                .get_string(name)
+                .get(name)
+                .and_then(|value| value.text())
                 .map(|value| value.trim().to_string())
                 .filter(|value| !value.is_empty())
         };
@@ -116,16 +117,16 @@ impl Settings {
 
 /// Whether a yes-or-no attribute is on.
 ///
-/// acdc reads `true` and `false` as booleans rather than as text, and a bare
-/// `:name:` with no value at all is how `AsciiDoc` turns something on, so all
-/// three spellings are accepted.
+/// A bare `:name:` with no value is how `AsciiDoc` turns something on, and
+/// the original extension also reads the word `true`; anything else, and an
+/// attribute that is unset or absent, is off.
 fn flag(attributes: &DocumentAttributes<'_>, name: &str) -> bool {
-    match attributes.get(name) {
-        Some(AttributeValue::Bool(value)) => *value,
-        Some(AttributeValue::String(value)) => value.trim().eq_ignore_ascii_case("true"),
-        Some(AttributeValue::None) => true,
-        Some(_) | None => false,
-    }
+    attributes.get(name).is_some_and(|value| {
+        value.is_presence()
+            || value
+                .text()
+                .is_some_and(|text| text.trim().eq_ignore_ascii_case("true"))
+    })
 }
 
 /// Split `[$id]` into the text before and after the number.
@@ -139,14 +140,27 @@ fn split_template(template: &str) -> Option<(String, String)> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::expect_used)]
+
     use super::*;
 
-    fn read(pairs: &[(&'static str, &'static str)]) -> Settings {
-        let mut attributes = DocumentAttributes::default();
-        for (name, value) in pairs {
-            attributes.set((*name).into(), (*value).into());
-        }
-        Settings::read(&attributes, &MacroDefaults::default())
+    /// Read the settings from a document whose header holds `lines`.
+    ///
+    /// The attributes come from parsing a real header rather than being built
+    /// by hand, because that is how they reach the pass: a hand-built value
+    /// can differ from what the parser makes of the same line.
+    fn read_header(lines: &[String], defaults: &MacroDefaults) -> Settings {
+        let source = format!("= Doc\n{}\n\nBody.\n", lines.join("\n"));
+        let parsed = acdc_parser::parse(&source, &acdc_parser::Options::default()).expect("parse");
+        Settings::read(&parsed.document().attributes, defaults)
+    }
+
+    fn read(pairs: &[(&str, &str)]) -> Settings {
+        let lines: Vec<String> = pairs
+            .iter()
+            .map(|(name, value)| format!(":{name}: {value}"))
+            .collect();
+        read_header(&lines, &MacroDefaults::default())
     }
 
     fn read_with_macro(defaults: &MacroDefaults) -> Settings {
@@ -169,19 +183,14 @@ mod tests {
 
     #[test]
     fn reads_a_yes_or_no_attribute_however_it_is_written() {
-        // acdc normalises `true` to a boolean, so the text form never
-        // reaches us from a real document — but both are accepted.
-        let mut attributes = DocumentAttributes::default();
-        attributes.set("bibtex-throw".into(), AttributeValue::Bool(true));
-        assert!(Settings::read(&attributes, &MacroDefaults::default()).throw);
-
-        let mut attributes = DocumentAttributes::default();
-        attributes.set("bibtex-throw".into(), "true".into());
-        assert!(Settings::read(&attributes, &MacroDefaults::default()).throw);
-
-        let mut attributes = DocumentAttributes::default();
-        attributes.set("bibtex-throw".into(), AttributeValue::Bool(false));
-        assert!(!Settings::read(&attributes, &MacroDefaults::default()).throw);
+        let throws = |line: &str| read_header(&[line.to_string()], &MacroDefaults::default()).throw;
+        assert!(throws(":bibtex-throw: true"));
+        assert!(throws(":bibtex-throw: TRUE"));
+        // A bare entry is how `AsciiDoc` switches something on.
+        assert!(throws(":bibtex-throw:"));
+        assert!(!throws(":bibtex-throw: false"));
+        assert!(!throws(":!bibtex-throw:"));
+        assert!(!read(&[]).throw);
     }
 
     #[test]
@@ -234,11 +243,11 @@ mod tests {
 
     #[test]
     fn a_document_attribute_beats_the_macro() {
-        let mut attributes = DocumentAttributes::default();
-        attributes.set("bibtex-file".into(), "header.bib".into());
-        attributes.set("bibtex-style".into(), "apa".into());
-        let settings = Settings::read(
-            &attributes,
+        let settings = read_header(
+            &[
+                ":bibtex-file: header.bib".to_string(),
+                ":bibtex-style: apa".to_string(),
+            ],
             &MacroDefaults {
                 file: Some("macro.bib".to_string()),
                 style: Some("ieee".to_string()),

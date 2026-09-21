@@ -63,11 +63,10 @@ pub(crate) fn lint_multiple_document_title(
     lines: &[SourceLine<'_>],
     skipped_lines: &[bool],
 ) {
-    if document
-        .attributes
-        .get_string("doctype")
-        .is_some_and(|doctype| doctype == "book")
-    {
+    if matches!(
+        document.attributes.get("doctype"),
+        Some(value) if value.as_str() == Some("book")
+    ) {
         return;
     }
 
@@ -152,6 +151,14 @@ mod tests {
         let report = report_for("= Title\n\n= Another\n")?;
 
         assert!(has_lint(&report, LintId::MultipleDocumentTitle));
+        Ok(())
+    }
+
+    #[test]
+    fn book_doctype_uses_effective_header_value() -> Result<(), Error> {
+        let report = report_for("= Title\n:doctype: book\n\n= Part\n")?;
+
+        assert!(!has_lint(&report, LintId::MultipleDocumentTitle));
         Ok(())
     }
 }

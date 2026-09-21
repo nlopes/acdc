@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use acdc_converters_core::{
+    TraversalContext,
     list::OrderedListNumbering,
     visitor::{Visitor, WritableVisitor},
 };
@@ -9,10 +10,10 @@ use acdc_parser::{
     UnorderedList,
 };
 
-use crate::{Error, HtmlVariant, HtmlVisitor, build_class};
+use crate::{Error, HtmlVariant, HtmlVisitor, build_class, write_id};
 
 /// Check if any list item has a checkbox
-fn has_checklist_items(items: &[ListItem]) -> bool {
+fn has_checklist_items<'a>(items: &'a [ListItem<'a>]) -> bool {
     items.iter().any(|item| item.checked.is_some())
 }
 
@@ -61,10 +62,11 @@ fn resolve_ordered_list_style(style: Option<&str>, depth: u8) -> (&str, Option<&
     numbering_class_and_type(numbering_for_depth(depth))
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     pub(crate) fn render_unordered_list(
         &mut self,
-        list: &UnorderedList,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a UnorderedList<'a>,
         section_style: Option<&str>,
     ) -> Result<(), Error> {
         let is_checklist = has_checklist_items(&list.items);
@@ -101,9 +103,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         wrapper_class = build_class(&wrapper_class, &list.metadata.roles);
         writeln!(self.writer, " class=\"{wrapper_class}\">")?;
         if semantic && has_title {
-            self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+            self.render_title_with_wrapper(
+                traversal,
+                &list.title,
+                "<h6 class=\"block-title\">",
+                "</h6>\n",
+            )?;
         } else {
-            self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+            self.render_title_with_wrapper(
+                traversal,
+                &list.title,
+                "<div class=\"title\">",
+                "</div>\n",
+            )?;
         }
 
         if is_checklist && semantic {
@@ -117,13 +129,17 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         } else {
             writeln!(self.writer, "<ul>")?;
         }
-        render_nested_list_items(&list.items, self, 1, false, 1, !semantic, semantic)?;
+        render_nested_list_items(traversal, &list.items, self, 1, false, 1, !semantic)?;
         writeln!(self.writer, "</ul>")?;
         writeln!(self.writer, "</{wrapper_tag}>")?;
         Ok(())
     }
 
-    pub(crate) fn render_ordered_list(&mut self, list: &OrderedList) -> Result<(), Error> {
+    pub(crate) fn render_ordered_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a OrderedList<'a>,
+    ) -> Result<(), Error> {
         let raw_depth = list.marker.matches('.').count().max(1);
         if raw_depth > usize::from(u8::MAX) {
             self.diagnostics.warn_with_advice(
@@ -152,9 +168,19 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         let class = build_class(&format!("olist {style}"), &list.metadata.roles);
         writeln!(self.writer, " class=\"{class}\">")?;
         if semantic && has_title {
-            self.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+            self.render_title_with_wrapper(
+                traversal,
+                &list.title,
+                "<h6 class=\"block-title\">",
+                "</h6>\n",
+            )?;
         } else {
-            self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+            self.render_title_with_wrapper(
+                traversal,
+                &list.title,
+                "<div class=\"title\">",
+                "</div>\n",
+            )?;
         }
 
         write!(self.writer, "<ol class=\"{style}\"")?;
@@ -174,22 +200,31 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             write!(self.writer, " reversed")?;
         }
         writeln!(self.writer, ">")?;
-        render_nested_list_items(&list.items, self, 1, true, 1, !semantic, semantic)?;
+        render_nested_list_items(traversal, &list.items, self, 1, true, 1, !semantic)?;
         writeln!(self.writer, "</ol>")?;
         writeln!(self.writer, "</{wrapper_tag}>")?;
         Ok(())
     }
 
-    pub(crate) fn render_callout_list(&mut self, list: &CalloutList) -> Result<(), Error> {
+    pub(crate) fn render_callout_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a CalloutList<'a>,
+    ) -> Result<(), Error> {
         if self.processor.variant() == HtmlVariant::Semantic {
-            return visit_callout_list_semantic(list, self);
+            return visit_callout_list_semantic(traversal, list, self);
         }
 
         let class = build_class("colist arabic", &list.metadata.roles);
         write!(self.writer, "<div")?;
-        crate::write_id(&mut self.writer, &list.metadata)?;
+        write_id(&mut self.writer, &list.metadata)?;
         writeln!(self.writer, " class=\"{class}\">")?;
-        self.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+        self.render_title_with_wrapper(
+            traversal,
+            &list.title,
+            "<div class=\"title\">",
+            "</div>\n",
+        )?;
 
         if self.processor.is_font_icons_mode() {
             writeln!(self.writer, "<table>")?;
@@ -202,9 +237,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
                     "<td><i class=\"conum\" data-value=\"{num}\"></i><b>{num}</b></td>"
                 )?;
                 write!(self.writer, "<td>")?;
-                self.visit_inline_nodes(&item.principal)?;
+                self.visit_inline_nodes(traversal, &item.principal)?;
                 for block in &item.blocks {
-                    self.visit_block(block)?;
+                    traversal.visit_block(self, block)?;
                 }
                 writeln!(self.writer, "</td>")?;
                 writeln!(self.writer, "</tr>")?;
@@ -217,10 +252,10 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
             for item in &list.items {
                 write!(self.writer, "<li>")?;
                 write!(self.writer, "<p>")?;
-                self.visit_inline_nodes(&item.principal)?;
+                self.visit_inline_nodes(traversal, &item.principal)?;
                 write!(self.writer, "</p>")?;
                 for block in &item.blocks {
-                    self.visit_block(block)?;
+                    traversal.visit_block(self, block)?;
                 }
                 writeln!(self.writer, "</li>")?;
             }
@@ -233,8 +268,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
     }
 }
 
-fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
-    list: &CalloutList,
+fn visit_callout_list_semantic<'a, V: WritableVisitor<'a, Error = Error>>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a CalloutList<'a>,
     visitor: &mut V,
 ) -> Result<(), Error> {
     let has_title = !list.title.is_empty();
@@ -242,16 +278,21 @@ fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
         let writer = visitor.writer_mut();
         let class = build_class("colist arabic", &list.metadata.roles);
         write!(writer, "<section")?;
-        crate::write_id(writer, &list.metadata)?;
+        write_id(writer, &list.metadata)?;
         writeln!(writer, " class=\"{class}\">")?;
         let _ = writer;
-        visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+        visitor.render_title_with_wrapper(
+            traversal,
+            &list.title,
+            "<h6 class=\"block-title\">",
+            "</h6>\n",
+        )?;
         writeln!(visitor.writer_mut(), "<ol class=\"callout-list arabic\">")?;
     } else {
         let writer = visitor.writer_mut();
         let class = build_class("callout-list arabic", &list.metadata.roles);
         write!(writer, "<ol")?;
-        crate::write_id(writer, &list.metadata)?;
+        write_id(writer, &list.metadata)?;
         writeln!(writer, " class=\"{class}\">")?;
     }
 
@@ -259,9 +300,9 @@ fn visit_callout_list_semantic<V: WritableVisitor<Error = Error>>(
         let writer = visitor.writer_mut();
         write!(writer, "<li>")?;
         let _ = writer;
-        visitor.visit_inline_nodes(&item.principal)?;
+        visitor.visit_inline_nodes(traversal, &item.principal)?;
         for block in &item.blocks {
-            visitor.visit_block(block)?;
+            traversal.visit_block(visitor, block)?;
         }
         let writer = visitor.writer_mut();
         writeln!(writer, "</li>")?;
@@ -331,16 +372,17 @@ fn render_checked_status_list<W: Write + ?Sized>(
 
 /// Render nested list items hierarchically
 /// `depth` tracks the nesting level for ordered list style cycling (1 = top level)
-#[tracing::instrument(skip(visitor))]
-fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
-    items: &[ListItem],
-    visitor: &mut V,
+#[tracing::instrument(skip(visitor, traversal))]
+fn render_nested_list_items<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    items: &'a [ListItem<'a>],
+    visitor: &mut HtmlVisitor<'a, '_, W>,
     expected_level: u8,
     is_ordered: bool,
     depth: u8,
     wrap_li_in_p: bool,
-    semantic: bool,
 ) -> Result<(), Error> {
+    let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
     let mut i = 0;
     while i < items.len() {
         let item = items.get(i).ok_or(Error::IndexOutOfBounds(
@@ -352,7 +394,7 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             break;
         }
 
-        render_list_item_content(item, visitor, wrap_li_in_p, semantic)?;
+        render_list_item_content(traversal, item, visitor, wrap_li_in_p, semantic)?;
 
         // Check if next items are nested (higher level) - only for items at expected level
         if item.level == expected_level
@@ -379,13 +421,13 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
             }
             if let Some(inner_items) = items.get(nested_start..i) {
                 render_nested_list_items(
+                    traversal,
                     inner_items,
                     visitor,
                     next_level,
                     is_ordered,
                     depth + 1,
                     wrap_li_in_p,
-                    semantic,
                 )?;
             }
             let writer = visitor.writer_mut();
@@ -410,8 +452,9 @@ fn render_nested_list_items<V: WritableVisitor<Error = Error>>(
 }
 
 /// Render the opening `<li>` tag, principal text, and attached blocks of a list item.
-fn render_list_item_content<V: WritableVisitor<Error = Error>>(
-    item: &ListItem,
+fn render_list_item_content<'a, V: WritableVisitor<'a, Error = Error>>(
+    traversal: &mut TraversalContext<'a>,
+    item: &'a ListItem<'a>,
     visitor: &mut V,
     wrap_li_in_p: bool,
     semantic: bool,
@@ -428,7 +471,7 @@ fn render_list_item_content<V: WritableVisitor<Error = Error>>(
         }
         render_checked_status(item.checked.as_ref(), writer, semantic)?;
         let _ = writer;
-        visitor.visit_inline_nodes(&item.principal)?;
+        visitor.visit_inline_nodes(traversal, &item.principal)?;
         let writer = visitor.writer_mut();
         if wrap_li_in_p {
             writeln!(writer, "</p>")?;
@@ -438,17 +481,21 @@ fn render_list_item_content<V: WritableVisitor<Error = Error>>(
         let _ = writer;
     }
     for block in &item.blocks {
-        visitor.visit_block(block)?;
+        traversal.visit_block(visitor, block)?;
     }
     Ok(())
 }
 
-impl<W: Write> HtmlVisitor<'_, '_, W> {
-    pub(crate) fn render_description_list(&mut self, list: &DescriptionList) -> Result<(), Error> {
+impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
+    pub(crate) fn render_description_list(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        list: &'a DescriptionList<'a>,
+    ) -> Result<(), Error> {
         let semantic = self.processor.variant() == HtmlVariant::Semantic;
 
         if semantic {
-            return visit_description_list_semantic(list, self);
+            return visit_description_list_semantic(traversal, list, self);
         }
 
         // Start the description list outer div
@@ -463,9 +510,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
         // Description list
         let is_horizontal = list.metadata.style == Some("horizontal");
         if is_horizontal {
-            visit_horizontal_description_list(list, self)?;
+            visit_horizontal_description_list(traversal, list, self)?;
         } else {
-            visit_standard_description_list(list, self)?;
+            visit_standard_description_list(traversal, list, self)?;
         }
 
         // Close the description list
@@ -476,8 +523,9 @@ impl<W: Write> HtmlVisitor<'_, '_, W> {
 
 /// Renders a horizontal description list as an HTML table with `hdlist` class.
 /// This matches asciidoctor's output for `[horizontal]` style description lists.
-fn visit_horizontal_description_list<V: WritableVisitor<Error = Error>>(
-    list: &DescriptionList,
+fn visit_horizontal_description_list<'a, V: WritableVisitor<'a, Error = Error>>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a DescriptionList<'a>,
     visitor: &mut V,
 ) -> Result<(), Error> {
     let writer = visitor.writer_mut();
@@ -485,7 +533,12 @@ fn visit_horizontal_description_list<V: WritableVisitor<Error = Error>>(
     let class = build_class("hdlist", &list.metadata.roles);
     writeln!(writer, " class=\"{class}\">")?;
     let _ = writer;
-    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    visitor.render_title_with_wrapper(
+        traversal,
+        &list.title,
+        "<div class=\"title\">",
+        "</div>\n",
+    )?;
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<table>")?;
     let _ = writer;
@@ -495,20 +548,20 @@ fn visit_horizontal_description_list<V: WritableVisitor<Error = Error>>(
         writeln!(writer, "<tr>")?;
         writeln!(writer, "<td class=\"hdlist1\">")?;
         let _ = writer;
-        visitor.visit_inline_nodes(&item.term)?;
+        visitor.visit_inline_nodes(traversal, &item.term)?;
         writer = visitor.writer_mut();
         writeln!(writer, "</td>")?;
         writeln!(writer, "<td class=\"hdlist2\">")?;
         if !item.principal_text.is_empty() {
             write!(writer, "<p>")?;
             let _ = writer;
-            visitor.visit_inline_nodes(&item.principal_text)?;
+            visitor.visit_inline_nodes(traversal, &item.principal_text)?;
             writer = visitor.writer_mut();
             writeln!(writer, "</p>")?;
         }
         let _ = writer;
         for block in &item.description {
-            visitor.visit_block(block)?;
+            traversal.visit_block(visitor, block)?;
         }
         writer = visitor.writer_mut();
         writeln!(writer, "</td>")?;
@@ -521,8 +574,9 @@ fn visit_horizontal_description_list<V: WritableVisitor<Error = Error>>(
 }
 
 /// Renders a standard description list as an HTML `<dl>` with `dlist` class.
-fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
-    list: &DescriptionList,
+fn visit_standard_description_list<'a, V: WritableVisitor<'a, Error = Error>>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a DescriptionList<'a>,
     visitor: &mut V,
 ) -> Result<(), Error> {
     let writer = visitor.writer_mut();
@@ -542,7 +596,12 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
     let class = build_class(&base_class, &list.metadata.roles);
     writeln!(writer, " class=\"{class}\">")?;
     let _ = writer;
-    visitor.render_title_with_wrapper(&list.title, "<div class=\"title\">", "</div>\n")?;
+    visitor.render_title_with_wrapper(
+        traversal,
+        &list.title,
+        "<div class=\"title\">",
+        "</div>\n",
+    )?;
     let mut writer = visitor.writer_mut();
     writeln!(writer, "<dl>")?;
     let _ = writer;
@@ -556,20 +615,20 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
             write!(writer, "<dt class=\"hdlist1\">")?;
         }
         let _ = writer;
-        visitor.visit_inline_nodes(&item.term)?;
+        visitor.visit_inline_nodes(traversal, &item.term)?;
         writer = visitor.writer_mut();
         writeln!(writer, "</dt>")?;
         writeln!(writer, "<dd>")?;
         if !item.principal_text.is_empty() {
             write!(writer, "<p>")?;
             let _ = writer;
-            visitor.visit_inline_nodes(&item.principal_text)?;
+            visitor.visit_inline_nodes(traversal, &item.principal_text)?;
             writer = visitor.writer_mut();
             writeln!(writer, "</p>")?;
         }
         let _ = writer;
         for block in &item.description {
-            visitor.visit_block(block)?;
+            traversal.visit_block(visitor, block)?;
         }
         writer = visitor.writer_mut();
         writeln!(writer, "</dd>")?;
@@ -583,14 +642,15 @@ fn visit_standard_description_list<V: WritableVisitor<Error = Error>>(
 /// Render a block inside a list item in semantic mode.
 /// In semantic mode, list blocks (ulist, olist, dlist) inside list items
 /// should not have their outer wrapper div/section — just the bare list element.
-fn render_block_in_semantic_list_context<W: Write>(
-    block: &Block,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+fn render_block_in_semantic_list_context<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    block: &'a Block<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     match block {
-        Block::UnorderedList(list) => render_bare_ulist_semantic(list, visitor),
-        Block::OrderedList(list) => render_bare_olist_semantic(list, visitor),
-        Block::DescriptionList(list) => render_bare_dlist_semantic(list, visitor),
+        Block::UnorderedList(list) => render_bare_ulist_semantic(traversal, list, visitor),
+        Block::OrderedList(list) => render_bare_olist_semantic(traversal, list, visitor),
+        Block::DescriptionList(list) => render_bare_dlist_semantic(traversal, list, visitor),
         Block::TableOfContents(_)
         | Block::Admonition(_)
         | Block::DiscreteHeader(_)
@@ -605,17 +665,17 @@ fn render_block_in_semantic_list_context<W: Write>(
         | Block::Audio(_)
         | Block::Video(_)
         | Block::Comment(_)
-        | _ => visitor.visit_block(block),
+        | _ => traversal.visit_block(visitor, block),
     }
 }
 
 /// Render an unordered list without the wrapper div/section (bare `<ul>` only).
-fn render_bare_ulist_semantic<W: Write>(
-    list: &UnorderedList,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+fn render_bare_ulist_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a UnorderedList<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let is_checklist = has_checklist_items(&list.items);
-    let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
 
     if is_checklist {
         writeln!(visitor.writer, "<ul class=\"task-list\">")?;
@@ -624,56 +684,57 @@ fn render_bare_ulist_semantic<W: Write>(
     } else {
         writeln!(visitor.writer, "<ul>")?;
     }
-    render_nested_list_items(&list.items, visitor, 1, false, 1, false, semantic)?;
+    render_nested_list_items(traversal, &list.items, visitor, 1, false, 1, false)?;
     writeln!(visitor.writer, "</ul>")?;
     Ok(())
 }
 
 /// Render an ordered list without the wrapper div/section (bare `<ol>` only).
-fn render_bare_olist_semantic<W: Write>(
-    list: &OrderedList,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+fn render_bare_olist_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a OrderedList<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let raw_depth = list.marker.matches('.').count().max(1);
     let depth = u8::try_from(raw_depth).unwrap_or(u8::MAX);
     let (style, type_attr) = resolve_ordered_list_style(list.metadata.style, depth);
-    let semantic = visitor.processor.variant() == HtmlVariant::Semantic;
 
     if let Some(t) = type_attr {
         writeln!(visitor.writer, "<ol class=\"{style}\" type=\"{t}\">")?;
     } else {
         writeln!(visitor.writer, "<ol class=\"{style}\">")?;
     }
-    render_nested_list_items(&list.items, visitor, 1, true, 1, false, semantic)?;
+    render_nested_list_items(traversal, &list.items, visitor, 1, true, 1, false)?;
     writeln!(visitor.writer, "</ol>")?;
     Ok(())
 }
 
 /// Render a description list without the wrapper div/section (bare `<dl>` only).
-fn render_bare_dlist_semantic<W: Write>(
-    list: &DescriptionList,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+fn render_bare_dlist_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a DescriptionList<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     writeln!(visitor.writer, "<dl>")?;
 
     for item in &list.items {
         writeln!(visitor.writer, "<dt>")?;
-        visitor.visit_inline_nodes(&item.term)?;
+        visitor.visit_inline_nodes(traversal, &item.term)?;
         writeln!(visitor.writer, "</dt>")?;
 
         if !item.principal_text.is_empty() || !item.description.is_empty() {
             writeln!(visitor.writer, "<dd>")?;
             if !item.principal_text.is_empty() {
                 if item.description.is_empty() {
-                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
                 } else {
                     write!(visitor.writer, "<p>")?;
-                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
                     writeln!(visitor.writer, "</p>")?;
                 }
             }
             for block in &item.description {
-                render_block_in_semantic_list_context(block, visitor)?;
+                render_block_in_semantic_list_context(traversal, block, visitor)?;
             }
             writeln!(visitor.writer, "</dd>")?;
         }
@@ -691,9 +752,10 @@ fn render_bare_dlist_semantic<W: Write>(
 /// - qanda style gets `role="doc-qna"` and `<dl class="qanda">`
 /// - horizontal style uses `<dl class="horizontal">` instead of `<table>`
 /// - Simple `<dd>` text not wrapped in `<p>` unless there are also blocks
-fn visit_description_list_semantic<W: Write>(
-    list: &DescriptionList,
-    visitor: &mut HtmlVisitor<'_, '_, W>,
+fn visit_description_list_semantic<'a, W: Write>(
+    traversal: &mut TraversalContext<'a>,
+    list: &'a DescriptionList<'a>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
 ) -> Result<(), Error> {
     let has_title = !list.title.is_empty();
     let is_qanda = list.metadata.style == Some("qanda");
@@ -721,7 +783,12 @@ fn visit_description_list_semantic<W: Write>(
     writeln!(visitor.writer, ">")?;
 
     if has_title {
-        visitor.render_title_with_wrapper(&list.title, "<h6 class=\"block-title\">", "</h6>\n")?;
+        visitor.render_title_with_wrapper(
+            traversal,
+            &list.title,
+            "<h6 class=\"block-title\">",
+            "</h6>\n",
+        )?;
     }
 
     // Inner <dl> with optional class
@@ -735,7 +802,7 @@ fn visit_description_list_semantic<W: Write>(
 
     for item in &list.items {
         writeln!(visitor.writer, "<dt>")?;
-        visitor.visit_inline_nodes(&item.term)?;
+        visitor.visit_inline_nodes(traversal, &item.term)?;
         writeln!(visitor.writer, "</dt>")?;
 
         // Only render <dd> if there's content
@@ -744,15 +811,15 @@ fn visit_description_list_semantic<W: Write>(
             if !item.principal_text.is_empty() {
                 // Wrap in <p> only when there are also blocks
                 if item.description.is_empty() {
-                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
                 } else {
                     write!(visitor.writer, "<p>")?;
-                    visitor.visit_inline_nodes(&item.principal_text)?;
+                    visitor.visit_inline_nodes(traversal, &item.principal_text)?;
                     writeln!(visitor.writer, "</p>")?;
                 }
             }
             for block in &item.description {
-                render_block_in_semantic_list_context(block, visitor)?;
+                render_block_in_semantic_list_context(traversal, block, visitor)?;
             }
             writeln!(visitor.writer, "</dd>")?;
         }

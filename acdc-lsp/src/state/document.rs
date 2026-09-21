@@ -1,10 +1,12 @@
 //! Single document state management
 
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Mutex, MutexGuard},
+};
 
-use acdc_parser::{Document, DocumentAttributes, Location, Position};
+use acdc_parser::{Document, DocumentAttributes, Location, ParseResult, Position, Source};
 use tower_lsp_server::ls_types::Diagnostic;
 
 /// Owned counterpart to `acdc_parser::Source<'_>`, detached from the parser arena
@@ -17,11 +19,11 @@ pub(crate) enum OwnedSource {
 }
 
 impl OwnedSource {
-    pub(crate) fn from_borrowed(source: &acdc_parser::Source<'_>) -> Self {
+    pub(crate) fn from_borrowed(source: &Source<'_>) -> Self {
         match source {
-            acdc_parser::Source::Path(p) => Self::Path(p.clone()),
-            acdc_parser::Source::Url(u) => Self::Url(u.to_string()),
-            acdc_parser::Source::Name(n) => Self::Name((*n).to_string()),
+            Source::Path(p) => Self::Path(p.clone()),
+            Source::Url(u) => Self::Url(u.to_string()),
+            Source::Name(n) => Self::Name((*n).to_string()),
         }
     }
 }
@@ -45,13 +47,13 @@ pub(crate) struct ParsedText {
     source: Box<str>,
     /// Parsed document, when available. Behind a `Mutex` purely to satisfy
     /// `Sync` — the inner value is only ever read.
-    parsed: Option<Mutex<acdc_parser::ParseResult>>,
+    parsed: Option<Mutex<ParseResult>>,
 }
 
 /// RAII guard that keeps a parsed document locked for the duration of read
 /// access. Use [`Self::document`] to obtain a reference to the AST.
 pub(crate) struct AstGuard<'a> {
-    guard: MutexGuard<'a, acdc_parser::ParseResult>,
+    guard: MutexGuard<'a, ParseResult>,
 }
 
 impl AstGuard<'_> {
@@ -71,7 +73,7 @@ impl ParsedText {
     /// consumed. The caller is expected to have already drained warnings
     /// out of the `ParseResult` (via `take_warnings()`) before calling
     /// this, so the stored value carries the AST alone.
-    pub(crate) fn from_parsed(raw_source: Box<str>, parsed: acdc_parser::ParseResult) -> Self {
+    pub(crate) fn from_parsed(raw_source: Box<str>, parsed: ParseResult) -> Self {
         Self {
             source: raw_source,
             parsed: Some(Mutex::new(parsed)),
@@ -365,8 +367,10 @@ fn evaluate_condition(
     doc_attrs: &DocumentAttributes,
 ) -> bool {
     let result = match operation {
-        Some(ConditionalOperation::Or) => attributes.iter().any(|a| doc_attrs.get(a).is_some()),
-        _ => attributes.iter().all(|a| doc_attrs.get(a).is_some()),
+        Some(ConditionalOperation::Or) => {
+            attributes.iter().any(|name| doc_attrs.get(name).is_some())
+        }
+        _ => attributes.iter().all(|name| doc_attrs.get(name).is_some()),
     };
     if is_ifndef { !result } else { result }
 }
@@ -504,6 +508,8 @@ pub(crate) fn extract_includes(text: &str) -> Vec<(String, Location)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_parser::{AttributeValue, Options};
+    use std::{borrow::Cow, error::Error};
 
     #[test]
     fn test_extract_includes_basic() {
@@ -555,7 +561,7 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_includes_location() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_extract_includes_location() -> Result<(), Box<dyn Error>> {
         let text = "= Doc\n\ninclude::file.adoc[]\n";
         let includes = extract_includes(text);
         assert_eq!(includes.len(), 1);
@@ -627,23 +633,22 @@ mod tests {
         assert_eq!(refs.first().map(|(n, _)| n.as_str()), Some("valid-name"));
     }
 
-    fn attr_set(
-        name: &str,
-    ) -> (
-        std::borrow::Cow<'static, str>,
-        acdc_parser::AttributeValue<'static>,
-    ) {
+    fn attr_set(name: &str) -> (Cow<'static, str>, AttributeValue<'static>) {
         (
-            std::borrow::Cow::Owned(name.to_string()),
-            acdc_parser::AttributeValue::String(std::borrow::Cow::Owned(String::new())),
+            Cow::Owned(name.to_string()),
+            AttributeValue::String(Cow::Owned(String::new())),
         )
     }
 
     #[test]
-    fn test_extract_conditionals_ifdef_active() {
-        let mut attrs = DocumentAttributes::default();
+    fn test_extract_conditionals_ifdef_active() -> Result<(), Box<dyn Error>> {
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         let (k, v) = attr_set("backend-html");
         attrs.insert(k, v);
+        let attrs = Options::builder()
+            .with_defaults(attrs)
+            .build()?
+            .into_document_attributes();
         let text = ":backend-html:\n\nifdef::backend-html[]\nHTML content\nendif::[]";
         let conds = extract_conditionals(text, &attrs);
         assert_eq!(conds.len(), 1);
@@ -658,6 +663,7 @@ mod tests {
         assert_eq!(conds.first().map(|c| c.is_active), Some(true));
         assert_eq!(conds.first().map(|c| c.start_line), Some(2));
         assert_eq!(conds.first().map(|c| c.end_line), Some(Some(4)));
+        Ok(())
     }
 
     #[test]
@@ -686,22 +692,31 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_conditionals_ifndef_inactive() {
-        let mut attrs = DocumentAttributes::default();
+    fn test_extract_conditionals_ifndef_inactive() -> Result<(), Box<dyn Error>> {
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         let (k, v) = attr_set("draft");
         attrs.insert(k, v);
+        let attrs = Options::builder()
+            .with_defaults(attrs)
+            .build()?
+            .into_document_attributes();
         let text = "ifndef::draft[]\nDraft content\nendif::[]";
         let conds = extract_conditionals(text, &attrs);
         assert_eq!(conds.len(), 1);
         // draft IS defined, so ifndef is inactive
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
+        Ok(())
     }
 
     #[test]
-    fn test_extract_conditionals_or_operation() {
-        let mut attrs = DocumentAttributes::default();
+    fn test_extract_conditionals_or_operation() -> Result<(), Box<dyn Error>> {
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         let (k, v) = attr_set("b");
         attrs.insert(k, v);
+        let attrs = Options::builder()
+            .with_defaults(attrs)
+            .build()?
+            .into_document_attributes();
         let text = "ifdef::a,b[]\ncontent\nendif::[]";
         let conds = extract_conditionals(text, &attrs);
         assert_eq!(conds.len(), 1);
@@ -711,13 +726,18 @@ mod tests {
         );
         // Only b is defined, but OR means any → active
         assert_eq!(conds.first().map(|c| c.is_active), Some(true));
+        Ok(())
     }
 
     #[test]
-    fn test_extract_conditionals_and_operation() {
-        let mut attrs = DocumentAttributes::default();
+    fn test_extract_conditionals_and_operation() -> Result<(), Box<dyn Error>> {
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         let (k, v) = attr_set("a");
         attrs.insert(k, v);
+        let attrs = Options::builder()
+            .with_defaults(attrs)
+            .build()?
+            .into_document_attributes();
         let text = "ifdef::a+b[]\ncontent\nendif::[]";
         let conds = extract_conditionals(text, &attrs);
         assert_eq!(conds.len(), 1);
@@ -727,6 +747,7 @@ mod tests {
         );
         // Only a is defined, AND requires both → inactive
         assert_eq!(conds.first().map(|c| c.is_active), Some(false));
+        Ok(())
     }
 
     #[test]
@@ -749,14 +770,19 @@ mod tests {
     }
 
     #[test]
-    fn test_extract_conditionals_multiple() {
-        let mut attrs = DocumentAttributes::default();
+    fn test_extract_conditionals_multiple() -> Result<(), Box<dyn Error>> {
+        let mut attrs = HashMap::<Cow<'_, str>, AttributeValue<'_>>::new();
         let (k, v) = attr_set("html");
         attrs.insert(k, v);
+        let attrs = Options::builder()
+            .with_defaults(attrs)
+            .build()?
+            .into_document_attributes();
         let text = "ifdef::html[]\nHTML\nendif::[]\nifdef::pdf[]\nPDF\nendif::[]";
         let conds = extract_conditionals(text, &attrs);
         assert_eq!(conds.len(), 2);
         assert_eq!(conds.first().map(|c| c.is_active), Some(true)); // html defined
         assert_eq!(conds.get(1).map(|c| c.is_active), Some(false)); // pdf not defined
+        Ok(())
     }
 }

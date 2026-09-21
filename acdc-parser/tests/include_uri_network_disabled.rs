@@ -85,7 +85,7 @@ fn authorized_uri_is_preserved_when_network_support_is_disabled() -> TestResult 
     let options = Options::builder()
         .with_safe_mode(SafeMode::Server)
         .with_attribute("allow-uri-read", true)
-        .build();
+        .build()?;
 
     let result = parse_file(&document.path, &options)?;
 

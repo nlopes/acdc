@@ -31,8 +31,7 @@
     ]
   },
   "attributes": {
-    "literal-false": "false",
-    "unset-attribute": false
+    "literal-false": "false"
   },
   "blocks": [
     {

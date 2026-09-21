@@ -5,14 +5,21 @@
 
 use std::io::Write;
 
-use acdc_converters_core::visitor::{Visitor, WritableVisitor};
+use acdc_converters_core::{
+    TraversalContext,
+    visitor::{Visitor, WritableVisitor},
+};
 use acdc_parser::Admonition;
 
 use crate::{Error, ManpageVisitor};
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Visit an admonition block.
-    pub(crate) fn render_admonition(&mut self, admon: &Admonition) -> Result<(), Error> {
+    pub(crate) fn render_admonition(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        admon: &'a Admonition<'a>,
+    ) -> Result<(), Error> {
         let w = self.writer_mut();
 
         // Spacing before admonition
@@ -25,7 +32,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // Optional title
         if !admon.title.is_empty() {
             write!(w, " ")?;
-            self.visit_inline_nodes(&admon.title)?;
+            self.visit_inline_nodes(traversal, &admon.title)?;
         }
 
         let w = self.writer_mut();
@@ -34,8 +41,8 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         // Indented content
         writeln!(w, ".RS 4")?;
 
-        for block in &admon.blocks.clone() {
-            self.visit_block(block)?;
+        for block in &admon.blocks {
+            traversal.visit_block(self, block)?;
         }
 
         let w = self.writer_mut();

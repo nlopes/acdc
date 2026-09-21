@@ -1,0 +1,440 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Nested Attribute Scope",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 24
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 13
+      }
+    ]
+  },
+  "attributes": {
+    "cell-value": "parent"
+  },
+  "blocks": [
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "1a,1a,1"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "cell-unset",
+                    "type": "attribute",
+                    "value": "local",
+                    "location": [
+                      {
+                        "line": 9,
+                        "col": 1
+                      },
+                      {
+                        "line": 9,
+                        "col": 19
+                      }
+                    ]
+                  },
+                  {
+                    "name": "cell-local",
+                    "type": "attribute",
+                    "value": "first",
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 1
+                      },
+                      {
+                        "line": 10,
+                        "col": 19
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "First: parent; local; first.",
+                        "location": [
+                          {
+                            "line": 12,
+                            "col": 1
+                          },
+                          {
+                            "line": 12,
+                            "col": 48
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 1
+                      },
+                      {
+                        "line": 12,
+                        "col": 48
+                      }
+                    ]
+                  },
+                  {
+                    "name": "cell-local",
+                    "type": "attribute",
+                    "value": "second",
+                    "location": [
+                      {
+                        "line": 14,
+                        "col": 1
+                      },
+                      {
+                        "line": 14,
+                        "col": 20
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Updated: second.",
+                        "location": [
+                          {
+                            "line": 16,
+                            "col": 1
+                          },
+                          {
+                            "line": 16,
+                            "col": 22
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 16,
+                        "col": 1
+                      },
+                      {
+                        "line": 16,
+                        "col": 22
+                      }
+                    ]
+                  },
+                  {
+                    "name": "table",
+                    "type": "block",
+                    "form": "delimited",
+                    "delimiter": "!===",
+                    "metadata": {
+                      "attributes": {
+                        "cols": "a"
+                      }
+                    },
+                    "content": {
+                      "header": null,
+                      "footer": null,
+                      "rows": [
+                        {
+                          "columns": [
+                            {
+                              "content": [
+                                {
+                                  "name": "nested-only",
+                                  "type": "attribute",
+                                  "value": "nested",
+                                  "location": [
+                                    {
+                                      "line": 22,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 22,
+                                      "col": 21
+                                    }
+                                  ]
+                                },
+                                {
+                                  "name": "paragraph",
+                                  "type": "block",
+                                  "inlines": [
+                                    {
+                                      "name": "text",
+                                      "type": "string",
+                                      "value": "Nested: parent; second; nested.",
+                                      "location": [
+                                        {
+                                          "line": 24,
+                                          "col": 1
+                                        },
+                                        {
+                                          "line": 24,
+                                          "col": 50
+                                        }
+                                      ]
+                                    }
+                                  ],
+                                  "location": [
+                                    {
+                                      "line": 24,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 24,
+                                      "col": 50
+                                    }
+                                  ]
+                                }
+                              ],
+                              "style": "asciidoc"
+                            }
+                          ]
+                        }
+                      ],
+                      "columns": [
+                        {
+                          "style": "asciidoc"
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 19,
+                          "col": 1
+                        },
+                        {
+                          "line": 25,
+                          "col": 4
+                        }
+                      ]
+                    },
+                    "location": [
+                      {
+                        "line": 18,
+                        "col": 1
+                      },
+                      {
+                        "line": 25,
+                        "col": 4
+                      }
+                    ]
+                  },
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "After nested: second; {nested-only}.",
+                        "location": [
+                          {
+                            "line": 27,
+                            "col": 1
+                          },
+                          {
+                            "line": 27,
+                            "col": 42
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 27,
+                        "col": 1
+                      },
+                      {
+                        "line": 27,
+                        "col": 42
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Sibling: parent; {cell-unset}; {cell-local}.",
+                        "location": [
+                          {
+                            "line": 30,
+                            "col": 1
+                          },
+                          {
+                            "line": 30,
+                            "col": 50
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 30,
+                        "col": 1
+                      },
+                      {
+                        "line": 30,
+                        "col": 50
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              },
+              {
+                "content": [
+                  {
+                    "name": "paragraph",
+                    "type": "block",
+                    "inlines": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Plain: parent; {cell-unset}; {cell-local}.",
+                        "location": [
+                          {
+                            "line": 32,
+                            "col": 2
+                          },
+                          {
+                            "line": 32,
+                            "col": 49
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 32,
+                        "col": 2
+                      },
+                      {
+                        "line": 32,
+                        "col": 49
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          },
+          {
+            "style": "asciidoc"
+          },
+          {}
+        ],
+        "location": [
+          {
+            "line": 6,
+            "col": 1
+          },
+          {
+            "line": 33,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Parent: parent; {cell-unset}; {cell-local}; {nested-only}.",
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 35,
+              "col": 64
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 35,
+          "col": 1
+        },
+        {
+          "line": 35,
+          "col": 64
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 35,
+      "col": 64
+    }
+  ]
+}

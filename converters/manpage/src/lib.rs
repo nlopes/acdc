@@ -6,14 +6,19 @@
 //!
 //! # Example
 //!
-//! ```ignore
+//! ```no_run
+//! use std::path::Path;
 //! use acdc_converters_manpage::Processor;
 //! use acdc_converters_core::{Converter, Options};
 //!
 //! let options = Options::default();
-//! let processor = Processor::new(options, Default::default());
-//! processor.convert(&document, Some(Path::new("cmd.adoc")))?;
-//! // Outputs: cmd.1 (or other extension based on volume number)
+//! let processor = Processor::new(options, acdc_parser::Options::builder())?;
+//! let parsed = acdc_parser::parse(
+//!     "= cmd(1)\n\n== Name\n\ncmd - run a command\n",
+//!     processor.parser_options(),
+//! )?;
+//! processor.convert(parsed.document(), Some(Path::new("cmd.adoc")))?;
+//! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 //!
 //! # Output Format
@@ -38,13 +43,15 @@ use std::{
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::SubsFlags;
 use acdc_converters_core::{
-    BackendProfile, Converter, Diagnostics, Doctype, Options,
+    BackendProfile, Converter, Diagnostics, Doctype, Options, TraversalContext,
     section::{has_index_section, index_generation_enabled},
     visitor::Visitor,
     xref::XrefGuard,
 };
 
-use acdc_parser::{AttributeValue, Document, DocumentAttributes, Reference};
+use acdc_parser::{
+    AttributeValue, Document, DocumentAttributes, Options as ParserOptions, Reference,
+};
 
 mod admonition;
 mod delimited;
@@ -91,7 +98,7 @@ pub(crate) enum IndexCatalogRelationship {
 #[derive(Clone, Debug)]
 pub struct Processor<'a> {
     options: Options,
-    document_attributes: DocumentAttributes<'a>,
+    parser_options: ParserOptions<'a>,
     pub(crate) references: Rc<HashMap<&'a str, Reference<'a>>>,
     /// Keeps a cross-reference inside a resolved target's text from recursing.
     pub(crate) xref_guard: XrefGuard,
@@ -127,19 +134,20 @@ impl Processor<'_> {
     ) -> Result<(), Error> {
         let mut attrs: DocumentAttributes<'doc> = doc.attributes.clone();
 
-        if !attrs.contains_key("revdate")
+        if attrs.get("revdate").is_none()
             && let Some(date_str) = source_file.and_then(file_modified_date)
         {
-            attrs.insert(
-                "revdate".into(),
-                AttributeValue::String(Cow::Owned(date_str)),
-            );
+            attrs = ParserOptions::builder()
+                .with_attributes(attrs.into_inputs())
+                .with_attribute("revdate", date_str)
+                .build()?
+                .into_document_attributes();
         }
 
         // Per-conversion processor borrows from `doc`; lifetime independent of `self`.
         let processor: Processor<'doc> = Processor {
             options: self.options.clone(),
-            document_attributes: attrs,
+            parser_options: ParserOptions::default().with_document_attributes(attrs),
             references: Rc::new(doc.references.clone()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(
@@ -157,48 +165,47 @@ impl Processor<'_> {
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
-        let mut visitor = ManpageVisitor::new(writer, processor, diagnostics.reborrow());
-        visitor.visit_document(doc)
+        let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut visitor = ManpageVisitor::new(writer, &processor, diagnostics.reborrow());
+        visitor.visit_document(&mut traversal, doc)
     }
 
     /// Determine the output file extension based on the volume number.
-    fn output_extension(doc: &Document) -> String {
+    fn output_extension(doc: &Document<'_>) -> String {
         // Read manvolnum from document attributes (set by parser)
-        doc.attributes
-            .get("manvolnum")
-            .and_then(|v| match v {
-                acdc_parser::AttributeValue::String(s) => Some(s.clone().into_owned()),
-                acdc_parser::AttributeValue::Bool(_) | acdc_parser::AttributeValue::None | _ => {
-                    None
-                }
-            })
-            .unwrap_or_else(|| String::from("1"))
+        acdc_converters_core::document_attribute_text((doc.attributes).get("manvolnum"))
+            .map_or_else(|| String::from("1"), str::to_owned)
     }
 }
 
 impl<'a> Converter<'a> for Processor<'a> {
     type Error = Error;
 
-    fn document_attributes_defaults() -> DocumentAttributes<'static> {
-        let mut attrs: DocumentAttributes<'static> = DocumentAttributes::default();
-        // man-linkstyle controls how links are rendered in the manpage
-        // Format: "color style prefix suffix" - blue R < > means blue, regular,
-        // with the target in angle brackets.
-        attrs.insert("man-linkstyle".into(), "blue R < >".into());
-        attrs
+    fn document_attributes_defaults() -> &'static [(&'static str, AttributeValue<'static>)] {
+        &[(
+            "man-linkstyle",
+            AttributeValue::String(Cow::Borrowed("blue R < >")),
+        )]
     }
 
-    fn new(options: Options, document_attributes: DocumentAttributes<'a>) -> Self {
-        let mut document_attributes = document_attributes;
-        for (name, value) in Self::document_attributes_defaults().iter() {
-            document_attributes.insert(name.clone(), value.clone());
+    fn new(
+        options: Options,
+        parser_options: acdc_parser::OptionsBuilder<'a>,
+    ) -> Result<Self, Self::Error> {
+        let mut parser_options = parser_options;
+        for (name, value) in Self::document_attributes_defaults() {
+            if parser_options.attribute(name).is_none() {
+                parser_options = parser_options.with_default_attribute(*name, value.clone());
+            }
         }
-        document_attributes.set("doctype".into(), Doctype::Manpage.as_str().into());
-        MANPAGE_BACKEND.apply(&mut document_attributes, Doctype::Manpage);
+        parser_options = parser_options.with_attribute("doctype", Doctype::Manpage.as_str());
+        parser_options =
+            MANPAGE_BACKEND.apply(parser_options, Doctype::Manpage, options.embedded());
 
-        Self {
+        let parser_options = parser_options.build()?;
+        Ok(Self {
             options,
-            document_attributes,
+            parser_options,
             references: Rc::new(HashMap::new()),
             xref_guard: XrefGuard::default(),
             top_level_section_ids: Rc::new(HashSet::new()),
@@ -208,15 +215,15 @@ impl<'a> Converter<'a> for Processor<'a> {
             has_valid_index_section: false,
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
-        }
+        })
     }
 
     fn options(&self) -> &Options {
         &self.options
     }
 
-    fn document_attributes(&self) -> &DocumentAttributes<'a> {
-        &self.document_attributes
+    fn parser_options(&self) -> &ParserOptions<'a> {
+        &self.parser_options
     }
 
     fn derive_output_path(
@@ -262,28 +269,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn constructor_applies_manpage_backend_profile() {
-        let processor = Processor::new(Options::default(), DocumentAttributes::default());
+    fn constructor_applies_manpage_backend_profile() -> Result<(), Box<dyn std::error::Error>> {
+        let processor = Processor::new(Options::default(), ParserOptions::builder())?;
 
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("backend")
-                .as_deref(),
+                .get("backend")
+                .and_then(|value| value.text()),
             Some("manpage")
         );
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("doctype")
-                .as_deref(),
+                .get("doctype")
+                .and_then(|value| value.text()),
             Some("manpage")
         );
         assert_eq!(
             processor
                 .document_attributes()
-                .get_string("man-linkstyle")
-                .as_deref(),
+                .get("man-linkstyle")
+                .and_then(|value| value.text()),
             Some("blue R < >")
         );
         assert!(
@@ -291,5 +298,30 @@ mod tests {
                 .document_attributes()
                 .contains_key("backend-manpage-doctype-manpage")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn canonical_body_attributes_apply_in_source_order() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = acdc_parser::parse(
+            "= attr-order(1)\n:doctype: manpage\n:manname: attr-order\n:manpurpose: show attribute source order\n:imagesdir: images/header\n\n== Name\n\naudio::before.mp3[]\n\n:imagesdir: images/body\n\naudio::after.mp3[]\n",
+            &ParserOptions::default(),
+        )?;
+        let processor = Processor::new(
+            Options::default(),
+            ParserOptions::builder()
+                .with_attributes(parsed.document().attributes.clone().into_inputs()),
+        )?;
+        let source = processor.warning_source();
+        let mut warnings = Vec::new();
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        let mut output = Vec::new();
+
+        processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+
+        let manpage = String::from_utf8(output)?;
+        assert!(manpage.contains("images/header/before.mp3"));
+        assert!(manpage.contains("images/body/after.mp3"));
+        Ok(())
     }
 }

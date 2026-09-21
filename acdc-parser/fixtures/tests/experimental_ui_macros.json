@@ -1,9 +1,6 @@
 {
   "name": "document",
   "type": "block",
-  "attributes": {
-    "experimental": false
-  },
   "blocks": [
     {
       "name": "paragraph",

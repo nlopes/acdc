@@ -19,7 +19,7 @@
 //! `acdc-terminal`/`terminal`/`replay` names; only the rendered classes use
 //! the `terminal-view` hierarchy.
 
-use std::{borrow::Cow, io::Write};
+use std::{borrow::Cow, collections::HashMap, io::Write, time::Duration};
 
 use acdc_converters_core::{Diagnostics, Options, code::detect_language};
 use acdc_converters_terminal::{
@@ -37,8 +37,7 @@ const MAX_AUTO_ROWS: usize = 200;
 const REPLAY_OPTION: &str = "replay";
 const REPLAY_FORMAT_ATTR: &str = "format";
 const REPLAY_FRAME_DURATION_MS: u64 = 500;
-const REPLAY_FRAME_DURATION: std::time::Duration =
-    std::time::Duration::from_millis(REPLAY_FRAME_DURATION_MS);
+const REPLAY_FRAME_DURATION: Duration = Duration::from_millis(REPLAY_FRAME_DURATION_MS);
 const REPLAY_DURATION_MS_ATTR: &str = "replay-duration-ms";
 const REPLAY_IDLE_LIMIT_MS_ATTR: &str = "replay-idle-limit-ms";
 const REPLAY_RENDER_FPS: u128 = 30;
@@ -56,10 +55,7 @@ enum Theme {
 
 impl Theme {
     fn from_document_attributes(attrs: &DocumentAttributes<'_>) -> Self {
-        if attrs
-            .get("dark-mode")
-            .is_some_and(|v| !matches!(v, AttributeValue::Bool(false) | AttributeValue::None))
-        {
+        if attrs.get("dark-mode").is_some() {
             Self::Dark
         } else {
             Self::Light
@@ -83,8 +79,8 @@ struct PreviewOptions {
 
 impl PreviewOptions {
     fn resolve(attrs: &DocumentAttributes<'_>, metadata: Option<&BlockMetadata<'_>>) -> Self {
-        let document_cols = attr_usize(attrs.get("acdc-terminal-cols"));
-        let document_rows = attr_usize(attrs.get("acdc-terminal-rows"));
+        let document_cols = resolved_usize(attrs, "acdc-terminal-cols");
+        let document_rows = resolved_usize(attrs, "acdc-terminal-rows");
         let document_theme = Theme::from_document_attributes(attrs);
 
         Self {
@@ -122,9 +118,7 @@ struct SpanStyle {
 }
 
 pub(crate) fn is_enabled(attrs: &DocumentAttributes<'_>) -> bool {
-    attrs
-        .get("acdc-terminal")
-        .is_some_and(|value| !matches!(value, AttributeValue::Bool(false) | AttributeValue::None))
+    attrs.get("acdc-terminal").is_some()
 }
 
 pub(crate) fn is_terminal_listing(
@@ -351,7 +345,7 @@ fn render_replay_asciicast<W: Write>(
         metadata.attributes.get(REPLAY_IDLE_LIMIT_MS_ATTR),
         diagnostics,
     )
-    .map(|ms| std::time::Duration::from_millis(ms as u64));
+    .map(|ms| Duration::from_millis(ms as u64));
 
     let recording = match asciicast::parse_inlines_with(inlines, idle_limit) {
         Ok(recording) => recording,
@@ -465,13 +459,13 @@ fn window_grid_to_bottom(grid: &CellGrid, display_rows: usize) -> CellGrid {
 fn replay_playback_override(
     metadata: &BlockMetadata<'_>,
     diagnostics: &mut Diagnostics<'_>,
-) -> Option<std::time::Duration> {
+) -> Option<Duration> {
     positive_attr(
         REPLAY_DURATION_MS_ATTR,
         metadata.attributes.get(REPLAY_DURATION_MS_ATTR),
         diagnostics,
     )
-    .map(|ms| std::time::Duration::from_millis(ms as u64))
+    .map(|ms| Duration::from_millis(ms as u64))
 }
 
 /// Resolve the replay terminal size, letting block `cols`/`rows` (or the
@@ -505,7 +499,32 @@ fn replay_dimension(
 ) -> Option<usize> {
     positive_attr(primary, metadata.attributes.get(primary), diagnostics)
         .or_else(|| positive_attr(document, metadata.attributes.get(document), diagnostics))
-        .or_else(|| positive_attr(document, attrs.get(document), diagnostics))
+        .or_else(|| positive_document_attr(document, attrs, diagnostics))
+}
+
+fn positive_document_attr(
+    name: &'static str,
+    attributes: &DocumentAttributes<'_>,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Option<usize> {
+    attributes.get(name)?;
+    let parsed = resolved_usize(attributes, name);
+    if parsed.is_none() {
+        let mut presented = String::new();
+        if attributes
+            .get(name)
+            .is_none_or(|value| value.write_text(&mut presented).is_err())
+        {
+            presented.push_str("<non-text value>");
+        }
+        diagnostics.warn_with_advice(
+            format!(
+                "terminal replay attribute `{name}` must be a positive integer, got `{presented}`"
+            ),
+            format!("Set `{name}` to a positive integer."),
+        );
+    }
+    parsed
 }
 
 fn render_blank_preview<W: Write>(
@@ -589,7 +608,7 @@ fn sampled_events<'a>(
     ansi: &'a [u8],
     boundaries: &[usize],
     frame_budget: usize,
-    frame_duration: std::time::Duration,
+    frame_duration: Duration,
 ) -> Vec<replay::Event<'a>> {
     let sampled = replay::sampled_indexes(boundaries.len(), frame_budget);
     let mut events = Vec::with_capacity(sampled.len());
@@ -613,10 +632,7 @@ fn sampled_events<'a>(
     events
 }
 
-fn replay_chunk_timestamp(
-    chunk_index: usize,
-    frame_duration: std::time::Duration,
-) -> std::time::Duration {
+fn replay_chunk_timestamp(chunk_index: usize, frame_duration: Duration) -> Duration {
     frame_duration.saturating_mul(u32::try_from(chunk_index + 1).unwrap_or(u32::MAX))
 }
 
@@ -776,7 +792,7 @@ fn render_replay_player<W: Write>(
     theme: Theme,
     recorded: Option<asciicast::ReplayTheme>,
     title: Option<&str>,
-    playback_duration: Option<std::time::Duration>,
+    playback_duration: Option<Duration>,
 ) -> Result<(), Error> {
     let rows = frames
         .iter()
@@ -903,7 +919,7 @@ fn build_row_pool(
     // Each rendered row lives once, as a key in `index` mapping its HTML to its
     // assigned pool slot. The pool itself is rebuilt from the map afterwards,
     // placing each row at its slot, so a unique row's HTML is never cloned.
-    let mut index: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    let mut index: HashMap<String, usize> = HashMap::new();
     let mut frame_rows: Vec<Vec<usize>> = Vec::with_capacity(frames.len());
     for frame in frames {
         let mut indices = Vec::with_capacity(rows);
@@ -1117,6 +1133,21 @@ fn attr_usize(value: Option<&AttributeValue<'_>>) -> Option<usize> {
         .filter(|value| *value > 0)
 }
 
+fn resolved_usize(attributes: &DocumentAttributes<'_>, name: &str) -> Option<usize> {
+    attributes
+        .get(name)
+        .and_then(|value| {
+            if let Some(value) = value.as_integer() {
+                usize::try_from(value).ok()
+            } else if let Some(value) = value.as_str() {
+                value.parse().ok()
+            } else {
+                None
+            }
+        })
+        .filter(|value| *value > 0)
+}
+
 fn estimate_rows(ansi: &[u8], cols: usize) -> usize {
     let cols = cols.max(1);
     let mut rows = 1;
@@ -1237,43 +1268,46 @@ fn escape_html(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    use super::estimate_rows;
     use acdc_converters_core::{
         Diagnostics, GeneratorMetadata, Options as ConverterOptions, Warning, WarningSource,
     };
-    use acdc_parser::{DocumentAttributes, Options as ParserOptions};
+    use acdc_parser::{Options as ParserOptions, SafeMode};
+    use std::{collections::HashMap, error::Error};
 
-    use crate::{Processor, RenderOptions};
+    use crate::{HtmlVariant, Processor, RenderOptions, terminal::resolved_usize};
 
-    type TestResult = Result<(), Box<dyn std::error::Error>>;
+    type TestResult = Result<(), Box<dyn Error>>;
 
-    fn render(
-        input: &str,
-        variant: crate::HtmlVariant,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    fn render(input: &str, variant: HtmlVariant) -> Result<String, Box<dyn Error>> {
         let (html, _) = render_with_warnings(input, variant)?;
         Ok(html)
     }
 
     fn render_with_warnings(
         input: &str,
-        variant: crate::HtmlVariant,
-    ) -> Result<(String, Vec<Warning>), Box<dyn std::error::Error>> {
-        render_with_safe_mode(input, variant, acdc_parser::SafeMode::Unsafe)
+        variant: HtmlVariant,
+    ) -> Result<(String, Vec<Warning>), Box<dyn Error>> {
+        render_with_safe_mode(input, variant, SafeMode::Unsafe)
     }
 
     fn render_with_safe_mode(
         input: &str,
-        variant: crate::HtmlVariant,
-        safe_mode: acdc_parser::SafeMode,
-    ) -> Result<(String, Vec<Warning>), Box<dyn std::error::Error>> {
-        let parser_options = ParserOptions::with_attributes(DocumentAttributes::default());
+        variant: HtmlVariant,
+        safe_mode: SafeMode,
+    ) -> Result<(String, Vec<Warning>), Box<dyn Error>> {
+        let parser_options = ParserOptions::default();
         let parsed = acdc_parser::parse(input, &parser_options)?;
         let doc = parsed.document();
         let options = ConverterOptions::builder()
             .generator_metadata(GeneratorMetadata::new("acdc", "0.1.0"))
             .safe_mode(safe_mode)
             .build();
-        let processor = Processor::new_with_variant(options, doc.attributes.clone(), variant);
+        let processor = Processor::new_with_variant(
+            options,
+            acdc_parser::Options::builder().with_attributes(doc.attributes.clone().into_inputs()),
+            variant,
+        )?;
         let mut output = Vec::new();
         let source = WarningSource::new("html").with_variant(variant.as_str());
         let mut warnings = Vec::new();
@@ -1291,7 +1325,7 @@ mod tests {
     fn standard_html_can_include_selectable_terminal_preview() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal:\n\n[source,console]\n----\n$ acdc --version\nacdc 0.2.0\n----\n\nAfter preview.\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("<div id=\"content\">"));
@@ -1318,7 +1352,7 @@ mod tests {
     fn semantic_html_can_include_selectable_terminal_preview() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal:\n\n[source,terminal]\n----\n$ echo semantic\nsemantic\n----\n",
-            crate::HtmlVariant::Semantic,
+            HtmlVariant::Semantic,
         )?;
 
         assert!(html.contains("<main id=\"content\">"));
@@ -1333,7 +1367,7 @@ mod tests {
     fn dark_mode_uses_dark_terminal_preview_theme() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal:\n:dark-mode:\n\n[source,console]\n----\n$ echo dark\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("<div class=\"terminal-view terminal-view--dark\""));
@@ -1347,7 +1381,7 @@ mod tests {
     fn terminal_preview_preserves_syntax_colors() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal:\n\n[source,bash]\n----\necho \"hello\"\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(
@@ -1361,7 +1395,7 @@ mod tests {
     fn terminal_session_block_does_not_require_preview_attribute() -> TestResult {
         let html = render(
             "= Example\n\n[terminal]\n----\n$ cargo build\n\x1b[31merror\x1b[0m\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("<div class=\"terminalblock terminal-block\">"));
@@ -1376,7 +1410,7 @@ mod tests {
     fn terminal_session_block_uses_block_dimensions() -> TestResult {
         let html = render(
             "= Example\n\n[terminal,cols=12,rows=4]\n----\n$ echo dimensions\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("<div class=\"terminal-view terminal-view--light\""));
@@ -1390,7 +1424,7 @@ mod tests {
     fn terminal_session_options_layer_block_dimensions_over_document_dimensions() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal-cols: 30\n:acdc-terminal-rows: 7\n:dark-mode:\n\n[terminal,cols=12]\n----\n$ echo layered\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("<div class=\"terminal-view terminal-view--dark\""));
@@ -1401,10 +1435,37 @@ mod tests {
     }
 
     #[test]
+    fn terminal_numeric_consumer_keeps_original_text_separate() -> Result<(), Box<dyn Error>> {
+        let mut attributes =
+            HashMap::<std::borrow::Cow<'_, str>, acdc_parser::AttributeValue<'_>>::new();
+        attributes.insert("max-include-depth".into(), "064".into());
+
+        let attributes = acdc_parser::Options::builder()
+            .with_defaults(attributes)
+            .build()?
+            .into_document_attributes();
+
+        assert_eq!(
+            attributes
+                .get("max-include-depth")
+                .and_then(acdc_parser::DocumentAttributeValue::as_integer),
+            Some(64)
+        );
+        assert_eq!(resolved_usize(&attributes, "max-include-depth"), Some(64));
+        assert_eq!(
+            attributes
+                .get("max-include-depth")
+                .and_then(|value| value.text()),
+            Some("064")
+        );
+        Ok(())
+    }
+
+    #[test]
     fn semantic_terminal_session_block_uses_semantic_wrapper() -> TestResult {
         let html = render(
             "= Example\n\n.Terminal\n[terminal]\n----\n$ echo semantic\n----\n",
-            crate::HtmlVariant::Semantic,
+            HtmlVariant::Semantic,
         )?;
 
         assert!(html.contains("<figure class=\"terminal-block\""));
@@ -1418,7 +1479,7 @@ mod tests {
     fn literal_terminal_session_block_renders_as_terminal_preview() -> TestResult {
         let html = render(
             "= Example\n\n[terminal,cols=20]\n....\n$ echo literal\n....\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("<div class=\"terminalblock terminal-block\">"));
@@ -1431,7 +1492,7 @@ mod tests {
     fn terminal_replay_block_renders_multiple_frames() -> TestResult {
         let html = render(
             "= Example\n\n[terminal%replay,cols=20,rows=4]\n----\nfirst\n\x1b[31msecond\x1b[0m\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         // Raw ANSI replay renders through the same JS player as asciicast: a
@@ -1465,7 +1526,7 @@ mod tests {
         // the single shared init script animates every player on the page.
         let html = render(
             "= Example\n\n[terminal%replay,cols=20,rows=4]\n----\nfirst\nsecond\n----\n\n[terminal%replay,cols=20,rows=4]\n----\nalpha\nbeta\ngamma\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         let payloads = html.matches("class=\"terminal-view__data\"").count();
@@ -1478,7 +1539,7 @@ mod tests {
     fn terminal_replay_accepts_playback_duration_override() -> TestResult {
         let html = render(
             "= Example\n\n[terminal%replay,cols=20,rows=4,replay-duration-ms=250]\n----\nfirst\nsecond\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("data-duration-ms=\"250\""));
@@ -1496,7 +1557,7 @@ mod tests {
             &format!(
                 "= Example\n\n[terminal%replay,cols=20,rows=4,replay-duration-ms=100]\n----\n{lines}\n----\n"
             ),
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("data-frames=\"4\""));
@@ -1536,7 +1597,7 @@ mod tests {
         // final value.
         let html = render(
             "= Example\n\n[terminal%replay,cols=20,rows=4]\n----\nWorking 0%\rWorking 50%\rWorking 100%\nDone\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("terminal-view--replay"));
@@ -1551,7 +1612,7 @@ mod tests {
     fn terminal_replay_requires_explicit_dimensions() -> TestResult {
         let (html, warnings) = render_with_warnings(
             "= Example\n\n[terminal%replay,cols=0]\n----\nfirst\nsecond\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(!html.contains("terminal-view terminal-view--replay"));
@@ -1573,7 +1634,7 @@ mod tests {
     fn asciicast_v2_replay_renders_player() -> TestResult {
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4}\n[0.0,\"o\",\"first\\r\\n\"]\n[0.5,\"o\",\"second\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(
@@ -1597,7 +1658,7 @@ mod tests {
         // background/foreground are inlined on the container.
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4,\"theme\":{\"fg\":\"#c0caf5\",\"bg\":\"#1a1b26\",\"palette\":\"#000000:#ff0000:#00ff00:#ffff00:#0000ff:#ff00ff:#00ffff:#ffffff\"}}\n[0.0,\"o\",\"first\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("terminal-view--replay"));
@@ -1611,7 +1672,7 @@ mod tests {
         // so the container carries no inline colour (overridable with plain CSS).
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":2,\"width\":20,\"height\":4}\n[0.0,\"o\",\"first\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("terminal-view--replay terminal-view--light\" data-cols="));
@@ -1645,11 +1706,8 @@ mod tests {
         // at Server/Secure it must not run: the block falls back to a plain
         // listing and the author is told why.
         let input = "= Example\n\n[terminal%replay,format=asciicast]\n----\n{\"version\":2,\"width\":30,\"height\":5}\n[0.0,\"o\",\"hi\\r\\n\"]\n----\n";
-        let (html, warnings) = render_with_safe_mode(
-            input,
-            crate::HtmlVariant::Standard,
-            acdc_parser::SafeMode::Server,
-        )?;
+        let (html, warnings) =
+            render_with_safe_mode(input, HtmlVariant::Standard, SafeMode::Server)?;
 
         // Match the rendered element, not the `.terminal-view` CSS rule that the
         // embedded stylesheet always carries.
@@ -1674,7 +1732,7 @@ mod tests {
     fn asciicast_replay_uses_header_dimensions_without_block_attributes() -> TestResult {
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast]\n----\n{\"version\":2,\"width\":30,\"height\":5}\n[0.0,\"o\",\"hi\\r\\n\"]\n[0.5,\"o\",\"bye\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("terminal-view terminal-view--replay"));
@@ -1687,7 +1745,7 @@ mod tests {
     fn asciicast_block_dimensions_override_header() -> TestResult {
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=12,rows=3]\n----\n{\"version\":2,\"width\":30,\"height\":5}\n[0.0,\"o\",\"hi\\r\\n\"]\n[0.5,\"o\",\"bye\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("data-cols=\"12\""));
@@ -1699,7 +1757,7 @@ mod tests {
     fn asciicast_v3_relative_timing_renders() -> TestResult {
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":3,\"term\":{\"cols\":20,\"rows\":4}}\n[0.0,\"o\",\"alpha\\r\\n\"]\n[0.3,\"o\",\"beta\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("terminal-view terminal-view--replay"));
@@ -1716,7 +1774,7 @@ mod tests {
         // to the block height, not the first lines or a block of blanks.
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,rows=3]\n----\n{\"version\":2,\"width\":20,\"height\":6}\n[0.0,\"o\",\"line0\\r\\nline1\\r\\nline2\\r\\nline3\\r\\nline4\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("data-rows=\"3\""));
@@ -1739,7 +1797,7 @@ mod tests {
         // would mean the parser had escaped them before asciicast parsing).
         let html = render(
             "= Example\n\n[terminal%replay,format=asciicast,cols=40,rows=4]\n----\n{\"version\":2,\"width\":40,\"height\":4}\n[0.0,\"o\",\"<div> & </div>\\r\\n\"]\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("&lt;div&gt; &amp; &lt;/div&gt;"));
@@ -1751,7 +1809,7 @@ mod tests {
     fn asciicast_unsupported_version_falls_back_with_warning() -> TestResult {
         let (html, warnings) = render_with_warnings(
             "= Example\n\n[terminal%replay,format=asciicast,cols=20,rows=4]\n----\n{\"version\":1,\"width\":20,\"height\":4,\"duration\":1.0,\"stdout\":[[0.0,\"x\\r\\n\"]]}\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(!html.contains("terminal-view terminal-view--replay"));
@@ -1768,7 +1826,7 @@ mod tests {
     fn unknown_replay_format_warns_and_replays_as_ansi() -> TestResult {
         let (html, warnings) = render_with_warnings(
             "= Example\n\n[terminal%replay,format=bogus,cols=20,rows=4]\n----\nfirst\nsecond\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("terminal-view terminal-view--replay"));
@@ -1786,17 +1844,14 @@ mod tests {
 
     #[test]
     fn auto_rows_follow_content_height_with_padding() {
-        assert_eq!(
-            super::estimate_rows(b"$ acdc --version\r\nacdc 0.2.0", 80),
-            3
-        );
-        assert_eq!(super::estimate_rows(b"123456", 3), 3);
-        assert_eq!(super::estimate_rows(b"1234567", 3), 4);
+        assert_eq!(estimate_rows(b"$ acdc --version\r\nacdc 0.2.0", 80), 3);
+        assert_eq!(estimate_rows(b"123456", 3), 3);
+        assert_eq!(estimate_rows(b"1234567", 3), 4);
     }
 
     #[test]
     fn skips_terminal_preview_without_attribute() -> TestResult {
-        let html = render("= Example\n\nPlain HTML\n", crate::HtmlVariant::Standard)?;
+        let html = render("= Example\n\nPlain HTML\n", HtmlVariant::Standard)?;
 
         // No preview container is rendered (the `.terminal-view--*` rules in the
         // embedded stylesheet don't count).
@@ -1809,7 +1864,7 @@ mod tests {
     fn linkcss_uses_built_in_stylesheet_for_terminal_preview_styles() -> TestResult {
         let html = render(
             "= Example\n:linkcss:\n:acdc-terminal:\n\n[source,console]\n----\n$ echo linked\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains(r#"<link rel="stylesheet" href="./asciidoctor-light-mode.css">"#));
@@ -1823,7 +1878,7 @@ mod tests {
     fn escapes_terminal_text() -> TestResult {
         let html = render(
             "= Example\n:acdc-terminal:\n\n[source,console]\n----\n<&>\n----\n",
-            crate::HtmlVariant::Standard,
+            HtmlVariant::Standard,
         )?;
 
         assert!(html.contains("&lt;"));

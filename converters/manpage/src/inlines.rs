@@ -7,7 +7,7 @@ use std::{borrow::Cow, io::Write, rc::Rc};
 #[cfg(feature = "pre-spec-subs")]
 use acdc_converters_core::substitutions::apply_replacements;
 use acdc_converters_core::{
-    decode_numeric_char_refs,
+    TraversalContext, decode_numeric_char_refs,
     link::{link_fallback, mailto_fallback},
     substitutions::{Replacements, TextBoundaries},
     visitor::{Visitor, WritableVisitor},
@@ -146,7 +146,7 @@ fn restore_em_dash_line_prefixes(content: &str, escaped: &str) -> Option<String>
     Some(restored)
 }
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_with_role(
         &mut self,
         role: Option<&str>,
@@ -168,6 +168,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
     fn render_link_display(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         text: &[InlineNode<'_>],
         fallback: &str,
         role: Option<&str>,
@@ -183,7 +184,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                         manify(fallback, EscapeMode::Normalize)
                     )?;
                 } else {
-                    visitor.visit_inline_nodes(text)?;
+                    visitor.visit_inline_nodes(traversal, text)?;
                 }
                 Ok(())
             })?;
@@ -216,7 +217,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Visit an inline node.
-    pub(crate) fn render_inline_node(&mut self, node: &InlineNode) -> Result<(), Error> {
+    pub(crate) fn render_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+    ) -> Result<(), Error> {
         match node {
             InlineNode::PlainText(text) => self.render_plain_text(text.content)?,
 
@@ -245,20 +250,20 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
 
             InlineNode::BoldText(bold) => {
                 write!(self.writer_mut(), "\\fB")?;
-                self.visit_inline_nodes(&bold.content)?;
+                self.visit_inline_nodes(traversal, &bold.content)?;
                 write!(self.writer_mut(), "\\fP")?;
             }
 
             InlineNode::ItalicText(italic) => {
                 write!(self.writer_mut(), "\\fI")?;
-                self.visit_inline_nodes(&italic.content)?;
+                self.visit_inline_nodes(traversal, &italic.content)?;
                 write!(self.writer_mut(), "\\fP")?;
             }
 
             InlineNode::MonospaceText(mono) => {
                 // Monospace uses Courier font (matching asciidoctor's \f(CR)
                 write!(self.writer_mut(), "\\f(CR")?;
-                self.visit_inline_nodes(&mono.content)?;
+                self.visit_inline_nodes(traversal, &mono.content)?;
                 write!(self.writer_mut(), "\\fP")?;
             }
 
@@ -269,33 +274,33 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                     RoleDefault::Highlight
                 };
                 self.render_with_role(highlight.role, default, |visitor| {
-                    visitor.visit_inline_nodes(&highlight.content)
+                    visitor.visit_inline_nodes(traversal, &highlight.content)
                 })?;
             }
 
             InlineNode::SubscriptText(sub) => {
                 // No subscript in roff - render in parentheses
                 write!(self.writer_mut(), "_(")?;
-                self.visit_inline_nodes(&sub.content)?;
+                self.visit_inline_nodes(traversal, &sub.content)?;
                 write!(self.writer_mut(), ")")?;
             }
 
             InlineNode::SuperscriptText(sup) => {
                 // No superscript in roff - render in parentheses
                 write!(self.writer_mut(), "^(")?;
-                self.visit_inline_nodes(&sup.content)?;
+                self.visit_inline_nodes(traversal, &sup.content)?;
                 write!(self.writer_mut(), ")")?;
             }
 
             InlineNode::CurvedQuotationText(quoted) => {
                 write!(self.writer_mut(), "\\(lq")?;
-                self.visit_inline_nodes(&quoted.content)?;
+                self.visit_inline_nodes(traversal, &quoted.content)?;
                 write!(self.writer_mut(), "\\(rq")?;
             }
 
             InlineNode::CurvedApostropheText(quoted) => {
                 write!(self.writer_mut(), "\\(oq")?;
-                self.visit_inline_nodes(&quoted.content)?;
+                self.visit_inline_nodes(traversal, &quoted.content)?;
                 write!(self.writer_mut(), "\\(cq")?;
             }
 
@@ -318,7 +323,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineNode::Macro(inline_macro) => {
-                self.render_inline_macro(inline_macro)?;
+                self.render_inline_macro(traversal, inline_macro)?;
             }
 
             InlineNode::CalloutRef(callout) => {
@@ -333,7 +338,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_link(&mut self, link: &Link) -> Result<(), Error> {
+    fn render_link(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        link: &Link,
+    ) -> Result<(), Error> {
         // Use .URL macro for links (matching asciidoctor)
         // The macro must be on its own line; continuation text goes on the next line
         let target_str = link.target.to_string();
@@ -346,6 +355,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             String::new()
         } else {
             self.render_link_display(
+                traversal,
                 &link.text,
                 link_fallback(&target_str, link.hides_uri_scheme()),
                 role.as_deref(),
@@ -358,8 +368,12 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_mailto(&mut self, mailto: &Mailto) -> Result<(), Error> {
-        self.write_mailto_with_trailing(mailto, "")
+    fn render_mailto(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        mailto: &Mailto,
+    ) -> Result<(), Error> {
+        self.write_mailto_with_trailing(traversal, mailto, "")
     }
 
     /// Write a mailto macro with explicit trailing punctuation.
@@ -369,6 +383,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// punctuation is passed to the `.MTO` macro's third argument.
     pub(crate) fn write_mailto_with_trailing(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         mailto: &Mailto,
         trailing: &str,
     ) -> Result<(), Error> {
@@ -384,7 +399,12 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         let display_text = if mailto.text.is_empty() && !styled_fallback {
             String::new()
         } else {
-            self.render_link_display(&mailto.text, mailto_fallback(&target_str), role.as_deref())?
+            self.render_link_display(
+                traversal,
+                &mailto.text,
+                mailto_fallback(&target_str),
+                role.as_deref(),
+            )?
         };
 
         let trailing = escape_rendered_roff_macro_argument(trailing);
@@ -436,14 +456,18 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Visit an inline macro.
-    fn render_inline_macro(&mut self, macro_node: &InlineMacro) -> Result<(), Error> {
+    fn render_inline_macro(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        macro_node: &InlineMacro,
+    ) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Url(_)
             | InlineMacro::Mailto(_)
             | InlineMacro::Link(_)
             | InlineMacro::Autolink(_)
             | InlineMacro::CrossReference(_) => {
-                self.render_url_inline_macro(macro_node)?;
+                self.render_url_inline_macro(traversal, macro_node)?;
             }
 
             InlineMacro::Footnote(footnote) => {
@@ -459,7 +483,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             | InlineMacro::Pass(_)
             | InlineMacro::Stem(_)
             | InlineMacro::IndexTerm(_) => {
-                self.render_ui_inline_macro(macro_node)?;
+                self.render_ui_inline_macro(traversal, macro_node)?;
             }
 
             _ => self.warn_unsupported_parser_variant("inline macro"),
@@ -469,7 +493,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Render URL-like inline macros: url, mailto, link, autolink, cross-reference.
-    fn render_url_inline_macro(&mut self, macro_node: &InlineMacro) -> Result<(), Error> {
+    fn render_url_inline_macro(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        macro_node: &InlineMacro,
+    ) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Url(url) => {
                 // URL - use .URL macro for proper rendering (matching asciidoctor)
@@ -485,6 +513,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                     writeln!(w, "\\c\n.URL \"{escaped_target}\" \"\" \"\"")?;
                 } else {
                     let display_text = self.render_link_display(
+                        traversal,
                         &url.text,
                         link_fallback(&target_str, url.hides_uri_scheme()),
                         role.as_deref(),
@@ -496,11 +525,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::Mailto(mailto) => {
-                self.render_mailto(mailto)?;
+                self.render_mailto(traversal, mailto)?;
             }
 
             InlineMacro::Link(link) => {
-                self.render_link(link)?;
+                self.render_link(traversal, link)?;
             }
 
             InlineMacro::Autolink(autolink) => {
@@ -508,7 +537,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::CrossReference(xref) => {
-                self.render_cross_reference(xref)?;
+                self.render_cross_reference(traversal, xref)?;
             }
 
             InlineMacro::Footnote(_)
@@ -525,9 +554,13 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         Ok(())
     }
 
-    fn render_cross_reference(&mut self, xref: &CrossReference<'_>) -> Result<(), Error> {
+    fn render_cross_reference(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        xref: &CrossReference<'_>,
+    ) -> Result<(), Error> {
         if !xref.text.is_empty() {
-            return self.visit_inline_nodes(&xref.text);
+            return self.visit_inline_nodes(traversal, &xref.text);
         }
 
         // Clone the handles so the borrowed reference text and the resolution
@@ -545,9 +578,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 } else {
                     TextCase::Preserve
                 };
-                self.with_text_case(text_case, |visitor| visitor.visit_inline_nodes(inlines))
+                self.with_text_case(text_case, |visitor| {
+                    visitor.visit_inline_nodes(traversal, inlines)
+                })
             }
-            XrefDisplay::Label(inlines, _scope) => self.visit_inline_nodes(inlines),
+            XrefDisplay::Label(inlines, _scope) => self.visit_inline_nodes(traversal, inlines),
             XrefDisplay::ShortCaption(prefix) => {
                 let text = manify(&prefix, EscapeMode::Normalize);
                 write!(self.writer_mut(), "{text}")?;
@@ -557,7 +592,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 let prefix = manify(&prefix, EscapeMode::Normalize);
                 let separator = manify(", “", EscapeMode::Normalize);
                 write!(self.writer_mut(), "{prefix}{separator}")?;
-                self.visit_inline_nodes(inlines)?;
+                self.visit_inline_nodes(traversal, inlines)?;
                 let closing_quote = manify("”", EscapeMode::Normalize);
                 write!(self.writer_mut(), "{closing_quote}")?;
                 Ok(())
@@ -579,7 +614,11 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Render UI-element inline macros: image, icon, keyboard, button, menu, pass, stem, index-term.
-    fn render_ui_inline_macro(&mut self, macro_node: &InlineMacro) -> Result<(), Error> {
+    fn render_ui_inline_macro(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        macro_node: &InlineMacro,
+    ) -> Result<(), Error> {
         match macro_node {
             InlineMacro::Image(img) => {
                 self.render_inline_image(img)?;
@@ -638,7 +677,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
 
             InlineMacro::IndexTerm(it) => {
-                self.render_index_term(it)?;
+                self.render_index_term(traversal, it)?;
             }
 
             InlineMacro::Footnote(_)

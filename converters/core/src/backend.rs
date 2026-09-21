@@ -1,8 +1,6 @@
 //! Backend profiles and their intrinsic document attributes.
 
-use std::borrow::Cow;
-
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use acdc_parser::AttributeValue;
 
 use crate::Doctype;
 
@@ -81,101 +79,84 @@ impl BackendProfile {
     /// Backend identity, base backend, file type, and convenience attributes are
     /// intrinsic and therefore replace conflicting values. An explicit
     /// `outfilesuffix` is retained, matching Asciidoctor's initialization
-    /// behavior. A valid `doctype` already present in the map takes precedence
+    /// behavior. A valid supplied `doctype` takes precedence
     /// over `default_doctype`.
     ///
     /// Converters apply their profile on construction; parse using the
-    /// converter's [`document_attributes`](crate::Converter::document_attributes)
+    /// converter's [`parser_options`](crate::Converter::parser_options)
     /// so preprocessing sees the selected backend and the converter's defaults.
-    pub fn apply(self, attributes: &mut DocumentAttributes<'_>, default_doctype: Doctype) {
-        remove_backend_convenience_attributes(attributes);
-
-        // Read after the removal above: it only clears hyphen-suffixed
-        // convenience flags, never the bare `doctype` value.
-        let doctype = attributes
-            .get_string("doctype")
-            .and_then(|value| value.parse::<Doctype>().ok())
+    #[must_use]
+    pub fn apply(
+        self,
+        mut builder: acdc_parser::OptionsBuilder<'_>,
+        default_doctype: Doctype,
+        embedded: bool,
+    ) -> acdc_parser::OptionsBuilder<'_> {
+        let doctype = builder
+            .attribute("doctype")
+            .and_then(|value| match value {
+                AttributeValue::String(value) => value.parse::<Doctype>().ok(),
+                AttributeValue::Bool(_) | AttributeValue::None | _ => None,
+            })
             .unwrap_or(default_doctype)
             .as_str();
-        set_string(attributes, "backend", self.backend);
-        set_flag(attributes, format!("backend-{}", self.backend));
-        set_flag(
-            attributes,
-            format!("backend-{}-doctype-{doctype}", self.backend),
-        );
-
-        set_string(attributes, "basebackend", self.basebackend);
-        set_flag(attributes, format!("basebackend-{}", self.basebackend));
-        set_flag(
-            attributes,
-            format!("basebackend-{}-doctype-{doctype}", self.basebackend),
-        );
-
-        set_string(attributes, "doctype", doctype);
-        set_flag(attributes, format!("doctype-{doctype}"));
-
-        set_string(attributes, "filetype", self.filetype);
-        set_flag(attributes, format!("filetype-{}", self.filetype));
-
-        if matches!(
-            attributes.get("outfilesuffix"),
-            None | Some(AttributeValue::None | AttributeValue::Bool(false))
-        ) {
-            set_string(attributes, "outfilesuffix", self.outfilesuffix);
+        builder = builder
+            .with_default_attribute("backend", self.backend)
+            .with_default_attribute("basebackend", self.basebackend)
+            .with_default_attribute("filetype", self.filetype)
+            .with_default_attribute("doctype", doctype)
+            .with_default_attribute("embedded", embedded);
+        if builder.attribute("outfilesuffix").is_none() {
+            builder = builder.with_default_attribute("outfilesuffix", self.outfilesuffix);
         }
-
-        if let Some(htmlsyntax) = self.htmlsyntax {
-            set_string(attributes, "htmlsyntax", htmlsyntax);
-        }
+        builder.with_default_attribute(
+            "htmlsyntax",
+            self.htmlsyntax
+                .map_or(AttributeValue::None, AttributeValue::from),
+        )
     }
-}
-
-fn remove_backend_convenience_attributes(attributes: &mut DocumentAttributes<'_>) {
-    const PREFIXES: [&str; 4] = ["backend-", "basebackend-", "doctype-", "filetype-"];
-    let names: Vec<_> = attributes
-        .iter()
-        .filter(|(name, _)| PREFIXES.iter().any(|prefix| name.starts_with(prefix)))
-        .map(|(name, _)| name.clone())
-        .collect();
-    for name in names {
-        attributes.remove(name.as_ref());
-    }
-}
-
-fn set_string(attributes: &mut DocumentAttributes<'_>, name: &'static str, value: &'static str) {
-    attributes.set(
-        Cow::Borrowed(name),
-        AttributeValue::String(Cow::Borrowed(value)),
-    );
-}
-
-fn set_flag(attributes: &mut DocumentAttributes<'_>, name: String) {
-    attributes.set(Cow::Owned(name), AttributeValue::String(Cow::Borrowed("")));
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use acdc_parser::{Error, Options};
 
     #[test]
-    fn applies_all_backend_intrinsic_attributes() {
-        let mut attributes = DocumentAttributes::default();
+    fn applies_all_backend_intrinsic_attributes() -> Result<(), Error> {
         let profile = BackendProfile::new("pdf", "html", "pdf", ".pdf").with_htmlsyntax("html");
 
-        profile.apply(&mut attributes, Doctype::Book);
+        let options = profile
+            .apply(Options::builder(), Doctype::Book, true)
+            .build()?;
+        let attributes = options.document_attributes();
 
-        assert_eq!(attributes.get_string("backend").as_deref(), Some("pdf"));
         assert_eq!(
-            attributes.get_string("basebackend").as_deref(),
+            attributes.get("backend").and_then(|value| value.text()),
+            Some("pdf")
+        );
+        assert_eq!(
+            attributes.get("basebackend").and_then(|value| value.text()),
             Some("html")
         );
-        assert_eq!(attributes.get_string("doctype").as_deref(), Some("book"));
-        assert_eq!(attributes.get_string("filetype").as_deref(), Some("pdf"));
         assert_eq!(
-            attributes.get_string("outfilesuffix").as_deref(),
+            attributes.get("doctype").and_then(|value| value.text()),
+            Some("book")
+        );
+        assert_eq!(
+            attributes.get("filetype").and_then(|value| value.text()),
+            Some("pdf")
+        );
+        assert_eq!(
+            attributes
+                .get("outfilesuffix")
+                .and_then(|value| value.text()),
             Some(".pdf")
         );
-        assert_eq!(attributes.get_string("htmlsyntax").as_deref(), Some("html"));
+        assert_eq!(
+            attributes.get("htmlsyntax").and_then(|value| value.text()),
+            Some("html")
+        );
         for name in [
             "backend-pdf",
             "backend-pdf-doctype-book",
@@ -183,32 +164,85 @@ mod tests {
             "basebackend-html-doctype-book",
             "doctype-book",
             "filetype-pdf",
+            "embedded",
         ] {
-            assert_eq!(attributes.get_string(name).as_deref(), Some(""), "{name}");
+            assert!(attributes.contains_key(name), "{name}");
         }
+        Ok(())
     }
 
     #[test]
-    fn replaces_stale_backend_attributes_but_preserves_explicit_output_suffix() {
-        let mut attributes = DocumentAttributes::default();
-        BackendProfile::new("html5", "html", "html", ".html")
+    fn replaces_stale_backend_attributes_but_preserves_explicit_output_suffix() -> Result<(), Error>
+    {
+        let builder = BackendProfile::new("html5", "html", "html", ".html")
             .with_htmlsyntax("html")
-            .apply(&mut attributes, Doctype::Article);
-        attributes.set("outfilesuffix".into(), ".custom".into());
-        attributes.set("doctype".into(), "book".into());
+            .apply(Options::builder(), Doctype::Article, false)
+            .build()?
+            .into_builder()
+            .with_attribute("outfilesuffix", ".custom")
+            .with_attribute("doctype", "book");
 
-        BackendProfile::new("pdf", "html", "pdf", ".pdf")
+        let options = BackendProfile::new("pdf", "html", "pdf", ".pdf")
             .with_htmlsyntax("html")
-            .apply(&mut attributes, Doctype::Book);
+            .apply(builder, Doctype::Book, false)
+            .build()?;
+        let attributes = options.document_attributes();
 
         assert!(!attributes.contains_key("backend-html5"));
         assert!(!attributes.contains_key("backend-html5-doctype-article"));
         assert!(!attributes.contains_key("basebackend-html-doctype-article"));
         assert!(!attributes.contains_key("doctype-article"));
         assert!(!attributes.contains_key("filetype-html"));
+        assert!(!attributes.contains_key("embedded"));
         assert_eq!(
-            attributes.get_string("outfilesuffix").as_deref(),
+            attributes
+                .get("outfilesuffix")
+                .and_then(|value| value.text()),
             Some(".custom")
         );
+        Ok(())
+    }
+
+    #[test]
+    fn selected_backend_replaces_a_conflicting_caller_value_when_maps_merge()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parser_options = BackendProfile::new("pdf", "html", "pdf", ".pdf")
+            .apply(
+                Options::builder().with_attribute("backend", "spoofed"),
+                Doctype::Article,
+                false,
+            )
+            .build()?;
+
+        let parsed = acdc_parser::parse(":backend: also-spoofed\n", &parser_options)?;
+
+        assert_eq!(
+            parsed
+                .document()
+                .attributes
+                .get("backend")
+                .and_then(|value| value.text()),
+            Some("pdf")
+        );
+        assert!(parsed.document().attributes.contains_key("backend-pdf"));
+        assert!(!parsed.document().attributes.contains_key("backend-spoofed"));
+        Ok(())
+    }
+
+    #[test]
+    fn switching_to_a_backend_without_htmlsyntax_clears_the_previous_syntax() -> Result<(), Error> {
+        let html = BackendProfile::new("html5", "html", "html", ".html")
+            .with_htmlsyntax("html")
+            .apply(Options::builder(), Doctype::Article, true)
+            .build()?;
+        let options = BackendProfile::new("manpage", "manpage", "man", ".man")
+            .apply(html.into_builder(), Doctype::Manpage, false)
+            .build()?;
+        let attributes = options.document_attributes();
+        assert!(!attributes.contains_key("htmlsyntax"));
+        assert!(!attributes.contains_key("embedded"));
+        assert!(!attributes.contains_key("backend-html5"));
+        assert!(attributes.contains_key("backend-manpage"));
+        Ok(())
     }
 }

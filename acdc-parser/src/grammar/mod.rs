@@ -1,4 +1,3 @@
-mod attributes;
 mod author;
 pub(crate) mod doctype;
 mod document;

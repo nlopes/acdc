@@ -28,7 +28,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use acdc_parser::{AttributeValue, DocumentAttributes};
+use acdc_parser::DocumentAttributes;
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -342,21 +342,12 @@ impl<'doc> DiagramSource<'doc> {
     }
 
     fn document_string(&self, name: &str) -> Option<String> {
-        match self.document.get(name)? {
-            AttributeValue::String(value) => Some(strip_quotes(value).to_string()),
-            AttributeValue::Bool(set) => set.then(|| "true".to_string()),
-            AttributeValue::None => None,
-            // `AttributeValue` is non-exhaustive: a value kind added later is
-            // not something a diagram tool can be handed.
-            other => {
-                tracing::debug!(
-                    ?other,
-                    attribute = name,
-                    "ignoring unsupported attribute value"
-                );
-                None
-            }
-        }
+        // A bare `:name:` carries no text and hands a tool nothing, as does an
+        // unset or absent attribute; `:name: true` is text like any other.
+        self.document
+            .get(name)?
+            .text()
+            .map(|value| strip_quotes(value).to_string())
     }
 }
 

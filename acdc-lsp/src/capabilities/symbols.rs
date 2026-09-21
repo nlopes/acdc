@@ -1,7 +1,7 @@
 //! Document symbols: extract full block tree from AST
 
 use acdc_converters_core::inlines_to_string;
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Section};
+use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, Section, Title};
 use tower_lsp_server::ls_types::{DocumentSymbol, SymbolKind};
 
 use crate::convert::location_to_range;
@@ -82,7 +82,7 @@ fn truncate(text: &str, max_len: usize) -> String {
 }
 
 /// Get a display name from a title, falling back to `default`.
-fn title_or_default(title: &acdc_parser::Title, default: &str) -> String {
+fn title_or_default(title: &Title, default: &str) -> String {
     let text = inlines_to_string(title);
     if text.is_empty() {
         default.to_string()
@@ -91,8 +91,18 @@ fn title_or_default(title: &acdc_parser::Title, default: &str) -> String {
     }
 }
 
+fn document_attribute_name(attribute: &acdc_parser::DocumentAttribute<'_>) -> String {
+    let mut value = String::new();
+    if let Some(assigned) = attribute.assignment().value() {
+        let _ = assigned.write_text(&mut value);
+        format!(":{}: {value}", attribute.name)
+    } else {
+        format!(":{}!:", attribute.name)
+    }
+}
+
 /// Get a display name from a title, falling back to a source string.
-fn title_or_source(title: &acdc_parser::Title, source: &str) -> String {
+fn title_or_source(title: &Title, source: &str) -> String {
     if title.is_empty() {
         source.to_string()
     } else {
@@ -161,7 +171,7 @@ fn block_to_symbol(block: &Block) -> Option<DocumentSymbol> {
             None,
         )),
         Block::DocumentAttribute(attr) => Some(make_symbol(
-            format!(":{}: {}", attr.name, attr.value),
+            document_attribute_name(attr),
             SymbolKind::PROPERTY,
             &attr.location,
             Some("Attribute".to_string()),
@@ -226,7 +236,7 @@ fn admonition_to_symbol(adm: &acdc_parser::Admonition) -> DocumentSymbol {
 }
 
 fn list_to_symbol(
-    title: &acdc_parser::Title,
+    title: &Title,
     default_name: &str,
     item_count: usize,
     child_blocks: &[&Block],
@@ -335,10 +345,10 @@ const fn section_level_to_symbol_kind(level: u8) -> SymbolKind {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use acdc_parser::Options;
+    use acdc_parser::{Error, Options, parse};
 
     #[test]
-    fn test_document_symbols_extraction() -> Result<(), acdc_parser::Error> {
+    fn test_document_symbols_extraction() -> Result<(), Error> {
         let content = r"= Document Title
 
 == Section One
@@ -351,7 +361,7 @@ Some content.
 
 More content.
 ";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 
@@ -392,9 +402,9 @@ More content.
     }
 
     #[test]
-    fn test_paragraph_symbols() -> Result<(), acdc_parser::Error> {
+    fn test_paragraph_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nA simple paragraph.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 
@@ -410,9 +420,9 @@ More content.
     }
 
     #[test]
-    fn test_admonition_symbols() -> Result<(), acdc_parser::Error> {
+    fn test_admonition_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nNOTE: This is a note.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 
@@ -430,9 +440,9 @@ More content.
     }
 
     #[test]
-    fn test_delimited_block_symbols() -> Result<(), acdc_parser::Error> {
+    fn test_delimited_block_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\n.My sidebar\n****\nSidebar content.\n****\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 
@@ -456,9 +466,9 @@ More content.
     }
 
     #[test]
-    fn test_list_symbols() -> Result<(), acdc_parser::Error> {
+    fn test_list_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\n* Item one\n* Item two\n* Item three\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 
@@ -475,9 +485,9 @@ More content.
     }
 
     #[test]
-    fn test_image_symbols() -> Result<(), acdc_parser::Error> {
+    fn test_image_symbols() -> Result<(), Error> {
         let content = "= Doc\n\n== Section\n\nimage::photo.png[]\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 
@@ -494,9 +504,9 @@ More content.
     }
 
     #[test]
-    fn test_comment_excluded() -> Result<(), acdc_parser::Error> {
+    fn test_comment_excluded() -> Result<(), Error> {
         let content = "= Doc\n\n// This is a comment\n\n== Section\n\nContent.\n";
-        let parsed = acdc_parser::parse(content, &Options::default())?;
+        let parsed = parse(content, &Options::default())?;
         let doc = parsed.document();
         let symbols = document_symbols(doc);
 

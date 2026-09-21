@@ -4,8 +4,10 @@ use acdc_converters_core::inlines_to_string;
 use acdc_parser::{Block, DelimitedBlockType, Document, InlineMacro, InlineNode, Location};
 use tower_lsp_server::ls_types::{Hover, HoverContents, MarkupContent, MarkupKind, Position, Uri};
 
-use crate::convert::{location_to_range, offset_in_location, position_to_offset};
-use crate::state::{DocumentState, Workspace, XrefTarget};
+use crate::{
+    convert::{location_to_range, offset_in_location, position_to_offset},
+    state::{DocumentState, Workspace, XrefTarget},
+};
 
 /// Compute hover information for a position
 #[must_use]
@@ -71,7 +73,9 @@ pub(crate) fn compute_hover(
 
     // Check for attribute reference at this position
     if let Some((attr_name, attr_ref_loc)) = find_attribute_ref_at_offset(doc, offset) {
-        let content = if let Some(value) = ast.attributes.get(&attr_name) {
+        let mut value = String::new();
+        let content = if let Some(attribute) = ast.attributes.get(&attr_name) {
+            attribute.write_text(&mut value).ok()?;
             format!("**Attribute**\n\n`:{attr_name}:` = `{value}`")
         } else {
             format!("**Attribute** (undefined)\n\n`{{{attr_name}}}`")
@@ -694,9 +698,10 @@ fn find_section_title_in_block(block: &Block, target_loc: &Location) -> Option<S
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::error::Error;
 
     #[test]
-    fn test_hover_on_xref() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_hover_on_xref() -> Result<(), Box<dyn Error>> {
         let content = r"[[my-section]]
 == My Section
 
@@ -730,7 +735,7 @@ See <<my-section>> for details.
     }
 
     #[test]
-    fn xref_macro_hover_keeps_the_cross_file_target() -> Result<(), Box<dyn std::error::Error>> {
+    fn xref_macro_hover_keeps_the_cross_file_target() -> Result<(), Box<dyn Error>> {
         let content = "See xref:Other.adoc[].\n\n== Other.adoc\n";
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
@@ -757,7 +762,7 @@ See <<my-section>> for details.
     }
 
     #[test]
-    fn compat_mode_natural_xref_hover_is_unresolved() -> Result<(), Box<dyn std::error::Error>> {
+    fn compat_mode_natural_xref_hover_is_unresolved() -> Result<(), Box<dyn Error>> {
         let content = "= Document\n:compat-mode:\n\nNatural: <<Syntax Highlighting>>.\nExplicit: <<_syntax_highlighting>>.\n\n== Syntax Highlighting\n";
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
@@ -805,7 +810,7 @@ See <<my-section>> for details.
     }
 
     #[test]
-    fn named_section_reftext_controls_xref_hover() -> Result<(), Box<dyn std::error::Error>> {
+    fn named_section_reftext_controls_xref_hover() -> Result<(), Box<dyn Error>> {
         let content = "Named: <<Custom Label>>.\nTitle: <<Actual Title>>.\nExplicit: <<id>>.\n\n[#id,reftext=\"Custom Label\"]\n== Actual Title\n";
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
@@ -852,8 +857,7 @@ See <<my-section>> for details.
     }
 
     #[test]
-    fn passthroughs_are_restored_before_natural_xref_hover()
-    -> Result<(), Box<dyn std::error::Error>> {
+    fn passthroughs_are_restored_before_natural_xref_hover() -> Result<(), Box<dyn Error>> {
         let content = "Resolved: <<Pass raw Title>>.\nMissing: <<Missing pass:[raw] Title>>.\n\n== Pass pass:[raw] Title\n";
         let workspace = Workspace::new();
         let uri = "file:///project/source.adoc".parse::<Uri>()?;
@@ -902,7 +906,7 @@ See <<my-section>> for details.
     }
 
     #[test]
-    fn test_hover_on_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_hover_on_attribute_ref() -> Result<(), Box<dyn Error>> {
         let content = ":imagesdir: ./images\n\n== Section\n\nImage in {imagesdir}/logo.png\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -941,7 +945,7 @@ See <<my-section>> for details.
     }
 
     #[test]
-    fn test_hover_on_undefined_attribute_ref() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_hover_on_undefined_attribute_ref() -> Result<(), Box<dyn Error>> {
         let content = "== Section\n\nSee {undefined-attr} here.\n";
         let workspace = Workspace::new();
         let uri = "file:///test.adoc".parse::<Uri>()?;
@@ -969,6 +973,31 @@ See <<my-section>> for details.
                 markup.value
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn test_hover_formats_typed_default() -> Result<(), Box<dyn Error>> {
+        let content = "depth={max-include-depth}\n";
+        let workspace = Workspace::new();
+        let uri = "file:///test.adoc".parse::<Uri>()?;
+        workspace.update_document(uri.clone(), content.to_string(), 1);
+        let doc = workspace.get_document(&uri).ok_or("document not found")?;
+
+        let hover = compute_hover(
+            &doc,
+            &uri,
+            &workspace,
+            Position {
+                line: 0,
+                character: 8,
+            },
+        )
+        .ok_or("expected typed attribute hover")?;
+        let HoverContents::Markup(markup) = hover.contents else {
+            return Err("expected markup hover".into());
+        };
+        assert!(markup.value.contains("`64`"), "{markup:?}");
         Ok(())
     }
 }

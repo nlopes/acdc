@@ -57,7 +57,7 @@
 //! recursive preprocessor sees them as input lines 1, 2, and 3. We cannot use
 //! those compacted line numbers for diagnostics or AST locations.
 //!
-//! Each selected line therefore carries a private [`InputLineOrigin`] containing
+//! Each selected line therefore carries a private [`SourceLineOrigin`] containing
 //! its original line, byte offset, and any column shift introduced by `indent`.
 //! The preprocessor uses the compacted input line to read and emit content, and
 //! the original source line to report diagnostics and build source ranges.
@@ -83,6 +83,7 @@
 
 use std::{
     cell::RefCell,
+    mem::take,
     path::{Component, Path, PathBuf},
     rc::Rc,
     str::FromStr,
@@ -94,13 +95,13 @@ use std::io::Read;
 use url::Url;
 
 use crate::{
-    Options, Preprocessor, SafeMode,
+    Location, Options, Preprocessor, SafeMode, Warning,
     error::{Error, SourceLocation},
     model::{HEADER, LeveloffsetRange, Position, SourceRange, substitute},
 };
 
 use super::{
-    IncludeContext, InputLineOrigin, SourceOrigin,
+    IncludeContext, SourceLineOrigin, SourceOrigin, absolute_normalized,
     tag::{Filter as TagFilter, Issue as TagIssue, select_tagged_lines},
 };
 
@@ -161,7 +162,7 @@ pub(crate) struct Include<'a> {
     /// Shared warnings sink threaded from the outer `Preprocessor` so
     /// non-fatal include conditions (disabled URL includes, missing
     /// files, bad line numbers) reach `ParseResult::warnings()`.
-    warnings: Rc<RefCell<Vec<crate::Warning>>>,
+    warnings: Rc<RefCell<Vec<Warning>>>,
 }
 
 /// The one content selector that applies to an include after attribute
@@ -286,7 +287,7 @@ struct IncludeParserInputs<'a, 'b> {
     options: &'b Options<'a>,
     context: IncludeContext,
     location: LocationContext<'b>,
-    warnings: &'b Rc<RefCell<Vec<crate::Warning>>>,
+    warnings: &'b Rc<RefCell<Vec<Warning>>>,
 }
 
 peg::parser! {
@@ -370,7 +371,7 @@ impl LinesRange {
         Error::InvalidLineRange(
             Box::new(SourceLocation {
                 file: current_file.map(Path::to_path_buf),
-                location: crate::Location::point(Position::from_line_col(line_number, 1)),
+                location: Location::point(Position::from_line_col(line_number, 1)),
             }),
             line_range.to_string(),
         )
@@ -429,11 +430,11 @@ impl LinesRange {
 
 /// Result of processing an include directive.
 ///
-/// Contains the included lines and any leveloffset that should apply to them.
+/// Contains included text and its source and leveloffset mappings.
 #[derive(Debug)]
 pub(crate) struct IncludeResult {
-    pub(crate) lines: Vec<String>,
-    /// Whether `lines` is synthesized fallback text that belongs to the include
+    pub(crate) content: String,
+    /// Whether `content` is synthesized fallback text that belongs to the include
     /// directive rather than content read from the target.
     pub(crate) synthetic: bool,
     /// The effective leveloffset value to apply to this included content.
@@ -447,11 +448,10 @@ pub(crate) struct IncludeResult {
     /// resolved (missing/optional include).
     pub(crate) target: String,
     /// Complete source ranges for the selected target and anything it included,
-    /// relative to the beginning of `lines`.
+    /// relative to the beginning of `content`.
     pub(crate) source_ranges: Vec<SourceRange>,
+    pub(crate) document_attributes: Option<crate::DocumentAttributes<'static>>,
 }
-
-type IncludedContent = (String, Vec<LeveloffsetRange>, Vec<SourceRange>);
 
 enum UrlReadError {
     #[cfg(not(feature = "network"))]
@@ -475,12 +475,13 @@ impl From<Error> for UrlReadError {
 impl IncludeResult {
     fn empty() -> Self {
         Self {
-            lines: Vec::new(),
+            content: String::new(),
             synthetic: false,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
+            document_attributes: None,
         }
     }
 
@@ -492,23 +493,25 @@ impl IncludeResult {
         };
         let attributes = if compat_mode { "" } else { "role=include" };
         Self {
-            lines: vec![format!("link:{target}[{attributes}]")],
+            content: format!("link:{target}[{attributes}]"),
             synthetic: true,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
+            document_attributes: None,
         }
     }
 
     fn unresolved_directive(directive: String) -> Self {
         Self {
-            lines: vec![directive],
+            content: directive,
             synthetic: true,
             effective_leveloffset: None,
             leveloffset_ranges: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
+            document_attributes: None,
         }
     }
 }
@@ -556,7 +559,7 @@ impl<'a> Include<'a> {
                         Error::InvalidLevelOffset(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                location: crate::Location::point(Position::from_line_col(
+                                location: Location::point(Position::from_line_col(
                                     self.line_number,
                                     1,
                                 )),
@@ -582,7 +585,7 @@ impl<'a> Include<'a> {
                         Error::InvalidIndent(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                location: crate::Location::point(Position::from_line_col(
+                                location: Location::point(Position::from_line_col(
                                     self.line_number,
                                     1,
                                 )),
@@ -594,7 +597,7 @@ impl<'a> Include<'a> {
                         return Err(Error::IncludeIndentTooLarge(
                             Box::new(SourceLocation {
                                 file: self.current_file.clone(),
-                                location: crate::Location::point(Position::from_line_col(
+                                location: Location::point(Position::from_line_col(
                                     self.line_number,
                                     1,
                                 )),
@@ -616,10 +619,7 @@ impl<'a> Include<'a> {
                     return Err(Error::InvalidIncludeDirective(
                         Box::new(SourceLocation {
                             file: self.current_file.clone(),
-                            location: crate::Location::point(Position::from_line_col(
-                                self.line_number,
-                                1,
-                            )),
+                            location: Location::point(Position::from_line_col(self.line_number, 1)),
                         }),
                         unknown.to_string(),
                     ));
@@ -638,7 +638,7 @@ impl<'a> Include<'a> {
         location: LocationContext<'_>,
         options: &Options<'a>,
         include_context: IncludeContext,
-        warnings: &Rc<RefCell<Vec<crate::Warning>>>,
+        warnings: &Rc<RefCell<Vec<Warning>>>,
     ) -> Result<Self, Error> {
         let inputs = IncludeParserInputs {
             source_origin,
@@ -655,7 +655,7 @@ impl<'a> Include<'a> {
                     file: inputs.location.current_file.map(Path::to_path_buf),
                     // Adjust line number to be relative to the document
                     // PEG parser location.line is always 1 for a single line parse
-                    location: crate::Location::point(Position::from_line_col(
+                    location: Location::point(Position::from_line_col(
                         inputs.location.line_number,
                         peg_location.column,
                     )),
@@ -684,8 +684,7 @@ impl<'a> Include<'a> {
                 is_entry,
                 ..
             } => {
-                let absolute_path =
-                    super::absolute_normalized(path).unwrap_or_else(|_| path.clone());
+                let absolute_path = absolute_normalized(path).unwrap_or_else(|_| path.clone());
                 let display_path = if *is_entry {
                     absolute_path
                         .file_name()
@@ -753,7 +752,7 @@ impl<'a> Include<'a> {
     }
 
     /// Choose original target lines before any nested preprocessing occurs.
-    fn select_content_lines(&self, content_lines: &[String], resolved_source: &Path) -> Vec<usize> {
+    fn select_content_lines(&self, content_lines: &[&str], resolved_source: &Path) -> Vec<usize> {
         match &self.selection {
             ContentSelection::All => (0..content_lines.len()).collect(),
             ContentSelection::Lines(ranges) => {
@@ -805,38 +804,29 @@ impl<'a> Include<'a> {
         self.warn_located(message);
     }
 
-    /// Re-indent `lines`: strip the block's common leading whitespace, then prepend
-    /// `indent` spaces. Returns the rewritten lines and the uniform per-line column
-    /// shift (`indent − common_indent`), which the remap subtracts to recover origin
-    /// columns. The shift is in characters; it equals the byte shift for the usual
-    /// ASCII (space/tab) leading whitespace.
-    fn apply_indent(lines: &[String], indent: usize) -> (Vec<String>, isize) {
+    /// Strip common leading whitespace and add `indent` spaces to nonblank lines.
+    /// Returns the rewritten text and the byte shift used by source remapping.
+    fn apply_indent(lines: &[&str], indent: usize) -> (String, isize) {
         let min_indent = lines
             .iter()
             .filter(|line| !line.trim().is_empty())
             .map(|line| line.len() - line.trim_start().len())
             .min()
             .unwrap_or(0);
-
         let prefix = " ".repeat(indent);
-        let indented = lines
-            .iter()
-            .map(|line| {
-                if line.trim().is_empty() {
-                    String::new()
-                } else {
-                    let stripped = if min_indent > 0 {
-                        &line[min_indent..]
-                    } else {
-                        line.as_str()
-                    };
-                    format!("{prefix}{stripped}")
-                }
-            })
-            .collect();
+        let mut content = String::new();
+        for (index, line) in lines.iter().enumerate() {
+            if index > 0 {
+                content.push('\n');
+            }
+            if !line.trim().is_empty() {
+                content.push_str(&prefix);
+                content.push_str(&line[min_indent..]);
+            }
+        }
         let column_shift =
             isize::try_from(indent).unwrap_or(0) - isize::try_from(min_indent).unwrap_or(0);
-        (indented, column_shift)
+        (content, column_shift)
     }
 
     fn has_asciidoc_extension(path: &Path) -> bool {
@@ -871,7 +861,7 @@ impl<'a> Include<'a> {
         }
 
         if target.is_absolute() {
-            let target = super::absolute_normalized(target)?;
+            let target = absolute_normalized(target)?;
             if target.starts_with(base_dir) {
                 return Ok(target);
             }
@@ -879,7 +869,7 @@ impl<'a> Include<'a> {
             return Ok(Self::rebase_absolute_target(base_dir, &target));
         }
 
-        let mut resolved = super::absolute_normalized(current_parent)?;
+        let mut resolved = absolute_normalized(current_parent)?;
         if !resolved.starts_with(base_dir) {
             self.warn_unlocated("include file is outside of jail; recovering automatically");
             return Ok(Self::rebase_absolute_target(base_dir, target));
@@ -916,67 +906,75 @@ impl<'a> Include<'a> {
         source_origin: &SourceOrigin,
         resolved_source: &Path,
         is_asciidoc: bool,
-    ) -> Result<IncludedContent, Error> {
-        let normalized = Preprocessor::normalize(content).into_owned();
-        let content_lines = normalized.lines().map(str::to_string).collect::<Vec<_>>();
-        let selected_indices = self.select_content_lines(&content_lines, resolved_source);
-        let selected_lines = selected_indices
+    ) -> Result<IncludeResult, Error> {
+        let normalized = Preprocessor::normalize(content);
+        let content_lines = normalized.lines().collect::<Vec<_>>();
+        let mut selected_indices = self.select_content_lines(&content_lines, resolved_source);
+        let mut selected_lines = selected_indices
             .iter()
-            .filter_map(|idx| content_lines.get(*idx).cloned())
+            .filter_map(|idx| content_lines.get(*idx).copied())
             .collect::<Vec<_>>();
-        let (selected_lines, column_shift) = if let Some(indent) = self.indent {
+        if is_asciidoc
+            && self
+                .options
+                .document_attributes
+                .contains_key("skip-front-matter")
+            && let Some(front_matter) = super::skim_front_matter(selected_lines.iter().copied())
+        {
+            selected_lines.drain(..front_matter.lines_consumed);
+            selected_indices.drain(..front_matter.lines_consumed);
+        }
+        let (selected_content, column_shift) = if let Some(indent) = self.indent {
             Self::apply_indent(&selected_lines, indent)
         } else {
-            (selected_lines, 0)
+            (selected_lines.join("\n"), 0)
         };
-
         let line_starts = Self::line_start_offsets(&content_lines);
         let line_origins = selected_indices
             .iter()
-            .map(|&idx| InputLineOrigin {
+            .map(|&idx| SourceLineOrigin {
                 line: idx + 1,
                 offset: line_starts.get(idx).copied().unwrap_or(0),
                 column_shift,
             })
             .collect::<Vec<_>>();
-        let selected_content = selected_lines.join("\n");
-
-        if !is_asciidoc {
-            let source_ranges =
-                Self::source_ranges_for_lines(&selected_lines, &line_origins, source_origin);
-            return Ok((selected_content, Vec::new(), source_ranges));
+        let mut included = IncludeResult {
+            content: selected_content,
+            synthetic: false,
+            effective_leveloffset: self.calculate_effective_leveloffset(),
+            leveloffset_ranges: Vec::new(),
+            target: self.target_as_written().to_string(),
+            source_ranges: Vec::new(),
+            document_attributes: None,
+        };
+        if is_asciidoc {
+            let preprocessed = Preprocessor::nested(&self.warnings, self.context)
+                .process_mapped(take(&mut included.content), source_origin, &self.options, line_origins)
+                .map_err(|error| {
+                    tracing::error!(origin=?source_origin, ?error, "failed to process included content");
+                    error
+                })?;
+            included.content = preprocessed.result.text.into_owned();
+            included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
+            included.source_ranges = preprocessed.result.source_ranges;
+            included.document_attributes = Some(preprocessed.document_attributes);
+        } else {
+            included.source_ranges =
+                Self::source_ranges_for_lines(&included.content, &line_origins, source_origin);
         }
-
-        super::Preprocessor::nested(&self.warnings, self.context)
-            .process_mapped(
-                &selected_content,
-                source_origin,
-                &self.options,
-                line_origins,
-            )
-            .map(|result| {
-                (
-                    result.text.into_owned(),
-                    result.leveloffset_ranges,
-                    result.source_ranges,
-                )
-            })
-            .map_err(|error| {
-                tracing::error!(origin=?source_origin, ?error, "failed to process included content");
-                error
-            })
+        Ok(included)
     }
 
     fn source_ranges_for_lines(
-        lines: &[String],
-        origins: &[InputLineOrigin],
+        content: &str,
+        origins: &[SourceLineOrigin],
         source_origin: &SourceOrigin,
     ) -> Vec<SourceRange> {
         let mut ranges: Vec<SourceRange> = Vec::new();
         let mut cursor = 0;
         let mut expected_line = 0;
 
-        for (line, origin) in lines.iter().zip(origins) {
+        for (line, origin) in content.split('\n').zip(origins) {
             let end_offset = cursor + line.len() + 1;
             if origin.line == expected_line
                 && ranges
@@ -1017,7 +1015,7 @@ impl<'a> Include<'a> {
         if !self.context.allows_uri_read {
             return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
                 self.target_as_written(),
-                self.options.document_attributes.is_set("compat-mode"),
+                self.options.document_attributes.contains_key("compat-mode"),
             )));
         }
 
@@ -1070,11 +1068,11 @@ impl<'a> Include<'a> {
         Ok(Some(decoded))
     }
 
-    pub(crate) fn lines(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
+    pub(crate) fn process(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
             return Ok(IncludeResult::link_fallback(
                 self.target_as_written(),
-                self.options.document_attributes.is_set("compat-mode"),
+                self.options.document_attributes.contains_key("compat-mode"),
             ));
         }
 
@@ -1095,7 +1093,7 @@ impl<'a> Include<'a> {
                         (parent, base_dir.as_path())
                     }
                     SourceOrigin::Memory { base_dir } => {
-                        memory_base = super::absolute_normalized(
+                        memory_base = absolute_normalized(
                             base_dir.as_deref().unwrap_or_else(|| Path::new(".")),
                         )?;
                         (memory_base.as_path(), memory_base.as_path())
@@ -1151,26 +1149,14 @@ impl<'a> Include<'a> {
                 if !self.context.allows_uri_read {
                     return Ok(IncludeResult::link_fallback(
                         self.target_as_written(),
-                        self.options.document_attributes.is_set("compat-mode"),
+                        self.options.document_attributes.contains_key("compat-mode"),
                     ));
                 }
                 self.warn_located(format!("include uri not readable: {uri}"));
                 return Ok(self.unresolved_uri_directive(attribute_list_as_written));
             }
         };
-        let effective_leveloffset = self.calculate_effective_leveloffset();
-        let (content, leveloffset_ranges, source_ranges) =
-            self.process_selected_content(&content, &source_origin, &resolved_source, is_asciidoc)?;
-        let lines = content.lines().map(str::to_string).collect();
-
-        Ok(IncludeResult {
-            lines,
-            synthetic: false,
-            effective_leveloffset,
-            leveloffset_ranges,
-            target: self.target_as_written().to_string(),
-            source_ranges,
-        })
+        self.process_selected_content(&content, &source_origin, &resolved_source, is_asciidoc)
     }
 
     /// Calculate the effective leveloffset for this include.
@@ -1180,7 +1166,8 @@ impl<'a> Include<'a> {
             let current_offset = self
                 .options
                 .document_attributes
-                .get_string("leveloffset")
+                .text("leveloffset")
+                .map(crate::strip_quotes)
                 .and_then(|s| s.parse::<isize>().ok())
                 .unwrap_or(0);
 
@@ -1203,9 +1190,9 @@ impl<'a> Include<'a> {
     fn warn_located(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
         let source_location = crate::SourceLocation {
             file: self.current_file.clone(),
-            location: crate::Location::point(crate::Position::from_line_col(self.line_number, 1)),
+            location: Location::point(crate::Position::from_line_col(self.line_number, 1)),
         };
-        let warning = crate::Warning::new(
+        let warning = Warning::new(
             crate::WarningKind::Other(message.into()),
             Some(source_location),
         );
@@ -1217,7 +1204,7 @@ impl<'a> Include<'a> {
     /// Safe/Server jail-recovery conditions whose location contract is tracked
     /// separately from directive-specific read failures.
     fn warn_unlocated(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
-        let warning = crate::Warning::new(crate::WarningKind::Other(message.into()), None);
+        let warning = Warning::new(crate::WarningKind::Other(message.into()), None);
         tracing::warn!("{warning}");
         self.warnings.borrow_mut().push(warning);
     }
@@ -1280,7 +1267,7 @@ impl<'a> Include<'a> {
     /// Byte offset of each line's first byte within the file's normalized content
     /// (lines joined with a single `\n`), so a surviving line can carry its true
     /// origin-file byte offset.
-    fn line_start_offsets(content_lines: &[String]) -> Vec<usize> {
+    fn line_start_offsets(content_lines: &[&str]) -> Vec<usize> {
         let mut starts = Vec::with_capacity(content_lines.len());
         let mut offset = 0;
         for line in content_lines {
@@ -1547,9 +1534,9 @@ mod tests {
         let options = Options::default();
         let include = parse_include(&path, "include::missing.adoc[opts=optional]", &options)?;
 
-        let result = include.lines("opts=optional")?;
+        let result = include.process("opts=optional")?;
 
-        assert!(result.lines.is_empty());
+        assert!(result.content.is_empty());
         assert!(include.warnings.borrow().is_empty());
         assert!(logs_contain(
             "optional include dropped because include file not found"
@@ -1579,61 +1566,32 @@ mod tests {
 
     #[test]
     fn test_apply_indent_basic() {
-        // min indent is 0 (def hello, end), so indent=4 adds 4 spaces to all
-        let lines = vec![
-            "def hello".to_string(),
-            "  puts \"Hello\"".to_string(),
-            "end".to_string(),
-        ];
-        let (result, column_shift) = Include::apply_indent(&lines, 4);
-        assert_eq!(
-            result,
-            vec!["    def hello", "      puts \"Hello\"", "    end",]
-        );
-        assert_eq!(column_shift, 4); // 4 added − 0 common
+        let (text, shift) = Include::apply_indent(&["def hello", "  puts \"Hello\"", "end"], 4);
+        assert_eq!(text, "    def hello\n      puts \"Hello\"\n    end");
+        assert_eq!(shift, 4);
     }
 
     #[test]
     fn test_apply_indent_zero() {
-        // min indent is 2, so indent=0 strips 2 spaces from all lines
-        let lines = vec![
-            "  def hello".to_string(),
-            "    puts \"Hello\"".to_string(),
-            "  end".to_string(),
-        ];
-        let (result, column_shift) = Include::apply_indent(&lines, 0);
-        assert_eq!(result, vec!["def hello", "  puts \"Hello\"", "end",]);
-        assert_eq!(column_shift, -2); // 0 added − 2 common stripped
+        let (text, shift) =
+            Include::apply_indent(&["  def hello", "    puts \"Hello\"", "  end"], 0);
+        assert_eq!(text, "def hello\n  puts \"Hello\"\nend");
+        assert_eq!(shift, -2);
     }
 
     #[test]
     fn test_apply_indent_empty_lines() {
-        // min indent is 0 (def hello, end), empty/whitespace-only lines become empty
-        let lines = vec![
-            "def hello".to_string(),
-            String::new(),
-            "  puts \"Hello\"".to_string(),
-            "   ".to_string(),
-            "end".to_string(),
-        ];
-        let (result, column_shift) = Include::apply_indent(&lines, 2);
-        assert_eq!(
-            result,
-            vec!["  def hello", "", "    puts \"Hello\"", "", "  end",]
-        );
-        assert_eq!(column_shift, 2); // 2 added − 0 common
+        let (text, shift) =
+            Include::apply_indent(&["def hello", "", "  puts \"Hello\"", "   ", "end"], 2);
+        assert_eq!(text, "  def hello\n\n    puts \"Hello\"\n\n  end");
+        assert_eq!(shift, 2);
     }
 
     #[test]
     fn test_apply_indent_mixed_whitespace() {
-        // min indent is 1 (tab counts as 1 char), strips 1 char from all
-        let lines = vec![
-            "\tdef hello".to_string(),
-            "\t\tputs \"Hello\"".to_string(),
-            "\tend".to_string(),
-        ];
-        let (result, column_shift) = Include::apply_indent(&lines, 2);
-        assert_eq!(result, vec!["  def hello", "  \tputs \"Hello\"", "  end",]);
-        assert_eq!(column_shift, 1); // 2 added − 1 common (tab counts as one char)
+        let (text, shift) =
+            Include::apply_indent(&["\tdef hello", "\t\tputs \"Hello\"", "\tend"], 2);
+        assert_eq!(text, "  def hello\n  \tputs \"Hello\"\n  end");
+        assert_eq!(shift, 1);
     }
 }

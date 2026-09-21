@@ -1,6 +1,8 @@
 //! Section presentation utilities shared by converters.
 
-use acdc_parser::{AttributeValue, Block, DocumentAttributes, SectionKind};
+use acdc_parser::{Block, DocumentAttributeAssignment, DocumentAttributes, SectionKind};
+
+use crate::TraversalContext;
 
 /// Whether the document holds a section seeded for the generated index.
 ///
@@ -50,9 +52,12 @@ pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
 /// back to byte-identical asciidoctor output.
 #[must_use]
 pub fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
+    // `get` cannot answer this: it reports an unset attribute and an absent
+    // one alike, and the two mean opposite things here. `assignment` keeps
+    // the explicit `:!acdc-index:` distinct from never having mentioned it.
     !matches!(
-        attributes.get("acdc-index"),
-        Some(AttributeValue::Bool(false) | AttributeValue::None)
+        attributes.assignment("acdc-index"),
+        Some(DocumentAttributeAssignment::Unset)
     )
 }
 
@@ -75,18 +80,23 @@ pub fn effective_section_level(level: u8, kind: SectionKind) -> u8 {
 /// default.
 #[must_use]
 pub fn book_chapter_signifier<'a>(
-    attributes: &'a DocumentAttributes<'_>,
+    attributes: &'a TraversalContext<'_>,
     default: Option<&'a str>,
 ) -> Option<&'a str> {
-    if attributes.get_string("doctype").as_deref() != Some("book") {
+    if !matches!(
+        attributes.get("doctype"),
+        Some(value) if value.as_str() == Some("book")
+    ) {
         return None;
     }
 
-    match attributes.get("chapter-signifier") {
-        Some(AttributeValue::String(signifier)) if !signifier.is_empty() => {
-            Some(signifier.as_ref())
-        }
+    match attributes
+        .get("chapter-signifier")
+        .and_then(|value| value.text())
+    {
+        Some(signifier) if !signifier.is_empty() => Some(signifier),
         Some(_) => None,
+        None if attributes.is_explicit("chapter-signifier") => None,
         None => default,
     }
 }

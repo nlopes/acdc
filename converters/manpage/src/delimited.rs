@@ -5,9 +5,10 @@
 use std::{borrow::Cow, fmt::Write as _, io::Write};
 
 use acdc_converters_core::{
+    TraversalContext,
     code::{default_line_comment, detect_language},
     shows_block_title,
-    visitor::{Visitor, WritableVisitor},
+    visitor::WritableVisitor,
 };
 use acdc_parser::{Block, BlockMetadata, DelimitedBlock, DelimitedBlockType, InlineNode};
 
@@ -17,13 +18,17 @@ use crate::{
     escape::{EscapeMode, manify},
 };
 
-impl<W: Write> ManpageVisitor<'_, '_, W> {
+impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     /// Visit a delimited block.
-    pub(crate) fn render_delimited_block(&mut self, block: &DelimitedBlock) -> Result<(), Error> {
+    pub(crate) fn render_delimited_block(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+    ) -> Result<(), Error> {
         if shows_block_title(&block.inner) && !block.title.is_empty() {
             let w = self.writer_mut();
             writeln!(w, ".sp")?;
-            self.render_captioned_title(&block.title, &block.metadata)?;
+            self.render_captioned_title(traversal, &block.title, &block.metadata)?;
         }
 
         match &block.inner {
@@ -36,19 +41,19 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
             }
             DelimitedBlockType::DelimitedExample(blocks)
             | DelimitedBlockType::DelimitedSidebar(blocks) => {
-                self.render_indented_blocks(blocks, 4)
+                self.render_indented_blocks(traversal, blocks, 4)
             }
             DelimitedBlockType::DelimitedOpen(blocks) => {
-                for nested_block in &blocks.clone() {
-                    self.visit_block(nested_block)?;
+                for nested_block in blocks {
+                    traversal.visit_block(self, nested_block)?;
                 }
                 Ok(())
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
-                self.render_quote_delimited_block(block, blocks)
+                self.render_quote_delimited_block(traversal, block, blocks)
             }
             DelimitedBlockType::DelimitedVerse(inlines) => {
-                self.render_verse_delimited_block(block, inlines)
+                self.render_verse_delimited_block(traversal, block, inlines)
             }
             DelimitedBlockType::DelimitedPass(inlines) => {
                 // Passthrough blocks contain backend-native roff by definition.
@@ -58,7 +63,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
                 Ok(())
             }
             DelimitedBlockType::DelimitedTable(table) => {
-                crate::table::visit_table(table, block, self)
+                crate::table::visit_table(traversal, table, block, self)
             }
             DelimitedBlockType::DelimitedStem(stem) => {
                 let w = self.writer_mut();
@@ -75,11 +80,16 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     }
 
     /// Render blocks indented with RS/RE.
-    fn render_indented_blocks(&mut self, blocks: &[Block], indent: usize) -> Result<(), Error> {
+    fn render_indented_blocks(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        blocks: &'a [Block<'a>],
+        indent: usize,
+    ) -> Result<(), Error> {
         let w = self.writer_mut();
         writeln!(w, ".RS {indent}")?;
-        for nested_block in &blocks.to_vec() {
-            self.visit_block(nested_block)?;
+        for nested_block in blocks {
+            traversal.visit_block(self, nested_block)?;
         }
         let w = self.writer_mut();
         writeln!(w, ".RE")?;
@@ -89,24 +99,31 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
     /// Render a quote delimited block with optional attribution.
     fn render_quote_delimited_block(
         &mut self,
-        block: &DelimitedBlock,
-        blocks: &[Block],
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
+        blocks: &'a [Block<'a>],
     ) -> Result<(), Error> {
         let w = self.writer_mut();
         writeln!(w, ".RS 4")?;
-        for nested_block in &blocks.to_vec() {
-            self.visit_block(nested_block)?;
+        for nested_block in blocks {
+            traversal.visit_block(self, nested_block)?;
         }
         let w = self.writer_mut();
         writeln!(w, ".RE")?;
 
-        self.render_attribution(&block.metadata, &[".RS 5", ".ll -.10i"], &[".RE", ".ll"])
+        self.render_attribution(
+            traversal,
+            &block.metadata,
+            &[".RS 5", ".ll -.10i"],
+            &[".RE", ".ll"],
+        )
     }
 
     /// Render a verse delimited block with optional attribution.
     fn render_verse_delimited_block(
         &mut self,
-        block: &DelimitedBlock,
+        traversal: &mut TraversalContext<'a>,
+        block: &'a DelimitedBlock<'a>,
         inlines: &[acdc_parser::InlineNode],
     ) -> Result<(), Error> {
         let w = self.writer_mut();
@@ -119,6 +136,7 @@ impl<W: Write> ManpageVisitor<'_, '_, W> {
         writeln!(w, ".fi")?;
 
         self.render_attribution(
+            traversal,
             &block.metadata,
             &[".br", ".in +.5i", ".ll -.5i"],
             &[".in", ".ll"],

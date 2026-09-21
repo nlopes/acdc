@@ -1,0 +1,8 @@
+= Escaped macros
+:value: expanded
+
+\pass:[raw]
+
+Before \pass:q[<tag>*bold* {value}</tag>] after.
+
+\pass:[+protected+]

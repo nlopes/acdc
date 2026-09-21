@@ -30,6 +30,7 @@ pre-spec-subs = []
 [dependencies]
 bitflags = "2.11"
 bumpalo = { version = "3", features = ["collections"] }
+chrono.workspace = true
 csv = "1.4"
 encoding_rs = "0.8"
 evalexpr = "13"

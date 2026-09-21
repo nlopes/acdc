@@ -89,7 +89,9 @@ impl Processor {
         // lookups the pass needs can stay borrowed while the tree is rewritten.
         let attributes = &document.attributes;
         let abort_on_error = matches!(
-            attributes.get_string("diagram-on-error").as_deref(),
+            attributes
+                .get("diagram-on-error")
+                .and_then(|value| value.text()),
             Some("abort")
         );
         let context = Context {
@@ -135,9 +137,12 @@ impl Context<'_, '_> {
     /// Asciidoctor's own default is `Figure`; setting the attribute to nothing
     /// suppresses the label and leaves the bare ordinal.
     fn figure_label(&self) -> String {
-        self.attributes
-            .get_string("figure-caption")
-            .map_or_else(|| "Figure".to_string(), Cow::into_owned)
+        // A bare `:figure-caption:` carries no text; it is the "set to
+        // nothing" case above and must not fall back to the default.
+        self.attributes.get("figure-caption").map_or_else(
+            || "Figure".to_string(),
+            |value| value.text().unwrap_or_default().to_string(),
+        )
     }
 
     /// Report a generation failure, or propagate it when the document asked
