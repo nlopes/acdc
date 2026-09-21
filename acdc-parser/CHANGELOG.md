@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
 - `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
   keep double parentheses literal, matching Asciidoctor (#455).
 - Index `see` and `see also` targets can contain parentheses without a parse

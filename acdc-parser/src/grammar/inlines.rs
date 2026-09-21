@@ -51,6 +51,39 @@ fn trimmed_index_term_segment(text: &str, start: usize) -> IndexTermSegment<'_> 
     }
 }
 
+fn split_index_term_relationship(
+    segment: IndexTermSegment<'_>,
+) -> (
+    IndexTermSegment<'_>,
+    Option<IndexTermRelationshipSegments<'_>>,
+) {
+    let segment = trimmed_index_term_segment(segment.text, segment.start);
+    if let Some((term, target)) = segment.text.split_once(" >> ") {
+        return (
+            trimmed_index_term_segment(term, segment.start),
+            Some(IndexTermRelationshipSegments::See(
+                trimmed_index_term_segment(target, segment.start + term.len() + 4),
+            )),
+        );
+    }
+    if let Some((term, targets)) = segment.text.split_once(" &> ") {
+        let mut start = segment.start + term.len() + 4;
+        let targets = targets
+            .split(" &> ")
+            .map(|target| {
+                let segment = trimmed_index_term_segment(target, start);
+                start += target.len() + 4;
+                segment
+            })
+            .collect();
+        return (
+            trimmed_index_term_segment(term, segment.start),
+            Some(IndexTermRelationshipSegments::SeeAlso(targets)),
+        );
+    }
+    (segment, None)
+}
+
 fn parse_index_term_inlines<'a>(
     state: &mut ParserState<'a>,
     segment: IndexTermSegment<'a>,
@@ -748,11 +781,11 @@ peg::parser! {
         /// Only appears in the index, not in the text.
         /// Supports hierarchical entries with up to three levels.
         rule index_term_concealed() -> InlineNode<'input>
-        = "((("
-        terms:index_term_list()
-        relationship:index_term_shorthand_relationship(<")))" !")">)?
-        ")))"
+        = content:index_term_concealed_content()
         {?
+            let (content, relationship) = split_index_term_relationship(content);
+            let terms = index_term_list(content.text, state, content.start)
+                .map_err(|_| "could not parse index terms")?;
             let mut iter = terms.into_iter();
             let term = iter.next().unwrap_or(IndexTermSegment { text: "", start: span_start + 3 });
             let secondary = iter.next();
@@ -777,13 +810,9 @@ peg::parser! {
         /// Appears both in the text and in the index.
         /// Only supports a primary term.
         rule index_term_flow() -> InlineNode<'input>
-        = "(("
-        !("(")  // Ensure this is not the start of a concealed term
-        term:index_term_flow_segment()
-        whitespace()?
-        relationship:index_term_shorthand_relationship(<"))">)?
-        "))"
+        = content:index_term_flow_content()
         {?
+            let (term, relationship) = split_index_term_relationship(content);
             tracing::debug!(term = %term.text, "Found flow index term");
             Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
                 kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
@@ -795,10 +824,10 @@ peg::parser! {
         /// indexterm macro: indexterm:[primary, secondary, tertiary]
         /// Concealed (hidden) form - same as (((primary, secondary, tertiary)))
         rule indexterm_macro() -> InlineNode<'input>
-        = "indexterm:["
-        items:index_term_macro_list()
-        "]"
+        = "indexterm:" content:index_term_macro_content()
         {?
+            let items = index_term_macro_list(content.text, state, content.start)
+                .map_err(|_| "could not parse index term attributes")?;
             let (terms, relationship) = partition_index_term_macro_items(items);
             let mut iter = terms.into_iter();
             let term = iter.next().unwrap_or(IndexTermSegment { text: "", start: span_start + "indexterm:[".len() });
@@ -823,15 +852,13 @@ peg::parser! {
         /// indexterm2 macro: indexterm2:[term]
         /// Flow (visible) form - same as ((term))
         rule indexterm2_macro() -> InlineNode<'input>
-        = "indexterm2:["
-        content_start:position!()
-        items:index_term_macro_list()
-        content_end:position!()
-        "]"
+        = "indexterm2:" content:index_term_macro_content()
         {?
+            let items = index_term_macro_list(content.text, state, content.start)
+                .map_err(|_| "could not parse index term attributes")?;
             let (terms, relationship) = partition_index_term_macro_items(items);
             let term = if relationship.is_none() {
-                trimmed_index_term_segment(&state.input[content_start..content_end], content_start)
+                trimmed_index_term_segment(content.text, content.start)
             } else {
                 terms.into_iter().next().unwrap_or(IndexTermSegment {
                     text: "",
@@ -846,84 +873,90 @@ peg::parser! {
             }))))
         }
 
-        rule index_term_macro_list() -> Vec<IndexTermMacroItem<'input>>
-        = items:(index_term_macro_item() ** ",") { items }
+        pub(crate) rule index_term_macro_list(base: usize) -> Vec<IndexTermMacroItem<'input>>
+        = items:(index_term_macro_item(base) ** ",") { items }
 
-        rule index_term_macro_item() -> IndexTermMacroItem<'input>
-        = whitespace()* "see-also" "=" targets:index_term_see_also_value() whitespace()* {
+        rule index_term_macro_item(base: usize) -> IndexTermMacroItem<'input>
+        = whitespace()* "see-also" "=" targets:index_term_see_also_value(base) whitespace()* {
             IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::SeeAlso(targets))
         }
-        / whitespace()* "see" "=" target:index_term_relation_value() whitespace()* {
+        / whitespace()* "see" "=" target:index_term_relation_value(base) whitespace()* {
             IndexTermMacroItem::Relationship(IndexTermRelationshipSegments::See(target))
         }
-        / term:index_term_segment() { IndexTermMacroItem::Term(term) }
+        / term:index_term_segment(base) { IndexTermMacroItem::Term(term) }
 
-        rule index_term_relation_value() -> IndexTermSegment<'input>
-        = "\"" start:position!() content:$([^'"']*) "\"" {
-            trimmed_index_term_segment(content, start)
+        rule index_term_relation_value(base: usize) -> IndexTermSegment<'input>
+        = "\"" start:position!() content:$([^'"']*) "\"" &(whitespace()* ("," / ![_])) {
+            trimmed_index_term_segment(content, base + start)
         }
-        / start:position!() content:$([^(',' | ']')]*) {
-            trimmed_index_term_segment(content, start)
+        / start:position!() content:$([^',']*) {
+            trimmed_index_term_segment(content, base + start)
         }
 
-        rule index_term_see_also_value() -> Vec<IndexTermSegment<'input>>
-        = "\"" targets:(index_term_see_also_target() ** ",") "\"" { targets }
-        / target:index_term_relation_value() { vec![target] }
+        rule index_term_see_also_value(base: usize) -> Vec<IndexTermSegment<'input>>
+        = "\"" targets:(index_term_see_also_target(base) ** ",") "\"" &(whitespace()* ("," / ![_])) { targets }
+        / target:index_term_relation_value(base) { vec![target] }
 
-        rule index_term_see_also_target() -> IndexTermSegment<'input>
+        rule index_term_see_also_target(base: usize) -> IndexTermSegment<'input>
         = whitespace()* start:position!() content:$([^(',' | '"')]*) whitespace()* {
-            trimmed_index_term_segment(content, start)
+            trimmed_index_term_segment(content, base + start)
         }
 
         /// Parse comma-separated index term list with support for quoted segments
         /// e.g., "knight, Knight of the Round Table, Lancelot"
         /// or "knight, \"Arthur, King\"" (quoted segment with embedded comma)
-        rule index_term_list() -> Vec<IndexTermSegment<'input>>
-        = terms:(index_term_segment() ** ",") {
+        pub(crate) rule index_term_list(base: usize) -> Vec<IndexTermSegment<'input>>
+        = terms:(index_term_segment(base) ** ",") {
             terms.into_iter().filter(|segment| !segment.text.is_empty()).collect()
         }
 
         /// Parse a single index term segment, either quoted or unquoted
-        rule index_term_segment() -> IndexTermSegment<'input>
-        = whitespace()? segment:(index_term_quoted() / index_term_unquoted()) whitespace()? { segment }
+        rule index_term_segment(base: usize) -> IndexTermSegment<'input>
+        = whitespace()? segment:(index_term_quoted(base) / index_term_unquoted(base)) whitespace()? { segment }
 
-        /// Quoted segment: "term with, comma"
-        rule index_term_quoted() -> IndexTermSegment<'input>
-        = "\"" start:position!() content:$([^'"']*) "\"" { trimmed_index_term_segment(content, start) }
+        /// Quotes group commas; the macro delimiter can leave the quote unclosed.
+        rule index_term_quoted(base: usize) -> IndexTermSegment<'input>
+        = "\"" start:position!() content:$([^'"']*) "\""? &(whitespace()* ("," / ![_])) {
+            trimmed_index_term_segment(content, base + start)
+        }
 
         /// Unquoted segment: term without comma
-        rule index_term_unquoted() -> IndexTermSegment<'input>
-        = start:position!() content:$((!(" >> " / " &> ") [^('"' | ',' | ')' | ']')])+) {
-            trimmed_index_term_segment(content, start)
+        rule index_term_unquoted(base: usize) -> IndexTermSegment<'input>
+        = start:position!() content:$([^',']+) {
+            trimmed_index_term_segment(content, base + start)
         }
 
-        rule index_term_flow_segment() -> IndexTermSegment<'input>
-        = start:position!() content:$((!(" >> " / " &> " / "))") [_])+) {
-            trimmed_index_term_segment(content, start)
+        // Shorthand ends at a delimiter even inside quotes or nested parentheses.
+        rule index_term_shorthand_close() = "))" !")"
+        rule index_term_concealed_close() = ")" index_term_shorthand_close()
+
+        rule index_term_concealed_content() -> IndexTermSegment<'input>
+        = "(((" start:position!()
+          content:$((!(index_term_concealed_close() / index_term_shorthand_close()) [_])*)
+          index_term_concealed_close() {
+            IndexTermSegment { text: content, start }
         }
 
-        rule index_term_shorthand_relationship(close: rule<()>) -> IndexTermRelationshipSegments<'input>
-        = ">> " target:index_term_shorthand_see_target(&close) {
-            IndexTermRelationshipSegments::See(target)
-        }
-        / "&> " targets:(index_term_shorthand_see_also_target(&close) ** " &> ") {
-            IndexTermRelationshipSegments::SeeAlso(targets)
+        // An extra closing parenthesis remains outside a visible index term.
+        rule index_term_flow_close() = "))" !"))"
+
+        rule index_term_flow_content() -> IndexTermSegment<'input>
+        = "((" !"(" start:position!()
+          content:$((!index_term_flow_close() [_])+)
+          index_term_flow_close() {
+            IndexTermSegment { text: content, start }
         }
 
-        rule index_term_shorthand_see_target(close: rule<()>) -> IndexTermSegment<'input>
-        = start:position!() content:$((!close() [_])+) { trimmed_index_term_segment(content, start) }
-
-        rule index_term_shorthand_see_also_target(close: rule<()>) -> IndexTermSegment<'input>
-        = start:position!() content:$((!(" &> " / close()) [_])+) {
-            trimmed_index_term_segment(content, start)
+        rule index_term_macro_content() -> IndexTermSegment<'input>
+        = "[" start:position!() content:$(("\\]" / !"]" [_])+) "]" {
+            IndexTermSegment { text: content, start }
         }
 
         /// Match index term patterns without consuming (for negative lookahead in plain_text)
         rule index_term_match() -> ()
-        = "(((" (!"))" [_])* ")))"  // Concealed: (((term)))
-        / "((" !("(") (!"))" [_])+ "))"  // Flow: ((term))
-        / "indexterm:[" [^']']* "]"  // indexterm:[term]
-        / "indexterm2:[" [^']']* "]"  // indexterm2:[term]
+        = index_term_concealed_content() {}
+        / index_term_flow_content() {}
+        / ("indexterm:" / "indexterm2:") index_term_macro_content() {}
 
         rule inline_menu() -> InlineNode<'input>
         = check_experimental() "menu:"
