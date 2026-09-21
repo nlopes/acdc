@@ -417,6 +417,13 @@ pub(crate) fn processor_assignment_state(
     }
 }
 
+/// A source declaration to set or unset a document attribute, before policy checks and validation.
+#[derive(Debug)]
+pub(crate) struct AttributeDeclaration<'a> {
+    pub(crate) name: &'a str,
+    pub(crate) value: RawAttributeValue<'a>,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum RawAttributeValue<'a> {
     Text(Cow<'a, str>),

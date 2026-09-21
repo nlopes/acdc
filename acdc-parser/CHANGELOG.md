@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Document attributes with text values need fewer temporary allocations, and large
+  verbatim blocks parse faster.
 - Element attributes use less memory while preserving lookup, merge, and JSON output behavior.
 - **Breaking:** configure attributes from standard Rust iterators, with separate
   application overrides and document-overridable defaults. Configuration is

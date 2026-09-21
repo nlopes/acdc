@@ -1,23 +1,26 @@
 use crate::{
-    AttributeValue, Error, Options,
+    Error, Options,
+    document_attribute::{AttributeDeclaration, RawAttributeValue},
     model::{HEADER, substitute},
 };
 
 peg::parser! {
     grammar attribute_parser() for str {
-        pub(crate) rule document_attribute() -> (bool, String, Option<String>)
-            = ":" unset:unset() name:name() ":" { (true, name, None) }
-            / ":" name:name() unset:unset() ":" { (true, name, None) }
-            / ":" name:name() ":" whitespace()? value:value()? { (false, name, value) }
+        pub(crate) rule document_attribute() -> AttributeDeclaration<'input>
+            = ":" "!" name:name() ":" { AttributeDeclaration { name, value: RawAttributeValue::Unset } }
+            / ":" name:name() "!" ":" { AttributeDeclaration { name, value: RawAttributeValue::Unset } }
+            / ":" name:name() ":" whitespace()? value:value()? {
+                AttributeDeclaration {
+                    name,
+                    value: value.map_or(RawAttributeValue::Set, |text| RawAttributeValue::Text(text.into())),
+                }
+            }
 
-        rule unset() -> bool
-            = "!" { true }
+        rule name() -> &'input str
+            = n:$((['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+)) { n }
 
-        rule name() -> String
-            = n:$((['a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_']+)) { n.to_string() }
-
-        rule value() -> String
-            = v:$([^'\n']*) { v.to_string() }
+        rule value() -> &'input str
+            = v:$([^'\n']*) { v }
 
         rule whitespace() = quiet!{[' ' | '\t']+}
     }
@@ -26,25 +29,22 @@ peg::parser! {
 #[tracing::instrument(level = "trace")]
 pub(crate) fn parse_line(options: &mut Options<'_>, line: &str) -> Result<(), Error> {
     match attribute_parser::document_attribute(line) {
-        Ok((unset, name, value)) => {
-            let value = if unset {
-                AttributeValue::Bool(false)
-            } else {
-                match value {
-                    Some(value) => {
-                        let value =
-                            substitute(&value, HEADER, &options.document_attributes).into_owned();
-                        if value.is_empty() {
-                            AttributeValue::Bool(true)
-                        } else {
-                            AttributeValue::String(value.into())
-                        }
+        Ok(AttributeDeclaration { name, value }) => {
+            let value = match value {
+                RawAttributeValue::Text(value) => {
+                    let value =
+                        substitute(&value, HEADER, &options.document_attributes).into_owned();
+                    if value.is_empty() {
+                        RawAttributeValue::Set
+                    } else {
+                        RawAttributeValue::Text(value.into())
                     }
-                    None => AttributeValue::Bool(true),
                 }
+                RawAttributeValue::Set => RawAttributeValue::Set,
+                RawAttributeValue::Unset => RawAttributeValue::Unset,
             };
             options.document_attributes.assign_document_value(
-                name.into(),
+                name.to_owned().into(),
                 value,
                 true,
                 false,

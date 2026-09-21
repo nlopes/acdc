@@ -13,9 +13,9 @@ use bitflags::bitflags;
 use bumpalo::Bump;
 
 use crate::{
-    AttributeName, AttributeValue, CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes,
-    Error, Footnote, Location, Options, SourceLocation, TocEntry, Warning, WarningKind,
-    XrefCaptionLabel,
+    CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote, Location,
+    Options, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel,
+    document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
         DocumentAttributeStatus, LeveloffsetRange, SourceRange, substitute,
@@ -353,19 +353,20 @@ impl<'a> ParserState<'a> {
     }
 
     /// Apply an attribute entry declared by document content: expand `{attr}`
-    /// references at definition time (matching `asciidoctor`), intern the result
+    /// references at definition time (matching `asciidoctor`), retain the result
     /// for the parse, and store it unless the built-in policy, parser options, or
     /// a nested parent lock the name against document changes.
     ///
     /// Returns an AST event when the assignment was accepted.
     pub(crate) fn apply_document_attribute(
         &mut self,
-        key: AttributeName<'a>,
-        value: AttributeValue<'a>,
-        set: bool,
+        declaration: &AttributeDeclaration<'a>,
         in_header: bool,
         location: Location,
     ) -> Option<DocumentAttribute<'a>> {
+        let AttributeDeclaration { name, value } = declaration;
+        let key = Cow::Borrowed(*name);
+        let set = !matches!(value, RawAttributeValue::Unset);
         let value = self.resolve_document_attribute_value(value, &self.document_attributes);
         let force_locked = self
             .nested_parent_attributes
@@ -413,15 +414,20 @@ impl<'a> ParserState<'a> {
     /// Expand an attribute value's references against the given attributes.
     pub(crate) fn resolve_document_attribute_value(
         &self,
-        value: AttributeValue<'a>,
+        value: &RawAttributeValue<'a>,
         attributes: &DocumentAttributes<'a>,
-    ) -> AttributeValue<'a> {
+    ) -> RawAttributeValue<'a> {
         match value {
-            AttributeValue::String(s) => {
-                let substituted = substitute(&s, HEADER, attributes);
-                AttributeValue::String(Cow::Borrowed(self.intern_str(&substituted)))
+            RawAttributeValue::Text(Cow::Borrowed(s)) => {
+                let substituted = substitute(s, HEADER, attributes);
+                RawAttributeValue::Text(Cow::Borrowed(self.intern_cow(substituted)))
             }
-            AttributeValue::Bool(_) | AttributeValue::None => value,
+            RawAttributeValue::Text(Cow::Owned(s)) => {
+                let substituted = substitute(s, HEADER, attributes);
+                RawAttributeValue::Text(Cow::Borrowed(self.intern_str(&substituted)))
+            }
+            RawAttributeValue::Set => RawAttributeValue::Set,
+            RawAttributeValue::Unset => RawAttributeValue::Unset,
         }
     }
 
