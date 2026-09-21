@@ -1,0 +1,38 @@
+= Unused Metadata at Block Boundaries
+
+====
+Before.
+
+[[unused-example]]
+.Caption
+====
+
+--
+* Item
+
+[[unused-list]]
+.Caption
+--
+
+--
+* Item
++
+[[unused-continuation]]
+.Caption
+--
+
+[cols="a"]
+|===
+|[[unused-cell]]
+|===
+
+|===
+|[[inline-cell]]
+|===
+
+.
+
+Text
+.Caption
+
+Text [[inline-anchor]]

@@ -1,0 +1,95 @@
+= Block Metadata Gaps
+
+[[literal-blank]]
+
+[wavedrom,role=diagram]
+
+.Caption
+
+....
+payload
+....
+
+[[literal-multiple]]
+
+
+[wavedrom,role=diagram]
+
+
+.Caption
+
+
+....
+payload
+....
+
+[[literal-whitespace]]
+ 	
+[wavedrom,role=diagram]
+ 	
+.Caption
+ 	
+....
+payload
+....
+
+[cols="2,1"]
+
+|===
+|Wide |Narrow
+|===
+
+First paragraph.
+
+Second paragraph.
+
+* One
+
+[]
+
+* Two
+
+....
+[[literal-anchor]]
+
+[.role]
+
+.Title
+....
+
+[[paragraph-target]]
+
+
+Paragraph.
+
+--
+* Parent
+[[unordered-child]]
+
+[loweralpha]
+
+.. Child
+--
+
+--
+. Parent
+[[ordered-child]]
+
+[loweralpha]
+
+.. Child
+--
+
+[[discrete-target]]
+
+[discrete]
+
+=== Heading
+
+[[section-target]]
+
+:custom: value
+
+== Heading
+
+{custom}.

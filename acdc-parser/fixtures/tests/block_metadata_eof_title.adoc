@@ -1,0 +1,5 @@
+= T
+
+Before.
+
+.Caption footnote:[unused] [[unused-title-anchor]]

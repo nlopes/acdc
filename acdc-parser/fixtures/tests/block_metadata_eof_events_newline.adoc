@@ -1,0 +1,9 @@
+= T
+
+Before.
+
+[[unused-events]]
+:custom: value
+
+.Caption
+:custom!:

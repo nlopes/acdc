@@ -1,0 +1,9 @@
+= T
+
+Before.
+
+[[unused-combined]]
+
+[.role]
+
+.Caption

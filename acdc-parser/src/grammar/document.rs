@@ -3326,10 +3326,27 @@ peg::parser! {
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
-        = blocks:block(offset, parent_section_level, direct_parent_section_kind)*
+        = blocks:(!trailing_block_metadata_match() block:block(offset, parent_section_level, direct_parent_section_kind) { block })*
+          trailing:trailing_block_metadata(offset)?
         {
-            let blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            let mut blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            if let Some(trailing) = trailing {
+                blocks.extend(trailing?);
+            }
             Ok(order_document_attribute_events(blocks))
+        }
+
+        rule trailing_block_metadata_match()
+        = eol()* &("[" / ".") (block_metadata_line_match() eol()*)+ ![_]
+
+        // Unused block metadata has no inline effects; document attributes still take effect.
+        rule trailing_block_metadata(offset: usize) -> Result<Vec<Block<'input>>, Error>
+        = &trailing_block_metadata_match() eol()* events:(
+            event:document_attribute_block(offset) (eol() / ![_]) eol()* { Some(event) }
+            / (attribute_or_anchor_line_match() / title_line_match()) eol()* { None }
+        )+
+        {
+            events.into_iter().flatten().collect()
         }
 
         pub(crate) rule nested_document_blocks(offset: usize, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
@@ -3420,7 +3437,8 @@ peg::parser! {
         //
         // Checks both ATX-style (= or #) and setext-style (underlined) sections.
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
-        = (anchor() / attributes_line() / document_attribute_line(offset) / title_line(offset))*
+        // Standalone document attributes must take effect before comparing section levels.
+        = !document_attribute_match() (block_metadata_line_match() eol()*)*
           (
             // ATX-style section check - require space after marker to avoid matching
             // description list items like `#term::` as sections
@@ -3731,18 +3749,19 @@ peg::parser! {
         = {? if allow { Ok(()) } else { Err("document attributes are not allowed in plain cells") } }
 
         rule block_metadata_with_attributes(offset: usize, parent_section_level: Option<SectionLevel>, allow_document_attributes: bool) -> Result<BlockParsingMetadata<'input>, Error>
-        = meta_start:position!() lines:(
+        = meta_start:position!() lines:(line:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
             / document_attributes_allowed(allow_document_attributes) doc_attr:document_attribute_line(offset) { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
-        )* meta_end:position!()
+        ) end:position!() eol()* { (line, end) })*
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
             let mut title = Title::default();
+            let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
 
-            for line in lines {
+            for (line, _) in lines {
                 // Skip errors from title parsing (e.g., empty titles like "." + newline)
                 let Ok(value) = line else {
                     state.add_generic_warning(format!("failed to parse block metadata line, skipping: {line:?}"));
@@ -3783,6 +3802,15 @@ peg::parser! {
             )
         }
 
+        // Match metadata in lookahead without expanding attributes or titles.
+        rule block_metadata_line_match()
+        = attribute_or_anchor_line_match()
+        / document_attribute_match() (eol() / ![_])
+        / title_line_match()
+
+        rule title_line_match()
+        = period() ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']+ (eol() / ![_])
+
         // A title line can be a simple title or a section title
         //
         // A title line is a line that starts with a period (.) followed by a non-whitespace character
@@ -3813,27 +3841,28 @@ peg::parser! {
             (level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes))
         }
 
-        rule section_level_at_line_start(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
-        = level:$(("=" / "#")*<1,6>)
+        rule at_line_start(offset: usize)
+        = pos:position!()
         {?
-            // This rule is invoked as a negative lookahead from paragraph
-            // parsing, so it runs speculatively on every continuation line.
-            // The injected `span_start` is just a byte offset — the cheap line-start
-            // byte check below rejects most speculations before any expensive
-            // (line, column) materialisation happens.
-            let absolute_pos = span_start + offset;
+            let absolute_pos = pos + offset;
             let at_line_start = absolute_pos == 0 || {
                 let prev_byte_pos = absolute_pos.saturating_sub(1);
                 state.input.as_bytes().get(prev_byte_pos).is_some_and(|&b| b == b'\n')
             };
 
             if !at_line_start {
-                return Err("section level must be at line start");
+                return Err("expected line start");
             }
 
+            Ok(())
+        }
+
+        rule section_level_at_line_start(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
+        = at_line_start(offset) level:$(("=" / "#")*<1,6>)
+        {
             let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
             let byte_offset = span_start + offset;
-            Ok((level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes)))
+            (level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes))
         }
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(Title<'input>, &'input str), Error>
@@ -3883,7 +3912,7 @@ peg::parser! {
         // Block parsing for continuation context - lists inside continuations cannot consume
         // further continuations (those belong to the parent item that started the continuation)
         rule block_in_continuation(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
-        = start:position!()
+        = !trailing_block_metadata_match() start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in block_in_continuation");
@@ -4411,14 +4440,15 @@ peg::parser! {
         // This restricted form excludes titles and document attributes, which
         // asciidoctor does not assign to an automatically nested list.
         rule nested_list_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>
-        = meta_start:position!() lines:(
+        = meta_start:position!() lines:(line:(
             anchor:anchor() { AttributeOrAnchorLine::Anchor(anchor) }
             / attr:attributes_line() { AttributeOrAnchorLine::Attributes((attr.0, Box::new(attr.1))) }
-        )+ meta_end:position!()
+        ) end:position!() eol()* { (line, end) })+
         {
             let mut metadata = BlockMetadata::default();
             let mut discrete = false;
-            for line in lines {
+            let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
+            for (line, _) in lines {
                 match line {
                     AttributeOrAnchorLine::Anchor(anchor) => metadata.anchors.push(anchor),
                     AttributeOrAnchorLine::Attributes((attr_discrete, attr_metadata)) => {
@@ -4446,30 +4476,29 @@ peg::parser! {
             })
         }
 
-        // Syntactic counterparts of `nested_list_metadata`; these are used in
-        // lookahead and therefore do not run metadata actions speculatively.
-        rule nested_list_attribute_line_match()
+        rule attributes_line_match()
         = !empty_list_separator() !double_open_square_bracket()
-          open_square_bracket() attribute_list_content() eol()
+          open_square_bracket() attribute_list_content() (eol() / ![_])
 
-        rule nested_list_anchor_line_match()
-        = inline_anchor_match() eol()
+        rule anchor_line_match()
+        = double_open_square_bracket() [^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+
+          (comma() [^']']+)? double_close_square_bracket() (eol() / ![_])
 
-        rule nested_list_metadata_line_match()
-        = nested_list_anchor_line_match() / nested_list_attribute_line_match()
+        rule attribute_or_anchor_line_match()
+        = anchor_line_match() / attributes_line_match()
 
         rule nested_list_metadata_gap()
         = eol() / comment_line()
 
         rule nested_unordered_child_after_metadata(current_marker: &str, parent_ordered_marker: Option<&'input str>)
-        = nested_list_metadata_line_match()+ nested_list_metadata_gap()* (
+        = (attribute_or_anchor_line_match() eol()*)+ nested_list_metadata_gap()* (
             !at_ancestor_ordered_marker(parent_ordered_marker)
             &(whitespace()* ordered_list_marker() whitespace())
             / &at_deeper_unordered_marker(current_marker)
         )
 
         rule nested_ordered_child_after_metadata(current_marker: &str, parent_unordered_marker: Option<&'input str>)
-        = nested_list_metadata_line_match()+ nested_list_metadata_gap()* (
+        = (attribute_or_anchor_line_match() eol()*)+ nested_list_metadata_gap()* (
             !at_ancestor_unordered_marker(parent_unordered_marker)
             &(whitespace()* unordered_list_marker() whitespace())
             / &at_deeper_ordered_marker(current_marker)
@@ -4480,7 +4509,7 @@ peg::parser! {
 
         // Helper rule to check if we're at the start of a section heading (lookahead)
         // This is used to terminate list continuations when a section follows
-        rule at_section_start() = (anchor() / attributes_line())* ("=" / "#")+ " "
+        rule at_section_start() = (attribute_or_anchor_line_match() eol()*)* ("=" / "#")+ " "
 
         // Helper rule to check if we're at an ordered list marker ahead (after newlines)
         rule at_ordered_marker_ahead() = eol()+ whitespace()* ordered_list_marker()
@@ -5577,7 +5606,7 @@ peg::parser! {
              !(open_delimiter() (whitespace()* eol()))
              !markdown_code_delimiter()
              !attributes_line()                           // not a block attributes line
-             !((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))  // not a section heading
+             !((attribute_or_anchor_line_match() eol()*)* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))  // not a section heading
              (!eol() [_])+                             // continuation line content
             )*
         )
@@ -5722,19 +5751,11 @@ peg::parser! {
             block
         }
 
-        // Consume a "dangling" list continuation marker: a `+` on its own line with no
-        // attachable block after it (the following line is blank, or the input ends).
-        // asciidoctor silently drops such a marker; without this the leftover `+` is
-        // parsed as a standalone paragraph and prematurely terminates the list. Only
-        // tried after the immediate/ancestor continuation rules, so a `+` with real
-        // content still attaches.
-        //
-        // We consume up to and including the marker's own line terminator, then assert a
-        // blank line or end of input follows (`&(eol() / ![_])`) — that lookahead is what
-        // makes it "dangling": a `+` with real content on the next line is left alone. Any
-        // following blank line is left unconsumed so the list resumes with the next item.
+        // Asciidoctor drops a continuation with no attachable block, including one
+        // followed only by unused metadata. Leave that metadata for the block sequence
+        // so any document-attribute events are retained.
         rule list_dangling_continuation()
-        = eol()+ "+" whitespace()* eol()? &(eol() / ![_])
+        = eol()+ "+" whitespace()* eol()? &(eol() / ![_] / trailing_block_metadata_match())
         {
             tracing::debug!("Dropped dangling list continuation marker");
         }
@@ -5945,7 +5966,7 @@ peg::parser! {
             / eol() !not_after_verbatim_block() &(whitespace()* callout_list_marker() whitespace())
             / eol() list(start, offset, block_metadata)
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
-            / eol()* &((anchor() / attributes_line())* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
+            / eol()* &(at_line_start(offset) (attribute_or_anchor_line_match() eol()*)* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
             ) [_]
         )+)
         {

@@ -1,0 +1,48 @@
+= Metadata Before Section Boundaries
+
+--
+Before.
+[[paragraph-section]]
+
+== Heading
+
+Body.
+--
+
+--
+* Item
+[[unordered-section]]
+
+== Heading
+
+Body.
+--
+
+--
+. Item
+[[ordered-section]]
+
+== Heading
+
+Body.
+--
+
+--
+Term:: Description
+[[description-section]]
+
+== Heading
+
+Body.
+--
+
+--
+* Item
++
+Attached.
+[[continuation-section]]
+
+== Heading
+
+Body.
+--

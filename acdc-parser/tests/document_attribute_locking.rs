@@ -2,6 +2,30 @@ use acdc_parser::{AttributeValue, Block, DocumentAttributeValue, Options, parse}
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn trailing_document_attributes_respect_caller_locks() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_attribute("custom", "locked")
+        .build()?;
+    let parsed = parse(
+        include_str!("../fixtures/tests/block_metadata_eof_events.adoc"),
+        &options,
+    )?;
+    assert!(matches!(
+        parsed.document().blocks.as_slice(),
+        [Block::Paragraph(_)]
+    ));
+    assert_eq!(
+        parsed
+            .document()
+            .attributes
+            .get("custom")
+            .and_then(DocumentAttributeValue::text),
+        Some("locked")
+    );
+    Ok(())
+}
+
 fn documented_attributes() -> Vec<(&'static str, String)> {
     [
         ("header", "
