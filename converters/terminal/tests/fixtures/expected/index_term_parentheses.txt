@@ -1,0 +1,12 @@
+[38;5;14mOUTPUT ← INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ binint(SIV[31:0]) + ctr) mod 2³², 32,[39m
+[38;5;14mOUTPUT <- INPUT xor enc_blk(enc_key, 1 @ SIV[126:32] @ bin((int(SIV[31:0]) + ctr) mod 2^32^, 32)),[39m
+[38;5;14mif rs2_val;[39m
+visible
+visible
+
+
+visible)
+visible)
+
+
+Text after the index terms.

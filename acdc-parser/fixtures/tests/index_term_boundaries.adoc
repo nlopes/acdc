@@ -1,0 +1,67 @@
+indexterm2:[function(argument)]
+
+Before indexterm2:[function(argument)] after.
+
+indexterm:[function(argument)]
+
+Before indexterm:[function(argument)] after.
+
+(((term [detail])))
+
+Before (((term [detail]))) after.
+
+(((function(argument))))
+
+Before (((function(argument)))) after.
+
+(((term >> fn((x)) tail)))
+
+Before (((term >> fn((x)) tail))) after.
+
+(((term &> fn((x)) tail)))
+
+Before (((term &> fn((x)) tail))) after.
+
+((term >> target [x] {y} "z", λ))
+
+(((term &> target [x] {y} "z", λ &> other)))
+
+indexterm2:[term >> literal]
+
+indexterm:[term &> literal]
+
+((function(argument))) and ((function(argument))))
+
+((((nested))))
+
+((("function(x), [detail]", secondary)))
+
+indexterm:["function(x), detail", secondary]
+
+indexterm:[term,see="function(argument)"]
+
+indexterm:[term,see-also="function(argument), other"]
+
+Unclosed ((term and indexterm:[target stay literal.
+
+Empty (()) and indexterm:[] stay literal.
+
+indexterm2:[array[x\]]
+
+Before indexterm2:[array[x\]] after.
+
+(("quoted )) tail"))
+
+Before (("quoted )) tail")) after.
+
+((("quoted ))) tail")))
+
+Before ((("quoted ))) tail"))) after.
+
+indexterm:["quoted] tail"]
+
+Before indexterm:["quoted] tail"] after.
+
+((term >> )) and (((term &> )))
+
+Text after the index terms.

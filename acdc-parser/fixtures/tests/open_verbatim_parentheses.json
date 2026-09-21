@@ -1,0 +1,455 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "metadata": {
+        "anchors": [
+          {
+            "id": "norm:clmulh_op",
+            "location": [
+              {
+                "line": 1,
+                "col": 1
+              },
+              {
+                "line": 1,
+                "col": 19
+              }
+            ]
+          }
+        ]
+      },
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Operation",
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 9
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "description": [],
+          "location": [
+            {
+              "line": 2,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 12
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 12
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "attributes": {
+          "language": "sail",
+          "sail": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "let rs1_val = X(rs1);\nlet rs2_val = X(rs2);\nlet output : xlenbits = 0;\n\nforeach (i from 1 to xlen by 1) {\n   output = if ((rs2_val >> i) & 1)\n            then output ^ (rs1_val >> (xlen - i));\n            else output;\n}\n\nX[rd] = output",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 14
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "attributes": {
+          "language": "sail",
+          "sail": null
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "((visible)) (((hidden))) indexterm:[hidden] ",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "callout_reference",
+          "type": "inline",
+          "variant": "explicit",
+          "number": 1,
+          "location": [
+            {
+              "line": 20,
+              "col": 45
+            },
+            {
+              "line": 20,
+              "col": 47
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 21,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "list",
+      "type": "block",
+      "variant": "callout",
+      "items": [
+        {
+          "name": "listItem",
+          "type": "block",
+          "callout": {
+            "name": "callout_reference",
+            "type": "inline",
+            "variant": "explicit",
+            "number": 1,
+            "location": [
+              {
+                "line": 22,
+                "col": 1
+              },
+              {
+                "line": 22,
+                "col": 29
+              }
+            ]
+          },
+          "principal": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Parentheses stay literal.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 5
+                },
+                {
+                  "line": 22,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "listing"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "if ((value >> shift) & 1) then f((value));",
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 27,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "metadata": {
+        "style": "literal"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "if ((value >> shift) & 1) then f((value));",
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 31,
+              "col": 42
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 29,
+          "col": 1
+        },
+        {
+          "line": 32,
+          "col": 2
+        }
+      ]
+    },
+    {
+      "name": "open",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "An ordinary open block keeps ",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 1
+                },
+                {
+                  "line": 35,
+                  "col": 29
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "visible",
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 32
+                    },
+                    {
+                      "line": 35,
+                      "col": 38
+                    }
+                  ]
+                }
+              ],
+              "visible": true,
+              "location": [
+                {
+                  "line": 35,
+                  "col": 30
+                },
+                {
+                  "line": 35,
+                  "col": 40
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " and ",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 41
+                },
+                {
+                  "line": 35,
+                  "col": 45
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "hidden",
+                  "location": [
+                    {
+                      "line": 35,
+                      "col": 49
+                    },
+                    {
+                      "line": 35,
+                      "col": 54
+                    }
+                  ]
+                }
+              ],
+              "visible": false,
+              "location": [
+                {
+                  "line": 35,
+                  "col": 46
+                },
+                {
+                  "line": 35,
+                  "col": 57
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " index terms.",
+              "location": [
+                {
+                  "line": 35,
+                  "col": 58
+                },
+                {
+                  "line": 35,
+                  "col": 70
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 35,
+              "col": 1
+            },
+            {
+              "line": 35,
+              "col": 70
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 34,
+          "col": 1
+        },
+        {
+          "line": 36,
+          "col": 2
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 36,
+      "col": 2
+    }
+  ]
+}

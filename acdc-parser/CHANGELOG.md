@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Document attributes with text values need fewer temporary allocations, and large
+  verbatim blocks parse faster.
 - Element attributes use less memory while preserving lookup, merge, and JSON output behavior.
 - **Breaking:** configure attributes from standard Rust iterators, with separate
   application overrides and document-overridable defaults. Configuration is
@@ -32,6 +34,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `Document::renumber_captions` now refreshes the reference catalog as well as
+  the blocks, so a `<<id>>` to a block that moved renders the ordinal the block
+  now carries. Previously the catalog kept the number assigned at parse time,
+  and a document whose captions were renumbered could show `Figure 1` in a
+  reference to what had become `Figure 2`.
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
+- `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
+  keep double parentheses literal, matching Asciidoctor (#455).
+- Index `see` and `see also` targets can contain parentheses without a parse
+  error (#455). Backticks still allow index markup, as in Asciidoctor; use
+  passthroughs inside backticks for literal code.
 - Escaped `pass:[...]` macros remain literal and respect the active substitutions,
   matching Asciidoctor. Counter syntax remains literal when attribute substitutions
   are disabled; counter evaluation remains unsupported.
@@ -145,6 +160,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+
+- `ParseResult::with_document_mut` rewrites a parsed document in place, for
+  passes that run between parsing and conversion. The closure is handed a
+  `DocumentArena` alongside the document, so nodes it inserts can hold
+  generated text with the document's own lifetime instead of owning or leaking
+  it.
+- `Reference::for_target` builds a cross-reference catalog entry for a target
+  introduced after parsing, so an id assigned by such a pass resolves like one
+  written in the document.
+- `BlockMetadata::positional_values()` reports a block's unnamed positional
+  attributes in the order they were written. `[plantuml,my-diagram,svg]` reads
+  back as `"my-diagram"` then `"svg"`; a skipped slot (`[plantuml,,svg]`) comes
+  back as an empty string so the ones after it keep their index. The same values
+  remain available, unordered, through `metadata.attributes`.
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,
   safe-mode values, masked home paths, and active convenience attributes.
@@ -187,6 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   AST — reorder blocks, remove one, add a title — and `Document::highest_caption_number()`
   reports the highest number assigned for a kind, so a consumer numbering a title the
   parser never saw can start past it.
+
 - `Options::builder().with_base_dir(path)` now controls entry include resolution
   for string, reader, and file input. It also defines the Safe/Server local
   boundary; otherwise string/reader input uses the current directory and file

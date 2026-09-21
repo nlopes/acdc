@@ -41,6 +41,17 @@ pub struct BlockMetadata<'a> {
     /// `attributes`. Grammar rules drain these before finalising the block.
     #[serde(default, skip_serializing)]
     pub(crate) positional_attributes: Vec<PositionalAttribute<'a>>,
+    /// Positional attributes that have already been folded into `attributes`,
+    /// still in source order.
+    ///
+    /// `attributes` records a valueless entry per positional attribute, which
+    /// loses their order. Consumers that map positional slots onto names —
+    /// `acdc-diagram` reads slot 0 as `target` and slot 1 as `format` on a
+    /// `[plantuml,my-diagram,svg]` block — need the order back, so the drained
+    /// list is moved here rather than dropped. Read it with
+    /// [`BlockMetadata::positional_values`].
+    #[serde(default, skip_serializing)]
+    pub(crate) consumed_positional: Vec<PositionalAttribute<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -124,7 +135,10 @@ impl<'a> BlockMetadata<'a> {
     }
 
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
-        for positional_attribute in self.positional_attributes.drain(..) {
+        // Taking the list rather than draining it lets the same allocation be
+        // handed to `consumed_positional`, so keeping the order costs nothing.
+        let positional = std::mem::take(&mut self.positional_attributes);
+        for positional_attribute in &positional {
             if !positional_attribute.value.is_empty() {
                 self.attributes.insert(
                     std::borrow::Cow::Borrowed(positional_attribute.value),
@@ -132,6 +146,24 @@ impl<'a> BlockMetadata<'a> {
                 );
             }
         }
+        if self.consumed_positional.is_empty() {
+            self.consumed_positional = positional;
+        } else {
+            self.consumed_positional.extend(positional);
+        }
+    }
+
+    /// The unnamed positional attribute values of this block, in source order.
+    ///
+    /// A block style such as `[plantuml,my-diagram,svg]` yields `"my-diagram"`
+    /// then `"svg"`: the leading style has already been taken off the front,
+    /// and a skipped slot (`[plantuml,,svg]`) is preserved as an empty string
+    /// so the ones after it keep their index. Named attributes never appear
+    /// here.
+    pub fn positional_values(&self) -> impl Iterator<Item = &'a str> + '_ {
+        self.consumed_positional
+            .iter()
+            .map(|positional| positional.value)
     }
 
     pub(crate) fn has_document_attributes(&self) -> bool {

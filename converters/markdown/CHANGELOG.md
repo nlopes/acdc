@@ -14,9 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are rejected before conversion.
 - **Breaking:** direct visitor callbacks now receive the current traversal
   context, including source-ordered and nested-cell attributes.
+- A document that seeds an `[index]` section now gets its index without also
+  having to set `:acdc-index:`, and `:!acdc-index:` turns the extension off.
+  Every backend now answers this the same way, so one document no longer comes
+  out with an index in one format and an empty heading in another.
 
 ### Fixed
 
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits — before a bibliography or a
+  colophon, or nested inside a part of a multipart book — and lists every term
+  in the document, including those in sections that follow it. Previously such
+  an index came out empty with nothing reported.
+- An `[index]` section keeps any content the author wrote in it; the generated
+  listing is appended after it rather than replacing it.
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
+- `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
+  keep double parentheses literal, matching Asciidoctor (#455).
+- Index `see` and `see also` targets can contain parentheses without a parse
+  error (#455). Backticks still allow index markup, as in Asciidoctor; use
+  passthroughs inside backticks for literal code.
 - Bibliography entries substitute attributes at their source position while
   citation labels retain their original attribute references, matching Asciidoctor.
 - AsciiDoc table cells apply their child document settings without changing

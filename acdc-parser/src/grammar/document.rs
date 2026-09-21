@@ -20,9 +20,9 @@ use crate::{
     TableRow, ThematicBreak, Title, TocEntry, UnorderedList, Verbatim, VerticalAlignment, Video,
     Warning, WarningKind,
     blocks::table::MAX_TABLE_COLUMNS,
+    document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::{
         ParserState,
-        attributes::AttributeEntry,
         author::derive_author_attrs,
         doctype::{is_book_doctype, is_manpage_doctype},
         inline_preprocessing,
@@ -58,7 +58,7 @@ use super::{
 struct ManpageNameSection<'input> {
     title: &'input str,
     attributes: NameSectionAttributes,
-    metadata_attributes: Vec<AttributeEntry<'input>>,
+    metadata_attributes: Vec<AttributeDeclaration<'input>>,
 }
 
 fn prepare_manpage_name_attributes<'input>(
@@ -84,9 +84,9 @@ fn prepare_manpage_name_attributes<'input>(
 
     if let Some(section) = section {
         let mut attributes = DocumentAttributes::clone(&state.document_attributes);
-        for AttributeEntry { key, value, .. } in section.metadata_attributes {
-            let value = state.resolve_document_attribute_value(value, &attributes);
-            let _ = attributes.assign_document_value(key.into(), value, false, false, None);
+        for AttributeDeclaration { name, value } in section.metadata_attributes {
+            let value = state.resolve_document_attribute_value(&value, &attributes);
+            let _ = attributes.assign_document_value(name.into(), value, false, false, None);
         }
 
         let name = substitute(&section.attributes.name, HEADER, &attributes);
@@ -2916,7 +2916,7 @@ peg::parser! {
                 .ok_or("not a level-one Setext manpage name section")
         }
 
-        rule manpage_name_metadata() -> Option<AttributeEntry<'input>>
+        rule manpage_name_metadata() -> Option<AttributeDeclaration<'input>>
         = manpage_comment_block() { None }
         / "//" !"/" [^'\n']* (eol() / ![_]) { None }
         / "[[" (!"]]" [^'\n'])+ "]]" (eol() / ![_]) { None }
@@ -3320,10 +3320,9 @@ peg::parser! {
         rule document_attribute() -> ()
         = start:position!() att:document_attribute_match() end:position!() (&eol() / ![_])
         {
-            let AttributeEntry{key, value, set} = att;
-            tracing::debug!(%set, %key, %value, "Found document attribute in the document header");
+            tracing::debug!(?att, "Found document attribute in the document header");
             let location = state.create_location(start, end);
-            state.apply_document_attribute(key.into(), value, set, true, location);
+            state.apply_document_attribute(&att, true, location);
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
@@ -3536,11 +3535,10 @@ peg::parser! {
         pub(crate) rule document_attribute_block(offset: usize) -> Result<Block<'input>, Error>
         = att:document_attribute_match()
         {
-            let AttributeEntry{ key, value, set } = att;
-            let name = Cow::Borrowed(key);
+            let name = Cow::Borrowed(att.name);
             let location = state.create_location(span_start + offset, span_end + offset);
             let event = state
-                .apply_document_attribute(name.clone(), value, set, false, location.clone())
+                .apply_document_attribute(&att, false, location.clone())
                 .unwrap_or_else(|| DocumentAttribute::rejected(name, location));
             Ok(Block::DocumentAttribute(event))
         }
@@ -3736,7 +3734,7 @@ peg::parser! {
         = meta_start:position!() lines:(
             anchor:anchor() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Anchor(anchor)) }
             / attr:attributes_line() { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::Attributes((attr.0, Box::new(attr.1)))) }
-            / document_attributes_allowed(allow_document_attributes) doc_attr:document_attribute_line(offset) { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(Cow::Borrowed(doc_attr.0.key), doc_attr.0.value, doc_attr.0.set, doc_attr.1)) }
+            / document_attributes_allowed(allow_document_attributes) doc_attr:document_attribute_line(offset) { Ok::<BlockMetadataLine<'input>, Error>(BlockMetadataLine::DocumentAttribute(doc_attr.0, doc_attr.1)) }
             / title:title_line(offset) { title.map(BlockMetadataLine::Title) }
         )* meta_end:position!()
         {
@@ -3756,13 +3754,11 @@ peg::parser! {
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
                     },
-                    BlockMetadataLine::DocumentAttribute(key, value, set, location) => {
+                    BlockMetadataLine::DocumentAttribute(declaration, location) => {
                         // Set the document attribute immediately so it's available for
                         // subsequent attribute references (e.g., in title lines)
                         if let Some(event) = state.apply_document_attribute(
-                            key,
-                            value,
-                            set,
+                            &declaration,
                             false,
                             location,
                         ) {
@@ -3802,7 +3798,7 @@ peg::parser! {
         // A document attribute line in block metadata context
         // This allows document attributes to be set between block attributes and the block content
         // Uses the same parsing logic as document attributes in the header
-        rule document_attribute_line(offset: usize) -> (AttributeEntry<'input>, Location)
+        rule document_attribute_line(offset: usize) -> (AttributeDeclaration<'input>, Location)
         = start:position!() attr:document_attribute_match() end:position!() eol()
         {
             tracing::debug!(?attr, "Found document attribute in block metadata");
@@ -3971,8 +3967,13 @@ peg::parser! {
               content_start:position!() content:until_block_close(open.1) content_end:position!()
               close:(eol() close_start:position!() close_delim:block_close_delim(open.1) { (close_start, close_delim) })?
         {
+            let kind = match (open.0, block_metadata.metadata.style) {
+                (DelimitedKind::Open, Some("source" | "listing")) => DelimitedKind::Listing,
+                (DelimitedKind::Open, Some("literal")) => DelimitedKind::Literal,
+                (kind, _) => kind,
+            };
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind: open.0, open_delim: open.1, lang: open.2, content,
+                kind, open_delim: open.1, lang: open.2, content,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
@@ -3997,7 +3998,7 @@ peg::parser! {
         // comparison in `block_close_delim` keeps a different-length or
         // different-character run from closing the block.
         rule until_block_close(expected: &str) -> &'input str
-            = content:$((!(eol() block_close_delim(expected)) [_])*) { content }
+            = content:$((!(eol() block_close_delim(expected)) (eol() / [^'\n']+))*) { content }
 
         // A maximal run of a single block-delimiter character equal to `expected`.
         // Per-character alternatives (not a mixed character class) so a run stops
@@ -6446,15 +6447,11 @@ peg::parser! {
         // Value parsing for document attributes
         // Handles both single-line values and values with continuation markers (" \" or " + \")
         // The preprocessor preserves these markers for the parser to handle
-        rule document_attribute_value() -> String
-        = " " lines:document_attribute_value_lines()
-        {
-            lines.join("\n")
-        }
-
-        // Parse value lines, continuing while lines end with backslash
-        rule document_attribute_value_lines() -> Vec<&'input str>
-        = backslash_continuation_lines() / single_line:$([^'\n']+) { vec![single_line] }
+        rule document_attribute_value() -> Cow<'input, str>
+        = " " value:(
+            lines:backslash_continuation_lines() { Cow::Owned(lines.join("\n")) }
+            / single_line:$([^'\n']+) { Cow::Borrowed(single_line) }
+        ) { value }
 
         // Lines ending with backslash continuation - keeps consuming lines until one doesn't end with backslash
         rule backslash_continuation_lines() -> Vec<&'input str>
@@ -6470,7 +6467,7 @@ peg::parser! {
 
         // Document attribute parsing
         // Works identically in both header and block metadata contexts
-        rule document_attribute_match() -> AttributeEntry<'input>
+        rule document_attribute_match() -> AttributeDeclaration<'input>
         = ":"
         key_entry:(
             "!" key:$([^':']+) { (false, key) }
@@ -6482,13 +6479,13 @@ peg::parser! {
         {
             let (set, key) = key_entry;
             let attr_value = if !set {
-                AttributeValue::Bool(false)
+                RawAttributeValue::Unset
             } else if let Some(v) = value {
-                AttributeValue::String(Cow::Owned(v))
+                RawAttributeValue::Text(v)
             } else {
-                AttributeValue::Bool(true)
+                RawAttributeValue::Set
             };
-            AttributeEntry { set, key, value: attr_value }
+            AttributeDeclaration { name: key, value: attr_value }
         }
         / expected!("document attribute key starting with ':'")
 

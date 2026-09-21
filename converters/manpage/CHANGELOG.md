@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
+- `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
+  keep double parentheses literal, matching Asciidoctor (#455).
+- Index `see` and `see also` targets can contain parentheses without a parse
+  error (#455). Backticks still allow index markup, as in Asciidoctor; use
+  passthroughs inside backticks for literal code.
 - Bibliography entries substitute attributes at their source position while
   citation labels retain their original attribute references, matching Asciidoctor
   citations. acdc continues to display entry labels; Asciidoctor's manpage backend
@@ -22,6 +30,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manpage parser attributes now expose `embedded` only when embedded output is selected.
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
+
+### Changed
+
+- `:!acdc-index:` now turns index generation off, matching the other backends.
+  A document that seeds an `[index]` section still gets its index by default.
+
+### Fixed
+
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits, including nested inside a part
+  of a multipart book.
 
 ### Performance
 

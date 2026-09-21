@@ -429,8 +429,12 @@ where
         let parser_options = processor.parser_options();
         let stdin = std::io::stdin();
         let mut reader = BufReader::new(stdin.lock());
-        let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
+        let mut parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)
             .map_err(|error| error::display(&error))?;
+        apply_diagrams(&mut parsed, base_options, processor.name(), None)
+            .map_err(|error| error::display(&error))?;
+        apply_bibtex(&mut parsed, None).map_err(|error| error::display(&error))?;
+        apply_lists(&mut parsed, None);
         let parsed = parsed.report_warnings(WarningRenderContext::new());
         return processor
             .convert(parsed.document(), None)
@@ -460,7 +464,11 @@ where
             parse_file(file, parser_options)
         };
         let convert_result = match parse_result {
-            Ok(parsed) => {
+            Ok(mut parsed) => {
+                apply_diagrams(&mut parsed, base_options, processor.name(), Some(file))
+                    .map_err(|error| error::display(&error))?;
+                apply_bibtex(&mut parsed, Some(file)).map_err(|error| error::display(&error))?;
+                apply_lists(&mut parsed, Some(file));
                 let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
                 processor.convert(parsed.document(), Some(file))
             }
@@ -470,6 +478,8 @@ where
             path: file.clone(),
             result: convert_result,
             parser_warnings: Vec::new(),
+            diagram_failure: None,
+            bibtex_failure: None,
             parse_dur: None,
             convert_dur: None,
         }]
@@ -532,7 +542,12 @@ where
                 let result = parse_file(file, parser_options);
                 (file.clone(), result, None)
             };
-            Ok(convert_parse_result(entry, &processor, show_timings))
+            Ok(convert_parse_result(
+                entry,
+                &processor,
+                base_options,
+                show_timings,
+            ))
         })
         .collect::<Result<_, _>>()
         .map_err(|e| error::display(&e))?;
@@ -552,15 +567,25 @@ where
 fn convert_parse_result<P>(
     (file, parse_result, parse_dur): TimedParseResult,
     processor: &P,
+    base_options: &Options,
     show_timings: bool,
 ) -> FileResult<P::Error>
 where
     P: Converter<'static>,
 {
     let now = Instant::now();
+    let mut diagram_failure = None;
+    let mut bibtex_failure = None;
     let (result, parser_warnings) = match parse_result {
         Ok(mut parsed) => {
             let parser_warnings = parsed.take_warnings();
+            // A pass failure only reaches here when the document asked to
+            // stop on one; it is carried to the reporter so this worker does
+            // not print out of turn.
+            diagram_failure =
+                apply_diagrams(&mut parsed, base_options, processor.name(), Some(&file)).err();
+            bibtex_failure = apply_bibtex(&mut parsed, Some(&file)).err();
+            apply_lists(&mut parsed, Some(&file));
             let result = processor.convert(parsed.document(), Some(&file));
             (result, parser_warnings)
         }
@@ -572,6 +597,8 @@ where
         path: file,
         result,
         parser_warnings,
+        diagram_failure,
+        bibtex_failure,
         parse_dur,
         convert_dur,
     }
@@ -581,6 +608,10 @@ struct FileResult<E> {
     path: PathBuf,
     result: Result<ConversionResult, E>,
     parser_warnings: Vec<Warning>,
+    /// Set only when the document asked to abort on a diagram failure.
+    diagram_failure: Option<DiagramError>,
+    /// Set only when the document asked to stop on an unresolved citation.
+    bibtex_failure: Option<BibtexError>,
     parse_dur: Option<Duration>,
     convert_dur: Option<Duration>,
 }
@@ -605,12 +636,18 @@ where
 {
     fn report(self) -> MietteResult<Vec<PathBuf>> {
         let mut output_paths = Vec::new();
-        let mut errors = Vec::new();
+        let mut errors: Vec<(PathBuf, miette::Report)> = Vec::new();
 
         for file_result in self {
             file_result
                 .parser_warnings
                 .render(WarningRenderContext::new().with_file(&file_result.path));
+            if let Some(failure) = &file_result.diagram_failure {
+                errors.push((file_result.path.clone(), error::display(failure)));
+            }
+            if let Some(failure) = &file_result.bibtex_failure {
+                errors.push((file_result.path.clone(), error::display(failure)));
+            }
             match file_result.result {
                 Ok(result) => {
                     let (output_path, warnings) = result.into_parts();
@@ -619,15 +656,14 @@ where
                         output_paths.push(output_path);
                     }
                 }
-                Err(error) => errors.push((file_result.path, error)),
+                Err(error) => errors.push((file_result.path, error::display(&error))),
             }
         }
 
         if !errors.is_empty() {
             eprintln!("\nFailed to process {} file(s):", errors.len());
-            for (idx, (file, err)) in errors.iter().enumerate() {
+            for (idx, (file, report)) in errors.iter().enumerate() {
                 eprintln!("\n{}. File: {}", idx + 1, file.display());
-                let report = error::display(err);
                 eprintln!("{report:?}");
             }
             return Err(miette::miette!(
@@ -638,6 +674,184 @@ where
 
         Ok(output_paths)
     }
+}
+
+/// Build the document's `list-of::` lists, rewriting each call into the
+/// cross-references it asks for.
+///
+/// This runs between parsing and conversion, so every backend renders an
+/// ordinary block of cross-references and none of them needs to know a list
+/// was generated. The pass reports a call it cannot honour and leaves it
+/// alone; it has no failure that should stop a conversion.
+///
+/// It runs last of the three post-parse passes. After [`apply_diagrams`], so
+/// a generated diagram is already an image block when a list of figures is
+/// built and therefore appears in it; Asciidoctor orders those two the same
+/// way, since asciidoctor-diagram is a block processor that runs while the
+/// document is parsed and asciidoctor-lists a treeprocessor that runs
+/// afterwards. Also after [`apply_bibtex`], because a list copies a block's
+/// title into a cross-reference and the bibliography pass does not look
+/// inside one — a `cite:` left in a caption would survive unresolved in the
+/// generated list.
+#[cfg(feature = "lists")]
+fn apply_lists(parsed: &mut ParseResult, file: Option<&Path>) {
+    let processor = acdc_lists::Processor::new();
+    let mut warnings = Vec::new();
+    parsed.with_document_mut(|document, arena| {
+        processor.process(document, arena, &mut warnings);
+    });
+    warnings.render(WarningRenderContext::new().with_optional_file(file));
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "lists"))]
+fn apply_lists(_parsed: &mut ParseResult, _file: Option<&Path>) {}
+
+/// The failure type of the diagram pass, or an uninhabited stand-in when the
+/// `diagram` feature is off, so the call sites need no `cfg` of their own.
+#[cfg(feature = "diagram")]
+type DiagramError = acdc_diagram::Error;
+#[cfg(not(feature = "diagram"))]
+type DiagramError = std::convert::Infallible;
+
+/// Generate the document's diagrams, rewriting each diagram block into the
+/// image it produced.
+///
+/// This runs between parsing and conversion, so every backend sees ordinary
+/// image blocks and none of them needs to know about diagrams. Warnings are
+/// rendered as they are produced; a document that sets
+/// `:diagram-on-error: abort` returns its first failure instead, and the
+/// conversion stops.
+#[cfg(feature = "diagram")]
+fn apply_diagrams(
+    parsed: &mut ParseResult,
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> Result<(), DiagramError> {
+    let processor = acdc_diagram::Processor::new(diagram_options(base_options, backend, file));
+    let mut warnings = Vec::new();
+    let outcome = parsed
+        .with_document_mut(|document, arena| processor.process(document, arena, &mut warnings));
+    warnings.render(WarningRenderContext::new().with_optional_file(file));
+    outcome
+}
+
+/// The failure type of the bibliography pass, or an uninhabited stand-in when
+/// the `bibtex` feature is off, so the call sites need no `cfg` of their own.
+#[cfg(feature = "bibtex")]
+type BibtexError = acdc_bibtex::Error;
+#[cfg(not(feature = "bibtex"))]
+type BibtexError = std::convert::Infallible;
+
+/// Resolve the document's citations against its bibtex database.
+///
+/// This runs between parsing and conversion, so every backend renders
+/// ordinary text and links. A document that cites nothing and asks for no
+/// bibliography needs no database and is left alone; an unknown key is
+/// reported and rendered as written unless `:bibtex-throw: true` asks for it
+/// to stop the conversion.
+///
+/// It runs after [`apply_diagrams`], so a caption the diagram pass generated
+/// is in place before a citation inside it is resolved, and before
+/// [`apply_lists`], so a resolved caption is what a generated list copies.
+#[cfg(feature = "bibtex")]
+fn apply_bibtex(parsed: &mut ParseResult, file: Option<&Path>) -> Result<(), BibtexError> {
+    let base_dir = file
+        .and_then(Path::parent)
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .map_or_else(
+            || std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
+            Path::to_path_buf,
+        );
+    let processor =
+        acdc_bibtex::Processor::new(acdc_bibtex::Options::builder().base_dir(base_dir).build());
+    let mut warnings = Vec::new();
+    let outcome = parsed
+        .with_document_mut(|document, arena| processor.process(document, arena, &mut warnings));
+    warnings.render(WarningRenderContext::new().with_optional_file(file));
+    outcome
+}
+
+/// Tell the diagram pass where the document lives and where its output goes.
+///
+/// `imagesdir` and the diagram cache are resolved against the output
+/// directory, which is the directory `--out-file` names, or the document's own
+/// directory when the output path is derived or goes to stdout.
+#[cfg(feature = "diagram")]
+fn diagram_options(
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> acdc_diagram::Options {
+    fn directory_of(path: &Path) -> Option<PathBuf> {
+        path.parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .map(Path::to_path_buf)
+    }
+
+    let base_dir = file
+        .and_then(directory_of)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let output_dir = match base_options.output_destination() {
+        OutputDestination::File(path) => directory_of(path).unwrap_or_else(|| base_dir.clone()),
+        OutputDestination::Stdout | OutputDestination::Derived => base_dir.clone(),
+    };
+
+    acdc_diagram::Options::builder()
+        .base_dir(base_dir)
+        .output_dir(output_dir)
+        .backend(backend)
+        .unsafe_mode(matches!(base_options.safe_mode(), SafeMode::Unsafe))
+        .build()
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "diagram"))]
+#[allow(clippy::unnecessary_wraps)]
+fn apply_diagrams(
+    _parsed: &mut ParseResult,
+    _base_options: &Options,
+    _backend: &'static str,
+    _file: Option<&Path>,
+) -> Result<(), DiagramError> {
+    Ok(())
+}
+
+/// The diagram pass for the terminal paths, whose only error channel is the
+/// terminal converter's own error type.
+///
+/// An abort is carried through as an I/O error holding the diagram failure's
+/// message, which is what the caller ends up printing.
+#[cfg(feature = "terminal")]
+fn apply_diagrams_as(
+    parsed: &mut ParseResult,
+    base_options: &Options,
+    backend: &'static str,
+    file: Option<&Path>,
+) -> Result<(), acdc_converters_terminal::Error> {
+    apply_diagrams(parsed, base_options, backend, file)
+        .map_err(|error| std::io::Error::other(error.to_string()).into())
+}
+
+/// No-op stand-in so the conversion paths read the same either way.
+#[cfg(not(feature = "bibtex"))]
+#[allow(clippy::unnecessary_wraps)]
+fn apply_bibtex(_parsed: &mut ParseResult, _file: Option<&Path>) -> Result<(), BibtexError> {
+    Ok(())
+}
+
+/// The bibliography pass for the terminal paths, whose only error channel is
+/// the terminal converter's own error type.
+///
+/// A failure is carried through as an I/O error holding its message, the same
+/// way [`apply_diagrams_as`] carries a diagram abort.
+#[cfg(feature = "terminal")]
+fn apply_bibtex_as(
+    parsed: &mut ParseResult,
+    file: Option<&Path>,
+) -> Result<(), acdc_converters_terminal::Error> {
+    apply_bibtex(parsed, file).map_err(|error| std::io::Error::other(error.to_string()).into())
 }
 
 /// A parsed document paired with its source path and optional parse timing.
@@ -669,6 +883,15 @@ impl<'a> WarningRenderContext<'a> {
 
     const fn with_file(mut self, file: &'a Path) -> Self {
         self.file = Some(file);
+        self
+    }
+
+    // Every post-parse pass reports against an optional file: a document read
+    // from stdin has none. Stacked `cfg` attributes would require *all* the
+    // features, so any one alone has to enable this.
+    #[cfg(any(feature = "lists", feature = "diagram", feature = "bibtex"))]
+    const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
+        self.file = file;
         self
     }
 }
@@ -1086,7 +1309,10 @@ fn run_terminal_stdin(
     let parser_options = processor.parser_options();
     let stdin = std::io::stdin();
     let mut reader = BufReader::new(stdin.lock());
-    let parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
+    let mut parsed = acdc_parser::parse_from_reader(&mut reader, parser_options)?;
+    apply_diagrams_as(&mut parsed, base_options, processor.name(), None)?;
+    apply_bibtex_as(&mut parsed, None)?;
+    apply_lists(&mut parsed, None);
 
     // If writing to file, use the processor's convert method (respects output_path)
     if output_to_file {
@@ -1149,6 +1375,9 @@ fn run_terminal_through_pager(
         for file in files {
             let mut parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
             let parser_warnings = parsed.take_warnings();
+            apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+            apply_bibtex_as(&mut parsed, Some(file))?;
+            apply_lists(&mut parsed, Some(file));
             processor.write_to(parsed.document(), &mut writer, None, None, &mut diagnostics)?;
             // `parsed` drops here — output is already buffered into `writer`.
             deferred.push((parser_warnings, file.clone()));
@@ -1190,7 +1419,10 @@ fn run_terminal_with_pager(
     if output_to_file {
         let mut output_paths = Vec::new();
         for file in files_to_process {
-            let parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
+            let mut parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
+            apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+            apply_bibtex_as(&mut parsed, Some(file))?;
+            apply_lists(&mut parsed, Some(file));
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (output_path, warnings) = result.into_parts();
@@ -1208,7 +1440,10 @@ fn run_terminal_with_pager(
     } else {
         // No pager - use convert() which writes to stdout
         for file in files_to_process {
-            let parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
+            let mut parsed = parse_terminal_file(base_options, processor.parser_options(), file)?;
+            apply_diagrams_as(&mut parsed, base_options, processor.name(), Some(file))?;
+            apply_bibtex_as(&mut parsed, Some(file))?;
+            apply_lists(&mut parsed, Some(file));
             let parsed = parsed.report_warnings(WarningRenderContext::new().with_file(file));
             let result = processor.convert(parsed.document(), Some(file))?;
             let (_, warnings) = result.into_parts();

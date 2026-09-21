@@ -649,7 +649,7 @@ impl<'a> DocumentAttributes<'a> {
     pub(crate) fn assign_document_value(
         &mut self,
         name: AttributeName<'a>,
-        value: AttributeValue<'a>,
+        value: RawAttributeValue<'a>,
         in_header: bool,
         force_locked: bool,
         source_location: Option<SourceLocation>,
@@ -657,7 +657,7 @@ impl<'a> DocumentAttributes<'a> {
         self.assign(
             name,
             AssignmentRequest {
-                raw: RawAttributeValue::from(value),
+                raw: value,
                 state: AssignmentState::document(),
                 in_header,
                 force_locked,
@@ -1302,14 +1302,26 @@ mod document_attribute_tests {
 
         assert!(
             attributes
-                .assign_document_value("name".into(), "document".into(), true, false, None,)?
+                .assign_document_value(
+                    "name".into(),
+                    RawAttributeValue::Text("document".into()),
+                    true,
+                    false,
+                    None,
+                )?
                 .is_none()
         );
         assert_eq!(attributes.text("name"), Some("processor"));
 
         assert!(
             attributes
-                .assign_document_value("other".into(), "document".into(), false, false, None,)?
+                .assign_document_value(
+                    "other".into(),
+                    RawAttributeValue::Text("document".into()),
+                    false,
+                    false,
+                    None,
+                )?
                 .is_some()
         );
         assert_eq!(

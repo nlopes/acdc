@@ -1,8 +1,11 @@
 [workspace]
 members = [
+  "acdc-bibtex",
   "acdc-cli",
+  "acdc-diagram",
   "acdc-editor-wasm",
   "acdc-lint",
+  "acdc-lists",
   "acdc-lsp",
   "acdc-parser",
   "converters/core",
@@ -15,8 +18,11 @@ members = [
   "converters/terminal",
 ]
 default-members = [
+  "acdc-bibtex",
   "acdc-cli",
+  "acdc-diagram",
   "acdc-lint",
+  "acdc-lists",
   "acdc-lsp",
   "acdc-parser",
   "converters/core",
@@ -36,6 +42,7 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 
 [workspace.dependencies]
+acdc-bibtex = { path = "acdc-bibtex", default-features = false }
 acdc-converters-core = { path = "converters/core", default-features = false }
 acdc-converters-dev = { path = "converters/dev" }
 acdc-converters-html = { path = "converters/html", default-features = false }
@@ -43,7 +50,9 @@ acdc-converters-manpage = { path = "converters/manpage", default-features = fals
 acdc-converters-markdown = { path = "converters/markdown" }
 acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
+acdc-diagram = { path = "acdc-diagram", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
+acdc-lists = { path = "acdc-lists", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
 base64 = "0.23"
 chrono = "0.4"

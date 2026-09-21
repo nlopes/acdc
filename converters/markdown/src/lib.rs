@@ -63,7 +63,7 @@
 //! Images retain alternative text, titles, dimensions, and links. Video
 //! posters render as static images, and every audio or video source remains
 //! available as a labeled link, with one playback warning per document.
-//! With `:acdc-index:` and a final `[index]` section, index terms produce an
+//! With an `[index]` section, index terms produce an
 //! alphabetized catalog with occurrence links, hierarchy, and `see` /
 //! `see-also` relationships. This extension uses the same opt-in policy as the
 //! HTML converter.
@@ -109,11 +109,12 @@ use std::{
 
 use acdc_converters_core::{
     BackendProfile, Converter, Diagnostics, Options, TraversalContext, WarningSource,
-    section::last_section_has_style, visitor::Visitor, xref::XrefGuard,
+    section::{has_index_section, index_generation_enabled},
+    visitor::Visitor,
+    xref::XrefGuard,
 };
 use acdc_parser::{
-    BlockMetadata, Caption, CaptionKind, Document, DocumentAttributes, Options as ParserOptions,
-    Reference, TocEntry,
+    BlockMetadata, Caption, CaptionKind, Document, Options as ParserOptions, Reference, TocEntry,
 };
 
 mod error;
@@ -209,6 +210,22 @@ pub struct Processor<'a> {
     pub(crate) listing_counter: Rc<Cell<u32>>,
     pub(crate) table_counter: Rc<Cell<u32>>,
     index_term_counter: Rc<Cell<usize>>,
+    /// Every index term in the document, taken from `index_entries` when the
+    /// collection pass finishes. This is what the catalog is built from.
+    ///
+    /// # Why a second list
+    ///
+    /// `index_entries` is a side effect of rendering and only ever holds the
+    /// terms seen so far. The pass that writes the real output renders those
+    /// terms again and refills it from empty, so reading the catalog from it
+    /// would once more show only what precedes the `[index]` section — the
+    /// bug the collection pass exists to fix. Parking the finished list here
+    /// keeps it out of the second pass's way.
+    ///
+    /// It could be one list: the anchor id is just the term's position in
+    /// document order, and both passes traverse identically, so the second
+    /// pass needs the counter but not the push.
+    index_catalog: Rc<RefCell<Vec<IndexTermEntry>>>,
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     generate_index: bool,
     warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
@@ -235,8 +252,8 @@ impl Processor<'_> {
     }
 
     #[must_use]
-    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
-        &self.index_entries
+    pub(crate) fn index_catalog(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+        &self.index_catalog
     }
 
     #[must_use]
@@ -316,6 +333,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             table_counter: Rc::new(Cell::new(0)),
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
+            index_catalog: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             variant: MarkdownVariant::default(),
@@ -365,11 +383,15 @@ impl<'a> Converter<'a> for Processor<'a> {
             table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
+            index_catalog: Rc::new(RefCell::new(Vec::new())),
             generate_index: index_generation_enabled(&doc.attributes)
-                && last_section_has_style(&doc.blocks, "index"),
+                && has_index_section(&doc.blocks),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             variant: self.variant,
         };
+        if processor.generate_index {
+            collect_index_terms(doc, &processor, diagnostics)?;
+        }
         let mut traversal = TraversalContext::new(&doc.attributes);
         let mut visitor = MarkdownVisitor::new(writer, &processor, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, doc)
@@ -384,8 +406,49 @@ impl<'a> Converter<'a> for Processor<'a> {
     }
 }
 
-fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
-    attributes.get("acdc-index").is_some()
+/// Gather every index term in the document before a byte is written.
+///
+/// An entry is only recorded when its term is rendered, so an `[index]`
+/// section that is not the last thing in the document would otherwise list
+/// only the terms above it. The document is rendered once to a sink to fill
+/// the catalog, then again for real; rendering it rather than walking the tree
+/// separately keeps a term's label identical to the one in the output.
+///
+/// The pass leaves no trace: its output is discarded, its warnings are dropped
+/// because the real pass emits the same ones, and the counters it advanced are
+/// wound back so it hands out the same anchor ids and caption numbers again.
+fn collect_index_terms(
+    doc: &Document<'_>,
+    processor: &Processor<'_>,
+    diagnostics: &mut Diagnostics<'_>,
+) -> Result<(), Error> {
+    let counters = [
+        (&processor.example_counter, processor.example_counter.get()),
+        (&processor.figure_counter, processor.figure_counter.get()),
+        (&processor.listing_counter, processor.listing_counter.get()),
+        (&processor.table_counter, processor.table_counter.get()),
+    ];
+    let index_term_start = processor.index_term_counter.get();
+
+    let mut discarded = Vec::new();
+    let source = diagnostics.source().clone();
+    let mut collecting = Diagnostics::new(&source, &mut discarded);
+    let mut traversal = TraversalContext::new(&doc.attributes);
+    let mut visitor = MarkdownVisitor::new(std::io::sink(), processor, collecting.reborrow());
+    visitor.visit_document(&mut traversal, doc)?;
+
+    processor
+        .index_catalog
+        .replace(processor.index_entries.take());
+    // A fallback warning is emitted once per document, and the pass just
+    // consumed that one chance; forget what it saw so the real pass reports
+    // the same fallbacks to the reader.
+    processor.warned_fallbacks.borrow_mut().clear();
+    for (counter, before) in counters {
+        counter.set(before);
+    }
+    processor.index_term_counter.set(index_term_start);
+    Ok(())
 }
 
 #[cfg(test)]

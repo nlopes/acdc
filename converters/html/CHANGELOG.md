@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms accept parentheses in named macros and brackets in concealed
+  shorthand. Nested delimiters behave consistently at paragraph starts and
+  after text, matching Asciidoctor.
+- `[source]`, `[listing]`, and `[literal]` blocks with `--` delimiters now
+  keep double parentheses literal, matching Asciidoctor (#455).
+- Index `see` and `see also` targets can contain parentheses without a parse
+  error (#455). Backticks still allow index markup, as in Asciidoctor; use
+  passthroughs inside backticks for literal code.
 - TOC placement and CSS classes follow Asciidoctor's normalized header settings.
 - Bibliography labels preserve the document safe mode and keep the home
   directory hidden in server and secure modes. Entry links remain clickable,
@@ -26,6 +34,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notation. MathJax and font-icon resources are discovered before the document
   head is written, and nested AsciiDoc table-cell changes do not escape.
 - HTML parser attributes now expose `embedded` only when embedded output is selected.
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits — before a bibliography or a
+  colophon, or nested inside a part of a multipart book — and lists every term
+  in the document, including those in sections that follow it. Previously such
+  an index came out empty with nothing reported.
+- An `[index]` section keeps any content the author wrote in it; the generated
+  listing is appended after it rather than replacing it.
+
+### Changed
+
+- A document that seeds an `[index]` section now gets its index without also
+  having to set `:acdc-index:`. Writing that section is the request for an
+  index, and the pdf backend already honoured it, so the same source no longer
+  produces an index in one format and an empty heading in the other. Set
+  `:!acdc-index:` to turn the extension off and keep the output byte-identical
+  to `asciidoctor`, whose html backend leaves `[index]` empty.
 
 ### Performance
 

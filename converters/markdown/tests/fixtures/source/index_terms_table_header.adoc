@@ -1,4 +1,5 @@
 = Index Terms in Table Headers
+:!acdc-index:
 
 == Cataloged table
 

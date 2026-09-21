@@ -85,5 +85,32 @@ fn parse_benchmark(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, parse_benchmark);
+fn attribute_declaration_benchmark(c: &mut Criterion) {
+    let mut group = c.benchmark_group("document_attributes");
+    let header = format!(
+        "= Attributes\n:source: value\n{}\nParagraph.\n",
+        ":value: {source}\n".repeat(200)
+    );
+    let metadata_text = format!(
+        "= Attributes\n:source: value\n\n{}",
+        "[.role]\n:value: {source}\nParagraph {value}.\n\n".repeat(200)
+    );
+    let metadata_presence = format!(
+        "= Attributes\n\n{}",
+        "[.role]\n:flag:\n:!flag:\nParagraph.\n\n".repeat(200)
+    );
+    for (name, input) in [
+        ("header_200", header),
+        ("metadata_text_200", metadata_text),
+        ("metadata_presence_200", metadata_presence),
+    ] {
+        assert!(Parser::new(&input).parse().is_ok());
+        group.bench_with_input(BenchmarkId::new("parse", name), &input, |b, input| {
+            b.iter(|| black_box(Parser::new(black_box(input)).parse()));
+        });
+    }
+    group.finish();
+}
+
+criterion_group!(benches, parse_benchmark, attribute_declaration_benchmark);
 criterion_main!(benches);

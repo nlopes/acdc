@@ -1,0 +1,36 @@
+<div id="norm:clmulh_op" class="dlist">
+<dl>
+<dt>
+Operation</dt>
+</dl>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-sail" data-lang="sail">let rs1_val = X(rs1);
+let rs2_val = X(rs2);
+let output : xlenbits = 0;
+
+foreach (i from 1 to xlen by 1) {
+   output = if ((rs2_val &gt;&gt; i) &amp; 1)
+            then output ^ (rs1_val &gt;&gt; (xlen - i));
+            else output;
+}
+
+X[rd] = output</code></pre>
+</div>
+<div class="listing-block">
+<pre class="highlight"><code class="language-sail" data-lang="sail">((visible)) (((hidden))) indexterm:[hidden] <b class="conum">(1)</b></code></pre>
+</div>
+<ol class="callout-list arabic">
+<li>Parentheses stay literal.</li>
+</ol>
+<div class="listing-block">
+<pre>if ((value &gt;&gt; shift) &amp; 1) then f((value));</pre>
+</div>
+<div class="literal-block">
+<pre>if ((value &gt;&gt; shift) &amp; 1) then f((value));</pre>
+</div>
+<div class="open-block">
+<div class="content">
+<p>An ordinary open block keeps visible and  index terms.</p>
+</div>
+</div>

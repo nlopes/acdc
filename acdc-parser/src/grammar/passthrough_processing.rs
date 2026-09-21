@@ -540,7 +540,7 @@ fn convert_plain_slice(nodes: &mut [InlineNode<'_>], subs: &[Substitution]) {
 pub fn parse_text_for_quotes(content: &str) -> ParseInlineResult {
     let owner = OwnedInput::new(content.into());
     ParseInlineResult::from_infallible(owner, |owner| {
-        parse_text_for_quotes_in(&owner.arena, &owner.source)
+        parse_text_for_quotes_in(owner.arena.bump(), &owner.source)
     })
 }
 

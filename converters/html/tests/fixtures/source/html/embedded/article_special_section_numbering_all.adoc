@@ -3,6 +3,7 @@
 :toc:
 :toclevels: 3
 :sectnums: all
+:!acdc-index:
 
 [abstract]
 == Abstract

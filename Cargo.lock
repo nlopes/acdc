@@ -3,16 +3,30 @@
 version = 4
 
 [[package]]
+name = "acdc-bibtex"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "pretty_assertions",
+ "tempfile",
+ "thiserror",
+]
+
+[[package]]
 name = "acdc-cli"
 version = "0.2.0"
 dependencies = [
+ "acdc-bibtex",
  "acdc-converters-core",
  "acdc-converters-html",
  "acdc-converters-manpage",
  "acdc-converters-markdown",
  "acdc-converters-pdf",
  "acdc-converters-terminal",
+ "acdc-diagram",
  "acdc-lint",
+ "acdc-lists",
  "acdc-parser",
  "chrono",
  "clap",
@@ -142,6 +156,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "acdc-diagram"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "pretty_assertions",
+ "rstest",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "acdc-editor-wasm"
 version = "0.5.0"
 dependencies = [
@@ -163,6 +193,16 @@ dependencies = [
  "acdc-parser",
  "tempfile",
  "thiserror",
+]
+
+[[package]]
+name = "acdc-lists"
+version = "0.1.0"
+dependencies = [
+ "acdc-converters-core",
+ "acdc-parser",
+ "pretty_assertions",
+ "tracing",
 ]
 
 [[package]]

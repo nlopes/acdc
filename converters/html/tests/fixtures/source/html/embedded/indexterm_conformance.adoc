@@ -1,5 +1,6 @@
 = Index Terms Conformance
 :toc:
+:!acdc-index:
 
 Preamble has a ((visible preamble)) and (((concealed preamble))) term.
 

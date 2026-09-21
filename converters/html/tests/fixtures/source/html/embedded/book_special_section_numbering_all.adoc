@@ -4,6 +4,7 @@
 :toclevels: 3
 :partnums:
 :sectnums: all
+:!acdc-index:
 
 [preface]
 = Preface
