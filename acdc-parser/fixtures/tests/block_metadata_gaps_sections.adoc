@@ -1,0 +1,77 @@
+= Block Metadata Gaps
+
+== First
+
+Body.
+
+[[anchor-adjacent]]
+== Anchor adjacent
+
+Body.
+
+[[anchor-blank]]
+
+== Anchor blank
+
+Body.
+
+[[anchor-multiple]]
+
+
+== Anchor multiple
+
+Body.
+
+[[anchor-whitespace]]
+ 	
+== Anchor whitespace
+
+Body.
+
+[#shorthand-adjacent]
+== Shorthand adjacent
+
+Body.
+
+[#shorthand-blank]
+
+== Shorthand blank
+
+Body.
+
+[#shorthand-multiple]
+
+
+== Shorthand multiple
+
+Body.
+
+[#shorthand-whitespace]
+ 	
+== Shorthand whitespace
+
+Body.
+
+[id=attribute-adjacent]
+== Attribute adjacent
+
+Body.
+
+[id=attribute-blank]
+
+== Attribute blank
+
+Body.
+
+[id=attribute-multiple]
+
+
+== Attribute multiple
+
+Body.
+
+[id=attribute-whitespace]
+ 	
+== Attribute whitespace
+
+Body.

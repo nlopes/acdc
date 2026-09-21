@@ -34,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Block anchors, attribute lists, and titles can be separated from each other
+  and their block by blank lines, matching Asciidoctor. Sections retain their
+  anchors and boundaries after paragraphs and lists (#454).
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.
