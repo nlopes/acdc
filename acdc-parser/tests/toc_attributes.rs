@@ -24,11 +24,15 @@ type Error = Box<dyn std::error::Error>;
 )]
 #[case(":toc: left\n:toc-placement!:\n", "[] [content] [macro] [{toc-class}]")]
 fn toc_header_normalization(#[case] header: &str, #[case] expected: &str) -> Result<(), Error> {
+    // The final period keeps the probe from being parsed as block metadata.
     let input = format!(
-        "= T\n{header}\n[{{toc}}] [{{toc-position}}] [{{toc-placement}}] [{{toc-class}}]\n"
+        "= T\n{header}\n[{{toc}}] [{{toc-position}}] [{{toc-placement}}] [{{toc-class}}].\n"
     );
     let parsed = parse(&input, &Options::default())?;
-    assert_eq!(paragraphs(&parsed.document().blocks), [expected]);
+    assert_eq!(
+        paragraphs(&parsed.document().blocks),
+        [format!("{expected}.")]
+    );
     assert!(!parsed.document().attributes.contains_key("toc2"));
     Ok(())
 }

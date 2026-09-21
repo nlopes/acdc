@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now carries. Previously the catalog kept the number assigned at parse time,
   and a document whose captions were renumbered could show `Figure 1` in a
   reference to what had become `Figure 2`.
+- Unused block anchors, attribute lists, and titles at the end of input no
+  longer appear as extra paragraphs, matching Asciidoctor. Metadata after
+  an include applies to the next block when present; it does not label the
+  preceding included block (#454).
+- Block anchors, attribute lists, and titles can be separated from each other
+  and their block by blank lines, matching Asciidoctor. Sections retain their
+  anchors and boundaries after paragraphs and lists (#454).
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.

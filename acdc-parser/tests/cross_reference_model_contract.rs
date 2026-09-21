@@ -6,6 +6,31 @@ use acdc_parser::{
 type Error = Box<dyn std::error::Error>;
 
 #[test]
+fn unused_block_metadata_does_not_register_references_or_footnotes() -> Result<(), Error> {
+    // Fixture JSON omits the document's reference and footnote catalogs.
+    for source in [
+        include_str!("../fixtures/tests/block_metadata_eof_anchor.adoc"),
+        include_str!("../fixtures/tests/block_metadata_eof_shorthand.adoc"),
+        include_str!("../fixtures/tests/block_metadata_eof_combined.adoc"),
+        include_str!("../fixtures/tests/block_metadata_eof_only_anchor.adoc"),
+        include_str!("../fixtures/tests/block_metadata_eof_title.adoc"),
+        include_str!("../fixtures/tests/block_metadata_eof_events.adoc"),
+        include_str!("../fixtures/tests/block_metadata_eof_contexts.adoc"),
+    ] {
+        let parsed = parse(source, &Options::default())?;
+        assert!(parsed.document().footnotes.is_empty());
+        assert!(
+            parsed
+                .document()
+                .references
+                .keys()
+                .all(|id| !id.starts_with("unused-"))
+        );
+    }
+    Ok(())
+}
+
+#[test]
 fn cross_reference_model_equality_ignores_parser_state() -> Result<(), Error> {
     let parsed = parse_inline("<<id>>", &Options::default())?;
     let [InlineNode::Macro(InlineMacro::CrossReference(actual))] = parsed.inlines() else {

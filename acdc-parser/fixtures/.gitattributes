@@ -1,0 +1,3 @@
+# Preserve deliberate whitespace in metadata parser fixtures.
+tests/block_metadata_gaps_*.adoc whitespace=-blank-at-eol,-space-before-tab
+tests/block_metadata_eof_*.adoc whitespace=-blank-at-eof

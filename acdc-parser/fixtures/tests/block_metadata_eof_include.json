@@ -1,0 +1,91 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "T",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 3
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 3
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included content.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "../preprocessor/metadata_include.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 17,
+              "file": [
+                "../preprocessor/metadata_include.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "../preprocessor/metadata_include.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 4,
+          "file": [
+            "../preprocessor/metadata_include.adoc"
+          ]
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 5,
+      "col": 8
+    }
+  ]
+}

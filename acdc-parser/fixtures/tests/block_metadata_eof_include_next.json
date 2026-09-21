@@ -1,0 +1,156 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "T",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 3
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 3
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Included content.",
+          "location": [
+            {
+              "line": 2,
+              "col": 1,
+              "file": [
+                "../preprocessor/metadata_include.adoc"
+              ]
+            },
+            {
+              "line": 2,
+              "col": 17,
+              "file": [
+                "../preprocessor/metadata_include.adoc"
+              ]
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1,
+          "file": [
+            "../preprocessor/metadata_include.adoc"
+          ]
+        },
+        {
+          "line": 3,
+          "col": 4,
+          "file": [
+            "../preprocessor/metadata_include.adoc"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Caption",
+          "location": [
+            {
+              "line": 5,
+              "col": 2
+            },
+            {
+              "line": 5,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Next paragraph.",
+          "location": [
+            {
+              "line": 7,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 15
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "anchors": [
+          {
+            "id": "include-target",
+            "location": [
+              {
+                "line": 4,
+                "col": 1
+              },
+              {
+                "line": 4,
+                "col": 19
+              }
+            ]
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 7,
+          "col": 15
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 7,
+      "col": 15
+    }
+  ]
+}
