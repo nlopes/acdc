@@ -1,0 +1,7 @@
+= T
+
+include::../preprocessor/metadata_include.adoc[]
+[[include-target]]
+.Caption
+
+Next paragraph.

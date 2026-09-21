@@ -3326,10 +3326,27 @@ peg::parser! {
         }
 
         pub(crate) rule blocks(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Vec<Block<'input>>, Error>
-        = blocks:block(offset, parent_section_level, direct_parent_section_kind)*
+        = blocks:(!trailing_block_metadata_match() block:block(offset, parent_section_level, direct_parent_section_kind) { block })*
+          trailing:trailing_block_metadata(offset)?
         {
-            let blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            let mut blocks = blocks.into_iter().collect::<Result<Vec<_>, Error>>()?;
+            if let Some(trailing) = trailing {
+                blocks.extend(trailing?);
+            }
             Ok(order_document_attribute_events(blocks))
+        }
+
+        rule trailing_block_metadata_match()
+        = eol()* &("[" / ".") (block_metadata_line_match() eol()*)+ ![_]
+
+        // Unused block metadata has no inline effects; document attributes still take effect.
+        rule trailing_block_metadata(offset: usize) -> Result<Vec<Block<'input>>, Error>
+        = &trailing_block_metadata_match() eol()* events:(
+            event:document_attribute_block(offset) (eol() / ![_]) eol()* { Some(event) }
+            / (attribute_or_anchor_line_match() / title_line_match()) eol()* { None }
+        )+
+        {
+            events.into_iter().flatten().collect()
         }
 
         pub(crate) rule nested_document_blocks(offset: usize, initial_attributes: &mut Vec<(crate::AttributeName<'input>, crate::DocumentAttributeAssignment<'input>)>) -> Result<Vec<Block<'input>>, Error>
@@ -3788,8 +3805,11 @@ peg::parser! {
         // Match metadata in lookahead without expanding attributes or titles.
         rule block_metadata_line_match()
         = attribute_or_anchor_line_match()
-        / document_attribute_match() eol()
-        / period() ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']* eol()
+        / document_attribute_match() (eol() / ![_])
+        / title_line_match()
+
+        rule title_line_match()
+        = period() ![' ' | '\t' | '\n' | '\r' | '.'] [^'\n']+ (eol() / ![_])
 
         // A title line can be a simple title or a section title
         //
@@ -3892,7 +3912,7 @@ peg::parser! {
         // Block parsing for continuation context - lists inside continuations cannot consume
         // further continuations (those belong to the parent item that started the continuation)
         rule block_in_continuation(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Block<'input>, Error>
-        = start:position!()
+        = !trailing_block_metadata_match() start:position!()
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in block_in_continuation");
@@ -4458,11 +4478,11 @@ peg::parser! {
 
         rule attributes_line_match()
         = !empty_list_separator() !double_open_square_bracket()
-          open_square_bracket() attribute_list_content() eol()
+          open_square_bracket() attribute_list_content() (eol() / ![_])
 
         rule anchor_line_match()
         = double_open_square_bracket() [^'\'' | ',' | ']' | ' ' | '\t' | '\n' | '\r']+
-          (comma() [^']']+)? double_close_square_bracket() eol()
+          (comma() [^']']+)? double_close_square_bracket() (eol() / ![_])
 
         rule attribute_or_anchor_line_match()
         = anchor_line_match() / attributes_line_match()
@@ -5731,19 +5751,11 @@ peg::parser! {
             block
         }
 
-        // Consume a "dangling" list continuation marker: a `+` on its own line with no
-        // attachable block after it (the following line is blank, or the input ends).
-        // asciidoctor silently drops such a marker; without this the leftover `+` is
-        // parsed as a standalone paragraph and prematurely terminates the list. Only
-        // tried after the immediate/ancestor continuation rules, so a `+` with real
-        // content still attaches.
-        //
-        // We consume up to and including the marker's own line terminator, then assert a
-        // blank line or end of input follows (`&(eol() / ![_])`) — that lookahead is what
-        // makes it "dangling": a `+` with real content on the next line is left alone. Any
-        // following blank line is left unconsumed so the list resumes with the next item.
+        // Asciidoctor drops a continuation with no attachable block, including one
+        // followed only by unused metadata. Leave that metadata for the block sequence
+        // so any document-attribute events are retained.
         rule list_dangling_continuation()
-        = eol()+ "+" whitespace()* eol()? &(eol() / ![_])
+        = eol()+ "+" whitespace()* eol()? &(eol() / ![_] / trailing_block_metadata_match())
         {
             tracing::debug!("Dropped dangling list continuation marker");
         }
