@@ -1,0 +1,32 @@
+.RS 0
+.TP
+\fBOperation\fP
+.RE
+.EX
+let rs1_val = X(rs1);
+let rs2_val = X(rs2);
+let output : xlenbits = 0;
+
+foreach (i from 1 to xlen by 1) {
+   output = if ((rs2_val >> i) & 1)
+            then output ^ (rs1_val >> (xlen \- i));
+            else output;
+}
+
+X[rd] = output
+.EE
+.EX
+((visible)) (((hidden))) indexterm:[hidden] \fB(1)\fP
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+Parentheses stay literal.
+.RE
+.EX
+if ((value >> shift) & 1) then f((value));
+.EE
+.nf
+if ((value >> shift) & 1) then f((value));
+.fi
+.sp
+An ordinary open block keeps visible and  index terms.

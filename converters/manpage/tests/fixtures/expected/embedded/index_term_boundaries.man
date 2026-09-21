@@ -1,0 +1,68 @@
+.sp
+function(argument)
+.sp
+Before function(argument) after.
+.sp
+
+.sp
+Before  after.
+.sp
+
+.sp
+Before  after.
+.sp
+
+.sp
+Before  after.
+.sp
+(term tail)))
+.sp
+Before (term tail))) after.
+.sp
+(term tail)))
+.sp
+Before (term tail))) after.
+.sp
+term
+.sp
+
+.sp
+term >> literal
+.sp
+
+.sp
+function(argument) and function(argument))
+.sp
+
+.sp
+
+.sp
+
+.sp
+
+.sp
+
+.sp
+Unclosed ((term and indexterm:[target stay literal.
+.sp
+Empty (()) and indexterm:[] stay literal.
+.sp
+array[x]
+.sp
+Before array[x] after.
+.sp
+"quoted tail"))
+.sp
+Before "quoted tail")) after.
+.sp
+ tail")))
+.sp
+Before  tail"))) after.
+.sp
+ tail"]
+.sp
+Before  tail"] after.
+.sp
+term >> and 
+.sp
+Text after the index terms.
