@@ -1150,6 +1150,14 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         subs: &[Substitution],
     ) -> Result<(), Error> {
         let target = xref.target;
+        // An `xref:` macro's `role=` becomes the link's class, as in
+        // asciidoctor, whatever the link text. An empty role adds no class,
+        // matching how a `link:` macro's role is handled here.
+        let class = xref
+            .role
+            .filter(|role| !role.is_empty())
+            .map(|role| format!(" class=\"{}\"", escape_attribute(role)))
+            .unwrap_or_default();
         if xref.text.is_empty() {
             // Resolve via the id -> reference map (sections + titled blocks):
             // xreflabel (from [[id,Custom Text]]) > caption style or target title >
@@ -1180,7 +1188,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 } else {
                     write!(
                         self.writer_mut(),
-                        "<a href=\"{}\">{}</a>",
+                        "<a href=\"{}\"{class}>{}</a>",
                         escape_href(&target),
                         escape_pcdata(&text)
                     )?;
@@ -1195,7 +1203,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 || options.toc_mode
                 || matches!(display, XrefDisplay::Nested(_)));
             if linked {
-                write!(self.writer_mut(), "<a href=\"#{target}\">")?;
+                write!(self.writer_mut(), "<a href=\"#{target}\"{class}>")?;
             }
             match display {
                 XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
@@ -1212,6 +1220,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                         self.render_inline_node(traversal, inline, options, subs)?;
                     }
                     write!(self.writer_mut(), "&#8221;")?;
+                }
+                XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                    write!(self.writer_mut(), "{}, <em>", escape_pcdata(&prefix))?;
+                    for inline in inlines {
+                        self.render_inline_node(traversal, inline, options, subs)?;
+                    }
+                    write!(self.writer_mut(), "</em>")?;
                 }
                 XrefDisplay::Fallback(text)
                 | XrefDisplay::Unresolved(text)
@@ -1238,7 +1253,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         if let Some((external_target, _)) = Self::interdocument_xref(traversal, target) {
             write!(
                 self.writer_mut(),
-                "<a href=\"{}\">",
+                "<a href=\"{}\"{class}>",
                 escape_href(&external_target)
             )?;
             for inline in &xref.text {
@@ -1248,7 +1263,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        write!(self.writer_mut(), "<a href=\"#{target}\">")?;
+        write!(self.writer_mut(), "<a href=\"#{target}\"{class}>")?;
         for inline in &xref.text {
             self.render_inline_node(traversal, inline, options, subs)?;
         }

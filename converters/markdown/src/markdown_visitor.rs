@@ -2441,6 +2441,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                         Ok(())
                     })
                 }
+                XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                    visitor.write_anchor_link(target, |visitor| {
+                        write!(visitor.writer, "{prefix}, *")?;
+                        for node in inlines {
+                            visitor.visit_inline_node(traversal, node)?;
+                        }
+                        write!(visitor.writer, "*")?;
+                        Ok(())
+                    })
+                }
                 XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => visitor
                     .write_anchor_link(target, |visitor| {
                         write!(visitor.writer, "{text}")?;

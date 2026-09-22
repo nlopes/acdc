@@ -2,7 +2,10 @@
 
 use std::{cell::Cell, rc::Rc};
 
-use acdc_parser::{Caption, CrossReference, InlineNode, Reference, XrefCaptionLabel, XrefStyle};
+use acdc_parser::{
+    Caption, CrossReference, InlineNode, Reference, SectionReference, XrefCaptionLabel,
+    XrefSignifier, XrefStyle,
+};
 
 /// Display content for an automatic cross-reference.
 #[derive(Debug)]
@@ -19,8 +22,14 @@ pub enum XrefDisplay<'r, 'a> {
     Label(&'r [InlineNode<'a>], XrefScope<'r>),
     /// A caption label and number or custom prefix, without the target title.
     ShortCaption(String),
-    /// A caption prefix and the target title.
+    /// A caption prefix and the target title in quotation marks. A numbered
+    /// section other than a chapter or appendix takes this form too, as in
+    /// `Section 1.1, "Title"`.
     FullCaption(String, &'r [InlineNode<'a>], XrefScope<'r>),
+    /// A section's word and number followed by its title in emphasis, which
+    /// is how Asciidoctor sets a chapter or appendix in a `full` reference:
+    /// `Chapter 2, _Title_`.
+    FullEmphasized(String, &'r [InlineNode<'a>], XrefScope<'r>),
     /// An inter-document target as written, such as `other.adoc#section`.
     External(String),
     /// The literal `[id]` fallback for a target that is in the catalog but has
@@ -93,7 +102,9 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 /// Resolve an empty cross-reference's display content.
 ///
 /// Explicit reference labels take precedence over caption styles and target
-/// titles. Captioned targets honor the style; table, example, and listing
+/// titles. Numbered sections honor the style with their word and number, as
+/// in `Section 1.1`; an unnumbered one is referenced by its title under every
+/// style, as in Asciidoctor. Captioned targets honor the style; table, example, and listing
 /// references can override the target label with the label recorded at the
 /// reference position. Unknown local and untitled targets fall back to `[id]`,
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
@@ -118,6 +129,18 @@ pub fn resolve_xref<'r, 'a>(
     }
     if let Some(label) = &reference.xreflabel {
         XrefDisplay::Label(label, guard.enter())
+    } else if let (Some(title), Some(section)) = (&reference.title, &reference.section)
+        && let Some(number) = &section.number
+        && xref.xrefstyle != XrefStyle::Basic
+    {
+        let prefix = section_prefix(section, number, xref.signifier);
+        if xref.xrefstyle == XrefStyle::Short {
+            XrefDisplay::ShortCaption(prefix)
+        } else if section.emphasizes_title() {
+            XrefDisplay::FullEmphasized(prefix, title.as_ref(), guard.enter())
+        } else {
+            XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
+        }
     } else if let (Some(title), Some(prefix)) = (
         &reference.title,
         reference
@@ -136,6 +159,27 @@ pub fn resolve_xref<'r, 'a>(
         XrefDisplay::Title(title.as_ref(), guard.enter())
     } else {
         XrefDisplay::Fallback(format!("[{target}]"))
+    }
+}
+
+/// A numbered section's word and number: `Section 1.1`, or the number alone
+/// when the section's `<name>-refsig` was unset where the reference is written.
+///
+/// An empty refsig still leaves the space before the number, which is what
+/// Asciidoctor prints for one.
+fn section_prefix(
+    section: &SectionReference,
+    number: &str,
+    signifier: XrefSignifier<'_>,
+) -> String {
+    let word = match signifier {
+        XrefSignifier::AtReference(word) => Some(word),
+        XrefSignifier::Omitted => None,
+        XrefSignifier::Standard | _ => section.standard_signifier(),
+    };
+    match word {
+        Some(word) => format!("{word} {number}"),
+        None => number.to_string(),
     }
 }
 
@@ -213,7 +257,7 @@ fn source_document_stem(path: &str, has_fragment: bool) -> Option<&str> {
 mod tests {
     use acdc_parser::{
         Block, CrossReference, Error, InlineMacro, InlineNode, Location, Options, ParseResult,
-        XrefCaptionLabel, XrefStyle, parse,
+        XrefCaptionLabel, XrefSignifier, XrefStyle, parse,
     };
 
     use super::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref};
@@ -239,6 +283,124 @@ mod tests {
         let mut xref = CrossReference::new(target, Location::default());
         xref.xrefstyle = style;
         xref
+    }
+
+    /// A book with a numbered chapter, a section inside it and an appendix,
+    /// plus an unnumbered one before sectnums is turned on.
+    fn book() -> Result<ParseResult, Error> {
+        let input = "= Book\n:doctype: book\n\n[preface]\n== P\n\n\
+             [[plain]]\n== Plain\n\nx\n\n:sectnums:\n\n\
+             [[ch]]\n== Chap\n\n[[sec]]\n=== Sec\n\nx\n\n\
+             [appendix]\n[[app]]\n== App\n\nx\n";
+        parse(input, &Options::default())
+    }
+
+    fn styled(
+        target: &'static str,
+        style: XrefStyle,
+        signifier: XrefSignifier<'static>,
+    ) -> CrossReference<'static> {
+        let mut xref = xref(target, style);
+        xref.signifier = signifier;
+        xref
+    }
+
+    /// What a section reference resolves to, as `(form, prefix)`.
+    fn section_form(
+        target: &'static str,
+        style: XrefStyle,
+        signifier: XrefSignifier<'static>,
+    ) -> Result<(&'static str, String), Error> {
+        let parsed = book()?;
+        let references = &parsed.document().references;
+        let guard = XrefGuard::default();
+        Ok(
+            match resolve_xref(
+                references.get(target),
+                &styled(target, style, signifier),
+                &guard,
+            ) {
+                XrefDisplay::Title(..) => ("title", String::new()),
+                XrefDisplay::ShortCaption(prefix) => ("short", prefix),
+                XrefDisplay::FullCaption(prefix, ..) => ("quoted", prefix),
+                XrefDisplay::FullEmphasized(prefix, ..) => ("emphasized", prefix),
+                // Reported as a value so the assertion shows what came back.
+                other @ (XrefDisplay::Label(..)
+                | XrefDisplay::External(_)
+                | XrefDisplay::Fallback(_)
+                | XrefDisplay::Unresolved(_)
+                | XrefDisplay::Nested(_)) => ("unexpected", format!("{other:?}")),
+            },
+        )
+    }
+
+    #[test]
+    fn a_numbered_section_honors_the_style() -> Result<(), Error> {
+        let standard = XrefSignifier::Standard;
+        assert_eq!(
+            section_form("sec", XrefStyle::Basic, standard)?,
+            ("title", String::new())
+        );
+        assert_eq!(
+            section_form("sec", XrefStyle::Short, standard)?,
+            ("short", "Section 1.1".to_string())
+        );
+        assert_eq!(
+            section_form("sec", XrefStyle::Full, standard)?,
+            ("quoted", "Section 1.1".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_chapter_or_appendix_title_is_emphasized_not_quoted() -> Result<(), Error> {
+        let standard = XrefSignifier::Standard;
+        assert_eq!(
+            section_form("ch", XrefStyle::Full, standard)?,
+            ("emphasized", "Chapter 1".to_string())
+        );
+        assert_eq!(
+            section_form("app", XrefStyle::Full, standard)?,
+            ("emphasized", "Appendix A".to_string())
+        );
+        assert_eq!(
+            section_form("ch", XrefStyle::Short, standard)?,
+            ("short", "Chapter 1".to_string())
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn an_unnumbered_section_is_referenced_by_its_title() -> Result<(), Error> {
+        for style in [XrefStyle::Basic, XrefStyle::Short, XrefStyle::Full] {
+            assert_eq!(
+                section_form("plain", style, XrefSignifier::Standard)?,
+                ("title", String::new())
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn the_signifier_recorded_at_the_reference_is_used() -> Result<(), Error> {
+        assert_eq!(
+            section_form(
+                "sec",
+                XrefStyle::Short,
+                XrefSignifier::AtReference("Abschnitt")
+            )?,
+            ("short", "Abschnitt 1.1".to_string())
+        );
+        assert_eq!(
+            section_form("sec", XrefStyle::Short, XrefSignifier::Omitted)?,
+            ("short", "1.1".to_string())
+        );
+        // An empty refsig still leaves the space before the number.
+        assert_eq!(
+            section_form("sec", XrefStyle::Short, XrefSignifier::AtReference(""))?,
+            ("short", " 1.1".to_string())
+        );
+        Ok(())
     }
 
     #[test]
