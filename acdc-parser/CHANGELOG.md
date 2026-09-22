@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Source languages and unused positional values no longer create name-only
   attributes. This prevents unintended line numbers for `[source,rust,,linenums]`,
   matching Asciidoctor.
+- Source locations inside quoted `xref:` labels remain accurate after escaped
+  quotes, including labels with inline formatting, Unicode, or multiple lines.
+  Inline formatting after an attribute substitution is also preserved.
 - An `xref:` macro whose brackets contain `=` reads them as an attribute list,
   as Asciidoctor does: the first positional attribute is the link text,
   `xrefstyle=` overrides the document's style for that reference, and `role=`

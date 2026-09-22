@@ -1,0 +1,33 @@
+= Quoted xref label locations
+:prefix: Expanded prefix
+:marked: *attribute*
+
+Plain xref:target["A quote *bold* end",role=hot].
+
+Double xref:target["A \"quote\" *bold* end",role=hot].
+
+Unicode xref:target["é \"quoted\" *bold* \"fin\"",role=hot].
+
+Emoji xref:target["\"🙂\" *bold*",role=hot].
+
+UTF-8 boundary xref:target["\"x\" \"y 中文 *bold*",role=hot].
+
+Single xref:target['A \'quote\' *bold* end',role=hot].
+
+Multiline xref:target["first \"quote\"
+*bold* end",role=hot].
+
+Attribute prefix xref:target["{prefix} \"quote\" *bold* end",role=hot].
+
+Attribute formatting xref:target["\"quote\" {marked} *bold*",role=hot].
+
+Passthrough xref:target["pass:[before] \"quote\" *bold* pass:[after]",role=hot].
+
+Nested xref:target["A \"quote\" *bold _italic_* end",role=hot].
+
+Double quote xref:target["\"",role=hot].
+
+Single quote xref:target['\'',role=hot].
+
+[[target]]
+== Target

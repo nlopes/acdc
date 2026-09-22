@@ -8,7 +8,7 @@ use crate::{
     StemNotation, Subscript, Substitution, Superscript, Title, Url,
     grammar::{
         ParserState, inline_preprocessing,
-        inline_preprocessor::InlinePreprocessorParserState,
+        inline_preprocessor::{InlinePreprocessorParserState, ProcessedKind, SourceMap},
         inline_processing::{process_inlines, process_inlines_no_autolinks},
     },
     model::{strip_quotes, substitution::HEADER},
@@ -30,6 +30,8 @@ struct XrefMacroText<'s> {
     text: Cow<'s, str>,
     /// Where `text` starts within the brackets.
     offset: usize,
+    /// Maps unescaped label positions back to the original label.
+    source_map: SourceMap,
     /// Whether `text` is the whole bracket content as written.
     as_written: bool,
     /// A `xrefstyle=` for this reference alone, overriding the document's.
@@ -53,6 +55,7 @@ fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
         return XrefMacroText {
             text: Cow::Borrowed(raw),
             offset: 0,
+            source_map: SourceMap::default(),
             as_written: true,
             xrefstyle: None,
             role: None,
@@ -61,6 +64,7 @@ fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
     let mut parsed = XrefMacroText {
         text: Cow::Borrowed(""),
         offset: 0,
+        source_map: SourceMap::default(),
         as_written: false,
         xrefstyle: None,
         role: None,
@@ -85,6 +89,19 @@ fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
                 parsed.text = if slice == attribute.value {
                     Cow::Borrowed(slice)
                 } else {
+                    if let Some(quote @ ('\'' | '"')) = raw
+                        .get(..attribute.value_start)
+                        .and_then(|prefix| prefix.chars().next_back())
+                    {
+                        for (offset, _) in slice.match_indices(&format!("\\{quote}")) {
+                            parsed.source_map.add_replacement(
+                                offset,
+                                offset + 2,
+                                1,
+                                ProcessedKind::Escape,
+                            );
+                        }
+                    }
                     Cow::Owned(attribute.value)
                 };
                 parsed.offset = attribute.value_start;
@@ -93,6 +110,55 @@ fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
         }
     }
     parsed
+}
+
+fn process_unescaped_xref_label<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockParsingMetadata<'_>,
+    text: &'a str,
+    start: usize,
+    source_map: &SourceMap,
+) -> Result<Vec<InlineNode<'a>>, crate::Error> {
+    // Use the unescaped input for UTF-8 boundaries until all locations are mapped.
+    let mut inline_ctx = state.inline_ctx;
+    inline_ctx.offset = 0;
+    let mut child = ParserState::for_inline_parsing(text, state, inline_ctx);
+    let end = start + source_map.map_position(text.len())?;
+    // Each recorded quote escape removes one byte from the original label.
+    let unescaped_offset = |position| {
+        position
+            - source_map
+                .replacements
+                .partition_point(|replacement| replacement.absolute_start < position)
+    };
+    child.attribute_value_ranges = state
+        .attribute_value_ranges
+        .iter()
+        .filter_map(|range| {
+            let range_start = range.start.max(start);
+            let range_end = range.end.min(end);
+            (range_start < range_end)
+                .then(|| unescaped_offset(range_start - start)..unescaped_offset(range_end - start))
+        })
+        .collect();
+    let mut inlines = process_inlines_no_autolinks(&mut child, metadata, 0, text.len(), 0, text)?;
+    let mut error = None;
+    for inline in &mut inlines {
+        super::location_walk::walk_inline_locations_mut(inline, &mut |location| match source_map
+            .map_position(location.absolute_start)
+            .and_then(|mapped_start| {
+                // A single-character inline can extend past the label's last byte.
+                source_map
+                    .map_end_position(location.absolute_end.min(text.len() - 1))
+                    .map(|mapped_end| (mapped_start, mapped_end))
+            }) {
+            Ok((mapped_start, mapped_end)) => {
+                *location = state.create_location(start + mapped_start, start + mapped_end);
+            }
+            Err(cause) => error = Some(cause),
+        });
+    }
+    error.map_or(Ok(inlines), Err)
 }
 
 /// RFC 5321 max local-part length. An email address must have `@` within this
@@ -1663,20 +1729,20 @@ peg::parser! {
             let text = if macro_text.text.is_empty() {
                 vec![]
             } else {
-                // Brackets read as written keep the span they always had.
-                let (text, text_start, text_end): (&'input str, usize, usize) = match macro_text.text {
-                    Cow::Borrowed(text) if macro_text.as_written => (text, content_start, span_end),
+                let parsed = match macro_text.text {
                     Cow::Borrowed(text) => {
+                        // Brackets read as written keep the span they always had.
                         let start = content_start + macro_text.offset;
-                        (text, start, start + text.len())
+                        let end = if macro_text.as_written { span_end } else { start + text.len() };
+                        process_inlines_no_autolinks(state, &bm, start, end, state.inline_ctx.offset, text)
                     }
                     Cow::Owned(text) => {
-                        let start = content_start + macro_text.offset;
-                        let end = start + text.len();
-                        (state.intern_str(&text), start, end)
+                        let start = content_start + macro_text.offset + state.inline_ctx.offset;
+                        let text = state.intern_str(&text);
+                        process_unescaped_xref_label(state, &bm, text, start, &macro_text.source_map)
                     }
                 };
-                process_inlines_no_autolinks(state, &bm, text_start, text_end, state.inline_ctx.offset, text)
+                parsed
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
