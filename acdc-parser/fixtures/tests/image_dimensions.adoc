@@ -1,0 +1,31 @@
+// Quote credits do not become dimensions.
+[quote,Alice,Book]
+image::sample.png[Alt]
+
+// Preceding positional attributes do not become dimensions.
+[custom,100,200]
+image::sample.png[Alt]
+
+// Named macro dimensions override preceding positional attributes.
+[custom,100,200]
+image::sample.png[Alt,width=300,height=400]
+
+// Positional dimensions come from the macro.
+[custom,100,200]
+image::sample.png[Alt,300,400]
+
+// An empty width slot does not inherit a preceding positional value.
+[custom,100,200]
+image::sample.png[Alt,,400]
+
+// Named macro dimensions override positional macro dimensions.
+[custom,100,200]
+image::sample.png[Alt,300,400,width=500,height=600]
+
+// Named block dimensions provide defaults.
+[width=100,height=200]
+image::sample.png[Alt]
+
+// Positional macro dimensions override named block defaults.
+[width=100,height=200]
+image::sample.png[Alt,300,400]

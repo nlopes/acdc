@@ -942,6 +942,21 @@ fn apply_style_part<'input>(
     }
 }
 
+fn extract_media_dimensions(metadata: &mut BlockMetadata<'_>) {
+    for (slot, name) in [(0, "width"), (1, "height")] {
+        if let Some(value) = metadata
+            .positional_attributes
+            .get(slot)
+            .map(|attribute| attribute.value)
+            .filter(|value| !value.is_empty())
+        {
+            metadata
+                .attributes
+                .insert(name.into(), AttributeValue::String(Cow::Borrowed(value)));
+        }
+    }
+}
+
 fn ensure_positional_slot(metadata: &mut BlockMetadata<'_>, slot: usize) {
     metadata
         .positional_attributes
@@ -4327,7 +4342,8 @@ peg::parser! {
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("image", trailing, end, offset);
-            let (_discrete, metadata_from_attributes, _title_position) = attributes;
+            let (_discrete, mut metadata_from_attributes, _title_position) = attributes;
+            extract_media_dimensions(&mut metadata_from_attributes);
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
             metadata.merge(&metadata_from_attributes);
@@ -4337,19 +4353,7 @@ peg::parser! {
                     .attributes
                     .set("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
             }
-            let slots = drain_positional_slots(&mut metadata, 2);
-            if let Some(width) = slots.first().filter(|value| !value.is_empty()) {
-                metadata.attributes.set(
-                    "width".into(),
-                    AttributeValue::String(Cow::Borrowed(width)),
-                );
-            }
-            if let Some(height) = slots.get(1).filter(|value| !value.is_empty()) {
-                metadata.attributes.set(
-                    "height".into(),
-                    AttributeValue::String(Cow::Borrowed(height)),
-                );
-            }
+            let _ = drain_positional_slots(&mut metadata, 2);
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
                 title,
@@ -4386,7 +4390,8 @@ peg::parser! {
           trailing:$([^'\n']*)
         {
             state.warn_trailing_macro_content("video", trailing, end, offset);
-            let (_discrete, metadata_from_attributes, _title_position) = attributes;
+            let (_discrete, mut metadata_from_attributes, _title_position) = attributes;
+            extract_media_dimensions(&mut metadata_from_attributes);
             let title = block_metadata.title.clone();
             let mut metadata = block_metadata.metadata.clone();
             metadata.merge(&metadata_from_attributes);
@@ -4406,19 +4411,7 @@ peg::parser! {
                     );
                 }
             }
-            let slots = drain_positional_slots(&mut metadata, 2);
-            if let Some(width) = slots.first().filter(|value| !value.is_empty()) {
-                metadata.attributes.set(
-                    "width".into(),
-                    AttributeValue::String(Cow::Borrowed(width)),
-                );
-            }
-            if let Some(height) = slots.get(1).filter(|value| !value.is_empty()) {
-                metadata.attributes.set(
-                    "height".into(),
-                    AttributeValue::String(Cow::Borrowed(height)),
-                );
-            }
+            let _ = drain_positional_slots(&mut metadata, 2);
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
                 title,
