@@ -62,8 +62,7 @@
           "delimiter": "----",
           "metadata": {
             "attributes": {
-              "language": "yaml",
-              "yaml": null
+              "language": "yaml"
             },
             "style": "source"
           },

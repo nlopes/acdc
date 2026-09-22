@@ -73,8 +73,7 @@
       "delimiter": "--",
       "metadata": {
         "attributes": {
-          "language": "sail",
-          "sail": null
+          "language": "sail"
         },
         "style": "source"
       },
@@ -113,8 +112,7 @@
       "delimiter": "--",
       "metadata": {
         "attributes": {
-          "language": "sail",
-          "sail": null
+          "language": "sail"
         },
         "style": "source"
       },

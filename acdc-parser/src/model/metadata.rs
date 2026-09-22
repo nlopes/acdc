@@ -124,6 +124,10 @@ impl<'a> BlockMetadata<'a> {
     }
 
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
+        if self.style == Some("source") {
+            self.positional_attributes.clear();
+            return;
+        }
         for positional_attribute in self.positional_attributes.drain(..) {
             if !positional_attribute.value.is_empty() {
                 self.attributes.insert(

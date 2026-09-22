@@ -1,0 +1,31 @@
+[source,rust]
+----
+fn main() {}
+----
+
+[source,rust,linenums]
+----
+fn main() {}
+----
+
+[source,rust,,linenums]
+----
+fn main() {}
+----
+
+[source,rust,linenums,extra]
+----
+fn main() {}
+----
+
+[source,rust,,extra,rust=explicit,extra=explicit]
+----
+fn main() {}
+----
+
+[source,rust,,linenums]
+let answer = 42;
+
+```ruby
+puts 'hello'
+```

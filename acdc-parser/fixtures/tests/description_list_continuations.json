@@ -132,8 +132,7 @@
               "delimiter": "----",
               "metadata": {
                 "attributes": {
-                  "language": "rust",
-                  "rust": null
+                  "language": "rust"
                 },
                 "style": "source"
               },

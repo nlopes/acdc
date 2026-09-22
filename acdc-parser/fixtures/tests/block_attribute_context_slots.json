@@ -40,8 +40,7 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "linenums": "linenums",
-          "rust": null
+          "linenums": "linenums"
         },
         "style": "source"
       },
@@ -81,8 +80,7 @@
       "metadata": {
         "attributes": {
           "custom": "value",
-          "linenums": "rust",
-          "rust": null
+          "linenums": "rust"
         },
         "style": "source"
       },
@@ -175,8 +173,7 @@
       ],
       "metadata": {
         "attributes": {
-          "language": "ruby",
-          "ruby": null
+          "language": "ruby"
         },
         "style": "source"
       },

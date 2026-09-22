@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Source blocks retain their language when a following block attribute line adds
+  named options, such as `[source,options=linenums]`, matching Asciidoctor.
+- Source languages and unused positional values no longer create name-only
+  attributes. This prevents unintended line numbers for `[source,rust,,linenums]`,
+  matching Asciidoctor.
 - Duplicate explicit IDs produce non-fatal warnings with the original ID and
   both source locations, including included files. Cross-references keep the
   first definition; later duplicate section titles do not become reference
