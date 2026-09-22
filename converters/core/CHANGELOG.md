@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Automatic cross-references to numbered sections resolve under
+  `xrefstyle=short` and `xrefstyle=full` for every backend, with the
+  `<name>-refsig` word recorded at the reference position. A `full` reference
+  to a chapter or appendix sets its title in emphasis, and backends render
+  that form in their own style.
 - Converter visitors now expose the document attributes active at each body
   position. Set, repeated set, and unset events override the header snapshot,
   and nested AsciiDoc table cells restore the parent values when they end.

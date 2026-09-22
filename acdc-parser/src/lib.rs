@@ -126,12 +126,12 @@ pub use model::{
     Icon, Image, IndexTerm, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Italic,
     Keyboard, LineBreak, Link, ListItem, ListItemCheckedStatus, Location, MAX_SECTION_LEVELS,
     MAX_TOC_LEVELS, Mailto, Menu, Monospace, NORMAL, OrderedList, PageBreak, Paragraph, Pass,
-    PassthroughKind, Plain, Position, Raw, Reference, Role, Section, SectionKind, Source,
-    SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
+    PassthroughKind, Plain, Position, Raw, Reference, Role, Section, SectionKind, SectionReference,
+    Source, SourceUrl, StandaloneCurvedApostrophe, Stem, StemContent, StemNotation, Subscript,
     Substitution, Subtitle, Superscript, Table, TableColumn, TableFrame, TableGrid,
     TableOfContents, TablePresentation, TableRow, TableStripes, ThematicBreak, Title, TocEntry,
     UNNUMBERED_SECTION_STYLES, UnorderedList, Url, VERBATIM, Verbatim, VerticalAlignment, Video,
-    XrefCaptionLabel, XrefStyle, strip_quotes, substitute, substitute_attributes,
+    XrefCaptionLabel, XrefSignifier, XrefStyle, strip_quotes, substitute, substitute_attributes,
 };
 #[cfg(feature = "pre-spec-subs")]
 pub use model::{SubstitutionOp, SubstitutionSpec};

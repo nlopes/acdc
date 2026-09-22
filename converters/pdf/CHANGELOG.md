@@ -17,6 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic cross-references to numbered sections honor `xrefstyle`, matching
+  Asciidoctor: `short` gives `Section 1.1`, `Chapter 2`, `Appendix A` or
+  `Part I`, and `full` adds the title, in quotation marks for a section or part
+  and in emphasis for a chapter or appendix. The word comes from
+  `section-refsig`, `chapter-refsig`, `appendix-refsig` or `part-refsig` as it
+  stands where the reference is written, and unsetting it leaves the number
+  alone. As in Asciidoctor, a section deeper than `sectnumlevels` is still
+  numbered in a reference although its heading is not. Previously every
+  section reference showed only the title.
+- `xref:target[xrefstyle=short]` sets the style for that one reference, and the
+  text before the first named attribute is the link text, as in Asciidoctor.
+  Previously the whole bracket content, `xrefstyle=short` included, became the
+  link text.
+
 - Explicit duplicate IDs no longer stop PDF generation. References use the first
   definition, while each section keeps its own table-of-contents destination.
   Asciidoctor PDF emits duplicate destination names, whose resolution can vary

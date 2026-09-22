@@ -10,7 +10,8 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{
     Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
-    InlineNode, Location, MAX_SECTION_LEVELS, Table, TocEntry, model::DocumentAttributeStatus,
+    InlineNode, Location, MAX_SECTION_LEVELS, SectionReference, Table, TocEntry,
+    model::DocumentAttributeStatus,
 };
 
 use super::title::Title;
@@ -350,22 +351,57 @@ pub(crate) fn renumber_sections(
     is_book: bool,
 ) {
     let mut state = NumberingState::default();
-    let mut toc_numbers: HashMap<String, VecDeque<Option<SectionNumber>>> =
+    let mut toc_numbers: HashMap<String, VecDeque<SectionNumbers>> =
         HashMap::with_capacity(toc_entries.len());
-    let mut record_number = |section: &Section<'_>, number| {
+    let mut record_number = |section: &Section<'_>, numbers| {
         toc_numbers
             .entry(section.id().into_owned())
             .or_default()
-            .push_back(number);
+            .push_back(numbers);
     };
     renumber_blocks(blocks, &mut state, is_book, false, true, &mut record_number);
     for entry in toc_entries {
-        entry.set_number(
-            toc_numbers
-                .get_mut(entry.id)
-                .and_then(VecDeque::pop_front)
-                .flatten(),
-        );
+        let numbers = toc_numbers
+            .get_mut(entry.id)
+            .and_then(VecDeque::pop_front)
+            .unwrap_or_default();
+        entry.set_number(numbers.shown);
+        entry.set_reference_number(numbers.reference);
+    }
+}
+
+/// The two numbers a section can have.
+///
+/// They are the same number except past `sectnumlevels`, where Asciidoctor
+/// prints the heading with no number but still numbers a cross-reference to
+/// it: with `:sectnumlevels: 1`, a level-2 heading reads `Sub part` while
+/// `<<sub>>` reads `Section 1.1`. Keeping them apart, and named, is what lets
+/// the table of contents follow the heading and the reference catalog follow
+/// Asciidoctor.
+#[derive(Clone, Debug, Default)]
+struct SectionNumbers {
+    /// The number printed in the heading and the table of contents.
+    shown: Option<SectionNumber>,
+    /// The number a cross-reference to the section quotes.
+    reference: Option<SectionNumber>,
+}
+
+/// The name Asciidoctor gives a section in a cross-reference: the special
+/// section's style, or `part`, `chapter` or `section` by level. It selects the
+/// `<name>-refsig` attribute and whether a `full` reference emphasises the title.
+pub(crate) fn reference_name(kind: SectionKind, level: u8, is_book: bool) -> &'static str {
+    kind.as_style().unwrap_or(match level {
+        0 => "part",
+        1 if is_book => "chapter",
+        _ => "section",
+    })
+}
+
+/// What a styled cross-reference to the section behind `entry` shows.
+pub(crate) fn section_reference(entry: &TocEntry<'_>, is_book: bool) -> SectionReference {
+    SectionReference {
+        name: reference_name(entry.kind, entry.level, is_book),
+        number: entry.reference_number().map(str::to_owned),
     }
 }
 
@@ -377,7 +413,7 @@ pub(crate) fn number_parsed_sections<'a>(
 ) {
     let mut state = NumberingState::default();
     let mut toc_index = 0;
-    let mut record_number = |section: &Section<'a>, number| {
+    let mut record_number = |section: &Section<'a>, numbers: SectionNumbers| {
         let Some(remaining_entries) = toc_entries.get(toc_index..) else {
             return;
         };
@@ -392,7 +428,8 @@ pub(crate) fn number_parsed_sections<'a>(
             if let Some(id) = section.id {
                 entry.id = id;
             }
-            entry.set_number(number);
+            entry.set_number(numbers.shown);
+            entry.set_reference_number(numbers.reference);
             toc_index += 1;
         }
     };
@@ -415,7 +452,7 @@ fn renumber_blocks<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, Option<SectionNumber>),
+    F: FnMut(&Section<'a>, SectionNumbers),
 {
     for block in blocks {
         match block {
@@ -515,7 +552,7 @@ fn renumber_delimited<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, Option<SectionNumber>),
+    F: FnMut(&Section<'a>, SectionNumbers),
 {
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
@@ -549,26 +586,36 @@ fn renumber_section<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, Option<SectionNumber>),
+    F: FnMut(&Section<'a>, SectionNumbers),
 {
     let level = state.numbering_level(section.level, section.kind);
     let participates = section_participates(section, is_book);
     let eligible = participates && !suppressed;
-    let number = if !eligible {
-        None
+    let both = |number: SectionNumber| SectionNumbers {
+        shown: Some(number.clone()),
+        reference: Some(number),
+    };
+    let numbers = if !eligible {
+        SectionNumbers::default()
     } else if section.kind == SectionKind::Appendix {
-        Some(state.next_appendix())
+        both(state.next_appendix())
     } else if section.level == 0 && section.kind == SectionKind::Normal {
-        Some(state.next_part())
+        both(state.next_part())
     } else {
         let number = state.next_section(level);
-        (level <= section.numbering.max_level)
-            .then_some(number)
-            .flatten()
+        // Past `sectnumlevels` the heading shows no number, but the counter
+        // has advanced and a cross-reference still quotes it; see
+        // `SectionNumbers`.
+        SectionNumbers {
+            shown: (level <= section.numbering.max_level)
+                .then(|| number.clone())
+                .flatten(),
+            reference: number,
+        }
     };
-    section.numbering.number.clone_from(&number);
+    section.numbering.number.clone_from(&numbers.shown);
     if record_toc {
-        record_number(section, number.clone());
+        record_number(section, numbers);
     }
 
     let suppress_children = suppressed
@@ -614,7 +661,7 @@ fn renumber_table<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, Option<SectionNumber>),
+    F: FnMut(&Section<'a>, SectionNumbers),
 {
     for row in table
         .header
