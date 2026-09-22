@@ -3349,6 +3349,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     Ok(())
                 })
             }
+            XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                self.write_labelled_link(target, |visitor| {
+                    visitor.write_text_expr(&prefix);
+                    visitor.write_text_expr(", ");
+                    visitor.write_quoted_span(traversal, None, None, "#emph[", inlines, "]")?;
+                    Ok(())
+                })
+            }
             XrefDisplay::Fallback(text) => self.write_labelled_link(target, |visitor| {
                 visitor.write_text_expr(&text);
                 Ok(())

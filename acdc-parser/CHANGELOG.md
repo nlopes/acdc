@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An `xref:` macro whose brackets contain `=` reads them as an attribute list,
+  as Asciidoctor does: the first positional attribute is the link text,
+  `xrefstyle=` overrides the document's style for that reference, and `role=`
+  is kept on the `CrossReference` as `role` for converters to style the link.
+  `xref:fig[xrefstyle=short]` previously kept `xrefstyle=short` as its text.
+  Brackets without `=`, and all brackets in compat mode, are still the text as
+  written.
 - `Document::renumber_captions` now refreshes the reference catalog as well as
   the blocks, so a `<<id>>` to a block that moved renders the ordinal the block
   now carries. Previously the catalog kept the number assigned at parse time,
@@ -167,6 +174,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A section's entry in `Document::references` carries a `SectionReference`:
+  its cross-reference name (`part`, `chapter`, `section`, `appendix`, or a
+  special section's style such as `preface`) and the number a reference quotes.
+  Each `CrossReference` carries the `<name>-refsig` word in effect where it is
+  written, as `XrefSignifier`. Together they let converters render numbered
+  section references under `xrefstyle`. The reference number continues past
+  `sectnumlevels`, as Asciidoctor's does, and `Document::renumber_sections`
+  refreshes it.
 
 - `ParseResult::with_document_mut` rewrites a parsed document in place, for
   passes that run between parsing and conversion. The closure is handed a
