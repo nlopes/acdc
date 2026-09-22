@@ -172,7 +172,7 @@ pub type Key<'a> = &'a str;
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 ///
 /// Equality and debug output include `target`, `text`, `location`, `xrefstyle`,
-/// and `caption_label`; parser-only state is excluded.
+/// `caption_label`, `signifier`, and `role`; parser-only state is excluded.
 #[derive(Clone, Serialize)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
@@ -186,6 +186,14 @@ pub struct CrossReference<'a> {
     pub xrefstyle: XrefStyle,
     #[serde(skip)]
     pub caption_label: XrefCaptionLabel<'a>,
+    /// The word before a section number, as `<name>-refsig` stood at this
+    /// reference's position.
+    #[serde(skip)]
+    pub signifier: XrefSignifier<'a>,
+    /// The `role=` of an `xref:` macro, which Asciidoctor's HTML converter
+    /// sets as the link's class. It is kept as written, so it can be empty.
+    #[serde(skip)]
+    pub role: Option<&'a str>,
     #[serde(skip)]
     pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
     #[serde(skip)]
@@ -202,6 +210,8 @@ impl<'a> CrossReference<'a> {
             location,
             xrefstyle: XrefStyle::Basic,
             caption_label: XrefCaptionLabel::AtTarget,
+            signifier: XrefSignifier::Standard,
+            role: None,
             caption_label_snapshot_id: None,
             resolve_natural_target: false,
         }
@@ -224,6 +234,8 @@ impl fmt::Debug for CrossReference<'_> {
             .field("location", &self.location)
             .field("xrefstyle", &self.xrefstyle)
             .field("caption_label", &self.caption_label)
+            .field("signifier", &self.signifier)
+            .field("role", &self.role)
             .finish()
     }
 }
@@ -235,7 +247,28 @@ impl PartialEq for CrossReference<'_> {
             && self.location == other.location
             && self.xrefstyle == other.xrefstyle
             && self.caption_label == other.caption_label
+            && self.signifier == other.signifier
+            && self.role == other.role
     }
+}
+
+/// The word that introduces a section number in an automatic cross-reference.
+///
+/// Asciidoctor reads it from `<name>-refsig` where the reference is written,
+/// so a change part-way through a document applies to the references after it.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum XrefSignifier<'a> {
+    /// Nothing was recorded at the reference position, as for one built
+    /// outside the parser: use the standard word for the section's name.
+    #[default]
+    Standard,
+    /// The `<name>-refsig` value at the reference position. It can be empty,
+    /// which still leaves a space before the number, as Asciidoctor does.
+    AtReference(&'a str),
+    /// `<name>-refsig` was unset at the reference position, so the number
+    /// stands alone.
+    Omitted,
 }
 
 /// Selects the label used by an automatic cross-reference to a numbered caption.

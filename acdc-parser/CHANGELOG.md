@@ -34,6 +34,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An `xref:` macro whose brackets contain `=` reads them as an attribute list,
+  as Asciidoctor does: the first positional attribute is the link text,
+  `xrefstyle=` overrides the document's style for that reference, and `role=`
+  is kept on the `CrossReference` as `role` for converters to style the link.
+  `xref:fig[xrefstyle=short]` previously kept `xrefstyle=short` as its text.
+  Brackets without `=`, and all brackets in compat mode, are still the text as
+  written.
 - Unused block anchors, attribute lists, and titles at the end of input no
   longer appear as extra paragraphs, matching Asciidoctor. Metadata after
   an include applies to the next block when present; it does not label the
@@ -162,6 +169,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A section's entry in `Document::references` carries a `SectionReference`:
+  its cross-reference name (`part`, `chapter`, `section`, `appendix`, or a
+  special section's style such as `preface`) and the number a reference quotes.
+  Each `CrossReference` carries the `<name>-refsig` word in effect where it is
+  written, as `XrefSignifier`. Together they let converters render numbered
+  section references under `xrefstyle`. The reference number continues past
+  `sectnumlevels`, as Asciidoctor's does, and `Document::renumber_sections`
+  refreshes it.
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,
   safe-mode values, masked home paths, and active convenience attributes.
