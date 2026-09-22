@@ -1331,9 +1331,9 @@ impl<'doc> Visitor<'doc> for PreparationVisitor<'doc> {
         self.visit_inline_nodes(traversal, &section.title)?;
         if section.kind == acdc_parser::SectionKind::Index {
             if self.preparation.has_index_terms {
-                self.preparation.populated_index_sections.insert(
-                    acdc_parser::Section::generate_id_string(&section.metadata, &section.title),
-                );
+                self.preparation
+                    .populated_index_sections
+                    .insert(section.id().into_owned());
             }
             return Ok(());
         }

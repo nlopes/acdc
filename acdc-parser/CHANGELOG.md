@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Repeated section titles receive unique generated IDs such as `_preface_2`,
+  matching Asciidoctor. Section IDs, cross-references, and table-of-contents
+  targets remain consistent across nested sections and included files.
+
 - Unused block anchors, attribute lists, and titles at the end of input no
   longer appear as extra paragraphs, matching Asciidoctor. Metadata after
   an include applies to the next block when present; it does not label the

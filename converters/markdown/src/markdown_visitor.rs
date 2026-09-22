@@ -1492,10 +1492,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         let previous_section_title = self.current_section_title.replace(section_title);
 
         let result = (|| {
-            self.write_block_anchor(&Section::generate_id_string(
-                &section.metadata,
-                &section.title,
-            ))?;
+            self.write_block_anchor(&section.id())?;
 
             let effective_level = effective_section_level(section.level, section.kind);
             let level = effective_level + 1; // AsciiDoc levels are 0-indexed, Markdown uses 1-6

@@ -201,8 +201,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         section: &'a Section<'a>,
     ) -> Result<(), Self::Error> {
         let is_index_section = section.kind == SectionKind::Index;
-        let id =
-            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
+        let id = section.id();
         if is_index_section && !self.index_section_is_populated(&id) {
             return Ok(());
         }
