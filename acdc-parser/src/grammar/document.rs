@@ -1286,12 +1286,12 @@ fn parse_reference_label<'a>(
 /// first.
 fn insert_reference<'a>(
     state: &mut ParserState<'a>,
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    refs: &mut ReferenceCatalog<'a>,
     anchor: &Anchor<'a>,
     title: Option<Title<'a>>,
     caption: Option<Caption<'a>>,
 ) {
-    if refs.contains_key(anchor.id) {
+    if refs.duplicate(state, anchor.id, &anchor.location) {
         return;
     }
     let mut xreflabel = parse_reference_label(state, anchor.xreflabel, &anchor.location);
@@ -1312,7 +1312,7 @@ fn insert_reference<'a>(
             escaped: false,
         }));
     }
-    refs.insert(
+    refs.entries.insert(
         anchor.id,
         Reference {
             xreflabel,
@@ -1326,6 +1326,50 @@ fn insert_reference<'a>(
     );
 }
 
+struct ReferenceCatalog<'a> {
+    entries: HashMap<&'a str, Reference<'a>>,
+    next_suffix: HashMap<&'a str, usize>,
+    natural_targets: HashMap<&'a str, &'a str>,
+}
+
+impl<'a> ReferenceCatalog<'a> {
+    fn duplicate(&self, state: &mut ParserState<'a>, id: &str, location: &Location) -> bool {
+        let Some(first) = self.entries.get(id) else {
+            return false;
+        };
+        // Synthetic children can share their parent's source anchor.
+        if first.location != *location {
+            state.add_warning(Warning::new(
+                WarningKind::DuplicateId {
+                    id: id.to_owned(),
+                    first: Box::new(state.create_error_source_location(first.location.clone())),
+                },
+                Some(state.create_error_source_location(location.clone())),
+            ));
+        }
+        true
+    }
+
+    fn section_id(&mut self, state: &ParserState<'a>, section: &Section<'a>) -> &'a str {
+        if let Some(id) = Section::explicit_id(&section.metadata) {
+            return id;
+        }
+        let base = Section::generate_id(state.arena, &section.metadata, &section.title)
+            .as_arena_str(state.arena);
+        if base.is_empty() || !self.entries.contains_key(base) {
+            return base;
+        }
+        let next = self.next_suffix.entry(base).or_insert(2);
+        loop {
+            let candidate = format!("{base}_{next}");
+            *next += 1;
+            if !self.entries.contains_key(candidate.as_str()) {
+                return state.intern_str(&candidate);
+            }
+        }
+    }
+}
+
 struct CrossReferenceUse<'a> {
     target: &'a str,
     location: Location,
@@ -1334,19 +1378,26 @@ struct CrossReferenceUse<'a> {
 }
 
 fn insert_untitled_reference<'a>(
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    state: &mut ParserState<'a>,
+    refs: &mut ReferenceCatalog<'a>,
     id: &'a str,
     location: &Location,
 ) {
-    refs.entry(id).or_insert_with(|| Reference {
-        xreflabel: None,
-        title: None,
-        location: location.clone(),
-        caption: None,
-        section: None,
-        bibliography: false,
-        automatic_citation: false,
-    });
+    if refs.duplicate(state, id, location) {
+        return;
+    }
+    refs.entries.insert(
+        id,
+        Reference {
+            xreflabel: None,
+            title: None,
+            location: location.clone(),
+            caption: None,
+            section: None,
+            bibliography: false,
+            automatic_citation: false,
+        },
+    );
 }
 
 fn finalize_cross_references<'a>(
@@ -1408,23 +1459,15 @@ fn register_section_header<'a>(
     level: SectionLevel,
     location: Location,
     direct_parent_section_kind: Option<SectionKind>,
-) -> (Title<'a>, section::SectionNumbering) {
-    let section_id = Section::generate_id(state.arena, &block_metadata.metadata, &title)
-        .as_arena_str(state.arena);
+) -> (Title<'a>, section::SectionNumbering, &'a str) {
     let xreflabel = section_xreflabel(state, &block_metadata.metadata);
     let reference_text = xreflabel
         .filter(|label| !label.trim().is_empty())
         .unwrap_or(natural_title);
-    if !reference_text.is_empty() {
-        state
-            .natural_xref_targets
-            .entry(reference_text)
-            .or_insert(section_id);
-    }
 
     let kind = SectionKind::from_style(block_metadata.metadata.style);
     state.toc_entries.push(TocEntry::for_section(
-        section_id,
+        "",
         title.clone(),
         level,
         xreflabel,
@@ -1434,7 +1477,7 @@ fn register_section_header<'a>(
     warn_for_nested_bibliography_section(state, direct_parent_section_kind, location);
 
     let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
-    (title, numbering)
+    (title, numbering, reference_text)
 }
 
 /// Finalize a cross-reference target after section IDs and title aliases are known.
@@ -1462,13 +1505,13 @@ fn resolve_xref_target<'a>(
 fn collect_formatted_references<'a, T>(
     state: &mut ParserState<'a>,
     text: &T,
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) where
     T: MarkedText<'a, Content = Vec<InlineNode<'a>>>,
 {
     if let Some(id) = text.id() {
-        insert_untitled_reference(refs, id, text.location());
+        insert_untitled_reference(state, refs, id, text.location());
     }
     collect_inline_references(state, text.content(), refs, xrefs);
 }
@@ -1478,11 +1521,11 @@ fn collect_link_references<'a>(
     attributes: &ElementAttributes<'a>,
     location: &Location,
     text: &[InlineNode<'a>],
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     if let Some(id) = attributes.get_string("id") {
-        insert_untitled_reference(refs, state.intern_cow(id), location);
+        insert_untitled_reference(state, refs, state.intern_cow(id), location);
     }
     collect_inline_references(state, text, refs, xrefs);
 }
@@ -1503,7 +1546,7 @@ fn header_reference_title<'a>(header: &Header<'a>) -> Title<'a> {
 fn collect_metadata_references<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockMetadata<'a>,
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     if let Some(attribution) = &metadata.attribution {
@@ -1520,15 +1563,46 @@ fn collect_metadata_references<'a>(
 /// bibliography citation metadata. Titles and quote credits are part of this walk because
 /// converters render their inline content too. A target with no title is still registered
 /// (reference text `None`), so an `<<id>>` to it resolves to the literal `[id]` rather than
-/// being treated as unresolved. Top-level section IDs are seeded from `toc_entries`; this walk
-/// also catalogs nested-document sections that do not belong in the outer table of contents.
+/// being treated as unresolved. Generated section IDs are assigned in source order,
+/// including sections in nested documents.
 fn collect_references<'a>(
     state: &mut ParserState<'a>,
-    blocks: &[Block<'a>],
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    blocks: &mut [Block<'a>],
+    refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     for block in blocks {
+        if let Block::Section(section) = block {
+            let id = refs.section_id(state, section);
+            section.id = Some(id);
+            let reference_text = section.reference_text.take();
+            let xreflabel = section_xreflabel(state, &section.metadata);
+            let mut location = section.location.clone();
+            if let Some(last) = section.title.last() {
+                location.absolute_end = last.location().absolute_end;
+                location.end = last.location().end.clone();
+            }
+            if !refs.duplicate(state, id, &location) {
+                if let Some(text) = reference_text.filter(|text| !text.is_empty()) {
+                    refs.natural_targets.entry(text).or_insert(id);
+                }
+                refs.entries.insert(
+                    id,
+                    Reference {
+                        xreflabel: parse_reference_label(state, xreflabel, &location),
+                        title: Some(section.title.clone()),
+                        location,
+                        caption: None,
+                        // Filled in once the sections are numbered: the name
+                        // and number a styled cross-reference shows are not
+                        // known while the catalog is being built.
+                        section: None,
+                        bibliography: false,
+                        automatic_citation: false,
+                    },
+                );
+            }
+        }
         if !matches!(block, Block::Section(_))
             && let Some(anchor) = block.anchor()
         {
@@ -1546,58 +1620,44 @@ fn collect_references<'a>(
 
         match block {
             Block::Section(s) => {
-                // Top-level sections are already seeded from `toc_entries`.
-                // Sections in an AsciiDoc-style table cell belong to its
-                // nested document and are intentionally absent from that list,
-                // but their destinations remain visible to outer xrefs.
-                let id = Section::generate_id(state.arena, &s.metadata, &s.title)
-                    .as_arena_str(state.arena);
-                let xreflabel = section_xreflabel(state, &s.metadata);
-                refs.entry(id).or_insert_with(|| Reference {
-                    xreflabel: parse_reference_label(state, xreflabel, &s.location),
-                    title: Some(s.title.clone()),
-                    location: s.location.clone(),
-                    caption: None,
-                    section: None,
-                    bibliography: false,
-                    automatic_citation: false,
-                });
-                collect_references(state, &s.content, refs, xrefs);
+                collect_references(state, &mut s.content, refs, xrefs);
             }
             Block::Paragraph(p) => collect_inline_references(state, &p.content, refs, xrefs),
             // A simple admonition's content is a synthetic paragraph that shares
             // the admonition's anchor; the admonition registered it first, so its
             // reference text stands.
-            Block::Admonition(a) => collect_references(state, &a.blocks, refs, xrefs),
+            Block::Admonition(a) => collect_references(state, &mut a.blocks, refs, xrefs),
             Block::UnorderedList(l) => {
-                for item in &l.items {
+                for item in &mut l.items {
                     collect_inline_references(state, &item.principal, refs, xrefs);
-                    collect_references(state, &item.blocks, refs, xrefs);
+                    collect_references(state, &mut item.blocks, refs, xrefs);
                 }
             }
             Block::OrderedList(l) => {
-                for item in &l.items {
+                for item in &mut l.items {
                     collect_inline_references(state, &item.principal, refs, xrefs);
-                    collect_references(state, &item.blocks, refs, xrefs);
+                    collect_references(state, &mut item.blocks, refs, xrefs);
                 }
             }
             Block::CalloutList(l) => {
-                for item in &l.items {
+                for item in &mut l.items {
                     collect_inline_references(state, &item.principal, refs, xrefs);
-                    collect_references(state, &item.blocks, refs, xrefs);
+                    collect_references(state, &mut item.blocks, refs, xrefs);
                 }
             }
             Block::DescriptionList(l) => {
-                for item in &l.items {
+                for item in &mut l.items {
                     for anchor in &item.anchors {
                         insert_reference(state, refs, anchor, None, None);
                     }
                     collect_inline_references(state, &item.term, refs, xrefs);
                     collect_inline_references(state, &item.principal_text, refs, xrefs);
-                    collect_references(state, &item.description, refs, xrefs);
+                    collect_references(state, &mut item.description, refs, xrefs);
                 }
             }
-            Block::DelimitedBlock(d) => collect_delimited_references(state, &d.inner, refs, xrefs),
+            Block::DelimitedBlock(d) => {
+                collect_delimited_references(state, &mut d.inner, refs, xrefs);
+            }
             Block::DiscreteHeader(_)
             | Block::ThematicBreak(_)
             | Block::PageBreak(_)
@@ -1739,8 +1799,8 @@ fn promote_bibliography_anchor<'a>(state: &ParserState<'a>, principal: &mut Vec<
 /// Walk the content of a delimited block for anchors and cross-references.
 fn collect_delimited_references<'a>(
     state: &mut ParserState<'a>,
-    inner: &DelimitedBlockType<'a>,
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    inner: &mut DelimitedBlockType<'a>,
+    refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     match inner {
@@ -1760,12 +1820,12 @@ fn collect_delimited_references<'a>(
         DelimitedBlockType::DelimitedTable(table) => {
             for row in table
                 .header
-                .iter()
-                .chain(table.footer.iter())
-                .chain(table.rows.iter())
+                .iter_mut()
+                .chain(table.rows.iter_mut())
+                .chain(table.footer.iter_mut())
             {
-                for column in &row.columns {
-                    collect_references(state, &column.content, refs, xrefs);
+                for column in &mut row.columns {
+                    collect_references(state, &mut column.content, refs, xrefs);
                 }
             }
         }
@@ -1777,7 +1837,7 @@ fn collect_delimited_references<'a>(
 fn collect_inline_references<'a>(
     state: &mut ParserState<'a>,
     inlines: &[InlineNode<'a>],
-    refs: &mut HashMap<&'a str, Reference<'a>>,
+    refs: &mut ReferenceCatalog<'a>,
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     for inline in inlines {
@@ -2744,23 +2804,14 @@ peg::parser! {
             normalize_bibliography_lists(state, &mut blocks);
             caption::renumber_captions(&mut blocks);
 
-            section::number_parsed_sections(
-                &mut blocks,
-                &mut state.toc_entries,
-                is_book_doctype(&header_attributes),
-            );
-
-            // Build the id -> reference catalog for O(1) `<<id>>` resolution:
-            // sections (already collected as toc_entries) plus a single walk over
-            // the final tree for every other anchor (block IDs, inline `[[id]]`
-            // anchors, and formatted span IDs). The same walk collects every
-            // cross-reference so unresolved ones can be reported.
-            let toc_entries = state.toc_entries.clone();
             let header_has_anchor = header.as_ref().is_some_and(|header| {
                 header.metadata.id.is_some() || !header.metadata.anchors.is_empty()
             });
-            let mut references: HashMap<&str, Reference<'_>> =
-                HashMap::with_capacity(toc_entries.len() + usize::from(header_has_anchor));
+            let mut references = ReferenceCatalog {
+                entries: HashMap::with_capacity(state.toc_entries.len() + usize::from(header_has_anchor)),
+                next_suffix: HashMap::new(),
+                natural_targets: HashMap::new(),
+            };
             let mut xrefs = Vec::new();
             if let Some(header) = &header {
                 if let Some(anchor) = header
@@ -2798,23 +2849,18 @@ peg::parser! {
                     &mut xrefs,
                 );
             }
+            collect_references(state, &mut blocks, &mut references, &mut xrefs);
             let is_book = is_book_doctype(&header_attributes);
+            section::number_parsed_sections(&mut blocks, &mut state.toc_entries, is_book);
+            let toc_entries = state.toc_entries.clone();
+            // A styled cross-reference quotes the section's number, which only
+            // exists once the sections are numbered, so the catalog entries are
+            // completed here rather than where they are created.
             for entry in &toc_entries {
-                let xreflabel = parse_reference_label(state, entry.xreflabel, &entry.location);
-                references.insert(
-                    entry.id,
-                    Reference {
-                        xreflabel,
-                        title: Some(entry.title.clone()),
-                        location: entry.location.clone(),
-                        caption: None,
-                        section: Some(section::section_reference(entry, is_book)),
-                        bibliography: false,
-                        automatic_citation: false,
-                    },
-                );
+                if let Some(reference) = references.entries.get_mut(entry.id) {
+                    reference.section = Some(section::section_reference(entry, is_book));
+                }
             }
-            collect_references(state, &blocks, &mut references, &mut xrefs);
 
             let mut document = Document {
                 header,
@@ -2835,7 +2881,7 @@ peg::parser! {
                 blocks,
                 footnotes: state.footnote_tracker.borrow().footnotes.clone(),
                 toc_entries,
-                references,
+                references: references.entries,
             };
             let reference_ids = document.references.keys().copied().collect::<HashSet<_>>();
 
@@ -2847,7 +2893,7 @@ peg::parser! {
                     xref.target,
                     xref.resolve_natural_target,
                     &reference_ids,
-                    &state.natural_xref_targets,
+                    &references.natural_targets,
                 );
                 if xref.automatic
                     && let Some(reference) = document.references.get_mut(target)
@@ -2869,7 +2915,7 @@ peg::parser! {
                 state,
                 &mut document,
                 &reference_ids,
-                &state.natural_xref_targets,
+                &references.natural_targets,
             );
             Ok(document)
         }
@@ -3591,7 +3637,7 @@ peg::parser! {
         section_header:(title:section_title(offset, &block_metadata) title_end:position!() &(eol()*<1,2> / ![_]) {
             let (title, natural_title) = title?;
             let location = state.create_block_location(section_level_start, title_end, offset);
-            Ok::<(Title<'input>, section::SectionNumbering), Error>(register_section_header(
+            Ok::<(Title<'input>, section::SectionNumbering, &'input str), Error>(register_section_header(
                 state,
                 &block_metadata,
                 title,
@@ -3607,7 +3653,7 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let (title, numbering) = section_header?;
+            let (title, numbering, reference_text) = section_header?;
             tracing::debug!(?offset, ?block_metadata, ?title, "parsing section block");
 
             // Validate section level against parent section level if any is provided.
@@ -3643,7 +3689,7 @@ peg::parser! {
             // special-section rules to the complete section tree.
             let kind = SectionKind::from_style(block_metadata.metadata.style);
 
-            Ok(Block::Section(Section::parsed(
+            let mut section = Section::parsed(
                 block_metadata.metadata,
                 title,
                 level,
@@ -3651,7 +3697,9 @@ peg::parser! {
                 kind,
                 numbering,
                 location,
-            )))
+            );
+            section.reference_text = Some(reference_text);
+            Ok(Block::Section(section))
         }
 
         /// Setext-style section header: Title underlined with `-`, `~`, `^`, or `+`
@@ -3724,7 +3772,7 @@ peg::parser! {
                 process_inlines(state, &block_metadata, title_start, title_end, offset, title)?;
             let title = Title::new(processed_title);
             let location = state.create_block_location(title_start, title_end, offset);
-            Ok::<(Title<'input>, section::SectionNumbering), Error>(register_section_header(
+            Ok::<(Title<'input>, section::SectionNumbering, &'input str), Error>(register_section_header(
                 state,
                 &block_metadata,
                 title,
@@ -3740,13 +3788,13 @@ peg::parser! {
             is_book_doctype(&state.document_attributes),
         )), Some(SectionKind::from_style(block_metadata.metadata.style)))?
         {
-            let (title, numbering) = section_header?;
+            let (title, numbering, reference_text) = section_header?;
             let location = state.create_block_location(span_start, span_end, offset);
 
             // Classify the section by its style (see the ATX section rule).
             let kind = SectionKind::from_style(block_metadata.metadata.style);
 
-            Ok(Block::Section(Section::parsed(
+            let mut section = Section::parsed(
                 block_metadata.metadata,
                 title,
                 setext_level,
@@ -3754,7 +3802,9 @@ peg::parser! {
                 kind,
                 numbering,
                 location,
-            )))
+            );
+            section.reference_text = Some(reference_text);
+            Ok(Block::Section(section))
         }
 
         rule block_metadata(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<BlockParsingMetadata<'input>, Error>

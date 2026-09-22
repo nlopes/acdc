@@ -208,7 +208,7 @@ impl Error {
 ///
 /// A point diagnostic (one that only knows a line/column) is a zero-width span with
 /// `location.start == location.end` (see [`Location::point`]).
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub struct SourceLocation {
     pub file: Option<PathBuf>,

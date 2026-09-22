@@ -39,8 +39,10 @@ use acdc_pdf_typst::Writer;
 use unicode_width::UnicodeWidthChar;
 
 use crate::{
-    Error, PageNumberingPlan, Processor, TypstSourceConfig, code_wrap_columns,
-    encode_bibliography_reference_label, encode_footnote_label, encode_label, has_autofit_option,
+    Error, PageNumberingPlan, Processor, TypstSourceConfig,
+    anchors::Anchors,
+    code_wrap_columns, encode_bibliography_reference_label, encode_footnote_label, encode_label,
+    has_autofit_option,
     index::{CatalogRelationship, CatalogTerm, IndexCatalog, PageSequenceStyle},
     warn_with_advice_at,
 };
@@ -135,6 +137,7 @@ impl BlockImageAlignment {
 pub(crate) struct PdfVisitor<'a, 'd, 'm> {
     pub(crate) writer: Writer,
     pub(crate) processor: Processor<'a>,
+    pub(crate) anchors: Anchors<'a>,
 
     assets: &'m ImageMap,
     diagnostics: Diagnostics<'d>,
@@ -348,6 +351,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         };
         Self {
             writer: Writer::new(),
+            anchors: Anchors::new(&toc_entries, &processor.references),
             processor,
 
             assets,
@@ -500,7 +504,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let has_parts = has_real_parts(&entries);
         let mut root = TocRoot::None;
         let mut hidden_article_abstract_level = None;
-        for (entry, number) in entries.iter().zip(numbers) {
+        for ((entry, number), label) in entries
+            .iter()
+            .zip(numbers)
+            .zip(self.anchors.toc_labels.clone())
+        {
             if let Some(abstract_level) = hidden_article_abstract_level {
                 if entry.level > abstract_level {
                     continue;
@@ -532,15 +540,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
                 level => level,
             };
-            let _ = write!(
-                self.writer,
-                "#_acdc_toc_entry(<{}>, {depth}, [",
-                encode_label(entry.id)
-            );
+            let _ = write!(self.writer, "#_acdc_toc_entry(<{label}>, {depth}, [");
             if let Some(number) = number {
                 self.write_text_expr(&number);
             }
-            self.write_title_without_recording_index_terms(traversal, &entry.title)?;
+            self.write_title_copy(traversal, &entry.title)?;
             self.writer.raw("])\n");
         }
         self.writer.raw("#pagebreak()\n\n");
@@ -687,13 +691,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         Ok(())
     }
 
-    fn write_title_without_recording_index_terms(
+    fn write_title_copy(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         title: &Title<'_>,
     ) -> Result<(), Error> {
         let previous = self.index_catalog.set_suspended(true);
+        let previous_anchors = replace(&mut self.anchors.suspended, true);
         let result = self.write_title(traversal, title);
+        self.anchors.suspended = previous_anchors;
         self.index_catalog.set_suspended(previous);
         result
     }
@@ -796,7 +802,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     pub(crate) fn write_anchor_target(&mut self, anchor: &Anchor<'_>) {
-        let _ = writeln!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
+        if let Some(label) = self.anchors.claim(anchor.id) {
+            let _ = writeln!(self.writer, "#metadata(none) <{label}>");
+        }
+    }
+
+    pub(crate) fn write_inline_anchor(&mut self, id: &str) {
+        if let Some(label) = self.anchors.claim(id) {
+            let _ = write!(self.writer, "#metadata(none) <{label}>");
+        }
     }
 
     pub(crate) fn write_inline_span_start(
@@ -805,7 +819,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         role: Option<&str>,
     ) -> InlineSpanState {
         if let Some(id) = id {
-            let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(id));
+            self.write_inline_anchor(id);
         }
 
         let mut wrappers = 0;
@@ -1865,7 +1879,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             return self.write_inlines(traversal, &item.principal);
         }
 
-        let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
+        self.write_inline_anchor(anchor.id);
         let references = Rc::clone(&self.processor.references);
         let backlink = references
             .get(anchor.id)
@@ -3333,6 +3347,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         let previous = self.index_catalog.set_suspended(true);
+        let previous_anchors = replace(&mut self.anchors.suspended, true);
         let result = match resolve_xref(references.get(target), xref, &guard) {
             XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => self
                 .write_labelled_link(target, |visitor| visitor.write_inlines(traversal, inlines)),
@@ -3377,6 +3392,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 }
             }
         };
+        self.anchors.suspended = previous_anchors;
         self.index_catalog.set_suspended(previous);
         result
     }
@@ -3418,7 +3434,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         content: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
         let label = encode_label(target);
-        let _ = write!(self.writer, "#link(<{label}>)[");
+        let _ = write!(
+            self.writer,
+            "#context link(query(<{label}>).first().location())["
+        );
         content(self)?;
         self.writer.raw("]");
         Ok(())

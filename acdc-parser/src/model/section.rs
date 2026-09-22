@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{HashMap, VecDeque},
     fmt::Display,
     sync::Arc,
@@ -170,6 +171,9 @@ pub struct Section<'a> {
     /// The section's structural category (special-section style, or `Normal`).
     pub kind: SectionKind,
     numbering: SectionNumbering,
+    pub(crate) id: Option<&'a str>,
+    // Retained until the reference catalog assigns the section's ID.
+    pub(crate) reference_text: Option<&'a str>,
     pub location: Location,
 }
 
@@ -190,6 +194,8 @@ impl<'a> Section<'a> {
             content,
             kind,
             numbering,
+            id: None,
+            reference_text: None,
             location,
         }
     }
@@ -209,6 +215,8 @@ impl<'a> Section<'a> {
             content,
             kind: SectionKind::Normal,
             numbering: SectionNumbering::disabled(),
+            id: None,
+            reference_text: None,
             location,
         }
     }
@@ -217,7 +225,20 @@ impl<'a> Section<'a> {
     #[must_use]
     pub fn with_metadata(mut self, metadata: BlockMetadata<'a>) -> Self {
         self.metadata = metadata;
+        self.id = None;
         self
+    }
+
+    /// Return the explicit or parser-assigned section ID.
+    ///
+    /// Parsed sections avoid collisions with preceding targets when generating IDs.
+    /// Caller-created sections use the title-derived ID without collision checks.
+    #[must_use]
+    pub fn id(&self) -> Cow<'a, str> {
+        Self::explicit_id(&self.metadata).or(self.id).map_or_else(
+            || Cow::Owned(Self::generate_id_string(&self.metadata, &self.title)),
+            Cow::Borrowed,
+        )
     }
 
     /// Include or exclude this section from automatic numbering.
@@ -334,10 +355,7 @@ pub(crate) fn renumber_sections(
         HashMap::with_capacity(toc_entries.len());
     let mut record_number = |section: &Section<'_>, numbers| {
         toc_numbers
-            .entry(Section::generate_id_string(
-                &section.metadata,
-                &section.title,
-            ))
+            .entry(section.id().into_owned())
             .or_default()
             .push_back(numbers);
     };
@@ -407,6 +425,9 @@ pub(crate) fn number_parsed_sections<'a>(
         };
         toc_index += relative_index;
         if let Some(entry) = toc_entries.get_mut(toc_index) {
+            if let Some(id) = section.id {
+                entry.id = id;
+            }
             entry.set_number(numbers.shown);
             entry.set_reference_number(numbers.reference);
             toc_index += 1;
@@ -911,7 +932,7 @@ impl<'a> Section<'a> {
 
     /// Pick the explicit id if metadata provides one, else None. Shared by
     /// the arena-returning and `String`-returning variants below.
-    fn explicit_id(metadata: &BlockMetadata<'a>) -> Option<&'a str> {
+    pub(crate) fn explicit_id(metadata: &BlockMetadata<'a>) -> Option<&'a str> {
         if let Some(anchor) = &metadata.id {
             return Some(anchor.id);
         }
@@ -939,7 +960,7 @@ impl<'a> Section<'a> {
     /// directly.
     ///
     /// Returns the `Display`-formatted form (prefixed with `_` for generated IDs)
-    /// matching `safe_id.to_string()`.
+    /// without checking for collisions. Use [`Section::id`] for parsed sections.
     #[must_use]
     pub fn generate_id_string(metadata: &BlockMetadata<'a>, title: &[InlineNode<'a>]) -> String {
         if let Some(id) = Self::explicit_id(metadata) {
