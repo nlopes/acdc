@@ -1,7 +1,7 @@
 #set document(
-  title: "Caption and reference contexts",
+  title: "Duplicate anchor IDs",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Caption and reference contexts]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Duplicate anchor IDs]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,68 +73,59 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Caption and reference contexts")]
+#text(size: 22pt, weight: "bold")[#text("Duplicate anchor IDs")]
 ]
 #v(1em)
 
-#heading(level: 1)[#text("Section context")] <id-5f73656374696f6e5f636f6e74657874>
+#heading(outlined: false, bookmarked: false)[#text("Table of Contents")]
+#let _acdc_toc_entry(target, depth, body) = context {
+  link(
+    target,
+    pad(
+      left: depth * 1.25em,
+      grid(
+        columns: (auto, 1fr, auto),
+        column-gutter: 0.5em,
+        body,
+        repeat[.],
+        counter(page).display(at: target),
+      ),
+    ),
+  )
+}
+#_acdc_toc_entry(<acdc-section-0>, 0, [#text("Later section")])
+#_acdc_toc_entry(<id-5f7265666572656e636573>, 0, [#text("References")])
+#pagebreak()
 
-#metadata(none) <id-73656374696f6e2d6578616d706c65>
-#blocktitle[#text("Example 1. ")#text("Section example")]
+#metadata(none) <id-736861726564>
+#blocktitle[#text("Example 1. ")#text("First target")]
 #examplebox[
-#text("Section body.")
+#text("First block content.")
 
 ]
-
-#text("Section reference: ")#context link(query(<id-73656374696f6e2d6578616d706c65>).first().location())[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
-
-#heading(level: 1)[#text("List context")] <id-5f6c6973745f636f6e74657874>
-
-  - #block(width: 100%)[#text("List item refers forward to ")#context link(query(<id-6c6973742d6c697374696e67>).first().location())[#text("Listing 1")#text(", “")#text("List listing")#text("”")]#text(".")
-
-#metadata(none) <id-6c6973742d6c697374696e67>
-#blocktitle[#text("Listing 1. ")#text("List listing")]
-#raw(block: true, "fn in_list() {}")
-
-#text("List item refers back to ")#context link(query(<id-73656374696f6e2d6578616d706c65>).first().location())[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
-
-  ]
-
-#text("After list: ")#context link(query(<id-6c6973742d6c697374696e67>).first().location())[#text("Listing 1")#text(", “")#text("List listing")#text("”")]#text(".")
-
-#heading(level: 1)[#text("Table-cell context")] <id-5f7461626c655f63656c6c5f636f6e74657874>
-
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell refers forward to ")#context link(query(<id-63656c6c2d6578616d706c65>).first().location())[#text("Example 2")#text(", “")#text("Cell example")#text("”")]#text(".")
-
-#metadata(none) <id-63656c6c2d6578616d706c65>
-#blocktitle[#text("Example 2. ")#text("Cell example")]
-#examplebox[
-#text("Cell example body.")
-
-]
-
-#text("Cell refers back to ")#context link(query(<id-73656374696f6e2d6578616d706c65>).first().location())[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
-
-])
-
-#text("After table: ")#context link(query(<id-63656c6c2d6578616d706c65>).first().location())[#text("Example 2")#text(", “")#text("Cell example")#text("”")]#text(".")
-
-#heading(level: 1)[#text("Multi-page context")] <id-5f6d756c74695f706167655f636f6e74657874>
-
-#text("Forward across pages: ")#context link(query(<id-706167652d7461626c65>).first().location())[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")
 
 #pagebreak(weak: true)
 
-#block(sticky: true, above: 0pt, below: 0pt)[
-#metadata(none) <id-706167652d7461626c65>
+#heading(level: 1)[#text("Later section")] <acdc-section-0>
+
+#text("See ")#context link(query(<id-736861726564>).first().location())[#text("First target")]#text(".")
+
+#text("First ")#metadata(none) <id-696e6c696e65>#text("anchor and second ")#text("anchor. See ")#context link(query(<id-696e6c696e65>).first().location())[#text("[inline]")]#text(".")
+
+#text("A ")#metadata(none) <id-666f726d6174746564>#strong[#text("first span")]#text(" and ")#strong[#text("second span")]#text(". See ")#context link(query(<id-666f726d6174746564>).first().location())[#text("[formatted]")]#text(".")
+
+#metadata(none) <id-6e6f7465>
+#callout("note")[
+#text("A synthetic paragraph shares this anchor. See ")#context link(query(<id-6e6f7465>).first().location())[#text("[note]")]#text(".")
+
 ]
-#block(sticky: true, above: 0pt, below: 0pt)[
-#blocktitle[#text("Table 1. ")#text("Page table")]
+
+#heading(level: 1)[#text("References")] <id-5f7265666572656e636573>
+
+#[
+#set list(marker: box(baseline: -0.2em, rect(width: 0.24em, height: 0.24em, fill: rgb("#6b7280"))))
+  - #block(width: 100%)[#metadata(none) <id-626962>#link(<bibref-id-626962>)[#text("[bib]")]#text(" First entry.")]
+  - #block(width: 100%)[#link(<bibref-id-626962>)[#text("[bib]")]#text(" Second entry.")]
 ]
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Page target")
 
-])
-
-#pagebreak(weak: true)
-
-#text("Backward across pages: ")#context link(query(<id-706167652d7461626c65>).first().location())[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")
+#text("See ")#metadata(none) <bibref-id-626962>#context link(query(<id-626962>).first().location())[#text("[bib]")]#text(".")

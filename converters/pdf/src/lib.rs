@@ -45,6 +45,7 @@ use acdc_pdf_typst::{
     DocumentLocale, DocumentMetadata, EmitOptions, Error as TypstError, Writer, preamble,
 };
 use lopdf::{Document as PdfDocument, Object, dictionary};
+mod anchors;
 mod converter;
 mod error;
 mod index;
@@ -375,7 +376,8 @@ impl Processor<'_> {
                 font_dirs,
                 named_destinations,
             },
-        )?;
+        )
+        .map_err(|error| error::with_source_labels(error, &doc.references, source_file))?;
         if let Some(start) = page_numbering.conditional_arabic_start() {
             // Typst exports PDF labels only for fixed numbering patterns. A body-relative
             // transition uses a numbering function, so add its equivalent label ranges here.
@@ -383,7 +385,10 @@ impl Processor<'_> {
         }
         let render_duration = render_start.elapsed();
         for warning in rendered.warnings {
-            diagnostics.warn(format!("Typst warning: {warning}"));
+            diagnostics.warn(format!(
+                "Typst warning: {}",
+                error::source_labels(&warning, &doc.references, source_file)
+            ));
         }
 
         Ok(RenderedPdf {
@@ -2575,7 +2580,12 @@ mod tests {
             typst.contains(&format!("#_acdc_toc_entry(<{label}>, 0,")),
             "{typst}"
         );
-        assert!(typst.contains(&format!("#link(<{label}>)[")), "{typst}");
+        assert!(
+            typst.contains(&format!(
+                "#context link(query(<{label}>).first().location())["
+            )),
+            "{typst}"
+        );
         assert!(
             typst.contains(&format!(
                 "#place[#hide[#heading(level: 1)[#text(\"1. \")#text(\"Hidden \")#strong[#text(\"Section\")]] <{label}>]]"
@@ -3259,7 +3269,7 @@ mod tests {
             "#link(\"Other.pdf\")[#text(\"Other.pdf\")]".to_string(),
             "#link(\"Other.pdf\")[#text(\"Other\")]".to_string(),
             format!(
-                "#link(<{}>)[#text(\"Other.adoc\")]",
+                "#context link(query(<{}>).first().location())[#text(\"Other.adoc\")]",
                 encode_label("_other_adoc")
             ),
             "#link(\"Foo.pdf#Bar\")[#text(\"Foo.pdf\")]".to_string(),
@@ -3302,7 +3312,11 @@ mod tests {
             "{typst}"
         );
         assert_eq!(
-            typst.matches(&format!("#link(<{section_label}>)")).count(),
+            typst
+                .matches(&format!(
+                    "#context link(query(<{section_label}>).first().location())"
+                ))
+                .count(),
             1
         );
 
@@ -3355,7 +3369,14 @@ mod tests {
             ("_control_title", 1),
         ] {
             let label = encode_label(target);
-            assert_eq!(typst.matches(&format!("#link(<{label}>)")).count(), count);
+            assert_eq!(
+                typst
+                    .matches(&format!(
+                        "#context link(query(<{label}>).first().location())"
+                    ))
+                    .count(),
+                count
+            );
         }
         assert_eq!(typst.matches("#text(\"[Target raw Title]\")").count(), 2);
         assert_eq!(typst.matches("#text(\"[Missing raw Title]\")").count(), 2);
@@ -3412,9 +3433,9 @@ mod tests {
 
         let typst = processor.convert_to_typst_source(parsed.document(), &mut diagnostics)?;
         for expected in [
-            "#link(<id-7461626c652d746172676574>)[#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
-            "#link(<id-7461626c652d746172676574>)[#text(\"Own \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada \")#link(\"https://example.com\")[#text(\"link\")]]",
-            "#link(<id-7461626c652d746172676574>)[#text(\"Table 1\")#text(\", “\")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")#text(\"”\")]",
+            "#context link(query(<id-7461626c652d746172676574>).first().location())[#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
+            "#context link(query(<id-7461626c652d746172676574>).first().location())[#text(\"Own \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada \")#link(\"https://example.com\")[#text(\"link\")]]",
+            "#context link(query(<id-7461626c652d746172676574>).first().location())[#text(\"Table 1\")#text(\", “\")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")#text(\"”\")]",
             "#blocktitle[#text(\"Table 1. \")#text(\"Caption \")#strong[#text(\"bold\")]#text(\" \")#emph[#text(\"italic\")]#text(\" \")#raw(\"mono\")#text(\" Ada\")]",
         ] {
             assert!(typst.contains(expected), "expected {expected:?} in {typst}");

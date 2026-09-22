@@ -17,6 +17,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicit duplicate IDs no longer stop PDF generation. References use the first
+  definition, while each section keeps its own table-of-contents destination.
+  Asciidoctor PDF emits duplicate destination names, whose resolution can vary
+  by viewer. Typst diagnostics for known source IDs show their original names
+  and source locations.
+- Anchors in copied titles and reference text no longer create extra destinations.
+  References to anchors in repeated table headers resolve to their first occurrence.
+
 - Repeated section titles receive distinct generated destinations, allowing
   PDF cross-references and table-of-contents entries to render successfully.
 
