@@ -1129,9 +1129,6 @@ fn parse_block_attribute_list<'input>(
         });
 
         if let Some(name) = name {
-            if slot > 0 {
-                ensure_positional_slot(&mut metadata, slot);
-            }
             title_position = store_named_block_attribute(
                 state,
                 &mut metadata,

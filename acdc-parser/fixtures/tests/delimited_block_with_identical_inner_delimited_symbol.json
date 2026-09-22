@@ -9,8 +9,7 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "shell",
-          "shell": null
+          "language": "shell"
         },
         "style": "source"
       },

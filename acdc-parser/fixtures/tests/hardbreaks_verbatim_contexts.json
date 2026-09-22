@@ -243,8 +243,7 @@
       ],
       "metadata": {
         "attributes": {
-          "language": "ruby",
-          "ruby": null
+          "language": "ruby"
         },
         "style": "source"
       },
@@ -266,8 +265,7 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "ruby",
-          "ruby": null
+          "language": "ruby"
         },
         "style": "source"
       },
