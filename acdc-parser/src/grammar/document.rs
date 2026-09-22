@@ -694,13 +694,16 @@ enum AttributeQuote {
     Double,
 }
 
+/// One slot of an attribute list, as Asciidoctor's `AttributeList` reads it.
+/// Also used by the `xref:` macro, whose brackets are an attribute list when
+/// they hold an `=`.
 #[derive(Debug)]
-struct ScannedAttribute {
-    name: Option<String>,
-    value: String,
+pub(super) struct ScannedAttribute {
+    pub(super) name: Option<String>,
+    pub(super) value: String,
     quote: AttributeQuote,
-    value_start: usize,
-    value_end: usize,
+    pub(super) value_start: usize,
+    pub(super) value_end: usize,
 }
 
 #[derive(Clone, Copy)]
@@ -759,7 +762,7 @@ fn unescape_attribute_quote(value: &str, quote: char) -> String {
     value.replace(&escaped_quote, &quote.to_string())
 }
 
-fn scan_attribute_list(source: &str) -> Vec<ScannedAttribute> {
+pub(super) fn scan_attribute_list(source: &str) -> Vec<ScannedAttribute> {
     let mut attributes = Vec::new();
     let mut cursor = 0;
 
@@ -1316,6 +1319,7 @@ fn insert_reference<'a>(
             title,
             location: anchor.location.clone(),
             caption,
+            section: None,
             bibliography: anchor.is_bibliography(),
             automatic_citation: false,
         },
@@ -1339,6 +1343,7 @@ fn insert_untitled_reference<'a>(
         title: None,
         location: location.clone(),
         caption: None,
+        section: None,
         bibliography: false,
         automatic_citation: false,
     });
@@ -1360,6 +1365,11 @@ fn finalize_cross_references<'a>(
             Some((*target, *kind))
         })
         .collect::<HashMap<_, _>>();
+    let section_names = document
+        .references
+        .iter()
+        .filter_map(|(target, reference)| Some((*target, reference.section.as_ref()?.name)))
+        .collect::<HashMap<_, _>>();
 
     walk_document_inline_nodes_mut(document, &mut |inline| {
         let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
@@ -1374,10 +1384,12 @@ fn finalize_cross_references<'a>(
         let Some(snapshot) = xref.caption_label_snapshot_id.take() else {
             return;
         };
-        let Some(kind) = caption_kinds.get(xref.target) else {
-            return;
-        };
-        xref.caption_label = state.xref_caption_label(snapshot, *kind);
+        if let Some(kind) = caption_kinds.get(xref.target) {
+            xref.caption_label = state.xref_caption_label(snapshot, *kind);
+        }
+        if let Some(name) = section_names.get(xref.target) {
+            xref.signifier = state.xref_signifier(snapshot, name);
+        }
     });
 }
 
@@ -1546,6 +1558,7 @@ fn collect_references<'a>(
                     title: Some(s.title.clone()),
                     location: s.location.clone(),
                     caption: None,
+                    section: None,
                     bibliography: false,
                     automatic_citation: false,
                 });
@@ -2785,6 +2798,7 @@ peg::parser! {
                     &mut xrefs,
                 );
             }
+            let is_book = is_book_doctype(&header_attributes);
             for entry in &toc_entries {
                 let xreflabel = parse_reference_label(state, entry.xreflabel, &entry.location);
                 references.insert(
@@ -2794,6 +2808,7 @@ peg::parser! {
                         title: Some(entry.title.clone()),
                         location: entry.location.clone(),
                         caption: None,
+                        section: Some(section::section_reference(entry, is_book)),
                         bibliography: false,
                         automatic_citation: false,
                     },

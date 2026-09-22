@@ -597,6 +597,14 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 write!(self.writer_mut(), "{closing_quote}")?;
                 Ok(())
             }
+            XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                let prefix = manify(&prefix, EscapeMode::Normalize);
+                let separator = manify(", ", EscapeMode::Normalize);
+                write!(self.writer_mut(), "{prefix}{separator}\\fI")?;
+                self.visit_inline_nodes(traversal, inlines)?;
+                write!(self.writer_mut(), "\\fP")?;
+                Ok(())
+            }
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => {

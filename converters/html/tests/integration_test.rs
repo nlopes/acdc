@@ -633,6 +633,34 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
 }
 
 #[test]
+fn xref_macro_role_becomes_the_link_class() -> Result<(), Error> {
+    let input = "Auto: xref:fig[role=r].\n\nText: xref:fig[Text,role=\"a b\"].\n\n\
+                 Styled: xref:fig[xrefstyle=short,role=r].\n\nEmpty: xref:fig[role=].\n\n\
+                 External: xref:other.adoc#sec[role=r].\n\nExternal text: xref:other.adoc#sec[Other,role=r].\n\n\
+                 Missing: xref:missing[role=r].\n\nShorthand: <<fig,role=r>>.\n\n\
+                 [[fig]]\n.A figure\nimage::f.png[]\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = convert_string_with_variant(input, &[], variant)?;
+        for expected in [
+            "Auto: <a href=\"#fig\" class=\"r\">A figure</a>.",
+            "Text: <a href=\"#fig\" class=\"a b\">Text</a>.",
+            "Styled: <a href=\"#fig\" class=\"r\">Figure 1</a>.",
+            // asciidoctor writes `class=""`; an empty class is left out here,
+            // as it is for a `link:` macro, which renders the same.
+            "Empty: <a href=\"#fig\">A figure</a>.",
+            "External: <a href=\"other.html#sec\" class=\"r\">other.html</a>.",
+            "External text: <a href=\"other.html#sec\" class=\"r\">Other</a>.",
+            "Missing: <a href=\"#missing\" class=\"r\">[missing]</a>.",
+            "Shorthand: <a href=\"#fig\">role=r</a>.",
+        ] {
+            assert!(html.contains(expected), "expected {expected:?} in {html}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
     let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
 

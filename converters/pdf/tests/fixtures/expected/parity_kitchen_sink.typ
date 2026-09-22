@@ -103,7 +103,7 @@
 #_acdc_toc_entry(<id-636f6e636c7573696f6e>, 0, [#text("3. ")#text("Conclusion")])
 #pagebreak()
 
-#text(size: 1.25em)[#text("This document is rendered through the converter API. It links to ")#link("https://example.com/kitchen-sink")[#text("the external test target")]#text(" and refers forward to ")#link(<id-7265666572656e63652d7461626c65>)[#text("Table 1")#text(", “")#text("Repeated inventory")#text("”")]#text(", ")#link(<id-776f726b666c6f772d6c697374696e67>)[#text("Listing 1")#text(", “")#text("API conversion")#text("”")]#text(", and ")#link(<id-636f6e636c7573696f6e>)[#text("Conclusion")]#text(".")]
+#text(size: 1.25em)[#text("This document is rendered through the converter API. It links to ")#link("https://example.com/kitchen-sink")[#text("the external test target")]#text(" and refers forward to ")#link(<id-7265666572656e63652d7461626c65>)[#text("Table 1")#text(", “")#text("Repeated inventory")#text("”")]#text(", ")#link(<id-776f726b666c6f772d6c697374696e67>)[#text("Listing 1")#text(", “")#text("API conversion")#text("”")]#text(", and ")#link(<id-636f6e636c7573696f6e>)[#text("Section 3")#text(", “")#text("Conclusion")#text("”")]#text(".")]
 
 #text("The first named note is defined here.")#counter(footnote).update(0)#footnote[#text("Shared footnote text.")] <id-666f6f746e6f74653a736861726564>
 
@@ -300,4 +300,4 @@
 
 #heading(level: 1)[#text("3. ")#text("Conclusion")] <id-636f6e636c7573696f6e>
 
-#text("The final section links back to ")#link(<id-6f76657276696577>)[#text("Overview")]#text(", ")#link(<id-666978747572652d696d616765>)[#text("Figure 1")#text(", “")#text("Fixture image")#text("”")]#text(", and ")#link(<id-776f726b666c6f772d6578616d706c65>)[#text("Example 1")#text(", “")#text("Expected result")#text("”")]#text(". It also keeps a ")#link("https://example.com/final")[#text("second external link")]#text(" in the generated PDF.")
+#text("The final section links back to ")#link(<id-6f76657276696577>)[#text("Section 1")#text(", “")#text("Overview")#text("”")]#text(", ")#link(<id-666978747572652d696d616765>)[#text("Figure 1")#text(", “")#text("Fixture image")#text("”")]#text(", and ")#link(<id-776f726b666c6f772d6578616d706c65>)[#text("Example 1")#text(", “")#text("Expected result")#text("”")]#text(". It also keeps a ")#link("https://example.com/final")[#text("second external link")]#text(" in the generated PDF.")
