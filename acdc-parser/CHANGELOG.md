@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now carries. Previously the catalog kept the number assigned at parse time,
   and a document whose captions were renumbered could show `Figure 1` in a
   reference to what had become `Figure 2`.
+- Duplicate explicit IDs produce non-fatal warnings with the original ID and
+  both source locations, including included files. Cross-references keep the
+  first definition; later duplicate section titles do not become reference
+  aliases, matching Asciidoctor.
+
+- Repeated section titles receive unique generated IDs such as `_preface_2`,
+  matching Asciidoctor. Section IDs, cross-references, and table-of-contents
+  targets remain consistent across nested sections and included files.
+
 - Unused block anchors, attribute lists, and titles at the end of input no
   longer appear as extra paragraphs, matching Asciidoctor. Metadata after
   an include applies to the next block when present; it does not label the

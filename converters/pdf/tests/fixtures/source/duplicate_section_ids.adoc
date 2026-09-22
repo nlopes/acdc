@@ -1,0 +1,14 @@
+= Duplicate section IDs
+:toc:
+
+[[same]]
+== First
+
+First section content.
+
+<<<
+
+[[same]]
+== Second
+
+Second section content. See <<same>>.

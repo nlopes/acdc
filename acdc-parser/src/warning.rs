@@ -68,6 +68,9 @@ impl Warning {
             WarningKind::UnresolvedReference { .. } => Some(
                 "Define an anchor with this id (e.g. `[[id]]` or `[#id]` on a block or section), or fix the reference to point at an existing id.",
             ),
+            WarningKind::DuplicateId { .. } => Some(
+                "Assign a unique id to each target. Cross-references use the first definition.",
+            ),
             WarningKind::LegacyFloatDiscreteHeading => Some(
                 "Replace the `float` attribute with `discrete` (e.g. `[discrete]`). `float` here does not control layout; it is an older name for a discrete (free-floating) heading.",
             ),
@@ -217,6 +220,15 @@ pub enum WarningKind {
         target: String,
     },
 
+    /// More than one source definition uses the same ID. References keep the first.
+    #[error("id already in use: {id} (first defined at {})", first_definition(.first))]
+    DuplicateId {
+        /// The original, unencoded ID.
+        id: String,
+        /// The first definition, including its original file and position.
+        first: Box<SourceLocation>,
+    },
+
     /// A discrete heading was marked with the legacy `float` attribute rather
     /// than `discrete`. `float` is only supported because an older version of
     /// `AsciiDoc` called discrete headings "floating titles"; the current spec
@@ -239,6 +251,17 @@ pub enum WarningKind {
     /// Ad-hoc message not yet categorised into a typed variant.
     #[error("{0}")]
     Other(Cow<'static, str>),
+}
+
+fn first_definition(location: &SourceLocation) -> String {
+    let file = location
+        .file
+        .as_deref()
+        .map_or_else(|| "<input>".into(), std::path::Path::to_string_lossy);
+    format!(
+        "{file}:{}:{}",
+        location.location.start.line, location.location.start.column
+    )
 }
 
 #[cfg(test)]

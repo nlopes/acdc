@@ -1,6 +1,7 @@
-use acdc_parser::{Options, parse_file};
-use lopdf::{Document as PdfDocument, decode_text_string};
+use acdc_parser::{Options, parse, parse_file};
+use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
+    collections::HashMap,
     fs::read_to_string,
     path::{Path, PathBuf},
 };
@@ -9,6 +10,119 @@ use acdc_converters_core::{Converter, Diagnostics, Options as ConverterOptions, 
 use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
+
+fn render_input(input: &str) -> Result<PdfDocument, Error> {
+    let parsed = parse(input, &Options::default())?;
+    let processor = Processor::new(
+        ConverterOptions::default(),
+        Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
+    )?;
+    let source = WarningSource::new("pdf");
+    let mut warnings = Vec::new();
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+    let mut output = Vec::new();
+    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok(PdfDocument::load_mem(&output)?)
+}
+
+fn destination_page_id(pdf: &PdfDocument, destination: &Object) -> Result<ObjectId, Error> {
+    let (_, destination) = pdf.dereference(destination)?;
+    let destination = destination
+        .as_dict()
+        .and_then(|dict| dict.get(b"D"))
+        .unwrap_or(destination);
+    let (_, destination) = pdf.dereference(destination)?;
+    Ok(destination
+        .as_array()?
+        .first()
+        .ok_or("empty destination")?
+        .as_reference()?)
+}
+
+fn internal_link_pages(pdf: &PdfDocument, page: u32) -> Result<Vec<u32>, Error> {
+    let pages = pdf.get_pages();
+    let page_id = pages.get(&page).ok_or("missing source page")?;
+    let mut targets = HashMap::new();
+    if let Ok(names) = pdf.catalog()?.get(b"Names") {
+        let (_, names) = pdf.dereference(names)?;
+        if let Ok(destinations) = names.as_dict()?.get(b"Dests") {
+            let (_, destinations) = pdf.dereference(destinations)?;
+            let entries = destinations.as_dict()?.get(b"Names")?.as_array()?;
+            for [name, target] in entries.as_chunks::<2>().0 {
+                targets.insert(name.as_str()?, destination_page_id(pdf, target)?);
+            }
+        }
+    }
+    pdf.get_page_annotations(*page_id)?
+        .into_iter()
+        .map(|annotation| {
+            let destination = annotation
+                .get(b"Dest")
+                .or_else(|_| annotation.get(b"A")?.as_dict()?.get(b"D"))?;
+            let (_, destination) = pdf.dereference(destination)?;
+            let target = if let Ok(name) = destination.as_str() {
+                *targets.get(name).ok_or("missing named destination")?
+            } else {
+                destination_page_id(pdf, destination)?
+            };
+            pages
+                .iter()
+                .find_map(|(number, id)| (*id == target).then_some(*number))
+                .ok_or_else(|| "missing destination page".into())
+        })
+        .collect()
+}
+
+#[test]
+fn duplicate_section_ids_keep_distinct_toc_links_and_first_reference() -> Result<(), Error> {
+    let source = read_to_string("tests/fixtures/source/duplicate_section_ids.adoc")?;
+    let pdf = render_input(&source)?;
+    assert_eq!(pdf.get_pages().len(), 3);
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2, 3]);
+    assert_eq!(internal_link_pages(&pdf, 3)?, [2]);
+    let text = pdf.extract_text(&[3])?;
+    assert!(
+        text.split_whitespace()
+            .collect::<String>()
+            .contains("SeeFirst."),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn duplicate_section_id_keeps_an_earlier_block_destination() -> Result<(), Error> {
+    let source = read_to_string("tests/fixtures/source/duplicate_anchor_ids.adoc")?;
+    let pdf = render_input(&source)?;
+    assert_eq!(internal_link_pages(&pdf, 1)?.first(), Some(&3));
+    assert_eq!(internal_link_pages(&pdf, 3)?.first(), Some(&2));
+    Ok(())
+}
+
+#[test]
+fn anchors_in_copied_titles_still_target_the_original_definition() -> Result<(), Error> {
+    let source = read_to_string("tests/fixtures/source/copied_title_anchors.adoc")?;
+    let pdf = render_input(&source)?;
+    assert_eq!(pdf.get_pages().len(), 2);
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+    assert!(internal_link_pages(&pdf, 2)?.iter().all(|page| *page == 2));
+    Ok(())
+}
+
+#[test]
+fn anchors_in_repeated_table_headers_resolve_to_the_first_page() -> Result<(), Error> {
+    let source = format!(
+        "= Repeated header\n:pdf-page-size: A5\n\n[options=header]\n|===\n|[[header]]Repeated heading\n{}|===\n\nSee <<header>>.\n",
+        "|Body row\n".repeat(100)
+    );
+    let pdf = render_input(&source)?;
+    let pages = pdf.get_pages();
+    assert!(pages.len() > 1);
+    let last = *pages.last_key_value().ok_or("missing last page")?.0;
+    assert_eq!(internal_link_pages(&pdf, last)?, [1]);
+    Ok(())
+}
 
 fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<PathBuf> {
     doc.attributes

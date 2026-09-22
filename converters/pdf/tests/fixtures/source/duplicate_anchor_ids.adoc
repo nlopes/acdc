@@ -1,0 +1,30 @@
+= Duplicate anchor IDs
+:toc:
+
+[[shared]]
+.First target
+====
+First block content.
+====
+
+<<<
+
+[[shared]]
+== Later section
+
+See <<shared>>.
+
+First [[inline]]anchor and second [[inline]]anchor. See <<inline>>.
+
+A [#formatted]*first span* and [#formatted]*second span*. See <<formatted>>.
+
+[[note]]
+NOTE: A synthetic paragraph shares this anchor. See <<note>>.
+
+[bibliography]
+== References
+
+* [[[bib]]] First entry.
+* [[[bib]]] Second entry.
+
+See <<bib>>.

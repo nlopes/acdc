@@ -21,7 +21,7 @@ use acdc_parser::{
 };
 
 use crate::{
-    Error, PdfVisitor, admonition_icon_source, author_name, encode_label, is_page_breakable_table,
+    Error, PdfVisitor, admonition_icon_source, author_name, is_page_breakable_table,
     is_unbreakable_delimited_block, is_unbreakable_paragraph,
     pdf_visitor::{AutomaticPreambleLeadState, ExplicitPageBreakState},
 };
@@ -201,8 +201,8 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         section: &'a Section<'a>,
     ) -> Result<(), Self::Error> {
         let is_index_section = section.kind == SectionKind::Index;
-        let id =
-            acdc_parser::Section::generate_id_string(&section.metadata, section.title.as_ref());
+        let id = section.id();
+        let label = self.anchors.section(section, self.in_asciidoc_table_cell());
         if is_index_section && !self.index_section_is_populated(&id) {
             return Ok(());
         }
@@ -234,7 +234,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         if self.doctype == Doctype::Article && section.kind == SectionKind::Abstract {
             self.write_abstract_title(traversal, &section.title)?;
             if !id.is_empty() {
-                let _ = write!(self.writer, " <{}>", encode_label(&id));
+                let _ = write!(self.writer, " <{label}>");
             }
             self.writer.raw("\n#abstract[\n");
             let previous = self.in_article_abstract;
@@ -248,7 +248,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
         let hidden_title = section.metadata.options.contains(&"notitle");
         if is_index_section && hidden_title {
             if !id.is_empty() {
-                let _ = writeln!(self.writer, "#metadata(none) <{}>", encode_label(&id));
+                let _ = writeln!(self.writer, "#metadata(none) <{label}>");
             }
         } else {
             if hidden_title {
@@ -271,7 +271,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
             }
             self.writer.raw("]");
             if !id.is_empty() {
-                let _ = write!(self.writer, " <{}>", encode_label(&id));
+                let _ = write!(self.writer, " <{label}>");
             }
             if hidden_title {
                 self.writer.raw("]]");
@@ -761,9 +761,7 @@ impl<'a> Visitor<'a> for PdfVisitor<'a, '_, '_> {
                 }
                 InlineNode::StandaloneCurvedApostrophe(_) => self.write_text_expr("\u{2019}"),
                 InlineNode::LineBreak(_) => self.writer.raw("#linebreak()"),
-                InlineNode::InlineAnchor(anchor) => {
-                    let _ = write!(self.writer, "#metadata(none) <{}>", encode_label(anchor.id));
-                }
+                InlineNode::InlineAnchor(anchor) => self.write_inline_anchor(anchor.id),
                 InlineNode::Macro(inline_macro) => {
                     self.write_inline_macro(traversal, inline_macro)?;
                 }
