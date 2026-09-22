@@ -1288,7 +1288,7 @@ fn insert_reference<'a>(
     title: Option<Title<'a>>,
     caption: Option<Caption<'a>>,
 ) {
-    if refs.entries.contains_key(anchor.id) {
+    if refs.duplicate(state, anchor.id, &anchor.location) {
         return;
     }
     let mut xreflabel = parse_reference_label(state, anchor.xreflabel, &anchor.location);
@@ -1329,6 +1329,23 @@ struct ReferenceCatalog<'a> {
 }
 
 impl<'a> ReferenceCatalog<'a> {
+    fn duplicate(&self, state: &mut ParserState<'a>, id: &str, location: &Location) -> bool {
+        let Some(first) = self.entries.get(id) else {
+            return false;
+        };
+        // Synthetic children can share their parent's source anchor.
+        if first.location != *location {
+            state.add_warning(Warning::new(
+                WarningKind::DuplicateId {
+                    id: id.to_owned(),
+                    first: Box::new(state.create_error_source_location(first.location.clone())),
+                },
+                Some(state.create_error_source_location(location.clone())),
+            ));
+        }
+        true
+    }
+
     fn section_id(&mut self, state: &ParserState<'a>, section: &Section<'a>) -> &'a str {
         if let Some(id) = Section::explicit_id(&section.metadata) {
             return id;
@@ -1357,18 +1374,25 @@ struct CrossReferenceUse<'a> {
 }
 
 fn insert_untitled_reference<'a>(
+    state: &mut ParserState<'a>,
     refs: &mut ReferenceCatalog<'a>,
     id: &'a str,
     location: &Location,
 ) {
-    refs.entries.entry(id).or_insert_with(|| Reference {
-        xreflabel: None,
-        title: None,
-        location: location.clone(),
-        caption: None,
-        bibliography: false,
-        automatic_citation: false,
-    });
+    if refs.duplicate(state, id, location) {
+        return;
+    }
+    refs.entries.insert(
+        id,
+        Reference {
+            xreflabel: None,
+            title: None,
+            location: location.clone(),
+            caption: None,
+            bibliography: false,
+            automatic_citation: false,
+        },
+    );
 }
 
 fn finalize_cross_references<'a>(
@@ -1475,7 +1499,7 @@ fn collect_formatted_references<'a, T>(
     T: MarkedText<'a, Content = Vec<InlineNode<'a>>>,
 {
     if let Some(id) = text.id() {
-        insert_untitled_reference(refs, id, text.location());
+        insert_untitled_reference(state, refs, id, text.location());
     }
     collect_inline_references(state, text.content(), refs, xrefs);
 }
@@ -1489,7 +1513,7 @@ fn collect_link_references<'a>(
     xrefs: &mut Vec<CrossReferenceUse<'a>>,
 ) {
     if let Some(id) = attributes.get_string("id") {
-        insert_untitled_reference(refs, state.intern_cow(id), location);
+        insert_untitled_reference(state, refs, state.intern_cow(id), location);
     }
     collect_inline_references(state, text, refs, xrefs);
 }
@@ -1539,27 +1563,29 @@ fn collect_references<'a>(
         if let Block::Section(section) = block {
             let id = refs.section_id(state, section);
             section.id = Some(id);
-            if let Some(text) = section
-                .reference_text
-                .take()
-                .filter(|text| !text.is_empty())
-            {
-                refs.natural_targets.entry(text).or_insert(id);
-            }
+            let reference_text = section.reference_text.take();
             let xreflabel = section_xreflabel(state, &section.metadata);
             let mut location = section.location.clone();
             if let Some(last) = section.title.last() {
                 location.absolute_end = last.location().absolute_end;
                 location.end = last.location().end.clone();
             }
-            refs.entries.entry(id).or_insert_with(|| Reference {
-                xreflabel: parse_reference_label(state, xreflabel, &location),
-                title: Some(section.title.clone()),
-                location,
-                caption: None,
-                bibliography: false,
-                automatic_citation: false,
-            });
+            if !refs.duplicate(state, id, &location) {
+                if let Some(text) = reference_text.filter(|text| !text.is_empty()) {
+                    refs.natural_targets.entry(text).or_insert(id);
+                }
+                refs.entries.insert(
+                    id,
+                    Reference {
+                        xreflabel: parse_reference_label(state, xreflabel, &location),
+                        title: Some(section.title.clone()),
+                        location,
+                        caption: None,
+                        bibliography: false,
+                        automatic_citation: false,
+                    },
+                );
+            }
         }
         if !matches!(block, Block::Section(_))
             && let Some(anchor) = block.anchor()

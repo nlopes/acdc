@@ -1,0 +1,5 @@
+= T
+
+include::duplicate_ids_first.adoc[]
+
+include::duplicate_ids_second.adoc[]

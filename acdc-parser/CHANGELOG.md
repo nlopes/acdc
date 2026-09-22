@@ -34,6 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Duplicate explicit IDs produce non-fatal warnings with the original ID and
+  both source locations, including included files. Cross-references keep the
+  first definition; later duplicate section titles do not become reference
+  aliases, matching Asciidoctor.
+
 - Repeated section titles receive unique generated IDs such as `_preface_2`,
   matching Asciidoctor. Section IDs, cross-references, and table-of-contents
   targets remain consistent across nested sections and included files.
