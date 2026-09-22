@@ -985,6 +985,31 @@ mod tests {
     }
 
     #[test]
+    fn quoted_xref_labels_preserve_single_quote_byte_ranges() -> Result<(), Box<dyn StdError>> {
+        // Fixture JSON stores line/column locations, not absolute byte ranges.
+        for (source, expected) in [
+            (r#"xref:target["\"",role=hot]"#, r#"\""#),
+            (r"xref:target['\'',role=hot]", r"\'"),
+        ] {
+            let parsed = parse(source, &Options::default())?;
+            let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.first() else {
+                panic!("expected a paragraph");
+            };
+            let Some(InlineNode::Macro(InlineMacro::CrossReference(xref))) =
+                paragraph.content.first()
+            else {
+                panic!("expected an xref");
+            };
+            let location = xref.text.first().ok_or("expected xref text")?.location();
+            assert_eq!(
+                source.get(location.absolute_start..=location.absolute_end),
+                Some(expected)
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn node_locations_are_source_relative_after_dropped_comment() -> Result<(), Box<dyn StdError>> {
         use crate::Block;
         // The adjacent comment on line 4 is dropped by the preprocessor; the section
