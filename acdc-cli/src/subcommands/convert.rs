@@ -164,6 +164,17 @@ pub struct Args {
     #[arg(long = "setext", alias = "enable-setext-compatibility")]
     pub enable_setext_compatibility: bool,
 
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`
+    ///
+    /// Only a cross-reference target that contains a `#` is affected:
+    /// everything up to and including that first `#` is dropped, so a
+    /// document assembled from includes resolves references written against
+    /// the file that defines the anchor. A target with no `#` is left exactly
+    /// as written. Custom text is kept: `<<file.adoc#anchor,text>>` still
+    /// shows `text`.
+    #[arg(long = "ignore-filename-in-crossref", visible_alias = "ifix")]
+    pub ignore_filename_in_crossref: bool,
+
     /// Strict mode
     ///
     /// When enabled, some errors related with non-conformance (but still recoverable)
@@ -1775,6 +1786,10 @@ fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'
 
     if args.strict {
         builder = builder.with_strict();
+    }
+
+    if args.ignore_filename_in_crossref {
+        builder = builder.with_ignore_filename_in_crossref();
     }
 
     #[cfg(feature = "setext")]
