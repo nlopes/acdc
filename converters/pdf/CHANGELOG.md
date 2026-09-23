@@ -71,6 +71,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A cross-reference that names the file its anchor was written in now resolves
+  by the anchor alone, as Antora does: `<<other.adoc#anchor>>` links to
+  `anchor` inside the PDF instead of to `other.pdf#anchor`. This is the
+  backend's default because a PDF is built from one assembled document; a
+  caller that wants the old external links asks for them with
+  `Options::builder().with_ignore_filename_in_crossrefs(false)`, or with the
+  command line's `--no-ignore-filename-in-crossrefs`.
+
 - Title-based shorthand cross-references now link to the matching generated or
   explicit section destination, including when the reference supplies custom
   text.

@@ -624,6 +624,45 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
 }
 
 #[test]
+fn ignoring_the_filename_links_an_interdocument_xref_to_this_document() -> Result<(), Error> {
+    let input = "Empty: <<Other.adoc#target>>.\n\nText: <<Other.adoc#target,the target>>.\n\nMacro: xref:Other.adoc#target[].\n\nWhole file: <<Other.adoc>>.\n\n[[target]]\n== Target\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let parser_options = ParserOptions::builder().with_ignore_filename_in_crossrefs(true);
+        let parsed = parse(input, &parser_options.clone().build()?)?;
+        let doc = parsed.document();
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            parser_options.with_attributes(doc.attributes.clone().into_inputs()),
+            variant,
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        processor.convert_to_writer(
+            doc,
+            &mut output,
+            &RenderOptions::default(),
+            &mut diagnostics,
+        )?;
+        let html = String::from_utf8(output)?;
+
+        for expected in [
+            "Empty: <a href=\"#target\">Target</a>.",
+            "Text: <a href=\"#target\">the target</a>.",
+            "Macro: <a href=\"#target\">Target</a>.",
+            // Nothing follows a `#`, so the target keeps its file part and
+            // still links to the other document.
+            "Whole file: <a href=\"Other.html\">Other.html</a>.",
+        ] {
+            assert!(html.contains(expected), "expected {expected:?} in {html}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
 fn passthroughs_are_restored_before_natural_xref_resolution() -> Result<(), Error> {
     let input = "Title macro: <<Pass raw Title>>.\nTitle plus: <<Plus raw Title>>.\nTarget macro: <<Target pass:[raw] Title>>.\nTarget plus: <<Target +raw+ Title>>.\nMissing macro: <<Missing pass:[raw] Title>>.\nMissing plus: <<Missing +raw+ Title>>.\nControl: <<Control Title>>.\n\n== Pass pass:[raw] Title\n\n== Plus +raw+ Title\n\n== Target raw Title\n\n== Control Title\n";
 

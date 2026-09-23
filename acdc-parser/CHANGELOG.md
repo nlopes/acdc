@@ -179,6 +179,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A cross-reference that names the file its anchor was written in can be
+  resolved by the anchor alone, so `<<other.adoc#anchor>>` behaves as
+  `<<anchor>>` and `xref:other.adoc#anchor[text]` as `xref:anchor[text]`.
+  Custom text and reference attributes are untouched. Turn it on with
+  `Options::builder().with_ignore_filename_in_crossrefs(true)`; without it the
+  file part is kept and the reference stays an inter-document one, as in
+  Asciidoctor. A target with no file part, or with nothing after the `#`, is
+  left as written.
+
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,
   safe-mode values, masked home paths, and active convenience attributes.

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `convert --ignore-filename-in-crossrefs`, short form `--ifix`, resolves a
+  cross-reference that names a file by its anchor alone: `<<other.adoc#anchor>>`
+  and `xref:other.adoc#anchor[text]` link to `anchor` in the converted document,
+  which is what a document assembled from includes needs. Custom text is kept.
+  The PDF backend does this by default, following Antora; pass
+  `--no-ignore-filename-in-crossrefs`, short form `--no-ifix`, to keep the file
+  part there. Every other backend keeps it unless the flag is given.
+
 ### Fixed
 
 - Repeated `-a` options now use the final assignment's precedence, matching
