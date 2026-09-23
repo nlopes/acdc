@@ -1,0 +1,972 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Passthroughs after equals",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 27
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 14
+      }
+    ]
+  },
+  "attributes": {
+    "experimental": true,
+    "name": "Expanded",
+    "query": "+foo+"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Bare URL: ",
+          "location": [
+            {
+              "line": 6,
+              "col": 1
+            },
+            {
+              "line": 6,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "autolink",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=foo"
+          },
+          "location": [
+            {
+              "line": 6,
+              "col": 11
+            },
+            {
+              "line": 6,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 6,
+              "col": 39
+            },
+            {
+              "line": 6,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 39
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "URL: ",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 5
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=foo"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "URL",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 35
+                },
+                {
+                  "line": 8,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 6
+            },
+            {
+              "line": 8,
+              "col": 38
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 8,
+              "col": 39
+            },
+            {
+              "line": 8,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 39
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Link: ",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=foo"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Link",
+              "location": [
+                {
+                  "line": 10,
+                  "col": 41
+                },
+                {
+                  "line": 10,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 10,
+              "col": 7
+            },
+            {
+              "line": 10,
+              "col": 45
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 10,
+              "col": 46
+            },
+            {
+              "line": 10,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Protected query: ",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x={name}"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "URL",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 50
+                },
+                {
+                  "line": 12,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 12,
+              "col": 18
+            },
+            {
+              "line": 12,
+              "col": 53
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 12,
+              "col": 54
+            },
+            {
+              "line": 12,
+              "col": 54
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 54
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Attribute URL: ",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=+foo+"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "URL",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 47
+                },
+                {
+                  "line": 14,
+                  "col": 49
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 16
+            },
+            {
+              "line": 14,
+              "col": 50
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 14,
+              "col": 51
+            },
+            {
+              "line": 14,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Bare attribute URL: ",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "autolink",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=+foo+"
+          },
+          "location": [
+            {
+              "line": 16,
+              "col": 21
+            },
+            {
+              "line": 16,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 16,
+              "col": 51
+            },
+            {
+              "line": 16,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Escaped URL: ",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 13
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=+foo+"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "URL",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 44
+                },
+                {
+                  "line": 18,
+                  "col": 46
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 14
+            },
+            {
+              "line": 18,
+              "col": 47
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 18,
+              "col": 48
+            },
+            {
+              "line": 18,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 48
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Query and role: ",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=foo"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "URL",
+              "location": [
+                {
+                  "line": 20,
+                  "col": 46
+                },
+                {
+                  "line": 20,
+                  "col": 48
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 20,
+              "col": 17
+            },
+            {
+              "line": 20,
+              "col": 60
+            }
+          ],
+          "attributes": {
+            "role": "hot"
+          }
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 20,
+              "col": 61
+            },
+            {
+              "line": 20,
+              "col": 61
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 61
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Image URL: ",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "image",
+          "type": "inline",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Alt",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 12
+                },
+                {
+                  "line": 1,
+                  "col": 52
+                }
+              ]
+            }
+          ],
+          "target": {
+            "type": "url",
+            "value": "https://example.com/?x=foo"
+          },
+          "location": [
+            {
+              "line": 22,
+              "col": 12
+            },
+            {
+              "line": 22,
+              "col": 50
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 22,
+              "col": 51
+            },
+            {
+              "line": 22,
+              "col": 51
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 51
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Stem: ",
+          "location": [
+            {
+              "line": 24,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "stem",
+          "type": "inline",
+          "content": "x=y",
+          "notation": "asciimath",
+          "location": [
+            {
+              "line": 24,
+              "col": 7
+            },
+            {
+              "line": 24,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 24,
+              "col": 19
+            },
+            {
+              "line": 24,
+              "col": 19
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 24,
+          "col": 19
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Button: ",
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 26,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "button",
+          "type": "inline",
+          "label": "key=foo",
+          "location": [
+            {
+              "line": 26,
+              "col": 9
+            },
+            {
+              "line": 26,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 26,
+              "col": 24
+            },
+            {
+              "line": 26,
+              "col": 24
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 26,
+          "col": 1
+        },
+        {
+          "line": 26,
+          "col": 24
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Menu: ",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "menu",
+          "type": "inline",
+          "target": "key=foo",
+          "items": [
+            "value=bar"
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 7
+            },
+            {
+              "line": 28,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 28,
+              "col": 34
+            },
+            {
+              "line": 28,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 28,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "image",
+      "type": "block",
+      "form": "macro",
+      "metadata": {
+        "attributes": {
+          "alt": "Alt"
+        }
+      },
+      "source": {
+        "type": "url",
+        "value": "https://example.com/?x=foo"
+      },
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 30,
+          "col": 40
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 30,
+      "col": 40
+    }
+  ]
+}

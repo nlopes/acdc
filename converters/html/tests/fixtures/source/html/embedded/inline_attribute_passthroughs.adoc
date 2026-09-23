@@ -1,0 +1,47 @@
+= Inline attribute passthroughs
+:role-name: hot
+:role-markup: +hot+
+:icons: font
+
+Plain: key=+{role-name}+ and key=+*hot*+.
+
+Escaped: key=\+{role-name}+.
+
+Xref: xref:target[role=+hot+].
+
+Protected: xref:target[role=+{role-name}+].
+
+Attribute: xref:target[role={role-markup}].
+
+Escape: xref:target[role=\+hot+].
+
+Link: link:https://example.com[Link,role=+hot+,window=+frame+,id=+link-id+].
+
+URL: https://example.com[URL,role=+hot+,window=+frame+,id=+url-id+].
+
+Mail: mailto:user@example.com[Mail,role=+hot+,window=+frame+,id=+mail-id+].
+
+Image: image:thing.png[Alt,title=+title+,link=+https://example.com+,window=+frame+,role=+hot cool+,options=+foo,bar+,id=+image-id+,width=+32+].
+
+Icon: icon:heart[title=+title+,link=+https://example.com+,window=+frame+,role=+hot+,id=+icon-id+,size=+2x+].
+
+Quoted: link:https://example.com[Quoted,role="+hot+ cool"].
+
+Double: link:https://example.com[Double,role=++hot++].
+
+Triple and macro: link:https://example.com[Link,role=+++hot+++] and https://example.com[URL,role=pass:[cool]].
+
+Link protected attribute: link:https://example.com[Link,role=+{role-name}+].
+
+Link attribute: link:https://example.com[Link,role={role-markup}].
+
+Link escape: link:https://example.com[Link,role=\+hot+].
+
+Punctuation: link:https://example.com[Link,role=+hot[0],cool+].
+
+Unicode: xref:target[role=+café+] then *bold*.
+
+Image title: image:thing.png[title=+my title+].
+
+[[target]]
+== Target

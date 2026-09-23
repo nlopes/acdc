@@ -1,0 +1,30 @@
+= Passthroughs after equals
+:query: +foo+
+:name: Expanded
+:experimental:
+
+Bare URL: https://example.com/?x=+foo+.
+
+URL: https://example.com/?x=+foo+[URL].
+
+Link: link:https://example.com/?x=+foo+[Link].
+
+Protected query: https://example.com/?x=+{name}+[URL].
+
+Attribute URL: https://example.com/?x={query}[URL].
+
+Bare attribute URL: https://example.com/?x={query}.
+
+Escaped URL: https://example.com/?x=\+foo+[URL].
+
+Query and role: https://example.com/?x=+foo+[URL,role=+hot+].
+
+Image URL: image:https://example.com/?x=+foo+[Alt].
+
+Stem: stem:[x=+y+].
+
+Button: btn:[key=+foo+].
+
+Menu: menu:key=+foo+[value=+bar+].
+
+image::https://example.com/?x=+foo+[Alt]
