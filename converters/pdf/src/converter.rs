@@ -21,6 +21,14 @@ impl<'a> Converter<'a> for Processor<'a> {
     ) -> Result<Self, Self::Error> {
         let mut parser_options = parser_options;
         parser_options = PDF_BACKEND.apply(parser_options, options.doctype(), options.embedded());
+        // A PDF is built from one assembled document, so a cross-reference
+        // that names the file its anchor was written in still points inside
+        // the same output. Antora resolves those by the anchor alone and so
+        // does this backend, unless the caller asked for the file part to be
+        // kept.
+        if parser_options.ignore_filename_in_crossrefs().is_none() {
+            parser_options = parser_options.with_ignore_filename_in_crossrefs(true);
+        }
         let parser_options = parser_options.build()?;
         Ok(Self {
             options,

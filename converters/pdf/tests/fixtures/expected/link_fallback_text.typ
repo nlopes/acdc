@@ -121,9 +121,9 @@
 
 #text("External document: ")#link("other.pdf")[#text("other.pdf")]
 
-#text("External document fragment: ")#link("other.pdf#part")[#text("other.pdf")]
+#text("External document fragment: ")#text("[part]")
 
-#text("External document with custom text: ")#link("other.pdf#part")[#text("Other part")]
+#text("External document with custom text: ")#text("Other part")
 
 #metadata(none) <id-6c6162656c2d746172676574>
 #text("Label target.")

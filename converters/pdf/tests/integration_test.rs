@@ -1,4 +1,4 @@
-use acdc_parser::{Options, parse, parse_file};
+use acdc_parser::{Options, OptionsBuilder, parse, parse_file};
 use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
     collections::HashMap,
@@ -72,6 +72,61 @@ fn internal_link_pages(pdf: &PdfDocument, page: u32) -> Result<Vec<u32>, Error> 
                 .ok_or_else(|| "missing destination page".into())
         })
         .collect()
+}
+
+/// Render `input` through a processor built from `parser_options`, parsing it
+/// with the options the processor settled on rather than the defaults, so a
+/// backend's own parser settings are exercised.
+fn render_with_backend_parser_options(
+    input: &str,
+    parser_options: OptionsBuilder<'static>,
+) -> Result<(PdfDocument, bool), Error> {
+    let processor = Processor::new(ConverterOptions::default(), parser_options)?;
+    let ignores_filename = processor.parser_options().ignore_filename_in_crossrefs;
+    let parsed = parse(input, processor.parser_options())?;
+    let source = WarningSource::new("pdf");
+    let mut warnings = Vec::new();
+    let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+    let mut output = Vec::new();
+    processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
+    assert!(warnings.is_empty(), "{warnings:?}");
+    Ok((PdfDocument::load_mem(&output)?, ignores_filename))
+}
+
+const INTERDOCUMENT_XREF: &str =
+    "= Doc\n\nSee <<other.adoc#target>>.\n\n<<<\n\n[[target]]\n== Target\n\nbody\n";
+
+#[test]
+fn the_pdf_backend_resolves_an_interdocument_xref_by_its_anchor() -> Result<(), Error> {
+    let (pdf, ignores_filename) =
+        render_with_backend_parser_options(INTERDOCUMENT_XREF, Options::builder())?;
+    assert!(ignores_filename, "the PDF backend should default this on");
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+    let text = pdf.extract_text(&[1])?;
+    assert!(
+        text.split_whitespace()
+            .collect::<String>()
+            .contains("SeeTarget"),
+        "{text}"
+    );
+    Ok(())
+}
+
+#[test]
+fn the_pdf_backend_keeps_the_filename_when_asked() -> Result<(), Error> {
+    let (pdf, ignores_filename) = render_with_backend_parser_options(
+        INTERDOCUMENT_XREF,
+        Options::builder().with_ignore_filename_in_crossrefs(false),
+    )?;
+    assert!(!ignores_filename, "an explicit choice should be kept");
+    let text = pdf.extract_text(&[1])?;
+    assert!(
+        text.split_whitespace()
+            .collect::<String>()
+            .contains("Seeother.pdf"),
+        "{text}"
+    );
+    Ok(())
 }
 
 #[test]

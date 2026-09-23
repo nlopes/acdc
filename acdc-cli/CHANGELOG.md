@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --ignore-filename-in-crossrefs`, short form `--ifix`, resolves a
+  cross-reference that names a file by its anchor alone: `<<other.adoc#anchor>>`
+  and `xref:other.adoc#anchor[text]` link to `anchor` in the converted document,
+  which is what a document assembled from includes needs. Custom text is kept.
+  The PDF backend does this by default, following Antora; pass
+  `--no-ignore-filename-in-crossrefs`, short form `--no-ifix`, to keep the file
+  part there. Every other backend keeps it unless the flag is given.
+
 - `convert` resolves the document's BibTeX citations before conversion, so a
   document that uses `cite:`, `citenp:`, `bibitem:` or `bibliography::[]` gets
   formatted citations and a reference list in every backend. The database is

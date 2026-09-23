@@ -55,6 +55,63 @@ fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn Error>>
 }
 
 #[cfg(feature = "html")]
+const INTERDOCUMENT_XREF_DOC: &str =
+    "= Doc\n\nSee <<other.adoc#target>>.\n\n[[target]]\n== Target\n";
+
+#[cfg(feature = "html")]
+#[test]
+fn ignore_filename_in_crossrefs_resolves_the_anchor_locally() -> Result<(), Box<dyn Error>> {
+    for flag in ["--ignore-filename-in-crossrefs", "--ifix"] {
+        let output = run_acdc(
+            &["convert", "--stdin", "-e", "-o", "-", flag],
+            Some(INTERDOCUMENT_XREF_DOC),
+        )?;
+        let html = output_text(&output.stdout);
+
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert!(
+            html.contains("See <a href=\"#target\">Target</a>."),
+            "{flag} produced {html}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn the_filename_in_a_crossref_is_kept_by_default() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &["convert", "--stdin", "-e", "-o", "-"],
+        Some(INTERDOCUMENT_XREF_DOC),
+    )?;
+    let html = output_text(&output.stdout);
+
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert!(
+        html.contains("See <a href=\"other.html#target\">other.html</a>."),
+        "{html}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
+fn the_two_crossref_filename_flags_conflict() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &["convert", "--stdin", "-o", "-", "--ifix", "--no-ifix"],
+        Some(INTERDOCUMENT_XREF_DOC),
+    )?;
+    let stderr = output_text(&output.stderr);
+
+    assert_eq!(output.status.code(), Some(2));
+    assert!(
+        stderr.contains("cannot be used with '--no-ignore-filename-in-crossrefs'"),
+        "{stderr}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "html")]
 #[test]
 fn convert_requires_an_input() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&["convert"], None)?;
