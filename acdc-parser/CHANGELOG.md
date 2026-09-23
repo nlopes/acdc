@@ -34,6 +34,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- An `xref:` macro whose brackets contain `=` reads them as an attribute list,
+  as Asciidoctor does: the first positional attribute is the link text,
+  `xrefstyle=` overrides the document's style for that reference, and `role=`
+  is kept on the `CrossReference` as `role` for converters to style the link.
+  `xref:fig[xrefstyle=short]` previously kept `xrefstyle=short` as its text.
+  Brackets without `=`, and all brackets in compat mode, are still the text as
+  written.
+- `Document::renumber_captions` now refreshes the reference catalog as well as
+  the blocks, so a `<<id>>` to a block that moved renders the ordinal the block
+  now carries. Previously the catalog kept the number assigned at parse time,
+  and a document whose captions were renumbered could show `Figure 1` in a
+  reference to what had become `Figure 2`.
 - Source blocks retain their language when a following block attribute line adds
   named options, such as `[source,options=linenums]`, matching Asciidoctor.
 - Source languages and unused positional values no longer create name-only
@@ -179,6 +191,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A cross-reference that names the file its anchor was written in can be
+  resolved by the anchor alone, so `<<other.adoc#anchor>>` behaves as
+  `<<anchor>>` and `xref:other.adoc#anchor[text]` as `xref:anchor[text]`.
+  Custom text and reference attributes are untouched. Turn it on with
+  `Options::builder().with_ignore_filename_in_crossrefs(true)`; without it the
+  file part is kept and the reference stays an inter-document one, as in
+  Asciidoctor. A target with no file part, or with nothing after the `#`, is
+  left as written.
+
+- A section's entry in `Document::references` carries a `SectionReference`:
+  its cross-reference name (`part`, `chapter`, `section`, `appendix`, or a
+  special section's style such as `preface`) and the number a reference quotes.
+  Each `CrossReference` carries the `<name>-refsig` word in effect where it is
+  written, as `XrefSignifier`. Together they let converters render numbered
+  section references under `xrefstyle`. The reference number continues past
+  `sectnumlevels`, as Asciidoctor's does, and `Document::renumber_sections`
+  refreshes it.
+
+- `ParseResult::with_document_mut` rewrites a parsed document in place, for
+  passes that run between parsing and conversion. The closure is handed a
+  `DocumentArena` alongside the document, so nodes it inserts can hold
+  generated text with the document's own lifetime instead of owning or leaking
+  it.
+- `Reference::for_target` builds a cross-reference catalog entry for a target
+  introduced after parsing, so an id assigned by such a pass resolves like one
+  written in the document.
+- `BlockMetadata::positional_values()` reports a block's unnamed positional
+  attributes in the order they were written. `[plantuml,my-diagram,svg]` reads
+  back as `"my-diagram"` then `"svg"`; a skipped slot (`[plantuml,,svg]`) comes
+  back as an empty string so the ones after it keep their index. The same values
+  remain available, unordered, through `metadata.attributes`.
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,
   safe-mode values, masked home paths, and active convenience attributes.
@@ -221,6 +264,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   AST — reorder blocks, remove one, add a title — and `Document::highest_caption_number()`
   reports the highest number assigned for a kind, so a consumer numbering a title the
   parser never saw can start past it.
+
 - `Options::builder().with_base_dir(path)` now controls entry include resolution
   for string, reader, and file input. It also defines the Safe/Server local
   boundary; otherwise string/reader input uses the current directory and file

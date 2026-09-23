@@ -124,6 +124,15 @@ fn run_fixture_test(
         return Ok(());
     }
 
+    // A fixture that turns on a source highlighter captures syntect's markup,
+    // which only exists under the `highlighting` feature. Keyed on the
+    // attribute rather than the file name so a new fixture that sets it is
+    // covered without being renamed.
+    #[cfg(not(feature = "highlighting"))]
+    if std::fs::read_to_string(path)?.contains(":source-highlighter:") {
+        return Ok(());
+    }
+
     let expected_path = expected_dir.join(file_name).with_extension("html");
 
     let actual = render_fixture(path, variant, embedded)?;
@@ -616,6 +625,73 @@ fn interdocument_xref_macros_do_not_link_to_matching_local_titles() -> Result<()
             "Explicit: <a href=\"Other.html\">Other</a>.",
             "Shorthand: <a href=\"#_other_adoc\">Other.adoc</a>.",
             "Fragment: <a href=\"Foo.html#Bar\">Foo.html</a>.",
+        ] {
+            assert!(html.contains(expected), "expected {expected:?} in {html}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn ignoring_the_filename_links_an_interdocument_xref_to_this_document() -> Result<(), Error> {
+    let input = "Empty: <<Other.adoc#target>>.\n\nText: <<Other.adoc#target,the target>>.\n\nMacro: xref:Other.adoc#target[].\n\nWhole file: <<Other.adoc>>.\n\n[[target]]\n== Target\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let parser_options = ParserOptions::builder().with_ignore_filename_in_crossrefs(true);
+        let parsed = parse(input, &parser_options.clone().build()?)?;
+        let doc = parsed.document();
+        let processor = Processor::new_with_variant(
+            ConverterOptions::default(),
+            parser_options.with_attributes(doc.attributes.clone().into_inputs()),
+            variant,
+        )?;
+        let mut output = Vec::new();
+        let mut warnings = Vec::new();
+        let source = WarningSource::new("html");
+        let mut diagnostics = Diagnostics::new(&source, &mut warnings);
+        processor.convert_to_writer(
+            doc,
+            &mut output,
+            &RenderOptions::default(),
+            &mut diagnostics,
+        )?;
+        let html = String::from_utf8(output)?;
+
+        for expected in [
+            "Empty: <a href=\"#target\">Target</a>.",
+            "Text: <a href=\"#target\">the target</a>.",
+            "Macro: <a href=\"#target\">Target</a>.",
+            // Nothing follows a `#`, so the target keeps its file part and
+            // still links to the other document.
+            "Whole file: <a href=\"Other.html\">Other.html</a>.",
+        ] {
+            assert!(html.contains(expected), "expected {expected:?} in {html}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn xref_macro_role_becomes_the_link_class() -> Result<(), Error> {
+    let input = "Auto: xref:fig[role=r].\n\nText: xref:fig[Text,role=\"a b\"].\n\n\
+                 Styled: xref:fig[xrefstyle=short,role=r].\n\nEmpty: xref:fig[role=].\n\n\
+                 External: xref:other.adoc#sec[role=r].\n\nExternal text: xref:other.adoc#sec[Other,role=r].\n\n\
+                 Missing: xref:missing[role=r].\n\nShorthand: <<fig,role=r>>.\n\n\
+                 [[fig]]\n.A figure\nimage::f.png[]\n";
+
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let html = convert_string_with_variant(input, &[], variant)?;
+        for expected in [
+            "Auto: <a href=\"#fig\" class=\"r\">A figure</a>.",
+            "Text: <a href=\"#fig\" class=\"a b\">Text</a>.",
+            "Styled: <a href=\"#fig\" class=\"r\">Figure 1</a>.",
+            // asciidoctor writes `class=""`; an empty class is left out here,
+            // as it is for a `link:` macro, which renders the same.
+            "Empty: <a href=\"#fig\">A figure</a>.",
+            "External: <a href=\"other.html#sec\" class=\"r\">other.html</a>.",
+            "External text: <a href=\"other.html#sec\" class=\"r\">Other</a>.",
+            "Missing: <a href=\"#missing\" class=\"r\">[missing]</a>.",
+            "Shorthand: <a href=\"#fig\">role=r</a>.",
         ] {
             assert!(html.contains(expected), "expected {expected:?} in {html}");
         }

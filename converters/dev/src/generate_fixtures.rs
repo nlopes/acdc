@@ -42,6 +42,7 @@ pub struct FixtureGenerator {
     output_extension: String,
     subdir: Option<String>,
     fixture_names: Option<HashSet<String>>,
+    parser_options: Options<'static>,
 }
 
 impl FixtureGenerator {
@@ -58,6 +59,7 @@ impl FixtureGenerator {
             output_extension: output_extension.to_string(),
             subdir: None,
             fixture_names: None,
+            parser_options: Options::default(),
         }
     }
 
@@ -73,6 +75,7 @@ impl FixtureGenerator {
             output_extension: self.output_extension.clone(),
             subdir: Some(subdir.to_string()),
             fixture_names: self.fixture_names.clone(),
+            parser_options: self.parser_options.clone(),
         }
     }
 
@@ -92,6 +95,24 @@ impl FixtureGenerator {
                     .map(|name| (*name).to_string())
                     .collect(),
             ),
+            parser_options: self.parser_options.clone(),
+        }
+    }
+
+    /// Return a new generator that parses fixtures with `parser_options`.
+    ///
+    /// A backend whose own parser options differ from the defaults — the PDF
+    /// backend resolves a cross-reference by its anchor rather than the file
+    /// it names — passes them here, so the generated output matches what its
+    /// test harness parses.
+    #[must_use]
+    pub fn with_parser_options(&self, parser_options: Options<'static>) -> Self {
+        Self {
+            converter_name: self.converter_name.clone(),
+            output_extension: self.output_extension.clone(),
+            subdir: self.subdir.clone(),
+            fixture_names: self.fixture_names.clone(),
+            parser_options,
         }
     }
 
@@ -200,10 +221,7 @@ impl FixtureGenerator {
                 continue;
             };
 
-            // Parse AsciiDoc with rendering defaults
-            let parser_options = Options::default();
-
-            let parsed = match acdc_parser::parse_file(&input_path, &parser_options) {
+            let parsed = match acdc_parser::parse_file(&input_path, &self.parser_options) {
                 Ok(parsed) => parsed,
                 Err(e) => {
                     println!(

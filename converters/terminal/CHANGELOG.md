@@ -7,8 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- A document that seeds an `[index]` section now gets its index without also
+  having to set `:acdc-index:`, and `:!acdc-index:` turns the extension off.
+  Every backend now answers this the same way, so one document no longer comes
+  out with an index in one format and an empty heading in another.
+
 ### Fixed
 
+- Automatic cross-references to numbered sections honor `xrefstyle`, matching
+  Asciidoctor: `short` gives `Section 1.1`, `Chapter 2`, `Appendix A` or
+  `Part I`, and `full` adds the title, in quotation marks for a section or part
+  and in emphasis for a chapter or appendix. The word comes from
+  `section-refsig`, `chapter-refsig`, `appendix-refsig` or `part-refsig` as it
+  stands where the reference is written, and unsetting it leaves the number
+  alone. As in Asciidoctor, a section deeper than `sectnumlevels` is still
+  numbered in a reference although its heading is not. Previously every
+  section reference showed only the title.
+- `xref:target[xrefstyle=short]` sets the style for that one reference, and the
+  text before the first named attribute is the link text, as in Asciidoctor.
+  Previously the whole bracket content, `xrefstyle=short` included, became the
+  link text.
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits — before a bibliography or a
+  colophon, or nested inside a part of a multipart book — and lists every term
+  in the document, including those in sections that follow it. Previously such
+  an index came out empty with nothing reported.
+- An `[index]` section keeps any content the author wrote in it; the generated
+  listing is appended after it rather than replacing it.
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.

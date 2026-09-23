@@ -14,7 +14,7 @@ use bumpalo::Bump;
 
 use crate::{
     CalloutRef, CaptionKind, DocumentAttribute, DocumentAttributes, Error, Footnote, Location,
-    Options, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel,
+    Options, SourceLocation, TocEntry, Warning, WarningKind, XrefCaptionLabel, XrefSignifier,
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
@@ -28,7 +28,26 @@ struct XrefCaptionLabelSnapshot<'a> {
     example: XrefCaptionLabel<'a>,
     listing: XrefCaptionLabel<'a>,
     table: XrefCaptionLabel<'a>,
+    /// `<name>-refsig` for each name in [`REFSIG_NAMES`], in the same order.
+    signifiers: [XrefSignifier<'a>; REFSIG_NAMES.len()],
 }
+
+/// Every name a section can have in a cross-reference, and so every
+/// `<name>-refsig` attribute a reference may need. The word is recorded where
+/// the reference is written, before its target is known, so all of them are.
+const REFSIG_NAMES: [&str; 11] = [
+    "part",
+    "chapter",
+    "section",
+    "appendix",
+    "preface",
+    "abstract",
+    "dedication",
+    "colophon",
+    "glossary",
+    "bibliography",
+    "index",
+];
 
 #[derive(Debug)]
 pub(crate) struct ParserState<'a> {
@@ -319,14 +338,41 @@ impl<'a> ParserState<'a> {
             },
             None => XrefCaptionLabel::AtTarget,
         };
+        // `status` rather than `get`: an explicitly unset refsig drops the word
+        // entirely, whereas `get` would hand back the attribute's default.
+        let signifier =
+            |name: &str| match self.document_attributes.status(&format!("{name}-refsig")) {
+                DocumentAttributeStatus::Set(value) => {
+                    let mut word = String::new();
+                    let _ = value.write_text(&mut word);
+                    XrefSignifier::AtReference(self.intern_str(crate::strip_quotes(&word)))
+                }
+                DocumentAttributeStatus::Unset => XrefSignifier::Omitted,
+                DocumentAttributeStatus::Absent => XrefSignifier::Standard,
+            };
+        let signifiers = REFSIG_NAMES.map(signifier);
         let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
         let snapshot = NonZeroUsize::MIN.saturating_add(snapshots.len());
         snapshots.push(XrefCaptionLabelSnapshot {
             example: label("example-caption"),
             listing: label("listing-caption"),
             table: label("table-caption"),
+            signifiers,
         });
         snapshot
+    }
+
+    /// The word before a section number at a reference position, for a
+    /// section of the given cross-reference name.
+    pub(crate) fn xref_signifier(&self, snapshot: NonZeroUsize, name: &str) -> XrefSignifier<'a> {
+        let Some(index) = REFSIG_NAMES.iter().position(|candidate| *candidate == name) else {
+            return XrefSignifier::Standard;
+        };
+        self.xref_caption_label_snapshots
+            .borrow()
+            .get(snapshot.get() - 1)
+            .and_then(|labels| labels.signifiers.get(index).copied())
+            .unwrap_or_default()
     }
 
     pub(crate) fn xref_caption_label(

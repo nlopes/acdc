@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `convert --ignore-filename-in-crossrefs`, short form `--ifix`, resolves a
+  cross-reference that names a file by its anchor alone: `<<other.adoc#anchor>>`
+  and `xref:other.adoc#anchor[text]` link to `anchor` in the converted document,
+  which is what a document assembled from includes needs. Custom text is kept.
+  The PDF backend does this by default, following Antora; pass
+  `--no-ignore-filename-in-crossrefs`, short form `--no-ifix`, to keep the file
+  part there. Every other backend keeps it unless the flag is given.
+
+- `convert` resolves the document's BibTeX citations before conversion, so a
+  document that uses `cite:`, `citenp:`, `bibitem:` or `bibliography::[]` gets
+  formatted citations and a reference list in every backend. The database is
+  the `.bib` file `:bibtex-file:` names — read from the directory the command
+  was run in, then looked for beside the document — or, when the document names
+  none, the single `.bib` file in either of those directories. An unknown
+  citation key is reported as a warning, or fails the conversion when the
+  document sets `:bibtex-throw: true`. See the `acdc-bibtex` changelog for the
+  styles and the attributes that control them. Build without the `bibtex`
+  feature to leave the macros untouched.
+
+- `convert` builds the document's `list-of::` lists before conversion, so a
+  list of figures, tables, or any other captioned block renders in every
+  backend. See the `acdc-lists` changelog for the element names and the
+  attributes that control them. Build without the `lists` feature to leave
+  `list-of::` calls untouched.
+
+- `convert` generates the document's diagrams before conversion, so `[graphviz]`,
+  `[plantuml]`, `[ditaa]` and the other diagram blocks and macros render as
+  images in every backend. Each diagram's tool has to be installed; generated
+  images are cached next to the output under `.asciidoctor/diagram` and are only
+  re-rendered when the diagram changes. A diagram that cannot be generated leaves
+  its source in the output and reports why. See the `acdc-diagram` changelog for
+  the recognised diagram types and the attributes that control them. Build
+  without the `diagram` feature to leave diagram blocks untouched.
+
 ### Fixed
 
 - Repeated `-a` options now use the final assignment's precedence, matching

@@ -3,6 +3,7 @@
 :toc:
 :toclevels: 3
 :sectnums:
+:!acdc-index:
 
 [preface]
 == Preface

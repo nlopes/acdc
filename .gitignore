@@ -12,3 +12,11 @@
 # this is a skill provided by incident-io/claude-skills
 .claude/vibe-check-themes.md
 /wip
+*.DS_Store
+# Reference checkouts of the upstream Ruby extensions, and local documents
+asciidoctor-bibtex/
+asciidoctor-diagram/
+asciidoctor-lists/
+asciidoctor-sail/
+docs-resources/
+klee/

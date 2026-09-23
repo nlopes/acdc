@@ -24,7 +24,7 @@ mod tables;
 mod title;
 
 pub use admonition::{Admonition, AdmonitionVariant};
-pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
+pub use anchor::{Anchor, Reference, SectionReference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
@@ -80,6 +80,16 @@ impl Document<'_> {
             Some(value) if value.as_str() == Some("book")
         );
         section::renumber_sections(&mut self.blocks, &mut self.toc_entries, is_book);
+        // The catalog copies each section's number, so it has to follow the
+        // renumbering or a `<<id>>` would quote the number the section had
+        // when it was parsed.
+        for entry in &self.toc_entries {
+            if let Some(reference) = self.references.get_mut(entry.id)
+                && reference.section.is_some()
+            {
+                reference.section = Some(section::section_reference(entry, is_book));
+            }
+        }
     }
 
     /// Reassign every automatic caption ordinal, numbering a block's content before the block
@@ -89,8 +99,12 @@ impl Document<'_> {
     /// or inserting a block whose `metadata.caption` has been set. A caller-built block whose
     /// `metadata.caption` is `None` stays unnumbered: nothing knows the document attributes at
     /// a source position it never had, so a converter's own fallback owns it.
+    ///
+    /// [`references`](Self::references) is refreshed too, so a `<<id>>` to a block that moved
+    /// renders the ordinal the block now carries rather than the one it had when it was parsed.
     pub fn renumber_captions(&mut self) {
         caption::renumber_captions(&mut self.blocks);
+        caption::refresh_reference_captions(&self.blocks, &mut self.references);
     }
 
     /// The highest caption ordinal assigned to any block of `kind`, or 0 when none carries one.

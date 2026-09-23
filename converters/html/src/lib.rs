@@ -45,7 +45,7 @@ mod terminal;
 mod toc;
 mod video;
 
-pub(crate) use acdc_converters_core::section::last_section_has_style;
+pub(crate) use acdc_converters_core::section::{has_index_section, index_generation_enabled};
 pub(crate) use csp::CspFeatures;
 pub use error::Error;
 pub use html_visitor::{HtmlVisitor, uses_stem};
@@ -160,12 +160,35 @@ pub struct Processor<'a> {
     listing_counter: Rc<Cell<u32>>,
     /// Shared counter for generating unique index term anchor IDs.
     index_term_counter: Rc<Cell<usize>>,
-    /// Collected index term entries for rendering in the index catalog.
+    /// Index term entries, accumulated as the document is traversed.
+    ///
+    /// `add_index_entry` pushes here and hands back the `_indexterm_N` anchor
+    /// that goes into the output, so this list is a side effect of rendering
+    /// and only ever holds the terms seen *so far*.
     /// Uses `Rc<RefCell<>>` so all clones can add entries during traversal.
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Whether to generate acdc's index catalog: true only when the
-    /// `:acdc-index:` document attribute is set AND the document's last section
-    /// has the `[index]` style. When false the feature is fully off — no
+    /// Every index term in the document, taken from `index_entries` when the
+    /// collection pass finishes. This is what the catalog is built from.
+    ///
+    /// # Why a second list
+    ///
+    /// The catalog has to name terms from the whole document, but the pass
+    /// that writes the real output renders the same terms again — it has to,
+    /// because minting the anchor id is what that call does — and so refills
+    /// `index_entries` from empty as it goes. Reading the catalog from that
+    /// list would once more show only what precedes the `[index]` section,
+    /// which is the bug the collection pass exists to fix. Parking the
+    /// finished list here keeps it out of the second pass's way.
+    ///
+    /// It could be one list: the anchor id is just the term's position in
+    /// document order, and both passes traverse identically, so the second
+    /// pass needs the counter but not the push. Splitting `add_index_entry`
+    /// into "record a term" and "take the next anchor" would let the
+    /// collected list serve as the catalog and let this field go.
+    index_catalog: Rc<RefCell<Vec<IndexTermEntry>>>,
+    /// Whether to generate acdc's index catalog: true when the document seeds
+    /// an `[index]` section and has not turned the feature off with
+    /// `:!acdc-index:`. When false the feature is fully off — no
     /// `_indexterm_` anchors and `[index]` sections render empty, matching
     /// asciidoctor (index generation is an acdc extension; see `crate::index`).
     generate_index: bool,
@@ -180,14 +203,14 @@ impl<'a> Processor<'a> {
         self.parser_options.document_attributes()
     }
 
-    /// Get a reference to the collected index entries
+    /// Every index term in the document, for building the catalog.
     #[must_use]
-    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
-        &self.index_entries
+    pub(crate) fn index_catalog(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+        &self.index_catalog
     }
 
-    /// Whether acdc's index catalog should be generated (the `:acdc-index:`
-    /// attribute is set and the last section has the `[index]` style).
+    /// Whether acdc's index catalog should be generated (the document seeds
+    /// an `[index]` section and did not set `:!acdc-index:`).
     #[must_use]
     pub fn generate_index(&self) -> bool {
         self.generate_index
@@ -319,7 +342,7 @@ impl<'a> Processor<'a> {
             parser_options: ParserOptions::default()
                 .with_document_attributes(doc.attributes.clone()),
             generate_index: index_generation_enabled(&doc.attributes)
-                && last_section_has_style(&doc.blocks, "index"),
+                && has_index_section(&doc.blocks),
             options: self.options.clone(),
             example_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Example))),
             table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
@@ -327,15 +350,16 @@ impl<'a> Processor<'a> {
             listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             index_term_counter: self.index_term_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
+            index_catalog: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };
+        let processor = Rc::new(processor);
+        if processor.generate_index() {
+            collect_index_terms(doc, &processor, options)?;
+        }
         let mut traversal = TraversalContext::new(&doc.attributes);
-        let mut visitor = HtmlVisitor::new(
-            writer,
-            Rc::new(processor),
-            options.clone(),
-            diagnostics.reborrow(),
-        );
+        let mut visitor =
+            HtmlVisitor::new(writer, processor, options.clone(), diagnostics.reborrow());
         visitor.visit_document(&mut traversal, doc)
     }
 
@@ -412,13 +436,53 @@ pub(crate) const WEBFONTS_DEFAULT: &str = "";
 pub(crate) const STYLESHEET_ADVICE: &str =
     "Check stylesheet paths and filesystem permissions, then rerun the conversion.";
 
-/// Whether acdc's index generation is opted into via the `:acdc-index:`
-/// document attribute. Index generation is an acdc extension over asciidoctor's
-/// html5 backend (see `crate::index`), so it is off unless the author asks for
-/// it. Treated as a boolean attribute: present and not soft-unset (`:!acdc-index:`)
-/// turns it on.
-pub(crate) fn index_generation_enabled(attributes: &DocumentAttributes<'_>) -> bool {
-    attributes.get("acdc-index").is_some()
+/// Gather every index term in the document before a byte is written.
+///
+/// The catalog has to list terms from the whole document, but an entry is only
+/// recorded when the term is rendered — so an `[index]` section that is not the
+/// last thing in the document would otherwise show only what precedes it. The
+/// document is rendered once to a sink to fill the catalog, then again for
+/// real. Rendering it rather than walking the tree separately is deliberate: a
+/// term's label is HTML produced by the inline renderer, so a second code path
+/// could disagree with the output about what a term says.
+///
+/// The pass leaves no trace: its output is discarded, its warnings are dropped
+/// because the real pass emits the same ones, and every counter it advanced is
+/// wound back so the anchor ids and caption numbers it handed out are the ones
+/// the real pass hands out again.
+fn collect_index_terms<'doc>(
+    doc: &Document<'doc>,
+    processor: &Rc<Processor<'doc>>,
+    options: &RenderOptions,
+) -> Result<(), Error> {
+    let counters = [
+        (&processor.example_counter, processor.example_counter.get()),
+        (&processor.table_counter, processor.table_counter.get()),
+        (&processor.figure_counter, processor.figure_counter.get()),
+        (&processor.listing_counter, processor.listing_counter.get()),
+    ];
+    let index_term_start = processor.index_term_counter.get();
+
+    let mut discarded = Vec::new();
+    let source = processor.warning_source();
+    let mut diagnostics = Diagnostics::new(&source, &mut discarded);
+    let mut traversal = TraversalContext::new(&doc.attributes);
+    let mut visitor = HtmlVisitor::new(
+        std::io::sink(),
+        Rc::clone(processor),
+        options.clone(),
+        diagnostics.reborrow(),
+    );
+    visitor.visit_document(&mut traversal, doc)?;
+
+    processor
+        .index_catalog
+        .replace(processor.index_entries.take());
+    for (counter, before) in counters {
+        counter.set(before);
+    }
+    processor.index_term_counter.set(index_term_start);
+    Ok(())
 }
 
 pub(crate) fn load_css(dark_mode: bool, variant: HtmlVariant) -> &'static str {
@@ -608,6 +672,7 @@ impl<'a> Processor<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
+            index_catalog: Rc::new(RefCell::new(Vec::new())),
             variant,
         })
     }

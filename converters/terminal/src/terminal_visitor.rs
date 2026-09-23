@@ -210,15 +210,15 @@ impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
 
         self.render_section(traversal, section)?;
 
+        // The section's own blocks are the author's; the generated listing is
+        // appended after them, so an `[index]` section can carry a note of its
+        // own without it being swallowed by the index.
+        for nested_block in &section.content {
+            traversal.visit_block(self, nested_block)?;
+        }
         if render_catalog {
-            // Render the collected index catalog instead of normal content
             let processor = self.processor;
             crate::index::render(self, processor)?;
-        } else {
-            // Walk nested blocks within the section
-            for nested_block in &section.content {
-                traversal.visit_block(self, nested_block)?;
-            }
         }
 
         Ok(())

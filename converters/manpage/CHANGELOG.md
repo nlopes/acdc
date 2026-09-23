@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Automatic cross-references to numbered sections honor `xrefstyle`, matching
+  Asciidoctor: `short` gives `Section 1.1`, `Chapter 2`, `Appendix A` or
+  `Part I`, and `full` adds the title, in quotation marks for a section or part
+  and in emphasis for a chapter or appendix. The word comes from
+  `section-refsig`, `chapter-refsig`, `appendix-refsig` or `part-refsig` as it
+  stands where the reference is written, and unsetting it leaves the number
+  alone. As in Asciidoctor, a section deeper than `sectnumlevels` is still
+  numbered in a reference although its heading is not. Previously every
+  section reference showed only the title.
+- `xref:target[xrefstyle=short]` sets the style for that one reference, and the
+  text before the first named attribute is the link text, as in Asciidoctor.
+  Previously the whole bracket content, `xrefstyle=short` included, became the
+  link text.
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.
@@ -30,6 +43,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Manpage parser attributes now expose `embedded` only when embedded output is selected.
 
 Major revamp of the manpage converter to match asciidoctor output much more closely.
+
+### Changed
+
+- `:!acdc-index:` now turns index generation off, matching the other backends.
+  A document that seeds an `[index]` section still gets its index by default.
+
+### Fixed
+
+- A generated index no longer has to be the document's last section. An
+  `[index]` section is found wherever it sits, including nested inside a part
+  of a multipart book.
 
 ### Performance
 

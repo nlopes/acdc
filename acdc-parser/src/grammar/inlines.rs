@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
     CurvedQuotation, Footnote, Form, Highlight, ICON_SIZES, Icon, Image, IndexTerm, IndexTermKind,
@@ -21,6 +23,77 @@ use super::{
     },
     state::{InlineContext, InlineRules},
 };
+
+/// The parts of `xref:target[...]` that decide what the link shows.
+struct XrefMacroText<'s> {
+    /// The link text, empty for an automatic reference.
+    text: Cow<'s, str>,
+    /// Where `text` starts within the brackets.
+    offset: usize,
+    /// Whether `text` is the whole bracket content as written.
+    as_written: bool,
+    /// A `xrefstyle=` for this reference alone, overriding the document's.
+    xrefstyle: Option<String>,
+    /// A `role=` for the link.
+    role: Option<String>,
+}
+
+/// Read `xref:target[...]`'s brackets the way Asciidoctor does.
+///
+/// Brackets holding an `=` are an attribute list: the first positional
+/// attribute is the link text, `xrefstyle=` overrides the document's style
+/// for this reference, so `xref:fig[xrefstyle=short]` prints `Figure 1`, and
+/// `role=` is kept for the link. Any other brackets, and all brackets in
+/// compat mode, are the link text as written, commas included.
+///
+/// Other named attributes are read and set aside rather than shown, so
+/// `xref:fig[id=x]` still has automatic text, as in Asciidoctor.
+fn xref_macro_text(raw: &str, compat_mode: bool) -> XrefMacroText<'_> {
+    if compat_mode || !raw.contains('=') {
+        return XrefMacroText {
+            text: Cow::Borrowed(raw),
+            offset: 0,
+            as_written: true,
+            xrefstyle: None,
+            role: None,
+        };
+    }
+    let mut parsed = XrefMacroText {
+        text: Cow::Borrowed(""),
+        offset: 0,
+        as_written: false,
+        xrefstyle: None,
+        role: None,
+    };
+    for (index, attribute) in super::document::scan_attribute_list(raw)
+        .into_iter()
+        .enumerate()
+    {
+        match attribute.name.as_deref() {
+            Some("xrefstyle") => parsed.xrefstyle = Some(attribute.value),
+            // A repeated attribute takes its last value, as in Asciidoctor.
+            Some("role") => parsed.role = Some(attribute.value),
+            // Positional attributes are numbered by their place in the list,
+            // so text after a named attribute is not the link text:
+            // `xref:fig[xrefstyle=short,Words]` is still automatic.
+            None if index == 0 => {
+                let slice = raw
+                    .get(attribute.value_start..attribute.value_end)
+                    .unwrap_or_default();
+                // A quoted value with escaped quotes reads differently from
+                // the source slice; only then does the text need its own copy.
+                parsed.text = if slice == attribute.value {
+                    Cow::Borrowed(slice)
+                } else {
+                    Cow::Owned(attribute.value)
+                };
+                parsed.offset = attribute.value_start;
+            }
+            Some(_) | None => {}
+        }
+    }
+    parsed
+}
 
 /// RFC 5321 max local-part length. An email address must have `@` within this
 /// many bytes of the start of the local part.
@@ -371,6 +444,19 @@ macro_rules! process_inlines_or_err {
             $msg
         })
     };
+}
+
+/// Drop the file part of an inter-document cross-reference target, so that
+/// `other.adoc#anchor` resolves as `anchor`.
+///
+/// Enabled by [`Options::ignore_filename_in_crossrefs`](crate::Options). A
+/// target with no file part, or with nothing after the `#`, is returned as
+/// written: there would be no anchor left to resolve.
+fn crossref_target_without_filename(target: &str) -> &str {
+    match target.split_once('#') {
+        Some((file, anchor)) if !file.is_empty() && !anchor.is_empty() => anchor,
+        _ => target,
+    }
 }
 
 fn strip_link_window_shorthand(text: Option<&str>) -> (Option<&str>, bool) {
@@ -1510,7 +1596,11 @@ peg::parser! {
         = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
-            let target_str: &'input str = target;
+            let target_str: &'input str = if state.options.ignore_filename_in_crossrefs {
+                crossref_target_without_filename(target)
+            } else {
+                target
+            };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -1576,6 +1666,10 @@ peg::parser! {
         = "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
             let target_str: &'input str = match fragment {
+                // `source()` and `path_fragment()` each match at least one
+                // character, so dropping the fragment's leading `#` always
+                // leaves an anchor to resolve.
+                Some(f) if state.options.ignore_filename_in_crossrefs => state.intern_str(&f[1..]),
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
                 None => state.intern_fmt(format_args!("{target}")),
             };
@@ -1583,10 +1677,27 @@ peg::parser! {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
             };
-            let text = if raw_text.is_empty() {
+            let macro_text = xref_macro_text(
+                raw_text,
+                state.document_attributes.contains_key("compat-mode"),
+            );
+            let text = if macro_text.text.is_empty() {
                 vec![]
             } else {
-                process_inlines_no_autolinks(state, &bm, content_start, span_end, state.inline_ctx.offset, raw_text)
+                // Brackets read as written keep the span they always had.
+                let (text, text_start, text_end): (&'input str, usize, usize) = match macro_text.text {
+                    Cow::Borrowed(text) if macro_text.as_written => (text, content_start, span_end),
+                    Cow::Borrowed(text) => {
+                        let start = content_start + macro_text.offset;
+                        (text, start, start + text.len())
+                    }
+                    Cow::Owned(text) => {
+                        let start = content_start + macro_text.offset;
+                        let end = start + text.len();
+                        (state.intern_str(&text), start, end)
+                    }
+                };
+                process_inlines_no_autolinks(state, &bm, text_start, text_end, state.inline_ctx.offset, text)
                     .map_err(|e| {
                         tracing::error!(?e, xref_text = raw_text, "could not process xref text");
                         "could not process xref text"
@@ -1595,12 +1706,16 @@ peg::parser! {
             tracing::debug!(?target_str, ?text, "Found cross-reference macro");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
+            // A per-reference `xrefstyle=` wins over the document's, including
+            // an unrecognised one, which Asciidoctor treats as `basic`.
             xref.xrefstyle = crate::XrefStyle::from_attribute(
-                state
-                    .document_attributes
-                    .text("xrefstyle")
+                macro_text
+                    .xrefstyle
+                    .as_deref()
+                    .or_else(|| state.document_attributes.text("xrefstyle"))
                     .map(crate::strip_quotes),
             );
+            xref.role = macro_text.role.as_deref().map(|role| state.intern_str(role));
             if xref.text.is_empty() {
                 xref.caption_label_snapshot_id = Some(state.capture_xref_caption_labels());
             }

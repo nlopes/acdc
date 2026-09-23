@@ -108,6 +108,10 @@ pub struct TocEntry<'a> {
     /// Converters use it for presentation, such as appendix labels.
     pub kind: SectionKind,
     number: Option<SectionNumber>,
+    /// The number a cross-reference to this section quotes. It differs from
+    /// `number` only past `sectnumlevels`, where the heading shows no number
+    /// but Asciidoctor still numbers the reference.
+    reference_number: Option<SectionNumber>,
     /// Location of the section heading (the cross-reference target).
     pub location: Location,
 }
@@ -128,12 +132,22 @@ impl<'a> TocEntry<'a> {
             xreflabel,
             kind,
             number: None,
+            reference_number: None,
             location,
         }
     }
 
     pub(super) fn set_number(&mut self, number: Option<SectionNumber>) {
         self.number = number;
+    }
+
+    pub(super) fn set_reference_number(&mut self, number: Option<SectionNumber>) {
+        self.reference_number = number;
+    }
+
+    /// The number a cross-reference to this section quotes, when it has one.
+    pub(crate) fn reference_number(&self) -> Option<&str> {
+        self.reference_number.as_ref().map(SectionNumber::as_str)
     }
 
     /// Return the assigned number without presentation punctuation or a signifier.
@@ -164,6 +178,47 @@ impl Serialize for TocEntry<'_> {
     }
 }
 
+/// What an automatic cross-reference to a section shows when `xrefstyle` asks
+/// for more than the title.
+///
+/// Asciidoctor prints `Section 1.1`, `Chapter 2, _Title_` and the like. The
+/// word comes from the `<name>-refsig` attribute and the number from the
+/// section's numbering, so both are recorded here for converters to assemble.
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct SectionReference {
+    /// The section's name for cross-references: `part`, `chapter`, `section`,
+    /// `appendix`, or a special section's style such as `preface`. It selects
+    /// the `<name>-refsig` attribute that supplies the word before the number.
+    pub name: &'static str,
+    /// The number a cross-reference quotes, or `None` for an unnumbered
+    /// section, which is referenced by its title alone.
+    pub number: Option<String>,
+}
+
+impl SectionReference {
+    /// Whether a `full` cross-reference sets this section's title in emphasis
+    /// rather than quotation marks. Asciidoctor emphasises the titles of
+    /// chapters and appendices and quotes every other kind.
+    #[must_use]
+    pub fn emphasizes_title(&self) -> bool {
+        matches!(self.name, "chapter" | "appendix")
+    }
+
+    /// The word Asciidoctor puts before this section's number when nothing
+    /// was recorded at the reference position.
+    #[must_use]
+    pub fn standard_signifier(&self) -> Option<&'static str> {
+        match self.name {
+            "part" => Some("Part"),
+            "chapter" => Some("Chapter"),
+            "section" => Some("Section"),
+            "appendix" => Some("Appendix"),
+            _ => None,
+        }
+    }
+}
+
 /// Reference metadata for a cross-reference target.
 ///
 /// Collected during parsing into the `id → Reference` map on
@@ -186,11 +241,44 @@ pub struct Reference<'a> {
     pub location: Location,
     /// The target block's resolved caption, when it has one.
     pub caption: Option<Caption<'a>>,
+    /// For a section target, the name and number a styled cross-reference
+    /// shows in place of, or in front of, its title.
+    pub section: Option<SectionReference>,
     pub(crate) bibliography: bool,
     pub(crate) automatic_citation: bool,
 }
 
-impl Reference<'_> {
+impl<'a> Reference<'a> {
+    /// Build a catalog entry for a target introduced after parsing.
+    ///
+    /// Parsing builds `Document::references` from the anchors it finds, so a
+    /// block that never had an id is absent from it. A post-parse pass that
+    /// gives such a block an id — `acdc-lists` does this so a generated list
+    /// of figures can link to an untitled-but-captioned image — has to add the
+    /// matching entry itself, or a cross-reference to the new id would resolve
+    /// to the literal `[id]`.
+    ///
+    /// `title` and `caption` should be the target block's own, so the
+    /// reference renders the same text as one written by hand. The entry is
+    /// neither a bibliography target nor automatically cited; a pass that
+    /// needs those should be part of the parser instead.
+    #[must_use]
+    pub fn for_target(
+        title: Option<Title<'a>>,
+        caption: Option<Caption<'a>>,
+        location: Location,
+    ) -> Self {
+        Self {
+            xreflabel: None,
+            title,
+            location,
+            caption,
+            section: None,
+            bibliography: false,
+            automatic_citation: false,
+        }
+    }
+
     /// Returns whether this target is a bibliography entry.
     #[must_use]
     pub fn is_bibliography(&self) -> bool {

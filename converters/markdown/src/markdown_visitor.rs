@@ -1521,11 +1521,13 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             let prev_level = self.heading_level;
             self.heading_level = level as usize;
 
+            // The section's own blocks are the author's; the generated listing
+            // is appended after them, so an `[index]` section can carry a note
+            // of its own without it being swallowed by the index.
+            self.visit_separated_blocks(traversal, &section.content, true)?;
             if section.kind == SectionKind::Index && self.processor.generate_index() {
                 let processor = self.processor;
                 crate::index::render(self, processor, self.heading_level + 1)?;
-            } else {
-                self.visit_separated_blocks(traversal, &section.content, true)?;
             }
 
             self.heading_level = prev_level;
@@ -2438,6 +2440,16 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                             visitor.visit_inline_node(traversal, node)?;
                         }
                         write!(visitor.writer, "”")?;
+                        Ok(())
+                    })
+                }
+                XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                    visitor.write_anchor_link(target, |visitor| {
+                        write!(visitor.writer, "{prefix}, *")?;
+                        for node in inlines {
+                            visitor.visit_inline_node(traversal, node)?;
+                        }
+                        write!(visitor.writer, "*")?;
                         Ok(())
                     })
                 }

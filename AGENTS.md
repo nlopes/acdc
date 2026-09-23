@@ -45,6 +45,9 @@
 | `terminal` | off | html | Renders terminal previews into HTML; the cli exposes it as `html-terminal` |
 | `emulator` | off | terminal | Runs terminal output through a libghostty-vt terminal emulator and captures the rendered screen grid (static previews + session replays); the cli exposes it as `terminal-emulator` |
 | `images` | off | terminal | Inline terminal image rendering (viuer) |
+| `lists` | on | cli | Builds `list-of::` lists of figures, tables, and the like; see `acdc-lists/AGENTS.md` |
+| `diagram` | on | cli | Renders `[plantuml]`, `[graphviz]`, … blocks via `acdc-diagram`; see `acdc-diagram/AGENTS.md` |
+| `bibtex` | on | cli | Resolves `cite:`/`bibliography::[]` against a `.bib` file before conversion; see `acdc-bibtex/AGENTS.md` |
 
 New code that gates parsing or rendering on a specific substitution belongs behind `pre-spec-subs`, not an ad-hoc cfg.
 
@@ -55,6 +58,9 @@ When tests fail, identify the category and follow the appropriate path:
 - **Fixture mismatches** → run the `regen-fixtures` skill (ask first). If the skill is unavailable, ask before using the documented scoped generator.
 - **Parser / grammar / preprocessor failures** → `acdc-parser/AGENTS.md`
 - **Converter failures** → `converters/AGENTS.md`
+- **`list-of::` list failures** → `acdc-lists/AGENTS.md`
+- **Diagram generation failures** → `acdc-diagram/AGENTS.md`
+- **Citation / bibliography failures** → `acdc-bibtex/AGENTS.md`
 
 ## Benchmarks
 
@@ -76,9 +82,9 @@ All crates have **independent versions** — bump only crates that changed.
 ### Publish status
 
 - **Published to crates.io**: `acdc-parser`
-- **Not published**: `acdc-cli`, `acdc-lint`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
+- **Not published**: `acdc-bibtex`, `acdc-cli`, `acdc-diagram`, `acdc-lists`, `acdc-lint`, `acdc-lsp`, `acdc-converters-core`, `acdc-converters-html`, `acdc-converters-manpage`, `acdc-converters-markdown`, `acdc-converters-terminal`, `acdc-converters-dev`, `acdc-editor-wasm`
 
-`acdc-cli` and `acdc-lsp` are distributed as binaries but we haven't built a pipeline to produce these as GitHub releases yet; `acdc-editor-wasm` ships via GitHub Release; the converters and `acdc-converters-dev` are internal workspace members only.
+`acdc-cli` and `acdc-lsp` are distributed as binaries but we haven't built a pipeline to produce these as GitHub releases yet; `acdc-editor-wasm` ships via GitHub Release; the converters, `acdc-bibtex`, `acdc-diagram`, `acdc-lists` and `acdc-converters-dev` are internal workspace members only.
 
 ### Releasing acdc-editor-wasm
 

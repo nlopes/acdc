@@ -440,6 +440,19 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                     Ok(())
                 })
             }
+            XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                self.write_link_styled(processor, |visitor| {
+                    write!(visitor.writer_mut(), "{prefix}, ")?;
+                    visitor
+                        .writer_mut()
+                        .queue(SetAttribute(Attribute::Italic))?;
+                    visitor.visit_inline_nodes(traversal, inlines)?;
+                    visitor
+                        .writer_mut()
+                        .queue(SetAttribute(Attribute::NoItalic))?;
+                    Ok(())
+                })
+            }
             XrefDisplay::Fallback(text) | XrefDisplay::Unresolved(text) => {
                 self.write_link_styled(processor, |visitor| {
                     write!(visitor.writer_mut(), "{text}")?;
@@ -859,6 +872,12 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
             XrefDisplay::ShortCaption(prefix) => prefix,
             XrefDisplay::FullCaption(prefix, inlines, _scope) => format!(
                 "{prefix}, “{}”",
+                render_inline_nodes_to_owned(inlines, processor, traversal)?
+            ),
+            // The link is printed as one styled string, which cannot italicise
+            // part of itself; the title goes in plain, as other styling does here.
+            XrefDisplay::FullEmphasized(prefix, inlines, _scope) => format!(
+                "{prefix}, {}",
                 render_inline_nodes_to_owned(inlines, processor, traversal)?
             ),
             XrefDisplay::Fallback(text)

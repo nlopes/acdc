@@ -5,6 +5,13 @@
 //! Timing benchmarks remain machine-sensitive, so this test protects the
 //! underlying work directly: allocation and reallocation counts plus requested
 //! bytes. Keep this file to one test because allocator regions are process-wide.
+//!
+//! The byte budgets moved once, by 24 bytes per heap-resident `BlockMetadata`,
+//! when that struct started keeping its positional attributes in source order
+//! (`BlockMetadata::positional_values`). Folding them into `attributes` loses
+//! the order, which `acdc-diagram` needs to tell a `[plantuml,name,svg]`
+//! block's target from its format. Allocation and reallocation counts were
+//! unaffected: the drained list is moved into place rather than copied.
 
 use std::{alloc::System, fmt::Write as _, hint::black_box};
 
@@ -42,25 +49,25 @@ const BUDGETS: [ScenarioBudget; 2] = [
         active: Budget {
             allocations: 371,
             reallocations: 25,
-            bytes_allocated: 246_395,
+            bytes_allocated: 246_539,
             bytes_reallocated: 17_384,
         },
         inactive: Budget {
             allocations: 349,
             reallocations: 9,
-            bytes_allocated: 34_202,
+            bytes_allocated: 34_226,
             bytes_reallocated: 8_184,
         },
         plain_control: Budget {
             allocations: 350,
             reallocations: 16,
-            bytes_allocated: 233_131,
+            bytes_allocated: 233_275,
             bytes_reallocated: 9_200,
         },
         slow_control: Budget {
             allocations: 371,
             reallocations: 25,
-            bytes_allocated: 245_790,
+            bytes_allocated: 245_934,
             bytes_reallocated: 17_384,
         },
     },
@@ -69,25 +76,25 @@ const BUDGETS: [ScenarioBudget; 2] = [
         active: Budget {
             allocations: 371,
             reallocations: 37,
-            bytes_allocated: 2_275_619,
+            bytes_allocated: 2_275_763,
             bytes_reallocated: 278_504,
         },
         inactive: Budget {
             allocations: 349,
             reallocations: 13,
-            bytes_allocated: 157_082,
+            bytes_allocated: 157_106,
             bytes_reallocated: 131_064,
         },
         plain_control: Budget {
             allocations: 350,
             reallocations: 24,
-            bytes_allocated: 2_139_475,
+            bytes_allocated: 2_139_619,
             bytes_reallocated: 147_440,
         },
         slow_control: Budget {
             allocations: 371,
             reallocations: 37,
-            bytes_allocated: 2_275_014,
+            bytes_allocated: 2_275_158,
             bytes_reallocated: 278_504,
         },
     },
