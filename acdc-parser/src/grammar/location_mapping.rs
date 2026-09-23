@@ -8,6 +8,7 @@ use crate::{
 use super::{
     ParserState,
     marked_text::map_marked_text_locations,
+    passthrough_processing::replace_passthrough_placeholders,
     utf8_utils::{self, RoundDirection, snap_to_boundary},
 };
 
@@ -392,9 +393,7 @@ fn map_inline_macro<'a>(
             link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
             if !processed.passthroughs.is_empty() {
                 let target = link.target.to_string();
-                let restored = super::passthrough_processing::replace_passthrough_placeholders(
-                    &target, processed,
-                );
+                let restored = replace_passthrough_placeholders(&target, processed);
                 if restored != target {
                     link.target = Source::from_str_borrowed(state.intern_str(&restored))?;
                 }
@@ -413,13 +412,16 @@ fn map_inline_macro<'a>(
             xref.location = ctx.map_location(&xref.location, form)?;
             xref.text = map_inline_locations(state, processed, take(&mut xref.text), location)?;
             if !processed.passthroughs.is_empty() {
-                let restored = super::passthrough_processing::replace_passthrough_placeholders(
-                    xref.target,
-                    processed,
-                );
+                let restored = replace_passthrough_placeholders(xref.target, processed);
                 if restored != xref.target {
                     xref.target = state.intern_str(&restored);
                     xref.resolve_natural_target = false;
+                }
+                if let Some(role) = xref.role
+                    && contains_passthrough_placeholders(role, processed)
+                {
+                    let restored = replace_passthrough_placeholders(role, processed);
+                    xref.role = Some(state.intern_str(&restored));
                 }
             }
         }

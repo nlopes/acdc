@@ -1,0 +1,40 @@
+= Xref role passthroughs
+:role-name: hot
+:role-markup: +hot+
+
+Plain: xref:target[role=hot].
+
+Macro: xref:target[role=pass:[hot]].
+
+Double: xref:target[role=++hot++].
+
+Triple: xref:target[role=+++hot+++].
+
+Quoted: xref:target[role="+hot+ cool"].
+
+Multiple: xref:target[role="pass:[hot] pass:[cool]"].
+
+Earlier passthrough: pass:[before] xref:target[role=pass:[hot]].
+
+Protected plus signs: xref:target[role=pass:[+hot+]].
+
+Protected attribute: xref:target[role="+{role-name}+"].
+
+Attribute: xref:target[role={role-name}].
+
+Attribute markup: xref:target[role={role-markup}].
+
+Escaped: xref:target[role=\+hot+].
+
+Quoted escape: xref:target[role="\+hot+"].
+
+Special characters: xref:target[role=pass:[hot&cold]].
+
+Explicit label: xref:target[Named,role=pass:[hot]].
+
+Formatted: *xref:target[role=pass:[hot]]*.
+
+External: xref:other.adoc#target[Other,role=pass:[hot]].
+
+[[target]]
+== Target
