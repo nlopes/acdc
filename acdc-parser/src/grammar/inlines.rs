@@ -1650,7 +1650,14 @@ peg::parser! {
         = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
-            let target_str: &'input str = target;
+            // `ignore_filename_in_crossref` drops everything up to and
+            // including the first `#`, when the target has one. A target
+            // without a `#`, or with nothing after it, is left as written.
+            let target_str: &'input str = match target.split_once('#') {
+                Some((_, anchor))
+                    if state.options.ignore_filename_in_crossref && !anchor.is_empty() => anchor,
+                _ => target,
+            };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -1720,6 +1727,8 @@ peg::parser! {
         = "xref:" target:source() fragment:xref_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
             let target_str: &'input str = match fragment {
+                // Keep document-top references under the normal include-aware rules.
+                Some(f) if state.options.ignore_filename_in_crossref && f.len() > 1 => state.intern_str(&f[1..]),
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
                 None => state.intern_fmt(format_args!("{target}")),
             };
