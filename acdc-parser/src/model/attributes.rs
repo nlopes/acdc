@@ -1442,6 +1442,10 @@ impl<'a> ElementAttributes<'a> {
         self.0.iter()
     }
 
+    pub(crate) fn values_mut(&mut self) -> impl Iterator<Item = &mut AttributeValue<'a>> {
+        self.0.values_mut()
+    }
+
     /// Check if the attribute map is empty.
     #[must_use]
     pub fn is_empty(&self) -> bool {

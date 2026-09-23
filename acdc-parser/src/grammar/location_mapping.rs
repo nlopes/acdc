@@ -1,8 +1,8 @@
-use std::mem::take;
+use std::{borrow::Cow, mem::take};
 
 use crate::{
-    Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode, Location,
-    PassthroughKind, Plain, ProcessedContent, Source,
+    AttributeValue, Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
+    Location, PassthroughKind, Plain, ProcessedContent, Source,
 };
 
 use super::{
@@ -58,7 +58,14 @@ pub(crate) struct LocationMappingContext<'a, 'b> {
     pub base_location: &'a Location,
 }
 
-impl LocationMappingContext<'_, '_> {
+impl<'a> LocationMappingContext<'_, 'a> {
+    fn restore_passthrough_text(&self, text: &str) -> Option<&'a str> {
+        contains_passthrough_placeholders(text, self.processed).then(|| {
+            self.state
+                .intern_str(&replace_passthrough_placeholders(text, self.processed))
+        })
+    }
+
     /// Map a preprocessed location to source coordinates, preserving delimiter
     /// handling for constrained formatting and the end bias of substitutions.
     pub(crate) fn map_location(
@@ -359,11 +366,155 @@ fn restore_reference_label_passthroughs<'a>(
     }
 }
 
+fn restore_macro_attributes<'a>(
+    inline_macro: &mut InlineMacro<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) {
+    if ctx.processed.passthroughs.is_empty() {
+        return;
+    }
+
+    let restore = |text: &str| ctx.restore_passthrough_text(text);
+    let attributes = match inline_macro {
+        InlineMacro::Link(link) => &mut link.attributes,
+        InlineMacro::Url(url) => &mut url.attributes,
+        InlineMacro::Mailto(mailto) => &mut mailto.attributes,
+        InlineMacro::Icon(icon) => &mut icon.attributes,
+        InlineMacro::CrossReference(xref) => {
+            if let Some(role) = xref.role
+                && let Some(restored) = restore(role)
+            {
+                xref.role = Some(restored);
+            }
+            return;
+        }
+        InlineMacro::Image(image) => {
+            if image
+                .metadata
+                .roles
+                .iter()
+                .any(|role| contains_passthrough_placeholders(role, ctx.processed))
+            {
+                image.metadata.roles = take(&mut image.metadata.roles)
+                    .into_iter()
+                    .flat_map(|role| restore(role).unwrap_or(role).split_whitespace())
+                    .collect();
+            }
+            if image
+                .metadata
+                .options
+                .iter()
+                .any(|option| contains_passthrough_placeholders(option, ctx.processed))
+            {
+                image.metadata.options = take(&mut image.metadata.options)
+                    .into_iter()
+                    .flat_map(|option| restore(option).unwrap_or(option).split(','))
+                    .map(str::trim)
+                    .filter(|option| !option.is_empty())
+                    .collect();
+            }
+            if let Some(id) = &mut image.metadata.id
+                && let Some(restored) = restore(id.id)
+            {
+                id.id = restored;
+            }
+            for node in image.title.inlines_mut() {
+                if let InlineNode::PlainText(plain) = node
+                    && let Some(restored) = restore(plain.content)
+                {
+                    plain.content = restored;
+                }
+            }
+            &mut image.metadata.attributes
+        }
+        InlineMacro::Footnote(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
+        | InlineMacro::Autolink(_)
+        | InlineMacro::Pass(_)
+        | InlineMacro::Stem(_)
+        | InlineMacro::IndexTerm(_) => return,
+    };
+
+    // Restore after attribute parsing so protected commas and brackets stay in the value.
+    for value in attributes.values_mut() {
+        if let AttributeValue::String(text) = value
+            && let Some(restored) = restore(text)
+        {
+            *text = Cow::Borrowed(restored);
+        }
+    }
+}
+
+fn restore_macro_passthroughs<'a>(
+    inline_macro: &mut InlineMacro<'a>,
+    ctx: &LocationMappingContext<'_, 'a>,
+) -> Result<(), Error> {
+    if ctx.processed.passthroughs.is_empty() {
+        return Ok(());
+    }
+    restore_macro_attributes(inline_macro, ctx);
+
+    let target = match inline_macro {
+        InlineMacro::Link(link) => Some(&mut link.target),
+        InlineMacro::Url(url) => Some(&mut url.target),
+        InlineMacro::Mailto(mailto) => Some(&mut mailto.target),
+        InlineMacro::Autolink(autolink) => Some(&mut autolink.url),
+        InlineMacro::Icon(icon) => Some(&mut icon.target),
+        InlineMacro::Image(image) => Some(&mut image.source),
+        InlineMacro::Footnote(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
+        | InlineMacro::CrossReference(_)
+        | InlineMacro::Pass(_)
+        | InlineMacro::Stem(_)
+        | InlineMacro::IndexTerm(_) => None,
+    };
+    if let Some(target) = target
+        && let Some(restored) = ctx.restore_passthrough_text(&target.to_string())
+    {
+        *target = Source::from_str_borrowed(restored)?;
+    }
+
+    let text = match inline_macro {
+        InlineMacro::Stem(stem) => Some(&mut stem.content),
+        InlineMacro::Button(button) => Some(&mut button.label),
+        InlineMacro::Menu(menu) => {
+            for item in &mut menu.items {
+                if let Some(restored) = ctx.restore_passthrough_text(item) {
+                    *item = restored;
+                }
+            }
+            Some(&mut menu.target)
+        }
+        InlineMacro::Footnote(_)
+        | InlineMacro::Icon(_)
+        | InlineMacro::Image(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Url(_)
+        | InlineMacro::Link(_)
+        | InlineMacro::Mailto(_)
+        | InlineMacro::Autolink(_)
+        | InlineMacro::CrossReference(_)
+        | InlineMacro::Pass(_)
+        | InlineMacro::IndexTerm(_) => None,
+    };
+    if let Some(text) = text
+        && let Some(restored) = ctx.restore_passthrough_text(text)
+    {
+        *text = restored;
+    }
+    Ok(())
+}
+
 fn map_inline_macro<'a>(
     inline_macro: &mut InlineMacro<'a>,
     ctx: &LocationMappingContext<'_, 'a>,
     form: Option<&Form>,
 ) -> Result<(), Error> {
+    restore_macro_passthroughs(inline_macro, ctx)?;
     let LocationMappingContext {
         state,
         processed,
@@ -391,13 +542,6 @@ fn map_inline_macro<'a>(
         InlineMacro::Link(link) => {
             link.location = ctx.map_location(&link.location, form)?;
             link.text = map_inline_locations(state, processed, take(&mut link.text), location)?;
-            if !processed.passthroughs.is_empty() {
-                let target = link.target.to_string();
-                let restored = replace_passthrough_placeholders(&target, processed);
-                if restored != target {
-                    link.target = Source::from_str_borrowed(state.intern_str(&restored))?;
-                }
-            }
         }
         InlineMacro::Icon(icon) => icon.location = ctx.map_location(&icon.location, form)?,
         InlineMacro::Button(button) => {
@@ -416,12 +560,6 @@ fn map_inline_macro<'a>(
                 if restored != xref.target {
                     xref.target = state.intern_str(&restored);
                     xref.resolve_natural_target = false;
-                }
-                if let Some(role) = xref.role
-                    && contains_passthrough_placeholders(role, processed)
-                {
-                    let restored = replace_passthrough_placeholders(role, processed);
-                    xref.role = Some(state.intern_str(&restored));
                 }
             }
         }
@@ -495,7 +633,45 @@ fn map_plain_text_inline_locations<'a>(
 
 #[cfg(test)]
 mod tests {
-    use crate::{Block, Options, parse};
+    use crate::{Block, InlineMacro, InlineNode, Options, parse};
+
+    #[test]
+    fn inline_attribute_passthroughs_restore_image_metadata()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(
+            include_str!("../../fixtures/tests/inline_attribute_passthroughs.adoc"),
+            &Options::default(),
+        )?;
+        let image = parsed
+            .document()
+            .blocks
+            .iter()
+            .filter_map(|block| {
+                if let Block::Paragraph(paragraph) = block {
+                    Some(&paragraph.content)
+                } else {
+                    None
+                }
+            })
+            .flatten()
+            .find_map(|node| {
+                if let InlineNode::Macro(InlineMacro::Image(image)) = node {
+                    Some(image)
+                } else {
+                    None
+                }
+            })
+            .ok_or("expected an inline image")?;
+
+        // Inline image metadata is omitted from the JSON fixture.
+        assert_eq!(image.metadata.roles, ["hot", "cool"]);
+        assert_eq!(image.metadata.options, ["foo", "bar"]);
+        assert_eq!(
+            image.metadata.id.as_ref().map(|anchor| anchor.id),
+            Some("image-id")
+        );
+        Ok(())
+    }
 
     fn check_monotonic(input: &str) -> Result<(), String> {
         let parsed = parse(input, &Options::default()).map_err(|e| format!("parse failed: {e}"))?;

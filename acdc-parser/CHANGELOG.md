@@ -34,6 +34,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Single-plus passthroughs work immediately after `=`, including unquoted
+  `role=+hot+`, matching Asciidoctor. Inline macro attributes retain the protected
+  text instead of exposing internal passthrough markers.
+
 - Cross-reference roles restore passthrough text: `role=pass:[hot]`,
   `role=++hot++`, and `role="+hot+"` produce the role `hot`, matching Asciidoctor.
 

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Unquoted `role=+hot+` produces `class="hot"` on cross-references and links,
+  matching Asciidoctor. Passthroughs in URL targets and inline macro attributes
+  no longer leak internal markers into HTML.
+
 - Cross-references with `role=pass:[hot]` or `role="+hot+"` use `class="hot"`,
   matching Asciidoctor, instead of leaking internal passthrough markers.
 

@@ -19,9 +19,9 @@ use super::{
         BlockParsingMetadata, MacroAttributeContext, PositionWithOffset,
         RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
         RESERVED_NAMED_ATTRIBUTE_ROLE, Shorthand, is_valid_bibliography_id, process_attribute_list,
-        strip_url_backslash_escapes,
+        restore_url_path,
     },
-    state::{InlineContext, InlineRules},
+    state::{InlineContext, InlineRules, ParserScope},
 };
 
 /// The parts of `xref:target[...]` that decide what the link shows.
@@ -2808,11 +2808,14 @@ peg::parser! {
         /// brackets that delimit the macro attributes.
         rule url_path() -> Cow<'input, str> = path:$(url_path_char()+)
         {?
-            let inline_state = InlinePreprocessorParserState::new_all_enabled(
+            // Inline text was already processed; attribute values must not introduce passthroughs.
+            let inline_state = InlinePreprocessorParserState::new(
                 path,
                 state.line_map.clone(),
                 state.input,
                 state.arena,
+                matches!(state.scope, ParserScope::Document),
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
@@ -2822,20 +2825,20 @@ peg::parser! {
             for warning in inline_state.drain_warnings() {
                 state.add_inline_preprocessor_warning(warning);
             }
-            // Strip backslash escapes before URL parsing to prevent the url crate
-            // from normalizing backslashes to forward slashes
-            Ok(Cow::Owned(strip_url_backslash_escapes(&processed.text).into_owned()))
+            Ok(Cow::Owned(restore_url_path(processed)))
         }
 
         /// URL target content for an inline media macro.
         /// Spaces must be internal to the target.
         rule media_url_path() -> Cow<'input, str> = path:$(url_path_char() (url_path_char() / internal_url_path_spaces())*)
         {?
-            let inline_state = InlinePreprocessorParserState::new_all_enabled(
+            let inline_state = InlinePreprocessorParserState::new(
                 path,
                 state.line_map.clone(),
                 state.input,
                 state.arena,
+                matches!(state.scope, ParserScope::Document),
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
             .map_err(|e| {
@@ -2845,10 +2848,10 @@ peg::parser! {
             for warning in inline_state.drain_warnings() {
                 state.add_inline_preprocessor_warning(warning);
             }
-            Ok(Cow::Owned(strip_url_backslash_escapes(&processed.text).into_owned()))
+            Ok(Cow::Owned(restore_url_path(processed)))
         }
 
-        rule url_path_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]
+        rule url_path_char() = passthrough_placeholder() / ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '.' | '_' | '~' | ':' | '/' | '?' | '#' | '@' | '!' | '$' | '&' | '\'' | '(' | ')' | '*' | '+' | ',' | ';' | '=' | '%' | '\\' ]
         rule internal_url_path_spaces() = [' ']+ &url_path_char()
 
         /// URL for bare autolinks — avoids capturing trailing sentence punctuation
@@ -2870,11 +2873,13 @@ peg::parser! {
             )*
         )
         {?
-            let inline_state = InlinePreprocessorParserState::new_all_enabled(
+            let inline_state = InlinePreprocessorParserState::new(
                 path,
                 state.line_map.clone(),
                 state.input,
                 state.arena,
+                matches!(state.scope, ParserScope::Document),
+                true,
             );
             let processed = inline_preprocessing::run(path, &state.document_attributes, &inline_state)
                 .map_err(|e| {
@@ -2884,7 +2889,7 @@ peg::parser! {
             for warning in inline_state.drain_warnings() {
                 state.add_inline_preprocessor_warning(warning);
             }
-            Ok(Cow::Owned(strip_url_backslash_escapes(&processed.text).into_owned()))
+            Ok(Cow::Owned(restore_url_path(processed)))
         }
 
         /// Balanced parenthesized group in a URL path.
@@ -2895,7 +2900,7 @@ peg::parser! {
 
         /// URL chars that are safe to end a bare URL — won't be confused with sentence punctuation.
         /// Excludes `(` and `)` which are handled separately via `bare_url_paren_group`.
-        rule bare_url_safe_char() = ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '~'
+        rule bare_url_safe_char() = passthrough_placeholder() / ['A'..='Z' | 'a'..='z' | '0'..='9' | '-' | '_' | '~'
             | '/' | '#' | '@' | '$' | '&'
             | '+' | '=' | '%' | '\\']
 

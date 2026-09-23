@@ -49,8 +49,7 @@ use super::{
         AttributeOrAnchorLine, BlockMetadataLine, BlockParsingMetadata, MacroAttributeContext,
         PositionWithOffset, RESERVED_NAMED_ATTRIBUTE_ID, RESERVED_NAMED_ATTRIBUTE_OPTIONS,
         RESERVED_NAMED_ATTRIBUTE_ROLE, RESERVED_NAMED_ATTRIBUTE_SUBS, is_valid_bibliography_id,
-        parse_comma_separated_values, strip_url_backslash_escapes,
-        title_looks_like_description_list,
+        parse_comma_separated_values, restore_url_path, title_looks_like_description_list,
     },
     setext,
 };
@@ -6382,9 +6381,7 @@ peg::parser! {
                 tracing::error!(?e, "could not preprocess url path");
                 "could not preprocess url path"
             })?;
-            // Strip backslash escapes before URL parsing to prevent the url crate
-            // from normalizing backslashes to forward slashes
-            let result = strip_url_backslash_escapes(&processed.text).into_owned();
+            let result = restore_url_path(processed);
             let warnings = inline_state.drain_warnings();
             drop(inline_state);
             for warning in warnings {
@@ -6426,7 +6423,7 @@ peg::parser! {
                     tracing::error!(?e, "could not preprocess bare url path");
                     "could not preprocess bare url path"
                 })?;
-            let result = strip_url_backslash_escapes(&processed.text).into_owned();
+            let result = restore_url_path(processed);
             let warnings = inline_state.drain_warnings();
             drop(inline_state);
             for warning in warnings {

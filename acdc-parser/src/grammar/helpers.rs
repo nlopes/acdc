@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
 use crate::{
-    Anchor, AttributeValue, BlockMetadata, Location, Title,
+    Anchor, AttributeValue, BlockMetadata, Location, ProcessedContent, Title,
     document_attribute::AttributeDeclaration,
-    grammar::ParserState,
+    grammar::{ParserState, passthrough_processing::replace_passthrough_placeholders},
     model::{PositionalAttribute, SectionLevel, substitution::SubstitutionPlan},
 };
 
@@ -98,6 +98,16 @@ pub(crate) fn strip_url_backslash_escapes(text: &str) -> Cow<'_, str> {
             .replace("\\<=", "<=")
             .replace("\\--", "--"),
     )
+}
+
+/// Restore URL passthroughs and remove escapes before URL parsing can normalize them.
+pub(crate) fn restore_url_path(processed: ProcessedContent<'_>) -> String {
+    let text = if processed.passthroughs.is_empty() {
+        processed.text
+    } else {
+        replace_passthrough_placeholders(&processed.text, &processed).into()
+    };
+    strip_url_backslash_escapes(&text).into_owned()
 }
 
 /// Parse a comma-separated list of values, interning each into the state's arena.
