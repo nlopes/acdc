@@ -9,8 +9,7 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "rust",
-          "rust": null
+          "language": "rust"
         },
         "style": "source"
       },
@@ -754,8 +753,7 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "line-comment": "%",
-          "rust": null
+          "line-comment": "%"
         },
         "style": "source"
       },

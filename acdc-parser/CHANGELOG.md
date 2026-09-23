@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now carries. Previously the catalog kept the number assigned at parse time,
   and a document whose captions were renumbered could show `Figure 1` in a
   reference to what had become `Figure 2`.
+- Source blocks retain their language when a following block attribute line adds
+  named options, such as `[source,options=linenums]`, matching Asciidoctor.
+- Source languages and unused positional values no longer create name-only
+  attributes. This prevents unintended line numbers for `[source,rust,,linenums]`,
+  matching Asciidoctor.
 - Duplicate explicit IDs produce non-fatal warnings with the original ID and
   both source locations, including included files. Cross-references keep the
   first definition; later duplicate section titles do not become reference
@@ -62,6 +67,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block anchors, attribute lists, and titles can be separated from each other
   and their block by blank lines, matching Asciidoctor. Sections retain their
   anchors and boundaries after paragraphs and lists (#454).
+- Image and video macros take positional dimensions only from their own attribute lists.
+  Named `width=` and `height=` values in a macro override its positional dimensions,
+  while named block dimensions remain defaults, matching Asciidoctor.
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.
