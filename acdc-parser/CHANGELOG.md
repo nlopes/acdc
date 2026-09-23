@@ -34,11 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-reference roles restore passthrough text: `role=pass:[hot]`,
+  `role=++hot++`, and `role="+hot+"` produce the role `hot`, matching Asciidoctor.
+
 - Source blocks retain their language when a following block attribute line adds
   named options, such as `[source,options=linenums]`, matching Asciidoctor.
 - Source languages and unused positional values no longer create name-only
   attributes. This prevents unintended line numbers for `[source,rust,,linenums]`,
   matching Asciidoctor.
+
 - Source locations inside quoted `xref:` labels remain accurate after escaped
   quotes, including labels with inline formatting, Unicode, or multiple lines.
   Inline formatting after an attribute substitution is also preserved.

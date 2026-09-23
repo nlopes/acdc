@@ -190,8 +190,8 @@ pub struct CrossReference<'a> {
     /// reference's position.
     #[serde(skip)]
     pub signifier: XrefSignifier<'a>,
-    /// The `role=` of an `xref:` macro, which Asciidoctor's HTML converter
-    /// sets as the link's class. It is kept as written, so it can be empty.
+    /// The `role=` of an `xref:` macro after attribute substitution and
+    /// passthrough restoration. It may be empty; HTML uses it as the link's class.
     #[serde(skip)]
     pub role: Option<&'a str>,
     #[serde(skip)]

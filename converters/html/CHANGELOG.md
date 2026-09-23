@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references with `role=pass:[hot]` or `role="+hot+"` use `class="hot"`,
+  matching Asciidoctor, instead of leaking internal passthrough markers.
+
 - Automatic cross-references to numbered sections honor `xrefstyle`, matching
   Asciidoctor: `short` gives `Section 1.1`, `Chapter 2`, `Appendix A` or
   `Part I`, and `full` adds the title, in quotation marks for a section or part
