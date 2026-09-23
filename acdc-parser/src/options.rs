@@ -13,6 +13,9 @@ use crate::{
 
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
+// Each flag turns one parse behavior on or off independently of the others,
+// so they are not the states of a mode an enum could replace.
+#[allow(clippy::struct_excessive_bools)]
 pub struct Options<'a> {
     pub safe_mode: SafeMode,
     pub timings: bool,
@@ -30,6 +33,15 @@ pub struct Options<'a> {
     /// behavior will instead cause parsing to fail. For example:
     /// - Non-conforming manpage titles (not matching `name(volume)` format)
     pub strict: bool,
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`.
+    ///
+    /// Only a target that contains a `#` is affected: everything up to and
+    /// including that first `#` is dropped, so a document assembled from
+    /// includes resolves references written against the file that defines the
+    /// anchor. A target with no `#` is left exactly as written, and so is one
+    /// with nothing after it. Custom text is untouched either way, so
+    /// `<<file.adoc#anchor,text>>` still shows `text`.
+    pub ignore_filename_in_crossref: bool,
     /// Enable Setext-style (underlined) header parsing.
     ///
     /// When enabled, headers can use the legacy two-line syntax:
@@ -117,6 +129,7 @@ impl<'a> Options<'a> {
             timings: self.timings,
             base_dir: self.base_dir,
             strict: self.strict,
+            ignore_filename_in_crossref: self.ignore_filename_in_crossref,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }
@@ -136,6 +149,7 @@ impl<'a> Options<'a> {
             document_attributes: self.document_attributes.into_static(),
             base_dir: self.base_dir,
             strict: self.strict,
+            ignore_filename_in_crossref: self.ignore_filename_in_crossref,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }
@@ -161,6 +175,8 @@ impl<'a> Options<'a> {
 /// ```
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
+// Independent parse toggles, as in `Options`.
+#[allow(clippy::struct_excessive_bools)]
 pub struct OptionsBuilder<'a> {
     safe_mode: SafeMode,
     timings: bool,
@@ -168,6 +184,7 @@ pub struct OptionsBuilder<'a> {
     defaults: RawAttributes<'a>,
     base_dir: Option<PathBuf>,
     strict: bool,
+    ignore_filename_in_crossref: bool,
     #[cfg(feature = "setext")]
     setext: bool,
 }
@@ -237,6 +254,26 @@ impl<'a> OptionsBuilder<'a> {
     #[must_use]
     pub fn with_strict(mut self) -> Self {
         self.strict = true;
+        self
+    }
+
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`.
+    ///
+    /// See [`Options::ignore_filename_in_crossref`].
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use acdc_parser::Options;
+    ///
+    /// let options = Options::builder()
+    ///     .with_ignore_filename_in_crossref()
+    ///     .build()?;
+    /// # Ok::<(), acdc_parser::Error>(())
+    /// ```
+    #[must_use]
+    pub fn with_ignore_filename_in_crossref(mut self) -> Self {
+        self.ignore_filename_in_crossref = true;
         self
     }
 
@@ -369,6 +406,7 @@ impl<'a> OptionsBuilder<'a> {
             document_attributes,
             base_dir: self.base_dir,
             strict: self.strict,
+            ignore_filename_in_crossref: self.ignore_filename_in_crossref,
             #[cfg(feature = "setext")]
             setext: self.setext,
         })

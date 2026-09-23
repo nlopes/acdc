@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `convert --ignore-filename-in-crossref`, short form `--ifix`, resolves a
+  cross-reference that names a file by its anchor alone, which is what a
+  document assembled from includes needs: `<<other.adoc#anchor>>` and
+  `xref:other.adoc#anchor[text]` link to `anchor` in the converted document.
+  Only a target containing a `#` is affected, and custom text is kept, so
+  `<<other.adoc#anchor,text>>` still shows `text`. Without the flag the file
+  part is kept, as before.
+
 - `convert` resolves the document's BibTeX citations before conversion, so a
   document that uses `cite:`, `citenp:`, `bibitem:` or `bibliography::[]` gets
   formatted citations and a reference list in every backend. The database is
