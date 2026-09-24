@@ -5,7 +5,7 @@ use std::{
     num::NonZeroUsize,
     ops::Range,
     path::PathBuf,
-    rc::Rc,
+    rc::{Rc, Weak},
     sync::Arc,
 };
 
@@ -18,7 +18,7 @@ use crate::{
     document_attribute::{AttributeDeclaration, RawAttributeValue},
     grammar::LineMap,
     model::{
-        DocumentAttributeStatus, LeveloffsetRange, REFSIG_NAMES, SourceRange, substitute,
+        DocumentAttributeStatus, LeveloffsetRange, REFSIG_ATTRIBUTES, SourceRange, substitute,
         substitution::{HEADER, SubstitutionPlan},
     },
 };
@@ -28,7 +28,15 @@ struct XrefCaptionLabelSnapshot<'a> {
     example: XrefCaptionLabel<'a>,
     listing: XrefCaptionLabel<'a>,
     table: XrefCaptionLabel<'a>,
-    signifiers: &'a [XrefSignifier<'a>; REFSIG_NAMES.len()],
+    signifiers: &'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()],
+}
+
+#[derive(Debug, Default)]
+struct XrefCaptionLabelSnapshots<'a> {
+    entries: Vec<XrefCaptionLabelSnapshot<'a>>,
+    // Attribute writes use `Rc::make_mut`, which invalidates this weak identity
+    // without forcing an attribute-map clone when there is only one owner.
+    last: Option<(Weak<DocumentAttributes<'a>>, NonZeroUsize)>,
 }
 
 #[derive(Debug)]
@@ -71,7 +79,7 @@ pub(crate) struct ParserState<'a> {
     /// `process_inlines` calls, and the prior pattern produced O(N×M) work
     /// where N is footnote count and M is the number of nested parses.
     pub(crate) footnote_tracker: Rc<RefCell<FootnoteTracker<'a>>>,
-    xref_caption_label_snapshots: Rc<RefCell<Vec<XrefCaptionLabelSnapshot<'a>>>>,
+    xref_caption_label_snapshots: Rc<RefCell<XrefCaptionLabelSnapshots<'a>>>,
     /// TOC entries collected during parsing, in document order. A section pushes its
     /// [`TocEntry`] here as soon as its title is parsed; `numbered` is `false` for
     /// special styles (`[bibliography]`, `[glossary]`, ...) that are not auto-numbered
@@ -297,6 +305,12 @@ impl<'a> ParserState<'a> {
     }
 
     pub(crate) fn capture_xref_caption_labels(&self) -> NonZeroUsize {
+        let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
+        if let Some((attributes, snapshot)) = &snapshots.last
+            && attributes.ptr_eq(&Rc::downgrade(&self.document_attributes))
+        {
+            return *snapshot;
+        }
         let label = |name| match self.document_attributes.get(name) {
             Some(resolved) => match resolved.as_str() {
                 Some(value) => {
@@ -322,34 +336,34 @@ impl<'a> ParserState<'a> {
         };
         // `status` rather than `get`: an explicitly unset refsig drops the word
         // entirely, whereas `get` would hand back the attribute's default.
-        let signifier =
-            |name: &str| match self.document_attributes.status(&format!("{name}-refsig")) {
-                DocumentAttributeStatus::Set(value) => {
-                    let mut word = String::new();
-                    let _ = value.write_text(&mut word);
-                    XrefSignifier::AtReference(self.intern_str(crate::strip_quotes(&word)))
-                }
-                DocumentAttributeStatus::Unset => XrefSignifier::Omitted,
-                DocumentAttributeStatus::Absent => XrefSignifier::Standard,
-            };
-        let signifiers = self.arena.alloc(REFSIG_NAMES.map(signifier));
-        let mut snapshots = self.xref_caption_label_snapshots.borrow_mut();
-        let snapshot = NonZeroUsize::MIN.saturating_add(snapshots.len());
-        snapshots.push(XrefCaptionLabelSnapshot {
+        let signifier = |(_, key)| match self.document_attributes.status(key) {
+            DocumentAttributeStatus::Set(value) => {
+                let mut word = String::new();
+                let _ = value.write_text(&mut word);
+                XrefSignifier::AtReference(self.intern_str(crate::strip_quotes(&word)))
+            }
+            DocumentAttributeStatus::Unset => XrefSignifier::Omitted,
+            DocumentAttributeStatus::Absent => XrefSignifier::Standard,
+        };
+        let signifiers = self.arena.alloc(REFSIG_ATTRIBUTES.map(signifier));
+        let snapshot = NonZeroUsize::MIN.saturating_add(snapshots.entries.len());
+        snapshots.entries.push(XrefCaptionLabelSnapshot {
             example: label("example-caption"),
             listing: label("listing-caption"),
             table: label("table-caption"),
             signifiers,
         });
+        snapshots.last = Some((Rc::downgrade(&self.document_attributes), snapshot));
         snapshot
     }
 
     pub(crate) fn xref_signifiers(
         &self,
         snapshot: NonZeroUsize,
-    ) -> Option<&'a [XrefSignifier<'a>; REFSIG_NAMES.len()]> {
+    ) -> Option<&'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()]> {
         self.xref_caption_label_snapshots
             .borrow()
+            .entries
             .get(snapshot.get() - 1)
             .map(|labels| labels.signifiers)
     }
@@ -362,6 +376,7 @@ impl<'a> ParserState<'a> {
         let labels = self
             .xref_caption_label_snapshots
             .borrow()
+            .entries
             .get(snapshot.get() - 1)
             .copied();
         labels.map_or(XrefCaptionLabel::AtTarget, |labels| match kind {
@@ -483,7 +498,7 @@ impl<'a> ParserState<'a> {
             input,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
-            xref_caption_label_snapshots: Rc::new(RefCell::new(Vec::new())),
+            xref_caption_label_snapshots: Rc::default(),
             toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
@@ -519,7 +534,7 @@ impl<'a> ParserState<'a> {
             input,
             arena,
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
-            xref_caption_label_snapshots: Rc::new(RefCell::new(Vec::new())),
+            xref_caption_label_snapshots: Rc::default(),
             toc_entries: Vec::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
@@ -755,6 +770,72 @@ impl<'a> ParserState<'a> {
 #[allow(clippy::panic)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn xref_snapshots_share_unchanged_attributes() {
+        let arena = Bump::new();
+        let parent = ParserState::new("", &arena);
+        let snapshot = parent.capture_xref_caption_labels();
+        let child = ParserState::for_inline_parsing("", &parent, parent.inline_ctx);
+
+        assert_eq!(child.capture_xref_caption_labels(), snapshot);
+        assert_eq!(parent.capture_xref_caption_labels(), snapshot);
+        assert!(std::ptr::eq(
+            parent.xref_signifiers(snapshot).unwrap(),
+            child.xref_signifiers(snapshot).unwrap(),
+        ));
+        assert_eq!(
+            parent.xref_caption_label_snapshots.borrow().entries.len(),
+            1
+        );
+        assert_eq!(Rc::strong_count(&parent.document_attributes), 2);
+    }
+
+    #[test]
+    fn xref_snapshots_survive_attribute_mutations_and_scope_restoration() {
+        let arena = Bump::new();
+        let mut state = ParserState::new("", &arena);
+        let initial = state.capture_xref_caption_labels();
+        assert_eq!(Rc::strong_count(&state.document_attributes), 1);
+
+        let set_caption = |state: &mut ParserState<'_>, value| {
+            state
+                .apply_document_attribute(
+                    &AttributeDeclaration {
+                        name: "example-caption",
+                        value: RawAttributeValue::Text(Cow::Borrowed(value)),
+                    },
+                    false,
+                    state.create_location(0, 0),
+                )
+                .unwrap();
+        };
+
+        // Exercise both mutation paths: one owner, then a saved outer scope.
+        set_caption(&mut state, "Outer");
+        let outer = state.capture_xref_caption_labels();
+        assert_ne!(initial, outer);
+        assert_eq!(state.capture_xref_caption_labels(), outer);
+        let outer_attributes = Rc::clone(&state.document_attributes);
+        set_caption(&mut state, "Inner");
+        let inner = state.capture_xref_caption_labels();
+        assert_ne!(outer, inner);
+
+        state.document_attributes = outer_attributes;
+        let restored = state.capture_xref_caption_labels();
+        assert_eq!(state.capture_xref_caption_labels(), restored);
+        for (snapshot, word) in [
+            (initial, "Example"),
+            (outer, "Outer"),
+            (inner, "Inner"),
+            (restored, "Outer"),
+        ] {
+            assert_eq!(
+                state.xref_caption_label(snapshot, CaptionKind::Example),
+                XrefCaptionLabel::AtReference(word),
+            );
+        }
+    }
 
     fn warning_kinds(state: &ParserState<'_>) -> Vec<WarningKind> {
         state
