@@ -1,0 +1,62 @@
+= Named block labels
+:xrefstyle: full
+:person: Ada
+
+Table: <<table>>; xref:table[xrefstyle=short]; xref:table[xrefstyle=basic].
+Image: <<image>>. Paragraph: <<paragraph>>. Example: <<example>>.
+Listing: <<listing>>. Open: <<open>>. Untitled: <<untitled>>.
+Explicit: xref:table[Explicit *label*].
+Named alias: <<Named *table* Ada>>. Suppressed title: <<Table title>>.
+
+.Table title
+[id=table,reftext="Named *table* {person}"]
+|===
+|Cell
+|===
+
+.Image title
+[reftext="Before macro"]
+image::example.svg[Example,id=image,reftext="Named _image_ {person}"]
+
+.Paragraph title
+[id=paragraph,reftext="Named `paragraph` {person}"]
+Paragraph.
+
+.Example title
+[id=example,reftext="Named example"]
+====
+Body.
+====
+
+.Listing title
+[id=listing,reftext="Named listing"]
+----
+Body.
+----
+
+.Open title
+[id=open,reftext="Named open"]
+--
+Body.
+--
+
+[id=untitled,reftext="Named untitled {person}"]
+NOTE: Body.
+
+:person: Grace
+
+Later reference: <<untitled>>. Alias: <<Named untitled Ada>>.
+
+Nested targets: <<nested-list>>; <<cell>>.
+
+* Parent
+[reftext="Earlier nested label"]
+[[nested-list,Nested list]]
+** Child
+
+[cols=a]
+|===
+|
+[id=cell,reftext="Cell label"]
+Cell paragraph.
+|===
