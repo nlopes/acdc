@@ -1,0 +1,89 @@
+= Caption separators
+:listing-caption: Listing
+:xrefstyle: full
+
+Full: <<figure>>; <<table>>; <<example>>; <<listing>>.
+
+Short: xref:figure[xrefstyle=short]; xref:table[xrefstyle=short]; xref:example[xrefstyle=short]; xref:listing[xrefstyle=short].
+
+Basic: xref:table[xrefstyle=basic].
+
+Overrides: xref:table[Written label.]; xref:labelled[xrefstyle=short]; <<labelled>>.
+
+Exact suffix: xref:repeated[xrefstyle=short]; <<repeated>>; xref:separator[xrefstyle=short]; <<separator>>.
+
+Other endings: xref:period[xrefstyle=short]; <<period>>; xref:spaces[xrefstyle=short]; <<spaces>>; xref:colon[xrefstyle=short]; <<colon>>.
+
+Empty caption: xref:empty[xrefstyle=short]; <<empty>>.
+
+[[figure]]
+.Figure _title_
+[caption="Figure 9. "]
+image::inline-image-dimensions.svg[Figure,width=40]
+
+[[table]]
+.Table *title*
+[caption="Exhibit 7. "]
+|===
+|Cell
+|===
+
+[[example]]
+.Example title
+[caption="Résumé 2. "]
+====
+Body.
+====
+
+[[listing]]
+.Listing title
+[caption="Code A. "]
+----
+Code.
+----
+
+.Labelled title
+[example,id=labelled,caption="Exhibit 8. ",reftext="Chosen. "]
+Body.
+
+.Repeated suffix
+[example,id=repeated,caption="Exhibit. . "]
+Body.
+
+.Separator only
+[example,id=separator,caption=". "]
+Body.
+
+.Period only
+[example,id=period,caption="Exhibit."]
+Body.
+
+.Two spaces
+[example,id=spaces,caption="Exhibit.  "]
+Body.
+
+.Colon suffix
+[example,id=colon,caption="Exhibit: "]
+Body.
+
+.Empty caption
+[example,id=empty,caption=""]
+Body.
+
+:caption: Document 3.{sp}
+
+.Document caption
+[example,id=generic]
+Body.
+
+:caption!:
+
+Document full: <<generic>>.
+
+:xrefstyle: short
+
+Document short: <<generic>>; <<table>>.
+
+:xrefstyle!:
+
+Default: <<table>>.
