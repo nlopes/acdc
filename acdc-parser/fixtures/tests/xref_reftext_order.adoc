@@ -1,0 +1,49 @@
+[[document,Anchor document]]
+[reftext="Named document"]
+[#document]
+= Label precedence
+
+<<document>>; <<anchor-first>>; <<named-first>>; <<id-only>>;
+<<empty>>; <<empty-anchor>>; <<literal>>; <<quoted>>; <<duplicate>>.
+Aliases: <<Named label>>; <<Anchor label>>.
+Duplicate alias: <<Ignored label>>.
+
+[[anchor-first,Earlier anchor]]
+[reftext="Named label"]
+Body.
+
+[reftext="Earlier named"]
+[[named-first,Anchor label]]
+Body.
+
+[reftext="Named before ID"]
+[[id-only]]
+Body.
+
+[id=empty,reftext=""]
+.Empty title
+Body.
+
+[[empty-anchor,Earlier anchor]]
+[reftext=""]
+.Empty anchor title
+Body.
+
+[id=literal,reftext="link:https://example.org[Link] (C) <tag>"]
+Body.
+
+[reftext="Earlier named"]
+[[quoted,"Quoted anchor"]]
+Body.
+
+[id=duplicate,reftext="First owner"]
+Body.
+
+[id=duplicate,reftext="Ignored label"]
+Body.
+
+[reftext="Earlier section label"]
+[[section,Section anchor]]
+== Section title
+
+<<section>>; <<Section anchor>>.

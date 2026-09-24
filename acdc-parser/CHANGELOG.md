@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Named `reftext` on blocks supplies automatic cross-reference text and natural
+  reference aliases, with inline formatting and attribute expansion. Explicit
+  link text still wins, and the last named or anchor label takes precedence,
+  matching Asciidoctor.
+
 - Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
   matching Asciidoctor. Selected styles retain this emphasis for unnumbered
   chapters; omitted or unset styles keep the title as written.

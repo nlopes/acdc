@@ -171,6 +171,19 @@ fn order_document_attribute_events(blocks: Vec<Block<'_>>) -> Vec<Block<'_>> {
     ordered
 }
 
+fn push_metadata_anchor<'a>(metadata: &mut BlockMetadata<'a>, anchor: Anchor<'a>) {
+    // A later anchor label replaces an earlier named reftext; an ID alone does not.
+    if let Some(label) = anchor.xreflabel
+        && metadata.attributes.contains_key("reftext")
+    {
+        metadata.attributes.set(
+            "reftext".into(),
+            AttributeValue::String(Cow::Borrowed(label)),
+        );
+    }
+    metadata.anchors.push(anchor);
+}
+
 fn merge_attribute_metadata<'input>(
     metadata: &mut BlockMetadata<'input>,
     mut attribute_metadata: BlockMetadata<'input>,
@@ -1299,13 +1312,19 @@ fn insert_reference<'a>(
     state: &mut ParserState<'a>,
     refs: &mut ReferenceCatalog<'a>,
     anchor: &Anchor<'a>,
+    label: Option<&'a str>,
     title: Option<Title<'a>>,
     caption: Option<Caption<'a>>,
 ) {
     if refs.duplicate(state, anchor.id, &anchor.location) {
         return;
     }
-    let mut xreflabel = parse_reference_label(state, anchor.xreflabel, &anchor.location);
+    let mut xreflabel = parse_reference_label(state, label, &anchor.location);
+    if !anchor.is_bibliography()
+        && let Some(label) = label.filter(|label| !label.trim().is_empty())
+    {
+        refs.natural_targets.entry(label).or_insert(anchor.id);
+    }
     if anchor.is_bibliography()
         && let Some(label) = xreflabel.as_mut()
     {
@@ -1454,9 +1473,12 @@ fn finalize_cross_references<'a>(
     });
 }
 
-fn section_xreflabel<'a>(state: &ParserState<'a>, metadata: &BlockMetadata<'a>) -> Option<&'a str> {
-    if let Some(reftext) = metadata.attributes.get_string("reftext") {
-        return Some(state.intern_cow(reftext));
+fn metadata_xreflabel<'a>(
+    state: &ParserState<'a>,
+    metadata: &BlockMetadata<'a>,
+) -> Option<&'a str> {
+    if let Some(AttributeValue::String(reftext)) = metadata.attributes.get("reftext") {
+        return Some(state.intern_cow(reftext.clone()));
     }
     metadata.anchors.last().and_then(|anchor| anchor.xreflabel)
 }
@@ -1470,7 +1492,7 @@ fn register_section_header<'a>(
     location: Location,
     direct_parent_section_kind: Option<SectionKind>,
 ) -> (Title<'a>, section::SectionNumbering, &'a str) {
-    let xreflabel = section_xreflabel(state, &block_metadata.metadata);
+    let xreflabel = metadata_xreflabel(state, &block_metadata.metadata);
     let reference_text = xreflabel
         .filter(|label| !label.trim().is_empty())
         .unwrap_or(natural_title);
@@ -1490,9 +1512,9 @@ fn register_section_header<'a>(
     (title, numbering, reference_text)
 }
 
-/// Finalize a cross-reference target after section IDs and title aliases are known.
+/// Finalize a cross-reference target after IDs and reference-text aliases are known.
 ///
-/// Exact IDs are kept. Natural-title lookup applies only when enabled at the
+/// Exact IDs are kept. Reference-text lookup applies only when enabled at the
 /// reference's source position. Missing aliases leave the target unchanged.
 fn resolve_xref_target<'a>(
     target: &'a str,
@@ -1586,7 +1608,7 @@ fn collect_references<'a>(
             let id = refs.section_id(state, section);
             section.id = Some(id);
             let reference_text = section.reference_text.take();
-            let xreflabel = section_xreflabel(state, &section.metadata);
+            let xreflabel = metadata_xreflabel(state, &section.metadata);
             let mut location = section.location.clone();
             if let Some(last) = section.title.last() {
                 location.absolute_end = last.location().absolute_end;
@@ -1616,7 +1638,11 @@ fn collect_references<'a>(
             let caption = block
                 .metadata()
                 .and_then(|metadata| metadata.caption.clone());
-            insert_reference(state, refs, anchor, block.title().cloned(), caption);
+            let label = block
+                .metadata()
+                .and_then(|metadata| metadata_xreflabel(state, metadata))
+                .or(anchor.xreflabel);
+            insert_reference(state, refs, anchor, label, block.title().cloned(), caption);
         }
         if let Some(title) = block.title() {
             collect_inline_references(state, title, refs, xrefs);
@@ -1655,7 +1681,7 @@ fn collect_references<'a>(
             Block::DescriptionList(l) => {
                 for item in &mut l.items {
                     for anchor in &item.anchors {
-                        insert_reference(state, refs, anchor, None, None);
+                        insert_reference(state, refs, anchor, anchor.xreflabel, None, None);
                     }
                     collect_inline_references(state, &item.term, refs, xrefs);
                     collect_inline_references(state, &item.principal_text, refs, xrefs);
@@ -1850,7 +1876,7 @@ fn collect_inline_references<'a>(
     for inline in inlines {
         match inline {
             InlineNode::InlineAnchor(anchor) => {
-                insert_reference(state, refs, anchor, None, None);
+                insert_reference(state, refs, anchor, anchor.xreflabel, None, None);
                 if let Some(label) = anchor.bibliography_label() {
                     collect_inline_references(state, label, refs, xrefs);
                 }
@@ -2827,10 +2853,12 @@ peg::parser! {
                     .as_ref()
                     .or_else(|| header.metadata.anchors.last())
                 {
+                    let label = metadata_xreflabel(state, &header.metadata);
                     insert_reference(
                         state,
                         &mut references,
                         anchor,
+                        label,
                         Some(header_reference_title(header)),
                         None,
                     );
@@ -3067,7 +3095,7 @@ peg::parser! {
 
                 for line in lines {
                     match line {
-                        AttributeOrAnchorLine::Anchor(anchor) => metadata.anchors.push(anchor),
+                        AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(&mut metadata, anchor),
                         AttributeOrAnchorLine::Attributes((_, attr_metadata)) => {
                             let attr_metadata = *attr_metadata;
                             // Merge attribute metadata - last one wins for id/style
@@ -3079,7 +3107,9 @@ peg::parser! {
                             }
                             metadata.roles.extend(attr_metadata.roles);
                             metadata.options.extend(attr_metadata.options);
-                            metadata.attributes = attr_metadata.attributes;
+                            for (name, value) in attr_metadata.attributes.iter() {
+                                metadata.attributes.set(name.clone(), value.clone());
+                            }
                             metadata.positional_attributes = attr_metadata.positional_attributes;
                         }
                     }
@@ -3837,7 +3867,7 @@ peg::parser! {
                     continue
                 };
                 match value {
-                    BlockMetadataLine::Anchor(value) => metadata.anchors.push(value),
+                    BlockMetadataLine::Anchor(value) => push_metadata_anchor(&mut metadata, value),
                     BlockMetadataLine::Attributes((attr_discrete, attr_metadata)) => {
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
@@ -4497,7 +4527,7 @@ peg::parser! {
             let meta_end = lines.last().map_or(meta_start, |(_, end)| *end);
             for (line, _) in lines {
                 match line {
-                    AttributeOrAnchorLine::Anchor(anchor) => metadata.anchors.push(anchor),
+                    AttributeOrAnchorLine::Anchor(anchor) => push_metadata_anchor(&mut metadata, anchor),
                     AttributeOrAnchorLine::Attributes((attr_discrete, attr_metadata)) => {
                         discrete = attr_discrete;
                         merge_attribute_metadata(&mut metadata, *attr_metadata);
