@@ -3,8 +3,7 @@
 use std::{cell::Cell, rc::Rc};
 
 use acdc_parser::{
-    Caption, CrossReference, InlineNode, Reference, SectionReference, XrefCaptionLabel,
-    XrefSignifier, XrefStyle,
+    Caption, CrossReference, InlineNode, Reference, XrefCaptionLabel, XrefSignifier, XrefStyle,
 };
 
 /// Display content for an automatic cross-reference.
@@ -129,14 +128,16 @@ pub fn resolve_xref<'r, 'a>(
     }
     if let Some(label) = &reference.xreflabel {
         XrefDisplay::Label(label, guard.enter())
-    } else if let (Some(title), Some(section)) = (&reference.title, &reference.section)
-        && let Some(number) = &section.number
-        && xref.xrefstyle != XrefStyle::Basic
+    } else if let (Some(title), Some(name), Some(number)) = (
+        &reference.title,
+        reference.section_name(),
+        reference.section_number(),
+    ) && xref.xrefstyle != XrefStyle::Basic
     {
-        let prefix = section_prefix(section, number, xref.signifier);
+        let prefix = section_prefix(name, number, xref.signifier);
         if xref.xrefstyle == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
-        } else if section.emphasizes_title() {
+        } else if matches!(name, "chapter" | "appendix") {
             XrefDisplay::FullEmphasized(prefix, title.as_ref(), guard.enter())
         } else {
             XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
@@ -167,15 +168,17 @@ pub fn resolve_xref<'r, 'a>(
 ///
 /// An empty refsig still leaves the space before the number, which is what
 /// Asciidoctor prints for one.
-fn section_prefix(
-    section: &SectionReference,
-    number: &str,
-    signifier: XrefSignifier<'_>,
-) -> String {
+fn section_prefix(name: &str, number: &str, signifier: XrefSignifier<'_>) -> String {
     let word = match signifier {
         XrefSignifier::AtReference(word) => Some(word),
         XrefSignifier::Omitted => None,
-        XrefSignifier::Standard | _ => section.standard_signifier(),
+        XrefSignifier::Standard | _ => match name {
+            "part" => Some("Part"),
+            "chapter" => Some("Chapter"),
+            "section" => Some("Section"),
+            "appendix" => Some("Appendix"),
+            _ => None,
+        },
     };
     match word {
         Some(word) => format!("{word} {number}"),
@@ -349,6 +352,26 @@ mod tests {
             section_form("sec", XrefStyle::Full, standard)?,
             ("quoted", "Section 1.1".to_string())
         );
+        Ok(())
+    }
+
+    #[test]
+    fn a_special_section_has_no_standard_signifier() -> Result<(), Error> {
+        let parsed = parse(
+            include_str!(
+                "../../html/tests/fixtures/source/html/embedded/book_special_section_numbering_all.adoc"
+            ),
+            &Options::default(),
+        )?;
+        let guard = XrefGuard::default();
+        assert!(matches!(
+            resolve_xref(
+                parsed.document().references.get("_preface"),
+                &xref("_preface", XrefStyle::Short),
+                &guard,
+            ),
+            XrefDisplay::ShortCaption(prefix) if prefix == "1"
+        ));
         Ok(())
     }
 

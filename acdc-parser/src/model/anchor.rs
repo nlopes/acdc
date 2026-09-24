@@ -146,8 +146,8 @@ impl<'a> TocEntry<'a> {
     }
 
     /// The number a cross-reference to this section quotes, when it has one.
-    pub(crate) fn reference_number(&self) -> Option<&str> {
-        self.reference_number.as_ref().map(SectionNumber::as_str)
+    pub(super) fn reference_number(&self) -> Option<&SectionNumber> {
+        self.reference_number.as_ref()
     }
 
     /// Return the assigned number without presentation punctuation or a signifier.
@@ -178,45 +178,11 @@ impl Serialize for TocEntry<'_> {
     }
 }
 
-/// What an automatic cross-reference to a section shows when `xrefstyle` asks
-/// for more than the title.
-///
-/// Asciidoctor prints `Section 1.1`, `Chapter 2, _Title_` and the like. The
-/// word comes from the `<name>-refsig` attribute and the number from the
-/// section's numbering, so both are recorded here for converters to assemble.
+/// Derived category and number for styled section references.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub struct SectionReference {
-    /// The section's name for cross-references: `part`, `chapter`, `section`,
-    /// `appendix`, or a special section's style such as `preface`. It selects
-    /// the `<name>-refsig` attribute that supplies the word before the number.
-    pub name: &'static str,
-    /// The number a cross-reference quotes, or `None` for an unnumbered
-    /// section, which is referenced by its title alone.
-    pub number: Option<String>,
-}
-
-impl SectionReference {
-    /// Whether a `full` cross-reference sets this section's title in emphasis
-    /// rather than quotation marks. Asciidoctor emphasises the titles of
-    /// chapters and appendices and quotes every other kind.
-    #[must_use]
-    pub fn emphasizes_title(&self) -> bool {
-        matches!(self.name, "chapter" | "appendix")
-    }
-
-    /// The word Asciidoctor puts before this section's number when nothing
-    /// was recorded at the reference position.
-    #[must_use]
-    pub fn standard_signifier(&self) -> Option<&'static str> {
-        match self.name {
-            "part" => Some("Part"),
-            "chapter" => Some("Chapter"),
-            "section" => Some("Section"),
-            "appendix" => Some("Appendix"),
-            _ => None,
-        }
-    }
+pub(crate) struct SectionReference {
+    pub(crate) name: &'static str,
+    pub(super) number: Option<SectionNumber>,
 }
 
 /// Reference metadata for a cross-reference target.
@@ -241,14 +207,44 @@ pub struct Reference<'a> {
     pub location: Location,
     /// The target block's resolved caption, when it has one.
     pub caption: Option<Caption<'a>>,
-    /// For a section target, the name and number a styled cross-reference
-    /// shows in place of, or in front of, its title.
-    pub section: Option<SectionReference>,
+    pub(crate) section: Option<SectionReference>,
     pub(crate) bibliography: bool,
     pub(crate) automatic_citation: bool,
 }
 
 impl Reference<'_> {
+    /// The section's cross-reference category, or `None` for other targets.
+    ///
+    /// This is `part`, `chapter`, `section`, `appendix`, or a special section's
+    /// style such as `preface`. It selects the `<name>-refsig` attribute.
+    #[must_use]
+    pub fn section_name(&self) -> Option<&str> {
+        self.section.as_ref().map(|section| section.name)
+    }
+
+    /// The section's reference number, without a signifier or trailing punctuation.
+    ///
+    /// Returns `None` for unnumbered sections and non-section targets. A section
+    /// beyond `sectnumlevels` can have a reference number without a heading number.
+    ///
+    /// ```
+    /// use acdc_parser::{Options, parse};
+    ///
+    /// let parsed = parse("= Guide\n:sectnums:\n\n[#intro]\n== Introduction\n", &Options::default())?;
+    /// let reference = parsed.document().references.get("intro").ok_or("missing section")?;
+    /// assert_eq!(reference.section_name(), Some("section"));
+    /// assert_eq!(reference.section_number(), Some("1"));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    #[must_use]
+    pub fn section_number(&self) -> Option<&str> {
+        self.section
+            .as_ref()?
+            .number
+            .as_ref()
+            .map(SectionNumber::as_str)
+    }
+
     /// Returns whether this target is a bibliography entry.
     #[must_use]
     pub fn is_bibliography(&self) -> bool {
@@ -265,6 +261,41 @@ impl Reference<'_> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn section_reference_queries_borrow_shared_numbers() -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = crate::parse(
+            include_str!("../../fixtures/tests/section_reference_metadata.adoc"),
+            &crate::Options::default(),
+        )?;
+        let document = parsed.document();
+        for id in ["part", "chapter", "section", "appendix"] {
+            let reference = document.references.get(id).ok_or("missing reference")?;
+            let cloned = reference.clone();
+            let number = reference.section_number().ok_or("missing number")?;
+            let cloned_number = cloned.section_number().ok_or("missing cloned number")?;
+            let entry = document
+                .toc_entries
+                .iter()
+                .find(|entry| entry.id == id)
+                .ok_or("missing TOC entry")?;
+            let toc_number = entry.reference_number().ok_or("missing TOC number")?;
+
+            // JSON omits the reference catalog and cannot check shared storage.
+            assert!(std::ptr::eq(number, cloned_number), "{id}");
+            assert!(std::ptr::eq(number, toc_number.as_str()), "{id}");
+            if let Some(heading_number) = entry.number() {
+                assert!(std::ptr::eq(number, heading_number), "{id}");
+            }
+        }
+        let plain = document.references.get("plain").ok_or("missing section")?;
+        assert_eq!(plain.section_name(), Some("section"));
+        assert_eq!(plain.section_number(), None);
+        let block = document.references.get("block").ok_or("missing block")?;
+        assert_eq!(block.section_name(), None);
+        assert_eq!(block.section_number(), None);
+        Ok(())
+    }
 
     fn toc_entry(kind: SectionKind) -> TocEntry<'static> {
         TocEntry::for_section(

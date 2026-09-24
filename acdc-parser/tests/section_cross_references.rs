@@ -7,8 +7,8 @@
 //! `Section 1.1` and `Chapter 2, _Title_` from exactly these parts.
 
 use acdc_parser::{
-    Block, CrossReference, Document, InlineMacro, InlineNode, Options, SectionReference,
-    XrefSignifier, XrefStyle, parse,
+    Block, CrossReference, Document, InlineMacro, InlineNode, Options, Reference, XrefSignifier,
+    XrefStyle, parse,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -30,13 +30,13 @@ fn cross_references<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'
     found
 }
 
-fn section_reference<'d>(
-    references: &'d std::collections::HashMap<&str, acdc_parser::Reference<'_>>,
+fn section_reference<'d, 'a>(
+    references: &'d std::collections::HashMap<&str, Reference<'a>>,
     id: &str,
-) -> Result<&'d SectionReference, Error> {
+) -> Result<&'d Reference<'a>, Error> {
     references
         .get(id)
-        .and_then(|reference| reference.section.as_ref())
+        .filter(|reference| reference.section_name().is_some())
         .ok_or_else(|| format!("no section reference for {id}").into())
 }
 
@@ -56,8 +56,8 @@ fn a_section_reference_carries_its_name_and_number() -> Result<(), Error> {
         ("appsub", "section", "A.1"),
     ] {
         let section = section_reference(references, id)?;
-        assert_eq!(section.name, name, "{id}");
-        assert_eq!(section.number.as_deref(), Some(number), "{id}");
+        assert_eq!(section.section_name(), Some(name), "{id}");
+        assert_eq!(section.section_number(), Some(number), "{id}");
     }
     Ok(())
 }
@@ -69,8 +69,7 @@ fn an_article_level_one_section_is_a_section_not_a_chapter() -> Result<(), Error
         &Options::default(),
     )?;
     let section = section_reference(&parsed.document().references, "s1")?;
-    assert_eq!(section.name, "section");
-    assert!(!section.emphasizes_title());
+    assert_eq!(section.section_name(), Some("section"));
     Ok(())
 }
 
@@ -82,12 +81,15 @@ fn an_unnumbered_section_has_no_reference_number() -> Result<(), Error> {
                   :sectnums!:\n\n[[off]]\n== Off Again\n\nx\n";
     let parsed = parse(source, &Options::default())?;
     let references = &parsed.document().references;
-    assert_eq!(section_reference(references, "plain")?.number, None);
     assert_eq!(
-        section_reference(references, "numbered")?.number.as_deref(),
+        section_reference(references, "plain")?.section_number(),
+        None
+    );
+    assert_eq!(
+        section_reference(references, "numbered")?.section_number(),
         Some("1")
     );
-    assert_eq!(section_reference(references, "off")?.number, None);
+    assert_eq!(section_reference(references, "off")?.section_number(), None);
     Ok(())
 }
 
@@ -97,9 +99,9 @@ fn a_part_is_numbered_only_with_partnums() -> Result<(), Error> {
                   [[c1]]\n== C1\n\nx\n";
     let parsed = parse(source, &Options::default())?;
     let references = &parsed.document().references;
-    assert_eq!(section_reference(references, "p1")?.number, None);
+    assert_eq!(section_reference(references, "p1")?.section_number(), None);
     assert_eq!(
-        section_reference(references, "c1")?.number.as_deref(),
+        section_reference(references, "c1")?.section_number(),
         Some("1")
     );
     Ok(())
@@ -114,9 +116,7 @@ fn a_reference_is_numbered_past_sectnumlevels_though_the_heading_is_not() -> Res
     let document = parsed.document();
 
     assert_eq!(
-        section_reference(&document.references, "s11")?
-            .number
-            .as_deref(),
+        section_reference(&document.references, "s11")?.section_number(),
         Some("1.1")
     );
     let toc_entry = document
@@ -134,10 +134,8 @@ fn a_numbered_special_section_takes_its_style_as_its_name() -> Result<(), Error>
                   [[ch]]\n== Chapter\n\nx\n";
     let parsed = parse(source, &Options::default())?;
     let preface = section_reference(&parsed.document().references, "pre")?;
-    assert_eq!(preface.name, "preface");
-    assert_eq!(preface.number.as_deref(), Some("1"));
-    // No refsig names a preface, so its number stands alone.
-    assert_eq!(preface.standard_signifier(), None);
+    assert_eq!(preface.section_name(), Some("preface"));
+    assert_eq!(preface.section_number(), Some("1"));
     Ok(())
 }
 
@@ -173,9 +171,7 @@ fn renumbering_the_sections_refreshes_the_catalog() -> Result<(), Error> {
     document.toc_entries = parsed.document().toc_entries.clone();
     document.references = parsed.document().references.clone();
     assert_eq!(
-        section_reference(&document.references, "second")?
-            .number
-            .as_deref(),
+        section_reference(&document.references, "second")?.section_number(),
         Some("2")
     );
 
@@ -196,9 +192,7 @@ fn renumbering_the_sections_refreshes_the_catalog() -> Result<(), Error> {
     // The catalog follows the tree, so a `<<second>>` no longer quotes the
     // number the section had when it was parsed.
     assert_eq!(
-        section_reference(&document.references, "second")?
-            .number
-            .as_deref(),
+        section_reference(&document.references, "second")?.section_number(),
         Some("1")
     );
     Ok(())

@@ -9,7 +9,7 @@ use serde::{
 
 mod admonition;
 mod anchor;
-pub(crate) use anchor::BibliographyLabel;
+pub(crate) use anchor::{BibliographyLabel, SectionReference};
 mod attributes;
 mod attribution;
 pub(crate) mod caption;
@@ -24,7 +24,7 @@ mod tables;
 mod title;
 
 pub use admonition::{Admonition, AdmonitionVariant};
-pub use anchor::{Anchor, Reference, SectionReference, TocEntry, UNNUMBERED_SECTION_STYLES};
+pub use anchor::{Anchor, Reference, TocEntry, UNNUMBERED_SECTION_STYLES};
 pub(crate) use attributes::RawAttributes;
 pub use attributes::{
     AttributeName, AttributeValue, DocumentAttributeAssignment, DocumentAttributeValue,
