@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Performance
 
+- Copied cross-reference catalogs use less memory for numbered sections.
+
 - Source-ordered document-attribute changes require less copying when converter
   scopes change.
 - **Typography replacements skip the replace chain on plain prose.** Text

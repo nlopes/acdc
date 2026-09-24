@@ -1,0 +1,881 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Section references",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "book",
+    "partnums": true,
+    "sectnumlevels": "1",
+    "sectnums": true,
+    "xrefstyle": "full"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Part: ",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "part",
+          "location": [
+            {
+              "line": 8,
+              "col": 7
+            },
+            {
+              "line": 8,
+              "col": 32
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 8,
+              "col": 33
+            },
+            {
+              "line": 8,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 33
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Chapter: ",
+          "location": [
+            {
+              "line": 10,
+              "col": 1
+            },
+            {
+              "line": 10,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "chapter",
+          "location": [
+            {
+              "line": 10,
+              "col": 10
+            },
+            {
+              "line": 10,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 10,
+              "col": 21
+            },
+            {
+              "line": 10,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Section: ",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "section",
+          "location": [
+            {
+              "line": 12,
+              "col": 10
+            },
+            {
+              "line": 12,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 12,
+              "col": 21
+            },
+            {
+              "line": 12,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Appendix: ",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "appendix",
+          "location": [
+            {
+              "line": 14,
+              "col": 11
+            },
+            {
+              "line": 14,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 14,
+              "col": 23
+            },
+            {
+              "line": 14,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Unnumbered: ",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "plain",
+          "location": [
+            {
+              "line": 16,
+              "col": 13
+            },
+            {
+              "line": 16,
+              "col": 39
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 16,
+              "col": 40
+            },
+            {
+              "line": 16,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 40
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Labelled: ",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "labelled",
+          "location": [
+            {
+              "line": 18,
+              "col": 11
+            },
+            {
+              "line": 18,
+              "col": 22
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 18,
+              "col": 23
+            },
+            {
+              "line": 18,
+              "col": 23
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 18,
+          "col": 1
+        },
+        {
+          "line": 18,
+          "col": 23
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Block: ",
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 20,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "block",
+          "location": [
+            {
+              "line": 20,
+              "col": 8
+            },
+            {
+              "line": 20,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 20,
+              "col": 17
+            },
+            {
+              "line": 20,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 20,
+          "col": 1
+        },
+        {
+          "line": 20,
+          "col": 17
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Preface",
+          "location": [
+            {
+              "line": 23,
+              "col": 4
+            },
+            {
+              "line": 23,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "preface"
+      },
+      "location": [
+        {
+          "line": 22,
+          "col": 1
+        },
+        {
+          "line": 23,
+          "col": 10
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Part One",
+          "location": [
+            {
+              "line": 26,
+              "col": 3
+            },
+            {
+              "line": 26,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 0,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "part",
+            "location": [
+              {
+                "line": 25,
+                "col": 1
+              },
+              {
+                "line": 25,
+                "col": 9
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Chapter One",
+              "location": [
+                {
+                  "line": 29,
+                  "col": 4
+                },
+                {
+                  "line": 29,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "level": 1,
+          "metadata": {
+            "anchors": [
+              {
+                "id": "chapter",
+                "location": [
+                  {
+                    "line": 28,
+                    "col": 1
+                  },
+                  {
+                    "line": 28,
+                    "col": 12
+                  }
+                ]
+              }
+            ]
+          },
+          "blocks": [
+            {
+              "name": "section",
+              "type": "block",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Deep Section",
+                  "location": [
+                    {
+                      "line": 32,
+                      "col": 5
+                    },
+                    {
+                      "line": 32,
+                      "col": 16
+                    }
+                  ]
+                }
+              ],
+              "level": 2,
+              "metadata": {
+                "anchors": [
+                  {
+                    "id": "section",
+                    "location": [
+                      {
+                        "line": 31,
+                        "col": 1
+                      },
+                      {
+                        "line": 31,
+                        "col": 12
+                      }
+                    ]
+                  }
+                ]
+              },
+              "blocks": [
+                {
+                  "name": "paragraph",
+                  "type": "block",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "A paragraph.",
+                      "location": [
+                        {
+                          "line": 35,
+                          "col": 1
+                        },
+                        {
+                          "line": 35,
+                          "col": 12
+                        }
+                      ]
+                    }
+                  ],
+                  "metadata": {
+                    "anchors": [
+                      {
+                        "id": "block",
+                        "location": [
+                          {
+                            "line": 34,
+                            "col": 1
+                          },
+                          {
+                            "line": 34,
+                            "col": 10
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "location": [
+                    {
+                      "line": 34,
+                      "col": 1
+                    },
+                    {
+                      "line": 35,
+                      "col": 12
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 31,
+                  "col": 1
+                },
+                {
+                  "line": 35,
+                  "col": 12
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 35,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Chapter Two",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 4
+                },
+                {
+                  "line": 38,
+                  "col": 14
+                }
+              ]
+            }
+          ],
+          "level": 1,
+          "metadata": {
+            "anchors": [
+              {
+                "id": "labelled",
+                "xreflabel": "Named chapter",
+                "location": [
+                  {
+                    "line": 37,
+                    "col": 1
+                  },
+                  {
+                    "line": 37,
+                    "col": 27
+                  }
+                ]
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 37,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "section",
+          "type": "block",
+          "title": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Appendix One",
+              "location": [
+                {
+                  "line": 42,
+                  "col": 4
+                },
+                {
+                  "line": 42,
+                  "col": 15
+                }
+              ]
+            }
+          ],
+          "level": 1,
+          "metadata": {
+            "style": "appendix",
+            "anchors": [
+              {
+                "id": "appendix",
+                "location": [
+                  {
+                    "line": 41,
+                    "col": 1
+                  },
+                  {
+                    "line": 41,
+                    "col": 13
+                  }
+                ]
+              }
+            ]
+          },
+          "blocks": [
+            {
+              "name": "sectnums",
+              "type": "attribute",
+              "value": false,
+              "location": [
+                {
+                  "line": 44,
+                  "col": 1
+                },
+                {
+                  "line": 44,
+                  "col": 12
+                }
+              ]
+            },
+            {
+              "name": "section",
+              "type": "block",
+              "title": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Unnumbered Section",
+                  "location": [
+                    {
+                      "line": 47,
+                      "col": 5
+                    },
+                    {
+                      "line": 47,
+                      "col": 22
+                    }
+                  ]
+                }
+              ],
+              "level": 2,
+              "metadata": {
+                "anchors": [
+                  {
+                    "id": "plain",
+                    "location": [
+                      {
+                        "line": 46,
+                        "col": 1
+                      },
+                      {
+                        "line": 46,
+                        "col": 10
+                      }
+                    ]
+                  }
+                ]
+              },
+              "location": [
+                {
+                  "line": 46,
+                  "col": 1
+                },
+                {
+                  "line": 47,
+                  "col": 22
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 40,
+              "col": 1
+            },
+            {
+              "line": 47,
+              "col": 22
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 25,
+          "col": 1
+        },
+        {
+          "line": 47,
+          "col": 22
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 47,
+      "col": 22
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+= Section references
+:doctype: book
+:sectnums:
+:partnums:
+:sectnumlevels: 1
+:xrefstyle: full
+
+Part: xref:part[xrefstyle=short].
+
+Chapter: <<chapter>>.
+
+Section: <<section>>.
+
+Appendix: <<appendix>>.
+
+Unnumbered: xref:plain[xrefstyle=basic].
+
+Labelled: <<labelled>>.
+
+Block: <<block>>.
+
+[preface]
+== Preface
+
+[[part]]
+= Part One
+
+[[chapter]]
+== Chapter One
+
+[[section]]
+=== Deep Section
+
+[[block]]
+A paragraph.
+
+[[labelled,Named chapter]]
+== Chapter Two
+
+[appendix]
+[[appendix]]
+== Appendix One
+
+:sectnums!:
+
+[[plain]]
+=== Unnumbered Section

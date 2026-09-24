@@ -10,8 +10,8 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{
     Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
-    InlineNode, Location, MAX_SECTION_LEVELS, SectionReference, Table, TocEntry,
-    model::DocumentAttributeStatus,
+    InlineNode, Location, MAX_SECTION_LEVELS, Table, TocEntry,
+    model::{DocumentAttributeStatus, SectionReference},
 };
 
 use super::title::Title;
@@ -401,7 +401,7 @@ pub(crate) fn reference_name(kind: SectionKind, level: u8, is_book: bool) -> &'s
 pub(crate) fn section_reference(entry: &TocEntry<'_>, is_book: bool) -> SectionReference {
     SectionReference {
         name: reference_name(entry.kind, entry.level, is_book),
-        number: entry.reference_number().map(str::to_owned),
+        number: entry.reference_number().cloned(),
     }
 }
 
