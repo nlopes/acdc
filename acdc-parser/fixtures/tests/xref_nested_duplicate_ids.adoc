@@ -1,0 +1,44 @@
+= Nested duplicate IDs
+:sectnums:
+:xrefstyle: full
+
+[[paragraph,Original paragraph]]
+Paragraph target.
+
+[[outer]]
+== Outer
+
+[cols="a"]
+|===
+|
+[[inner]]
+== Inner
+
+Text.
+
+[[outer]]
+== Duplicate Outer
+
+Text.
+
+[[paragraph]]
+== Duplicate Paragraph
+
+Text.
+
+[[labelled,Chosen label]]
+== Labelled
+
+Text.
+|===
+
+[[inner]]
+== Duplicate Inner
+
+First outer: <<outer>>.
+
+First inner: <<inner>>.
+
+Paragraph: <<paragraph>>.
+
+Labelled: <<labelled>>.

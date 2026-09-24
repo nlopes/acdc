@@ -36,6 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to sections in AsciiDoc table cells retain their section
+  category and number, including beyond `sectnumlevels`, so `xrefstyle=short`
+  and `xrefstyle=full` work as in Asciidoctor. Renumbering after section edits
+  updates these references even when they have no table-of-contents entry.
+
 - Single-plus passthroughs work immediately after `=`, including unquoted
   `role=+hot+`, matching Asciidoctor. Inline macro attributes retain the protected
   text instead of exposing internal passthrough markers.

@@ -72,24 +72,20 @@ impl Document<'_> {
     /// Reassign section numbers from the current section tree.
     ///
     /// Parsing does this automatically. Call it after changing the section tree or a
-    /// section's numbering policy. Existing table-of-contents entries receive the new
-    /// numbers, but this method does not add, remove, or reorder those entries.
+    /// section's numbering policy. Existing cross-reference targets and
+    /// table-of-contents entries receive the new numbers, but this method does not
+    /// add, remove, or reorder those entries.
     pub fn renumber_sections(&mut self) {
         let is_book = matches!(
             self.attributes.get("doctype"),
             Some(value) if value.as_str() == Some("book")
         );
-        section::renumber_sections(&mut self.blocks, &mut self.toc_entries, is_book);
-        // The catalog copies each section's number, so it has to follow the
-        // renumbering or a `<<id>>` would quote the number the section had
-        // when it was parsed.
-        for entry in &self.toc_entries {
-            if let Some(reference) = self.references.get_mut(entry.id)
-                && reference.section.is_some()
-            {
-                reference.section = Some(section::section_reference(entry, is_book));
-            }
-        }
+        section::renumber_sections(
+            &mut self.blocks,
+            &mut self.toc_entries,
+            &mut self.references,
+            is_book,
+        );
     }
 
     /// Reassign every automatic caption ordinal, numbering a block's content before the block

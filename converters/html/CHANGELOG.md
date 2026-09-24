@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `xrefstyle=short` and `xrefstyle=full` apply to sections inside AsciiDoc table
+  cells, including references outside the cell and targets beyond
+  `sectnumlevels`, matching Asciidoctor.
+
 - Unquoted `role=+hot+` produces `class="hot"` on cross-references and links,
   matching Asciidoctor. Passthroughs in URL targets and inline macro attributes
   no longer leak internal markers into HTML.
