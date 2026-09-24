@@ -189,7 +189,7 @@ pub struct CrossReference<'a> {
     #[serde(skip)]
     signifier: XrefSignifier<'a>,
     #[serde(skip)]
-    pub(crate) section_signifiers: Option<&'a [XrefSignifier<'a>; REFSIG_NAMES.len()]>,
+    pub(crate) section_signifiers: Option<&'a [XrefSignifier<'a>; REFSIG_ATTRIBUTES.len()]>,
     /// The `role=` of an `xref:` macro after attribute substitution and
     /// passthrough restoration. It may be empty; HTML uses it as the link's class.
     #[serde(skip)]
@@ -244,7 +244,11 @@ impl<'a> CrossReference<'a> {
             return;
         };
         self.signifier = name
-            .and_then(|name| REFSIG_NAMES.iter().position(|candidate| *candidate == name))
+            .and_then(|name| {
+                REFSIG_ATTRIBUTES
+                    .iter()
+                    .position(|(candidate, _)| *candidate == name)
+            })
             .and_then(|index| signifiers.get(index))
             .copied()
             .unwrap_or_default();
@@ -300,18 +304,18 @@ pub enum XrefSignifier<'a> {
 
 // Capture every category before the target is known, and retain them so that
 // renumbering can select a different category without losing source-position values.
-pub(crate) const REFSIG_NAMES: [&str; 11] = [
-    "part",
-    "chapter",
-    "section",
-    "appendix",
-    "preface",
-    "abstract",
-    "dedication",
-    "colophon",
-    "glossary",
-    "bibliography",
-    "index",
+pub(crate) const REFSIG_ATTRIBUTES: [(&str, &str); 11] = [
+    ("part", "part-refsig"),
+    ("chapter", "chapter-refsig"),
+    ("section", "section-refsig"),
+    ("appendix", "appendix-refsig"),
+    ("preface", "preface-refsig"),
+    ("abstract", "abstract-refsig"),
+    ("dedication", "dedication-refsig"),
+    ("colophon", "colophon-refsig"),
+    ("glossary", "glossary-refsig"),
+    ("bibliography", "bibliography-refsig"),
+    ("index", "index-refsig"),
 ];
 
 /// Selects the label used by an automatic cross-reference to a numbered caption.

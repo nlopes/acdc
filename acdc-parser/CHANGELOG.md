@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Repeated automatic cross-references use less memory when document attributes
+  stay unchanged. Caption and section-signifier changes still apply in source order.
+
 - Section-reference signifiers are read and overridden through methods, keeping
   explicit caller choices distinct from values selected from the source.
 
