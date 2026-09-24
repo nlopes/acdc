@@ -25,10 +25,9 @@ pub enum XrefDisplay<'r, 'a> {
     /// section other than a chapter or appendix takes this form too, as in
     /// `Section 1.1, "Title"`.
     FullCaption(String, &'r [InlineNode<'a>], XrefScope<'r>),
-    /// A section's word and number followed by its title in emphasis, which
-    /// is how Asciidoctor sets a chapter or appendix in a `full` reference:
-    /// `Chapter 2, _Title_`.
-    FullEmphasized(String, &'r [InlineNode<'a>], XrefScope<'r>),
+    /// A chapter or appendix title in emphasis, optionally preceded by its
+    /// signifier and number, as in `Chapter 2, _Title_` for a full reference.
+    Emphasized(Option<String>, &'r [InlineNode<'a>], XrefScope<'r>),
     /// An inter-document target as written, such as `other.adoc#section`.
     External(String),
     /// The literal `[id]` fallback for a target that is in the catalog but has
@@ -103,7 +102,8 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 /// Explicit reference labels take precedence over caption styles and target
 /// titles. Numbered sections honor the style with their word and number, as
 /// in `Section 1.1`; an unnumbered one is referenced by its title under every
-/// style, as in Asciidoctor. Captioned targets honor the style; table, example, and listing
+/// style. Selecting a style emphasizes chapter and appendix titles even without
+/// a number. Captioned targets honor the style; table, example, and listing
 /// references can override the target label with the label recorded at the
 /// reference position. Unknown local and untitled targets fall back to `[id]`,
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
@@ -132,16 +132,21 @@ pub fn resolve_xref<'r, 'a>(
         &reference.title,
         reference.section_name(),
         reference.section_number(),
-    ) && xref.xrefstyle != XrefStyle::Basic
+    ) && matches!(xref.xrefstyle, XrefStyle::Short | XrefStyle::Full)
     {
         let prefix = section_prefix(name, number, xref.signifier());
         if xref.xrefstyle == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
         } else if matches!(name, "chapter" | "appendix") {
-            XrefDisplay::FullEmphasized(prefix, title.as_ref(), guard.enter())
+            XrefDisplay::Emphasized(Some(prefix), title.as_ref(), guard.enter())
         } else {
             XrefDisplay::FullCaption(prefix, title.as_ref(), guard.enter())
         }
+    } else if let Some(title) = &reference.title
+        && xref.xrefstyle != XrefStyle::Default
+        && matches!(reference.section_name(), Some("chapter" | "appendix"))
+    {
+        XrefDisplay::Emphasized(None, title.as_ref(), guard.enter())
     } else if let (Some(title), Some(prefix)) = (
         &reference.title,
         reference
@@ -480,7 +485,7 @@ mod tests {
                 XrefDisplay::Title(..) => ("title", String::new()),
                 XrefDisplay::ShortCaption(prefix) => ("short", prefix),
                 XrefDisplay::FullCaption(prefix, ..) => ("quoted", prefix),
-                XrefDisplay::FullEmphasized(prefix, ..) => ("emphasized", prefix),
+                XrefDisplay::Emphasized(prefix, ..) => ("emphasized", prefix.unwrap_or_default()),
                 // Reported as a value so the assertion shows what came back.
                 other @ (XrefDisplay::Label(..)
                 | XrefDisplay::External(_)
@@ -548,11 +553,15 @@ mod tests {
     }
 
     #[test]
-    fn an_unnumbered_section_is_referenced_by_its_title() -> Result<(), Error> {
+    fn an_unnumbered_chapter_keeps_selected_title_emphasis() -> Result<(), Error> {
+        assert_eq!(
+            section_form("plain", XrefStyle::Default, XrefSignifier::Standard)?,
+            ("title", String::new())
+        );
         for style in [XrefStyle::Basic, XrefStyle::Short, XrefStyle::Full] {
             assert_eq!(
                 section_form("plain", style, XrefSignifier::Standard)?,
-                ("title", String::new())
+                ("emphasized", String::new())
             );
         }
         Ok(())

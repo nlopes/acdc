@@ -440,9 +440,11 @@ impl<'a, W: Write> crate::TerminalVisitor<'a, '_, W> {
                     Ok(())
                 })
             }
-            XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+            XrefDisplay::Emphasized(prefix, inlines, _scope) => {
                 self.write_link_styled(processor, |visitor| {
-                    write!(visitor.writer_mut(), "{prefix}, ")?;
+                    if let Some(prefix) = prefix {
+                        write!(visitor.writer_mut(), "{prefix}, ")?;
+                    }
                     visitor
                         .writer_mut()
                         .queue(SetAttribute(Attribute::Italic))?;
@@ -850,10 +852,7 @@ fn render_button<W: Write + ?Sized>(
 
 /// Render a cross-reference into a buffer.
 ///
-/// The buffered path exists because crossterm needs the full text of a styled
-/// span upfront (table cells, super/subscript). Like every node rendered this
-/// way, the reference text arrives without its own styling; the resolution
-/// itself is the same as the visitor's.
+/// Used inside buffered inline spans, such as superscripts and subscripts.
 fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
     xref: &CrossReference,
     w: &mut W,
@@ -874,12 +873,19 @@ fn render_cross_reference_to_writer<'a, W: Write + ?Sized>(
                 "{prefix}, “{}”",
                 render_inline_nodes_to_owned(inlines, processor, traversal)?
             ),
-            // The link is printed as one styled string, which cannot italicise
-            // part of itself; the title goes in plain, as other styling does here.
-            XrefDisplay::FullEmphasized(prefix, inlines, _scope) => format!(
-                "{prefix}, {}",
-                render_inline_nodes_to_owned(inlines, processor, traversal)?
-            ),
+            XrefDisplay::Emphasized(prefix, inlines, _scope) => {
+                let prefix = prefix.map_or_else(String::new, |mut prefix| {
+                    prefix.push_str(", ");
+                    prefix
+                });
+                let title =
+                    render_inline_nodes_with_styles_to_owned(inlines, processor, traversal)?;
+                format!(
+                    "{prefix}{}{title}{}",
+                    SetAttribute(Attribute::Italic),
+                    SetAttribute(Attribute::NoItalic),
+                )
+            }
             XrefDisplay::Fallback(text)
             | XrefDisplay::Unresolved(text)
             | XrefDisplay::Nested(text) => text,

@@ -243,15 +243,15 @@ fn the_xref_macro_reads_its_brackets_as_an_attribute_list() -> Result<(), Error>
             (String::new(), XrefStyle::Short, None),
             ("Quoted, text".to_string(), XrefStyle::Short, None),
             // Without an `=`, the brackets are the text as written.
-            ("text, with comma".to_string(), XrefStyle::Basic, None),
+            ("text, with comma".to_string(), XrefStyle::Default, None),
             // `1+1` is no attribute name, so this is text too.
-            ("1+1=2".to_string(), XrefStyle::Basic, None),
+            ("1+1=2".to_string(), XrefStyle::Default, None),
             // `role=` is kept for the link, unquoted, and the last one wins.
-            (String::new(), XrefStyle::Basic, Some("r")),
+            (String::new(), XrefStyle::Default, Some("r")),
             ("Text".to_string(), XrefStyle::Short, Some("a b")),
-            (String::new(), XrefStyle::Basic, Some("s")),
+            (String::new(), XrefStyle::Default, Some("s")),
             // The shorthand has no attribute list, so this is its text.
-            ("role=r".to_string(), XrefStyle::Basic, None),
+            ("role=r".to_string(), XrefStyle::Default, None),
         ]
     );
     Ok(())
