@@ -83,6 +83,7 @@
 
 use std::{
     cell::RefCell,
+    collections::HashSet,
     mem::take,
     path::{Component, Path, PathBuf},
     rc::Rc,
@@ -450,6 +451,7 @@ pub(crate) struct IncludeResult {
     /// Complete source ranges for the selected target and anything it included,
     /// relative to the beginning of `content`.
     pub(crate) source_ranges: Vec<SourceRange>,
+    pub(crate) included_files: HashSet<String>,
     pub(crate) document_attributes: Option<crate::DocumentAttributes<'static>>,
 }
 
@@ -481,6 +483,7 @@ impl IncludeResult {
             leveloffset_ranges: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             document_attributes: None,
         }
     }
@@ -499,6 +502,7 @@ impl IncludeResult {
             leveloffset_ranges: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             document_attributes: None,
         }
     }
@@ -511,6 +515,7 @@ impl IncludeResult {
             leveloffset_ranges: Vec::new(),
             target: String::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             document_attributes: None,
         }
     }
@@ -945,6 +950,7 @@ impl<'a> Include<'a> {
             leveloffset_ranges: Vec::new(),
             target: self.target_as_written().to_string(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             document_attributes: None,
         };
         if is_asciidoc {
@@ -957,7 +963,19 @@ impl<'a> Include<'a> {
             included.content = preprocessed.result.text.into_owned();
             included.leveloffset_ranges = preprocessed.result.leveloffset_ranges;
             included.source_ranges = preprocessed.result.source_ranges;
+            included.included_files = preprocessed.result.included_files;
             included.document_attributes = Some(preprocessed.document_attributes);
+            let full = match &self.selection {
+                ContentSelection::All => true,
+                ContentSelection::Lines(_) => false,
+                ContentSelection::Tags(filters) => super::tag::selects_all(filters),
+            };
+            if full
+                && !self.opts.iter().any(|option| option == "partial")
+                && let Some(name) = source_origin.include_name()
+            {
+                included.included_files.insert(name);
+            }
         } else {
             included.source_ranges =
                 Self::source_ranges_for_lines(&included.content, &line_origins, source_origin);

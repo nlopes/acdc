@@ -3,6 +3,7 @@
 use std::{
     borrow::Cow,
     cell::RefCell,
+    collections::HashSet,
     ops::Range,
     path::{Component, Path, PathBuf},
     rc::Rc,
@@ -41,6 +42,9 @@ pub(crate) struct PreprocessorResult<'input> {
     /// Byte ranges mapping preprocessed output back to source files.
     /// Used by the parser to produce accurate file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
+    /// Fully included `AsciiDoc` source names, relative to the entry base directory,
+    /// without their extensions. Partial and unsuccessful includes are omitted.
+    pub(crate) included_files: HashSet<String>,
     /// Front matter captured from the primary input. Included front matter does not replace it.
     pub(crate) front_matter: Option<String>,
 }
@@ -54,6 +58,7 @@ impl PreprocessorResult<'_> {
             text: Cow::Owned(self.text.into_owned()),
             leveloffset_ranges: self.leveloffset_ranges,
             source_ranges: self.source_ranges,
+            included_files: self.included_files,
             front_matter: self.front_matter,
         }
     }
@@ -234,6 +239,30 @@ pub(super) enum SourceOrigin {
 }
 
 impl SourceOrigin {
+    fn include_name(&self) -> Option<String> {
+        let name = match self {
+            Self::File { path, base_dir, .. } => {
+                let shared = path
+                    .components()
+                    .zip(base_dir.components())
+                    .take_while(|(left, right)| left == right)
+                    .count();
+                let mut relative = PathBuf::new();
+                for component in base_dir.components().skip(shared) {
+                    if !matches!(component, Component::Normal(_)) {
+                        return path.with_extension("").to_str().map(str::to_owned);
+                    }
+                    relative.push("..");
+                }
+                relative.extend(path.components().skip(shared));
+                relative.to_string_lossy().replace('\\', "/")
+            }
+            Self::Uri(uri) => uri.clone(),
+            Self::Memory { .. } => return None,
+        };
+        name.rsplit_once('.').map(|(stem, _)| stem.to_string())
+    }
+
     fn entry_file(path: &Path, base_override: Option<&Path>) -> Result<Self, Error> {
         let absolute_path = absolute_normalized(path)?;
         let default_base = absolute_path.parent().unwrap_or(&absolute_path);
@@ -324,6 +353,7 @@ struct PreprocessorState<'input> {
     byte_offset: usize,
     leveloffset_ranges: Vec<LeveloffsetRange>,
     source_ranges: Vec<SourceRange>,
+    included_files: HashSet<String>,
     /// The file the in-progress output is being read from, used as the `file`
     /// of the main-file [`SourceRange`]s recorded below. `None` for stdin/string
     /// input — ranges are still recorded (so line/offset remapping works) with a
@@ -373,6 +403,7 @@ impl<'input> PreprocessorState<'input> {
             byte_offset: 0,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             source_file: source_origin.and_then(|origin| origin.as_path().map(Path::to_path_buf)),
             src_line_starts,
             line_origins,
@@ -959,6 +990,7 @@ impl Preprocessor {
         include_result: IncludeResult,
         state: &mut PreprocessorState<'_>,
     ) {
+        state.included_files.extend(include_result.included_files);
         state.flush_borrowed_run();
         let start_offset = state.byte_offset;
 
@@ -1187,6 +1219,7 @@ impl Preprocessor {
                 text: normalized,
                 leveloffset_ranges: Vec::new(),
                 source_ranges: Vec::new(),
+                included_files: HashSet::new(),
                 front_matter: None,
             });
         }
@@ -1244,6 +1277,7 @@ impl Preprocessor {
                 }),
                 leveloffset_ranges: Vec::new(),
                 source_ranges,
+                included_files: HashSet::new(),
                 front_matter: None,
             };
             return Ok(NestedPreprocessorResult {
@@ -1393,6 +1427,7 @@ impl Preprocessor {
             text: Cow::Owned(out.output.join("\n")),
             leveloffset_ranges: out.leveloffset_ranges,
             source_ranges: out.source_ranges,
+            included_files: out.included_files,
             front_matter: captured_front_matter,
         })
     }
@@ -1407,6 +1442,100 @@ mod tests {
     use super::*;
     use crate::grammar::LineMap;
     use std::ffi::OsStr;
+
+    #[test]
+    fn include_catalog_distinguishes_full_and_partial_sources() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_base_dir("fixtures/preprocessor/xref_catalog")
+            .build()?;
+        for (attributes, full) in [
+            ("", true),
+            ("opts=partial", false),
+            ("lines=1..6", false),
+            ("tag=body", false),
+            ("tags=**", true),
+            ("tags=**;*", true),
+            ("tags=**;!*", false),
+            ("tags=**;!body", false),
+        ] {
+            let input = format!("include::chapter.adoc[{attributes}]\n");
+            let result = Preprocessor::process(&input, &options, Rc::default())?;
+            assert_eq!(
+                result.included_files.contains("chapter"),
+                full,
+                "{attributes}"
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn include_catalog_retains_empty_and_nested_full_includes() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_base_dir("fixtures/preprocessor/xref_catalog")
+            .build()?;
+        let result = Preprocessor::process(
+            "include::entry.adoc[opts=partial]\ninclude::empty.adoc[]\ninclude::missing.adoc[opts=optional]\nifdef::absent[]\ninclude::excluded.adoc[]\nendif::[]\n",
+            &options,
+            Rc::default(),
+        )?;
+        assert_eq!(
+            result.included_files,
+            ["chapter".into(), "empty".into()].into()
+        );
+
+        for input in [
+            "include::chapter.adoc[opts=partial]\ninclude::chapter.adoc[]\n",
+            "include::chapter.adoc[]\ninclude::chapter.adoc[opts=partial]\n",
+        ] {
+            let result = Preprocessor::process(input, &options, Rc::default())?;
+            assert!(result.included_files.contains("chapter"));
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn include_catalog_uses_paths_relative_to_the_root() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_base_dir("fixtures/preprocessor")
+            .build()?;
+        let result = Preprocessor::process(
+            "include::./xref_catalog/entry.adoc[]\n",
+            &options,
+            Rc::default(),
+        )?;
+        assert_eq!(
+            result.included_files,
+            ["xref_catalog/entry".into(), "xref_catalog/chapter".into()].into()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn include_catalog_excludes_disabled_includes() -> Result<(), Error> {
+        let options = Options::builder()
+            .with_base_dir("fixtures/preprocessor/xref_catalog")
+            .with_safe_mode(crate::SafeMode::Secure)
+            .build()?;
+        let result = Preprocessor::process("include::chapter.adoc[]\n", &options, Rc::default())?;
+        assert!(result.included_files.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn include_catalog_names_preserve_parent_paths_and_uris() {
+        let source = SourceOrigin::File {
+            path: PathBuf::from("/docs/shared/chapter.adoc"),
+            base_dir: PathBuf::from("/docs/book"),
+            is_entry: false,
+        };
+        assert_eq!(source.include_name().as_deref(), Some("../shared/chapter"));
+        let source = SourceOrigin::Uri("https://example.org/chapter.adoc".into());
+        assert_eq!(
+            source.include_name().as_deref(),
+            Some("https://example.org/chapter")
+        );
+    }
 
     #[test]
     fn max_include_depth_fallback_uses_the_canonical_default() {
@@ -1465,6 +1594,7 @@ mod tests {
                 leveloffset_ranges: Vec::new(),
                 target: "included.adoc".into(),
                 source_ranges: Vec::new(),
+                included_files: HashSet::new(),
                 document_attributes: None,
             };
             Preprocessor::handle_regular_include_result(included, &mut state);
