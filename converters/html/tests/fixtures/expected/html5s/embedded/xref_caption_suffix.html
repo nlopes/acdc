@@ -1,0 +1,84 @@
+<p>Full: <a href="#figure">Figure 9, &#8220;Figure <em>title</em>&#8221;</a>; <a href="#table">Exhibit 7, &#8220;Table <strong>title</strong>&#8221;</a>; <a href="#example">Résumé 2, &#8220;Example title&#8221;</a>; <a href="#listing">Code A, &#8220;Listing title&#8221;</a>.</p>
+<p>Short: <a href="#figure">Figure 9</a>; <a href="#table">Exhibit 7</a>; <a href="#example">Résumé 2</a>; <a href="#listing">Code A</a>.</p>
+<p>Basic: <a href="#table">Table <strong>title</strong></a>.</p>
+<p>Overrides: <a href="#table">Written label.</a>; <a href="#labelled">Chosen. </a>; <a href="#labelled">Chosen. </a>.</p>
+<p>Exact suffix: <a href="#repeated">Exhibit. </a>; <a href="#repeated">Exhibit. , &#8220;Repeated suffix&#8221;</a>; <a href="#separator"></a>; <a href="#separator">, &#8220;Separator only&#8221;</a>.</p>
+<p>Other endings: <a href="#period">Exhibit.</a>; <a href="#period">Exhibit., &#8220;Period only&#8221;</a>; <a href="#spaces">Exhibit.  </a>; <a href="#spaces">Exhibit.  , &#8220;Two spaces&#8221;</a>; <a href="#colon">Exhibit: </a>; <a href="#colon">Exhibit: , &#8220;Colon suffix&#8221;</a>.</p>
+<p>Empty caption: <a href="#empty">Empty caption</a>; <a href="#empty">Empty caption</a>.</p>
+<figure class="image-block" id="figure">
+<img src="inline-image-dimensions.svg" alt="Figure" width="40"><figcaption>Figure 9. Figure <em>title</em></figcaption>
+</figure>
+<div class="table-block">
+<table id="table" class="frame-all grid-all stretch">
+<caption class="title">Exhibit 7. Table <strong>title</strong></caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top">Cell</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure class="example-block" id="example">
+<figcaption>Résumé 2. Example title</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<figure class="listing-block" id="listing">
+<figcaption>Code A. Listing title</figcaption>
+<pre>Code.</pre>
+</figure>
+<figure id="labelled" class="example-block">
+<figcaption>Exhibit 8. Labelled title</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="repeated" class="example-block">
+<figcaption>Exhibit. . Repeated suffix</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="separator" class="example-block">
+<figcaption>. Separator only</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="period" class="example-block">
+<figcaption>Exhibit.Period only</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="spaces" class="example-block">
+<figcaption>Exhibit.  Two spaces</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="colon" class="example-block">
+<figcaption>Exhibit: Colon suffix</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="empty" class="example-block">
+<figcaption>Empty caption</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<figure id="generic" class="example-block">
+<figcaption>Document 3. Document caption</figcaption>
+<div class="example">
+Body.
+</div>
+</figure>
+<p>Document full: <a href="#generic">Document 3, &#8220;Document caption&#8221;</a>.</p>
+<p>Document short: <a href="#generic">Document 3</a>; <a href="#table">Exhibit 7</a>.</p>
+<p>Default: <a href="#table">Table <strong>title</strong></a>.</p>

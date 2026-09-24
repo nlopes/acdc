@@ -109,6 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Custom captions such as `caption="Exhibit 7. "` omit the final period and
+  space in `xrefstyle=short` and `xrefstyle=full` links, matching Asciidoctor.
+  The displayed block caption keeps its original punctuation.
+
 - Cross-references to blocks with `caption=""` use the title for both
   `xrefstyle=short` and `xrefstyle=full`, matching Asciidoctor. This also applies
   to an empty document-wide `:caption:` and collapsible examples.
