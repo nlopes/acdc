@@ -32,6 +32,21 @@ impl Filter {
     }
 }
 
+/// A tag selector counts as a full include only when it retains all tagged and
+/// untagged content. Named selections remain partial even if every line matches.
+pub(super) fn selects_all(filters: &[Filter]) -> bool {
+    let mut all = None;
+    let mut tagged = None;
+    for filter in filters {
+        match filter.name.as_str() {
+            "**" => all = Some(filter.selected),
+            "*" => tagged = Some(filter.selected),
+            _ => return false,
+        }
+    }
+    all == Some(true) && tagged != Some(false)
+}
+
 /// A recoverable problem discovered while selecting tagged lines.
 ///
 /// These are scanner facts rather than parser diagnostics: `Include` owns the

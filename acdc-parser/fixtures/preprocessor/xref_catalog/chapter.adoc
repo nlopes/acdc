@@ -1,0 +1,6 @@
+[[catalog-target]]
+== Catalog target
+
+// tag::body[]
+Included text.
+// end::body[]
