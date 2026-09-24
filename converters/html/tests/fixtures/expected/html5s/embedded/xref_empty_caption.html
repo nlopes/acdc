@@ -1,0 +1,83 @@
+<p>Full: <a href="#figure">Figure <em>title</em></a>; <a href="#table">Table <strong>title</strong></a>; <a href="#example">Example title</a>; <a href="#listing">Listing title</a>.</p>
+<p>Short: <a href="#figure">Figure <em>title</em></a>; <a href="#table">Table <strong>title</strong></a>; <a href="#example">Example title</a>; <a href="#listing">Listing title</a>.</p>
+<p>Basic: <a href="#figure">Figure <em>title</em></a>; <a href="#table">Table <strong>title</strong></a>.</p>
+<p>Overrides: <a href="#table">Explicit <strong>label</strong></a>; <a href="#labelled">Chosen <strong>label</strong></a>; <a href="#labelled">Chosen <strong>label</strong></a>.</p>
+<p>Untitled: <a href="#untitled">[untitled]</a>; <a href="#untitled">[untitled]</a>.</p>
+<p>Controls: <a href="#spaced"> </a>; <a href="#spaced"> , &#8220;Space caption&#8221;</a>; <a href="#custom">Exhibit</a>; <a href="#custom">Exhibit, &#8220;Custom caption&#8221;</a>; <a href="#numbered">Table 1</a>; <a href="#numbered">Table 1, &#8220;Numbered table&#8221;</a>.</p>
+<figure class="image-block" id="figure">
+<img src="inline-image-dimensions.svg" alt="Figure" width="40"><figcaption>Figure <em>title</em></figcaption>
+</figure>
+<div class="table-block">
+<table id="table" class="frame-all grid-all stretch">
+<caption class="title">Table <strong>title</strong></caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top">Cell</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure class="example-block" id="example">
+<figcaption>Example title</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<figure class="listing-block" id="listing">
+<figcaption>Listing title</figcaption>
+<pre>Code.</pre>
+</figure>
+<figure class="example-block" id="labelled">
+<figcaption>Unused title</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<div class="example-block" id="untitled">
+<div class="example">
+<p>Body.</p>
+</div>
+</div>
+<figure class="example-block" id="spaced">
+<figcaption> Space caption</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<figure class="example-block" id="custom">
+<figcaption>ExhibitCustom caption</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<div class="table-block">
+<table id="numbered" class="frame-all grid-all stretch">
+<caption class="title">Table 1. Numbered table</caption>
+<colgroup>
+<col style="width: 100%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="halign-left valign-top">Cell</td>
+</tr>
+</tbody>
+</table>
+</div>
+<figure class="example-block" id="generic">
+<figcaption>Document caption</figcaption>
+<div class="example">
+<p>Body.</p>
+</div>
+</figure>
+<details id="collapsed">
+<summary>Collapsible example</summary>
+<div class="content">
+<p>Body.</p>
+</div>
+</details>
+<p>Full automatic empty captions: <a href="#generic">Document caption</a>; <a href="#collapsed">Collapsible example</a>.</p>
+<p>Short automatic empty captions: <a href="#generic">Document caption</a>; <a href="#collapsed">Collapsible example</a>; <a href="#table">Table <strong>title</strong></a>.</p>
+<p>Default: <a href="#table">Table <strong>title</strong></a>.</p>

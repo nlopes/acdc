@@ -103,9 +103,10 @@ pub fn reference_text<'r, 'a>(reference: &'r Reference<'a>) -> Option<&'r [Inlin
 /// titles. Numbered sections honor the style with their word and number, as
 /// in `Section 1.1`; an unnumbered one is referenced by its title under every
 /// style. Selecting a style emphasizes chapter and appendix titles even without
-/// a number. Captioned targets honor the style; table, example, and listing
-/// references can override the target label with the label recorded at the
-/// reference position. Unknown local and untitled targets fall back to `[id]`,
+/// a number. Empty custom captions fall back to the title. Captioned targets
+/// honor the style; table, example, and listing references can override the
+/// target label with the label recorded at the reference position. Unknown
+/// local and untitled targets fall back to `[id]`,
 /// matching Asciidoctor, and so does a reference that `guard` reports as nested
 /// inside another one's text. Inter-document targets are returned separately
 /// for backend-specific links.
@@ -211,7 +212,7 @@ fn caption_prefix(caption: &Caption<'_>, xref: &CrossReference<'_>) -> Option<St
                 Some(format!("{label} {number}"))
             }
         }
-        Caption::Custom(prefix) => Some(prefix.to_string()),
+        Caption::Custom(prefix) => (!prefix.is_empty()).then(|| prefix.to_string()),
         Caption::Numbered { .. } | Caption::Unnumbered | _ => None,
     }
 }
