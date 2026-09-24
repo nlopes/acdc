@@ -109,6 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
+  matching Asciidoctor. Selected styles retain this emphasis for unnumbered
+  chapters; omitted or unset styles keep the title as written.
+
 - Styled section references stay consistent after AST edits and renumbering.
   A chapter changed to an appendix uses its appendix signifier instead of
   producing `Chapter A`; source-position settings and caller overrides are

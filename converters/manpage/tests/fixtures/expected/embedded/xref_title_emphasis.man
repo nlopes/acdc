@@ -1,0 +1,41 @@
+.SH "DESCRIPTION"
+.sp
+Default: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; APPENDIX\&.
+.sp
+Basic: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP\&.
+.sp
+Short: Section 3; UNNUMBERED CHAPTER; Appendix A\&.
+.sp
+Full: Section 3, \(lqChapter \fBbold\fP\(rq; UNNUMBERED CHAPTER; Appendix A, \fIAppendix\fP\&.
+.sp
+Fallback: CHAPTER \fBBOLD\fP; CHAPTER \fBBOLD\fP\&.
+.sp
+Explicit: Custom \fBlabel\fP; Reference \fBlabel\fP\&.
+.sp
+Document basic: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP; Ordinary section; Reference \fBlabel\fP\&.
+.sp
+Document note.[1]
+.sp
+Script: ^(CHAPTER \fBBOLD\fP)\&.
+.TS
+allbox tab(:);
+ltx ltx.
+Table:T{
+CHAPTER \fBBOLD\fP
+T}
+.TE
+.sp
+Document short: UNNUMBERED CHAPTER; CHAPTER \fBBOLD\fP\&.
+.sp
+Document full: UNNUMBERED CHAPTER; Section 3, \(lqChapter \fBbold\fP\(rq; \fIAppendix\fP\&.
+.sp
+Unset: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; APPENDIX\&.
+.sp
+Empty: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP\&.
+.sp
+Unknown: CHAPTER \fBBOLD\fP; UNNUMBERED CHAPTER; \fIAppendix\fP\&.
+.SH "CHAPTER BOLD"
+.SS "Ordinary section"
+.SH "UNNUMBERED CHAPTER"
+.SH "LABELLED CHAPTER"
+.SH "APPENDIX"

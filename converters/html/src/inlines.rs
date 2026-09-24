@@ -1221,8 +1221,11 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                     }
                     write!(self.writer_mut(), "&#8221;")?;
                 }
-                XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
-                    write!(self.writer_mut(), "{}, <em>", escape_pcdata(&prefix))?;
+                XrefDisplay::Emphasized(prefix, inlines, _scope) => {
+                    if let Some(prefix) = prefix {
+                        write!(self.writer_mut(), "{}, ", escape_pcdata(&prefix))?;
+                    }
+                    write!(self.writer_mut(), "<em>")?;
                     for inline in inlines {
                         self.render_inline_node(traversal, inline, options, subs)?;
                     }

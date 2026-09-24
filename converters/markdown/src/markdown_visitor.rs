@@ -2441,9 +2441,12 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
                         Ok(())
                     })
                 }
-                XrefDisplay::FullEmphasized(prefix, inlines, _scope) => {
+                XrefDisplay::Emphasized(prefix, inlines, _scope) => {
                     visitor.write_anchor_link(target, |visitor| {
-                        write!(visitor.writer, "{prefix}, *")?;
+                        if let Some(prefix) = prefix {
+                            write!(visitor.writer, "{prefix}, ")?;
+                        }
+                        write!(visitor.writer, "*")?;
                         for node in inlines {
                             visitor.visit_inline_node(traversal, node)?;
                         }

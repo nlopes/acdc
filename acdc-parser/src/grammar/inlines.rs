@@ -1686,7 +1686,8 @@ peg::parser! {
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
                     .document_attributes
-                    .text("xrefstyle")
+                    .get("xrefstyle")
+                    .map(|value| value.text().unwrap_or_default())
                     .map(crate::strip_quotes),
             );
             if xref.text.is_empty() {
@@ -1757,7 +1758,7 @@ peg::parser! {
                 macro_text
                     .xrefstyle
                     .as_deref()
-                    .or_else(|| state.document_attributes.text("xrefstyle"))
+                    .or_else(|| state.document_attributes.get("xrefstyle").map(|value| value.text().unwrap_or_default()))
                     .map(crate::strip_quotes),
             );
             xref.role = macro_text.role.as_deref().map(|role| state.intern_str(role));

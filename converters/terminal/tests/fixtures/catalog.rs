@@ -1,6 +1,7 @@
 // (fixture_name, has_osc8_variant [, requires: <cfg>])
 terminal_fixture_catalog!([
     (document, false),
+    (xref_title_emphasis, true),
     (article_special_section_numbering, false),
     (article_special_section_numbering_all, false),
     (book_parts_literal_false, false),

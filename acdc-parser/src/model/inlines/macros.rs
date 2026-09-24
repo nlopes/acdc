@@ -208,7 +208,7 @@ impl<'a> CrossReference<'a> {
             target,
             text: Vec::new(),
             location,
-            xrefstyle: XrefStyle::Basic,
+            xrefstyle: XrefStyle::Default,
             caption_label: XrefCaptionLabel::AtTarget,
             signifier: XrefSignifier::Standard,
             section_signifiers: None,
@@ -332,11 +332,16 @@ pub enum XrefCaptionLabel<'a> {
 }
 
 /// The display style for an automatic cross-reference.
+///
+/// Selected styles fall back to [`Self::Basic`] when the target has no number
+/// or custom caption prefix. Explicit reference text takes precedence.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum XrefStyle {
-    /// Use the target title without its caption prefix.
+    /// Use the target title as written, without automatic emphasis.
     #[default]
+    Default,
+    /// Use the target title, emphasizing chapter and appendix titles.
     Basic,
     /// Use only the target's caption label and number or custom prefix.
     Short,
@@ -347,6 +352,7 @@ pub enum XrefStyle {
 impl XrefStyle {
     pub(crate) fn from_attribute(value: Option<&str>) -> Self {
         match value {
+            None => Self::Default,
             Some("short") => Self::Short,
             Some("full") => Self::Full,
             _ => Self::Basic,

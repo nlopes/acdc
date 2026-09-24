@@ -1,0 +1,71 @@
+= Reference title emphasis
+:doctype: book
+:sectnums:
+
+[preface]
+== Preface
+
+Default: <<chapter>>; <<plain>>; <<appendix>>.
+
+Basic: xref:chapter[xrefstyle=basic]; xref:plain[xrefstyle=basic]; xref:appendix[xrefstyle=basic].
+
+Short: xref:chapter[xrefstyle=short]; xref:plain[xrefstyle=short]; xref:appendix[xrefstyle=short].
+
+Full: xref:chapter[xrefstyle=full]; xref:plain[xrefstyle=full]; xref:appendix[xrefstyle=full].
+
+Fallback: xref:chapter[xrefstyle=unknown]; xref:chapter[xrefstyle=""].
+
+Explicit: xref:chapter[Custom *label*,xrefstyle=basic]; xref:labelled[xrefstyle=basic].
+
+:xrefstyle: basic
+
+Document basic: <<chapter>>; <<plain>>; <<appendix>>; <<section>>; <<labelled>>.
+
+Document note.footnote:[<<chapter>>.]
+
+Script: ^xref:chapter[xrefstyle=basic]^.
+
+[cols="1,1"]
+|===
+|Table |<<chapter>>
+|===
+
+:xrefstyle: short
+
+Document short: <<plain>>; xref:chapter[xrefstyle=basic].
+
+:xrefstyle: full
+
+Document full: <<plain>>; <<chapter>>; xref:appendix[xrefstyle=basic].
+
+:xrefstyle!:
+
+Unset: <<chapter>>; <<plain>>; <<appendix>>.
+
+:xrefstyle:
+
+Empty: <<chapter>>; <<plain>>; <<appendix>>.
+
+:xrefstyle: unknown
+
+Unknown: <<chapter>>; <<plain>>; <<appendix>>.
+
+[[chapter]]
+== Chapter *bold*
+
+[[section]]
+=== Ordinary section
+
+:sectnums!:
+
+[[plain]]
+== Unnumbered chapter
+
+:sectnums:
+
+[[labelled,Reference *label*]]
+== Labelled chapter
+
+[appendix]
+[[appendix]]
+== Appendix
