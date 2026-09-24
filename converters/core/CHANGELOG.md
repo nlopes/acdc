@@ -109,6 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to blocks with `caption=""` use the title for both
+  `xrefstyle=short` and `xrefstyle=full`, matching Asciidoctor. This also applies
+  to an empty document-wide `:caption:` and collapsible examples.
+
 - Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
   matching Asciidoctor. Selected styles retain this emphasis for unnumbered
   chapters; omitted or unset styles keep the title as written.

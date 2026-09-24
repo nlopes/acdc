@@ -1,0 +1,101 @@
+= Empty caption references
+:listing-caption: Listing
+:xrefstyle: full
+
+Full: <<figure>>; <<table>>; <<example>>; <<listing>>.
+
+Short: xref:figure[xrefstyle=short]; xref:table[xrefstyle=short]; xref:example[xrefstyle=short]; xref:listing[xrefstyle=short].
+
+Basic: xref:figure[xrefstyle=basic]; xref:table[xrefstyle=basic].
+
+Overrides: xref:table[Explicit *label*]; xref:labelled[xrefstyle=short]; <<labelled>>.
+
+Untitled: <<untitled>>; xref:untitled[xrefstyle=short].
+
+Controls: xref:spaced[xrefstyle=short]; <<spaced>>; xref:custom[xrefstyle=short]; <<custom>>; xref:numbered[xrefstyle=short]; <<numbered>>.
+
+[[figure]]
+.Figure _title_
+[caption=""]
+image::inline-image-dimensions.svg[Figure,width=40]
+
+[[table]]
+.Table *title*
+[caption=""]
+|===
+|Cell
+|===
+
+[[example]]
+.Example title
+[caption=]
+====
+Body.
+====
+
+[[listing]]
+.Listing title
+[caption=""]
+----
+Code.
+----
+
+[[labelled]]
+.Unused title
+[caption="",reftext="Chosen *label*"]
+====
+Body.
+====
+
+[[untitled]]
+[caption=""]
+====
+Body.
+====
+
+[[spaced]]
+.Space caption
+[caption=" "]
+====
+Body.
+====
+
+[[custom]]
+.Custom caption
+[caption="Exhibit"]
+====
+Body.
+====
+
+[[numbered]]
+.Numbered table
+|===
+|Cell
+|===
+
+:caption:
+
+[[generic]]
+.Document caption
+====
+Body.
+====
+
+:caption!:
+
+[[collapsed]]
+.Collapsible example
+[%collapsible]
+====
+Body.
+====
+
+Full automatic empty captions: <<generic>>; <<collapsed>>.
+
+:xrefstyle: short
+
+Short automatic empty captions: <<generic>>; <<collapsed>>; <<table>>.
+
+:xrefstyle!:
+
+Default: <<table>>.
