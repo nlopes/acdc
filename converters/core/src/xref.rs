@@ -134,7 +134,7 @@ pub fn resolve_xref<'r, 'a>(
         reference.section_number(),
     ) && xref.xrefstyle != XrefStyle::Basic
     {
-        let prefix = section_prefix(name, number, xref.signifier);
+        let prefix = section_prefix(name, number, xref.signifier());
         if xref.xrefstyle == XrefStyle::Short {
             XrefDisplay::ShortCaption(prefix)
         } else if matches!(name, "chapter" | "appendix") {
@@ -259,8 +259,8 @@ fn source_document_stem(path: &str, has_fragment: bool) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use acdc_parser::{
-        Block, CrossReference, Error, InlineMacro, InlineNode, Location, Options, ParseResult,
-        XrefCaptionLabel, XrefSignifier, XrefStyle, parse,
+        Block, CrossReference, Document, Error, InlineMacro, InlineNode, Location, Options,
+        ParseResult, SectionKind, XrefCaptionLabel, XrefSignifier, XrefStyle, parse,
     };
 
     use super::{XrefDisplay, XrefGuard, interdocument_xref, resolve_xref};
@@ -304,8 +304,162 @@ mod tests {
         signifier: XrefSignifier<'static>,
     ) -> CrossReference<'static> {
         let mut xref = xref(target, style);
-        xref.signifier = signifier;
+        xref.set_signifier(signifier);
         xref
+    }
+
+    fn cloned_document<'a>(document: &Document<'a>) -> Document<'a> {
+        let mut cloned = Document::default();
+        cloned.attributes = document.attributes.clone();
+        cloned.blocks = document.blocks.clone();
+        cloned.footnotes = document.footnotes.clone();
+        cloned.toc_entries = document.toc_entries.clone();
+        cloned.references = document.references.clone();
+        cloned.location = document.location.clone();
+        cloned
+    }
+
+    fn paragraph_xrefs<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+        let mut references = Vec::new();
+        for block in blocks {
+            if let Block::Section(section) = block {
+                references.extend(paragraph_xrefs(&section.content));
+            } else if let Block::Paragraph(paragraph) = block {
+                references.extend(paragraph.content.iter().filter_map(|inline| {
+                    if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                        Some(xref)
+                    } else {
+                        None
+                    }
+                }));
+            }
+        }
+        references
+    }
+
+    fn short_prefixes(document: &Document<'_>) -> Vec<String> {
+        let mut xrefs = paragraph_xrefs(&document.blocks);
+        for footnote in &document.footnotes {
+            xrefs.extend(footnote.content.iter().filter_map(|inline| {
+                if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                    Some(xref)
+                } else {
+                    None
+                }
+            }));
+        }
+        xrefs
+            .into_iter()
+            .map(|xref| {
+                let mut xref = xref.clone();
+                // Include references whose style was basic when parsed.
+                xref.xrefstyle = XrefStyle::Short;
+                let guard = XrefGuard::default();
+                let display = resolve_xref(document.references.get(xref.target), &xref, &guard);
+                if let XrefDisplay::ShortCaption(prefix) = display {
+                    prefix
+                } else {
+                    format!("unexpected reference: {display:?}")
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn renumbered_signifiers_match_reparsed_source() -> Result<(), Error> {
+        let parsed = parse(
+            include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
+            &Options::default(),
+        )?;
+        let expected = parse(
+            include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_appendix.adoc"),
+            &Options::default(),
+        )?;
+        assert_eq!(
+            short_prefixes(expected.document()),
+            [
+                "Early Appendix A",
+                "Early Appendix A",
+                "Later Appendix A",
+                " A",
+                "A",
+                "Final Appendix A",
+                "Early Appendix A",
+            ]
+        );
+        let mut document = cloned_document(parsed.document());
+        for block in &mut document.blocks {
+            if let Block::Section(section) = block
+                && section.id() == "target"
+            {
+                section.kind = SectionKind::Appendix;
+            }
+        }
+        document.renumber_sections();
+        assert_eq!(
+            short_prefixes(&document),
+            short_prefixes(expected.document())
+        );
+        document.renumber_sections();
+        assert_eq!(
+            short_prefixes(&document),
+            short_prefixes(expected.document())
+        );
+
+        for block in &mut document.blocks {
+            if let Block::Section(section) = block
+                && section.id() == "target"
+            {
+                section.kind = SectionKind::Normal;
+            }
+        }
+        document.renumber_sections();
+        assert_eq!(short_prefixes(&document), short_prefixes(parsed.document()));
+        Ok(())
+    }
+
+    #[test]
+    fn signifier_overrides_survive_category_changes() -> Result<(), Error> {
+        let parsed = parse(
+            include_str!("../../../acdc-parser/fixtures/tests/xref_signifier_renumber.adoc"),
+            &Options::default(),
+        )?;
+        for (signifier, expected) in [
+            (XrefSignifier::Standard, "Appendix A"),
+            (XrefSignifier::AtReference("Chapter"), "Chapter A"),
+            (XrefSignifier::AtReference("Custom"), "Custom A"),
+            (XrefSignifier::AtReference(""), " A"),
+            (XrefSignifier::Omitted, "A"),
+        ] {
+            let mut document = cloned_document(parsed.document());
+            for footnote in &mut document.footnotes {
+                for inline in &mut footnote.content {
+                    if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                        xref.set_signifier(signifier);
+                    }
+                }
+            }
+            for block in &mut document.blocks {
+                if let Block::Section(section) = block
+                    && section.id() == "target"
+                {
+                    section.kind = SectionKind::Appendix;
+                }
+            }
+            // Cloning must preserve explicit overrides, including the original word.
+            let mut document = cloned_document(&document);
+            document.renumber_sections();
+            document.renumber_sections();
+            assert_eq!(
+                short_prefixes(&document).last().map(String::as_str),
+                Some(expected)
+            );
+            assert_eq!(
+                short_prefixes(&document).first().map(String::as_str),
+                Some("Early Appendix A")
+            );
+        }
+        Ok(())
     }
 
     /// What a section reference resolves to, as `(form, prefix)`.

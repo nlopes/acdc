@@ -75,6 +75,10 @@ impl Document<'_> {
     /// section's numbering policy. Existing cross-reference targets and
     /// table-of-contents entries receive the new numbers, but this method does not
     /// add, remove, or reorder those entries.
+    ///
+    /// Automatic cross-references select the signifier for the target's current
+    /// category from their original source-position attributes. Explicit
+    /// [`CrossReference::set_signifier`] overrides are preserved.
     pub fn renumber_sections(&mut self) {
         let is_book = matches!(
             self.attributes.get("doctype"),
@@ -86,6 +90,16 @@ impl Document<'_> {
             &mut self.references,
             is_book,
         );
+        let section_names = self
+            .references
+            .iter()
+            .filter_map(|(target, reference)| Some((*target, reference.section.as_ref()?.name)))
+            .collect::<HashMap<_, _>>();
+        crate::grammar::walk_document_inline_nodes_mut(self, &mut |inline| {
+            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                xref.refresh_signifier(section_names.get(xref.target).copied());
+            }
+        });
     }
 
     /// Reassign every automatic caption ordinal, numbering a block's content before the block

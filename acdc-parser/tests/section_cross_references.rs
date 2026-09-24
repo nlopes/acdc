@@ -147,7 +147,7 @@ fn the_signifier_is_read_where_the_reference_is_written() -> Result<(), Error> {
     let parsed = parse(source, &Options::default())?;
     let signifiers: Vec<_> = cross_references(&parsed.document().blocks)
         .into_iter()
-        .map(|xref| xref.signifier)
+        .map(CrossReference::signifier)
         .collect();
     assert_eq!(
         signifiers,

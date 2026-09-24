@@ -1,0 +1,34 @@
+= Reference signifiers
+:doctype: book
+:sectnums:
+:appendix-refsig: Early Appendix
+
+[preface]
+== Preface
+
+Initially basic: <<target>>.
+
+:xrefstyle: short
+
+Early: <<target>>.
+
+Note.footnote:[Early footnote: <<target>>.]
+
+:appendix-refsig: Later Appendix
+
+Late: <<target>>.
+
+:appendix-refsig:
+
+Empty: <<target>>.
+
+:appendix-refsig!:
+
+Omitted: <<target>>.
+
+:appendix-refsig: Final Appendix
+
+[[target]]
+== Target
+
+Final: <<target>>.

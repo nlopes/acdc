@@ -109,6 +109,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Styled section references stay consistent after AST edits and renumbering.
+  A chapter changed to an appendix uses its appendix signifier instead of
+  producing `Chapter A`; source-position settings and caller overrides are
+  preserved.
+
 - TOC placement follows normalized document settings, including `toc2`, position
   aliases, and explicit `toc-position` and `toc-placement` overrides.
 - Nested AsciiDoc cell traversal applies child document settings and restores
