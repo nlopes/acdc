@@ -1,0 +1,288 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Nested book references",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 24
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 16
+      }
+    ]
+  },
+  "attributes": {
+    "sectnums": true,
+    "xrefstyle": "full"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Outside: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "xref",
+          "type": "inline",
+          "target": "chapter",
+          "location": [
+            {
+              "line": 5,
+              "col": 10
+            },
+            {
+              "line": 5,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 5,
+              "col": 21
+            },
+            {
+              "line": 5,
+              "col": 21
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 5,
+          "col": 21
+        }
+      ]
+    },
+    {
+      "name": "table",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "|===",
+      "metadata": {
+        "attributes": {
+          "cols": "a"
+        }
+      },
+      "content": {
+        "header": null,
+        "footer": null,
+        "rows": [
+          {
+            "columns": [
+              {
+                "content": [
+                  {
+                    "name": "doctype",
+                    "type": "attribute",
+                    "value": "book",
+                    "location": [
+                      {
+                        "line": 10,
+                        "col": 1
+                      },
+                      {
+                        "line": 10,
+                        "col": 15
+                      }
+                    ]
+                  },
+                  {
+                    "name": "section",
+                    "type": "block",
+                    "title": [
+                      {
+                        "name": "text",
+                        "type": "string",
+                        "value": "Chapter",
+                        "location": [
+                          {
+                            "line": 13,
+                            "col": 4
+                          },
+                          {
+                            "line": 13,
+                            "col": 10
+                          }
+                        ]
+                      }
+                    ],
+                    "level": 1,
+                    "metadata": {
+                      "anchors": [
+                        {
+                          "id": "chapter",
+                          "location": [
+                            {
+                              "line": 1,
+                              "col": 17
+                            },
+                            {
+                              "line": 2,
+                              "col": 3
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    "blocks": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Inside: ",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 1
+                              },
+                              {
+                                "line": 15,
+                                "col": 8
+                              }
+                            ]
+                          },
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "target": "chapter",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 9
+                              },
+                              {
+                                "line": 15,
+                                "col": 19
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 15,
+                                "col": 20
+                              },
+                              {
+                                "line": 15,
+                                "col": 20
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 15,
+                            "col": 1
+                          },
+                          {
+                            "line": 15,
+                            "col": 20
+                          }
+                        ]
+                      }
+                    ],
+                    "location": [
+                      {
+                        "line": 12,
+                        "col": 1
+                      },
+                      {
+                        "line": 15,
+                        "col": 20
+                      }
+                    ]
+                  }
+                ],
+                "style": "asciidoc"
+              }
+            ]
+          }
+        ],
+        "columns": [
+          {
+            "style": "asciidoc"
+          }
+        ],
+        "location": [
+          {
+            "line": 8,
+            "col": 1
+          },
+          {
+            "line": 16,
+            "col": 4
+          }
+        ]
+      },
+      "location": [
+        {
+          "line": 7,
+          "col": 1
+        },
+        {
+          "line": 16,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 16,
+      "col": 4
+    }
+  ]
+}

@@ -2859,17 +2859,13 @@ peg::parser! {
             }
             collect_references(state, &mut blocks, &mut references, &mut xrefs);
             let is_book = is_book_doctype(&header_attributes);
-            section::number_parsed_sections(&mut blocks, &mut state.toc_entries, is_book);
+            section::number_parsed_sections(
+                &mut blocks,
+                &mut state.toc_entries,
+                &mut references.entries,
+                is_book,
+            );
             let toc_entries = state.toc_entries.clone();
-            // Only the first definition owns the catalog entry for an ID.
-            for entry in &toc_entries {
-                if let Some(reference) = references.entries.get_mut(entry.id)
-                    && (reference.location.absolute_start..=reference.location.absolute_end)
-                        .contains(&entry.location.absolute_start)
-                {
-                    reference.section = Some(section::section_reference(entry, is_book));
-                }
-            }
 
             let mut document = Document {
                 header,

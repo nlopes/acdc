@@ -1,0 +1,16 @@
+= Nested book references
+:sectnums:
+:xrefstyle: full
+
+Outside: <<chapter>>.
+
+[cols="a"]
+|===
+|
+:doctype: book
+
+[[chapter]]
+== Chapter
+
+Inside: <<chapter>>.
+|===

@@ -10,7 +10,7 @@ use serde::ser::{Serialize, SerializeMap, Serializer};
 
 use crate::{
     Block, BlockMetadata, ColumnStyle, DelimitedBlockType, DocumentAttributes, InlineMacro,
-    InlineNode, Location, MAX_SECTION_LEVELS, Table, TocEntry,
+    InlineNode, Location, MAX_SECTION_LEVELS, Reference, Table, TocEntry,
     model::{DocumentAttributeStatus, SectionReference},
 };
 
@@ -345,28 +345,32 @@ impl NumberingState {
 }
 
 /// Reassign numbers after AST mutation, matching existing TOC entries by section ID.
-pub(crate) fn renumber_sections(
-    blocks: &mut [Block<'_>],
-    toc_entries: &mut [TocEntry<'_>],
+pub(crate) fn renumber_sections<'a>(
+    blocks: &mut [Block<'a>],
+    toc_entries: &mut [TocEntry<'a>],
+    references: &mut HashMap<&'a str, Reference<'a>>,
     is_book: bool,
 ) {
     let mut state = NumberingState::default();
-    let mut toc_numbers: HashMap<String, VecDeque<SectionNumbers>> =
+    let mut toc_numbers: HashMap<String, VecDeque<Option<SectionNumber>>> =
         HashMap::with_capacity(toc_entries.len());
-    let mut record_number = |section: &Section<'_>, numbers| {
-        toc_numbers
-            .entry(section.id().into_owned())
-            .or_default()
-            .push_back(numbers);
-    };
+    let mut record_number =
+        |section: &Section<'a>, numbers: SectionNumbers, name, record_toc: bool| {
+            update_section_reference(section, name, &numbers, references);
+            if record_toc {
+                toc_numbers
+                    .entry(section.id().into_owned())
+                    .or_default()
+                    .push_back(numbers.shown);
+            }
+        };
     renumber_blocks(blocks, &mut state, is_book, false, true, &mut record_number);
     for entry in toc_entries {
-        let numbers = toc_numbers
+        let number = toc_numbers
             .get_mut(entry.id)
             .and_then(VecDeque::pop_front)
             .unwrap_or_default();
-        entry.set_number(numbers.shown);
-        entry.set_reference_number(numbers.reference);
+        entry.set_number(number);
     }
 }
 
@@ -397,11 +401,21 @@ pub(crate) fn reference_name(kind: SectionKind, level: u8, is_book: bool) -> &'s
     })
 }
 
-/// What a styled cross-reference to the section behind `entry` shows.
-pub(crate) fn section_reference(entry: &TocEntry<'_>, is_book: bool) -> SectionReference {
-    SectionReference {
-        name: reference_name(entry.kind, entry.level, is_book),
-        number: entry.reference_number().cloned(),
+fn update_section_reference(
+    section: &Section<'_>,
+    name: &'static str,
+    numbers: &SectionNumbers,
+    references: &mut HashMap<&str, Reference<'_>>,
+) {
+    if let Some(reference) = references.get_mut(section.id().as_ref())
+        // A duplicate ID must not replace the first target's section metadata.
+        && reference.location.absolute_start == section.location.absolute_start
+        && reference.location.start == section.location.start
+    {
+        reference.section = Some(SectionReference {
+            name,
+            number: numbers.reference.clone(),
+        });
     }
 }
 
@@ -409,30 +423,35 @@ pub(crate) fn section_reference(entry: &TocEntry<'_>, is_book: bool) -> SectionR
 pub(crate) fn number_parsed_sections<'a>(
     blocks: &mut [Block<'a>],
     toc_entries: &mut [TocEntry<'a>],
+    references: &mut HashMap<&'a str, Reference<'a>>,
     is_book: bool,
 ) {
     let mut state = NumberingState::default();
     let mut toc_index = 0;
-    let mut record_number = |section: &Section<'a>, numbers: SectionNumbers| {
-        let Some(remaining_entries) = toc_entries.get(toc_index..) else {
-            return;
-        };
-        let Some(relative_index) = remaining_entries
-            .iter()
-            .position(|entry| toc_entry_matches(section, entry))
-        else {
-            return;
-        };
-        toc_index += relative_index;
-        if let Some(entry) = toc_entries.get_mut(toc_index) {
-            if let Some(id) = section.id {
-                entry.id = id;
+    let mut record_number =
+        |section: &Section<'a>, numbers: SectionNumbers, name, record_toc: bool| {
+            update_section_reference(section, name, &numbers, references);
+            if !record_toc {
+                return;
             }
-            entry.set_number(numbers.shown);
-            entry.set_reference_number(numbers.reference);
-            toc_index += 1;
-        }
-    };
+            let Some(remaining_entries) = toc_entries.get(toc_index..) else {
+                return;
+            };
+            let Some(relative_index) = remaining_entries
+                .iter()
+                .position(|entry| toc_entry_matches(section, entry))
+            else {
+                return;
+            };
+            toc_index += relative_index;
+            if let Some(entry) = toc_entries.get_mut(toc_index) {
+                if let Some(id) = section.id {
+                    entry.id = id;
+                }
+                entry.set_number(numbers.shown);
+                toc_index += 1;
+            }
+        };
     renumber_blocks(blocks, &mut state, is_book, false, true, &mut record_number);
 }
 
@@ -447,12 +466,12 @@ fn toc_entry_matches(section: &Section<'_>, entry: &TocEntry<'_>) -> bool {
 fn renumber_blocks<'a, F>(
     blocks: &mut [Block<'a>],
     state: &mut NumberingState,
-    is_book: bool,
+    mut is_book: bool,
     suppressed: bool,
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers),
+    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
 {
     for block in blocks {
         match block {
@@ -530,6 +549,15 @@ fn renumber_blocks<'a, F>(
                 record_toc,
                 record_number,
             ),
+            Block::DocumentAttribute(attribute) => {
+                if attribute.is_accepted() && attribute.name == "doctype" {
+                    is_book = attribute
+                        .assignment()
+                        .value()
+                        .and_then(|value| value.as_str())
+                        == Some("book");
+                }
+            }
             Block::Paragraph(_)
             | Block::DiscreteHeader(_)
             | Block::PageBreak(_)
@@ -538,7 +566,6 @@ fn renumber_blocks<'a, F>(
             | Block::Image(_)
             | Block::Audio(_)
             | Block::Video(_)
-            | Block::DocumentAttribute(_)
             | Block::Comment(_) => {}
         }
     }
@@ -552,7 +579,7 @@ fn renumber_delimited<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers),
+    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
 {
     match inner {
         DelimitedBlockType::DelimitedExample(blocks)
@@ -586,7 +613,7 @@ fn renumber_section<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers),
+    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
 {
     let level = state.numbering_level(section.level, section.kind);
     let participates = section_participates(section, is_book);
@@ -614,9 +641,12 @@ fn renumber_section<'a, F>(
         }
     };
     section.numbering.number.clone_from(&numbers.shown);
-    if record_toc {
-        record_number(section, numbers);
-    }
+    record_number(
+        section,
+        numbers,
+        reference_name(section.kind, section.level, is_book),
+        record_toc,
+    );
 
     let suppress_children = suppressed
         || (section.kind.is_special() && section.kind != SectionKind::Appendix && !participates);
@@ -661,7 +691,7 @@ fn renumber_table<'a, F>(
     record_toc: bool,
     record_number: &mut F,
 ) where
-    F: FnMut(&Section<'a>, SectionNumbers),
+    F: FnMut(&Section<'a>, SectionNumbers, &'static str, bool),
 {
     for row in table
         .header
@@ -675,7 +705,8 @@ fn renumber_table<'a, F>(
                 renumber_blocks(
                     &mut column.content,
                     &mut nested_state,
-                    is_book,
+                    // AsciiDoc cells start as articles, even inside a book.
+                    false,
                     false,
                     false,
                     record_number,
@@ -998,9 +1029,112 @@ impl Serialize for Section<'_> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Anchor, Plain};
+    use crate::{Anchor, Document, Options, Plain, parse};
 
     use super::*;
+
+    #[test]
+    fn nested_section_references_follow_ast_edits_without_a_toc()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(
+            include_str!("../../fixtures/tests/xref_nested_sections.adoc"),
+            &Options::default(),
+        )?;
+        let mut document = Document {
+            attributes: parsed.document().attributes.clone(),
+            blocks: parsed.document().blocks.clone(),
+            references: parsed.document().references.clone(),
+            ..Document::default()
+        };
+        let outer = document
+            .blocks
+            .iter_mut()
+            .find_map(|block| {
+                if let Block::Section(section) = block {
+                    (section.id() == "outer").then_some(section)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing outer section")?;
+        let table = outer
+            .content
+            .iter_mut()
+            .find_map(|block| {
+                if let Block::DelimitedBlock(delimited) = block
+                    && let DelimitedBlockType::DelimitedTable(table) = &mut delimited.inner
+                {
+                    Some(table)
+                } else {
+                    None
+                }
+            })
+            .ok_or("missing table")?;
+        let cell = table
+            .rows
+            .first_mut()
+            .and_then(|row| row.columns.first_mut())
+            .ok_or("missing cell")?;
+        let inner = cell
+            .content
+            .iter()
+            .position(|block| matches!(block, Block::Section(section) if section.id() == "inner"))
+            .ok_or("missing inner section")?;
+        let second = cell
+            .content
+            .iter()
+            .position(|block| matches!(block, Block::Section(section) if section.id() == "second"))
+            .ok_or("missing second section")?;
+        cell.content.swap(inner, second);
+
+        // Fixtures cannot exercise AST edits or the nonserialized reference catalog.
+        document.renumber_sections();
+        assert!(document.toc_entries.is_empty());
+        for (id, name, number) in [
+            ("outer", "chapter", "1"),
+            ("inner", "section", "2"),
+            ("deep", "section", "2.1"),
+            ("second", "section", "1"),
+            ("sibling", "section", "1"),
+            ("after", "chapter", "2"),
+        ] {
+            let reference = document.references.get(id).ok_or("missing reference")?;
+            assert_eq!(reference.section_name(), Some(name), "{id}");
+            assert_eq!(reference.section_number(), Some(number), "{id}");
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn nested_duplicate_references_keep_the_first_target_when_renumbered()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(
+            include_str!("../../fixtures/tests/xref_nested_duplicate_ids.adoc"),
+            &Options::default(),
+        )?;
+        let mut document = Document {
+            attributes: parsed.document().attributes.clone(),
+            blocks: parsed.document().blocks.clone(),
+            toc_entries: parsed.document().toc_entries.clone(),
+            references: parsed.document().references.clone(),
+            ..Document::default()
+        };
+        document.renumber_sections();
+        for (id, reference) in &document.references {
+            let original = parsed
+                .document()
+                .references
+                .get(id)
+                .ok_or("missing reference")?;
+            assert_eq!(reference.section_name(), original.section_name(), "{id}");
+            assert_eq!(
+                reference.section_number(),
+                original.section_number(),
+                "{id}"
+            );
+        }
+        Ok(())
+    }
 
     #[test]
     fn test_id_from_title() {

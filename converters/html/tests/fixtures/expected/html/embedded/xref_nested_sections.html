@@ -1,0 +1,83 @@
+<div id="toc" class="toc">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li>
+<a href="#_preface">Preface</a>
+</li>
+<li>
+<a href="#outer">1. Outer</a>
+</li>
+<li>
+<a href="#after">2. After</a>
+</li>
+</ul>
+</div>
+<div class="sect1">
+<h2 id="_preface">Preface</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Outside full: <a href="#inner">Section 1, &#8220;Inner&#8221;</a>.</p>
+</div>
+<div class="paragraph">
+<p>Outside short: <a href="#deep">Section 1.1</a>.</p>
+</div>
+<div class="paragraph">
+<p>Outside sibling: <a href="#sibling">Section 1, &#8220;Sibling&#8221;</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="outer">1. Outer</h2>
+<div class="sectionbody">
+<table class="tableblock frame-all grid-all stretch">
+<colgroup>
+<col style="width: 50%;">
+<col style="width: 50%;">
+</colgroup>
+<tbody>
+<tr>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Inside full: <a href="#inner">Section 1, &#8220;Inner&#8221;</a>.</p><p class="tableblock">Inside deep: <a href="#deep">Section 1.1, &#8220;Deep&#8221;</a>.</p><p class="tableblock">Inside outer: <a href="#outer">Chapter 1, <em>Outer</em></a>.</p><div class="sect1">
+<h2 id="inner">1. Inner</h2>
+<div class="sectionbody">
+<div class="sect2">
+<h3 id="deep">Deep</h3>
+<div class="paragraph">
+<p>Text.</p>
+</div>
+<div class="paragraph">
+<p>Inside short: <a href="#inner">Section 1</a>.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="second">2. Second</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Second: <a href="#second">Section 2, &#8220;Second&#8221;</a>.</p>
+</div>
+</div>
+</div>
+</td>
+<td class="tableblock halign-left valign-top"><p class="tableblock">Sibling default: <a href="#inner">Section 1, &#8220;Inner&#8221;</a>.</p><div class="sect1">
+<h2 id="sibling">1. Sibling</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>Sibling: <a href="#sibling">Section 1, &#8220;Sibling&#8221;</a>.</p>
+</div>
+</div>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="sect1">
+<h2 id="after">2. After</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>After: <a href="#after">Chapter 2, <em>After</em></a>.</p>
+</div>
+</div>
+</div>

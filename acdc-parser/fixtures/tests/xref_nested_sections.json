@@ -1,0 +1,1156 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Nested section references",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 27
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 6,
+        "col": 5
+      }
+    ]
+  },
+  "attributes": {
+    "doctype": "book",
+    "sectnumlevels": "1",
+    "sectnums": true,
+    "toc": "",
+    "xrefstyle": "full"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Preface",
+          "location": [
+            {
+              "line": 9,
+              "col": 4
+            },
+            {
+              "line": 9,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "preface"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Outside full: ",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 14
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "inner",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 15
+                },
+                {
+                  "line": 11,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 24
+                },
+                {
+                  "line": 11,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Outside short: ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 15
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "deep",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 16
+                },
+                {
+                  "line": 13,
+                  "col": 41
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 42
+                },
+                {
+                  "line": 13,
+                  "col": 42
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 42
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Outside sibling: ",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "sibling",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 18
+                },
+                {
+                  "line": 15,
+                  "col": 28
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 29
+                },
+                {
+                  "line": 15,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 29
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 15,
+          "col": 29
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Outer",
+          "location": [
+            {
+              "line": 18,
+              "col": 4
+            },
+            {
+              "line": 18,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "outer",
+            "location": [
+              {
+                "line": 17,
+                "col": 1
+              },
+              {
+                "line": 17,
+                "col": 10
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a,a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Inside full: ",
+                            "location": [
+                              {
+                                "line": 23,
+                                "col": 1
+                              },
+                              {
+                                "line": 23,
+                                "col": 13
+                              }
+                            ]
+                          },
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "target": "inner",
+                            "location": [
+                              {
+                                "line": 23,
+                                "col": 14
+                              },
+                              {
+                                "line": 23,
+                                "col": 22
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 23,
+                                "col": 23
+                              },
+                              {
+                                "line": 23,
+                                "col": 23
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 23,
+                            "col": 1
+                          },
+                          {
+                            "line": 23,
+                            "col": 23
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Inside deep: ",
+                            "location": [
+                              {
+                                "line": 25,
+                                "col": 1
+                              },
+                              {
+                                "line": 25,
+                                "col": 13
+                              }
+                            ]
+                          },
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "target": "deep",
+                            "location": [
+                              {
+                                "line": 25,
+                                "col": 14
+                              },
+                              {
+                                "line": 25,
+                                "col": 21
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 25,
+                                "col": 22
+                              },
+                              {
+                                "line": 25,
+                                "col": 22
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 25,
+                            "col": 1
+                          },
+                          {
+                            "line": 25,
+                            "col": 22
+                          }
+                        ]
+                      },
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Inside outer: ",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 1
+                              },
+                              {
+                                "line": 27,
+                                "col": 14
+                              }
+                            ]
+                          },
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "target": "outer",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 15
+                              },
+                              {
+                                "line": 27,
+                                "col": 23
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 27,
+                                "col": 24
+                              },
+                              {
+                                "line": 27,
+                                "col": 24
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 27,
+                            "col": 1
+                          },
+                          {
+                            "line": 27,
+                            "col": 24
+                          }
+                        ]
+                      },
+                      {
+                        "name": "section",
+                        "type": "block",
+                        "title": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Inner",
+                            "location": [
+                              {
+                                "line": 30,
+                                "col": 4
+                              },
+                              {
+                                "line": 30,
+                                "col": 8
+                              }
+                            ]
+                          }
+                        ],
+                        "level": 1,
+                        "metadata": {
+                          "anchors": [
+                            {
+                              "id": "inner",
+                              "location": [
+                                {
+                                  "line": 5,
+                                  "col": 4
+                                },
+                                {
+                                  "line": 5,
+                                  "col": 13
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "blocks": [
+                          {
+                            "name": "section",
+                            "type": "block",
+                            "title": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Deep",
+                                "location": [
+                                  {
+                                    "line": 33,
+                                    "col": 5
+                                  },
+                                  {
+                                    "line": 33,
+                                    "col": 8
+                                  }
+                                ]
+                              }
+                            ],
+                            "level": 2,
+                            "metadata": {
+                              "anchors": [
+                                {
+                                  "id": "deep",
+                                  "location": [
+                                    {
+                                      "line": 7,
+                                      "col": 1
+                                    },
+                                    {
+                                      "line": 8,
+                                      "col": 8
+                                    }
+                                  ]
+                                }
+                              ]
+                            },
+                            "blocks": [
+                              {
+                                "name": "paragraph",
+                                "type": "block",
+                                "inlines": [
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "Text.",
+                                    "location": [
+                                      {
+                                        "line": 35,
+                                        "col": 1
+                                      },
+                                      {
+                                        "line": 35,
+                                        "col": 5
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "location": [
+                                  {
+                                    "line": 35,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 35,
+                                    "col": 5
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "paragraph",
+                                "type": "block",
+                                "inlines": [
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": "Inside short: ",
+                                    "location": [
+                                      {
+                                        "line": 37,
+                                        "col": 1
+                                      },
+                                      {
+                                        "line": 37,
+                                        "col": 14
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "xref",
+                                    "type": "inline",
+                                    "target": "inner",
+                                    "location": [
+                                      {
+                                        "line": 37,
+                                        "col": 15
+                                      },
+                                      {
+                                        "line": 37,
+                                        "col": 41
+                                      }
+                                    ]
+                                  },
+                                  {
+                                    "name": "text",
+                                    "type": "string",
+                                    "value": ".",
+                                    "location": [
+                                      {
+                                        "line": 37,
+                                        "col": 42
+                                      },
+                                      {
+                                        "line": 37,
+                                        "col": 42
+                                      }
+                                    ]
+                                  }
+                                ],
+                                "location": [
+                                  {
+                                    "line": 37,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 37,
+                                    "col": 42
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 32,
+                                "col": 1
+                              },
+                              {
+                                "line": 37,
+                                "col": 42
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 29,
+                            "col": 1
+                          },
+                          {
+                            "line": 37,
+                            "col": 42
+                          }
+                        ]
+                      },
+                      {
+                        "name": "section",
+                        "type": "block",
+                        "title": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Second",
+                            "location": [
+                              {
+                                "line": 40,
+                                "col": 4
+                              },
+                              {
+                                "line": 40,
+                                "col": 9
+                              }
+                            ]
+                          }
+                        ],
+                        "level": 1,
+                        "metadata": {
+                          "anchors": [
+                            {
+                              "id": "second",
+                              "location": [
+                                {
+                                  "line": 13,
+                                  "col": 22
+                                },
+                                {
+                                  "line": 13,
+                                  "col": 32
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "blocks": [
+                          {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Second: ",
+                                "location": [
+                                  {
+                                    "line": 42,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 42,
+                                    "col": 8
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "xref",
+                                "type": "inline",
+                                "target": "second",
+                                "location": [
+                                  {
+                                    "line": 42,
+                                    "col": 9
+                                  },
+                                  {
+                                    "line": 42,
+                                    "col": 18
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": ".",
+                                "location": [
+                                  {
+                                    "line": 42,
+                                    "col": 19
+                                  },
+                                  {
+                                    "line": 42,
+                                    "col": 19
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 42,
+                                "col": 1
+                              },
+                              {
+                                "line": 42,
+                                "col": 19
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 39,
+                            "col": 1
+                          },
+                          {
+                            "line": 42,
+                            "col": 19
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  },
+                  {
+                    "content": [
+                      {
+                        "name": "paragraph",
+                        "type": "block",
+                        "inlines": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Sibling default: ",
+                            "location": [
+                              {
+                                "line": 45,
+                                "col": 1
+                              },
+                              {
+                                "line": 45,
+                                "col": 17
+                              }
+                            ]
+                          },
+                          {
+                            "name": "xref",
+                            "type": "inline",
+                            "target": "inner",
+                            "location": [
+                              {
+                                "line": 45,
+                                "col": 18
+                              },
+                              {
+                                "line": 45,
+                                "col": 26
+                              }
+                            ]
+                          },
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": ".",
+                            "location": [
+                              {
+                                "line": 45,
+                                "col": 27
+                              },
+                              {
+                                "line": 45,
+                                "col": 27
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 45,
+                            "col": 1
+                          },
+                          {
+                            "line": 45,
+                            "col": 27
+                          }
+                        ]
+                      },
+                      {
+                        "name": "section",
+                        "type": "block",
+                        "title": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Sibling",
+                            "location": [
+                              {
+                                "line": 48,
+                                "col": 4
+                              },
+                              {
+                                "line": 48,
+                                "col": 10
+                              }
+                            ]
+                          }
+                        ],
+                        "level": 1,
+                        "metadata": {
+                          "anchors": [
+                            {
+                              "id": "sibling",
+                              "location": [
+                                {
+                                  "line": 2,
+                                  "col": 2
+                                },
+                                {
+                                  "line": 2,
+                                  "col": 13
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        "blocks": [
+                          {
+                            "name": "paragraph",
+                            "type": "block",
+                            "inlines": [
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": "Sibling: ",
+                                "location": [
+                                  {
+                                    "line": 50,
+                                    "col": 1
+                                  },
+                                  {
+                                    "line": 50,
+                                    "col": 9
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "xref",
+                                "type": "inline",
+                                "target": "sibling",
+                                "location": [
+                                  {
+                                    "line": 50,
+                                    "col": 10
+                                  },
+                                  {
+                                    "line": 50,
+                                    "col": 20
+                                  }
+                                ]
+                              },
+                              {
+                                "name": "text",
+                                "type": "string",
+                                "value": ".",
+                                "location": [
+                                  {
+                                    "line": 50,
+                                    "col": 21
+                                  },
+                                  {
+                                    "line": 50,
+                                    "col": 21
+                                  }
+                                ]
+                              }
+                            ],
+                            "location": [
+                              {
+                                "line": 50,
+                                "col": 1
+                              },
+                              {
+                                "line": 50,
+                                "col": 21
+                              }
+                            ]
+                          }
+                        ],
+                        "location": [
+                          {
+                            "line": 47,
+                            "col": 1
+                          },
+                          {
+                            "line": 50,
+                            "col": 21
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              },
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 21,
+                "col": 1
+              },
+              {
+                "line": 51,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 20,
+              "col": 1
+            },
+            {
+              "line": 51,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 17,
+          "col": 1
+        },
+        {
+          "line": 51,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After",
+          "location": [
+            {
+              "line": 54,
+              "col": 4
+            },
+            {
+              "line": 54,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "after",
+            "location": [
+              {
+                "line": 53,
+                "col": 1
+              },
+              {
+                "line": 53,
+                "col": 10
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "After: ",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 1
+                },
+                {
+                  "line": 56,
+                  "col": 7
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "after",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 8
+                },
+                {
+                  "line": 56,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 56,
+                  "col": 17
+                },
+                {
+                  "line": 56,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 56,
+              "col": 1
+            },
+            {
+              "line": 56,
+              "col": 17
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 53,
+          "col": 1
+        },
+        {
+          "line": 56,
+          "col": 17
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 56,
+      "col": 17
+    }
+  ]
+}

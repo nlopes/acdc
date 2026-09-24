@@ -1,0 +1,56 @@
+= Nested section references
+:doctype: book
+:sectnums:
+:sectnumlevels: 1
+:xrefstyle: full
+:toc:
+
+[preface]
+== Preface
+
+Outside full: <<inner>>.
+
+Outside short: xref:deep[xrefstyle=short].
+
+Outside sibling: <<sibling>>.
+
+[[outer]]
+== Outer
+
+[cols="a,a"]
+|===
+|
+Inside full: <<inner>>.
+
+Inside deep: <<deep>>.
+
+Inside outer: <<outer>>.
+
+[[inner]]
+== Inner
+
+[[deep]]
+=== Deep
+
+Text.
+
+Inside short: xref:inner[xrefstyle=short].
+
+[[second]]
+== Second
+
+Second: <<second>>.
+
+|
+Sibling default: <<inner>>.
+
+[[sibling]]
+== Sibling
+
+Sibling: <<sibling>>.
+|===
+
+[[after]]
+== After
+
+After: <<after>>.

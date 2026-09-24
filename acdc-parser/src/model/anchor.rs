@@ -108,10 +108,6 @@ pub struct TocEntry<'a> {
     /// Converters use it for presentation, such as appendix labels.
     pub kind: SectionKind,
     number: Option<SectionNumber>,
-    /// The number a cross-reference to this section quotes. It differs from
-    /// `number` only past `sectnumlevels`, where the heading shows no number
-    /// but Asciidoctor still numbers the reference.
-    reference_number: Option<SectionNumber>,
     /// Location of the section heading (the cross-reference target).
     pub location: Location,
 }
@@ -132,22 +128,12 @@ impl<'a> TocEntry<'a> {
             xreflabel,
             kind,
             number: None,
-            reference_number: None,
             location,
         }
     }
 
     pub(super) fn set_number(&mut self, number: Option<SectionNumber>) {
         self.number = number;
-    }
-
-    pub(super) fn set_reference_number(&mut self, number: Option<SectionNumber>) {
-        self.reference_number = number;
-    }
-
-    /// The number a cross-reference to this section quotes, when it has one.
-    pub(super) fn reference_number(&self) -> Option<&SectionNumber> {
-        self.reference_number.as_ref()
     }
 
     /// Return the assigned number without presentation punctuation or a signifier.
@@ -279,11 +265,9 @@ mod tests {
                 .iter()
                 .find(|entry| entry.id == id)
                 .ok_or("missing TOC entry")?;
-            let toc_number = entry.reference_number().ok_or("missing TOC number")?;
 
             // JSON omits the reference catalog and cannot check shared storage.
             assert!(std::ptr::eq(number, cloned_number), "{id}");
-            assert!(std::ptr::eq(number, toc_number.as_str()), "{id}");
             if let Some(heading_number) = entry.number() {
                 assert!(std::ptr::eq(number, heading_number), "{id}");
             }
