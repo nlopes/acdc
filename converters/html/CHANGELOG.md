@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references follow section category changes after AST renumbering,
+  preserving source-position signifiers and explicit caller overrides.
+
 - `xrefstyle=short` and `xrefstyle=full` apply to sections inside AsciiDoc table
   cells, including references outside the cell and targets beyond
   `sectnumlevels`, matching Asciidoctor.

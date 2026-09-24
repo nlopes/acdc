@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Section-reference signifiers are read and overridden through methods, keeping
+  explicit caller choices distinct from values selected from the source.
+
 - Cloning cross-reference catalogs uses less memory for numbered sections.
 
 - Document attributes with text values need fewer temporary allocations, and large
@@ -35,6 +38,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unchanged.
 
 ### Fixed
+
+- Renumbering after section category edits also updates automatic reference
+  signifiers. Changing a chapter to an appendix uses the `appendix-refsig`
+  active at each reference's original position, including footnotes and empty
+  or unset values. Explicit caller overrides are preserved.
 
 - Cross-references to sections in AsciiDoc table cells retain their section
   category and number, including beyond `sectnumlevels`, so `xrefstyle=short`

@@ -186,10 +186,10 @@ pub struct CrossReference<'a> {
     pub xrefstyle: XrefStyle,
     #[serde(skip)]
     pub caption_label: XrefCaptionLabel<'a>,
-    /// The word before a section number, as `<name>-refsig` stood at this
-    /// reference's position.
     #[serde(skip)]
-    pub signifier: XrefSignifier<'a>,
+    signifier: XrefSignifier<'a>,
+    #[serde(skip)]
+    pub(crate) section_signifiers: Option<&'a [XrefSignifier<'a>; REFSIG_NAMES.len()]>,
     /// The `role=` of an `xref:` macro after attribute substitution and
     /// passthrough restoration. It may be empty; HTML uses it as the link's class.
     #[serde(skip)]
@@ -211,6 +211,7 @@ impl<'a> CrossReference<'a> {
             xrefstyle: XrefStyle::Basic,
             caption_label: XrefCaptionLabel::AtTarget,
             signifier: XrefSignifier::Standard,
+            section_signifiers: None,
             role: None,
             caption_label_snapshot_id: None,
             resolve_natural_target: false,
@@ -222,6 +223,31 @@ impl<'a> CrossReference<'a> {
     pub fn with_text(mut self, text: Vec<InlineNode<'a>>) -> Self {
         self.text = text;
         self
+    }
+
+    /// The word before a section number, using the attributes at this reference's
+    /// source position unless overridden by [`Self::set_signifier`].
+    #[must_use]
+    pub const fn signifier(&self) -> XrefSignifier<'a> {
+        self.signifier
+    }
+
+    /// Override the section signifier, including after subsequent calls to
+    /// [`Document::renumber_sections`](crate::Document::renumber_sections).
+    pub fn set_signifier(&mut self, signifier: XrefSignifier<'a>) {
+        self.signifier = signifier;
+        self.section_signifiers = None;
+    }
+
+    pub(crate) fn refresh_signifier(&mut self, name: Option<&str>) {
+        let Some(signifiers) = self.section_signifiers else {
+            return;
+        };
+        self.signifier = name
+            .and_then(|name| REFSIG_NAMES.iter().position(|candidate| *candidate == name))
+            .and_then(|index| signifiers.get(index))
+            .copied()
+            .unwrap_or_default();
     }
 }
 
@@ -259,17 +285,34 @@ impl PartialEq for CrossReference<'_> {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum XrefSignifier<'a> {
-    /// Nothing was recorded at the reference position, as for one built
-    /// outside the parser: use the standard word for the section's name.
+    /// Use the standard word for the section's category. This is the default
+    /// for references built outside the parser.
     #[default]
     Standard,
-    /// The `<name>-refsig` value at the reference position. It can be empty,
-    /// which still leaves a space before the number, as Asciidoctor does.
+    /// Use this word before the number. Parsed references record `<name>-refsig`
+    /// at their source position. An empty value still leaves a space before
+    /// the number, as Asciidoctor does.
     AtReference(&'a str),
-    /// `<name>-refsig` was unset at the reference position, so the number
-    /// stands alone.
+    /// Show the number alone. Parsed references select this when `<name>-refsig`
+    /// was unset at their source position.
     Omitted,
 }
+
+// Capture every category before the target is known, and retain them so that
+// renumbering can select a different category without losing source-position values.
+pub(crate) const REFSIG_NAMES: [&str; 11] = [
+    "part",
+    "chapter",
+    "section",
+    "appendix",
+    "preface",
+    "abstract",
+    "dedication",
+    "colophon",
+    "glossary",
+    "bibliography",
+    "index",
+];
 
 /// Selects the label used by an automatic cross-reference to a numbered caption.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -417,5 +460,45 @@ impl<'a> IndexTerm<'a> {
     #[must_use]
     pub fn is_visible(&self) -> bool {
         matches!(self.kind, IndexTermKind::Flow(_))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Document, InlineMacro, Options, grammar::walk_document_inline_nodes_mut, parse};
+
+    use super::*;
+
+    #[test]
+    fn signifier_snapshots_are_not_part_of_the_value_contract()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let parsed = parse(
+            include_str!("../../../fixtures/tests/xref_signifier_renumber.adoc"),
+            &Options::default(),
+        )?;
+        let mut document = Document {
+            blocks: parsed.document().blocks.clone(),
+            ..Document::default()
+        };
+        let mut xrefs = Vec::new();
+        walk_document_inline_nodes_mut(&mut document, &mut |inline| {
+            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                xrefs.push(xref.clone());
+            }
+        });
+        assert!(!xrefs.is_empty());
+        for original in xrefs {
+            assert!(original.section_signifiers.is_some());
+            let mut explicit = original.clone();
+            explicit.set_signifier(original.signifier());
+            assert!(explicit.section_signifiers.is_none());
+            assert_eq!(original, explicit);
+            assert_eq!(format!("{original:?}"), format!("{explicit:?}"));
+            assert_eq!(
+                serde_json::to_value(&original)?,
+                serde_json::to_value(&explicit)?
+            );
+        }
+        Ok(())
     }
 }

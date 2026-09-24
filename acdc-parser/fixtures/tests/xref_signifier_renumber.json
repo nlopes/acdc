@@ -1,0 +1,672 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Reference signifiers",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 22
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 32
+      }
+    ]
+  },
+  "attributes": {
+    "appendix-refsig": "Early Appendix",
+    "doctype": "book",
+    "sectnums": true
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Preface",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 10
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "preface"
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Initially basic: ",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 1
+                },
+                {
+                  "line": 9,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 18
+                },
+                {
+                  "line": 9,
+                  "col": 27
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 28
+                },
+                {
+                  "line": 9,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 9,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "xrefstyle",
+          "type": "attribute",
+          "value": "short",
+          "location": [
+            {
+              "line": 11,
+              "col": 1
+            },
+            {
+              "line": 11,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Early: ",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 7
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 8
+                },
+                {
+                  "line": 13,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 18
+                },
+                {
+                  "line": 13,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 13,
+              "col": 1
+            },
+            {
+              "line": 13,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Note.",
+              "location": [
+                {
+                  "line": 15,
+                  "col": 1
+                },
+                {
+                  "line": 15,
+                  "col": 5
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": null,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Early footnote: ",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 16
+                    },
+                    {
+                      "line": 15,
+                      "col": 31
+                    }
+                  ]
+                },
+                {
+                  "name": "xref",
+                  "type": "inline",
+                  "target": "target",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 32
+                    },
+                    {
+                      "line": 15,
+                      "col": 41
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": ".",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 42
+                    },
+                    {
+                      "line": 15,
+                      "col": 42
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 15,
+                  "col": 6
+                },
+                {
+                  "line": 15,
+                  "col": 43
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 15,
+              "col": 1
+            },
+            {
+              "line": 15,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "appendix-refsig",
+          "type": "attribute",
+          "value": "Later Appendix",
+          "location": [
+            {
+              "line": 17,
+              "col": 1
+            },
+            {
+              "line": 17,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Late: ",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 1
+                },
+                {
+                  "line": 19,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 7
+                },
+                {
+                  "line": 19,
+                  "col": 16
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 19,
+                  "col": 17
+                },
+                {
+                  "line": 19,
+                  "col": 17
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 19,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "appendix-refsig",
+          "type": "attribute",
+          "value": true,
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 21,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Empty: ",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 7
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 8
+                },
+                {
+                  "line": 23,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 23,
+                  "col": 18
+                },
+                {
+                  "line": 23,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 23,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "appendix-refsig",
+          "type": "attribute",
+          "value": false,
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Omitted: ",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 1
+                },
+                {
+                  "line": 27,
+                  "col": 9
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 10
+                },
+                {
+                  "line": 27,
+                  "col": 19
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 27,
+                  "col": 20
+                },
+                {
+                  "line": 27,
+                  "col": 20
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 27,
+              "col": 1
+            },
+            {
+              "line": 27,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "appendix-refsig",
+          "type": "attribute",
+          "value": "Final Appendix",
+          "location": [
+            {
+              "line": 29,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 33
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 29,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Target",
+          "location": [
+            {
+              "line": 32,
+              "col": 4
+            },
+            {
+              "line": 32,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "target",
+            "location": [
+              {
+                "line": 31,
+                "col": 1
+              },
+              {
+                "line": 31,
+                "col": 11
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Final: ",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 1
+                },
+                {
+                  "line": 34,
+                  "col": 7
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 8
+                },
+                {
+                  "line": 34,
+                  "col": 17
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 34,
+                  "col": 18
+                },
+                {
+                  "line": 34,
+                  "col": 18
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 34,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 18
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 31,
+          "col": 1
+        },
+        {
+          "line": 34,
+          "col": 18
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 34,
+      "col": 18
+    }
+  ]
+}

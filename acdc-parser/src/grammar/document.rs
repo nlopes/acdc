@@ -1449,9 +1449,8 @@ fn finalize_cross_references<'a>(
         if let Some(kind) = caption_kinds.get(xref.target) {
             xref.caption_label = state.xref_caption_label(snapshot, *kind);
         }
-        if let Some(name) = section_names.get(xref.target) {
-            xref.signifier = state.xref_signifier(snapshot, name);
-        }
+        xref.section_signifiers = state.xref_signifiers(snapshot);
+        xref.refresh_signifier(section_names.get(xref.target).copied());
     });
 }
 
