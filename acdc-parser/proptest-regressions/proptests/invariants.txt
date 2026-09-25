@@ -17,3 +17,4 @@ cc 9ce96c0a6da0d892083ce2955eaca1757f7d6fd83e12dcfe98c4f8a4edcf4c02 # shrinks to
 cc 767c8d55bdbca8f2735eb93f072dc165878ff6df3769b56cc3b1899241bff8e9 # shrinks to input = "`inline code`****\nSidebar content.\n****\n\n=== Level 3\n\n"
 cc 5aa36eb456ef15f71645bd462eda60abf842cc614ce4f12ccf79c44e7bfc2faa # shrinks to input = ".Block Title\n:author: Name\n= Title\n\n"
 cc 50596e767c818de0fdd0d020ac43ac1ef108862f578a7dfd1e708c66182f99e7 # shrinks to input = "#highlighted#****\nSidebar content.\n****\n\n:author: Name\n.Block Title\n:author: Name\n[NOTE]\n====\nAdmonition\n====\n"
+cc f6c8d07d0fcadc128d4ebebceaaf8733c51d1a79a38201435721574876438871 # shrinks to input = "+0+\t \\#a"

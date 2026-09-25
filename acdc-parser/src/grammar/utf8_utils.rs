@@ -91,12 +91,6 @@ pub(super) fn step_char(input: &str, offset: usize, direction: RoundDirection) -
 // --- Backward-compatible function wrappers ---
 // These will be removed after all callsites are migrated.
 
-/// Safely increment a byte offset to the next UTF-8 character boundary.
-#[inline]
-pub(super) fn safe_increment_offset(input: &str, offset: usize) -> usize {
-    step_char(input, offset, RoundDirection::Forward)
-}
-
 /// Safely decrement a byte offset by one character, ensuring valid UTF-8 boundary.
 #[inline]
 pub(super) fn safe_decrement_offset(input: &str, offset: usize) -> usize {

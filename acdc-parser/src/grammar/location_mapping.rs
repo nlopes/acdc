@@ -97,14 +97,12 @@ impl<'a> LocationMappingContext<'_, 'a> {
                     processed_abs_end =
                         base_location.absolute_start + CONSTRAINED_CONTENT_END_OFFSET;
                 } else {
-                    // General case: expand collapsed locations to the next UTF-8 boundary
-                    processed_abs_end =
-                        utf8_utils::safe_increment_offset(state.input, processed_abs_end);
+                    // Advance in processed coordinates; source UTF-8 boundaries are
+                    // restored after mapping the range back to the input.
+                    processed_abs_end += 1;
                 }
             } else {
-                // General case: expand collapsed locations to the next UTF-8 boundary
-                processed_abs_end =
-                    utf8_utils::safe_increment_offset(state.input, processed_abs_end);
+                processed_abs_end += 1;
             }
         }
 
@@ -734,5 +732,34 @@ mod tests {
     #[test]
     fn superscript_before_single_char_has_monotonic_positions() -> Result<(), String> {
         check_monotonic("^sup^?")
+    }
+
+    #[test]
+    fn single_character_after_passthrough_keeps_its_source_range()
+    -> Result<(), Box<dyn std::error::Error>> {
+        for prefix in ["", "First paragraph.\n\n"] {
+            for character in ["a", "é", "😀"] {
+                let source = format!("{prefix}+0+\t \\#{character}");
+                let parsed = parse(&source, &Options::default())?;
+                let Some(Block::Paragraph(paragraph)) = parsed.document().blocks.last() else {
+                    return Err("expected a paragraph".into());
+                };
+                let Some(InlineNode::PlainText(plain)) = paragraph.content.last() else {
+                    return Err("expected trailing text".into());
+                };
+                assert_eq!(plain.content, character);
+                let location = &plain.location;
+                assert_eq!(location.absolute_start, source.len() - character.len());
+                assert_eq!(location.absolute_end, source.len());
+                assert_eq!(
+                    source.get(location.absolute_start..location.absolute_end),
+                    Some(character)
+                );
+                assert_eq!(location.start.line, if prefix.is_empty() { 1 } else { 3 });
+                assert_eq!(location.start.column, 8);
+                assert_eq!(location.end, location.start);
+            }
+        }
+        Ok(())
     }
 }
