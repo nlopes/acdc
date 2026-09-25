@@ -35,6 +35,7 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
             cli:
+              - '.github/workflows/ci.yml'
               - 'acdc-cli/**'
               - 'acdc-parser/**'
               - 'converters/**'
@@ -152,6 +153,8 @@ jobs:
         with:
           version: 0.15.2
       - uses: Swatinem/rust-cache@v2
+      - name: Rebuild Ghostty for the current runner
+        run: cargo clean -p libghostty-vt-sys
       - uses: taiki-e/install-action@nextest
       - name: Run CLI tests
         run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
