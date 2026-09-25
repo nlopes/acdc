@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - File-qualified references to fully included sources link within the page
   and use the target title or `xrefstyle`. Whole-document references use the
-  document title or reference label, matching Asciidoctor.
+  document title or reference label, including `:reftext:`, matching Asciidoctor.
 
 - Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
   matching Asciidoctor. Selected styles retain this emphasis for unnumbered

@@ -1916,7 +1916,14 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .raw("#layout(size => {\nlet term-width = calc.min(calc.max(0pt,\n");
         for row in description_list_rows(&list.items) {
             self.writer.raw("measure([");
-            self.write_horizontal_description_terms(traversal, row, false)?;
+            // Measurement content is not displayed, so its anchors must not
+            // consume destinations or index entries from the visible term.
+            let previous = self.index_catalog.set_suspended(true);
+            let previous_anchors = replace(&mut self.anchors.suspended, true);
+            let result = self.write_horizontal_description_terms(traversal, row, false);
+            self.anchors.suspended = previous_anchors;
+            self.index_catalog.set_suspended(previous);
+            result?;
             self.writer.raw("]).width,\n");
         }
         self.writer.raw(

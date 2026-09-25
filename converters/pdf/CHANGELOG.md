@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to anchors inside horizontal description-list terms no longer
+  fail PDF generation. Links point to the visible term.
+
 - File-qualified references to fully included sources create internal PDF
   links and honor `xrefstyle`. Whole-document references link to the first
   page and display `[^top]` unless text is supplied, matching asciidoctor-pdf.
