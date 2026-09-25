@@ -531,6 +531,7 @@ fn verbatim_inner<'input>(
     // A Markdown fence language becomes a positional `source` style so language
     // detection works like `[source,lang]` (never set for `....`/`----`).
     if let Some(language) = p.lang {
+        metadata.retain_positional_attributes();
         metadata.positional_attributes.insert(
             0,
             PositionalAttribute {
@@ -982,6 +983,7 @@ fn drain_positional_slots<'input>(
     metadata: &mut BlockMetadata<'input>,
     count: usize,
 ) -> Vec<&'input str> {
+    metadata.retain_positional_attributes();
     let drain = metadata.positional_attributes.len().min(count);
     metadata
         .positional_attributes

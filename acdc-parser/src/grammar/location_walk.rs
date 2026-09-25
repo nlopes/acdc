@@ -268,6 +268,14 @@ where
         for anchor in &mut metadata.anchors {
             (self.visit_location)(&mut anchor.location);
         }
+        for attribute in &mut metadata.positional_attributes {
+            self.optional_location(&mut attribute.location);
+        }
+        if let Some(attributes) = &mut metadata.retained_positional_attributes {
+            for attribute in attributes {
+                self.optional_location(&mut attribute.location);
+            }
+        }
         // Quote/verse attribution and citetitle are inline-bearing and ASG-serialized,
         // so their locations need remapping like any other inline content.
         if let Some(attribution) = &mut metadata.attribution {
