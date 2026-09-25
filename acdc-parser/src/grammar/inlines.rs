@@ -1505,12 +1505,12 @@ peg::parser! {
                     escaped: false,
                 })]);
             }
-            metadata.retain_positional_attributes();
-            if metadata.positional_attributes.len() >= 2 {
-                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1).value)));
+            let [width, height] = metadata.take_positional_attributes::<2>();
+            if let Some(height) = height {
+                metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(height.value)));
             }
-            if !metadata.positional_attributes.is_empty() {
-                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(0).value)));
+            if let Some(width) = width {
+                metadata.attributes.insert("width".into(), AttributeValue::String(Cow::Borrowed(width.value)));
             }
             metadata.move_positional_attributes_to_attributes();
             // For inline images, if there's no first positional (no alt text in title field),

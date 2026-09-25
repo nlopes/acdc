@@ -1020,7 +1020,52 @@ mod tests {
                 assert_eq!(metadata.positional_attribute(slot), *expected);
             }
             assert_eq!(metadata.positional_attribute(positions.len()), None);
+
+            // Routing and private source details must not change positional equality.
+            let mut working = (*metadata).clone();
+            working.positional_attributes = metadata.raw_positional_attributes().to_vec();
+            working.retained_positional_attributes = None;
+            assert_eq!(*metadata, &working);
+
+            let mut retained = working.clone();
+            for slot in &mut retained.positional_attributes {
+                slot.location = None;
+                slot.substitutions = !slot.substitutions;
+            }
+            retained.retained_positional_attributes =
+                Some(std::mem::take(&mut retained.positional_attributes));
+            assert_eq!(*metadata, &retained);
+
+            let mut changed = retained.clone();
+            if let Some(slot) = changed
+                .retained_positional_attributes
+                .as_mut()
+                .and_then(|slots| slots.first_mut())
+            {
+                slot.value = "changed positional value";
+                assert_ne!(*metadata, &changed, "positional values affect equality");
+            }
+            if let Some(slots) = &mut retained.retained_positional_attributes {
+                slots.push(model::PositionalAttribute::default());
+            }
+            assert_ne!(*metadata, &retained, "an extra empty slot affects equality");
+
+            let mut edited = (*metadata).clone().with_style(Some("source"));
+            edited
+                .attributes
+                .set("language".into(), AttributeValue::String("python".into()));
+            assert_eq!(
+                edited.positional_attributes().collect::<Vec<_>>(),
+                *positions
+            );
+            assert_ne!(*metadata, &edited, "named attributes still affect equality");
         }
+        let empty = BlockMetadata {
+            retained_positional_attributes: Some(Vec::new()),
+            ..BlockMetadata::default()
+        };
+        assert_eq!(empty, BlockMetadata::default());
+        assert_eq!(BlockMetadata::new().positional_attributes().len(), 0);
         Ok(())
     }
 

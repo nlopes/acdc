@@ -531,15 +531,11 @@ fn verbatim_inner<'input>(
     // A Markdown fence language becomes a positional `source` style so language
     // detection works like `[source,lang]` (never set for `....`/`----`).
     if let Some(language) = p.lang {
-        metadata.retain_positional_attributes();
-        metadata.positional_attributes.insert(
-            0,
-            PositionalAttribute {
-                value: language,
-                substitutions: false,
-                location: None,
-            },
-        );
+        metadata.prepend_synthetic_positional_attribute(PositionalAttribute {
+            value: language,
+            substitutions: false,
+            location: None,
+        });
         metadata.style = Some("source");
     }
     extract_source_attributes(state, metadata);
@@ -619,10 +615,10 @@ fn pass_inner<'input>(
     p: &DelimitedParams<'input>,
 ) -> DelimitedBlockType<'input> {
     if metadata.style == Some("stem") {
-        let notation = drain_positional_slots(metadata, 1)
-            .first()
-            .filter(|value| !value.is_empty())
-            .and_then(|value| value.parse::<StemNotation>().ok())
+        let [notation] = metadata.take_positional_attributes::<1>();
+        let notation = notation
+            .filter(|attribute| !attribute.value.is_empty())
+            .and_then(|attribute| attribute.value.parse::<StemNotation>().ok())
             .or_else(|| {
                 state
                     .document_attributes
@@ -979,19 +975,6 @@ fn ensure_positional_slot(metadata: &mut BlockMetadata<'_>, slot: usize) {
         .resize(slot, PositionalAttribute::default());
 }
 
-fn drain_positional_slots<'input>(
-    metadata: &mut BlockMetadata<'input>,
-    count: usize,
-) -> Vec<&'input str> {
-    metadata.retain_positional_attributes();
-    let drain = metadata.positional_attributes.len().min(count);
-    metadata
-        .positional_attributes
-        .drain(..drain)
-        .map(|attribute| attribute.value)
-        .collect()
-}
-
 fn extract_source_attributes(state: &ParserState<'_>, metadata: &mut BlockMetadata<'_>) {
     if metadata.style != Some("source") {
         return;
@@ -1223,7 +1206,7 @@ fn extract_quote_attributes(metadata: &mut BlockMetadata<'_>) {
         metadata.citetitle = named_citetitle;
     }
 
-    let _ = drain_positional_slots(metadata, 2);
+    let _ = metadata.take_positional_attributes::<2>();
 }
 
 fn apply_quote_attribute_substitutions<'input>(
@@ -4502,7 +4485,7 @@ peg::parser! {
                     .attributes
                     .set("alt".into(), AttributeValue::String(Cow::Borrowed(style)));
             }
-            let _ = drain_positional_slots(&mut metadata, 2);
+            let _ = metadata.take_positional_attributes::<2>();
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Image(Image {
                 title,
@@ -4560,7 +4543,7 @@ peg::parser! {
                     );
                 }
             }
-            let _ = drain_positional_slots(&mut metadata, 2);
+            let _ = metadata.take_positional_attributes::<2>();
             metadata.move_positional_attributes_to_attributes();
             Ok(Block::Video(Video {
                 title,
