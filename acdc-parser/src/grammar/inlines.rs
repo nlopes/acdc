@@ -24,6 +24,26 @@ use super::{
     state::{InlineContext, InlineRules, ParserScope},
 };
 
+pub(super) fn xref_filename_fragment(target: &str) -> Option<&str> {
+    // Protected text must be restored before deciding whether the prefix is a URL.
+    if target.contains("���") {
+        return None;
+    }
+    let (path, fragment) = target.split_once('#')?;
+    let has_scheme = path.split_once(':').is_some_and(|(scheme, _)| {
+        let Some((first, rest)) = scheme.as_bytes().split_first() else {
+            return false;
+        };
+        // A single letter denotes a Windows drive, as it does for includes.
+        !rest.is_empty()
+            && first.is_ascii_alphabetic()
+            && rest
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
+    });
+    (!fragment.is_empty() && !path.starts_with("//") && !has_scheme).then_some(fragment)
+}
+
 /// The parts of `xref:target[...]` that decide what the link shows.
 struct XrefMacroText<'s> {
     /// The link text, empty for an automatic reference.
@@ -1650,13 +1670,10 @@ peg::parser! {
         = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
-            // `ignore_filename_in_crossref` drops everything up to and
-            // including the first `#`, when the target has one. A target
-            // without a `#`, or with nothing after it, is left as written.
-            let target_str: &'input str = match target.split_once('#') {
-                Some((_, anchor))
-                    if state.options.ignore_filename_in_crossref && !anchor.is_empty() => anchor,
-                _ => target,
+            let target_str: &'input str = if state.options.ignore_filename_in_crossref {
+                xref_filename_fragment(target).unwrap_or(target)
+            } else {
+                target
             };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1727,10 +1744,13 @@ peg::parser! {
         = "xref:" target:source() fragment:xref_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
             let target_str: &'input str = match fragment {
-                // Keep document-top references under the normal include-aware rules.
-                Some(f) if state.options.ignore_filename_in_crossref && f.len() > 1 => state.intern_str(&f[1..]),
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
                 None => state.intern_fmt(format_args!("{target}")),
+            };
+            let target_str = if state.options.ignore_filename_in_crossref {
+                xref_filename_fragment(target_str).unwrap_or(target_str)
+            } else {
+                target_str
             };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,

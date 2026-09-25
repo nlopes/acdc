@@ -85,6 +85,25 @@ fn ignore_filename_in_crossref_resolves_the_anchor() -> Result<(), Box<dyn Error
 
 #[cfg(feature = "html")]
 #[test]
+fn ignore_filename_in_crossref_preserves_urls() -> Result<(), Box<dyn Error>> {
+    let document = "= Doc\n\n<<https://example.org/other.adoc#target,Remote>>\n\nxref:https://example.org/other.adoc#target[Remote]\n\n[[target]]\n== Local target\n";
+    let output = run_acdc(
+        &["convert", "--stdin", "-e", "-o", "-", "--ifix"],
+        Some(document),
+    )?;
+    let html = output_text(&output.stdout);
+    assert!(output.status.success(), "{}", output_text(&output.stderr));
+    assert_eq!(
+        html.matches("<a href=\"https://example.org/other.html#target\">Remote</a>")
+            .count(),
+        2,
+        "{html}"
+    );
+    Ok(())
+}
+
+#[cfg(feature = "html")]
+#[test]
 fn convert_requires_an_input() -> Result<(), Box<dyn Error>> {
     let output = run_acdc(&["convert"], None)?;
     let stderr = output_text(&output.stderr);

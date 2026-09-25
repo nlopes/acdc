@@ -1,7 +1,7 @@
 //! `ignore_filename_in_crossref`: resolving `<<file.adoc#anchor>>` as
 //! `<<anchor>>`.
 
-use acdc_parser::{InlineMacro, InlineNode, Options, parse_inline};
+use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse, parse_inline};
 
 type Error = Box<dyn std::error::Error>;
 
@@ -41,7 +41,11 @@ fn the_filename_is_kept_by_default() -> Result<(), Error> {
 
 #[test]
 fn the_filename_and_its_hash_are_dropped() -> Result<(), Error> {
-    for source in ["<<other.adoc#anchor>>", "<<other#anchor>>"] {
+    for source in [
+        "<<other.adoc#anchor>>",
+        "<<other#anchor>>",
+        "<<C:/chapters/other.adoc#anchor>>",
+    ] {
         assert_eq!(xref(source, true)?, ("anchor".to_string(), String::new()));
     }
     assert_eq!(
@@ -83,5 +87,65 @@ fn whitespace_after_the_comma_is_ignored() -> Result<(), Error> {
         assert_eq!(xref("<<anchor,  text>>", ignore_filename)?.1, "text");
     }
     assert_eq!(xref("<<other.adoc#anchor,  text>>", true)?.1, "text");
+    Ok(())
+}
+
+#[test]
+fn url_targets_are_preserved_in_both_syntaxes() -> Result<(), Error> {
+    for target in [
+        "https://example.org/other.adoc#anchor",
+        "http://example.org/other.adoc#anchor",
+        "ftp://example.org/other.adoc#anchor",
+        "irc://example.org/channel#anchor",
+        "mailto:author@example.org#anchor",
+        "//example.org/other.adoc#anchor",
+    ] {
+        for ignore_filename in [false, true] {
+            for source in [
+                format!("<<{target},Remote>>"),
+                format!("xref:{target}[Remote]"),
+            ] {
+                assert_eq!(
+                    xref(&source, ignore_filename)?,
+                    (target.to_owned(), "Remote".to_owned()),
+                    "{source}, ignore_filename={ignore_filename}"
+                );
+            }
+        }
+    }
+    for target in [
+        "file:///other.adoc#anchor",
+        "HTTPS://example.org/other.adoc#anchor",
+    ] {
+        assert_eq!(xref(&format!("<<{target},Remote>>"), true)?.0, target);
+    }
+    Ok(())
+}
+
+#[test]
+fn protected_urls_are_preserved_before_filename_removal() -> Result<(), Error> {
+    let target = "https://example.org/other.adoc#anchor";
+    let source = "<<https://example.org/pass:[other.adoc]#anchor,Remote>>\n\nxref:https://example.org/pass:[other.adoc]#anchor[Remote]\n";
+    let options = Options::builder()
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    let parsed = parse(source, &options)?;
+    let targets = parsed
+        .document()
+        .blocks
+        .iter()
+        .filter_map(|block| {
+            let Block::Paragraph(paragraph) = block else {
+                return None;
+            };
+            let InlineNode::Macro(InlineMacro::CrossReference(xref)) = paragraph.content.first()?
+            else {
+                return None;
+            };
+            Some(xref.target)
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(targets, [target, target]);
+    assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
     Ok(())
 }

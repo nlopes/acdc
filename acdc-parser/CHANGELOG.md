@@ -250,6 +250,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `#` is dropped; a target with no `#`, or with nothing after it, is left as
   written, and custom text is untouched. Without the option, references follow
   the normal Asciidoctor-compatible rules for included and external sources.
+  URL targets retain normal resolution in both cross-reference syntaxes,
+  including when the URL contains passthrough text.
 
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,

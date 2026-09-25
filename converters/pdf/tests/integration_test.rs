@@ -73,6 +73,32 @@ fn included_source_references_create_internal_pdf_destinations() -> Result<(), E
 }
 
 #[test]
+fn ignore_filename_in_crossref_preserves_external_pdf_urls() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    let parsed = parse(
+        "= URLs\n\n<<https://example.org/other.adoc#target,Remote>>\n\nxref:https://example.org/other.adoc#target[Remote]\n\n[[target]]\n== Local target\n",
+        &options,
+    )?;
+    let pdf = render_parsed(&parsed)?;
+    let page_id = *pdf.get_pages().get(&1).ok_or("missing page")?;
+    let urls = pdf
+        .get_page_annotations(page_id)?
+        .into_iter()
+        .map(|annotation| {
+            assert!(!annotation.has(b"Dest"));
+            let (_, action) = pdf.dereference(annotation.get(b"A")?)?;
+            Ok(String::from_utf8(
+                action.as_dict()?.get(b"URI")?.as_str()?.to_vec(),
+            )?)
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+    assert_eq!(urls, ["https://example.org/other.pdf#target"; 2]);
+    Ok(())
+}
+
+#[test]
 fn included_document_top_links_target_the_first_pdf_page() -> Result<(), Error> {
     for fixture in ["xref_document_top", "xref_document_top_untitled"] {
         let parsed = parse_file(

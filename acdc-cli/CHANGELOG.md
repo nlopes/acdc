@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Only a target containing a `#` with a nonempty fragment is affected, and custom
   text is kept, so `<<other.adoc#anchor,text>>` still shows `text`. Without the
   flag, references follow the normal rules for included and external sources.
+  URL targets retain normal resolution in both cross-reference syntaxes.
 
 ### Fixed
 

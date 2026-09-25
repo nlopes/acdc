@@ -166,12 +166,9 @@ pub struct Args {
 
     /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`
     ///
-    /// Only a cross-reference target that contains a `#` is affected:
-    /// everything up to and including that first `#` is dropped, so a
-    /// document assembled from includes resolves references written against
-    /// the file that defines the anchor. A target with no `#` is left exactly
-    /// as written. Custom text is kept: `<<file.adoc#anchor,text>>` still
-    /// shows `text`.
+    /// Removes the filename before `#` when the fragment is nonempty, even
+    /// when that file was not included. URLs and targets without a nonempty
+    /// fragment retain normal resolution. Custom link text is preserved.
     #[arg(long = "ignore-filename-in-crossref", visible_alias = "ifix")]
     pub ignore_filename_in_crossref: bool,
 

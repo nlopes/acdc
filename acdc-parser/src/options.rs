@@ -35,12 +35,10 @@ pub struct Options<'a> {
     pub strict: bool,
     /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`.
     ///
-    /// Only a target that contains a `#` is affected: everything up to and
-    /// including that first `#` is dropped, so a document assembled from
-    /// includes resolves references written against the file that defines the
-    /// anchor. A target with no `#` is left exactly as written, and so is one
-    /// with nothing after it. Custom text is untouched either way, so
-    /// `<<file.adoc#anchor,text>>` still shows `text`.
+    /// Removes the filename before the first `#` when the fragment is nonempty,
+    /// even when that file was not included. URLs and targets without a nonempty
+    /// fragment retain normal resolution. Custom link text is preserved.
+    /// Disabled by default.
     pub ignore_filename_in_crossref: bool,
     /// Enable Setext-style (underlined) header parsing.
     ///
