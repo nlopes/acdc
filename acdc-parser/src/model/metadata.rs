@@ -2,13 +2,16 @@
 
 use serde::Serialize;
 
-use super::anchor::Anchor;
-use super::attributes::{AttributeValue, ElementAttributes};
-use super::attribution::{Attribution, CiteTitle};
-use super::caption::Caption;
 #[cfg(feature = "pre-spec-subs")]
 use super::substitution::SubstitutionSpec;
-use super::{DocumentAttribute, location::Location};
+use super::{
+    DocumentAttribute,
+    anchor::Anchor,
+    attributes::{AttributeValue, ElementAttributes},
+    attribution::{Attribution, CiteTitle},
+    caption::Caption,
+    location::Location,
+};
 
 pub type Role<'a> = &'a str;
 
@@ -23,7 +26,10 @@ pub(crate) struct PositionalAttribute<'a> {
 pub(crate) struct DocumentAttributeEvents<'a>(Vec<DocumentAttribute<'a>>);
 
 /// A `BlockMetadata` represents the metadata of a block in a document.
-#[derive(Clone, Debug, Default, PartialEq, Serialize)]
+///
+/// Equality includes the values and empty slots from [`Self::positional_attributes`],
+/// but not their source locations. The block's own [`Self::location`] still participates.
+#[derive(Clone, Debug, Default, Serialize)]
 #[non_exhaustive]
 pub struct BlockMetadata<'a> {
     // Store uncommon parser events separately to keep each block's metadata small.
@@ -74,6 +80,50 @@ pub struct BlockMetadata<'a> {
     pub(crate) citetitle_substitutions: bool,
     #[serde(skip)]
     pub location: Option<Location>,
+}
+
+impl PartialEq for BlockMetadata<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        let Self {
+            document_attributes,
+            caption,
+            attributes,
+            positional_attributes: _,
+            retained_positional_attributes: _,
+            roles,
+            options,
+            style,
+            id,
+            anchors,
+            #[cfg(feature = "pre-spec-subs")]
+            substitutions,
+            attribution,
+            citetitle,
+            attribution_substitutions,
+            citetitle_substitutions,
+            location,
+        } = self;
+        #[cfg(feature = "pre-spec-subs")]
+        if substitutions != &other.substitutions {
+            return false;
+        }
+        document_attributes == &other.document_attributes
+            && caption == &other.caption
+            && attributes == &other.attributes
+            && roles == &other.roles
+            && options == &other.options
+            && style == &other.style
+            && id == &other.id
+            && anchors == &other.anchors
+            && attribution == &other.attribution
+            && citetitle == &other.citetitle
+            && attribution_substitutions == &other.attribution_substitutions
+            && citetitle_substitutions == &other.citetitle_substitutions
+            && location == &other.location
+            && self
+                .positional_attributes()
+                .eq(other.positional_attributes())
+    }
 }
 
 impl<'a> BlockMetadata<'a> {
@@ -151,6 +201,12 @@ impl<'a> BlockMetadata<'a> {
     ///
     /// Values remain available after context-specific routing. This positional view
     /// is not added to JSON. Markdown fence languages do not add positional slots.
+    ///
+    /// This is a snapshot of the parsed, merged slots. Changing [`Self::attributes`]
+    /// or [`Self::style`] afterward does not update it. For example, after parsing
+    /// `[source,rust]`, setting the named `language` attribute to `python` leaves
+    /// positional slot 0 as `Some("rust")`. Metadata created with [`Self::new`] or
+    /// [`Self::default`] has no positional slots; setting attributes does not add them.
     #[must_use]
     pub fn positional_attributes(&self) -> impl ExactSizeIterator<Item = Option<&'a str>> + '_ {
         self.raw_positional_attributes()
@@ -164,9 +220,26 @@ impl<'a> BlockMetadata<'a> {
             .unwrap_or(&self.positional_attributes)
     }
 
-    pub(crate) fn retain_positional_attributes(&mut self) {
+    fn retain_positional_attributes(&mut self) {
         self.retained_positional_attributes
             .get_or_insert_with(|| self.positional_attributes.clone());
+    }
+
+    pub(crate) fn take_positional_attributes<const N: usize>(
+        &mut self,
+    ) -> [Option<PositionalAttribute<'a>>; N] {
+        self.retain_positional_attributes();
+        let count = N.min(self.positional_attributes.len());
+        let mut slots = self.positional_attributes.drain(..count);
+        std::array::from_fn(|_| slots.next())
+    }
+
+    pub(crate) fn prepend_synthetic_positional_attribute(
+        &mut self,
+        attribute: PositionalAttribute<'a>,
+    ) {
+        self.retain_positional_attributes();
+        self.positional_attributes.insert(0, attribute);
     }
 
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
