@@ -1,4 +1,4 @@
-use acdc_parser::{Options, parse, parse_file};
+use acdc_parser::{Options, ParseResult, parse, parse_file};
 use lopdf::{Document as PdfDocument, Object, ObjectId, decode_text_string};
 use std::{
     collections::HashMap,
@@ -13,6 +13,10 @@ type Error = Box<dyn std::error::Error>;
 
 fn render_input(input: &str) -> Result<PdfDocument, Error> {
     let parsed = parse(input, &Options::default())?;
+    render_parsed(&parsed)
+}
+
+fn render_parsed(parsed: &ParseResult) -> Result<PdfDocument, Error> {
     let processor = Processor::new(
         ConverterOptions::default(),
         Options::builder().with_attributes(parsed.document().attributes.clone().into_inputs()),
@@ -24,6 +28,79 @@ fn render_input(input: &str) -> Result<PdfDocument, Error> {
     processor.write_to(parsed.document(), &mut output, None, None, &mut diagnostics)?;
     assert!(warnings.is_empty(), "{warnings:?}");
     Ok(PdfDocument::load_mem(&output)?)
+}
+
+#[test]
+fn included_source_references_create_internal_pdf_destinations() -> Result<(), Error> {
+    let parsed = parse_file(
+        "tests/fixtures/source/xref_included_sources.adoc",
+        &Options::default(),
+    )?;
+    let pdf = render_parsed(&parsed)?;
+    let mut internal = 0;
+    let mut external = Vec::new();
+    for page_id in pdf.get_pages().values() {
+        for annotation in pdf.get_page_annotations(*page_id)? {
+            if annotation.has(b"Dest") {
+                internal += 1;
+            } else if let Ok(action) = annotation.get(b"A") {
+                let (_, action) = pdf.dereference(action)?;
+                let action = action.as_dict()?;
+                if let Ok(uri) = action.get(b"URI") {
+                    external.push(String::from_utf8(uri.as_str()?.to_vec())?);
+                } else if action.get(b"S")?.as_name()? == b"GoTo" {
+                    internal += 1;
+                }
+            }
+        }
+    }
+    // The explicit label spans regular and bold text, producing two annotations.
+    assert_eq!(internal, 5);
+    assert_eq!(
+        external,
+        [
+            "other.pdf#included-target",
+            "https://example.org/other.pdf#included-target"
+        ]
+    );
+    let text = pdf
+        .extract_text(&[1])?
+        .split_whitespace()
+        .collect::<String>();
+    assert!(text.contains("Forward:Section1andSection1."), "{text}");
+    assert!(text.contains("[missing.id]"), "{text}");
+    Ok(())
+}
+
+#[test]
+fn included_document_top_links_target_the_first_pdf_page() -> Result<(), Error> {
+    for fixture in ["xref_document_top", "xref_document_top_untitled"] {
+        let parsed = parse_file(
+            format!("tests/fixtures/source/{fixture}.adoc"),
+            &Options::default(),
+        )?;
+        let pdf = render_parsed(&parsed)?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [1, 1, 1]);
+        let text = pdf
+            .extract_text(&[1])?
+            .split_whitespace()
+            .collect::<String>();
+        assert!(
+            text.contains("Top:[^top]and[^top].Explicit:Start."),
+            "{text}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn horizontal_description_term_anchors_target_visible_content() -> Result<(), Error> {
+    let pdf = render_input(
+        "= Horizontal anchor\n\nSee <<rule>>.\n\n<<<\n\n[horizontal]\n[[rule,Rule 1]]Rule 1:: Description.\n",
+    )?;
+    assert_eq!(pdf.get_pages().len(), 2);
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+    Ok(())
 }
 
 fn destination_page_id(pdf: &PdfDocument, destination: &Object) -> Result<ObjectId, Error> {

@@ -1,0 +1,4 @@
+[[included-target]]
+== Included target
+
+Target content with [[dotted.id]]an anchor.

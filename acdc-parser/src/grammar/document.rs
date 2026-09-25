@@ -1587,9 +1587,15 @@ fn register_document_top<'a>(
             })
         });
     let label = document
-        .header
-        .as_ref()
-        .and_then(|header| metadata_xreflabel(state, &header.metadata));
+        .attributes
+        .text("reftext")
+        .map(|label| state.intern_str(label))
+        .or_else(|| {
+            document
+                .header
+                .as_ref()
+                .and_then(|header| metadata_xreflabel(state, &header.metadata))
+        });
     let location = document.header.as_ref().map_or_else(
         || document.location.clone(),
         |header| header.location.clone(),

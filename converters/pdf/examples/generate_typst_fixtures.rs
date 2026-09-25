@@ -1,5 +1,7 @@
 //! Generate expected Typst output files for PDF integration tests.
 //!
+//! Optional arguments select fixture stems; omit them to generate all fixtures.
+//!
 //! Usage:
 //!   `cargo run -p acdc-converters-pdf --example generate_typst_fixtures --all-features`
 
@@ -20,7 +22,15 @@ fn fixture_theme(doc: &acdc_parser::Document<'_>) -> Option<std::path::PathBuf> 
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    FixtureGenerator::new("pdf", "typ").generate(|_, doc, output| {
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let names = arguments.iter().map(String::as_str).collect::<Vec<_>>();
+    let generator = FixtureGenerator::new("pdf", "typ");
+    let generator = if names.is_empty() {
+        generator
+    } else {
+        generator.with_fixtures(&names)
+    };
+    generator.generate(|_, doc, output| {
         let source_file = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/source/fixture.adoc");
         let output_dir = tempfile::tempdir()?;

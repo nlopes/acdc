@@ -1,0 +1,4 @@
+Top: xref:../includes/xref_include_target.adoc[] and xref:../includes/xref_include_target.adoc#[].
+Explicit: xref:../includes/xref_include_target.adoc[Start].
+
+include::../includes/xref_include_target.adoc[]

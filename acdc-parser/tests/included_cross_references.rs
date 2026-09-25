@@ -126,7 +126,13 @@ fn document_top_references_work_with_empty_includes() -> Result<(), Error> {
     let options = Options::builder()
         .with_base_dir("fixtures/preprocessor/xref_catalog")
         .build()?;
-    for header in ["", "= Main: Subtitle\n\n", "[reftext=Custom]\n= Main\n\n"] {
+    for header in [
+        "",
+        "= Main: Subtitle\n\n",
+        "[reftext=Custom]\n= Main\n\n",
+        "= Main\n:reftext: *Custom*\n\n",
+        ":reftext: *Custom*\n\n",
+    ] {
         let source =
             format!("{header}xref:empty.adoc[] xref:empty.adoc#[]\n\ninclude::empty.adoc[]\n");
         let parsed = parse(&source, &options)?;
@@ -141,8 +147,15 @@ fn document_top_references_work_with_empty_includes() -> Result<(), Error> {
             .references
             .get("")
             .ok_or("missing document top")?;
-        assert_eq!(top.title.is_some(), !header.is_empty());
-        assert_eq!(top.xreflabel.is_some(), header.starts_with("[reftext"));
+        assert_eq!(top.title.is_some(), header.contains("= Main"));
+        assert_eq!(top.xreflabel.is_some(), header.contains("reftext"));
+        if header.contains("*Custom*") {
+            assert!(top.xreflabel.as_ref().is_some_and(|label| {
+                label
+                    .iter()
+                    .any(|inline| matches!(inline, InlineNode::BoldText(_)))
+            }));
+        }
     }
     Ok(())
 }

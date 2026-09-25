@@ -1,0 +1,6 @@
+= Partial include
+
+External: <<../../../includes/xref_include_target.adoc#included-target>> and xref:../../../includes/xref_include_target.adoc#included-target[].
+Local: <<included-target>>.
+
+include::../../../includes/xref_include_target.adoc[lines=1..4]
