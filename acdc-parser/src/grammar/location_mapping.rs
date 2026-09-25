@@ -557,12 +557,11 @@ fn map_inline_macro<'a>(
                 let restored = replace_passthrough_placeholders(xref.target, processed);
                 if restored != xref.target {
                     xref.target = state.intern_str(&restored);
-                    if state.options.ignore_filename_in_crossref {
-                        xref.target = super::inlines::xref_filename_fragment(xref.target)
-                            .unwrap_or(xref.target);
-                    }
                     xref.target_is_local = crate::CrossReference::is_local_target(xref.target);
                     xref.resolve_natural_target = false;
+                    if state.options.ignore_filename_in_crossref {
+                        super::inlines::ignore_xref_filename(xref);
+                    }
                 }
             }
         }

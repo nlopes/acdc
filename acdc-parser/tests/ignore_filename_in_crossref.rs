@@ -1,9 +1,32 @@
 //! `ignore_filename_in_crossref`: resolving `<<file.adoc#anchor>>` as
 //! `<<anchor>>`.
 
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, parse, parse_inline};
+use acdc_parser::{
+    Block, CrossReference, InlineMacro, InlineNode, Options, WarningKind, parse, parse_inline,
+};
 
 type Error = Box<dyn std::error::Error>;
+
+fn paragraph_xrefs<'d, 'a>(blocks: &'d [Block<'a>]) -> Vec<&'d CrossReference<'a>> {
+    blocks
+        .iter()
+        .filter_map(|block| {
+            if let Block::Paragraph(paragraph) = block {
+                Some(&paragraph.content)
+            } else {
+                None
+            }
+        })
+        .flatten()
+        .filter_map(|inline| {
+            if let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline {
+                Some(xref)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
 /// The target and plain text of the single cross-reference in `source`.
 fn xref(source: &str, ignore_filename: bool) -> Result<(String, String), Error> {
@@ -147,5 +170,108 @@ fn protected_urls_are_preserved_before_filename_removal() -> Result<(), Error> {
         .collect::<Vec<_>>();
     assert_eq!(targets, [target, target]);
     assert!(parsed.warnings().is_empty(), "{:?}", parsed.warnings());
+    Ok(())
+}
+
+#[test]
+fn forced_fragments_are_local_for_both_syntaxes() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    for target in [
+        "rule.1",
+        "urn:rule",
+        "chapter.adoc",
+        "chapter#rule",
+        "path/rule",
+    ] {
+        for source in [
+            format!("<<other.adoc#{target},Explicit>>"),
+            format!("xref:other.adoc#{target}[Explicit]"),
+        ] {
+            let parsed = parse_inline(&source, &options)?;
+            let [InlineNode::Macro(InlineMacro::CrossReference(xref))] = parsed.inlines() else {
+                return Err(format!("missing xref: {source}").into());
+            };
+            assert_eq!(xref.target, target);
+            assert!(xref.target_is_local, "{source}");
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn forced_fragments_use_local_diagnostics_and_natural_labels() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    let source = "xref:other.adoc#rule.1[Explicit] <<other.adoc#rule.1>> <<other.adoc#Rule>>\n\nxref:other.adoc#missing.id[] <<other.adoc#missing:id,Missing>>\n\nxref:other.adoc#++rule.1++[Protected]\n\n[[rule.1]]\n== Rule\n";
+    let parsed = parse(source, &options)?;
+    let xrefs = paragraph_xrefs(&parsed.document().blocks);
+    assert_eq!(
+        xrefs.iter().map(|xref| xref.target).collect::<Vec<_>>(),
+        [
+            "rule.1",
+            "rule.1",
+            "rule.1",
+            "missing.id",
+            "missing:id",
+            "rule.1"
+        ]
+    );
+    assert!(xrefs.iter().all(|xref| xref.target_is_local));
+    let warnings = parsed.warnings();
+    assert_eq!(warnings.len(), 2, "{warnings:?}");
+    for (warning, expected) in warnings.iter().zip(["missing.id", "missing:id"]) {
+        assert!(
+            matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == expected)
+        );
+        assert_eq!(
+            warning
+                .source_location()
+                .ok_or("missing source")?
+                .location
+                .start
+                .line,
+            3
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn forced_fragments_are_not_reinterpreted_as_source_paths() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_base_dir("fixtures/preprocessor/xref_catalog")
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    let parsed = parse(
+        "xref:other.adoc#chapter.adoc[Literal ID]\n\ninclude::chapter.adoc[]\n",
+        &options,
+    )?;
+    let xrefs = paragraph_xrefs(&parsed.document().blocks);
+    let [xref] = xrefs.as_slice() else {
+        return Err("missing xref".into());
+    };
+    assert_eq!(xref.target, "chapter.adoc");
+    assert!(xref.target_is_local);
+    assert!(!parsed.document().references.contains_key(""));
+    assert!(
+        matches!(parsed.warnings(), [warning] if matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "chapter.adoc"))
+    );
+    Ok(())
+}
+
+#[test]
+fn forcing_a_fragment_does_not_load_the_named_file() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_base_dir("fixtures/tests")
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    let parsed = parse("xref:xref_include_target.adoc#included-target[]", &options)?;
+    assert!(parsed.document().references.is_empty());
+    assert!(
+        matches!(parsed.warnings(), [warning] if matches!(&warning.kind, WarningKind::UnresolvedReference { target } if target == "included-target"))
+    );
     Ok(())
 }

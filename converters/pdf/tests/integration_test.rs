@@ -99,6 +99,23 @@ fn ignore_filename_in_crossref_preserves_external_pdf_urls() -> Result<(), Error
 }
 
 #[test]
+fn ignore_filename_in_crossref_keeps_punctuated_pdf_targets_local() -> Result<(), Error> {
+    let options = Options::builder()
+        .with_ignore_filename_in_crossref()
+        .build()?;
+    let parsed = parse(
+        "= Local fragments\n\n<<other.adoc#rule.1,Rule one>>\n\nxref:other.adoc#rule.1[Rule one]\n\n<<other.adoc#Rule one>>\n\nxref:other.adoc#missing.id[Missing]\n\n<<<\n\n[[rule.1]]\n== Rule one\n",
+        &options,
+    )?;
+    assert_eq!(parsed.warnings().len(), 1);
+    let pdf = render_parsed(&parsed)?;
+    assert_eq!(pdf.get_pages().len(), 2);
+    assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2, 2]);
+    assert!(pdf.extract_text(&[1])?.contains("Missing"));
+    Ok(())
+}
+
+#[test]
 fn included_document_top_links_target_the_first_pdf_page() -> Result<(), Error> {
     for fixture in ["xref_document_top", "xref_document_top_untitled"] {
         let parsed = parse_file(

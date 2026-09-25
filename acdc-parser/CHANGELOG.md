@@ -252,6 +252,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the normal Asciidoctor-compatible rules for included and external sources.
   URL targets retain normal resolution in both cross-reference syntaxes,
   including when the URL contains passthrough text.
+  Forced fragments remain local when their IDs contain punctuation, and missing
+  anchors produce unresolved-reference warnings.
 
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,

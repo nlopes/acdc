@@ -24,7 +24,15 @@ use super::{
     state::{InlineContext, InlineRules, ParserScope},
 };
 
-pub(super) fn xref_filename_fragment(target: &str) -> Option<&str> {
+pub(super) fn ignore_xref_filename(xref: &mut crate::CrossReference<'_>) {
+    if let Some(fragment) = xref_filename_fragment(xref.target) {
+        xref.target = fragment;
+        xref.target_is_local = true;
+        xref.source_syntax = crate::model::XrefSourceSyntax::LocalFragment;
+    }
+}
+
+fn xref_filename_fragment(target: &str) -> Option<&str> {
     // Protected text must be restored before deciding whether the prefix is a URL.
     if target.contains("���") {
         return None;
@@ -1670,11 +1678,7 @@ peg::parser! {
         = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
-            let target_str: &'input str = if state.options.ignore_filename_in_crossref {
-                xref_filename_fragment(target).unwrap_or(target)
-            } else {
-                target
-            };
+            let target_str: &'input str = target;
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -1710,6 +1714,9 @@ peg::parser! {
             xref.resolve_natural_target = !state.document_attributes.contains_key("compat-mode");
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
+            }
+            if state.options.ignore_filename_in_crossref {
+                ignore_xref_filename(&mut xref);
             }
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
@@ -1747,11 +1754,6 @@ peg::parser! {
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
                 None => state.intern_fmt(format_args!("{target}")),
             };
-            let target_str = if state.options.ignore_filename_in_crossref {
-                xref_filename_fragment(target_str).unwrap_or(target_str)
-            } else {
-                target_str
-            };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
                 ..BlockParsingMetadata::default()
@@ -1787,6 +1789,9 @@ peg::parser! {
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             if !state.document_attributes.contains_key("compat-mode") {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
+            }
+            if state.options.ignore_filename_in_crossref {
+                ignore_xref_filename(&mut xref);
             }
             // A per-reference `xrefstyle=` wins over the document's, including
             // an unrecognised one, which Asciidoctor treats as `basic`.

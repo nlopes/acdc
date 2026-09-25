@@ -308,6 +308,8 @@ pub(crate) enum XrefSourceSyntax {
     Literal,
     Shorthand,
     Macro,
+    /// The filename-ignore option has already reduced the target to a local ID.
+    LocalFragment,
 }
 
 /// The word that introduces a section number in an automatic cross-reference.

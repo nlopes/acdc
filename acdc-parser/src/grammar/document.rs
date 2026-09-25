@@ -1520,7 +1520,10 @@ fn resolve_source_target<'a>(
 ) -> Option<&'a str> {
     use crate::model::XrefSourceSyntax;
 
-    if matches!(syntax, XrefSourceSyntax::Literal) {
+    if matches!(
+        syntax,
+        XrefSourceSyntax::Literal | XrefSourceSyntax::LocalFragment
+    ) {
         return None;
     }
     let (path, fragment) = match target.split_once('#') {
@@ -1541,7 +1544,7 @@ fn resolve_source_target<'a>(
         XrefSourceSyntax::Macro => path
             .strip_suffix(".adoc")
             .or_else(|| (!path.rsplit('/').next().unwrap_or(path).contains('.')).then_some(path))?,
-        XrefSourceSyntax::Literal => return None,
+        XrefSourceSyntax::Literal | XrefSourceSyntax::LocalFragment => return None,
     };
     (state.document_attributes.text("docname") == Some(stem) || state.included_files.contains(stem))
         .then_some(fragment)
@@ -3023,7 +3026,9 @@ peg::parser! {
                 {
                     reference.automatic_citation = true;
                 }
-                if (source_target.is_some() || is_internal_reference(target))
+                if (source_target.is_some()
+                    || matches!(xref.source_syntax, crate::model::XrefSourceSyntax::LocalFragment)
+                    || is_internal_reference(target))
                     && !reference_ids.contains(target)
                 {
                     let source_location = state.create_error_source_location(xref.location);

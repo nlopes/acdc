@@ -57,7 +57,7 @@ fn no_command_features_return_a_clear_diagnostic() -> Result<(), Box<dyn Error>>
 #[cfg(feature = "html")]
 #[test]
 fn ignore_filename_in_crossref_resolves_the_anchor() -> Result<(), Box<dyn Error>> {
-    let document = "= Doc\n\nSee <<other.adoc#target>>.\n\n[[target]]\n== Target\n";
+    let document = "= Doc\n\nSee <<other.adoc#rule.1>> and xref:other.adoc#rule.1[custom].\n\n[[rule.1]]\n== Target\n";
 
     for flag in ["--ignore-filename-in-crossref", "--ifix"] {
         let output = run_acdc(
@@ -68,7 +68,7 @@ fn ignore_filename_in_crossref_resolves_the_anchor() -> Result<(), Box<dyn Error
 
         assert!(output.status.success(), "{}", output_text(&output.stderr));
         assert!(
-            html.contains("See <a href=\"#target\">Target</a>."),
+            html.contains("See <a href=\"#rule.1\">Target</a> and <a href=\"#rule.1\">custom</a>."),
             "{flag} produced {html}"
         );
     }
@@ -77,7 +77,7 @@ fn ignore_filename_in_crossref_resolves_the_anchor() -> Result<(), Box<dyn Error
     let html = output_text(&output.stdout);
     assert!(output.status.success(), "{}", output_text(&output.stderr));
     assert!(
-        html.contains("See <a href=\"other.html#target\">other.html</a>."),
+        html.contains("See <a href=\"other.html#rule.1\">other.html</a> and <a href=\"other.html#rule.1\">custom</a>."),
         "{html}"
     );
     Ok(())
