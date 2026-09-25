@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Source locations for single characters after inline passthroughs remain in
+  order and point to the original text, including multibyte characters.
+
 - Cross-references to the current file or fully included AsciiDoc files resolve
   within the document, including forward references and document-top links.
   Partial includes and other files remain external. Reference resolution does
