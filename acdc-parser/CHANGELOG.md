@@ -234,6 +234,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value at each reference's source position. Reference numbers continue beyond
   `sectnumlevels`, matching Asciidoctor, and are refreshed after sections are
   renumbered.
+- Extension authors can read ordered positional block attributes, including empty
+  slots, after parsing. Existing parsing behavior and JSON output are unchanged.
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,
   safe-mode values, masked home paths, and active convenience attributes.

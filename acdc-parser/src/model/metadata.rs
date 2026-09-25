@@ -36,11 +36,12 @@ pub struct BlockMetadata<'a> {
     pub caption: Option<Caption<'a>>,
     #[serde(default, skip_serializing_if = "ElementAttributes::is_empty")]
     pub attributes: ElementAttributes<'a>,
-    /// Parser intermediate state: positional attrs from `[foo,bar,baz]` that
-    /// have not yet been routed to context-specific slots or merged into
-    /// `attributes`. Grammar rules drain these before finalising the block.
+    /// Parser working slots, consumed as attributes are routed to their block context.
     #[serde(default, skip_serializing)]
     pub(crate) positional_attributes: Vec<PositionalAttribute<'a>>,
+    // Preserve the original slots before routing consumes or inserts working slots.
+    #[serde(skip)]
+    pub(crate) retained_positional_attributes: Option<Vec<PositionalAttribute<'a>>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<Role<'a>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -123,18 +124,66 @@ impl<'a> BlockMetadata<'a> {
         self
     }
 
+    /// Return a non-empty retained positional attribute by its zero-based slot.
+    ///
+    /// Returns `None` when the slot is empty or absent. See
+    /// [`Self::positional_attributes`] for ordering, substitution, and merge behavior.
+    #[must_use]
+    pub fn positional_attribute(&self, index: usize) -> Option<&'a str> {
+        self.raw_positional_attributes()
+            .get(index)
+            .map(|attribute| attribute.value)
+            .filter(|value| !value.is_empty())
+    }
+
+    /// Iterate over retained positional slots after the first attribute-list entry.
+    ///
+    /// The first entry is usually a block style, or alt text or a poster in a media
+    /// macro. It is excluded even when parsing consumes or clears [`Self::style`].
+    ///
+    /// For block attribute lists, surrounding quotes are removed and document-attribute
+    /// references are expanded; inline markup remains literal. Empty strings (quoted
+    /// or unquoted) and gaps before later positional values yield `None`. For example,
+    /// `[tikz,target=x,svg]` yields `[None, Some("svg")]`; trailing named attributes do
+    /// not extend the iterator.
+    /// Consecutive lists merge by slot: later slots replace earlier ones, including
+    /// empty slots, while earlier trailing slots remain.
+    ///
+    /// Values remain available after context-specific routing. This positional view
+    /// is not added to JSON. Markdown fence languages do not add positional slots.
+    #[must_use]
+    pub fn positional_attributes(&self) -> impl ExactSizeIterator<Item = Option<&'a str>> + '_ {
+        self.raw_positional_attributes()
+            .iter()
+            .map(|attribute| (!attribute.value.is_empty()).then_some(attribute.value))
+    }
+
+    pub(crate) fn raw_positional_attributes(&self) -> &[PositionalAttribute<'a>] {
+        self.retained_positional_attributes
+            .as_deref()
+            .unwrap_or(&self.positional_attributes)
+    }
+
+    pub(crate) fn retain_positional_attributes(&mut self) {
+        self.retained_positional_attributes
+            .get_or_insert_with(|| self.positional_attributes.clone());
+    }
+
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
-        if self.style == Some("source") {
-            self.positional_attributes.clear();
-            return;
-        }
-        for positional_attribute in self.positional_attributes.drain(..) {
-            if !positional_attribute.value.is_empty() {
-                self.attributes.insert(
-                    std::borrow::Cow::Borrowed(positional_attribute.value),
-                    AttributeValue::None,
-                );
+        let positional_attributes = std::mem::take(&mut self.positional_attributes);
+        if self.style != Some("source") {
+            for attribute in &positional_attributes {
+                if !attribute.value.is_empty() {
+                    self.attributes.insert(
+                        std::borrow::Cow::Borrowed(attribute.value),
+                        AttributeValue::None,
+                    );
+                }
             }
+        }
+        // Moving at finalization avoids cloning slots that routing did not consume.
+        if self.retained_positional_attributes.is_none() {
+            self.retained_positional_attributes = Some(positional_attributes);
         }
     }
 
@@ -169,15 +218,7 @@ impl<'a> BlockMetadata<'a> {
     }
 
     pub(crate) fn overlay_positional_attributes(&mut self, other: &[PositionalAttribute<'a>]) {
-        if self.positional_attributes.len() < other.len() {
-            self.positional_attributes
-                .resize(other.len(), PositionalAttribute::default());
-        }
-        for (slot, attribute) in other.iter().enumerate() {
-            if let Some(destination) = self.positional_attributes.get_mut(slot) {
-                destination.clone_from(attribute);
-            }
-        }
+        overlay_positional_slots(&mut self.positional_attributes, other);
     }
 
     /// Whether this metadata serializes to nothing.
@@ -214,6 +255,14 @@ impl<'a> BlockMetadata<'a> {
         for (name, value) in other.attributes.iter() {
             self.attributes.set(name.clone(), value.clone());
         }
+        if self.retained_positional_attributes.is_some()
+            || other.retained_positional_attributes.is_some()
+        {
+            self.retain_positional_attributes();
+            if let Some(retained) = &mut self.retained_positional_attributes {
+                overlay_positional_slots(retained, other.raw_positional_attributes());
+            }
+        }
         self.overlay_positional_attributes(&other.positional_attributes);
         if !other.roles.is_empty() {
             self.roles.clone_from(&other.roles);
@@ -240,5 +289,17 @@ impl<'a> BlockMetadata<'a> {
             self.citetitle.clone_from(&other.citetitle);
             self.citetitle_substitutions = other.citetitle_substitutions;
         }
+    }
+}
+
+fn overlay_positional_slots<'a>(
+    destination: &mut Vec<PositionalAttribute<'a>>,
+    source: &[PositionalAttribute<'a>],
+) {
+    if destination.len() < source.len() {
+        destination.resize(source.len(), PositionalAttribute::default());
+    }
+    for (destination, attribute) in destination.iter_mut().zip(source) {
+        destination.clone_from(attribute);
     }
 }

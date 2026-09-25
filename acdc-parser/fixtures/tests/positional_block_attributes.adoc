@@ -1,0 +1,73 @@
+= Positional block attributes
+:author-name: Alice
+
+[wavedrom, , svg]
+....
+{reg:[]}
+....
+
+[tikz,,svg,float="center",align="center",preamble=true,command=lualatex]
+....
+\begin{tikzpicture}
+\end{tikzpicture}
+....
+
+[tikz,target=diagram,svg]
+....
+x
+....
+
+[,,]
+paragraph
+
+```rust
+fn main() {}
+```
+
+[source,rust,linenums,extra]
+----
+x
+----
+
+[quote,'*{author-name}*','Book, One']
+____
+Text.
+____
+
+[verse,'*{author-name}*','Book, One']
+____
+Text.
+____
+
+[stem,asciimath,extra]
+++++
+sqrt(4)
+++++
+
+[tikz,old,svg]
+[tikz,new]
+....
+x
+....
+
+[tikz,old,svg]
+[tikz,,pdf]
+....
+x
+....
+
+[tikz,old,svg]
+[tikz,target=new]
+....
+x
+....
+
+[tikz,"",svg]
+....
+x
+....
+
+[tikz,'*{author-name}*',svg]
+....
+x
+....

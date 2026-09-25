@@ -770,6 +770,17 @@ mod tests {
             .location();
         assert_eq!(citetitle.start.line, 3, "citetitle origin line");
         assert_eq!(file_name(citetitle), part, "citetitle origin file");
+        assert_eq!(
+            metadata.positional_attributes().collect::<Vec<_>>(),
+            vec![Some("Brian Quote"), Some("The Source Book")]
+        );
+        for (slot, expected_location) in metadata
+            .raw_positional_attributes()
+            .iter()
+            .zip([attribution, citetitle])
+        {
+            assert_eq!(slot.location.as_ref(), Some(expected_location));
+        }
         Ok(())
     }
 
@@ -936,6 +947,80 @@ mod tests {
             Some(&expected),
             "document end carries the include chain it ends in",
         );
+        Ok(())
+    }
+
+    #[rstest::rstest]
+    #[case("fixtures/tests/positional_block_attributes.adoc", &[
+        &[None, Some("svg")][..],
+        &[None, Some("svg")],
+        &[None, Some("svg")],
+        &[None, None],
+        &[],
+        &[Some("rust"), Some("linenums"), Some("extra")],
+        &[Some("*Alice*"), Some("Book, One")],
+        &[Some("*Alice*"), Some("Book, One")],
+        &[Some("asciimath"), Some("extra")],
+        &[Some("new"), Some("svg")],
+        &[None, Some("pdf")],
+        &[Some("old"), Some("svg")],
+        &[None, Some("svg")],
+        &[Some("*Alice*"), Some("svg")],
+    ])]
+    #[case("fixtures/tests/positional_attribute_routing.adoc", &[
+        &[Some("Alice"), Some("Book")][..],
+        &[Some("Alice"), Some("Book"), Some("linenums")],
+        &[Some("Alice"), Some("Book"), Some("extra")],
+        &[Some("100"), Some("200"), Some("extra")],
+        &[Some("Alice"), Some("Book"), Some("extra")],
+        &[Some("100"), Some("200"), Some("extra")],
+        &[Some("Alice"), Some("Book"), Some("extra")],
+        &[Some("rust"), Some("Book"), Some("extra")],
+    ])]
+    #[case("fixtures/tests/image_dimensions.adoc", &[
+        &[Some("Alice"), Some("Book")][..],
+        &[Some("100"), Some("200")],
+        &[Some("100"), Some("200")],
+        &[Some("300"), Some("400")],
+        &[None, Some("400")],
+        &[Some("300"), Some("400")],
+        &[],
+        &[Some("300"), Some("400")],
+    ])]
+    #[case("fixtures/tests/video_dimensions.adoc", &[
+        &[Some("Alice"), Some("Book")][..],
+        &[Some("100"), Some("200")],
+        &[Some("100"), Some("200")],
+        &[Some("300"), Some("400")],
+        &[None, Some("400")],
+        &[Some("300"), Some("400")],
+        &[],
+        &[Some("300"), Some("400")],
+    ])]
+    fn test_retained_positional_attributes(
+        #[case] path: &str,
+        #[case] expected: &[&[Option<&str>]],
+    ) -> Result<(), Box<dyn StdError>> {
+        let parsed = parse_file(path, &Options::default())?;
+        let metadata: Vec<_> = parsed
+            .document()
+            .blocks
+            .iter()
+            .filter_map(Block::metadata)
+            .collect();
+        assert_eq!(metadata.len(), expected.len());
+        for (index, (metadata, positions)) in metadata.iter().zip(expected).enumerate() {
+            assert_eq!(
+                metadata.positional_attributes().collect::<Vec<_>>(),
+                *positions,
+                "block {index} in {path}",
+            );
+            assert_eq!(metadata.positional_attributes().len(), positions.len());
+            for (slot, expected) in positions.iter().enumerate() {
+                assert_eq!(metadata.positional_attribute(slot), *expected);
+            }
+            assert_eq!(metadata.positional_attribute(positions.len()), None);
+        }
         Ok(())
     }
 

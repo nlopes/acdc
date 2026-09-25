@@ -1505,6 +1505,7 @@ peg::parser! {
                     escaped: false,
                 })]);
             }
+            metadata.retain_positional_attributes();
             if metadata.positional_attributes.len() >= 2 {
                 metadata.attributes.insert("height".into(), AttributeValue::String(Cow::Borrowed(metadata.positional_attributes.remove(1).value)));
             }
