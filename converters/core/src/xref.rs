@@ -118,15 +118,16 @@ pub fn resolve_xref<'r, 'a>(
     guard: &'r XrefGuard,
 ) -> XrefDisplay<'r, 'a> {
     let target = xref.target;
+    let fallback = if target.is_empty() { "^top" } else { target };
     let Some(reference) = reference else {
-        return if is_interdocument_target(target) {
-            XrefDisplay::External(target.to_string())
+        return if xref.target_is_local {
+            XrefDisplay::Unresolved(format!("[{fallback}]"))
         } else {
-            XrefDisplay::Unresolved(format!("[{target}]"))
+            XrefDisplay::External(target.to_string())
         };
     };
     if guard.is_resolving() {
-        return XrefDisplay::Nested(format!("[{target}]"));
+        return XrefDisplay::Nested(format!("[{fallback}]"));
     }
     if let Some(label) = &reference.xreflabel {
         XrefDisplay::Label(label, guard.enter())
@@ -166,7 +167,7 @@ pub fn resolve_xref<'r, 'a>(
     } else if let Some(title) = &reference.title {
         XrefDisplay::Title(title.as_ref(), guard.enter())
     } else {
-        XrefDisplay::Fallback(format!("[{target}]"))
+        XrefDisplay::Fallback(format!("[{fallback}]"))
     }
 }
 

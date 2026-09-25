@@ -62,7 +62,9 @@ pub struct Document<'a> {
     /// Cross-reference targets keyed by id, for O(1) `<<id>>` resolution.
     /// Covers sections, blocks, explicit inline anchors, and IDs on formatted
     /// inline spans; collected during parsing. `toc_entries` remains the ordered
-    /// list used to render the table of contents. Like `toc_entries` and
+    /// list used to render the table of contents. An empty key supplies the
+    /// document title or label when a reference addresses the document top.
+    /// Like `toc_entries` and
     /// `footnotes`, this is not serialized.
     pub references: HashMap<&'a str, Reference<'a>>,
     pub location: Location,

@@ -1,0 +1,25 @@
+= Included references
+:sectnums:
+:xrefstyle: short
+
+Shorthand: <<xref_include_target.adoc#included-target>>.
+
+Macro: xref:xref_include_target.adoc#included-target[].
+
+Explicit: <<xref_include_target.adoc#included-target,Custom *label*>>.
+
+Self: <<xref_included_sources.adoc#included-target>>.
+
+External same ID: <<other.adoc#included-target>>.
+
+External URL: xref:https://example.org/other.adoc#included-target[External].
+
+Missing local: xref:xref_include_target.adoc#missing-target[].
+
+Extensionless: <<xref_include_target#included-target>>.
+
+Unnormalized: xref:./xref_include_target.adoc#included-target[].
+
+include::xref_include_target.adoc[]
+
+Backward: <<xref_include_target.adoc#included-target>>.

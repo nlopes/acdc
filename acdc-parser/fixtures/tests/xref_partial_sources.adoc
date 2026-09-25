@@ -1,0 +1,9 @@
+= Partial references
+
+Shorthand: <<xref_include_target.adoc#included-target>>.
+
+Macro: xref:xref_include_target.adoc#included-target[].
+
+Local: <<included-target>>.
+
+include::xref_include_target.adoc[lines=1..4]

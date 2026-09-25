@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- File-qualified references to fully included sources create internal PDF
+  links and honor `xrefstyle`. Whole-document references link to the first
+  page and display `[^top]` unless text is supplied, matching asciidoctor-pdf.
+
 - Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
   matching Asciidoctor. Selected styles retain this emphasis for unnumbered
   chapters; omitted or unset styles keep the title as written.

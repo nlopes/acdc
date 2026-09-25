@@ -1405,6 +1405,7 @@ struct CrossReferenceUse<'a> {
     location: Location,
     automatic: bool,
     resolve_natural_target: bool,
+    source_syntax: crate::model::XrefSourceSyntax,
 }
 
 fn insert_untitled_reference<'a>(
@@ -1456,12 +1457,21 @@ fn finalize_cross_references<'a>(
         let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
             return;
         };
-        xref.target = resolve_xref_target(
-            xref.target,
-            xref.resolve_natural_target,
-            reference_ids,
-            natural_targets,
-        );
+        if let Some(target) = resolve_source_target(state, xref.target, xref.source_syntax) {
+            xref.target = target;
+            xref.target_is_local = true;
+        } else {
+            let target = resolve_xref_target(
+                xref.target,
+                xref.resolve_natural_target,
+                reference_ids,
+                natural_targets,
+            );
+            if target != xref.target {
+                xref.target_is_local = true;
+            }
+            xref.target = target;
+        }
         let Some(snapshot) = xref.caption_label_snapshot_id.take() else {
             return;
         };
@@ -1512,6 +1522,92 @@ fn register_section_header<'a>(
     (title, numbering, reference_text)
 }
 
+// Resolve against files that preprocessing already included. Cross-references never
+// load their targets, and xref paths are compared as written, as in Asciidoctor.
+#[allow(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "Asciidoctor recognizes only the lowercase .adoc suffix in xref macros"
+)]
+fn resolve_source_target<'a>(
+    state: &ParserState<'_>,
+    target: &'a str,
+    syntax: crate::model::XrefSourceSyntax,
+) -> Option<&'a str> {
+    use crate::model::XrefSourceSyntax;
+
+    if matches!(syntax, XrefSourceSyntax::Literal) {
+        return None;
+    }
+    let (path, fragment) = match target.split_once('#') {
+        Some(parts) => parts,
+        None if matches!(syntax, XrefSourceSyntax::Macro) && target.ends_with(".adoc") => {
+            (target, "")
+        }
+        None => return None,
+    };
+    if path.is_empty() {
+        return Some(fragment);
+    }
+    let stem = match syntax {
+        XrefSourceSyntax::Shorthand => [".adoc", ".asciidoc", ".asc", ".ad", ".txt"]
+            .iter()
+            .find_map(|extension| path.strip_suffix(extension))
+            .unwrap_or(path),
+        XrefSourceSyntax::Macro => path
+            .strip_suffix(".adoc")
+            .or_else(|| (!path.rsplit('/').next().unwrap_or(path).contains('.')).then_some(path))?,
+        XrefSourceSyntax::Literal => return None,
+    };
+    (state.document_attributes.text("docname") == Some(stem) || state.included_files.contains(stem))
+        .then_some(fragment)
+}
+
+fn register_document_top<'a>(
+    state: &mut ParserState<'a>,
+    document: &mut Document<'a>,
+    xrefs: &[CrossReferenceUse<'a>],
+) {
+    if !xrefs
+        .iter()
+        .any(|xref| resolve_source_target(state, xref.target, xref.source_syntax) == Some(""))
+    {
+        return;
+    }
+    let title = document
+        .header
+        .as_ref()
+        .map(header_reference_title)
+        .or_else(|| {
+            document.blocks.iter().find_map(|block| {
+                if let Block::Section(section) = block {
+                    Some(section.title.clone())
+                } else {
+                    None
+                }
+            })
+        });
+    let label = document
+        .header
+        .as_ref()
+        .and_then(|header| metadata_xreflabel(state, &header.metadata));
+    let location = document.header.as_ref().map_or_else(
+        || document.location.clone(),
+        |header| header.location.clone(),
+    );
+    document.references.insert(
+        "",
+        Reference {
+            xreflabel: parse_reference_label(state, label, &location),
+            title,
+            location,
+            caption: None,
+            section: None,
+            bibliography: false,
+            automatic_citation: false,
+        },
+    );
+}
+
 /// Finalize a cross-reference target after IDs and reference-text aliases are known.
 ///
 /// Exact IDs are kept. Reference-text lookup applies only when enabled at the
@@ -1522,7 +1618,7 @@ fn resolve_xref_target<'a>(
     reference_ids: &HashSet<&'a str>,
     natural_targets: &HashMap<&'a str, &'a str>,
 ) -> &'a str {
-    if !resolve_natural_target || reference_ids.contains(target) {
+    if !resolve_natural_target || target.contains('#') || reference_ids.contains(target) {
         return target;
     }
     let resembles_reference_text = target.contains(' ') || target.chars().any(char::is_uppercase);
@@ -1887,6 +1983,7 @@ fn collect_inline_references<'a>(
                     location: xref.location.clone(),
                     automatic: xref.text.is_empty(),
                     resolve_natural_target: xref.resolve_natural_target,
+                    source_syntax: xref.source_syntax,
                 });
                 collect_inline_references(state, &xref.text, refs, xrefs);
             }
@@ -2915,25 +3012,29 @@ peg::parser! {
                 toc_entries,
                 references: references.entries,
             };
+            register_document_top(state, &mut document, &xrefs);
             let reference_ids = document.references.keys().copied().collect::<HashSet<_>>();
 
             // An internal `<<id>>` whose target is absent from the catalog is an
             // unresolved (broken) reference. Inter-document/external targets
             // (those addressing another resource) are not validated here.
             for xref in xrefs {
-                let target = resolve_xref_target(
+                let source_target = resolve_source_target(state, xref.target, xref.source_syntax);
+                let target = source_target.unwrap_or_else(|| resolve_xref_target(
                     xref.target,
                     xref.resolve_natural_target,
                     &reference_ids,
                     &references.natural_targets,
-                );
+                ));
                 if xref.automatic
                     && let Some(reference) = document.references.get_mut(target)
                     && reference.is_bibliography()
                 {
                     reference.automatic_citation = true;
                 }
-                if is_internal_reference(target) && !reference_ids.contains(target) {
+                if (source_target.is_some() || is_internal_reference(target))
+                    && !reference_ids.contains(target)
+                {
                     let source_location = state.create_error_source_location(xref.location);
                     state.add_warning(Warning::new(
                         WarningKind::UnresolvedReference {

@@ -3319,6 +3319,21 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         let guard = self.processor.xref_guard.clone();
         let target = xref.target;
 
+        if xref.target_is_local && target.is_empty() {
+            if guard.is_resolving() {
+                self.write_text_expr("[^top]");
+                return Ok(());
+            }
+            self.writer.raw("#link((page: 1, x: 0pt, y: 0pt))[");
+            if xref.text.is_empty() {
+                self.write_text_expr("[^top]");
+            } else {
+                self.write_inlines(traversal, &xref.text)?;
+            }
+            self.writer.raw("]");
+            return Ok(());
+        }
+
         if xref.text.is_empty()
             && references
                 .get(target)
@@ -3332,7 +3347,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         }
 
         if !xref.text.is_empty() {
-            if let Some((external_target, _)) = Self::interdocument_xref(traversal, target) {
+            if !xref.target_is_local
+                && let Some((external_target, _)) = Self::interdocument_xref(traversal, target)
+            {
                 self.write_external_link(&external_target, |visitor| {
                     visitor.write_inlines(traversal, &xref.text)
                 })?;

@@ -107,6 +107,8 @@ pub(crate) struct ParserState<'a> {
     /// preprocessor when processing `include::` directives. Used to produce accurate
     /// file/line info in warnings.
     pub(crate) source_ranges: Vec<SourceRange>,
+    /// Full include names used by document-level cross-reference resolution.
+    pub(crate) included_files: HashSet<String>,
     /// Warnings collected during PEG parsing. Shared across the top-level state and any
     /// `for_inline_parsing` sub-states via `Rc`, so warnings raised during nested inline
     /// parses (author lines, revision lines, substituted inline content) reach the
@@ -505,6 +507,7 @@ impl<'a> ParserState<'a> {
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: false,
             outer_constrained_delimiter: None,
@@ -541,6 +544,7 @@ impl<'a> ParserState<'a> {
             current_file: None,
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             warnings: Rc::new(RefCell::new(Vec::new())),
             quotes_only: true,
             outer_constrained_delimiter: None,
@@ -580,6 +584,7 @@ impl<'a> ParserState<'a> {
             current_file: parent.current_file.clone(),
             leveloffset_ranges: Vec::new(),
             source_ranges: Vec::new(),
+            included_files: HashSet::new(),
             // Share the parent's warnings vec so anything raised during a
             // nested inline sub-parse reaches the top-level `ParseResult`
             // without a separate drain step.
