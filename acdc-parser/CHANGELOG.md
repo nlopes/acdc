@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Cross-references to the current file or fully included AsciiDoc files resolve
+  within the document, including forward references and document-top links.
+  Partial includes and other files remain external. Reference resolution does
+  not read additional files.
+
 - Named `reftext` on blocks supplies automatic cross-reference text and natural
   reference aliases, with inline formatting and attribute expansion. Explicit
   link text still wins, and the last named or anchor label takes precedence,

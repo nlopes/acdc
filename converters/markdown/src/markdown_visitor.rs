@@ -2397,7 +2397,9 @@ impl<'a, W: Write> MarkdownVisitor<'a, '_, W> {
     ) -> Result<(), Error> {
         let target = xref.target;
         if !xref.text.is_empty() {
-            if let Some((destination, _)) = Self::interdocument_xref(traversal, target) {
+            if !xref.target_is_local
+                && let Some((destination, _)) = Self::interdocument_xref(traversal, target)
+            {
                 return self.write_link(&destination, |visitor| {
                     for node in &xref.text {
                         visitor.visit_inline_node(traversal, node)?;

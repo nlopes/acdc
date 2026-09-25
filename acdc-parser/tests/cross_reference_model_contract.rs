@@ -39,6 +39,9 @@ fn cross_reference_model_equality_ignores_parser_state() -> Result<(), Error> {
     let expected = CrossReference::new("id", actual.location.clone());
 
     assert_eq!(actual, &expected);
+    let mut differing_destination = expected.clone();
+    differing_destination.target_is_local = false;
+    assert_ne!(actual, &differing_destination);
     let mut differing_style = expected.clone();
     differing_style.xrefstyle = XrefStyle::Full;
     assert_ne!(actual, &differing_style);
@@ -63,6 +66,7 @@ fn cross_reference_model_debug_ignores_parser_state() -> Result<(), Error> {
     }
     assert!(!actual_debug.contains("caption_label_snapshot_id"));
     assert!(!actual_debug.contains("resolve_natural_target"));
+    assert!(!actual_debug.contains("source_syntax"));
     Ok(())
 }
 

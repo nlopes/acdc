@@ -1683,6 +1683,9 @@ peg::parser! {
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             xref.resolve_natural_target = !state.document_attributes.contains_key("compat-mode");
+            if xref.resolve_natural_target {
+                xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
+            }
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
                     .document_attributes
@@ -1703,17 +1706,17 @@ peg::parser! {
             if target
                 .chars()
                 .next()
-                .is_some_and(|character| character.is_alphanumeric() || character == '_')
+                .is_some_and(|character| character.is_alphanumeric() || matches!(character, '_' | '#' | '/' | '.' | ':' | '{'))
             {
                 Ok((target, content))
             } else {
-                Err("cross-reference shorthand must start with a word character")
+                Err("invalid first character in cross-reference shorthand")
             }
         }
 
         /// Parse cross-reference macro syntax: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro() -> InlineNode<'input>
-        = "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
+        = "xref:" target:source() fragment:xref_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
             let target_str: &'input str = match fragment {
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
@@ -1752,6 +1755,9 @@ peg::parser! {
             tracing::debug!(?target_str, ?text, "Found cross-reference macro");
             let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
+            if !state.document_attributes.contains_key("compat-mode") {
+                xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
+            }
             // A per-reference `xrefstyle=` wins over the document's, including
             // an unrecognised one, which Asciidoctor treats as `basic`.
             xref.xrefstyle = crate::XrefStyle::from_attribute(
@@ -1804,7 +1810,7 @@ peg::parser! {
 
         /// Match cross-reference macro syntax without consuming: xref:id[text] or xref:file.adoc#anchor[text]
         rule cross_reference_macro_match()
-        = "xref:" source() path_fragment()? "[" cross_reference_macro_text() "]"
+        = "xref:" source() xref_fragment()? "[" cross_reference_macro_text() "]"
 
         rule bold_text_unconstrained() -> InlineNode<'input>
             = attrs:inline_attributes()? start:position!() "**" content_start:position!() content:$((!(eol() / ![_] / "**") [_])+) close:position!() "**" check_quote_markers((start, 2), (close, 2)) end:position!()
@@ -2915,8 +2921,12 @@ peg::parser! {
         /// (e.g., `http://example.com.)` keeps both `.` and `)` outside).
         rule bare_url_char() = bare_url_safe_char() / bare_url_trailing_char() / "("
 
-        /// Fragment identifier for URLs and cross-references (e.g., `#section-id`)
-        /// Only used by `xref:` and `link:` macros — other macros (`image::`, `video::`, etc.) do not support fragments
+        /// Cross-reference fragments may be empty (document top) or contain ID punctuation.
+        rule xref_fragment() -> Cow<'input, str>
+            = fragment:$("#" (!['[' | ' ' | '\t' | '\r' | '\n'] [_])*)
+        { Cow::Borrowed(fragment) }
+
+        /// Fragment identifier for a `link:` macro.
         rule path_fragment() -> Cow<'input, str>
             = "#" fragment:$(['a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '-']+)
         {

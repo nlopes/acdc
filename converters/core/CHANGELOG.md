@@ -109,6 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- References resolved within an included document keep local fallback text,
+  including IDs with punctuation. Document-top references use `[^top]` when
+  the document has no title or reference label.
+
 - Custom captions such as `caption="Exhibit 7. "` omit the final period and
   space in `xrefstyle=short` and `xrefstyle=full` links, matching Asciidoctor.
   The displayed block caption keeps its original punctuation.

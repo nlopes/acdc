@@ -321,6 +321,7 @@ pub fn parse_from_reader<R: std::io::Read>(
         None,
         result.leveloffset_ranges,
         result.source_ranges,
+        result.included_files,
         warnings_handle,
     )
 }
@@ -367,6 +368,7 @@ pub fn parse(input: &str, options: &Options<'_>) -> Result<ParseResult, Error> {
         None,
         result.leveloffset_ranges,
         result.source_ranges,
+        result.included_files,
         warnings_handle,
     )
 }
@@ -424,6 +426,7 @@ pub fn parse_file<P: AsRef<Path>>(
         Some(path),
         result.leveloffset_ranges,
         result.source_ranges,
+        result.included_files,
         warnings_handle,
     )
 }
@@ -461,6 +464,7 @@ fn parse_input(
     file_path: Option<PathBuf>,
     leveloffset_ranges: Vec<model::LeveloffsetRange>,
     source_ranges: Vec<model::SourceRange>,
+    included_files: std::collections::HashSet<String>,
     warnings_handle: Rc<RefCell<Vec<Warning>>>,
 ) -> Result<ParseResult, Error> {
     tracing::trace!(?input, "post preprocessor");
@@ -488,6 +492,7 @@ fn parse_input(
         state.current_file = file_path.map(std::sync::Arc::new);
         state.leveloffset_ranges = leveloffset_ranges;
         state.source_ranges = source_ranges;
+        state.included_files = included_files;
         state.warnings = warnings_for_state;
         let result = match grammar::document_parser::document(&owner.source, &mut state) {
             Ok(Ok(mut doc)) => {

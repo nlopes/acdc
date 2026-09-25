@@ -153,6 +153,15 @@ same values as the final parsed document. File input derives `docdir`, `docfile`
 and Secure modes conceal the directory and home path. `SOURCE_DATE_EPOCH` makes
 both the document and conversion timestamps deterministic and formats them in UTC.
 
+Cross-references do not load source files. After explicit includes are expanded,
+references to the current file or fully included sources resolve within the same
+document. Partial includes remain external, as in Asciidoctor. `CrossReference::target`
+contains the effective fragment ID, and `target_is_local` distinguishes it from an
+external resource even when the ID contains punctuation. An empty local target
+addresses the document top; the empty entry in `Document::references` supplies its
+reference text. Converters must check the local flag before treating a target as
+a filename. When changing a destination, update both fields.
+
 The parser records the effective attributes at the end of the document header in
 `Document::attributes`. Later accepted set and unset entries appear as ordered
 `Block::DocumentAttribute` nodes and do not change that header snapshot. Each node

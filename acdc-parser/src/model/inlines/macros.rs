@@ -172,13 +172,19 @@ pub type Key<'a> = &'a str;
 /// A `CrossReference` represents an inline cross-reference (xref) in a document.
 ///
 /// Equality and debug output include `target`, `text`, `location`, `xrefstyle`,
-/// `caption_label`, `signifier`, and `role`; parser-only state is excluded.
+/// `caption_label`, `signifier`, `role`, and `target_is_local`; parser-only state is excluded.
 #[derive(Clone, Serialize)]
 #[non_exhaustive]
 pub struct CrossReference<'a> {
     /// The effective link target. A resolved natural reference contains the
-    /// matching ID; an unresolved reference retains its reference text.
+    /// matching ID; references to fully included sources contain the fragment ID.
+    /// An empty local target addresses the document top. Unresolved references
+    /// retain their reference text or fragment ID.
     pub target: &'a str,
+    /// Whether `target` addresses this document, even when its ID is missing.
+    /// Set this together with `target` when changing a reference destination.
+    #[serde(skip)]
+    pub target_is_local: bool,
     #[serde(skip_serializing)]
     pub text: Vec<InlineNode<'a>>,
     pub location: Location,
@@ -198,14 +204,19 @@ pub struct CrossReference<'a> {
     pub(crate) caption_label_snapshot_id: Option<NonZeroUsize>,
     #[serde(skip)]
     pub(crate) resolve_natural_target: bool,
+    #[serde(skip)]
+    pub(crate) source_syntax: XrefSourceSyntax,
 }
 
 impl<'a> CrossReference<'a> {
-    /// Creates a new `CrossReference` with the given target.
+    /// Creates a new `CrossReference` with the given target. Bare IDs default
+    /// to local targets; paths with extensions or schemes default to external.
+    /// Set `target_is_local` explicitly for an ID that resembles a filename.
     #[must_use]
     pub fn new(target: &'a str, location: Location) -> Self {
         Self {
             target,
+            target_is_local: Self::is_local_target(target),
             text: Vec::new(),
             location,
             xrefstyle: XrefStyle::Default,
@@ -215,6 +226,14 @@ impl<'a> CrossReference<'a> {
             role: None,
             caption_label_snapshot_id: None,
             resolve_natural_target: false,
+            source_syntax: XrefSourceSyntax::Literal,
+        }
+    }
+
+    pub(crate) fn is_local_target(target: &str) -> bool {
+        match target.split_once('#') {
+            Some((path, _)) => path.is_empty(),
+            None => !target.contains(['.', ':']),
         }
     }
 
@@ -260,6 +279,7 @@ impl fmt::Debug for CrossReference<'_> {
         formatter
             .debug_struct("CrossReference")
             .field("target", &self.target)
+            .field("target_is_local", &self.target_is_local)
             .field("text", &self.text)
             .field("location", &self.location)
             .field("xrefstyle", &self.xrefstyle)
@@ -273,6 +293,7 @@ impl fmt::Debug for CrossReference<'_> {
 impl PartialEq for CrossReference<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.target == other.target
+            && self.target_is_local == other.target_is_local
             && self.text == other.text
             && self.location == other.location
             && self.xrefstyle == other.xrefstyle
@@ -280,6 +301,13 @@ impl PartialEq for CrossReference<'_> {
             && self.signifier == other.signifier
             && self.role == other.role
     }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum XrefSourceSyntax {
+    Literal,
+    Shorthand,
+    Macro,
 }
 
 /// The word that introduces a section number in an automatic cross-reference.

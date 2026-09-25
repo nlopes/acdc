@@ -1253,20 +1253,17 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        if let Some((external_target, _)) = Self::interdocument_xref(traversal, target) {
+        if !xref.target_is_local
+            && let Some((external_target, _)) = Self::interdocument_xref(traversal, target)
+        {
             write!(
                 self.writer_mut(),
                 "<a href=\"{}\"{class}>",
                 escape_href(&external_target)
             )?;
-            for inline in &xref.text {
-                self.render_inline_node(traversal, inline, options, subs)?;
-            }
-            write!(self.writer_mut(), "</a>")?;
-            return Ok(());
+        } else {
+            write!(self.writer_mut(), "<a href=\"#{target}\"{class}>")?;
         }
-
-        write!(self.writer_mut(), "<a href=\"#{target}\"{class}>")?;
         for inline in &xref.text {
             self.render_inline_node(traversal, inline, options, subs)?;
         }
