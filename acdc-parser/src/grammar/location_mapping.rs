@@ -559,6 +559,9 @@ fn map_inline_macro<'a>(
                     xref.target = state.intern_str(&restored);
                     xref.target_is_local = crate::CrossReference::is_local_target(xref.target);
                     xref.resolve_natural_target = false;
+                    if state.options.ignore_filename_in_crossref {
+                        super::inlines::ignore_xref_filename(xref);
+                    }
                 }
             }
         }

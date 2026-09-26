@@ -164,6 +164,14 @@ pub struct Args {
     #[arg(long = "setext", alias = "enable-setext-compatibility")]
     pub enable_setext_compatibility: bool,
 
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`
+    ///
+    /// Removes the filename before `#` when the fragment is nonempty, even
+    /// when that file was not included. URLs and targets without a nonempty
+    /// fragment retain normal resolution. Custom link text is preserved.
+    #[arg(long = "ignore-filename-in-crossref", visible_alias = "ifix")]
+    pub ignore_filename_in_crossref: bool,
+
     /// Strict mode
     ///
     /// When enabled, some errors related with non-conformance (but still recoverable)
@@ -1540,6 +1548,10 @@ fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'
 
     if args.strict {
         builder = builder.with_strict();
+    }
+
+    if args.ignore_filename_in_crossref {
+        builder = builder.with_ignore_filename_in_crossref();
     }
 
     #[cfg(feature = "setext")]

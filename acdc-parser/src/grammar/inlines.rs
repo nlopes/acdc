@@ -24,6 +24,34 @@ use super::{
     state::{InlineContext, InlineRules, ParserScope},
 };
 
+pub(super) fn ignore_xref_filename(xref: &mut crate::CrossReference<'_>) {
+    if let Some(fragment) = xref_filename_fragment(xref.target) {
+        xref.target = fragment;
+        xref.target_is_local = true;
+        xref.source_syntax = crate::model::XrefSourceSyntax::LocalFragment;
+    }
+}
+
+fn xref_filename_fragment(target: &str) -> Option<&str> {
+    // Protected text must be restored before deciding whether the prefix is a URL.
+    if target.contains("���") {
+        return None;
+    }
+    let (path, fragment) = target.split_once('#')?;
+    let has_scheme = path.split_once(':').is_some_and(|(scheme, _)| {
+        let Some((first, rest)) = scheme.as_bytes().split_first() else {
+            return false;
+        };
+        // A single letter denotes a Windows drive, as it does for includes.
+        !rest.is_empty()
+            && first.is_ascii_alphabetic()
+            && rest
+                .iter()
+                .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'+' | b'-' | b'.'))
+    });
+    (!fragment.is_empty() && !path.starts_with("//") && !has_scheme).then_some(fragment)
+}
+
 /// The parts of `xref:target[...]` that decide what the link shows.
 struct XrefMacroText<'s> {
     /// The link text, empty for an automatic reference.
@@ -1687,6 +1715,9 @@ peg::parser! {
             if xref.resolve_natural_target {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Shorthand;
             }
+            if state.options.ignore_filename_in_crossref {
+                ignore_xref_filename(&mut xref);
+            }
             xref.xrefstyle = crate::XrefStyle::from_attribute(
                 state
                     .document_attributes
@@ -1758,6 +1789,9 @@ peg::parser! {
             let mut xref = crate::CrossReference::new(target_str, location).with_text(text);
             if !state.document_attributes.contains_key("compat-mode") {
                 xref.source_syntax = crate::model::XrefSourceSyntax::Macro;
+            }
+            if state.options.ignore_filename_in_crossref {
+                ignore_xref_filename(&mut xref);
             }
             // A per-reference `xrefstyle=` wins over the document's, including
             // an unrecognised one, which Asciidoctor treats as `basic`.

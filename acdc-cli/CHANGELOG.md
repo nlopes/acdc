@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `convert --ignore-filename-in-crossref`, short form `--ifix`, resolves a
+  cross-reference that names a file by its anchor alone: `<<other.adoc#anchor>>` and
+  `xref:other.adoc#anchor[text]` link to `anchor` in the converted document.
+  Only a target containing a `#` with a nonempty fragment is affected, and custom
+  text is kept, so `<<other.adoc#anchor,text>>` still shows `text`. Without the
+  flag, references follow the normal rules for included and external sources.
+  URL targets retain normal resolution in both cross-reference syntaxes.
+  IDs containing punctuation also resolve locally, including with custom link text.
+
 ### Fixed
 
 - Repeated `-a` options now use the final assignment's precedence, matching

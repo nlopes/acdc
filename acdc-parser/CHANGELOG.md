@@ -242,6 +242,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   attributes or style are edited. Metadata equality includes positional values
   and empty slots, but ignores their source locations. Existing parsing behavior
   and JSON output are unchanged.
+- A cross-reference target that names a file can be resolved by its anchor
+  alone: with `Options::builder().with_ignore_filename_in_crossref()`,
+  `<<other.adoc#anchor>>` resolves as `<<anchor>>` and
+  `xref:other.adoc#anchor[text]` as `xref:anchor[text]`. Only a target that
+  contains a `#` is affected, and only the part up to and including that first
+  `#` is dropped; a target with no `#`, or with nothing after it, is left as
+  written, and custom text is untouched. Without the option, references follow
+  the normal Asciidoctor-compatible rules for included and external sources.
+  URL targets retain normal resolution in both cross-reference syntaxes,
+  including when the URL contains passthrough text.
+  Forced fragments remain local when their IDs contain punctuation, and missing
+  anchors produce unresolved-reference warnings.
+
 - Parser input now initializes the complete intrinsic document-attribute set before
   preprocessing, including file metadata, shared document/conversion timestamps,
   safe-mode values, masked home paths, and active convenience attributes.
