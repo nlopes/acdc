@@ -30,6 +30,7 @@ jobs:
               - 'Cargo.toml'
               - 'Cargo.lock'
             converters:
+              - '.github/workflows/ci.yml'
               - 'converters/**'
               - 'acdc-parser/**'
               - 'Cargo.toml'
@@ -122,8 +123,6 @@ jobs:
         with:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
-      - name: Rebuild Ghostty for the current runner
-        run: cargo clean -p libghostty-vt-sys
       - uses: taiki-e/install-action@nextest
       - name: Run converter tests
         run: cargo nextest run -p acdc-converters-core -p acdc-converters-html -p acdc-converters-manpage -p acdc-converters-terminal -p acdc-converters-markdown --all-features --verbose
@@ -153,8 +152,6 @@ jobs:
         with:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
-      - name: Rebuild Ghostty for the current runner
-        run: cargo clean -p libghostty-vt-sys
       - uses: taiki-e/install-action@nextest
       - name: Run CLI tests
         run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
