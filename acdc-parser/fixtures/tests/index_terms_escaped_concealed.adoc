@@ -1,0 +1,12 @@
+= Escaped index terms
+:acdc-index:
+
+Escaped concealed: \(((Hidden))).
+Escaped visible: \((Visible)).
+Ordinary concealed: (((OrdinaryHidden))).
+Ordinary visible: ((OrdinaryVisible)).
+Two backslashes: \\(((DoubleEscape))).
+Four open parentheses: \((((Nested)))).
+
+[index]
+== Index

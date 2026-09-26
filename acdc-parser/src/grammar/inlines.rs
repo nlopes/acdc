@@ -613,6 +613,7 @@ peg::parser! {
 
             // Escaped superscript/subscript must come first - produces RawText to prevent re-parsing
             &['\\'] escaped_super_sub:escaped_superscript_subscript() { escaped_super_sub }
+            / &['\\'] check_index_terms() prefix:escaped_index_prefix() { prefix }
             // Escaped syntax must come next - backslash prevents any following syntax from being parsed
             / &['\\'] escaped_syntax:escaped_syntax() { escaped_syntax }
             // Index terms: concealed (triple parens) must come before flow (double parens)
@@ -1070,7 +1071,7 @@ peg::parser! {
         rule index_term_concealed_close() = ")" index_term_shorthand_close()
 
         rule index_term_concealed_content() -> IndexTermSegment<'input>
-        = "(((" start:position!()
+        = !escaped_index_inner() "(((" start:position!()
           content:$((!(index_term_concealed_close() / index_term_shorthand_close()) [_])*)
           index_term_concealed_close() {
             IndexTermSegment { text: content, start }
@@ -1080,10 +1081,25 @@ peg::parser! {
         rule index_term_flow_close() = "))" !"))"
 
         rule index_term_flow_content() -> IndexTermSegment<'input>
-        = "((" !"(" start:position!()
+        = (escaped_index_inner() / !"(((") "((" start:position!()
           content:$((!index_term_flow_close() [_])+)
           index_term_flow_close() {
             IndexTermSegment { text: content, start }
+        }
+
+        // Escaping a concealed shorthand leaves its inner visible term active.
+        rule escaped_index_prefix() -> InlineNode<'input>
+        = escapes:$("\\"+) &index_term_concealed_content() "(" {
+            InlineNode::PlainText(Plain {
+                content: state.intern_fmt(format_args!("{}(", &escapes[..escapes.len() - 1])),
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                escaped: false,
+            })
+        }
+
+        rule escaped_index_inner() -> ()
+        = pos:position!() {?
+            state.input[..pos].ends_with("\\(").then_some(()).ok_or("unescaped index term")
         }
 
         rule index_term_macro_content() -> IndexTermSegment<'input>

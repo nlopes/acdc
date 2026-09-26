@@ -1,0 +1,424 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Escaped index terms",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 21
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {
+    "acdc-index": true
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Escaped concealed: ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "(",
+          "location": [
+            {
+              "line": 4,
+              "col": 20
+            },
+            {
+              "line": 4,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Hidden",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 24
+                },
+                {
+                  "line": 4,
+                  "col": 29
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 4,
+              "col": 22
+            },
+            {
+              "line": 4,
+              "col": 31
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ").\nEscaped visible: ",
+          "location": [
+            {
+              "line": 4,
+              "col": 32
+            },
+            {
+              "line": 5,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "((Visible))",
+          "location": [
+            {
+              "line": 5,
+              "col": 18
+            },
+            {
+              "line": 5,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nOrdinary concealed: ",
+          "location": [
+            {
+              "line": 5,
+              "col": 30
+            },
+            {
+              "line": 6,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "OrdinaryHidden",
+              "location": [
+                {
+                  "line": 6,
+                  "col": 24
+                },
+                {
+                  "line": 6,
+                  "col": 37
+                }
+              ]
+            }
+          ],
+          "visible": false,
+          "location": [
+            {
+              "line": 6,
+              "col": 21
+            },
+            {
+              "line": 6,
+              "col": 40
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nOrdinary visible: ",
+          "location": [
+            {
+              "line": 6,
+              "col": 41
+            },
+            {
+              "line": 7,
+              "col": 18
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "OrdinaryVisible",
+              "location": [
+                {
+                  "line": 7,
+                  "col": 21
+                },
+                {
+                  "line": 7,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 7,
+              "col": 19
+            },
+            {
+              "line": 7,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nTwo backslashes: ",
+          "location": [
+            {
+              "line": 7,
+              "col": 38
+            },
+            {
+              "line": 8,
+              "col": 17
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\\(",
+          "location": [
+            {
+              "line": 8,
+              "col": 18
+            },
+            {
+              "line": 8,
+              "col": 20
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "DoubleEscape",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 23
+                },
+                {
+                  "line": 8,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 8,
+              "col": 21
+            },
+            {
+              "line": 8,
+              "col": 36
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ").\nFour open parentheses: ",
+          "location": [
+            {
+              "line": 8,
+              "col": 37
+            },
+            {
+              "line": 9,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "(",
+          "location": [
+            {
+              "line": 9,
+              "col": 24
+            },
+            {
+              "line": 9,
+              "col": 24
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "(Nested)",
+              "location": [
+                {
+                  "line": 9,
+                  "col": 28
+                },
+                {
+                  "line": 9,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 9,
+              "col": 26
+            },
+            {
+              "line": 9,
+              "col": 37
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ").",
+          "location": [
+            {
+              "line": 9,
+              "col": 38
+            },
+            {
+              "line": 9,
+              "col": 39
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 9,
+          "col": 39
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Index",
+          "location": [
+            {
+              "line": 12,
+              "col": 4
+            },
+            {
+              "line": 12,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "index"
+      },
+      "location": [
+        {
+          "line": 11,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 8
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 12,
+      "col": 8
+    }
+  ]
+}
