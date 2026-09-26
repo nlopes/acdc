@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Child sections inside an `[index]` section now produce structured warnings
+  at their headings. Content is retained for each backend to apply its normal
+  recovery policy, matching Asciidoctor's reported structural restriction.
+
 - Escaped concealed index shorthand retains its outer parentheses and processes
   the inner visible term, matching Asciidoctor. Escaped visible terms remain literal.
 

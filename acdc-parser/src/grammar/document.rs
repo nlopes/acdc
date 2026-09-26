@@ -1501,7 +1501,7 @@ fn register_section_header<'a>(
         kind,
         location.clone(),
     ));
-    warn_for_nested_bibliography_section(state, direct_parent_section_kind, location);
+    warn_for_nested_special_section(state, direct_parent_section_kind, location);
 
     let numbering = section::SectionNumbering::from_attributes(&state.document_attributes);
     (title, numbering, reference_text)
@@ -2195,18 +2195,18 @@ fn expected_child_level(level: SectionLevel, kind: SectionKind, is_book: bool) -
     }
 }
 
-fn warn_for_nested_bibliography_section(
+fn warn_for_nested_special_section(
     state: &ParserState<'_>,
     direct_parent_section_kind: Option<SectionKind>,
     heading_location: Location,
 ) {
-    if direct_parent_section_kind == Some(SectionKind::Bibliography) {
-        let location = state.create_error_source_location(heading_location);
-        state.add_warning(Warning::new(
-            WarningKind::NestedSectionInBibliography,
-            Some(location),
-        ));
-    }
+    let kind = match direct_parent_section_kind {
+        Some(SectionKind::Bibliography) => WarningKind::NestedSectionInBibliography,
+        Some(SectionKind::Index) => WarningKind::NestedSectionInIndex,
+        _ => return,
+    };
+    let location = state.create_error_source_location(heading_location);
+    state.add_warning(Warning::new(kind, Some(location)));
 }
 
 /// How the closing delimiter of a table block was resolved.

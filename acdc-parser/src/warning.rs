@@ -46,6 +46,9 @@ impl Warning {
             WarningKind::SectionLevelOutOfSequence { .. } => Some(
                 "Section levels must increment by at most one. Renumber the heading so it is one level deeper than its parent (the document title counts as level 0).",
             ),
+            WarningKind::NestedSectionInIndex => Some(
+                "Move the nested section outside the index or replace its heading with a non-section block.",
+            ),
             WarningKind::NestedSectionInBibliography => Some(
                 "Move the nested section outside the bibliography section or replace its heading with a non-section block.",
             ),
@@ -128,6 +131,11 @@ pub enum WarningKind {
     /// retained in the document, matching Asciidoctor's recovery behavior.
     #[error("bibliography sections do not support nested sections")]
     NestedSectionInBibliography,
+
+    /// An index contains a direct child section. The child remains in the AST;
+    /// each converter applies its usual index-content policy.
+    #[error("index sections do not support nested sections")]
+    NestedSectionInIndex,
 
     /// A table's opening delimiter was matched but no corresponding
     /// closing delimiter was found before end of input. Matches

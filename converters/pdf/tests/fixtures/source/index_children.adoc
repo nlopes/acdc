@@ -1,0 +1,26 @@
+= Index children
+
+== Body
+
+((Alpha)).
+
+[index]
+== Index
+
+Manual note.
+
+=== First child
+
+==== Grandchild
+
+Details.
+
+=== Second child
+
+More details.
+
+== Following
+
+=== Allowed child
+
+Ordinary content.
