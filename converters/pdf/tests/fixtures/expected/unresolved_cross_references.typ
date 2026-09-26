@@ -84,24 +84,24 @@
 #text("A reference whose target’s reference text holds a reference of its own resolves one level, then falls back to ")#raw("[id]")#text(".")
 
 #metadata(none) <id-73656c662d7265666572656e6365>
-#blocktitle[#text("Example 1. ")#text("See ")#context link(query(<id-73656c662d7265666572656e6365>).first().location())[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]
+#blocktitle[#text("Example 1. ")#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(" again")]
 #examplebox[
 #text("body")
 
 ]
 
 #metadata(none) <id-6d757475616c2d6669727374>
-#blocktitle[#text("Example 2. ")#text("First title with ")#context link(query(<id-6d757475616c2d7365636f6e64>).first().location())[#text("Second title with ")#text("[mutual-first]")]]
+#blocktitle[#text("Example 2. ")#text("First title with ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]]
 #examplebox[
 #text("body")
 
 ]
 
 #metadata(none) <id-6d757475616c2d7365636f6e64>
-#blocktitle[#text("Example 3. ")#text("Second title with ")#context link(query(<id-6d757475616c2d6669727374>).first().location())[#text("First title with ")#text("[mutual-second]")]]
+#blocktitle[#text("Example 3. ")#text("Second title with ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]]
 #examplebox[
 #text("body")
 
 ]
 
-#text("See ")#context link(query(<id-73656c662d7265666572656e6365>).first().location())[#text("See ")#text("[self-reference]")#text(" again")]#text(", ")#context link(query(<id-6d757475616c2d6669727374>).first().location())[#text("First title with ")#text("[mutual-second]")]#text(", and ")#context link(query(<id-6d757475616c2d7365636f6e64>).first().location())[#text("Second title with ")#text("[mutual-first]")]#text(".")
+#text("See ")#link(<id-73656c662d7265666572656e6365>)[#text("See ")#text("[self-reference]")#text(" again")]#text(", ")#link(<id-6d757475616c2d6669727374>)[#text("First title with ")#text("[mutual-second]")]#text(", and ")#link(<id-6d757475616c2d7365636f6e64>)[#text("Second title with ")#text("[mutual-first]")]#text(".")

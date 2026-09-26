@@ -37,9 +37,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Navigation and section symbols use the unique IDs assigned to repeated section
-  titles, matching the parser and rendered output.
-
 - Missing-media diagnostics resolve paths using source-ordered `imagesdir`
   settings and restore outer settings after AsciiDoc table cells.
 - Go-to-definition, hover, and inlay hints now use a section's named `reftext`

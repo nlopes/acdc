@@ -87,7 +87,7 @@
   + #block(width: 100%)[#strong[#text("Third term")#text(":")] #text("The answer has ")#strong[#text("strong")]#text(" and ")#raw("code")#text(" text.")]
 ]
 
-#text("See ")#context link(query(<id-6f7264657265642d7465726d73>).first().location())[#text("Ordered terms")]#text(".")
+#text("See ")#link(<id-6f7264657265642d7465726d73>)[#text("Ordered terms")]#text(".")
 
 #heading(level: 1)[#text("Unordered style")] <id-5f756e6f7264657265645f7374796c65>
 

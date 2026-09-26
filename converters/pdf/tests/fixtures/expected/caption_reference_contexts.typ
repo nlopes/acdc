@@ -86,25 +86,25 @@
 
 ]
 
-#text("Section reference: ")#context link(query(<id-73656374696f6e2d6578616d706c65>).first().location())[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
+#text("Section reference: ")#link(<id-73656374696f6e2d6578616d706c65>)[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
 
 #heading(level: 1)[#text("List context")] <id-5f6c6973745f636f6e74657874>
 
-  - #block(width: 100%)[#text("List item refers forward to ")#context link(query(<id-6c6973742d6c697374696e67>).first().location())[#text("Listing 1")#text(", “")#text("List listing")#text("”")]#text(".")
+  - #block(width: 100%)[#text("List item refers forward to ")#link(<id-6c6973742d6c697374696e67>)[#text("Listing 1")#text(", “")#text("List listing")#text("”")]#text(".")
 
 #metadata(none) <id-6c6973742d6c697374696e67>
 #blocktitle[#text("Listing 1. ")#text("List listing")]
 #raw(block: true, "fn in_list() {}")
 
-#text("List item refers back to ")#context link(query(<id-73656374696f6e2d6578616d706c65>).first().location())[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
+#text("List item refers back to ")#link(<id-73656374696f6e2d6578616d706c65>)[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
 
   ]
 
-#text("After list: ")#context link(query(<id-6c6973742d6c697374696e67>).first().location())[#text("Listing 1")#text(", “")#text("List listing")#text("”")]#text(".")
+#text("After list: ")#link(<id-6c6973742d6c697374696e67>)[#text("Listing 1")#text(", “")#text("List listing")#text("”")]#text(".")
 
 #heading(level: 1)[#text("Table-cell context")] <id-5f7461626c655f63656c6c5f636f6e74657874>
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell refers forward to ")#context link(query(<id-63656c6c2d6578616d706c65>).first().location())[#text("Example 2")#text(", “")#text("Cell example")#text("”")]#text(".")
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell refers forward to ")#link(<id-63656c6c2d6578616d706c65>)[#text("Example 2")#text(", “")#text("Cell example")#text("”")]#text(".")
 
 #metadata(none) <id-63656c6c2d6578616d706c65>
 #blocktitle[#text("Example 2. ")#text("Cell example")]
@@ -113,15 +113,15 @@
 
 ]
 
-#text("Cell refers back to ")#context link(query(<id-73656374696f6e2d6578616d706c65>).first().location())[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
+#text("Cell refers back to ")#link(<id-73656374696f6e2d6578616d706c65>)[#text("Example 1")#text(", “")#text("Section example")#text("”")]#text(".")
 
 ])
 
-#text("After table: ")#context link(query(<id-63656c6c2d6578616d706c65>).first().location())[#text("Example 2")#text(", “")#text("Cell example")#text("”")]#text(".")
+#text("After table: ")#link(<id-63656c6c2d6578616d706c65>)[#text("Example 2")#text(", “")#text("Cell example")#text("”")]#text(".")
 
 #heading(level: 1)[#text("Multi-page context")] <id-5f6d756c74695f706167655f636f6e74657874>
 
-#text("Forward across pages: ")#context link(query(<id-706167652d7461626c65>).first().location())[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")
+#text("Forward across pages: ")#link(<id-706167652d7461626c65>)[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")
 
 #pagebreak(weak: true)
 
@@ -137,4 +137,4 @@
 
 #pagebreak(weak: true)
 
-#text("Backward across pages: ")#context link(query(<id-706167652d7461626c65>).first().location())[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")
+#text("Backward across pages: ")#link(<id-706167652d7461626c65>)[#text("Table 1")#text(", “")#text("Page table")#text("”")]#text(".")

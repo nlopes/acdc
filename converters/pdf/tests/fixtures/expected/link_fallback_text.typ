@@ -107,23 +107,23 @@
 
 #heading(level: 1)[#text("Cross-references")] <id-5f63726f73735f7265666572656e636573>
 
-#text("Forward section reference: ")#context link(query(<id-73656374696f6e2d746172676574>).first().location())[#text("Section title")]
+#text("Forward section reference: ")#link(<id-73656374696f6e2d746172676574>)[#text("Section title")]
 
-#text("Forward macro reference: ")#context link(query(<id-73656374696f6e2d746172676574>).first().location())[#text("Section title")]
+#text("Forward macro reference: ")#link(<id-73656374696f6e2d746172676574>)[#text("Section title")]
 
-#text("Explicit reference text: ")#context link(query(<id-73656374696f6e2d746172676574>).first().location())[#text("Custom section")]
+#text("Explicit reference text: ")#link(<id-73656374696f6e2d746172676574>)[#text("Custom section")]
 
-#text("Label reference: ")#context link(query(<id-6c6162656c2d746172676574>).first().location())[#text("Reference label")]
+#text("Label reference: ")#link(<id-6c6162656c2d746172676574>)[#text("Reference label")]
 
-#text("Untitled target reference: ")#context link(query(<id-756e7469746c65642d746172676574>).first().location())[#text("[untitled-target]")]
+#text("Untitled target reference: ")#link(<id-756e7469746c65642d746172676574>)[#text("[untitled-target]")]
 
 #text("Unresolved reference: ")#text("[missing-target]")
 
 #text("External document: ")#link("other.pdf")[#text("other.pdf")]
 
-#text("External document fragment: ")#text("[part]")
+#text("External document fragment: ")#link("other.pdf#part")[#text("other.pdf")]
 
-#text("External document with custom text: ")#text("Other part")
+#text("External document with custom text: ")#link("other.pdf#part")[#text("Other part")]
 
 #metadata(none) <id-6c6162656c2d746172676574>
 #text("Label target.")

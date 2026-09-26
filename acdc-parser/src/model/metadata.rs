@@ -135,10 +135,6 @@ impl<'a> BlockMetadata<'a> {
     }
 
     pub(crate) fn move_positional_attributes_to_attributes(&mut self) {
-        if self.style == Some("source") {
-            self.positional_attributes.clear();
-            return;
-        }
         // Taking the list rather than draining it lets the same allocation be
         // handed to `consumed_positional`, so keeping the order costs nothing.
         let positional = std::mem::take(&mut self.positional_attributes);

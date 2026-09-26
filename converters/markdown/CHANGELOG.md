@@ -41,9 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   an index came out empty with nothing reported.
 - An `[index]` section keeps any content the author wrote in it; the generated
   listing is appended after it rather than replacing it.
-- Repeated section titles now have distinct generated anchors, so references
-  to later occurrences resolve correctly.
-
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.

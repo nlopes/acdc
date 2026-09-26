@@ -33,15 +33,15 @@ pub struct Options<'a> {
     /// behavior will instead cause parsing to fail. For example:
     /// - Non-conforming manpage titles (not matching `name(volume)` format)
     pub strict: bool,
-    /// Resolve an inter-document cross-reference by its anchor alone.
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`.
     ///
-    /// `<<other.adoc#anchor>>` then resolves as `<<anchor>>`, which is what a
-    /// document assembled from includes needs: the anchor is part of this
-    /// document even though the reference names the file that defines it.
-    /// Custom text is untouched, so `<<other.adoc#anchor,text>>` still shows
-    /// `text`. A target with no file part, or none after the `#`, is left as
-    /// written.
-    pub ignore_filename_in_crossrefs: bool,
+    /// Only a target that contains a `#` is affected: everything up to and
+    /// including that first `#` is dropped, so a document assembled from
+    /// includes resolves references written against the file that defines the
+    /// anchor. A target with no `#` is left exactly as written, and so is one
+    /// with nothing after it. Custom text is untouched either way, so
+    /// `<<file.adoc#anchor,text>>` still shows `text`.
+    pub ignore_filename_in_crossref: bool,
     /// Enable Setext-style (underlined) header parsing.
     ///
     /// When enabled, headers can use the legacy two-line syntax:
@@ -129,7 +129,7 @@ impl<'a> Options<'a> {
             timings: self.timings,
             base_dir: self.base_dir,
             strict: self.strict,
-            ignore_filename_in_crossrefs: Some(self.ignore_filename_in_crossrefs),
+            ignore_filename_in_crossref: self.ignore_filename_in_crossref,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }
@@ -149,7 +149,7 @@ impl<'a> Options<'a> {
             document_attributes: self.document_attributes.into_static(),
             base_dir: self.base_dir,
             strict: self.strict,
-            ignore_filename_in_crossrefs: self.ignore_filename_in_crossrefs,
+            ignore_filename_in_crossref: self.ignore_filename_in_crossref,
             #[cfg(feature = "setext")]
             setext: self.setext,
         }
@@ -175,6 +175,8 @@ impl<'a> Options<'a> {
 /// ```
 #[derive(Debug, Clone, Default)]
 #[non_exhaustive]
+// Independent parse toggles, as in `Options`.
+#[allow(clippy::struct_excessive_bools)]
 pub struct OptionsBuilder<'a> {
     safe_mode: SafeMode,
     timings: bool,
@@ -182,8 +184,7 @@ pub struct OptionsBuilder<'a> {
     defaults: RawAttributes<'a>,
     base_dir: Option<PathBuf>,
     strict: bool,
-    /// Left unset so a converter can supply its own default before `build`.
-    ignore_filename_in_crossrefs: Option<bool>,
+    ignore_filename_in_crossref: bool,
     #[cfg(feature = "setext")]
     setext: bool,
 }
@@ -256,10 +257,9 @@ impl<'a> OptionsBuilder<'a> {
         self
     }
 
-    /// Resolve an inter-document cross-reference by its anchor alone, so that
-    /// `<<other.adoc#anchor>>` resolves as `<<anchor>>`.
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`.
     ///
-    /// See [`Options::ignore_filename_in_crossrefs`].
+    /// See [`Options::ignore_filename_in_crossref`].
     ///
     /// # Example
     ///
@@ -267,24 +267,14 @@ impl<'a> OptionsBuilder<'a> {
     /// use acdc_parser::Options;
     ///
     /// let options = Options::builder()
-    ///     .with_ignore_filename_in_crossrefs(true)
+    ///     .with_ignore_filename_in_crossref()
     ///     .build()?;
     /// # Ok::<(), acdc_parser::Error>(())
     /// ```
     #[must_use]
-    pub const fn with_ignore_filename_in_crossrefs(mut self, ignore: bool) -> Self {
-        self.ignore_filename_in_crossrefs = Some(ignore);
+    pub fn with_ignore_filename_in_crossref(mut self) -> Self {
+        self.ignore_filename_in_crossref = true;
         self
-    }
-
-    /// Whether the file part of a cross-reference target has been decided yet.
-    ///
-    /// A converter reads this to apply its own default only when the caller
-    /// expressed no preference, the way the PDF backend follows Antora and
-    /// drops the file part unless asked not to.
-    #[must_use]
-    pub const fn ignore_filename_in_crossrefs(&self) -> Option<bool> {
-        self.ignore_filename_in_crossrefs
     }
 
     /// Supply an application attribute.
@@ -416,7 +406,7 @@ impl<'a> OptionsBuilder<'a> {
             document_attributes,
             base_dir: self.base_dir,
             strict: self.strict,
-            ignore_filename_in_crossrefs: self.ignore_filename_in_crossrefs.unwrap_or(false),
+            ignore_filename_in_crossref: self.ignore_filename_in_crossref,
             #[cfg(feature = "setext")]
             setext: self.setext,
         })

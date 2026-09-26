@@ -82,6 +82,6 @@
 #metadata(none) <id-736166652d70617373>
 #block(width: 100%)[#raw(block: false, "plain *not bold* {value}\n  preserved indentation\n#set text(fill: red)\n\"] #pagebreak() #text(\"injected\") [\"")]
 
-#text("See ")#context link(query(<id-736166652d70617373>).first().location())[#text("Reference-only title")]#text(".")
+#text("See ")#link(<id-736166652d70617373>)[#text("Reference-only title")]#text(".")
 
 #text("After passthrough.")

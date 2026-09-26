@@ -219,4 +219,4 @@
 
 #text("Outer content sees inherited.")
 
-#text("See ")#context link(query(<id-63656c6c2d68656164696e67>).first().location())[#text("Same-level cell heading")]#text(" and ")#context link(query(<id-5f67656e6572617465645f63656c6c5f6368696c64>).first().location())[#text("Generated cell child")]#text(".")
+#text("See ")#link(<id-63656c6c2d68656164696e67>)[#text("Same-level cell heading")]#text(" and ")#link(<id-5f67656e6572617465645f63656c6c5f6368696c64>)[#text("Generated cell child")]#text(".")

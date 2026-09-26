@@ -138,7 +138,7 @@ fn add_section_lens(
     workspace: &Workspace,
     lenses: &mut Vec<CodeLens>,
 ) {
-    let id = section.id().into_owned();
+    let id = Section::generate_id_string(&section.metadata, &section.title);
     let count = count_xrefs_to_anchor(&id, workspace);
 
     let range = location_to_range(&section.location);

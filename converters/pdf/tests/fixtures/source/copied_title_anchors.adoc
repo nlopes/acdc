@@ -1,9 +1,0 @@
-= Copied title anchors
-:toc:
-
-See <<section>> before its definition, and <<inside>>.
-
-[[section]]
-== A [[inside]]title
-
-See <<section>> again and <<inside>>.

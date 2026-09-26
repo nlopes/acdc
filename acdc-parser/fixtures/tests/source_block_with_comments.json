@@ -9,7 +9,8 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "python"
+          "language": "python",
+          "python": null
         },
         "style": "source"
       },

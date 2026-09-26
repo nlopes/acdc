@@ -77,7 +77,7 @@
 ]
 #v(1em)
 
-#text("Before: ")#context link(query(<id-6c696e6b2d6964>).first().location())[#text("[link-id]")]#text(", ")#context link(query(<id-75726c2d6964>).first().location())[#text("[url-id]")]#text(", ")#context link(query(<id-6d61696c746f2d6964>).first().location())[#text("[mailto-id]")]#text(", ")#context link(query(<id-626172652d6c696e6b2d6964>).first().location())[#text("[bare-link-id]")]#text(", ")#context link(query(<id-626172652d6d61696c746f2d6964>).first().location())[#text("[bare-mailto-id]")]#text(", and ")#context link(query(<id-6475706c69636174652d6964>).first().location())[#text("[duplicate-id]")]#text(".")
+#text("Before: ")#link(<id-6c696e6b2d6964>)[#text("[link-id]")]#text(", ")#link(<id-75726c2d6964>)[#text("[url-id]")]#text(", ")#link(<id-6d61696c746f2d6964>)[#text("[mailto-id]")]#text(", ")#link(<id-626172652d6c696e6b2d6964>)[#text("[bare-link-id]")]#text(", ")#link(<id-626172652d6d61696c746f2d6964>)[#text("[bare-mailto-id]")]#text(", and ")#link(<id-6475706c69636174652d6964>)[#text("[duplicate-id]")]#text(".")
 
 #text("Explicit link: ")#metadata(none) <id-6c696e6b2d6964>#link("https://example.com")[#text("Link text")]
 
@@ -97,4 +97,4 @@
 
 #text("Positional text: ")#link("https://example.com/positional")[#text("Text,positional-id")]
 
-#text("After: ")#context link(query(<id-6c696e6b2d6964>).first().location())[#text("[link-id]")]#text(", ")#context link(query(<id-75726c2d6964>).first().location())[#text("[url-id]")]#text(", ")#context link(query(<id-6d61696c746f2d6964>).first().location())[#text("[mailto-id]")]#text(", ")#context link(query(<id-626172652d6c696e6b2d6964>).first().location())[#text("[bare-link-id]")]#text(", ")#context link(query(<id-626172652d6d61696c746f2d6964>).first().location())[#text("[bare-mailto-id]")]#text(", and ")#context link(query(<id-6475706c69636174652d6964>).first().location())[#text("[duplicate-id]")]#text(".")
+#text("After: ")#link(<id-6c696e6b2d6964>)[#text("[link-id]")]#text(", ")#link(<id-75726c2d6964>)[#text("[url-id]")]#text(", ")#link(<id-6d61696c746f2d6964>)[#text("[mailto-id]")]#text(", ")#link(<id-626172652d6c696e6b2d6964>)[#text("[bare-link-id]")]#text(", ")#link(<id-626172652d6d61696c746f2d6964>)[#text("[bare-mailto-id]")]#text(", and ")#link(<id-6475706c69636174652d6964>)[#text("[duplicate-id]")]#text(".")

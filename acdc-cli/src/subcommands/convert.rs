@@ -164,26 +164,16 @@ pub struct Args {
     #[arg(long = "setext", alias = "enable-setext-compatibility")]
     pub enable_setext_compatibility: bool,
 
-    /// Resolve `<<file.adoc#anchor>>` by its anchor, ignoring the file name
+    /// Resolve `<<file.adoc#anchor>>` as `<<anchor>>`
     ///
-    /// Cross-references that name the file their anchor was written in then
-    /// resolve as if they read `<<anchor>>`, which is what a document
-    /// assembled from includes needs. Custom text is kept, so
-    /// `<<file.adoc#anchor,text>>` still shows `text`. On by default for
-    /// `--backend pdf`, as in Antora.
-    #[arg(
-        long = "ignore-filename-in-crossrefs",
-        visible_alias = "ifix",
-        conflicts_with = "no_ignore_filename_in_crossrefs"
-    )]
-    pub ignore_filename_in_crossrefs: bool,
-
-    /// Keep the file name in `<<file.adoc#anchor>>` cross-references
-    ///
-    /// Turns off `--ignore-filename-in-crossrefs`, including the default the
-    /// PDF backend applies.
-    #[arg(long = "no-ignore-filename-in-crossrefs", visible_alias = "no-ifix")]
-    pub no_ignore_filename_in_crossrefs: bool,
+    /// Only a cross-reference target that contains a `#` is affected:
+    /// everything up to and including that first `#` is dropped, so a
+    /// document assembled from includes resolves references written against
+    /// the file that defines the anchor. A target with no `#` is left exactly
+    /// as written. Custom text is kept: `<<file.adoc#anchor,text>>` still
+    /// shows `text`.
+    #[arg(long = "ignore-filename-in-crossref", visible_alias = "ifix")]
+    pub ignore_filename_in_crossref: bool,
 
     /// Strict mode
     ///
@@ -220,19 +210,6 @@ pub struct Args {
 }
 
 impl Args {
-    /// The explicit `--ignore-filename-in-crossrefs` choice, if either form
-    /// was given. Left unset, the backend applies its own default.
-    const fn crossref_filename_setting(&self) -> Option<bool> {
-        match (
-            self.ignore_filename_in_crossrefs,
-            self.no_ignore_filename_in_crossrefs,
-        ) {
-            (true, _) => Some(true),
-            (_, true) => Some(false),
-            (false, false) => None,
-        }
-    }
-
     fn output_destination(&self) -> OutputDestination {
         self.out_file
             .as_ref()
@@ -1811,8 +1788,8 @@ fn build_parser_options(args: &Args, base_options: &Options) -> OptionsBuilder<'
         builder = builder.with_strict();
     }
 
-    if let Some(ignore) = args.crossref_filename_setting() {
-        builder = builder.with_ignore_filename_in_crossrefs(ignore);
+    if args.ignore_filename_in_crossref {
+        builder = builder.with_ignore_filename_in_crossref();
     }
 
     #[cfg(feature = "setext")]

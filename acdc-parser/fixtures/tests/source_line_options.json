@@ -10,7 +10,8 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "linenums": "linenums"
+          "linenums": "linenums",
+          "rust": null
         },
         "style": "source"
       },
@@ -50,7 +51,8 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "linenums": ""
+          "linenums": "",
+          "rust": null
         },
         "options": [
           "linenums"
@@ -93,7 +95,8 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "linenums": ""
+          "linenums": "",
+          "rust": null
         },
         "options": [
           "linenums"
@@ -151,7 +154,8 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "linenums": ""
+          "linenums": "",
+          "rust": null
         },
         "style": "source"
       },
@@ -205,7 +209,8 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "rust"
+          "language": "rust",
+          "rust": null
         },
         "style": "source"
       },
@@ -260,7 +265,8 @@
       "metadata": {
         "attributes": {
           "language": "rust",
-          "linenums": ""
+          "linenums": "",
+          "rust": null
         },
         "style": "source"
       },
@@ -314,7 +320,8 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "rust"
+          "language": "rust",
+          "rust": null
         },
         "options": [
           "nowrap"
@@ -371,7 +378,8 @@
       "delimiter": "----",
       "metadata": {
         "attributes": {
-          "language": "rust"
+          "language": "rust",
+          "rust": null
         },
         "options": [
           "nowrap"
@@ -431,6 +439,7 @@
           "highlight": "10;12",
           "language": "rust",
           "linenums": "linenums",
+          "rust": null,
           "start": "10"
         },
         "style": "source"

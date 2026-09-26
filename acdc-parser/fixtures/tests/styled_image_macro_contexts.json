@@ -124,7 +124,8 @@
       ],
       "metadata": {
         "attributes": {
-          "language": "rust"
+          "language": "rust",
+          "rust": null
         },
         "style": "source"
       },

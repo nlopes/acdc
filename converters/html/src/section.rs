@@ -56,7 +56,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         section: &'a Section<'a>,
     ) -> Result<(), Error> {
         let processor = self.processor.clone();
-        let id = section.id();
+        let id = Section::generate_id_string(&section.metadata, &section.title);
         let effective_level = effective_section_level(section.level, section.kind);
 
         let is_appendix = section.kind == SectionKind::Appendix;

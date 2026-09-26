@@ -30,17 +30,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   text before the first named attribute is the link text, as in Asciidoctor.
   Previously the whole bracket content, `xrefstyle=short` included, became the
   link text.
-- Explicit duplicate IDs no longer stop PDF generation. References use the first
-  definition, while each section keeps its own table-of-contents destination.
-  Asciidoctor PDF emits duplicate destination names, whose resolution can vary
-  by viewer. Typst diagnostics for known source IDs show their original names
-  and source locations.
-- Anchors in copied titles and reference text no longer create extra destinations.
-  References to anchors in repeated table headers resolve to their first occurrence.
-
-- Repeated section titles receive distinct generated destinations, allowing
-  PDF cross-references and table-of-contents entries to render successfully.
-
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.
@@ -83,14 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Asciidoctor PDF; natural shorthand references remain local.
 
 ### Added
-
-- A cross-reference that names the file its anchor was written in now resolves
-  by the anchor alone, as Antora does: `<<other.adoc#anchor>>` links to
-  `anchor` inside the PDF instead of to `other.pdf#anchor`. This is the
-  backend's default because a PDF is built from one assembled document; a
-  caller that wants the old external links asks for them with
-  `Options::builder().with_ignore_filename_in_crossrefs(false)`, or with the
-  command line's `--no-ignore-filename-in-crossrefs`.
 
 - Title-based shorthand cross-references now link to the matching generated or
   explicit section destination, including when the reference supplies custom

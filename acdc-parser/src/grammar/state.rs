@@ -95,6 +95,11 @@ pub(crate) struct ParserState<'a> {
     /// special styles (`[bibliography]`, `[glossary]`, ...) that are not auto-numbered
     /// under `sectnums`.
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
+    /// Maps each section's preprocessed title or explicit reference text to its generated
+    /// or explicit ID.
+    /// The first section with a given reference text wins, matching Asciidoctor's
+    /// reverse reference lookup.
+    pub(crate) natural_xref_targets: HashMap<&'a str, &'a str>,
     pub(crate) last_block_was_verbatim: bool,
     /// Callout references found in the last verbatim block (for validation with callout
     /// lists)
@@ -506,6 +511,7 @@ impl<'a> ParserState<'a> {
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             xref_caption_label_snapshots: Rc::new(RefCell::new(Vec::new())),
             toc_entries: Vec::new(),
+            natural_xref_targets: HashMap::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -542,6 +548,7 @@ impl<'a> ParserState<'a> {
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             xref_caption_label_snapshots: Rc::new(RefCell::new(Vec::new())),
             toc_entries: Vec::new(),
+            natural_xref_targets: HashMap::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -579,6 +586,7 @@ impl<'a> ParserState<'a> {
             footnote_tracker: Rc::clone(&parent.footnote_tracker),
             xref_caption_label_snapshots: Rc::clone(&parent.xref_caption_label_snapshots),
             toc_entries: Vec::new(),
+            natural_xref_targets: HashMap::new(),
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             // Inherit the file so inline sub-parse nodes are stamped with the correct

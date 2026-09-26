@@ -46,20 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now carries. Previously the catalog kept the number assigned at parse time,
   and a document whose captions were renumbered could show `Figure 1` in a
   reference to what had become `Figure 2`.
-- Source blocks retain their language when a following block attribute line adds
-  named options, such as `[source,options=linenums]`, matching Asciidoctor.
-- Source languages and unused positional values no longer create name-only
-  attributes. This prevents unintended line numbers for `[source,rust,,linenums]`,
-  matching Asciidoctor.
-- Duplicate explicit IDs produce non-fatal warnings with the original ID and
-  both source locations, including included files. Cross-references keep the
-  first definition; later duplicate section titles do not become reference
-  aliases, matching Asciidoctor.
-
-- Repeated section titles receive unique generated IDs such as `_preface_2`,
-  matching Asciidoctor. Section IDs, cross-references, and table-of-contents
-  targets remain consistent across nested sections and included files.
-
 - Unused block anchors, attribute lists, and titles at the end of input no
   longer appear as extra paragraphs, matching Asciidoctor. Metadata after
   an include applies to the next block when present; it does not label the
@@ -67,9 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Block anchors, attribute lists, and titles can be separated from each other
   and their block by blank lines, matching Asciidoctor. Sections retain their
   anchors and boundaries after paragraphs and lists (#454).
-- Image and video macros take positional dimensions only from their own attribute lists.
-  Named `width=` and `height=` values in a macro override its positional dimensions,
-  while named block dimensions remain defaults, matching Asciidoctor.
 - Index terms accept parentheses in named macros and brackets in concealed
   shorthand. Nested delimiters behave consistently at paragraph starts and
   after text, matching Asciidoctor.
@@ -191,14 +174,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- A cross-reference that names the file its anchor was written in can be
-  resolved by the anchor alone, so `<<other.adoc#anchor>>` behaves as
-  `<<anchor>>` and `xref:other.adoc#anchor[text]` as `xref:anchor[text]`.
-  Custom text and reference attributes are untouched. Turn it on with
-  `Options::builder().with_ignore_filename_in_crossrefs(true)`; without it the
-  file part is kept and the reference stays an inter-document one, as in
-  Asciidoctor. A target with no file part, or with nothing after the `#`, is
-  left as written.
+- A cross-reference target that names a file can be resolved by its anchor
+  alone: with `Options::builder().with_ignore_filename_in_crossref()`,
+  `<<other.adoc#anchor>>` resolves as `<<anchor>>` and
+  `xref:other.adoc#anchor[text]` as `xref:anchor[text]`. Only a target that
+  contains a `#` is affected, and only the part up to and including that first
+  `#` is dropped; a target with no `#`, or with nothing after it, is left as
+  written, and custom text is untouched. Without the option nothing changes,
+  and the reference stays an inter-document one, as in Asciidoctor.
 
 - A section's entry in `Document::references` carries a `SectionReference`:
   its cross-reference name (`part`, `chapter`, `section`, `appendix`, or a

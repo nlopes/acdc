@@ -446,19 +446,6 @@ macro_rules! process_inlines_or_err {
     };
 }
 
-/// Drop the file part of an inter-document cross-reference target, so that
-/// `other.adoc#anchor` resolves as `anchor`.
-///
-/// Enabled by [`Options::ignore_filename_in_crossrefs`](crate::Options). A
-/// target with no file part, or with nothing after the `#`, is returned as
-/// written: there would be no anchor left to resolve.
-fn crossref_target_without_filename(target: &str) -> &str {
-    match target.split_once('#') {
-        Some((file, anchor)) if !file.is_empty() && !anchor.is_empty() => anchor,
-        _ => target,
-    }
-}
-
 fn strip_link_window_shorthand(text: Option<&str>) -> (Option<&str>, bool) {
     match text.and_then(|text| text.strip_suffix('^')) {
         Some(text) => (Some(text), true),
@@ -1596,10 +1583,13 @@ peg::parser! {
         = shorthand:cross_reference_shorthand_pattern()
         {?
             let (target, raw_text) = shorthand;
-            let target_str: &'input str = if state.options.ignore_filename_in_crossrefs {
-                crossref_target_without_filename(target)
-            } else {
-                target
+            // `ignore_filename_in_crossref` drops everything up to and
+            // including the first `#`, when the target has one. A target
+            // without a `#`, or with nothing after it, is left as written.
+            let target_str: &'input str = match target.split_once('#') {
+                Some((_, anchor))
+                    if state.options.ignore_filename_in_crossref && !anchor.is_empty() => anchor,
+                _ => target,
             };
             let bm = BlockParsingMetadata {
                 substitutions: state.inline_ctx.substitutions,
@@ -1666,10 +1656,9 @@ peg::parser! {
         = "xref:" target:source() fragment:path_fragment()? "[" content_start:position!() raw_text:cross_reference_macro_text() "]"
         {?
             let target_str: &'input str = match fragment {
-                // `source()` and `path_fragment()` each match at least one
-                // character, so dropping the fragment's leading `#` always
-                // leaves an anchor to resolve.
-                Some(f) if state.options.ignore_filename_in_crossrefs => state.intern_str(&f[1..]),
+                // `path_fragment` always matches at least one character after
+                // the `#`, so the anchor is what remains once it is dropped.
+                Some(f) if state.options.ignore_filename_in_crossref => state.intern_str(&f[1..]),
                 Some(f) => state.intern_fmt(format_args!("{target}{f}")),
                 None => state.intern_fmt(format_args!("{target}")),
             };

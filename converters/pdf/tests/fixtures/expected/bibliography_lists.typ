@@ -77,7 +77,7 @@
 ]
 #v(1em)
 
-#text(size: 1.25em)[#text("The first citation is ")#metadata(none) <bibref-id-7265662d61>#context link(query(<id-7265662d61>).first().location())[#text("[ref-a]")]#text(", the labelled citation is ")#metadata(none) <bibref-id-7265662d62>#context link(query(<id-7265662d62>).first().location())[#text("[")#text("Short label")#text("]")]#text(", and the first citation repeats as ")#context link(query(<id-7265662d61>).first().location())[#text("[ref-a]")]#text(". An explicit citation label is ")#context link(query(<id-7265662d63>).first().location())[#text("custom citation")]#text(". The numeric citation is ")#metadata(none) <bibref-id-7265662d6e756d6265726564>#context link(query(<id-7265662d6e756d6265726564>).first().location())[#text("[")#text("1")#text("]")]#text(". The regular anchor is referenced as ")#context link(query(<id-726567756c61722d616e63686f72>).first().location())[#text("[regular-anchor]")]#text(".")]
+#text(size: 1.25em)[#text("The first citation is ")#metadata(none) <bibref-id-7265662d61>#link(<id-7265662d61>)[#text("[ref-a]")]#text(", the labelled citation is ")#metadata(none) <bibref-id-7265662d62>#link(<id-7265662d62>)[#text("[")#text("Short label")#text("]")]#text(", and the first citation repeats as ")#link(<id-7265662d61>)[#text("[ref-a]")]#text(". An explicit citation label is ")#link(<id-7265662d63>)[#text("custom citation")]#text(". The numeric citation is ")#metadata(none) <bibref-id-7265662d6e756d6265726564>#link(<id-7265662d6e756d6265726564>)[#text("[")#text("1")#text("]")]#text(". The regular anchor is referenced as ")#link(<id-726567756c61722d616e63686f72>)[#text("[regular-anchor]")]#text(".")]
 
 #heading(level: 1)[#text("References")] <id-5f7265666572656e636573>
 
@@ -105,4 +105,4 @@
   - #block(width: 100%)[#metadata(none) <id-7265662d6578706c69636974>#link(<bibref-id-7265662d6578706c69636974>)[#text("[ref-explicit]")]#text(" An explicitly styled bibliography entry.")]
 ]
 
-#text("See ")#metadata(none) <bibref-id-7265662d6578706c69636974>#context link(query(<id-7265662d6578706c69636974>).first().location())[#text("[ref-explicit]")]#text(".")
+#text("See ")#metadata(none) <bibref-id-7265662d6578706c69636974>#link(<id-7265662d6578706c69636974>)[#text("[ref-explicit]")]#text(".")
