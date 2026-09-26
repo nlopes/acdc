@@ -1388,13 +1388,13 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         Ok(())
     }
 
-    fn render_indexterm(
+    pub(crate) fn register_indexterm(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         it: &IndexTerm<'_>,
         options: &RenderOptions,
         subs: &[Substitution],
-    ) -> Result<(), Error> {
+    ) -> Result<Option<String>, Error> {
         // Occurrence anchors serve the opted-in catalog; TOC copies are not
         // additional source occurrences.
         if !options.toc_mode && self.processor.generate_index() {
@@ -1430,6 +1430,20 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
                 relationship,
                 self.current_section_title.clone(),
             );
+            return Ok(Some(anchor_id));
+        }
+
+        Ok(None)
+    }
+
+    fn render_indexterm(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        it: &IndexTerm<'_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        if let Some(anchor_id) = self.register_indexterm(traversal, it, options, subs)? {
             write!(self.writer_mut(), "<a id=\"{anchor_id}\"></a>")?;
         }
 

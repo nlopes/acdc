@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms in listings and literal blocks join opted-in catalogs. Their
+  links point to the code block, and visible terms remain inside the fence.
+
 - Index sections inside AsciiDoc table cells activate catalog generation.
   Cell catalogs share preceding terms with the containing document; later terms
   remain excluded. The document-level `acdc-index` opt-in is still required.

@@ -647,9 +647,13 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
 
     fn write_fenced_code_block(
         &mut self,
+        traversal: &mut TraversalContext<'a>,
         metadata: &BlockMetadata<'_>,
         content: &[InlineNode<'_>],
     ) -> Result<(), Error> {
+        acdc_converters_core::index::visit_index_terms(content, &mut |term, _| {
+            self.register_index_term(traversal, term)
+        })?;
         let language = detect_language(metadata);
         let (content, unknown) = source_content(content, language);
         if let Some(node) = unknown {
@@ -907,7 +911,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         })
     }
 
-    fn visit_index_term(
+    fn register_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         term: &IndexTerm<'_>,
@@ -947,6 +951,15 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
             self.write_anchor(&anchor_id)?;
         }
 
+        Ok(())
+    }
+
+    fn visit_index_term(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        term: &IndexTerm<'_>,
+    ) -> Result<(), Error> {
+        self.register_index_term(traversal, term)?;
         if term.is_visible() {
             self.visit_inline_nodes(traversal, term.term())?;
         }
@@ -1566,7 +1579,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             }
             Some("abstract") => self.write_blockquote_inlines(traversal, &paragraph.content)?,
             Some("literal" | "listing" | "source") => {
-                self.write_fenced_code_block(&paragraph.metadata, &paragraph.content)?;
+                self.write_fenced_code_block(traversal, &paragraph.metadata, &paragraph.content)?;
             }
             Some("example") => {
                 self.write_warning(
@@ -1708,7 +1721,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
         match &block.inner {
             DelimitedBlockType::DelimitedListing(content)
             | DelimitedBlockType::DelimitedLiteral(content) => {
-                self.write_fenced_code_block(&block.metadata, content)?;
+                self.write_fenced_code_block(traversal, &block.metadata, content)?;
             }
             DelimitedBlockType::DelimitedQuote(blocks) => {
                 self.visit_blockquote_blocks(traversal, blocks)?;

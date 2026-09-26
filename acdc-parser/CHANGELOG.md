@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index macros in listing and literal blocks, styled verbatim paragraphs, and
+  indented literal paragraphs become index terms when `subs=+macros` is enabled.
+  Default verbatim content and disabled macro substitutions remain literal.
+
 - Child sections inside an `[index]` section now produce structured warnings
   at their headings. Content is retained for each backend to apply its normal
   recovery policy, matching Asciidoctor's reported structural restriction.

@@ -226,6 +226,7 @@ fn parse_processed_inlines<'a>(
     block_metadata: &BlockParsingMetadata,
     location: &Location,
     autolinks: bool,
+    verbatim: bool,
 ) -> Result<Vec<InlineNode<'a>>, Error> {
     let inline_ctx = inline_context(state, block_metadata, autolinks);
     let mut inline_peg_state = ParserState::for_inline_parsing(text, state, inline_ctx);
@@ -233,7 +234,9 @@ fn parse_processed_inlines<'a>(
         .source_map
         .empty_attribute_offsets(location.absolute_start);
     inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
-    let inlines = if !autolinks {
+    let inlines = if verbatim {
+        inline_parser::verbatim_index_inlines(text, &mut inline_peg_state)
+    } else if !autolinks {
         inline_parser::inlines_no_autolinks(text, &mut inline_peg_state)
     } else if inline_peg_state.quotes_only {
         inline_parser::quotes_only_inlines(text, &mut inline_peg_state)
@@ -325,6 +328,64 @@ pub(crate) fn process_inlines<'a>(
     offset: usize,
     content: &'a str,
 ) -> Result<(Vec<InlineNode<'a>>, &'a str), Error> {
+    process_inline_content(
+        state,
+        block_metadata,
+        content_start,
+        end,
+        offset,
+        content,
+        false,
+    )
+}
+
+#[cfg(feature = "pre-spec-subs")]
+pub(crate) fn process_verbatim_index_terms<'a>(
+    state: &mut ParserState<'a>,
+    block_metadata: &BlockParsingMetadata,
+    content_start: usize,
+    content: &'a str,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let (nodes, _) = process_inline_content(
+        state,
+        block_metadata,
+        content_start,
+        content_start + content.len(),
+        0,
+        content,
+        true,
+    )?;
+    Ok(nodes
+        .into_iter()
+        .map(|node| {
+            let InlineNode::PlainText(text) = node else {
+                return node;
+            };
+            if text.escaped {
+                InlineNode::RawText(crate::Raw {
+                    content: text.content,
+                    location: text.location,
+                    subs: vec![Substitution::SpecialChars],
+                })
+            } else {
+                InlineNode::VerbatimText(crate::Verbatim {
+                    content: text.content,
+                    location: text.location,
+                })
+            }
+        })
+        .collect())
+}
+
+fn process_inline_content<'a>(
+    state: &mut ParserState<'a>,
+    block_metadata: &BlockParsingMetadata,
+    content_start: usize,
+    end: usize,
+    offset: usize,
+    content: &'a str,
+    verbatim: bool,
+) -> Result<(Vec<InlineNode<'a>>, &'a str), Error> {
     let (location, processed) = preprocess_inline_content(
         state,
         content_start,
@@ -339,11 +400,18 @@ pub(crate) fn process_inlines<'a>(
     let source = processed_text_as_outer(&processed, state);
     // After preprocessing, attribute substitution may result in empty content
     // (e.g., {empty} -> ""). In this case, return empty vec without parsing.
-    if processed.text.trim().is_empty() {
+    if processed.text.is_empty() || (!verbatim && processed.text.trim().is_empty()) {
         return Ok((Vec::new(), source));
     }
-    let content =
-        parse_processed_inlines(&processed, source, state, block_metadata, &location, true)?;
+    let content = parse_processed_inlines(
+        &processed,
+        source,
+        state,
+        block_metadata,
+        &location,
+        true,
+        verbatim,
+    )?;
     let inlines =
         super::location_mapping::map_inline_locations(state, &processed, content, &location)?;
     let source = if processed.passthroughs.is_empty() {
@@ -397,7 +465,14 @@ pub(crate) fn process_inlines_no_autolinks<'a>(
         })]);
     }
     let source = processed_text_as_outer(&processed, state);
-    let content =
-        parse_processed_inlines(&processed, source, state, block_metadata, &location, false)?;
+    let content = parse_processed_inlines(
+        &processed,
+        source,
+        state,
+        block_metadata,
+        &location,
+        false,
+        false,
+    )?;
     super::location_mapping::map_inline_locations(state, &processed, content, &location)
 }

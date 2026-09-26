@@ -540,6 +540,39 @@ peg::parser! {
         pub(crate) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
         = (non_plain_text() / plain_text())+
 
+        pub(crate) rule verbatim_index_inlines() -> Vec<InlineNode<'input>>
+        = (verbatim_index_term() / quotes_non_plain_text() / verbatim_plain_text())+
+
+        rule verbatim_index_term() -> InlineNode<'input>
+        = check_index_terms() node:(
+            &['\\'] node:escaped_index_prefix() { node }
+            / &("\\"+ index_term_match()) node:escaped_syntax() { node }
+            / &['('] node:index_term_concealed() { node }
+            / &['('] node:index_term_flow() { node }
+            / &['i'] node:indexterm_macro() { node }
+            / &['i'] node:indexterm2_macro() { node }
+        ) { node }
+
+        rule verbatim_plain_text() -> InlineNode<'input>
+        = content:$((
+            !(check_index_terms() ("\\"+ index_term_match() / index_term_match()))
+            !(check_quotes() (
+                escaped_syntax_match() / bold_text_unconstrained_match() / bold_text_constrained_match()
+                / italic_text_unconstrained_match() / italic_text_constrained_match()
+                / monospace_text_unconstrained_match() / monospace_text_constrained_match()
+                / highlight_text_unconstrained_match() / highlight_text_constrained_match()
+                / superscript_text_match() / subscript_text_match()
+                / curved_quotation_text_match() / curved_apostrophe_text_match() / standalone_curved_apostrophe_match()
+            ))
+            [_]
+        )+) {
+            InlineNode::PlainText(Plain {
+                content,
+                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                escaped: false,
+            })
+        }
+
         /// Reduced inline rule set for "quotes" substitution in passthroughs.
         /// Only matches formatting markup + escaped markup + plain text.
         /// Does not match macros, xrefs, anchors, autolinks, footnotes, etc.

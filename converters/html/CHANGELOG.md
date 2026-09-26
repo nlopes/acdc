@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index macros enabled with `subs=+macros` in listings and literal blocks render
+  their visible text and join opted-in catalogs, including highlighted code.
+
 - Index sections inside AsciiDoc table cells activate catalog generation.
   Cell catalogs share preceding terms with the containing document; later terms
   remain excluded. The document-level `acdc-index` opt-in is still required.

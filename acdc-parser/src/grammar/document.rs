@@ -37,12 +37,15 @@ use crate::{
     model::{
         Caption, CaptionKind, LeveloffsetRange, ListLevel, Locateable, PositionalAttribute,
         SectionKind, SectionLevel, Substitution, caption, section, strip_quotes, substitute,
-        substitution::{HEADER, SubstitutionPlan},
+        substitution::{HEADER, SubstitutionPlan, VERBATIM},
     },
 };
 
 #[cfg(feature = "pre-spec-subs")]
-use crate::model::substitution::parse_subs_attribute;
+use crate::{
+    grammar::inline_processing::process_verbatim_index_terms,
+    model::substitution::parse_subs_attribute,
+};
 
 use super::{
     helpers::{
@@ -424,7 +427,7 @@ fn build_delimited_block<'input>(
         }
         DelimitedKind::Comment => comment_inner(state, &mut metadata, p),
         DelimitedKind::Listing | DelimitedKind::Literal => {
-            verbatim_inner(state, block_metadata, &mut metadata, p)
+            verbatim_inner(state, block_metadata, &mut metadata, p)?
         }
         DelimitedKind::Open => open_inner(state, block_metadata, &mut metadata, p)?,
         DelimitedKind::Sidebar => sidebar_inner(state, block_metadata, &mut metadata, p)?,
@@ -521,13 +524,13 @@ fn comment_inner<'input>(
 }
 
 /// Verbatim block (`----` listing or `....` literal, including the Markdown fence):
-/// resolves callouts and records the verbatim state for a following callout list.
+/// preserves whitespace while resolving enabled index macros and callouts.
 fn verbatim_inner<'input>(
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
     metadata: &mut BlockMetadata<'input>,
     p: &DelimitedParams<'input>,
-) -> DelimitedBlockType<'input> {
+) -> Result<DelimitedBlockType<'input>, Error> {
     // A Markdown fence language becomes a positional `source` style so language
     // detection works like `[source,lang]` (never set for `....`/`----`).
     if let Some(language) = p.lang {
@@ -551,11 +554,60 @@ fn verbatim_inner<'input>(
     );
     state.last_block_was_verbatim = true;
     state.last_verbatim_callouts = callouts;
-    if p.kind == DelimitedKind::Literal {
+    let inlines = resolve_verbatim_index_terms(state, block_metadata, inlines)?;
+    Ok(if p.kind == DelimitedKind::Literal {
         DelimitedBlockType::DelimitedLiteral(inlines)
     } else {
         DelimitedBlockType::DelimitedListing(inlines)
+    })
+}
+
+fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPlan {
+    #[cfg(feature = "pre-spec-subs")]
+    if let Some(spec) = &metadata.metadata.substitutions {
+        return SubstitutionPlan::from_substitutions(&spec.resolve(VERBATIM));
     }
+    let _ = metadata;
+    SubstitutionPlan::from_substitutions(VERBATIM)
+}
+
+#[cfg(feature = "pre-spec-subs")]
+fn resolve_verbatim_index_terms<'a>(
+    state: &mut ParserState<'a>,
+    metadata: &BlockParsingMetadata<'_>,
+    inlines: Vec<InlineNode<'a>>,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    let substitutions = verbatim_substitutions(metadata);
+    if !substitutions.enabled(&Substitution::Macros) {
+        return Ok(inlines);
+    }
+    let metadata = BlockParsingMetadata {
+        substitutions,
+        ..BlockParsingMetadata::default()
+    };
+    let mut resolved = Vec::new();
+    for node in inlines {
+        if let InlineNode::VerbatimText(text) = node {
+            resolved.extend(process_verbatim_index_terms(
+                state,
+                &metadata,
+                text.location.absolute_start,
+                text.content,
+            )?);
+        } else {
+            resolved.push(node);
+        }
+    }
+    Ok(resolved)
+}
+
+#[cfg(not(feature = "pre-spec-subs"))]
+fn resolve_verbatim_index_terms<'a>(
+    _state: &mut ParserState<'a>,
+    _metadata: &BlockParsingMetadata<'_>,
+    inlines: Vec<InlineNode<'a>>,
+) -> Result<Vec<InlineNode<'a>>, Error> {
+    Ok(inlines)
 }
 
 /// `--` open block, or a non-rendering comment when carrying a `[comment]` style.
@@ -2037,13 +2089,14 @@ fn is_internal_reference(target: &str) -> bool {
 }
 
 fn get_literal_paragraph<'input>(
-    state: &ParserState<'input>,
+    state: &mut ParserState<'input>,
     content: &'input str,
     start: usize,
+    content_start: usize,
     end: usize,
     offset: usize,
     block_metadata: &BlockParsingMetadata<'input>,
-) -> Block<'input> {
+) -> Result<Block<'input>, Error> {
     tracing::debug!(
         content,
         "paragraph starts with a space - switching to literal block"
@@ -2075,16 +2128,56 @@ fn get_literal_paragraph<'input>(
         all_lines_have_leading_space,
         "created literal paragraph"
     );
-    Block::Paragraph(Paragraph {
-        content: vec![InlineNode::PlainText(Plain {
-            content: content_ref,
-            location: location.clone(),
-            escaped: false,
-        })],
+    let inlines = vec![InlineNode::PlainText(Plain {
+        content: content_ref,
+        location: location.clone(),
+        escaped: false,
+    })];
+    #[cfg(feature = "pre-spec-subs")]
+    let inlines = if metadata
+        .substitutions
+        .as_ref()
+        .is_some_and(|spec| spec.resolve(VERBATIM).contains(&Substitution::Macros))
+    {
+        let mut parsed = resolve_verbatim_index_terms(
+            state,
+            block_metadata,
+            vec![InlineNode::VerbatimText(Verbatim {
+                content,
+                location: state.create_block_location(content_start, end, offset),
+            })],
+        )?;
+        if all_lines_have_leading_space {
+            for node in &mut parsed {
+                if let InlineNode::VerbatimText(text) = node {
+                    let mut first = true;
+                    text.content = state.intern_join(
+                        text.content.split_inclusive('\n').map(|line| {
+                            let strip = !first || text.location.start.column == 1;
+                            first = false;
+                            if strip {
+                                line.strip_prefix(' ').unwrap_or(line)
+                            } else {
+                                line
+                            }
+                        }),
+                        "",
+                    );
+                }
+            }
+        }
+        parsed
+    } else {
+        inlines
+    };
+    #[cfg(not(feature = "pre-spec-subs"))]
+    let _ = content_start;
+    Ok(Block::Paragraph(Paragraph {
+        content: inlines,
         metadata,
         title: block_metadata.title.clone(),
         location,
-    })
+    }))
 }
 
 /// Assembles principal text from first line and continuation lines. Used by list item
@@ -6169,7 +6262,7 @@ peg::parser! {
                     Some("source" | "listing" | "literal")
                 )
             {
-                return Ok(get_literal_paragraph(state, content, start, span_end, offset, block_metadata));
+                return get_literal_paragraph(state, content, start, content_start, span_end, offset, block_metadata);
             }
 
             let content = if is_styled_verbatim {
@@ -6184,9 +6277,13 @@ peg::parser! {
                         .enabled(&Substitution::Callouts),
                 );
                 let content = if callouts.is_empty() {
+                    let verbatim_metadata = BlockParsingMetadata {
+                        substitutions: verbatim_substitutions(block_metadata),
+                        ..BlockParsingMetadata::default()
+                    };
                     process_inlines(
                         state,
-                        block_metadata,
+                        &verbatim_metadata,
                         content_start,
                         span_end,
                         offset,
@@ -6194,7 +6291,7 @@ peg::parser! {
                     )?
                     .0
                 } else {
-                    verbatim_content
+                    resolve_verbatim_index_terms(state, block_metadata, verbatim_content)?
                 };
                 state.last_block_was_verbatim = true;
                 state.last_verbatim_callouts = callouts;

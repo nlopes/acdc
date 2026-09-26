@@ -217,6 +217,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         para: &Paragraph,
     ) -> Result<(), Error> {
+        self.collect_index_terms_from_inlines(traversal, &para.content)?;
         self.write_sp()?;
         self.render_captioned_title(traversal, &para.title, &para.metadata)?;
         let w = self.writer_mut();

@@ -38,6 +38,31 @@ fn index_relationships_target_their_own_catalog() -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+#[test]
+fn highlighted_index_links_resolve_inside_code() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/subs_verbatim_index_highlighting.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture(&path, variant, true)?;
+        let mut count = 0;
+        for tail in output.split("href=\"#_indexterm_").skip(1) {
+            let (number, _) = tail.split_once('"').ok_or("missing link terminator")?;
+            let anchor = format!("id=\"_indexterm_{number}\"");
+            assert_eq!(output.matches(&anchor).count(), 1);
+            let (prefix, _) = output.split_once(&anchor).ok_or("missing anchor")?;
+            assert!(
+                prefix
+                    .rfind("<pre")
+                    .is_some_and(|start| { prefix.rfind("</pre>").is_none_or(|end| start > end) })
+            );
+            count += 1;
+        }
+        assert_eq!(count, 3);
+    }
+    Ok(())
+}
+
 #[test]
 fn index_catalog_links_resolve_to_unique_occurrences() -> Result<(), Error> {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))

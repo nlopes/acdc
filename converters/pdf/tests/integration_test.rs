@@ -41,6 +41,63 @@ fn multiple_index_catalogs_compile_with_relationship_links() -> Result<(), Error
     Ok(())
 }
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_index_locators_follow_the_rendered_code_pages() -> Result<(), Error> {
+    use std::fmt::Write as _;
+    for (style, options) in [("source", ""), ("source%linenums", ",highlight=2")] {
+        for wrapped in [false, true] {
+            let mut input = format!(
+                "= Code index\n:source-highlighter: rouge\n\n[{style},text,subs=+macros{options}]\n----\n((FirstMarker))\n"
+            );
+            if wrapped {
+                input.push_str(&"padding ".repeat(2400));
+            } else {
+                for line in 1..180 {
+                    writeln!(&mut input, "source line {line}")?;
+                }
+            }
+            input.push_str("((LastMarker))\n(((TailHidden)))\n----\n\n[index]\n== Index\n");
+            let pdf = render_input(&input)?;
+            let mut text = String::new();
+            let mut first_page = None;
+            let mut last_page = None;
+            for page in pdf.get_pages().keys() {
+                let page_text = pdf.extract_text(&[*page])?;
+                if page_text.contains("FirstMarker") && first_page.is_none() {
+                    first_page = Some(*page);
+                }
+                if page_text.contains("LastMarker") && last_page.is_none() {
+                    last_page = Some(*page);
+                }
+                text.push_str(&page_text);
+            }
+            let first_page = first_page.ok_or("missing first marker")?;
+            let last_page = last_page.ok_or("missing last marker")?;
+            assert!(last_page > first_page, "fixture must span pages");
+            let (_, catalog) = text.rsplit_once("Index").ok_or("missing index")?;
+            let catalog = catalog
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .replace(" ,", ",");
+            assert!(
+                catalog.contains(&format!("FirstMarker, {first_page}")),
+                "{catalog}"
+            );
+            assert!(
+                catalog.contains(&format!("LastMarker, {last_page}")),
+                "{catalog}"
+            );
+            assert!(
+                catalog.contains(&format!("TailHidden, {last_page}")),
+                "{catalog}"
+            );
+        }
+    }
+    Ok(())
+}
+
 #[test]
 fn included_source_references_create_internal_pdf_destinations() -> Result<(), Error> {
     let parsed = parse_file(

@@ -231,6 +231,9 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
         let w = self.writer_mut();
         writeln!(w, "{}", top_sep.clone().with(color))?;
 
+        acdc_converters_core::index::visit_index_terms(inlines, &mut |term, _| {
+            crate::inlines::register_index_term(term, processor, traversal)
+        })?;
         // Render code content directly (no left border)
         let content = render_preformatted_content(inlines, metadata, processor)?;
         let w = self.writer_mut();

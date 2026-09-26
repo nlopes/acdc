@@ -33,9 +33,11 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
 
         match &block.inner {
             DelimitedBlockType::DelimitedListing(inlines) => {
+                self.collect_index_terms_from_inlines(traversal, inlines)?;
                 self.render_listing_block(inlines, &block.metadata)
             }
             DelimitedBlockType::DelimitedLiteral(inlines) => {
+                self.collect_index_terms_from_inlines(traversal, inlines)?;
                 let content = extract_verbatim_text(inlines);
                 self.render_literal_block(&content)
             }

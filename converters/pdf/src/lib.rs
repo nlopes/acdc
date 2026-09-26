@@ -1293,6 +1293,14 @@ impl<'doc> Visitor<'doc> for PreparationVisitor<'doc> {
                 preparation.has_autofit_blocks |= is_autofit_delimited_block(block, traversal);
                 collect_inline_preparation(&block.title, &context, preparation);
                 collect_metadata_preparation(&block.metadata, &context, preparation);
+                if let DelimitedBlockType::DelimitedListing(nodes)
+                | DelimitedBlockType::DelimitedLiteral(nodes) = &block.inner
+                {
+                    acdc_converters_core::index::visit_index_terms(nodes, &mut |term, _| {
+                        collect_index_term_preparation(term, &context, preparation);
+                        Ok::<(), Self::Error>(())
+                    })?;
+                }
             }
             Block::DescriptionList(list) => {
                 collect_inline_preparation(&list.title, &context, preparation);

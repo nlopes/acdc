@@ -49,6 +49,7 @@ pub mod code;
 mod doctype;
 mod document_attributes;
 pub mod icon;
+pub mod index;
 pub mod inline_text;
 pub mod link;
 pub mod list;

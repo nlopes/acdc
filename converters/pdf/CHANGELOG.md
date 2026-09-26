@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms enabled with `subs=+macros` in listings and literal blocks join
+  the catalog with page links to their code lines, including highlighted and
+  numbered source blocks.
+
 - Early indexes include terms in later headings that have automatic IDs, without
   page numbers until those headings are rendered. Explicit IDs and `sectids!`
   suppress early registration, matching Asciidoctor PDF.

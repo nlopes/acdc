@@ -104,6 +104,10 @@ to later catalogs.
 The containing document controls `acdc-index`; a cell-local assignment does
 not change activation.
 
+Parsed index terms in code blocks join an opted-in catalog.
+Their links point to the code block because Markdown fences cannot contain HTML anchors.
+Use `subs=+macros` when parsing the AsciiDoc source to enable these terms.
+
 == Limitations
 
 Some `AsciiDoc` features have no faithful Markdown equivalent. When the

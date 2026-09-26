@@ -649,8 +649,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             }
             DelimitedBlockType::DelimitedListing(nodes)
             | DelimitedBlockType::DelimitedLiteral(nodes) => {
-                self.write_verbatim_block(traversal, nodes, &block.metadata);
-                Ok(())
+                self.write_verbatim_block(traversal, nodes, &block.metadata)
             }
             DelimitedBlockType::DelimitedPass(nodes) => {
                 self.write_passthrough_block(nodes);
@@ -1219,8 +1218,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 self.write_attribution(traversal, &para.metadata)
             }
             Some("literal" | "listing" | "source") => {
-                self.write_verbatim_block(traversal, &para.content, &para.metadata);
-                Ok(())
+                self.write_verbatim_block(traversal, &para.content, &para.metadata)
             }
             Some("example") => self.write_aligned_paragraph_body(&para.metadata, |visitor| {
                 visitor.writer.raw("#examplebox[\n");
@@ -1365,7 +1363,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
         metadata: &BlockMetadata<'_>,
-    ) {
+    ) -> Result<(), Error> {
         if metadata.options.contains(&"mixed")
             && Self::source_language(traversal, metadata) == Some("php")
         {
@@ -1377,27 +1375,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             );
         }
         let tab_size = Self::code_tab_size(traversal, metadata);
-        let source = self.code_text(traversal, nodes, tab_size);
+        let (source, index_positions) = self.code_text(traversal, nodes, tab_size)?;
         let autofit = has_autofit_option(metadata, traversal);
         let options = if Self::source_highlighting_enabled(traversal) {
             SourceLineOptions::resolve(metadata, &source)
         } else {
             SourceLineOptions::default()
         };
+        let anchor_lines =
+            self.code_index_anchor_lines(&source, index_positions, autofit, tab_size);
         if autofit {
             if options.is_empty() {
                 self.write_autofit_open(traversal, &source, metadata, 0);
-                self.write_raw_block(traversal, &source, metadata);
+                self.write_raw_block(traversal, &source, metadata, &anchor_lines);
                 self.writer.raw("]\n\n");
-                return;
+                return Ok(());
             }
 
             let source_lines = (1..=source_line_count(&source)).collect::<Vec<_>>();
             if source_lines.is_empty() {
                 self.write_autofit_open(traversal, &source, metadata, 0);
-                self.write_raw_block(traversal, &source, metadata);
+                self.write_raw_block(traversal, &source, metadata, &anchor_lines);
                 self.writer.raw("]\n\n");
-                return;
+                return Ok(());
             }
             let extra_width_tenths = if options.line_number_start.is_some() {
                 source_gutter_tenths(&source, &options).saturating_add(8)
@@ -1411,9 +1411,10 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 &source_lines,
                 metadata,
                 &options,
+                &anchor_lines,
             );
             self.writer.raw("]\n\n");
-            return;
+            return Ok(());
         }
 
         let wrap_columns = self
@@ -1421,15 +1422,15 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .unwrap_or(self.code_wrap_columns);
         if options.is_empty() {
             let source = wrap_code_text(&source, wrap_columns, tab_size);
-            self.write_raw_block(traversal, &source, metadata);
-            return;
+            self.write_raw_block(traversal, &source, metadata, &anchor_lines);
+            return Ok(());
         }
 
         let (source, source_lines) =
             wrap_code_text_with_line_origins(&source, wrap_columns, tab_size);
         if source_lines.is_empty() {
-            self.write_raw_block(traversal, &source, metadata);
-            return;
+            self.write_raw_block(traversal, &source, metadata, &anchor_lines);
+            return Ok(());
         }
         self.write_source_block_with_line_options(
             traversal,
@@ -1437,7 +1438,9 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             &source_lines,
             metadata,
             &options,
+            &anchor_lines,
         );
+        Ok(())
     }
 
     fn write_autofit_open(
@@ -1469,15 +1472,27 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         source: &str,
         metadata: &BlockMetadata<'_>,
+        anchor_lines: &[Vec<usize>],
     ) {
-        self.writer.raw("#raw(block: true");
+        if !anchor_lines.is_empty() {
+            self.writer.raw("#{\n");
+            self.write_code_index_anchors(anchor_lines);
+            self.writer.raw("  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line\n  ");
+        }
+        self.writer.raw(if anchor_lines.is_empty() {
+            "#raw(block: true"
+        } else {
+            "raw(block: true"
+        });
         if let Some(language) = Self::source_language(traversal, metadata) {
             self.writer.raw(", lang: ");
             self.writer.string_literal(language);
         }
         self.writer.raw(", ");
         self.writer.string_literal(source);
-        self.writer.raw(")\n\n");
+        self.writer.raw(")\n");
+        self.writer
+            .raw(if anchor_lines.is_empty() { "\n" } else { "}\n" });
     }
 
     fn write_source_block_with_line_options(
@@ -1487,8 +1502,13 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         source_lines: &[usize],
         metadata: &BlockMetadata<'_>,
         options: &SourceLineOptions,
+        anchor_lines: &[Vec<usize>],
     ) {
-        self.writer.raw("#{\n  let numbers = ");
+        self.writer.raw("#{\n");
+        if !anchor_lines.is_empty() {
+            self.write_code_index_anchors(anchor_lines);
+        }
+        self.writer.raw("  let numbers = ");
         self.write_source_line_numbers(source_lines, options.line_number_start);
         self.writer.raw("\n  let highlighted = (");
         for source_line in source_lines {
@@ -1511,8 +1531,12 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw(
             "    let code-width = if numbers == none { 100% } else { 100% - gutter - 0.8em }\n",
         );
+        self.writer.raw("    let code = ");
+        if !anchor_lines.is_empty() {
+            self.writer.raw("index-anchors.at(index, default: []) + ");
+        }
         self.writer
-            .raw("    let code = box(width: code-width, fill: if marked { rgb(");
+            .raw("box(width: code-width, fill: if marked { rgb(");
         self.writer.string_literal(&self.palette.accent);
         self.writer.raw(") } else { none }, line.body)\n");
         self.writer
@@ -1532,6 +1556,18 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         self.writer.raw(", ");
         self.writer.string_literal(source);
         self.writer.raw(")\n}\n\n");
+    }
+
+    fn write_code_index_anchors(&mut self, lines: &[Vec<usize>]) {
+        self.writer.raw("  let index-anchors = (\n");
+        for anchors in lines {
+            self.writer.raw("    [");
+            for anchor in anchors {
+                let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+            }
+            self.writer.raw("],\n");
+        }
+        self.writer.raw("  )\n");
     }
 
     fn write_source_line_numbers(&mut self, source_lines: &[usize], start: Option<usize>) {
@@ -1609,32 +1645,90 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
     }
 
     fn code_text(
-        &self,
-        traversal: &TraversalContext<'a>,
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
         nodes: &[InlineNode<'_>],
         tab_size: usize,
-    ) -> String {
-        let mut text = code_text_without_callout_guards(nodes);
+    ) -> Result<(String, Vec<(usize, usize)>), Error> {
+        let mut positions = Vec::new();
+        let mut text = code_text_without_callout_guards(nodes, |term, offset| {
+            let entry = self.render_index_entry(traversal, term)?;
+            if let Some(anchor) = self.index_catalog.add(entry) {
+                positions.push((offset, anchor));
+            }
+            Ok::<(), Error>(())
+        })?;
         #[cfg(not(feature = "pre-spec-subs"))]
         let _ = traversal;
         #[cfg(feature = "pre-spec-subs")]
-        let subs = self.processor.current_subs.get();
-        #[cfg(feature = "pre-spec-subs")]
-        if subs.contains(SubsFlags::ATTRIBUTES)
-            && let Cow::Owned(expanded) = substitute_attributes(&text, traversal)
         {
-            text = expanded;
+            let subs = self.processor.current_subs.get();
+            if subs.contains(SubsFlags::ATTRIBUTES) {
+                transform_code_text(&mut text, &mut positions, |text| {
+                    substitute_attributes(text, traversal)
+                });
+            }
+            transform_code_text(&mut text, &mut positions, |text| {
+                apply_replacements(text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
+            });
         }
-        #[cfg(feature = "pre-spec-subs")]
-        if let Cow::Owned(replaced) =
-            apply_replacements(&text, subs, &Replacements::unicode(), TextBoundaries::BOTH)
+        transform_code_text(&mut text, &mut positions, |text| {
+            expand_code_tabs(text, tab_size)
+        });
+        Ok((text, positions))
+    }
+
+    fn code_index_anchor_lines(
+        &mut self,
+        source: &str,
+        positions: Vec<(usize, usize)>,
+        autofit: bool,
+        tab_size: usize,
+    ) -> Vec<Vec<usize>> {
+        if positions.is_empty() {
+            return Vec::new();
+        }
+        let wrapped = if autofit {
+            Cow::Borrowed(source)
+        } else {
+            wrap_code_text(
+                source,
+                self.table_cell_code_wrap_columns()
+                    .unwrap_or(self.code_wrap_columns),
+                tab_size,
+            )
+        };
+        let mut positions = positions.into_iter().peekable();
+        let mut lines = Vec::new();
+        let mut offset = 0;
+        for line in wrapped
+            .split_inclusive('\n')
+            .take(source_line_count(&wrapped))
         {
-            text = replaced;
+            let end = offset + line.trim_end_matches('\n').len();
+            let original_newline = source.as_bytes().get(end) == Some(&b'\n');
+            let include_end = original_newline || end == source.len();
+            let mut anchors = Vec::new();
+            while positions
+                .peek()
+                .is_some_and(|(position, _)| *position < end || (include_end && *position == end))
+            {
+                if let Some((_, anchor)) = positions.next() {
+                    anchors.push(anchor);
+                }
+            }
+            lines.push(anchors);
+            offset = end + usize::from(original_newline);
         }
-        if let Cow::Owned(expanded) = expand_code_tabs(&text, tab_size) {
-            text = expanded;
+        if let Some(last_line) = lines.last_mut() {
+            last_line.extend(positions.map(|(_, anchor)| anchor));
+        } else {
+            // A concealed term can leave no raw line to carry its locator.
+            for (_, anchor) in positions {
+                let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+            }
         }
-        text
+        lines
     }
 
     fn write_verbatim_text(&mut self, text: &str) {
@@ -3997,11 +4091,31 @@ fn code_character_width(character: char, column: usize, tab_size: usize) -> usiz
     }
 }
 
-fn code_text_without_callout_guards(nodes: &[InlineNode<'_>]) -> String {
+fn transform_code_text(
+    text: &mut String,
+    positions: &mut [(usize, usize)],
+    transform: impl Fn(&str) -> Cow<'_, str>,
+) {
+    if let Cow::Owned(transformed) = transform(text) {
+        for (offset, _) in positions {
+            *offset = transform(&text[..*offset]).len();
+        }
+        *text = transformed;
+    }
+}
+
+fn code_text_without_callout_guards<E>(
+    nodes: &[InlineNode<'_>],
+    mut visit: impl FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
+) -> Result<String, E> {
     let mut text = String::new();
     let transform = InlineTextTransform::default().line_break("\n");
 
     for (index, node) in nodes.iter().enumerate() {
+        acdc_converters_core::index::visit_index_terms(
+            std::slice::from_ref(node),
+            &mut |term, offset| visit(term, text.len() + offset),
+        )?;
         if let InlineNode::VerbatimText(verbatim) = node {
             let mut content = verbatim.content;
             if index
@@ -4030,7 +4144,7 @@ fn code_text_without_callout_guards(nodes: &[InlineNode<'_>]) -> String {
         }
     }
 
-    text
+    Ok(text)
 }
 
 fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {

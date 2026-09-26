@@ -792,9 +792,8 @@ fn render_inline_image<W: Write + ?Sized>(
     }
 }
 
-fn render_index_term_to_writer<'a, W: Write + ?Sized>(
+pub(crate) fn register_index_term<'a>(
     term: &IndexTerm<'_>,
-    w: &mut W,
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
@@ -822,6 +821,16 @@ fn render_index_term_to_writer<'a, W: Write + ?Sized>(
         },
     });
 
+    Ok(())
+}
+
+fn render_index_term_to_writer<'a, W: Write + ?Sized>(
+    term: &IndexTerm<'_>,
+    w: &mut W,
+    processor: &Processor<'a>,
+    traversal: &mut TraversalContext<'a>,
+) -> Result<(), Error> {
+    register_index_term(term, processor, traversal)?;
     if term.is_visible() {
         write!(
             w,

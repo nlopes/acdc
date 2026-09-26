@@ -2,7 +2,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io::{Write, sink},
+    io::Write,
 };
 
 use acdc_converters_core::{
@@ -144,7 +144,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         })
     }
 
-    pub(crate) fn render_index_term(
+    pub(crate) fn register_index_term(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         term: &IndexTerm<'_>,
@@ -183,6 +183,15 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             });
         }
 
+        Ok(())
+    }
+
+    pub(crate) fn render_index_term(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        term: &IndexTerm<'_>,
+    ) -> Result<(), Error> {
+        self.register_index_term(traversal, term)?;
         if term.is_visible() {
             let previous = self.index_collection;
             self.index_collection = IndexCollection::Disabled;
@@ -201,9 +210,9 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         if !self.processor.has_valid_index_section {
             return Ok(());
         }
-        let mut output = sink();
-        let mut visitor = self.nested_visitor(&mut output);
-        visitor.visit_inline_nodes(traversal, inlines)
+        acdc_converters_core::index::visit_index_terms(inlines, &mut |term, _| {
+            self.register_index_term(traversal, term)
+        })
     }
 
     pub(crate) fn render_index_catalog(&mut self) -> Result<(), Error> {

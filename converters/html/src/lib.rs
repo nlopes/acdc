@@ -872,6 +872,71 @@ fn apply_attribute_subs<'a>(
     )
 }
 
+#[cfg(feature = "highlighting")]
+fn render_highlighted_code<'a, W: std::io::Write>(
+    traversal: &mut TraversalContext<'a>,
+    highlight_inlines: &[InlineNode<'_>],
+    metadata: &BlockMetadata<'_>,
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    subs: &[Substitution],
+    options: syntax::HighlightOptions<'_>,
+) -> Result<(), Error> {
+    let mut anchors = std::collections::BTreeMap::<usize, Vec<String>>::new();
+    let mut line = 0;
+    for node in highlight_inlines {
+        let text = acdc_converters_core::InlineTextTransform::default()
+            .line_break("\n")
+            .to_string(std::slice::from_ref(node));
+        acdc_converters_core::index::visit_index_terms(
+            std::slice::from_ref(node),
+            &mut |term, offset| {
+                if let Some(id) =
+                    visitor.register_indexterm(traversal, term, &RenderOptions::default(), subs)?
+                {
+                    anchors
+                        .entry(line + text.get(..offset).unwrap_or_default().matches('\n').count())
+                        .or_default()
+                        .push(id);
+                }
+                Ok::<(), Error>(())
+            },
+        )?;
+        line += text.matches('\n').count();
+    }
+    let mut highlighted = Vec::new();
+    let output: &mut dyn std::io::Write = if anchors.is_empty() {
+        &mut visitor.writer
+    } else {
+        &mut highlighted
+    };
+    // Split-borrow writer and diagnostics so highlight_code can have both
+    // without overlapping &mut self calls on the visitor.
+    syntax::highlight_code(
+        output,
+        highlight_inlines,
+        metadata,
+        options,
+        Some(&mut visitor.diagnostics),
+    )?;
+    if !anchors.is_empty() {
+        for (line, html) in String::from_utf8_lossy(&highlighted)
+            .split_inclusive('\n')
+            .enumerate()
+        {
+            if let Some(ids) = anchors.remove(&line) {
+                for id in ids {
+                    write!(visitor.writer, "<a id=\"{id}\"></a>")?;
+                }
+            }
+            write!(visitor.writer, "{html}")?;
+        }
+        for id in anchors.into_values().flatten() {
+            write!(visitor.writer, "<a id=\"{id}\"></a>")?;
+        }
+    }
+    Ok(())
+}
+
 /// Render a `<pre>` (and optional `<code>`) element for listing/source content.
 ///
 /// With an active source highlighter, this applies syntax and source-line
@@ -915,18 +980,17 @@ pub(crate) fn render_pre_code<'a, W: std::io::Write>(
         let (theme_name, mode) = resolve_highlight_settings(processor.document_attributes());
         let effective_inlines = apply_attribute_subs(inlines, subs, traversal);
         let highlight_inlines = effective_inlines.as_deref().unwrap_or(inlines);
-        // Split-borrow writer and diagnostics so highlight_code can have both
-        // without overlapping &mut self calls on the visitor.
-        syntax::highlight_code(
-            &mut visitor.writer,
+        render_highlighted_code(
+            traversal,
             highlight_inlines,
             metadata,
+            visitor,
+            subs,
             syntax::HighlightOptions {
                 language: lang,
                 theme_name: &theme_name,
                 mode,
             },
-            Some(&mut visitor.diagnostics),
         )?;
         writeln!(visitor.writer, "</code></pre>")?;
     } else if let Some(lang) = language {

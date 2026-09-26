@@ -50,6 +50,9 @@ to later catalogs.
 The containing document controls `acdc-index`; a cell-local assignment does
 not change activation.
 
+Index macros in listing and literal blocks need `subs=+macros`.
+With an opted-in catalog, highlighted code links point to the indexed code line.
+
 === Standalone HTML Output
 
 Generates complete, standalone HTML documents with embedded CSS. No external dependencies needed - the output file contains everything required for display.

@@ -164,6 +164,9 @@ Set `:index-pagenum-sequence-style: page` to list each page once, or set it to `
 For non-screen media, the catalog ignores that sequence setting and emits unlinked, unique page numbers with contiguous ranges, matching Asciidoctor PDF.
 An empty index section is omitted, and content inside an index section is ignored, matching Asciidoctor PDF.
 
+Use `subs=+macros` to enable index terms in listing and literal blocks.
+PDF page references follow their code lines, including when long lines wrap across pages.
+
 The bundled theme uses two columns with a 12 pt gap.
 Use `[index%notitle]` to hide the visible section heading.
 The `index.columns` and `index.column_gap_pt` theme tokens set the column count and gap.

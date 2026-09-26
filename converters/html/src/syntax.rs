@@ -473,6 +473,15 @@ fn extract_text_and_callouts(
             InlineNode::CalloutRef(callout) => {
                 callouts.insert(current_line, callout.number);
             }
+            InlineNode::Macro(acdc_parser::InlineMacro::IndexTerm(term)) => {
+                if term.is_visible() {
+                    let text = acdc_converters_core::InlineTextTransform::default()
+                        .line_break("\n")
+                        .to_string(term.term());
+                    current_line += text.matches('\n').count();
+                    result.push_str(&text);
+                }
+            }
             InlineNode::BoldText(_)
             | InlineNode::ItalicText(_)
             | InlineNode::MonospaceText(_)

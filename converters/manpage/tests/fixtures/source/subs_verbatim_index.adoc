@@ -1,0 +1,75 @@
+= verbatim-index(1)
+:doctype: manpage
+:revdate: 2026-09-26
+:manmanual: Index tests
+:mansource: acdc
+:acdc-index:
+:name: AttributeTerm
+:marked: ((FromAttribute))
+
+== Name
+
+verbatim-index - test indexes in code
+
+== Synopsis
+
+Code examples.
+
+== Description
+
+[source,rust,subs=+macros]
+----
+let x = "((ListingTerm))"; // <1>
+indexterm:[Hidden, Secondary]indexterm2:[NamedVisible]
+\((EscapedVisible)) \(((EscapedHidden)))
+*not bold* and {name} and \*escaped*
+----
+<1> A callout.
+
+[subs=+macros]
+....
+  ((LiteralTerm))
+
+  ((BlankLineTerm))
+  (((LiteralHidden)))concealed term
+....
+
+[source,subs="specialcharacters,attributes,macros,callouts"]
+----
+((Labeled {name}))
+{marked}
+----
+
+[source,subs="macros,attributes"]
+----
+((Late {name}))
+{marked}
+----
+
+[source,subs=+macros]
+Styled ((StyledTerm)).
+
+[literal,subs=+macros]
+Literal ((StyledLiteral)).
+
+[subs=+macros]
+ Indented ((IndentedTerm)).
+
+[source]
+----
+((DefaultOff))
+----
+
+[subs="+macros,-macros"]
+....
+((ExplicitOff))
+....
+
+[source]
+((StyledDefaultOff)).
+
+[literal,subs=-macros]
+((StyledExplicitOff)).
+
+[index]
+== Index

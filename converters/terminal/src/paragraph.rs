@@ -200,6 +200,10 @@ impl<'a, W: Write> TerminalVisitor<'a, '_, W> {
             "\n",
         )?;
 
+        acdc_converters_core::index::visit_index_terms(&para.content, &mut |term, _| {
+            crate::inlines::register_index_term(term, self.processor, traversal)
+        })?;
+
         let separator = "─"
             .repeat(20)
             .with(self.processor.appearance.colors.label_listing);

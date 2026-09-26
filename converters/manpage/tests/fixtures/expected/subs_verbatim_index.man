@@ -1,0 +1,160 @@
+'\" t
+.\"     Title: verbatim-index
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-26
+.\"    Manual: Index tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERBATIM\-INDEX" "1" "2026-09-26" "acdc" "Index tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verbatim\-index \- test indexes in code
+.SH "SYNOPSIS"
+.sp
+Code examples.
+.SH "DESCRIPTION"
+.EX
+let x = "ListingTerm"; \fB(1)\fP
+NamedVisible
+((EscapedVisible)) (EscapedHidden)
+*not bold* and {name} and \e*escaped*
+.EE
+.RS 0
+.IP \fB(1)\fP 4
+A callout.
+.RE
+.nf
+  LiteralTerm
+
+  BlankLineTerm
+  concealed term
+.fi
+.EX
+Labeled AttributeTerm
+FromAttribute
+.EE
+.EX
+Late AttributeTerm
+((FromAttribute))
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+Styled StyledTerm\&.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+Literal StyledLiteral.
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+Indented IndentedTerm.
+.fam
+.fi
+.if n .RE
+.EX
+((DefaultOff))
+.EE
+.nf
+((ExplicitOff))
+.fi
+.sp
+.if n .RS 4
+.nf
+.fam C
+((StyledDefaultOff)).
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+((StyledExplicitOff)).
+.fam
+.fi
+.if n .RE
+.SH "INDEX"
+.SS "B"
+.RS 4
+BlankLineTerm
+.br
+.RE
+.SS "E"
+.RS 4
+EscapedHidden
+.br
+.RE
+.SS "F"
+.RS 4
+FromAttribute
+.br
+.RE
+.SS "H"
+.RS 4
+Hidden
+.br
+.RS 4
+Secondary
+.br
+.RE
+.RE
+.SS "I"
+.RS 4
+IndentedTerm
+.br
+.RE
+.SS "L"
+.RS 4
+Labeled AttributeTerm
+.br
+Late AttributeTerm
+.br
+ListingTerm
+.br
+LiteralHidden
+.br
+LiteralTerm
+.br
+.RE
+.SS "N"
+.RS 4
+NamedVisible
+.br
+.RE
+.SS "S"
+.RS 4
+StyledLiteral
+.br
+StyledTerm
+.br
+.RE
