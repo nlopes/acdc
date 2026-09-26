@@ -1,4 +1,6 @@
-use acdc_parser::{Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode};
+use acdc_parser::{
+    Block, DelimitedBlock, DelimitedBlockType, Document, InlineMacro, InlineNode, Location,
+};
 
 use crate::LintId;
 
@@ -94,30 +96,172 @@ fn lint_one_sentence_inlines(
     let Some(range) = line_range_for_inlines(inlines) else {
         return;
     };
-    lint_prose_lines(emitter, source_lines_for_range(lines, range));
+    let mut locations = Vec::new();
+    if inlines
+        .iter()
+        .any(|node| formatting_content(node).is_some())
+    {
+        collect_prose_locations(inlines, &mut locations);
+    }
+    lint_prose_lines(emitter, source_lines_for_range(lines, range), &locations);
 }
 
-fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>]) {
+fn formatting_content<'a, 's>(node: &'a InlineNode<'s>) -> Option<&'a [InlineNode<'s>]> {
+    match node {
+        InlineNode::BoldText(text) => Some(&text.content),
+        InlineNode::ItalicText(text) => Some(&text.content),
+        InlineNode::MonospaceText(text) => Some(&text.content),
+        InlineNode::HighlightText(text) => Some(&text.content),
+        InlineNode::SubscriptText(text) => Some(&text.content),
+        InlineNode::SuperscriptText(text) => Some(&text.content),
+        InlineNode::CurvedQuotationText(text) => Some(&text.content),
+        InlineNode::CurvedApostropheText(text) => Some(&text.content),
+        InlineNode::Macro(macro_node) => formatted_link_label(macro_node),
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::CalloutRef(_)
+        | _ => None,
+    }
+}
+
+fn formatted_link_label<'a, 's>(macro_node: &'a InlineMacro<'s>) -> Option<&'a [InlineNode<'s>]> {
+    let label = match macro_node {
+        InlineMacro::Link(link) => &link.text,
+        InlineMacro::Url(link) => &link.text,
+        InlineMacro::Mailto(link) => &link.text,
+        InlineMacro::CrossReference(link) => &link.text,
+        InlineMacro::Autolink(_)
+        | InlineMacro::Footnote(_)
+        | InlineMacro::Icon(_)
+        | InlineMacro::Image(_)
+        | InlineMacro::Keyboard(_)
+        | InlineMacro::Button(_)
+        | InlineMacro::Menu(_)
+        | InlineMacro::Pass(_)
+        | InlineMacro::Stem(_)
+        | InlineMacro::IndexTerm(_)
+        | _ => return None,
+    };
+    let parent = macro_node.location();
+    let is_source_label = label.iter().all(|node| {
+        let location = node.location();
+        location.start.file == parent.start.file
+            && location.end.file == parent.end.file
+            && location.absolute_start >= parent.absolute_start
+            && location.absolute_end <= parent.absolute_end
+    });
+    (is_source_label && label.iter().any(|node| formatting_content(node).is_some()))
+        .then_some(label.as_slice())
+}
+
+fn collect_prose_locations<'a>(inlines: &'a [InlineNode<'_>], locations: &mut Vec<&'a Location>) {
+    for inline in inlines {
+        if let Some(content) = formatting_content(inline) {
+            collect_prose_locations(content, locations);
+        } else {
+            locations.push(inline.location());
+        }
+    }
+}
+
+fn write_prose_line(line: SourceLine<'_>, locations: &mut &[&Location], text: &mut String) {
+    text.clear();
+    text.reserve(line.text.len());
+
+    while let Some((location, remaining)) = locations.split_first() {
+        if location.start.file.is_some()
+            || location.end.file.is_some()
+            || usize::try_from(location.end.line).unwrap_or(usize::MAX) < line.number
+        {
+            *locations = remaining;
+        } else {
+            break;
+        }
+    }
+
+    // Columns count Unicode characters. Advancing once also avoids copying overlapping
+    // source spans more than once when attributes expand into several inline nodes.
+    let mut chars = line.text.chars().enumerate().peekable();
+    for location in *locations {
+        if location.start.file.is_some() || location.end.file.is_some() {
+            continue;
+        }
+        let start_line = usize::try_from(location.start.line).unwrap_or(usize::MAX);
+        let end_line = usize::try_from(location.end.line).unwrap_or(usize::MAX);
+        if line.number < start_line {
+            break;
+        }
+        if line.number > end_line {
+            continue;
+        }
+
+        let start_column = if line.number == start_line {
+            usize::try_from(location.start.column.saturating_sub(1)).unwrap_or(usize::MAX)
+        } else {
+            0
+        };
+        let end_column = if line.number == end_line {
+            usize::try_from(location.end.column).unwrap_or(usize::MAX)
+        } else {
+            usize::MAX
+        };
+        while chars
+            .next_if(|(column, _)| *column < start_column)
+            .is_some()
+        {}
+        while let Some((_, ch)) = chars.next_if(|(column, _)| *column < end_column) {
+            text.push(ch);
+        }
+    }
+}
+
+fn lint_prose_lines(
+    emitter: &mut LintEmitter<'_>,
+    paragraph: &[SourceLine<'_>],
+    mut locations: &[&Location],
+) {
     if paragraph.is_empty() {
         return;
     }
 
-    for line in paragraph {
-        let count = sentence_ending_count(prose_text(line.text));
+    let has_formatting = !locations.is_empty();
+    let mut line_text = String::new();
+    let boundaries: Vec<_> = paragraph
+        .iter()
+        .filter_map(|line| {
+            let text = if has_formatting {
+                write_prose_line(*line, &mut locations, &mut line_text);
+                line_text.as_str()
+            } else {
+                prose_text(line.text)
+            };
+            if has_formatting && text.trim().is_empty() {
+                return None;
+            }
+            Some((
+                line.number,
+                sentence_ending_count(text),
+                is_colon_lead_in(text),
+            ))
+        })
+        .collect();
+    for &(line, count, _) in &boundaries {
         if count > 1 {
             emitter.emit(
                 LintId::OneSentencePerLine,
                 "multiple sentences on one source line",
                 None,
-                Some(emitter.point_location(line.number, 1)),
+                Some(emitter.point_location(line, 1)),
             );
         }
     }
 
     let mut open_sentence_line = None;
-    for line in paragraph {
-        let text = prose_text(line.text);
-        let count = sentence_ending_count(text);
+    for &(line, count, colon_lead_in) in &boundaries {
         if open_sentence_line.is_some() && count > 0 {
             if let Some(open_line) = open_sentence_line {
                 emitter.emit(
@@ -130,16 +274,16 @@ fn lint_prose_lines(emitter: &mut LintEmitter<'_>, paragraph: &[SourceLine<'_>])
             return;
         }
         if count == 0 {
-            if open_sentence_line.is_none() && is_colon_lead_in(text) {
+            if open_sentence_line.is_none() && colon_lead_in {
                 continue;
             }
-            open_sentence_line.get_or_insert(line.number);
+            open_sentence_line.get_or_insert(line);
         } else {
             open_sentence_line = None;
         }
     }
 
-    if paragraph.len() > 1
+    if boundaries.len() > 1
         && let Some(line) = open_sentence_line
     {
         emitter.emit(

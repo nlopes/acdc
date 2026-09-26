@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lint -D one-sentence-per-line` no longer rejects correctly separated
+  sentences or colon-terminated lead-ins that use inline formatting. Multiple
+  formatted sentences on one source line now fail the check.
 - Repeated `-a` options now use the final assignment's precedence, matching
   Asciidoctor. A later default such as `-a name=value@` or `-a !name=@` cancels
   an earlier override and lets the document assign that attribute.
