@@ -96,8 +96,7 @@ Build with `pdf` (or `all-backends`) and select `--backend pdf`:
 [source,console]
 ....
 cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
-  --page a3 \
-  --page-layout landscape \
+  --page letter \
   --font-dir fonts \
   --logo assets/logo.svg \
   --title "Internal Architecture" \
@@ -106,10 +105,6 @@ cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
   --toc
 ....
 
-`--page` accepts A3, A4, A5, Executive, Legal, Letter, or Tabloid.
-`--page-layout` accepts `portrait` or `landscape`.
-The `pdf-page-size` document attribute also accepts custom dimensions, and
-`pdf-page-margin` sets one to four margins for that document.
 `--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
 `--strict` makes unresolved PDF images or logos fatal.
 Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.
@@ -160,6 +155,40 @@ cargo run -p acdc-cli --features inspect -- inspect document.adoc --show-locatio
 
 `--max-depth` limits displayed nesting.
 Color is used only on interactive stdout and respects `NO_COLOR`.
+
+=== `execute`
+
+Build with `execute` to run *command blocks* defined in an AsciiDoc document.
+A command block is a listing block carrying the `command` role and an explicit `id`; it may declare a `deps` attribute naming the ids of commands that must run first, and a `[source, <lang>]` header selects the interpreter (default `sh`). The `command` role and `id` are required; the source header and `deps` attribute are optional. The interpreter value is passed directly to the operating system as an executable name or path without an allowlist, so executing a document is not a sandbox boundary.
+
+[source,asciidoc]
+....
+[.command, id=build]
+[source, bash]
+----
+cargo build
+----
+
+[.command, id=test, deps="build"]
+[source, bash]
+----
+cargo nextest run
+----
+....
+
+[source,console]
+....
+acdc execute --dry-run README.adoc
+acdc execute --id build README.adoc
+acdc execute --id-regex '^test-' --exit-on-failure README.adoc
+....
+
+Commands are discovered in document order, including inside nested containers and included files, then executed in dependency order.
+Exact `--id` and `--id-regex` selectors form a union, and selected commands always run together with their transitive dependencies; each command runs at most once.
+Without selectors, every command is selected.
+`--dry-run` prints the plan without running anything.
+`-S`/`--safe-mode` limits what the document may include while parsing; it does not sandbox the executed commands.
+A build with the `execute` feature only is available via `cargo build -p acdc-cli --no-default-features --features execute`.
 
 === `tck`
 
@@ -213,13 +242,16 @@ echo '{"contents":"= Hello","path":"test.adoc","type":"block"}' \
 | no
 | Remote includes and remote PDF assets when PDF is selected.
 
-| `execute`, `inspect`, `tck`
+| `execute`
 | no
-| Developer/specification commands; `execute` is currently scaffolding only.
+| `acdc execute` command: run command blocks defined in AsciiDoc documents.
+
+| `inspect`, `tck`
+| no
+| Developer/specification commands.
 |===
 
 Convenience groups are `all-backends`, `dev-tools` (`execute`, `inspect`), and `test-tools` (`tck`).
-The feature-gated `execute` command is developer scaffolding and is not functional yet.
 A build with no command-enabling features exits with a diagnostic that lists the available command features.
 
 == Diagnostics and exit status

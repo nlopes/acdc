@@ -2,6 +2,7 @@
 members = [
   "acdc-cli",
   "acdc-editor-wasm",
+  "acdc-execute",
   "acdc-lint",
   "acdc-lsp",
   "acdc-parser",
@@ -43,6 +44,8 @@ acdc-converters-manpage = { path = "converters/manpage", default-features = fals
 acdc-converters-markdown = { path = "converters/markdown" }
 acdc-converters-pdf = { path = "converters/pdf", default-features = false }
 acdc-converters-terminal = { path = "converters/terminal", default-features = false }
+acdc-editor-wasm = { path = "acdc-editor-wasm" }
+acdc-execute = { path = "acdc-execute", default-features = false }
 acdc-lint = { path = "acdc-lint", default-features = false }
 acdc-parser = { path = "acdc-parser", default-features = false }
 base64 = "0.23"
@@ -54,6 +57,7 @@ image = { version = "0.25", default-features = false, features = ["png", "jpeg",
 libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0" }
 lopdf = "0.44"
 mockito = "1"
+petgraph = "0.8"
 pretty_assertions = "1.4"
 rayon = "1.11"
 relative-path = "2.0.1"
