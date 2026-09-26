@@ -158,6 +158,10 @@ Use `term &> related term` or `see-also=related term` to add one or more `(see a
 For screen media, a relationship target links to an exact primary-term match; a missing target remains text.
 Non-screen media renders relationship targets without links.
 
+acdc keeps relationship text and page locators for footnote terms registered before the index.
+These are intentional differences from Asciidoctor PDF 2.3.15, which ignores relationship metadata and can list footnote terms without locators.
+Later body and footnote terms still remain outside an earlier catalog.
+
 For screen media, each page number links to the exact term occurrence.
 The default screen sequence lists every occurrence.
 Set `:index-pagenum-sequence-style: page` to list each page once, or set it to `range` to combine consecutive pages.
