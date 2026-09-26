@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Multiple index catalogs keep `see` and `see-also` links within their own
+  catalog without duplicate definition targets.
+
 - File-qualified references to fully included sources link to local anchors,
   including explicit labels on IDs with punctuation. Other source files and
   partial includes keep external links.

@@ -10,6 +10,7 @@ use acdc_pdf_typst::Writer;
 pub(crate) struct IndexCatalog {
     terms: BTreeMap<TermKey, IndexEntry>,
     next_anchor: usize,
+    next_catalog: usize,
     suspended: bool,
 }
 
@@ -141,7 +142,7 @@ impl IndexCatalog {
     }
 
     pub(crate) fn write(
-        &self,
+        &mut self,
         writer: &mut Writer,
         sequence_style: PageSequenceStyle,
         columns: usize,
@@ -155,7 +156,9 @@ impl IndexCatalog {
         if columns > 1 {
             let _ = writeln!(writer, "#columns({columns}, gutter: {column_gap_pt}pt)[");
         }
-        let definitions = definition_labels(&self.terms);
+        self.next_catalog += 1;
+        let catalog = self.next_catalog;
+        let definitions = definition_labels(&self.terms, catalog);
 
         let mut categories: BTreeMap<String, Vec<(&TermKey, &IndexEntry)>> = BTreeMap::new();
         for (term, entry) in &self.terms {
@@ -173,7 +176,15 @@ impl IndexCatalog {
             writer.string_literal(category);
             writer.raw(")]\n#v(0.25em)\n");
             for (term, entry) in terms {
-                write_entry(writer, term, entry, 0, sequence_style, &definitions);
+                write_entry(
+                    writer,
+                    term,
+                    entry,
+                    0,
+                    sequence_style,
+                    &definitions,
+                    catalog,
+                );
             }
         }
         if columns > 1 {
@@ -226,10 +237,11 @@ fn write_entry(
     depth: usize,
     sequence_style: PageSequenceStyle,
     definitions: &BTreeMap<String, String>,
+    catalog: usize,
 ) {
     let definition = (depth == 0).then(|| definitions.get(&term.plain)).flatten();
     if let Some(definition) = definition
-        && *definition == definition_label(term)
+        && *definition == definition_label(term, catalog)
     {
         writer.raw("#metadata(none) <");
         writer.raw(definition);
@@ -272,6 +284,7 @@ fn write_entry(
             depth + 1,
             sequence_style,
             definitions,
+            catalog,
         );
     }
 }
@@ -310,7 +323,10 @@ fn write_relationship_target(
     }
 }
 
-fn definition_labels(terms: &BTreeMap<TermKey, IndexEntry>) -> BTreeMap<String, String> {
+fn definition_labels(
+    terms: &BTreeMap<TermKey, IndexEntry>,
+    catalog: usize,
+) -> BTreeMap<String, String> {
     let mut targets = BTreeSet::new();
     collect_relationship_targets(terms.values(), &mut targets);
     targets
@@ -319,7 +335,7 @@ fn definition_labels(terms: &BTreeMap<TermKey, IndexEntry>) -> BTreeMap<String, 
             terms
                 .keys()
                 .find(|term| term.plain == target)
-                .map(|term| (target, definition_label(term)))
+                .map(|term| (target, definition_label(term, catalog)))
         })
         .collect()
 }
@@ -342,8 +358,12 @@ fn collect_relationship_targets<'a>(
     }
 }
 
-fn definition_label(term: &TermKey) -> String {
-    let mut label = String::from("__indextermdef-");
+fn definition_label(term: &TermKey, catalog: usize) -> String {
+    let mut label = if catalog == 1 {
+        String::from("__indextermdef-")
+    } else {
+        format!("__indextermdef-{catalog}-")
+    };
     for byte in term.plain.bytes().chain([0]).chain(term.markup.bytes()) {
         let _ = write!(label, "{byte:02x}");
     }

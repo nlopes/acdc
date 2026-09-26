@@ -31,6 +31,17 @@ fn render_parsed(parsed: &ParseResult) -> Result<PdfDocument, Error> {
 }
 
 #[test]
+fn multiple_index_catalogs_compile_with_relationship_links() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/index_multiple_catalogs.adoc"))?;
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf.extract_text(&pages)?;
+    assert!(text.contains("First Index"), "{text}");
+    assert!(text.contains("Second Index"), "{text}");
+    assert!(text.contains("see"), "{text}");
+    Ok(())
+}
+
+#[test]
 fn included_source_references_create_internal_pdf_destinations() -> Result<(), Error> {
     let parsed = parse_file(
         "tests/fixtures/source/xref_included_sources.adoc",

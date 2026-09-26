@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Multiple index catalogs keep `see` and `see-also` links within their own
+  catalog without duplicate definition targets. This also prevents PDF generation
+  from failing when the same term is referenced by more than one catalog.
+
 - Cross-references to anchors inside horizontal description-list terms no longer
   fail PDF generation. Links point to the visible term.
 

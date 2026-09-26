@@ -210,6 +210,7 @@ pub struct Processor<'a> {
     pub(crate) listing_counter: Rc<Cell<u32>>,
     pub(crate) table_counter: Rc<Cell<u32>>,
     index_term_counter: Rc<Cell<usize>>,
+    index_catalog_counter: Rc<Cell<usize>>,
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     generate_index: bool,
     warned_fallbacks: Rc<RefCell<HashSet<&'static str>>>,
@@ -316,6 +317,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             listing_counter: Rc::new(Cell::new(0)),
             table_counter: Rc::new(Cell::new(0)),
             index_term_counter: Rc::new(Cell::new(0)),
+            index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
@@ -365,6 +367,7 @@ impl<'a> Converter<'a> for Processor<'a> {
             listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             table_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Table))),
             index_term_counter: Rc::new(Cell::new(0)),
+            index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: index_generation_enabled(&doc.attributes)
                 && has_index_section(&doc.blocks),

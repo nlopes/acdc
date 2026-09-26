@@ -160,6 +160,7 @@ pub struct Processor<'a> {
     listing_counter: Rc<Cell<u32>>,
     /// Shared counter for generating unique index term anchor IDs.
     index_term_counter: Rc<Cell<usize>>,
+    index_catalog_counter: Rc<Cell<usize>>,
     /// Index occurrences collected during rendering, shared by nested visitors.
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
     /// Whether the header opts into a catalog and the section hierarchy has a seed.
@@ -321,6 +322,7 @@ impl<'a> Processor<'a> {
             figure_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Figure))),
             listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             index_term_counter: self.index_term_counter.clone(),
+            index_catalog_counter: self.index_catalog_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };
@@ -601,6 +603,7 @@ impl<'a> Processor<'a> {
             figure_counter: Rc::new(Cell::new(0)),
             listing_counter: Rc::new(Cell::new(0)),
             index_term_counter: Rc::new(Cell::new(0)),
+            index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
             variant,

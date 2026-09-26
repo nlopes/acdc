@@ -1,0 +1,16 @@
+= Multiple index catalogs
+:acdc-index:
+
+== Before
+
+((Cat)). indexterm:[Feline,see=Cat] indexterm:[Animal,see-also=Cat]
+
+[index]
+== First Index
+
+== Between
+
+((Dog)). indexterm:[Canine,see=Dog]
+
+[index]
+== Second Index

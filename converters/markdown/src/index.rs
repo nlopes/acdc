@@ -132,8 +132,12 @@ fn definition_terms(
         .collect()
 }
 
-fn definition_id(term: &str) -> String {
-    let mut id = String::from("_indextermdef_");
+fn definition_id(term: &str, catalog: usize) -> String {
+    let mut id = if catalog == 1 {
+        String::from("_indextermdef_")
+    } else {
+        format!("_indextermdef_{catalog}_")
+    };
     for byte in term.bytes() {
         id.push(char::from_digit(u32::from(byte >> 4), 16).unwrap_or('0'));
         id.push(char::from_digit(u32::from(byte & 0x0f), 16).unwrap_or('0'));
@@ -150,12 +154,13 @@ fn escape_link_text(text: &str) -> String {
 fn render_relationship_target(
     target: &IndexTermLabel,
     definitions: &BTreeMap<String, IndexTermLabel>,
+    catalog: usize,
 ) -> String {
     if definitions.contains_key(&target.plain) {
         format!(
             "[{}](#{})",
             escape_link_text(&target.plain),
-            definition_id(&target.plain)
+            definition_id(&target.plain, catalog)
         )
     } else {
         target.rendered.clone()
@@ -187,11 +192,16 @@ fn render_entries<W: Write + ?Sized>(
     depth: usize,
     fallback: &str,
     definitions: &BTreeMap<String, IndexTermLabel>,
+    catalog: usize,
 ) -> Result<(), Error> {
     for (term, entry) in entries {
         write!(writer, "{}- ", "  ".repeat(depth))?;
         if depth == 0 && definitions.get(&term.plain) == Some(term) {
-            write!(writer, "<a id=\"{}\"></a>", definition_id(&term.plain))?;
+            write!(
+                writer,
+                "<a id=\"{}\"></a>",
+                definition_id(&term.plain, catalog)
+            )?;
         }
         write!(writer, "{}", term.rendered)?;
 
@@ -200,7 +210,7 @@ fn render_entries<W: Write + ?Sized>(
                 write!(
                     writer,
                     " — see {}",
-                    render_relationship_target(target, definitions)
+                    render_relationship_target(target, definitions, catalog)
                 )?;
             }
             Some(IndexRelationship::SeeAlso(_)) | None if !entry.occurrences.is_empty() => {
@@ -220,11 +230,18 @@ fn render_entries<W: Write + ?Sized>(
                     writer,
                     "{}- see also {}",
                     "  ".repeat(depth + 1),
-                    render_relationship_target(target, definitions)
+                    render_relationship_target(target, definitions, catalog)
                 )?;
             }
         }
-        render_entries(writer, &entry.children, depth + 1, fallback, definitions)?;
+        render_entries(
+            writer,
+            &entry.children,
+            depth + 1,
+            fallback,
+            definitions,
+            catalog,
+        )?;
     }
     Ok(())
 }
@@ -241,6 +258,8 @@ pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
 
     let fallback = document_attribute_text((processor.document_attributes()).get("doctitle"))
         .map_or_else(|| "top".to_owned(), str::to_owned);
+    let catalog = processor.index_catalog_counter.get() + 1;
+    processor.index_catalog_counter.set(catalog);
     let index = build_index_structure(&entries);
     let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);
@@ -251,7 +270,7 @@ pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
         writeln!(writer)?;
         writeln!(writer, "{hashes} {letter}")?;
         writeln!(writer)?;
-        render_entries(writer, &terms, 0, &fallback, &definitions)?;
+        render_entries(writer, &terms, 0, &fallback, &definitions, catalog)?;
     }
     Ok(())
 }

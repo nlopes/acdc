@@ -185,8 +185,12 @@ fn definition_terms(
         .collect()
 }
 
-fn definition_id(term: &str) -> String {
-    let mut id = String::from("_indextermdef_");
+fn definition_id(term: &str, catalog: usize) -> String {
+    let mut id = if catalog == 1 {
+        String::from("_indextermdef_")
+    } else {
+        format!("_indextermdef_{catalog}_")
+    };
     for byte in term.bytes() {
         id.push(char::from_digit(u32::from(byte >> 4), 16).unwrap_or('0'));
         id.push(char::from_digit(u32::from(byte & 0x0f), 16).unwrap_or('0'));
@@ -197,11 +201,12 @@ fn definition_id(term: &str) -> String {
 fn render_relationship_target(
     target: &IndexTermLabel,
     definitions: &BTreeMap<String, IndexTermLabel>,
+    catalog: usize,
 ) -> String {
     if definitions.contains_key(&target.plain) {
         format!(
             "<a href=\"#{}\">{}</a>",
-            definition_id(&target.plain),
+            definition_id(&target.plain, catalog),
             target.html
         )
     } else {
@@ -215,10 +220,16 @@ fn render_entries<W: Write + ?Sized>(
     depth: usize,
     fallback: &str,
     definitions: &BTreeMap<String, IndexTermLabel>,
+    catalog: usize,
 ) -> Result<(), Error> {
     for (term, entry) in entries {
         if depth == 0 && definitions.get(&term.plain) == Some(term) {
-            writeln!(w, "<dt id=\"{}\">{}", definition_id(&term.plain), term.html)?;
+            writeln!(
+                w,
+                "<dt id=\"{}\">{}",
+                definition_id(&term.plain, catalog),
+                term.html
+            )?;
         } else {
             writeln!(w, "<dt>{}", term.html)?;
         }
@@ -228,7 +239,7 @@ fn render_entries<W: Write + ?Sized>(
                 write!(
                     w,
                     " <span class=\"index-see\">(see {})</span>",
-                    render_relationship_target(target, definitions)
+                    render_relationship_target(target, definitions, catalog)
                 )?;
             }
             Some(IndexRelationship::SeeAlso(_)) | None => {
@@ -256,11 +267,18 @@ fn render_entries<W: Write + ?Sized>(
                     writeln!(
                         w,
                         "<dt><span class=\"index-see-also\">(see also {})</span></dt>",
-                        render_relationship_target(target, definitions)
+                        render_relationship_target(target, definitions, catalog)
                     )?;
                 }
             }
-            render_entries(w, &entry.children, depth + 1, fallback, definitions)?;
+            render_entries(
+                w,
+                &entry.children,
+                depth + 1,
+                fallback,
+                definitions,
+                catalog,
+            )?;
             writeln!(w, "</dl>")?;
             writeln!(w, "</dd>")?;
         }
@@ -290,6 +308,8 @@ pub(crate) fn render<'a, W: Write>(
         .map(acdc_parser::strip_quotes)
         .map_or_else(|| "top".to_string(), str::to_owned);
 
+    let catalog = processor.index_catalog_counter.get() + 1;
+    processor.index_catalog_counter.set(catalog);
     let index = build_index_structure(&entries);
     let definitions = definition_terms(&index);
     let grouped = group_by_letter(index);
@@ -301,7 +321,7 @@ pub(crate) fn render<'a, W: Write>(
         writeln!(w, "<h3 class=\"indexletter\">{letter}</h3>")?;
         writeln!(w, "<dl class=\"indexterms\">")?;
 
-        render_entries(w, terms, 0, &fallback, &definitions)?;
+        render_entries(w, terms, 0, &fallback, &definitions, catalog)?;
 
         writeln!(w, "</dl>")?;
     }

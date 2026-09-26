@@ -1230,6 +1230,7 @@ mod tests {
             figure_counter: Rc::new(Cell::new(0)),
             listing_counter: Rc::new(Cell::new(0)),
             index_term_counter: Rc::new(Cell::new(0)),
+            index_catalog_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(std::cell::RefCell::new(Vec::new())),
             generate_index: false,
             variant: crate::HtmlVariant::Standard,
