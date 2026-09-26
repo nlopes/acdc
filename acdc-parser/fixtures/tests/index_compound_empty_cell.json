@@ -1,0 +1,150 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Manual",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 8
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 1,
+        "col": 8
+      }
+    ]
+  },
+  "attributes": {},
+  "blocks": [
+    {
+      "name": "open",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "--",
+      "blocks": [
+        {
+          "name": "table",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "|===",
+          "metadata": {
+            "attributes": {
+              "cols": "a"
+            }
+          },
+          "content": {
+            "header": null,
+            "footer": null,
+            "rows": [
+              {
+                "columns": [
+                  {
+                    "content": [
+                      {
+                        "name": "section",
+                        "type": "block",
+                        "title": [
+                          {
+                            "name": "text",
+                            "type": "string",
+                            "value": "Cell Index",
+                            "location": [
+                              {
+                                "line": 7,
+                                "col": 4
+                              },
+                              {
+                                "line": 7,
+                                "col": 13
+                              }
+                            ]
+                          }
+                        ],
+                        "level": 1,
+                        "metadata": {
+                          "style": "index"
+                        },
+                        "location": [
+                          {
+                            "line": 6,
+                            "col": 3
+                          },
+                          {
+                            "line": 7,
+                            "col": 13
+                          }
+                        ]
+                      }
+                    ],
+                    "style": "asciidoc"
+                  }
+                ]
+              }
+            ],
+            "columns": [
+              {
+                "style": "asciidoc"
+              }
+            ],
+            "location": [
+              {
+                "line": 5,
+                "col": 1
+              },
+              {
+                "line": 8,
+                "col": 4
+              }
+            ]
+          },
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 3,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 2
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 10,
+      "col": 2
+    }
+  ]
+}

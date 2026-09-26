@@ -1,0 +1,19 @@
+= Nested table-cell index
+:acdc-index:
+
+Before ((OuterTerm)).
+
+--
+[cols="a"]
+|===
+|
+Cell ((CellTerm)).
+
+[index]
+== Cell Index
+|===
+--
+
+== After
+
+After ((AfterTerm)).

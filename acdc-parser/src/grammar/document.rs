@@ -32,6 +32,7 @@ use crate::{
         manpage::{NameSectionAttributes, derive_manpage_header_attrs, derive_name_section_attrs},
         marked_text::MarkedText,
         revision::{IgnoredRevisionFields, RevisionInfo, process_revision_info},
+        state::BlockContext,
         table::parse_table_cell,
     },
     model::{
@@ -230,6 +231,7 @@ fn finish_block_parsing_metadata<'input>(
     discrete: bool,
     offset: usize,
 ) -> Result<BlockParsingMetadata<'input>, Error> {
+    let discrete = discrete || matches!(metadata.style, Some("discrete" | "float"));
     #[cfg(feature = "pre-spec-subs")]
     let substitutions = metadata
         .substitutions
@@ -250,6 +252,42 @@ fn finish_block_parsing_metadata<'input>(
         hardbreaks,
         discrete,
     })
+}
+
+// Boundary lookahead must not parse titles or register their inline content.
+fn metadata_marks_discrete_heading(metadata: &str, state: &ParserState<'_>) -> bool {
+    let mut discrete = false;
+    for line in metadata.lines() {
+        let Some(attributes) = line
+            .strip_prefix('[')
+            .and_then(|line| line.strip_suffix(']'))
+        else {
+            continue;
+        };
+        if attributes.starts_with('[') {
+            continue;
+        }
+        let attributes = substitute(
+            attributes,
+            &[Substitution::Attributes],
+            &state.document_attributes,
+        );
+        let attributes = scan_attribute_list(&attributes);
+        if let Some(first) = attributes
+            .first()
+            .filter(|attribute| attribute.name.is_none())
+        {
+            let style = first
+                .value
+                .split(['#', '.', '%'])
+                .next()
+                .unwrap_or_default();
+            if !style.is_empty() {
+                discrete = matches!(style, "discrete" | "float");
+            }
+        }
+    }
+    discrete
 }
 
 /// Helper to check delimiter matching and return error if mismatched
@@ -342,10 +380,9 @@ impl DelimitedKind {
     }
 }
 
-/// Parse a delimited block's inner text as nested blocks. Empty content yields
-/// no blocks; a parse error is logged (with positions remapped to the original
-/// source) and recovered as an empty block list, matching the per-rule behaviour
-/// the delimited-block rules previously inlined.
+/// Parse a compound body without allowing section blocks. Empty content yields
+/// no blocks; a parse error is logged at its source location and recovered as
+/// an empty block list.
 fn parse_block_content<'input>(
     state: &mut ParserState<'input>,
     block_metadata: &BlockParsingMetadata<'input>,
@@ -357,14 +394,15 @@ fn parse_block_content<'input>(
     if content.trim().is_empty() {
         Ok(Vec::new())
     } else {
-        document_parser::blocks(
+        let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Compound);
+        let result = document_parser::compound_blocks(
             content,
             state,
             content_start + offset,
             block_metadata.parent_section_level,
-            None,
-        )
-        .unwrap_or_else(|e| {
+        );
+        state.block_context = outer_context;
+        result.unwrap_or_else(|e| {
             adjust_and_log_parse_error(&e, content, content_start + offset, state, error_context);
             Ok(Vec::new())
         })
@@ -3616,6 +3654,9 @@ peg::parser! {
             Ok(order_document_attribute_events(blocks))
         }
 
+        pub(crate) rule compound_blocks(offset: usize, parent_section_level: Option<SectionLevel>) -> Result<Vec<Block<'input>>, Error>
+        = content:blocks(offset, parent_section_level, None) eol()* { content }
+
         rule trailing_block_metadata_match()
         = eol()* &("[" / ".") (block_metadata_line_match() eol()*)+ ![_]
 
@@ -3718,7 +3759,9 @@ peg::parser! {
         // Checks both ATX-style (= or #) and setext-style (underlined) sections.
         rule same_or_higher_level_section(offset: usize, parent_section_level: Option<SectionLevel>) -> ()
         // Standalone document attributes must take effect before comparing section levels.
-        = !document_attribute_match() (block_metadata_line_match() eol()*)*
+        = check_section_blocks() !document_attribute_match()
+          (metadata:$((block_metadata_line_match() eol()*)*)
+          {? if metadata_marks_discrete_heading(metadata, state) { Err("discrete heading belongs to its parent") } else { Ok(()) } })
           (
             // ATX-style section check - require space after marker to avoid matching
             // description list items like `#term::` as sections
@@ -3842,7 +3885,7 @@ peg::parser! {
         }
 
         pub(crate) rule section(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
-        = block_metadata:(bm:block_metadata(offset, parent_section_level) {?
+        = check_section_blocks() block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section");
                 "block metadata parse error"
@@ -3977,7 +4020,7 @@ peg::parser! {
         /// Excludes description list items (e.g., `term:: content`) which would otherwise
         /// match as setext titles.
         pub(crate) rule section_setext(offset: usize, parent_section_level: Option<SectionLevel>, direct_parent_section_kind: Option<SectionKind>) -> Result<Block<'input>, Error>
-        = !check_line_is_description_list(offset)
+        = check_section_blocks() !check_line_is_description_list(offset)
         block_metadata:(bm:block_metadata(offset, parent_section_level) {?
             bm.map_err(|e| {
                 tracing::error!(?e, "error parsing block metadata in section_setext");
@@ -4117,6 +4160,9 @@ peg::parser! {
             (attr, state.create_location(start + offset, end + offset))
         }
 
+        rule check_section_blocks()
+        = {? (state.block_context == BlockContext::Document).then_some(()).ok_or("section blocks are not allowed in compound content") }
+
         rule section_level(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
         = level:$(("=" / "#")*<1,6>)
         {
@@ -4141,13 +4187,11 @@ peg::parser! {
             Ok(())
         }
 
-        rule section_level_at_line_start(offset: usize, parent_section_level: Option<SectionLevel>) -> (&'input str, SectionLevel)
-        = at_line_start(offset) level:$(("=" / "#")*<1,6>)
-        {
-            let base_level: SectionLevel = level.len().try_into().unwrap_or(1) - 1;
-            let byte_offset = span_start + offset;
-            (level, apply_leveloffset(base_level, byte_offset, &state.leveloffset_ranges, &state.document_attributes))
-        }
+        rule heading_boundary(offset: usize)
+        = at_line_start(offset)
+          (check_section_blocks() (attribute_or_anchor_line_match() eol()*)*
+          / (attribute_or_anchor_line_match() eol()*)+)
+          at_line_start(offset) section_level(offset, None) (whitespace() / eol() / ![_])
 
         rule section_title(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<(Title<'input>, &'input str), Error>
         = title:$([^'\n']*)
@@ -5868,7 +5912,7 @@ peg::parser! {
              !(open_delimiter() (whitespace()* eol()))
              !markdown_code_delimiter()
              !attributes_line()                           // not a block attributes line
-             !((attribute_or_anchor_line_match() eol()*)* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))  // not a section heading
+             !heading_boundary(offset)  // not a section heading
              (!eol() [_])+                             // continuation line content
             )*
         )
@@ -6229,7 +6273,7 @@ peg::parser! {
             / eol() !not_after_verbatim_block() &(whitespace()* callout_list_marker() whitespace())
             / eol() list(start, offset, block_metadata)
             / eol() &("+" (whitespace() / eol() / ![_]))  // Stop at list continuation marker
-            / eol()* &(at_line_start(offset) (attribute_or_anchor_line_match() eol()*)* section_level_at_line_start(offset, None) (whitespace() / eol() / ![_]))
+            / eol()* &heading_boundary(offset)
             ) [_]
         )+)
         {

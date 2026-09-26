@@ -1,0 +1,10 @@
+= Manual
+
+--
+[cols=a]
+|===
+| [index]
+== Cell Index
+|===
+
+--

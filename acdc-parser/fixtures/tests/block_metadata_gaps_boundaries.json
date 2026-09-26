@@ -70,17 +70,17 @@
           ]
         },
         {
-          "name": "section",
+          "name": "paragraph",
           "type": "block",
-          "title": [
+          "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "Heading",
+              "value": "== Heading",
               "location": [
                 {
                   "line": 7,
-                  "col": 4
+                  "col": 1
                 },
                 {
                   "line": 7,
@@ -89,7 +89,6 @@
               ]
             }
           ],
-          "level": 1,
           "metadata": {
             "anchors": [
               {
@@ -107,27 +106,25 @@
               }
             ]
           },
-          "blocks": [
+          "location": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Body.",
-                  "location": [
-                    {
-                      "line": 9,
-                      "col": 1
-                    },
-                    {
-                      "line": 9,
-                      "col": 5
-                    }
-                  ]
-                }
-              ],
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 7,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
               "location": [
                 {
                   "line": 9,
@@ -142,7 +139,7 @@
           ],
           "location": [
             {
-              "line": 5,
+              "line": 9,
               "col": 1
             },
             {
@@ -220,17 +217,17 @@
           ]
         },
         {
-          "name": "section",
+          "name": "paragraph",
           "type": "block",
-          "title": [
+          "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "Heading",
+              "value": "== Heading",
               "location": [
                 {
                   "line": 16,
-                  "col": 4
+                  "col": 1
                 },
                 {
                   "line": 16,
@@ -239,7 +236,6 @@
               ]
             }
           ],
-          "level": 1,
           "metadata": {
             "anchors": [
               {
@@ -257,27 +253,25 @@
               }
             ]
           },
-          "blocks": [
+          "location": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Body.",
-                  "location": [
-                    {
-                      "line": 18,
-                      "col": 1
-                    },
-                    {
-                      "line": 18,
-                      "col": 5
-                    }
-                  ]
-                }
-              ],
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
               "location": [
                 {
                   "line": 18,
@@ -292,7 +286,7 @@
           ],
           "location": [
             {
-              "line": 14,
+              "line": 18,
               "col": 1
             },
             {
@@ -370,17 +364,17 @@
           ]
         },
         {
-          "name": "section",
+          "name": "paragraph",
           "type": "block",
-          "title": [
+          "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "Heading",
+              "value": "== Heading",
               "location": [
                 {
                   "line": 25,
-                  "col": 4
+                  "col": 1
                 },
                 {
                   "line": 25,
@@ -389,7 +383,6 @@
               ]
             }
           ],
-          "level": 1,
           "metadata": {
             "anchors": [
               {
@@ -407,27 +400,25 @@
               }
             ]
           },
-          "blocks": [
+          "location": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Body.",
-                  "location": [
-                    {
-                      "line": 27,
-                      "col": 1
-                    },
-                    {
-                      "line": 27,
-                      "col": 5
-                    }
-                  ]
-                }
-              ],
+              "line": 23,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
               "location": [
                 {
                   "line": 27,
@@ -442,7 +433,7 @@
           ],
           "location": [
             {
-              "line": 23,
+              "line": 27,
               "col": 1
             },
             {
@@ -534,17 +525,17 @@
           ]
         },
         {
-          "name": "section",
+          "name": "paragraph",
           "type": "block",
-          "title": [
+          "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "Heading",
+              "value": "== Heading",
               "location": [
                 {
                   "line": 34,
-                  "col": 4
+                  "col": 1
                 },
                 {
                   "line": 34,
@@ -553,7 +544,6 @@
               ]
             }
           ],
-          "level": 1,
           "metadata": {
             "anchors": [
               {
@@ -571,27 +561,25 @@
               }
             ]
           },
-          "blocks": [
+          "location": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Body.",
-                  "location": [
-                    {
-                      "line": 36,
-                      "col": 1
-                    },
-                    {
-                      "line": 36,
-                      "col": 5
-                    }
-                  ]
-                }
-              ],
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
               "location": [
                 {
                   "line": 36,
@@ -606,7 +594,7 @@
           ],
           "location": [
             {
-              "line": 32,
+              "line": 36,
               "col": 1
             },
             {
@@ -717,17 +705,17 @@
           ]
         },
         {
-          "name": "section",
+          "name": "paragraph",
           "type": "block",
-          "title": [
+          "inlines": [
             {
               "name": "text",
               "type": "string",
-              "value": "Heading",
+              "value": "== Heading",
               "location": [
                 {
                   "line": 45,
-                  "col": 4
+                  "col": 1
                 },
                 {
                   "line": 45,
@@ -736,7 +724,6 @@
               ]
             }
           ],
-          "level": 1,
           "metadata": {
             "anchors": [
               {
@@ -754,27 +741,25 @@
               }
             ]
           },
-          "blocks": [
+          "location": [
             {
-              "name": "paragraph",
-              "type": "block",
-              "inlines": [
-                {
-                  "name": "text",
-                  "type": "string",
-                  "value": "Body.",
-                  "location": [
-                    {
-                      "line": 47,
-                      "col": 1
-                    },
-                    {
-                      "line": 47,
-                      "col": 5
-                    }
-                  ]
-                }
-              ],
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "paragraph",
+          "type": "block",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Body.",
               "location": [
                 {
                   "line": 47,
@@ -789,7 +774,7 @@
           ],
           "location": [
             {
-              "line": 43,
+              "line": 47,
               "col": 1
             },
             {

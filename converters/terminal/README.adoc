@@ -90,9 +90,9 @@ inside a book part. The catalog follows any authored section content and lists
 terms collected so far; later body terms are not included. The terminal backend
 does not require the HTML/Markdown `acdc-index` opt-in.
 
-An index in an AsciiDoc table cell shares the containing document's catalog,
-including earlier outer-document and cell terms. Those terms remain available
-to later catalogs.
+An index in an AsciiDoc table cell shares the containing document's catalog, including when the table is inside a compound block or list.
+The catalog includes earlier outer-document and cell terms.
+Those terms remain available to later catalogs.
 
 The terminal backend keeps document structure in a static form:
 

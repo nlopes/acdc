@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Section-looking lines in open, example, sidebar, and quote blocks stay text.
+  Discrete headings remain in their parent section even at the same or a higher
+  heading level. AsciiDoc table cells retain their own section scope, and blank
+  lines after a nested block no longer discard the enclosing block's content.
+
 - Index macros in listing and literal blocks, styled verbatim paragraphs, and
   indented literal paragraphs become index terms when `subs=+macros` is enabled.
   Default verbatim content and disabled macro substitutions remain literal.

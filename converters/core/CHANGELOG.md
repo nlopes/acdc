@@ -112,6 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index catalogs can activate from AsciiDoc table cells inside compound blocks
+  and list continuations. Ordinary heading-looking text does not activate a catalog.
+
 - Converters can find index occurrences in formatted code and locate them in
   its visible text. Labels and relationship targets remain separate from occurrences.
 

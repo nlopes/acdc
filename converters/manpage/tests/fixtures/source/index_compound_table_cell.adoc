@@ -1,0 +1,33 @@
+= compound-index(1)
+:doctype: manpage
+:revdate: 2026-09-26
+:manmanual: Index tests
+:mansource: acdc
+:acdc-index:
+
+== Name
+
+compound-index - test a nested cell index
+
+== Synopsis
+
+Code example.
+
+== Description
+
+Before ((OuterTerm)).
+
+--
+[cols="a"]
+|===
+|
+Cell ((CellTerm)).
+
+[index]
+== Cell Index
+|===
+--
+
+== After
+
+After ((AfterTerm)).

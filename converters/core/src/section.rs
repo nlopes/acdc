@@ -17,19 +17,22 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
     last_section.is_some_and(|section| section.metadata.style.is_some_and(|value| value == style))
 }
 
-/// Whether the section hierarchy contains an index section.
+/// Whether the document contains an index section, including nested `AsciiDoc` cells.
 ///
-/// Includes book parts and `AsciiDoc` table cells, which share the containing
-/// document's index catalog. Other block containers are outside this search.
+/// Compound blocks are searched for nested documents. Section-looking text in
+/// a compound block is a paragraph, so it cannot activate an index catalog.
 #[must_use]
 pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
-    blocks.iter().any(|block| {
-        if let Block::Section(section) = block {
+    blocks.iter().any(|block| match block {
+        Block::Section(section) => {
             section.kind == SectionKind::Index || has_index_section(&section.content)
-        } else if let Block::DelimitedBlock(block) = block
-            && let DelimitedBlockType::DelimitedTable(table) = &block.inner
-        {
-            table
+        }
+        Block::DelimitedBlock(block) => match &block.inner {
+            DelimitedBlockType::DelimitedExample(blocks)
+            | DelimitedBlockType::DelimitedOpen(blocks)
+            | DelimitedBlockType::DelimitedQuote(blocks)
+            | DelimitedBlockType::DelimitedSidebar(blocks) => has_index_section(blocks),
+            DelimitedBlockType::DelimitedTable(table) => table
                 .header
                 .iter()
                 .chain(&table.rows)
@@ -44,10 +47,43 @@ pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
                         });
                         style == ColumnStyle::AsciiDoc && has_index_section(&cell.content)
                     })
-                })
-        } else {
-            false
-        }
+                }),
+            DelimitedBlockType::DelimitedComment(_)
+            | DelimitedBlockType::DelimitedListing(_)
+            | DelimitedBlockType::DelimitedLiteral(_)
+            | DelimitedBlockType::DelimitedPass(_)
+            | DelimitedBlockType::DelimitedVerse(_)
+            | DelimitedBlockType::DelimitedStem(_)
+            | _ => false,
+        },
+        Block::Admonition(block) => has_index_section(&block.blocks),
+        Block::OrderedList(list) => list
+            .items
+            .iter()
+            .any(|item| has_index_section(&item.blocks)),
+        Block::UnorderedList(list) => list
+            .items
+            .iter()
+            .any(|item| has_index_section(&item.blocks)),
+        Block::DescriptionList(list) => list
+            .items
+            .iter()
+            .any(|item| has_index_section(&item.description)),
+        Block::CalloutList(list) => list
+            .items
+            .iter()
+            .any(|item| has_index_section(&item.blocks)),
+        Block::Paragraph(_)
+        | Block::DiscreteHeader(_)
+        | Block::DocumentAttribute(_)
+        | Block::TableOfContents(_)
+        | Block::ThematicBreak(_)
+        | Block::PageBreak(_)
+        | Block::Comment(_)
+        | Block::Image(_)
+        | Block::Audio(_)
+        | Block::Video(_)
+        | _ => false,
     })
 }
 

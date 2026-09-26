@@ -15,6 +15,8 @@ It can span multiple lines.
 <a id="_nested_quote"></a>
 ## Nested Quote
 
+> Outer quote
+
 Inner nested quote
 
 > Back to outer quote

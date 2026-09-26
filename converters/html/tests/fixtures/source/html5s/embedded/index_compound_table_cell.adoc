@@ -1,0 +1,1 @@
+../../html/embedded/index_compound_table_cell.adoc

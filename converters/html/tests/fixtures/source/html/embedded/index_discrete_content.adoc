@@ -1,0 +1,17 @@
+= Discrete ownership
+:acdc-index:
+:heading-style: discrete
+
+Before ((BeforeTerm)).
+
+[index]
+== Index
+
+[{heading-style}#note.role]
+== Note ((DiscreteTerm))
+
+Discarded index body.
+
+== After
+
+After ((AfterTerm)).

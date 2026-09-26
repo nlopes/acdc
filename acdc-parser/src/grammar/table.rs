@@ -6,7 +6,10 @@ use crate::{
     model::SectionLevel,
 };
 
-use super::{ParserState, document_parser, inline_processing::adjust_and_log_parse_error};
+use super::{
+    ParserState, document_parser, inline_processing::adjust_and_log_parse_error,
+    state::BlockContext,
+};
 
 pub(crate) fn parse_table_cell<'a>(
     content: &'a str,
@@ -53,6 +56,7 @@ pub(crate) fn parse_table_cell<'a>(
             .nested_parent_attributes
             .replace(Rc::clone(&state.document_attributes));
         let outer_hardbreaks = state.hardbreaks;
+        let outer_context = std::mem::replace(&mut state.block_context, BlockContext::Document);
         let outer_toc_len = state.toc_entries.len();
         let outer_last_block_was_verbatim = state.last_block_was_verbatim;
         let outer_last_verbatim_callouts = std::mem::take(&mut state.last_verbatim_callouts);
@@ -71,6 +75,7 @@ pub(crate) fn parse_table_cell<'a>(
         state.document_attributes = outer_attributes;
         state.nested_parent_attributes = outer_parent_attributes;
         state.hardbreaks = outer_hardbreaks;
+        state.block_context = outer_context;
         state.toc_entries.truncate(outer_toc_len);
         state.last_block_was_verbatim = outer_last_block_was_verbatim;
         state.last_verbatim_callouts = outer_last_verbatim_callouts;

@@ -85,6 +85,7 @@ pub(crate) struct ParserState<'a> {
     /// special styles (`[bibliography]`, `[glossary]`, ...) that are not auto-numbered
     /// under `sectnums`.
     pub(crate) toc_entries: Vec<TocEntry<'a>>,
+    pub(crate) block_context: BlockContext,
     pub(crate) last_block_was_verbatim: bool,
     /// Callout references found in the last verbatim block (for validation with callout
     /// lists)
@@ -182,6 +183,13 @@ impl Default for InlineRules {
 pub(crate) enum ParserScope {
     Document,
     Inline,
+}
+
+/// Compound bodies admit discrete headings, while documents also admit sections.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum BlockContext {
+    Document,
+    Compound,
 }
 
 #[derive(Debug, Clone)]
@@ -502,6 +510,7 @@ impl<'a> ParserState<'a> {
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             xref_caption_label_snapshots: Rc::default(),
             toc_entries: Vec::new(),
+            block_context: BlockContext::Document,
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -539,6 +548,7 @@ impl<'a> ParserState<'a> {
             footnote_tracker: Rc::new(RefCell::new(FootnoteTracker::new())),
             xref_caption_label_snapshots: Rc::default(),
             toc_entries: Vec::new(),
+            block_context: BlockContext::Document,
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             current_file: None,
@@ -577,6 +587,7 @@ impl<'a> ParserState<'a> {
             footnote_tracker: Rc::clone(&parent.footnote_tracker),
             xref_caption_label_snapshots: Rc::clone(&parent.xref_caption_label_snapshots),
             toc_entries: Vec::new(),
+            block_context: BlockContext::Document,
             last_block_was_verbatim: false,
             last_verbatim_callouts: Vec::new(),
             // Inherit the file so inline sub-parse nodes are stamped with the correct

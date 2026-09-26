@@ -32,6 +32,7 @@ fn index_detection_reaches_sections_inside_book_parts() -> Result<(), Error> {
 fn index_detection_excludes_styled_paragraphs_and_plain_cells() -> Result<(), Error> {
     for input in [
         "= Manual\n\n[index]\nParagraph.\n",
+        "= Manual\n\n--\n[index]\n== Not a section\n--\n",
         "= Manual\n\n[cols=l]\n|===\n| [index]\n== Cell Index\n|===\n",
     ] {
         let parsed = parse(input, &Options::default())?;
@@ -46,8 +47,20 @@ fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
         let cell_prefix = if columns == "[cols=a]" { "|" } else { "a|" };
         let input =
             format!("= Manual\n\n{columns}\n|===\n{cell_prefix} [index]\n== Cell Index\n|===\n");
-        let parsed = parse(&input, &Options::default())?;
-        assert!(has_index_section(&parsed.document().blocks), "{input}");
+        for (prefix, suffix) in [
+            ("", ""),
+            ("--\n", "\n--"),
+            ("[NOTE]\n====\n", "\n===="),
+            ("* Item\n+\n", ""),
+            ("Term:: Text\n+\n", ""),
+        ] {
+            let table = input
+                .strip_prefix("= Manual\n\n")
+                .ok_or("missing fixture header")?;
+            let input = format!("= Manual\n\n{prefix}{table}{suffix}\n");
+            let parsed = parse(&input, &Options::default())?;
+            assert!(has_index_section(&parsed.document().blocks), "{input}");
+        }
     }
     Ok(())
 }

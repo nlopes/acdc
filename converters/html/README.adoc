@@ -44,9 +44,9 @@ Catalog generation is an acdc extension. Without the opt-in, headings and
 authored index content remain, but no catalog or occurrence anchors are
 generated, matching Asciidoctor's HTML catalog policy.
 
-An index in an AsciiDoc table cell shares the containing document's catalog,
-including earlier outer-document and cell terms. Those terms remain available
-to later catalogs.
+An index in an AsciiDoc table cell shares the containing document's catalog, including when the table is inside a compound block or list.
+The catalog includes earlier outer-document and cell terms.
+Those terms remain available to later catalogs.
 The containing document controls `acdc-index`; a cell-local assignment does
 not change activation.
 

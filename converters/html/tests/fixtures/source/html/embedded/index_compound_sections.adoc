@@ -1,0 +1,47 @@
+= Compound index boundaries
+:acdc-index:
+
+Before ((BeforeTerm)).
+
+--
+== Open heading
+
+((OpenTerm)).
+
+[index]
+== Open index
+--
+
+====
+== Example heading
+
+((ExampleTerm)).
+
+[index]
+== Example index
+====
+
+****
+== Sidebar heading
+
+((SidebarTerm)).
+
+[index]
+== Sidebar index
+****
+
+____
+== Quote heading
+
+((QuoteTerm)).
+
+[index]
+== Quote index
+____
+
+== After
+
+After ((AfterTerm)).
+
+[index]
+== Final Index
