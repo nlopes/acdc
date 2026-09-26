@@ -1,25 +1,15 @@
 //! Index catalog rendering for HTML output.
 //!
-//! Renders a populated index catalog from collected index term entries.
-//! Terms are organized alphabetically by first letter, with hierarchical
-//! nesting for secondary and tertiary terms. Each occurrence is a back-link
-//! whose label is the section it appears in (the HTML analog of a page number);
-//! repeats within one section are disambiguated as `Section (2)`, `Section (3)`.
+//! The `:acdc-index:` header attribute opts into acdc's generated catalog.
+//! Asciidoctor's built-in HTML converter does not generate a catalog.
 //!
-//! The listing covers the whole document wherever the `[index]` section sits,
-//! so an index may precede a bibliography or a colophon; `lib::collect_index_terms`
-//! gathers the terms before any output is written.
+//! Each `[index]` section lists occurrences collected when it is rendered,
+//! including its authored content. Later body terms are not included. A seed
+//! can precede a bibliography or be nested inside a book part.
 //!
-//! NOTE: this is an acdc extension, opt-in via the `:acdc-index:` document
-//! attribute. asciidoctor's html5 backend does **not** generate an index — it
-//! renders an `[index]` section with an empty body and emits no
-//! `<a id="_indexterm_N">` anchors (index generation only happens in `DocBook`
-//! output or via extensions such as asciidoctor-pdf). When `:acdc-index:` is
-//! unset, acdc matches asciidoctor exactly; when set, acdc emits a back-linked
-//! anchor per index-term occurrence (see `inlines::render_indexterm`) and builds
-//! the listing below. The `index_catalog*` test fixtures (attribute set)
-//! therefore intentionally diverge from asciidoctor; fixtures without the
-//! attribute stay byte-identical.
+//! Terms are grouped alphabetically with hierarchical entries and occurrence
+//! links labeled by section title. Repeated occurrences within a section are
+//! distinguished as `Section (2)`, `Section (3)`.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -286,12 +276,9 @@ pub(crate) fn render<'a, W: Write>(
     visitor: &mut HtmlVisitor<'_, '_, W>,
 ) -> Result<(), Error> {
     let processor = visitor.processor.clone();
-    // The catalog is what the collection pass gathered from the whole
-    // document, not what has been rendered up to this point.
-    let entries = processor.index_catalog().borrow();
+    let entries = processor.index_entries().borrow();
 
     if entries.is_empty() {
-        // No index terms - render empty section like asciidoctor
         return Ok(());
     }
 

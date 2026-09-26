@@ -160,37 +160,9 @@ pub struct Processor<'a> {
     listing_counter: Rc<Cell<u32>>,
     /// Shared counter for generating unique index term anchor IDs.
     index_term_counter: Rc<Cell<usize>>,
-    /// Index term entries, accumulated as the document is traversed.
-    ///
-    /// `add_index_entry` pushes here and hands back the `_indexterm_N` anchor
-    /// that goes into the output, so this list is a side effect of rendering
-    /// and only ever holds the terms seen *so far*.
-    /// Uses `Rc<RefCell<>>` so all clones can add entries during traversal.
+    /// Index occurrences collected during rendering, shared by nested visitors.
     index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Every index term in the document, taken from `index_entries` when the
-    /// collection pass finishes. This is what the catalog is built from.
-    ///
-    /// # Why a second list
-    ///
-    /// The catalog has to name terms from the whole document, but the pass
-    /// that writes the real output renders the same terms again — it has to,
-    /// because minting the anchor id is what that call does — and so refills
-    /// `index_entries` from empty as it goes. Reading the catalog from that
-    /// list would once more show only what precedes the `[index]` section,
-    /// which is the bug the collection pass exists to fix. Parking the
-    /// finished list here keeps it out of the second pass's way.
-    ///
-    /// It could be one list: the anchor id is just the term's position in
-    /// document order, and both passes traverse identically, so the second
-    /// pass needs the counter but not the push. Splitting `add_index_entry`
-    /// into "record a term" and "take the next anchor" would let the
-    /// collected list serve as the catalog and let this field go.
-    index_catalog: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Whether to generate acdc's index catalog: true only when the
-    /// `:acdc-index:` document attribute is set AND the document's last section
-    /// has the `[index]` style. When false the feature is fully off — no
-    /// `_indexterm_` anchors and `[index]` sections render empty, matching
-    /// asciidoctor (index generation is an acdc extension; see `crate::index`).
+    /// Whether the header opts into a catalog and the section hierarchy has a seed.
     generate_index: bool,
     /// HTML output variant (Standard or Semantic).
     variant: HtmlVariant,
@@ -203,10 +175,10 @@ impl<'a> Processor<'a> {
         self.parser_options.document_attributes()
     }
 
-    /// Every index term in the document, for building the catalog.
+    /// Index occurrences collected up to the current rendering position.
     #[must_use]
-    pub(crate) fn index_catalog(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
-        &self.index_catalog
+    pub(crate) fn index_entries(&self) -> &Rc<RefCell<Vec<IndexTermEntry>>> {
+        &self.index_entries
     }
 
     /// Whether acdc's index catalog should be generated (the `:acdc-index:`
@@ -350,16 +322,15 @@ impl<'a> Processor<'a> {
             listing_counter: Rc::new(Cell::new(doc.highest_caption_number(CaptionKind::Listing))),
             index_term_counter: self.index_term_counter.clone(),
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            index_catalog: Rc::new(RefCell::new(Vec::new())),
             variant: self.variant,
         };
-        let processor = Rc::new(processor);
-        if processor.generate_index() {
-            collect_index_terms(doc, &processor, options)?;
-        }
-        let mut visitor =
-            HtmlVisitor::new(writer, processor, options.clone(), diagnostics.reborrow());
         let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut visitor = HtmlVisitor::new(
+            writer,
+            Rc::new(processor),
+            options.clone(),
+            diagnostics.reborrow(),
+        );
         visitor.visit_document(&mut traversal, doc)
     }
 
@@ -435,55 +406,6 @@ pub(crate) const WEBFONTS_DEFAULT: &str = "";
 /// Stylesheet I/O failures all advise the same fix; centralize the wording.
 pub(crate) const STYLESHEET_ADVICE: &str =
     "Check stylesheet paths and filesystem permissions, then rerun the conversion.";
-
-/// Gather every index term in the document before a byte is written.
-///
-/// The catalog has to list terms from the whole document, but an entry is only
-/// recorded when the term is rendered — so an `[index]` section that is not the
-/// last thing in the document would otherwise show only what precedes it. The
-/// document is rendered once to a sink to fill the catalog, then again for
-/// real. Rendering it rather than walking the tree separately is deliberate: a
-/// term's label is HTML produced by the inline renderer, so a second code path
-/// could disagree with the output about what a term says.
-///
-/// The pass leaves no trace: its output is discarded, its warnings are dropped
-/// because the real pass emits the same ones, and every counter it advanced is
-/// wound back so the anchor ids and caption numbers it handed out are the ones
-/// the real pass hands out again.
-fn collect_index_terms<'doc>(
-    doc: &'doc Document<'doc>,
-    processor: &Rc<Processor<'doc>>,
-    options: &RenderOptions,
-) -> Result<(), Error> {
-    let counters = [
-        (&processor.example_counter, processor.example_counter.get()),
-        (&processor.table_counter, processor.table_counter.get()),
-        (&processor.figure_counter, processor.figure_counter.get()),
-        (&processor.listing_counter, processor.listing_counter.get()),
-    ];
-    let index_term_start = processor.index_term_counter.get();
-
-    let mut discarded = Vec::new();
-    let source = processor.warning_source();
-    let mut diagnostics = Diagnostics::new(&source, &mut discarded);
-    let mut visitor = HtmlVisitor::new(
-        std::io::sink(),
-        Rc::clone(processor),
-        options.clone(),
-        diagnostics.reborrow(),
-    );
-    let mut traversal = TraversalContext::new(&doc.attributes);
-    visitor.visit_document(&mut traversal, doc)?;
-
-    processor
-        .index_catalog
-        .replace(processor.index_entries.take());
-    for (counter, before) in counters {
-        counter.set(before);
-    }
-    processor.index_term_counter.set(index_term_start);
-    Ok(())
-}
 
 /// Whether acdc's index generation is opted into via the `:acdc-index:`
 /// document attribute. Index generation is an acdc extension over asciidoctor's
@@ -681,7 +603,6 @@ impl<'a> Processor<'a> {
             index_term_counter: Rc::new(Cell::new(0)),
             index_entries: Rc::new(RefCell::new(Vec::new())),
             generate_index: false,
-            index_catalog: Rc::new(RefCell::new(Vec::new())),
             variant,
         })
     }

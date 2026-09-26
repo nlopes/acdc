@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Index-section discovery supports earlier sections and sections nested in book
+  parts, while existing last-section style queries remain available.
+
 - Automatic cross-references to numbered sections resolve under
   `xrefstyle=short` and `xrefstyle=full` for every backend, with the
   `<name>-refsig` word recorded at the reference position. A `full` reference

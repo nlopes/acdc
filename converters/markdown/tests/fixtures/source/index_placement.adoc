@@ -1,0 +1,33 @@
+= index-demo(1)
+:acdc-index:
+:revdate: 2026-09-26
+:manmanual: Index Manual
+:mansource: acdc
+
+== Name
+
+index-demo - demonstrate index placement
+
+== Description
+
+An ((Alpha)) and another ((Alpha)). (((Hidden)))Hidden occurrence.
+
+.Cell terms
+[cols=a]
+|===
+| A ((CellTerm)).
+|===
+
+[index]
+== Index
+
+Editorial note with ((Inside)).
+
+== Later
+
+A ((Zulu)) appears after the index.
+
+[bibliography]
+== References
+
+* [[[ref]]] Reference material.

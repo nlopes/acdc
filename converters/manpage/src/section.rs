@@ -70,12 +70,12 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
             self.in_name_section = true;
         }
 
+        // Keep authored content before the generated catalog.
+        for block in &section.content {
+            traversal.visit_block(self, block)?;
+        }
         if section.kind == SectionKind::Index && self.processor.has_valid_index_section {
             self.render_index_catalog()?;
-        } else {
-            for block in &section.content {
-                traversal.visit_block(self, block)?;
-            }
         }
 
         if is_name_section {

@@ -31,6 +31,19 @@ cat document.adoc | acdc convert --stdin
 
 == Features
 
+=== Index Catalogs
+
+Set `:acdc-index:` in the document header, or pass `-a acdc-index`, to generate
+a catalog at an `[index]` section. The section can precede a bibliography or
+sit inside a book part. Authored index content appears before the catalog.
+Each catalog lists occurrences collected when it is rendered; later body
+terms are excluded. The opt-in is fixed when conversion starts, so a body
+unset does not disable it.
+
+Catalog generation is an acdc extension. Without the opt-in, headings and
+authored index content remain, but no catalog or occurrence anchors are
+generated, matching Asciidoctor's HTML catalog policy.
+
 === Standalone HTML Output
 
 Generates complete, standalone HTML documents with embedded CSS. No external dependencies needed - the output file contains everything required for display.

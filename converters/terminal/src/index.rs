@@ -95,9 +95,7 @@ pub(crate) fn render<'a, V: WritableVisitor<'a, Error = Error>>(
     visitor: &mut V,
     processor: &Processor<'_>,
 ) -> Result<(), Error> {
-    // The catalog covers the whole document, not just what has been rendered
-    // up to this point, so an index may sit before later chapters.
-    let entries = processor.index_catalog.borrow();
+    let entries = processor.index_entries.borrow();
 
     if entries.is_empty() {
         return Ok(());

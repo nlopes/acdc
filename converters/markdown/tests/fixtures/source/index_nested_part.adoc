@@ -1,0 +1,20 @@
+= Manual
+:doctype: book
+:acdc-index:
+
+= First Part
+
+== Chapter
+
+An ((Alpha)).
+
+[index]
+== Part Index
+
+Editorial note.
+
+= Later Part
+
+== Another Chapter
+
+A ((Zulu)).

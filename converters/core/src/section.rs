@@ -4,37 +4,31 @@ use acdc_parser::{Block, SectionKind};
 
 use crate::TraversalContext;
 
-/// Whether the document holds a section seeded for the generated index.
+/// Whether the last top-level section has the requested style.
+#[must_use]
+pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
+    let last_section = blocks.iter().rev().find_map(|block| {
+        if let Block::Section(section) = block {
+            Some(section)
+        } else {
+            None
+        }
+    });
+    last_section.is_some_and(|section| section.metadata.style.is_some_and(|value| value == style))
+}
+
+/// Whether the section hierarchy contains an index section.
 ///
-/// The seed is a section the parser classified as [`SectionKind::Index`], which
-/// is what `[index]` marks. It is looked for anywhere in the document rather
-/// than only as the last top-level section: an index legitimately sits before a
-/// bibliography or a colophon, and in a multipart book it can be nested inside
-/// a part. Asciidoctor places no ordering constraint on it either.
+/// Includes sections nested in book parts. Other block containers and nested
+/// table-cell documents are outside this search.
 #[must_use]
 pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
-    blocks.iter().any(|block| match block {
-        Block::Section(section) => {
+    blocks.iter().any(|block| {
+        if let Block::Section(section) = block {
             section.kind == SectionKind::Index || has_index_section(&section.content)
+        } else {
+            false
         }
-        // Only a section can be the seed, and only a section nests others.
-        Block::TableOfContents(_)
-        | Block::Admonition(_)
-        | Block::DiscreteHeader(_)
-        | Block::DocumentAttribute(_)
-        | Block::ThematicBreak(_)
-        | Block::PageBreak(_)
-        | Block::UnorderedList(_)
-        | Block::OrderedList(_)
-        | Block::CalloutList(_)
-        | Block::DescriptionList(_)
-        | Block::DelimitedBlock(_)
-        | Block::Paragraph(_)
-        | Block::Image(_)
-        | Block::Audio(_)
-        | Block::Video(_)
-        | Block::Comment(_)
-        | _ => false,
     })
 }
 

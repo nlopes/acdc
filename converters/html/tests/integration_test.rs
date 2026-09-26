@@ -17,6 +17,24 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn index_catalog_links_resolve_to_unique_occurrences() -> Result<(), Error> {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/source/html/embedded/index_placement.adoc");
+    for variant in [HtmlVariant::Standard, HtmlVariant::Semantic] {
+        let output = render_fixture(&path, variant, true)?;
+        let mut links = 0;
+        for tail in output.split("href=\"#_indexterm_").skip(1) {
+            let (number, _) = tail.split_once('"').ok_or("missing link terminator")?;
+            let anchor = format!("id=\"_indexterm_{number}\"");
+            assert_eq!(output.matches(&anchor).count(), 1, "{output}");
+            links += 1;
+        }
+        assert!(links > 0, "the fixture must contain catalog links");
+    }
+    Ok(())
+}
+
+#[test]
 fn bibliography_conversion_keeps_parent_safe_mode() -> Result<(), Error> {
     for mode in [
         SafeMode::Unsafe,
