@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index sections inside AsciiDoc table cells activate catalog generation.
+  Cell catalogs share preceding terms with the containing document; later terms
+  remain excluded. The document-level `acdc-index` opt-in is still required.
+
 - Multiple index catalogs keep `see` and `see-also` links within their own
   catalog without duplicate definition targets.
 

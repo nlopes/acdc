@@ -52,6 +52,8 @@ terminal_fixture_catalog!([
     (subs_index_section, true),
     (index_term_relationships, false),
     (index_placement, false),
+    (index_table_cell, false),
+    (index_table_cell_multiple, false),
     (index_nested_part, false),
     (index_manual_empty, false),
     (index_term_parentheses, false),

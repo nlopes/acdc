@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index sections inside AsciiDoc table cells activate catalog generation.
+  Cell catalogs share preceding terms with the containing document; later terms
+  remain excluded.
+
 - Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
   matching Asciidoctor. Selected styles retain this emphasis for unnumbered
   chapters; omitted or unset styles keep the title as written.

@@ -112,6 +112,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index sections inside AsciiDoc table cells activate catalog generation.
+  Cell catalogs share preceding terms with the containing document; later terms
+  remain excluded.
+
 - References resolved within an included document keep local fallback text,
   including IDs with punctuation. Document-top references use `[^top]` when
   the document has no title or reference label.

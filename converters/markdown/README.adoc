@@ -98,6 +98,12 @@ Supported constructs:
   Without the opt-in or a seed, visible terms and authored index content remain,
   concealed terms stay hidden, and no catalog or occurrence anchors are generated.
 
+An index in an AsciiDoc table cell shares the containing document's catalog,
+including earlier outer-document and cell terms. Those terms remain available
+to later catalogs.
+The containing document controls `acdc-index`; a cell-local assignment does
+not change activation.
+
 == Limitations
 
 Some `AsciiDoc` features have no faithful Markdown equivalent. When the

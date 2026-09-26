@@ -29,13 +29,25 @@ fn index_detection_reaches_sections_inside_book_parts() -> Result<(), Error> {
 }
 
 #[test]
-fn index_detection_excludes_styled_paragraphs_and_nested_documents() -> Result<(), Error> {
+fn index_detection_excludes_styled_paragraphs_and_plain_cells() -> Result<(), Error> {
     for input in [
         "= Manual\n\n[index]\nParagraph.\n",
-        "= Manual\n\n[cols=a]\n|===\n| [index]\n== Cell Index\n|===\n",
+        "= Manual\n\n[cols=l]\n|===\n| [index]\n== Cell Index\n|===\n",
     ] {
         let parsed = parse(input, &Options::default())?;
         assert!(!has_index_section(&parsed.document().blocks), "{input}");
+    }
+    Ok(())
+}
+
+#[test]
+fn index_detection_reaches_asciidoc_table_cells() -> Result<(), Error> {
+    for columns in ["[cols=a]", "[cols=1]"] {
+        let cell_prefix = if columns == "[cols=a]" { "|" } else { "a|" };
+        let input =
+            format!("= Manual\n\n{columns}\n|===\n{cell_prefix} [index]\n== Cell Index\n|===\n");
+        let parsed = parse(&input, &Options::default())?;
+        assert!(has_index_section(&parsed.document().blocks), "{input}");
     }
     Ok(())
 }

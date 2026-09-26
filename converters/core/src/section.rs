@@ -1,6 +1,6 @@
 //! Section presentation utilities shared by converters.
 
-use acdc_parser::{Block, SectionKind};
+use acdc_parser::{Block, ColumnStyle, DelimitedBlockType, SectionKind};
 
 use crate::TraversalContext;
 
@@ -19,13 +19,32 @@ pub fn last_section_has_style(blocks: &[Block<'_>], style: &str) -> bool {
 
 /// Whether the section hierarchy contains an index section.
 ///
-/// Includes sections nested in book parts. Other block containers and nested
-/// table-cell documents are outside this search.
+/// Includes book parts and `AsciiDoc` table cells, which share the containing
+/// document's index catalog. Other block containers are outside this search.
 #[must_use]
 pub fn has_index_section(blocks: &[Block<'_>]) -> bool {
     blocks.iter().any(|block| {
         if let Block::Section(section) = block {
             section.kind == SectionKind::Index || has_index_section(&section.content)
+        } else if let Block::DelimitedBlock(block) = block
+            && let DelimitedBlockType::DelimitedTable(table) = &block.inner
+        {
+            table
+                .header
+                .iter()
+                .chain(&table.rows)
+                .chain(&table.footer)
+                .any(|row| {
+                    row.columns.iter().enumerate().any(|(index, cell)| {
+                        let style = cell.style.unwrap_or_else(|| {
+                            table
+                                .columns
+                                .get(index)
+                                .map_or(ColumnStyle::Default, |column| column.style)
+                        });
+                        style == ColumnStyle::AsciiDoc && has_index_section(&cell.content)
+                    })
+                })
         } else {
             false
         }

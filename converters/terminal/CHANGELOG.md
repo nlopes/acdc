@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index sections inside AsciiDoc table cells activate catalog generation.
+  Cell catalogs share preceding terms with the containing document; later terms
+  remain excluded.
+
 - Terminal emulation and converter tests build with the macOS 27 SDK without
   an older SDK override. Building the native terminal library now requires
   Zig 0.16.0.

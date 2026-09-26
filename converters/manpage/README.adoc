@@ -88,7 +88,8 @@ The manpage converter:
   and `see` relationships in an `[index]` section, including before later
   sections. The catalog follows authored content and lists occurrences collected
   at that point; later body terms are excluded. Catalog generation is an acdc
-  extension over Asciidoctor manpage output
+  extension over Asciidoctor manpage output. An index in an AsciiDoc table cell
+  shares earlier outer-document and cell terms with the containing document
 - Omits a section heading for `%notitle` while retaining its body and
   cross-reference text
 - Omits automatic and macro tables of contents, matching Asciidoctor's manpage

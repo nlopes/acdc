@@ -1,0 +1,20 @@
+= Cell catalog ownership
+:acdc-index:
+
+== Before
+
+((OuterBefore)).
+
+[cols=a]
+|===
+| == Cell Body
+
+((CellTerm)).
+
+[index]
+== Cell Index
+|===
+
+== After
+
+((OuterAfter)).
