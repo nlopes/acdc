@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `lint -D one-sentence-per-line` now rejects description-list values with
+  multiple sentences on one line or a sentence split across lines, including
+  values written after the term's delimiter.
 - `lint -D one-sentence-per-line` no longer rejects correctly separated
   sentences or colon-terminated lead-ins that use inline formatting. Multiple
   formatted sentences on one source line now fail the check.

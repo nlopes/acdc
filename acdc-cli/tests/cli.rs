@@ -178,6 +178,52 @@ fn one_sentence_per_line_denies_formatted_violations() -> Result<(), Box<dyn Err
     Ok(())
 }
 
+#[cfg(feature = "lint")]
+#[test]
+fn one_sentence_per_line_checks_description_list_values() -> Result<(), Box<dyn Error>> {
+    for (body, expected_message) in [
+        (
+            "Subject:: One sentence. Another sentence.\n",
+            Some("multiple sentences on one source line"),
+        ),
+        (
+            "Subject:: *One sentence.* _Another sentence._\n",
+            Some("multiple sentences on one source line"),
+        ),
+        (
+            "Subject:: One sentence wraps\nonto another line.\n",
+            Some("sentence spans multiple source lines"),
+        ),
+        ("Subject:: One sentence.\n", None),
+        ("One term. Another:: One sentence.\n", None),
+    ] {
+        let output = run_acdc(
+            &[
+                "lint",
+                "--stdin",
+                "--output-style",
+                "compact",
+                "-A",
+                "all",
+                "-D",
+                "one-sentence-per-line",
+            ],
+            Some(&format!("= Title\n\n{body}")),
+        )?;
+        let stderr = output_text(&output.stderr);
+
+        if let Some(message) = expected_message {
+            assert_eq!(output.status.code(), Some(1), "{body}: {stderr}");
+            assert_eq!(stderr.matches("deny[one-sentence-per-line]").count(), 1);
+            assert!(stderr.contains(&format!("at 3:1: {message}")), "{stderr}");
+        } else {
+            assert_eq!(output.status.code(), Some(0), "{body}: {stderr}");
+            assert!(stderr.is_empty(), "{stderr}");
+        }
+    }
+    Ok(())
+}
+
 #[cfg(feature = "tck")]
 #[test]
 fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn Error>> {
