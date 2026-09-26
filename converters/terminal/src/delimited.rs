@@ -659,15 +659,16 @@ fn apply_source_line_options(content: &str, options: &SourceLineOptions) -> Stri
         }
         if options.highlighted_lines.contains(&(index + 1)) {
             use std::fmt::Write as _;
+            let background = SetBackgroundColor(Color::Rgb {
+                r: 64,
+                g: 64,
+                b: 64,
+            });
+            // Giallo resets all styling between tokens, including the line background.
+            let line = line.replace("\x1b[0m", &format!("\x1b[0m{background}"));
             let _ = write!(
                 output,
-                "{}{}{}",
-                SetBackgroundColor(Color::Rgb {
-                    r: 64,
-                    g: 64,
-                    b: 64,
-                }),
-                line,
+                "{background}{line}{}",
                 SetBackgroundColor(Color::Reset),
             );
         } else {

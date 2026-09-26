@@ -1881,8 +1881,9 @@ mod tests {
             HtmlVariant::Standard,
         )?;
 
-        assert!(html.contains("&lt;"));
-        assert!(html.contains("&amp;&gt;"));
+        assert!(html.contains("&lt;"), "rendered HTML: {html}");
+        assert!(html.contains("&amp;"), "rendered HTML: {html}");
+        assert!(html.contains("&gt;"), "rendered HTML: {html}");
         Ok(())
     }
 }
