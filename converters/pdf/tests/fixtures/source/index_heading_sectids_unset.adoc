@@ -1,0 +1,17 @@
+= Disabled heading IDs
+:sectids!:
+
+[index]
+== Early Index
+
+== Later ((DisabledHeading))
+
+Body ((BodyTerm)).
+
+[discrete]
+=== Discrete ((DisabledDiscrete))
+
+Text after the discrete heading.
+
+[index]
+== Final Index

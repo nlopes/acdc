@@ -1,0 +1,17 @@
+= Explicit heading IDs
+
+[index]
+== Early Index
+
+[[explicit]]
+== Later ((ExplicitHeading))
+
+Body ((BodyTerm)).
+
+[#discrete,discrete]
+=== Discrete ((ExplicitDiscrete))
+
+Text after the discrete heading.
+
+[index]
+== Final Index

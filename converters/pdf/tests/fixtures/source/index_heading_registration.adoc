@@ -1,0 +1,16 @@
+= Heading registration
+
+[index]
+== Early Index
+
+== Later *((AutoHeading))*
+
+Body ((BodyTerm)).
+
+[discrete]
+=== Discrete ((DiscreteTerm))
+
+Text after the discrete heading.
+
+[index]
+== Final Index

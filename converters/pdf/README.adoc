@@ -144,7 +144,11 @@ The detailed limitations above apply to these substitutions.
 
 == Index catalogs
 
-Add an `[index]` section to generate a catalog from all index terms that occur before that section.
+Add an `[index]` section to generate a cumulative catalog of registered index terms.
+Body terms register when their content is rendered, so later body terms do not appear in an earlier catalog.
+Asciidoctor PDF also registers terms in headings when it prepares automatic heading IDs.
+acdc follows this behavior: an early catalog can include later heading terms without page numbers.
+Headings with an explicit ID, or with `sectids` unset, register only when rendered.
 Visible `((term))` and `indexterm2:[term]` forms remain in the document.
 Concealed `(((primary, secondary, tertiary)))` and `indexterm:[primary, secondary, tertiary]` forms appear only in the catalog.
 

@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Early indexes include terms in later headings that have automatic IDs, without
+  page numbers until those headings are rendered. Explicit IDs and `sectids!`
+  suppress early registration, matching Asciidoctor PDF.
+
 - Multiple index catalogs keep `see` and `see-also` links within their own
   catalog without duplicate definition targets. This also prevents PDF generation
   from failing when the same term is referenced by more than one catalog.

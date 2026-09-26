@@ -43,7 +43,7 @@ use crate::{
     anchors::Anchors,
     code_wrap_columns, encode_bibliography_reference_label, encode_footnote_label, encode_label,
     has_autofit_option,
-    index::{CatalogRelationship, CatalogTerm, IndexCatalog, PageSequenceStyle},
+    index::{CatalogEntry, CatalogRelationship, CatalogTerm, IndexCatalog, PageSequenceStyle},
     warn_with_advice_at,
 };
 
@@ -3223,31 +3223,8 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         term: &IndexTerm<'_>,
     ) -> Result<(), Error> {
         if !self.index_catalog.is_suspended() {
-            let primary = self.render_index_catalog_term(traversal, term.term())?;
-            let secondary = term
-                .secondary()
-                .map(|inlines| self.render_index_catalog_term(traversal, inlines))
-                .transpose()?;
-            let tertiary = term
-                .tertiary()
-                .map(|inlines| self.render_index_catalog_term(traversal, inlines))
-                .transpose()?;
-            let relationship = match term.relationship.as_ref() {
-                Some(IndexTermRelationship::See { target }) => {
-                    CatalogRelationship::See(self.render_index_catalog_term(traversal, target)?)
-                }
-                Some(IndexTermRelationship::SeeAlso { targets }) => CatalogRelationship::SeeAlso(
-                    targets
-                        .iter()
-                        .map(|target| self.render_index_catalog_term(traversal, target))
-                        .collect::<Result<_, _>>()?,
-                ),
-                None | Some(_) => CatalogRelationship::None,
-            };
-            if let Some(anchor) = self
-                .index_catalog
-                .add(primary, secondary, tertiary, relationship)
-            {
+            let entry = self.render_index_entry(traversal, term)?;
+            if let Some(anchor) = self.index_catalog.add(entry) {
                 let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
             }
         }
@@ -3255,6 +3232,50 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             self.write_inlines(traversal, term.term())?;
         }
         Ok(())
+    }
+
+    pub(crate) fn register_heading_index_term(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        term: &IndexTerm<'_>,
+    ) -> Result<(), Error> {
+        let entry = self.render_index_entry(traversal, term)?;
+        self.index_catalog.register(entry);
+        Ok(())
+    }
+
+    fn render_index_entry(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        term: &IndexTerm<'_>,
+    ) -> Result<CatalogEntry, Error> {
+        let primary = self.render_index_catalog_term(traversal, term.term())?;
+        let secondary = term
+            .secondary()
+            .map(|inlines| self.render_index_catalog_term(traversal, inlines))
+            .transpose()?;
+        let tertiary = term
+            .tertiary()
+            .map(|inlines| self.render_index_catalog_term(traversal, inlines))
+            .transpose()?;
+        let relationship = match term.relationship.as_ref() {
+            Some(IndexTermRelationship::See { target }) => {
+                CatalogRelationship::See(self.render_index_catalog_term(traversal, target)?)
+            }
+            Some(IndexTermRelationship::SeeAlso { targets }) => CatalogRelationship::SeeAlso(
+                targets
+                    .iter()
+                    .map(|target| self.render_index_catalog_term(traversal, target))
+                    .collect::<Result<_, _>>()?,
+            ),
+            None | Some(_) => CatalogRelationship::None,
+        };
+        Ok(CatalogEntry {
+            primary,
+            secondary,
+            tertiary,
+            relationship,
+        })
     }
 
     fn render_index_catalog_term(

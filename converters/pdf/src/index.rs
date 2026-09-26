@@ -59,6 +59,13 @@ pub(crate) struct CatalogTerm {
     pub(crate) markup: String,
 }
 
+pub(crate) struct CatalogEntry {
+    pub(crate) primary: CatalogTerm,
+    pub(crate) secondary: Option<CatalogTerm>,
+    pub(crate) tertiary: Option<CatalogTerm>,
+    pub(crate) relationship: CatalogRelationship,
+}
+
 pub(crate) enum CatalogRelationship {
     None,
     See(CatalogTerm),
@@ -110,21 +117,23 @@ impl IndexCatalog {
         self.suspended
     }
 
-    pub(crate) fn add(
-        &mut self,
-        primary: CatalogTerm,
-        secondary: Option<CatalogTerm>,
-        tertiary: Option<CatalogTerm>,
-        relationship: CatalogRelationship,
-    ) -> Option<usize> {
+    pub(crate) fn add(&mut self, entry: CatalogEntry) -> Option<usize> {
         if self.suspended {
             return None;
         }
         self.next_anchor += 1;
         let anchor = self.next_anchor;
+        self.insert(entry, Some(anchor));
+        Some(anchor)
+    }
 
-        let primary = self.terms.entry(TermKey::new(primary)).or_default();
-        let target = match (secondary, tertiary) {
+    pub(crate) fn register(&mut self, entry: CatalogEntry) {
+        self.insert(entry, None);
+    }
+
+    fn insert(&mut self, entry: CatalogEntry, anchor: Option<usize>) {
+        let primary = self.terms.entry(TermKey::new(entry.primary)).or_default();
+        let target = match (entry.secondary, entry.tertiary) {
             (Some(secondary), Some(tertiary)) => primary
                 .children
                 .entry(TermKey::new(secondary))
@@ -135,10 +144,10 @@ impl IndexCatalog {
             (Some(secondary), None) => primary.children.entry(TermKey::new(secondary)).or_default(),
             (None, _) => primary,
         };
-        target.anchors.push(anchor);
-        target.merge_relationship(relationship);
-
-        Some(anchor)
+        if let Some(anchor) = anchor {
+            target.anchors.push(anchor);
+        }
+        target.merge_relationship(entry.relationship);
     }
 
     pub(crate) fn write(

@@ -48,6 +48,7 @@ use lopdf::{Document as PdfDocument, Object, dictionary};
 mod anchors;
 mod converter;
 mod error;
+mod heading_index;
 mod index;
 mod pdf_visitor;
 mod visitor;
@@ -440,6 +441,9 @@ impl Processor<'_> {
             diagnostics.reborrow(),
         )
         .with_populated_index_sections(preparation.populated_index_sections.clone());
+        heading_index::visit_terms(doc, |traversal, term| {
+            visitor.register_heading_index_term(traversal, term)
+        })?;
         preamble::write(&mut visitor.writer, config.theme, config.emit_options);
         if preparation.has_unbreakable_blocks {
             visitor.writer.raw(UNBREAKABLE_HELPER);
@@ -1143,6 +1147,10 @@ fn author_name(author: &Author<'_>) -> String {
 
 fn collect_pdf_preparation(doc: &Document<'_>) -> PdfPreparation {
     let mut preparation = PdfPreparation::default();
+    let Ok(()) = heading_index::visit_terms(doc, |_, _| {
+        preparation.has_index_terms = true;
+        Ok::<(), std::convert::Infallible>(())
+    });
     let mut traversal = TraversalContext::new(&doc.attributes);
     let context = PreparationContext {
         attributes: &traversal,
