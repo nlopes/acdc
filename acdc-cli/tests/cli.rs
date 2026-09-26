@@ -112,6 +112,72 @@ fn denied_lint_returns_a_failure() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[cfg(feature = "lint")]
+#[test]
+fn one_sentence_per_line_accepts_formatted_sentences() -> Result<(), Box<dyn Error>> {
+    let output = run_acdc(
+        &[
+            "lint",
+            "--stdin",
+            "--output-style",
+            "compact",
+            "-A",
+            "all",
+            "-D",
+            "one-sentence-per-line",
+        ],
+        Some(
+            "= Title\n\n*One sentence.*\n_Another sentence._\n\n\
+             * *One sentence.*\n  A second sentence.\n\n\
+             *The supported values are:*\nUse `foo` for one mode.\n",
+        ),
+    )?;
+    let stderr = output_text(&output.stderr);
+
+    assert_eq!(output.status.code(), Some(0), "{stderr}");
+    assert!(stderr.is_empty(), "{stderr}");
+    Ok(())
+}
+
+#[cfg(feature = "lint")]
+#[test]
+fn one_sentence_per_line_denies_formatted_violations() -> Result<(), Box<dyn Error>> {
+    for (body, message) in [
+        (
+            "*One sentence.* *Another sentence.*\n",
+            "multiple sentences on one source line",
+        ),
+        (
+            "One sentence. *Another sentence*.\n",
+            "multiple sentences on one source line",
+        ),
+        (
+            "*One sentence wraps\nonto this line.*\n",
+            "sentence spans multiple source lines",
+        ),
+    ] {
+        let output = run_acdc(
+            &[
+                "lint",
+                "--stdin",
+                "--output-style",
+                "compact",
+                "-A",
+                "all",
+                "-D",
+                "one-sentence-per-line",
+            ],
+            Some(&format!("= Title\n\n{body}")),
+        )?;
+        let stderr = output_text(&output.stderr);
+
+        assert_eq!(output.status.code(), Some(1), "{body}: {stderr}");
+        assert_eq!(stderr.matches("deny[one-sentence-per-line]").count(), 1);
+        assert!(stderr.contains(&format!("at 3:1: {message}")), "{stderr}");
+    }
+    Ok(())
+}
+
 #[cfg(feature = "tck")]
 #[test]
 fn invalid_tck_type_returns_a_failure() -> Result<(), Box<dyn Error>> {
