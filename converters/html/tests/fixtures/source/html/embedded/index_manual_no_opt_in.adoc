@@ -1,0 +1,14 @@
+= Manual
+
+== Body
+
+Visible ((Alpha)) and hidden (((Hidden))).
+
+[index]
+== Index
+
+Editorial note.
+
+== Later
+
+Visible ((Zulu)).

@@ -1,0 +1,37 @@
+'\" t
+.\"     Title: index-empty
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-26
+.\"    Manual: Index Manual
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "INDEX\-EMPTY" "1" "2026-09-26" "acdc" "Index Manual"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+index\-empty \- retain an empty index note
+.SH "INDEX"
+.sp
+Editorial note without index terms.
+.SH "SEE ALSO"
+.sp
+Later section.

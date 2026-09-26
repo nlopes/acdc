@@ -1,0 +1,19 @@
+= index-empty(1)
+:doctype: manpage
+:acdc-index:
+:revdate: 2026-09-26
+:manmanual: Index Manual
+:mansource: acdc
+
+== Name
+
+index-empty - retain an empty index note
+
+[index]
+== Index
+
+Editorial note without index terms.
+
+== See Also
+
+Later section.

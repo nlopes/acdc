@@ -89,11 +89,14 @@ Supported constructs:
   and playback degradation emits one structured warning per document.
 - **Thematic breaks** and page breaks (rendered as `---`).
 - **Collapsible example blocks** (`[%collapsible]`, `[%collapsible%open]`): rendered as embedded `<details>/<summary>` HTML. Works in GitHub, GitLab, and most Markdown renderers that allow inline HTML.
-- **Index catalogs**: `:acdc-index:` plus a final `[index]` section generates an
-  alphabetized, linked catalog with hierarchical and `see` / `see-also` terms.
-  Without both opt-ins, visible terms stay in the body, concealed terms remain
-  hidden, and the index section stays empty, matching the HTML converter's
-  policy.
+- **Index catalogs**: the `:acdc-index:` header attribute plus an `[index]`
+  section generates an alphabetized, linked catalog with hierarchical and
+  `see` / `see-also` terms. The section may precede a bibliography or sit inside
+  a book part. Its authored content remains before the catalog, which includes
+  occurrences collected at that point; later body terms are excluded.
+  The opt-in is fixed when conversion starts, so a body unset does not disable it.
+  Without the opt-in or a seed, visible terms and authored index content remain,
+  concealed terms stay hidden, and no catalog or occurrence anchors are generated.
 
 == Limitations
 

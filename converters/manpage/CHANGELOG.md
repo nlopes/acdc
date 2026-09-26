@@ -50,9 +50,10 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
 
 ### Fixed
 
-- A generated index no longer has to be the document's last section. An
-  `[index]` section is found wherever it sits, including nested inside a part
-  of a multipart book.
+- An `[index]` section can precede later sections. Authored index content
+  remains before the generated catalog, including when there are no terms.
+  The catalog lists occurrences collected at that position, excluding later
+  body terms. Catalog generation is an acdc extension over Asciidoctor manpage output.
 
 ### Performance
 
@@ -88,7 +89,7 @@ Major revamp of the manpage converter to match asciidoctor output much more clos
   from the list length or an explicit `start`, without changing nested lists.
 - `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description lists
   now use distinct readable layouts.
-- Bibliography entries now show their reference labels. A valid final `[index]`
+- Bibliography entries now show their reference labels. A valid `[index]`
   section renders an alphabetized catalog with nested terms and `see` and
   `see-also` relationships.
 - Image fallbacks now show explicit or filename-derived alternative text and

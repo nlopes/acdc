@@ -1521,9 +1521,7 @@ impl<'a, W: Write> Visitor<'a> for MarkdownVisitor<'a, '_, W> {
             let prev_level = self.heading_level;
             self.heading_level = level as usize;
 
-            // The section's own blocks are the author's; the generated listing
-            // is appended after them, so an `[index]` section can carry a note
-            // of its own without it being swallowed by the index.
+            // Keep authored content before the generated catalog.
             self.visit_separated_blocks(traversal, &section.content, true)?;
             if section.kind == SectionKind::Index && self.processor.generate_index() {
                 let processor = self.processor;

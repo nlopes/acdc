@@ -85,7 +85,10 @@ The manpage converter:
 - Gives `[horizontal]`, `[qanda]`, `[ordered]`, and `[unordered]` description
   lists distinct text layouts
 - Shows bibliography labels and renders concealed index terms, nested terms,
-  and `see` relationships in a final `[index]` section
+  and `see` relationships in an `[index]` section, including before later
+  sections. The catalog follows authored content and lists occurrences collected
+  at that point; later body terms are excluded. Catalog generation is an acdc
+  extension over Asciidoctor manpage output
 - Omits a section heading for `%notitle` while retaining its body and
   cross-reference text
 - Omits automatic and macro tables of contents, matching Asciidoctor's manpage

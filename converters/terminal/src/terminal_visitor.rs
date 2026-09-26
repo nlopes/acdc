@@ -210,9 +210,7 @@ impl<'a, W: Write> Visitor<'a> for TerminalVisitor<'a, '_, W> {
 
         self.render_section(traversal, section)?;
 
-        // The section's own blocks are the author's; the generated listing is
-        // appended after them, so an `[index]` section can carry a note of its
-        // own without it being swallowed by the index.
+        // Keep authored content before the generated catalog.
         for nested_block in &section.content {
             traversal.visit_block(self, nested_block)?;
         }

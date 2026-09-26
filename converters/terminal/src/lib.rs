@@ -70,23 +70,7 @@ pub struct Processor<'a> {
     pub(crate) terminal_width: usize,
     /// Collected index terms for rendering in the index catalog.
     pub(crate) index_entries: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Every index term in the document, taken from `index_entries` when the
-    /// collection pass finishes. This is what the catalog is built from.
-    ///
-    /// # Why a second list
-    ///
-    /// `index_entries` is a side effect of rendering and only ever holds the
-    /// terms seen so far. The pass that writes the real output renders those
-    /// terms again and refills it from empty, so reading the catalog from it
-    /// would once more show only what precedes the `[index]` section — the
-    /// bug the collection pass exists to fix. Parking the finished list here
-    /// keeps it out of the second pass's way.
-    ///
-    /// It could be one list: an entry's place in the catalog is just the
-    /// term's position in document order, and both passes traverse
-    /// identically, so the second pass need not record anything at all.
-    pub(crate) index_catalog: Rc<RefCell<Vec<IndexTermEntry>>>,
-    /// Whether the document has a valid `[index]` section (last section).
+    /// Whether the section hierarchy contains an `[index]` section.
     pub(crate) has_valid_index_section: bool,
     /// Current list nesting indentation (shared across clones).
     pub(crate) list_indent: Rc<Cell<usize>>,
@@ -135,7 +119,6 @@ pub(crate) fn create_test_processor_with(
         appearance,
         terminal_width: FALLBACK_TERMINAL_WIDTH,
         index_entries: Rc::new(RefCell::new(Vec::new())),
-        index_catalog: Rc::new(RefCell::new(Vec::new())),
         has_valid_index_section: false,
         list_indent: Rc::new(Cell::new(0)),
         warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
@@ -179,7 +162,6 @@ impl<'a> Converter<'a> for Processor<'a> {
             appearance,
             terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            index_catalog: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: false,
             list_indent: Rc::new(Cell::new(0)),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
@@ -228,18 +210,14 @@ impl<'a> Converter<'a> for Processor<'a> {
             appearance: self.appearance.clone(),
             terminal_width: self.terminal_width,
             index_entries: Rc::new(RefCell::new(Vec::new())),
-            index_catalog: Rc::new(RefCell::new(Vec::new())),
             has_valid_index_section: has_index_section(&doc.blocks),
             list_indent: Rc::new(Cell::new(0)),
             warned_fallbacks: Rc::new(RefCell::new(HashSet::new())),
             #[cfg(feature = "pre-spec-subs")]
             current_subs: Rc::new(Cell::new(SubsFlags::all())),
         };
-        if processor.has_valid_index_section {
-            collect_index_terms(doc, &processor, diagnostics)?;
-        }
-        let mut visitor = TerminalVisitor::new(writer, &processor, diagnostics.reborrow());
         let mut traversal = TraversalContext::new(&doc.attributes);
+        let mut visitor = TerminalVisitor::new(writer, &processor, diagnostics.reborrow());
         visitor.visit_document(&mut traversal, doc)
     }
 
@@ -333,49 +311,6 @@ impl Processor<'_> {
     pub(crate) fn mark_fallback(&self, key: &'static str) -> bool {
         self.warned_fallbacks.borrow_mut().insert(key)
     }
-}
-
-/// Gather every index term in the document before a byte is written.
-///
-/// An entry is only recorded when its term is rendered, so an `[index]`
-/// section that is not the last thing in the document would otherwise list
-/// only the terms above it. The document is rendered once to a sink to fill
-/// the catalog, then again for real; rendering it rather than walking the tree
-/// separately keeps a term's label identical to the one in the output.
-///
-/// The pass leaves no trace: its output is discarded, its warnings are dropped
-/// because the real pass emits the same ones, and the counters it advanced are
-/// wound back so it numbers the document's captions the same way again.
-fn collect_index_terms<'doc>(
-    doc: &'doc Document<'doc>,
-    processor: &Processor<'doc>,
-    diagnostics: &mut Diagnostics<'_>,
-) -> Result<(), Error> {
-    let counters = [
-        (&processor.example_counter, processor.example_counter.get()),
-        (&processor.figure_counter, processor.figure_counter.get()),
-        (&processor.listing_counter, processor.listing_counter.get()),
-        (&processor.table_counter, processor.table_counter.get()),
-    ];
-
-    let mut discarded = Vec::new();
-    let source = diagnostics.source().clone();
-    let mut collecting = Diagnostics::new(&source, &mut discarded);
-    let mut visitor = TerminalVisitor::new(std::io::sink(), processor, collecting.reborrow());
-    let mut traversal = TraversalContext::new(&doc.attributes);
-    visitor.visit_document(&mut traversal, doc)?;
-
-    processor
-        .index_catalog
-        .replace(processor.index_entries.take());
-    // A fallback warning is emitted once per document, and the pass just
-    // consumed that one chance; forget what it saw so the real pass reports
-    // the same fallbacks to the reader.
-    processor.warned_fallbacks.borrow_mut().clear();
-    for (counter, before) in counters {
-        counter.set(before);
-    }
-    Ok(())
 }
 
 /// Render an `AsciiDoc` document to ANSI terminal bytes at a deterministic width.

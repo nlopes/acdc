@@ -15,6 +15,37 @@ use pulldown_cmark::{
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn index_catalog_links_resolve_to_unique_occurrences() -> Result<(), Error> {
+    let input = include_str!("fixtures/source/index_placement.adoc");
+    for variant in [MarkdownVariant::GitHubFlavored, MarkdownVariant::CommonMark] {
+        let (output, _) = convert_str_with_variant(input, variant)?;
+        let mut links = 0;
+        for tail in output.split("](#_indexterm_").skip(1) {
+            let (number, _) = tail.split_once(')').ok_or("missing link terminator")?;
+            let anchor = format!("id=\"_indexterm_{number}\"");
+            assert_eq!(output.matches(&anchor).count(), 1, "{output}");
+            links += 1;
+        }
+        assert!(links > 0, "the fixture must contain catalog links");
+    }
+    Ok(())
+}
+
+#[test]
+fn index_content_keeps_one_media_fallback_warning() -> Result<(), Error> {
+    let (_, warnings) = convert_str(
+        "= Media\n:acdc-index:\n\naudio::before.ogg[]\n\n[index]\n== Index\n\nvideo::after.mp4[]\n",
+    )?;
+    assert_eq!(warnings.len(), 1, "{warnings:?}");
+    assert!(
+        warnings
+            .iter()
+            .all(|warning| warning.message.contains("audio and video playback"))
+    );
+    Ok(())
+}
+
 const ACCEPTANCE_SEMANTICS: &str = include_str!("fixtures/source/acceptance_semantics.adoc");
 const ACCEPTANCE_DESTINATIONS: &[&str] = &[
     "_generated_section",

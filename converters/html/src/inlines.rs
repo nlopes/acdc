@@ -1395,12 +1395,8 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<(), Error> {
-        // An index term's anchor only exists to be the link target of acdc's
-        // generated `[index]` section (an extension; asciidoctor's html5 backend
-        // emits no anchor and leaves `[index]` empty). So emit one — and feed
-        // the index catalog, recording the enclosing section for the back-link
-        // label — only when index generation is enabled (`:acdc-index:` + a
-        // last `[index]` section).
+        // Occurrence anchors serve the opted-in catalog; TOC copies are not
+        // additional source occurrences.
         if !options.toc_mode && self.processor.generate_index() {
             let primary = self.render_index_term_label(traversal, it.term(), options, subs)?;
             let secondary = it

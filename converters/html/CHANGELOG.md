@@ -78,13 +78,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   head is written, and nested AsciiDoc table-cell changes do not escape.
 - HTML parser attributes now expose `embedded` only when embedded output is selected.
 
-- A generated index no longer has to be the document's last section. An
-  `[index]` section is found wherever it sits — before a bibliography or a
-  colophon, or nested inside a part of a multipart book — and lists every term
-  in the document, including those in sections that follow it. Previously such
-  an index came out empty with nothing reported.
-- An `[index]` section keeps any content the author wrote in it; the generated
-  listing is appended after it rather than replacing it.
+- With `:acdc-index:` in the header, an `[index]` section can precede a bibliography or
+  sit inside a book part. The catalog lists occurrences collected at that
+  position, excluding later body terms.
+- Authored index content remains before the generated catalog, including when
+  there are no terms. This differs from Asciidoctor PDF, which replaces that content.
 
 ### Performance
 

@@ -13,14 +13,7 @@ use acdc_parser::{DiscreteHeader, Section, SectionKind};
 use crate::{Error, HtmlVariant, HtmlVisitor, build_class};
 
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
-    /// Visit a section using the visitor pattern
-    ///
-    /// Renders the section header, walks nested blocks, then renders footer.
-    /// A section with the `[index]` style gets acdc's generated index catalog
-    /// (an extension over asciidoctor's html5 backend, which leaves `[index]`
-    /// empty — see `crate::index`), wherever in the document it sits. With the
-    /// extension off it renders like a normal section, so its heading is still
-    /// emitted (matching asciidoctor) rather than dropped.
+    /// Render the section and its authored content, then any opted-in catalog.
     pub(crate) fn render_section(
         &mut self,
         traversal: &mut TraversalContext<'a>,
@@ -33,9 +26,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
 
         self.render_section_header(traversal, section)?;
 
-        // The section's own blocks are the author's; the generated listing is
-        // appended after them, so an `[index]` section can carry a note of its
-        // own without it being swallowed by the index.
+        // Keep authored content before the generated catalog.
         for nested_block in &section.content {
             traversal.visit_block(self, nested_block)?;
         }

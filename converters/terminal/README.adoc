@@ -85,6 +85,11 @@ to normal PHP highlighting and reports one warning per document.
 
 ## Terminal Semantics
 
+An `[index]` section generates a catalog at its authored position, including
+inside a book part. The catalog follows any authored section content and lists
+terms collected so far; later body terms are not included. The terminal backend
+does not require the HTML/Markdown `acdc-index` opt-in.
+
 The terminal backend keeps document structure in a static form:
 
 * Table-of-contents entries keep section and part numbering.
