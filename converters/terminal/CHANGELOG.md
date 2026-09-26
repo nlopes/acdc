@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Terminal emulation and converter tests build with the macOS 27 SDK without
+  an older SDK override. Building the native terminal library now requires
+  Zig 0.16.0.
+
 - Explicit `xrefstyle=basic` emphasizes automatic chapter and appendix titles,
   matching Asciidoctor. Selected styles retain this emphasis for unnumbered
   chapters; omitted or unset styles keep the title as written.

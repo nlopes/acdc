@@ -2,7 +2,7 @@ use acdc_converters_core::{Converter, Options as ConverterOptions};
 use acdc_converters_terminal::Processor;
 use acdc_parser::Options as ParserOptions;
 use libghostty_vt::{
-    RenderState, Terminal, TerminalOptions,
+    RenderState, Terminal,
     render::{CellIterator, RowIterator},
     style::{RgbColor, StyleColor, Underline},
 };
@@ -120,11 +120,8 @@ fn render_to_grid(asciidoc: &str, cols: u16, rows: u16) -> Result<RenderedGrid, 
     let mut diagnostics = acdc_converters_core::Diagnostics::new(&source, &mut warnings);
     processor.write_to(doc, &mut output, None, None, &mut diagnostics)?;
 
-    let mut terminal = Terminal::new(TerminalOptions {
-        cols,
-        rows,
-        max_scrollback: 0,
-    })?;
+    let mut terminal = Terminal::new(cols, rows)?;
+    terminal.set_scrollback_max_bytes(Some(0))?;
     let mut tty_output = Vec::with_capacity(output.len());
     for byte in output {
         if byte == b'\n' {

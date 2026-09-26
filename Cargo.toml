@@ -50,6 +50,8 @@ chrono = "0.4"
 clap = { version = "4.5", features = ["derive"] }
 crossterm = "0.29"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
+# Pin the macOS 27 SDK fix until it is available in a crates.io release.
+libghostty-vt = { git = "https://github.com/Uzaaft/libghostty-rs", rev = "5988a0b78b4aa804d1c12e66bbfe662bd97d81c0" }
 lopdf = "0.44"
 mockito = "1"
 pretty_assertions = "1.4"

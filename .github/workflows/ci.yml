@@ -78,7 +78,7 @@ jobs:
           components: clippy
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
       - uses: Swatinem/rust-cache@v2
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic
@@ -120,7 +120,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
       - uses: Swatinem/rust-cache@v2
       - name: Rebuild Ghostty for the current runner
         run: cargo clean -p libghostty-vt-sys
@@ -151,7 +151,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
       - uses: Swatinem/rust-cache@v2
       - name: Rebuild Ghostty for the current runner
         run: cargo clean -p libghostty-vt-sys
@@ -219,7 +219,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: mlugg/setup-zig@v2
         with:
-          version: 0.15.2
+          version: 0.16.0
       - uses: Swatinem/rust-cache@v2
       - name: Run doc tests
         run: cargo test --doc --all-features --verbose

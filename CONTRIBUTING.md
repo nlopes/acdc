@@ -6,18 +6,15 @@ Thank you for your interest in contributing! This guide covers the essentials. F
 
 1. **Fork and clone** the repository
 2. **Install Rust** via [rustup](https://rustup.rs/) (the correct version is specified in `rust-toolchain.toml`)
-3. **Install Zig 0.15.x** for the Ghostty-backed terminal converter tests:
+3. **Install Zig 0.16.0** for the Ghostty-backed terminal converter tests:
    ```bash
    zig version
    ```
-   If Zig is missing, install it with your package manager or from [ziglang.org/download](https://ziglang.org/download/).
-   On macOS 26.4+ with Command Line Tools or Xcode 26.4+, use Homebrew's patched `zig@0.15` bottle:
-   ```bash
-   brew install zig@0.15
-   brew link --force zig@0.15
-   zig libc
-   ```
-   The unpatched upstream 0.15.2 binary can fail with missing Darwin symbols such as `_bzero`, `_fork`, or `__availability_version_check`.
+   Download version 0.16.0 from [ziglang.org/download](https://ziglang.org/download/)
+   or install it with your package manager. Ensure that `zig version` reports
+   `0.16.0`; an older `zig@0.15` installation can take precedence on `PATH`.
+   The pinned Ghostty revision supports the macOS 27 SDK without selecting an
+   older SDK.
 4. **Build and test**:
    ```bash
    cargo build --workspace --all-features

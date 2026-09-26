@@ -1,7 +1,7 @@
 //! Terminal render-state capture as acdc-owned cell grid types.
 
 use libghostty_vt::{
-    RenderState, Terminal, TerminalOptions,
+    RenderState, Terminal,
     render::{CellIterator, RowIterator},
     style::{RgbColor, StyleColor, Underline},
 };
@@ -241,11 +241,9 @@ fn palette_index(color: StyleColor) -> Option<u8> {
 
 pub(crate) fn new_terminal(size: TerminalSize) -> Result<Terminal<'static, 'static>, Error> {
     let (cols, rows) = size.as_u16()?;
-    Ok(Terminal::new(TerminalOptions {
-        cols,
-        rows,
-        max_scrollback: 0,
-    })?)
+    let mut terminal = Terminal::new(cols, rows)?;
+    terminal.set_scrollback_max_bytes(Some(0))?;
+    Ok(terminal)
 }
 
 pub(crate) struct GridCapture<'alloc> {
