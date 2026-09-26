@@ -30,6 +30,7 @@ crossterm.workspace = true
 miette = { version = "7", features = ["derive", "fancy"] }
 open = "5"
 rayon.workspace = true
+regex = { version = "1", optional = true }
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -81,6 +82,7 @@ terminal-emulator = [
 ]
 
 # Development tools
+execute = ["dep:regex"]  # Skeleton for running command blocks from AsciiDoc
 inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 
@@ -90,7 +92,7 @@ network = ["acdc-parser/network", "acdc-lint?/network", "acdc-converters-pdf?/ne
 
 # Feature groups for convenience
 all-backends = ["html", "manpage", "markdown", "pdf", "terminal"]  # Enable all output converters
-dev-tools = ["inspect"]              # Enable development utilities
+dev-tools = ["execute", "inspect"]   # Enable development utilities
 test-tools = ["tck"]                 # Enable testing and compliance tools
 
 [lints.rust]
