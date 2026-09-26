@@ -84,8 +84,11 @@ impl<'a> LocationMappingContext<'_, 'a> {
         let mut processed_abs_start = base_location.absolute_start + loc.absolute_start;
         let mut processed_abs_end = base_location.absolute_start + loc.absolute_end;
 
-        // Fix for collapsed locations (where absolute_start == absolute_end)
-        if loc.absolute_start == loc.absolute_end {
+        // A newline already occupies one inclusive source position; extending it
+        // would include the first character of the next line.
+        if loc.absolute_start == loc.absolute_end
+            && processed.text.as_bytes().get(loc.absolute_start) != Some(&b'\n')
+        {
             if loc.absolute_start == 0 && base_location.absolute_start < base_location.absolute_end
             {
                 // Special case: single character inside constrained formatting like "*s*"

@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The `one-sentence-per-line` lint now checks description-list values on the
+  term's line or immediately below it, including wrapped sentences.
+  Punctuation in the term does not count as part of the value.
 - The `one-sentence-per-line` lint now recognizes sentence endings and
   colon-terminated lead-ins inside inline formatting. It also detects multiple
   sentences on one line when a sentence starts or ends with formatting, while

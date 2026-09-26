@@ -5797,18 +5797,19 @@ peg::parser! {
                 trimmed_term,
             )?;
 
-            let principal_end = principal_start + principal_content.len();
-            let principal_text = if principal_content.trim().is_empty() {
+            let trimmed_principal = principal_content.trim();
+            let principal_text = if trimmed_principal.is_empty() {
                 Vec::new()
             } else {
-                // Parse as inline content with attribute substitution
+                let content_start = principal_start + principal_content.len()
+                    - principal_content.trim_start().len();
                 let (principal, _) = process_inlines(
                     state,
                     block_metadata,
-                    principal_start,
-                    principal_end,
+                    content_start,
+                    content_start + trimmed_principal.len(),
                     offset,
-                    principal_content.trim(),
+                    trimmed_principal,
                 )?;
                 principal
             };

@@ -1,0 +1,146 @@
+{
+  "name": "document",
+  "type": "block",
+  "blocks": [
+    {
+      "name": "dlist",
+      "type": "block",
+      "items": [
+        {
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Term",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 1
+                },
+                {
+                  "line": 1,
+                  "col": 4
+                }
+              ]
+            }
+          ],
+          "delimiter": "::",
+          "principal_text": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "One sentence.",
+                  "location": [
+                    {
+                      "line": 1,
+                      "col": 9
+                    },
+                    {
+                      "line": 1,
+                      "col": 21
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 1,
+                  "col": 8
+                },
+                {
+                  "line": 1,
+                  "col": 22
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n",
+              "location": [
+                {
+                  "line": 1,
+                  "col": 23
+                },
+                {
+                  "line": 1,
+                  "col": 23
+                }
+              ]
+            },
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "emphasis",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Another sentence.",
+                  "location": [
+                    {
+                      "line": 2,
+                      "col": 2
+                    },
+                    {
+                      "line": 2,
+                      "col": 18
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 2,
+                  "col": 1
+                },
+                {
+                  "line": 2,
+                  "col": 19
+                }
+              ]
+            }
+          ],
+          "description": [],
+          "location": [
+            {
+              "line": 1,
+              "col": 1
+            },
+            {
+              "line": 2,
+              "col": 20
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 1,
+          "col": 1
+        },
+        {
+          "line": 2,
+          "col": 20
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 2,
+      "col": 19
+    }
+  ]
+}

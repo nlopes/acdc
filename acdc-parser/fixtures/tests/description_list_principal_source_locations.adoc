@@ -1,0 +1,3 @@
+Spaces::   First sentence. Second sentence.
+Next line::
+  Another sentence.

@@ -29,6 +29,12 @@ fn lint_one_sentence_blocks(
             }
             Block::DescriptionList(list) => {
                 for item in &list.items {
+                    if let Some(range) = line_range_for_inlines(&item.principal_text) {
+                        // Exclude the term, which can contain its own sentence punctuation.
+                        let mut locations = Vec::new();
+                        collect_prose_locations(&item.principal_text, &mut locations);
+                        lint_prose_lines(emitter, source_lines_for_range(lines, range), &locations);
+                    }
                     lint_one_sentence_blocks(emitter, &item.description, lines);
                 }
             }
@@ -228,18 +234,18 @@ fn lint_prose_lines(
         return;
     }
 
-    let has_formatting = !locations.is_empty();
+    let has_locations = !locations.is_empty();
     let mut line_text = String::new();
     let boundaries: Vec<_> = paragraph
         .iter()
         .filter_map(|line| {
-            let text = if has_formatting {
+            let text = if has_locations {
                 write_prose_line(*line, &mut locations, &mut line_text);
                 line_text.as_str()
             } else {
                 prose_text(line.text)
             };
-            if has_formatting && text.trim().is_empty() {
+            if has_locations && text.trim().is_empty() {
                 return None;
             }
             Some((

@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Description-list values now report accurate source locations after extra
+  whitespace or a line break following the term. A newline between formatted
+  spans no longer extends its source location into the next line.
 - Source locations for single characters after inline passthroughs remain in
   order and point to the original text, including multibyte characters.
 
