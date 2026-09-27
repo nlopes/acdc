@@ -34,4 +34,4 @@ A failed command blocks its dependents; independent commands continue by default
 
 Commands run with the caller's permissions, so only execute documents you trust.
 
-See the link:../acdc-cli/README.adoc[CLI guide] for command syntax and substitution rules, and the link:src/command.rs[library API] for selection, process options, and result handling.
+See the link:../acdc-cli/README.adoc[CLI guide] for command syntax and substitution rules, and the link:src/command/mod.rs[library API] for selection, process options, and result handling.
