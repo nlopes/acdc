@@ -38,6 +38,7 @@ jobs:
             cli:
               - '.github/workflows/ci.yml'
               - 'acdc-cli/**'
+              - 'acdc-execute/**'
               - 'acdc-parser/**'
               - 'converters/**'
               - 'Cargo.toml'
@@ -83,6 +84,8 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run clippy
         run: cargo clippy --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo
+      - name: Run clippy (execute library)
+        run: cargo clippy -p acdc-execute --all-targets --all-features -- --deny clippy::pedantic --deny clippy::todo
       - name: Install wasm32 target
         run: rustup target add wasm32-unknown-unknown
       - name: Run clippy (WASM editor)
@@ -153,8 +156,12 @@ jobs:
           version: 0.16.0
       - uses: Swatinem/rust-cache@v2
       - uses: taiki-e/install-action@nextest
-      - name: Run CLI tests
-        run: cargo nextest run -p acdc-cli --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
+      - name: Run CLI and execute library tests
+        run: cargo nextest run -p acdc-cli -p acdc-execute --all-features --verbose --no-tests warn --test-threads 1 # we've added this until https://github.com/nextest-rs/nextest/pull/3553 gets merged
+      - name: Run execute-only tests
+        run: cargo nextest run -p acdc-cli -p acdc-execute --no-default-features --features execute --verbose --test-threads 1
+      - name: Test execute with parser-only substitution features
+        run: cargo nextest run -p acdc-execute --no-default-features --features acdc-parser/pre-spec-subs -E 'test(substitution_follows_the_parser_feature_even_when_features_are_unified)' --verbose
       - name: Smoke-test backend-only CLI builds
         shell: bash
         run: |
@@ -164,6 +171,7 @@ jobs:
       - name: Smoke-test tool-only CLI builds
         shell: bash
         run: |
+          cargo run -p acdc-cli --no-default-features --features execute -- execute --help
           cargo run -p acdc-cli --no-default-features --features inspect -- inspect --help
           cargo run -p acdc-cli --no-default-features --features lint -- lint --help
           cargo run -p acdc-cli --no-default-features --features tck -- tck --help
@@ -220,3 +228,5 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Run doc tests
         run: cargo test --doc --all-features --verbose
+      - name: Run execute library doc tests
+        run: cargo test --doc -p acdc-execute --all-features --verbose

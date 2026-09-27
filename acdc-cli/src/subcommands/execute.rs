@@ -2,14 +2,22 @@
 //!
 //! Commands are listing or source blocks set with the `command` role.
 
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsString,
+    io::{self, Write},
+    path::PathBuf,
+};
 
-use acdc_execute::{CommandBlock, CommandGraph, CommandId, ExecError};
+use acdc_execute::{
+    CommandGraph, CommandId, CommandState, ExecError, ExecutionOptions, ExecutionPlan,
+    ExecutionReport, ProcessOptions, SkipReason,
+};
 use acdc_parser::{ParseResult, SafeMode};
 use clap::{ArgAction, Args as ClapArgs};
+use miette::{Diagnostic, IntoDiagnostic as _};
 use regex::Regex;
 
-use crate::error::{self, WarningReport, WarningReportContext};
+use crate::error::{LocatedError, SourceCache, WarningReport, WarningReportContext};
 
 /// Execute command blocks defined in an `AsciiDoc` file
 #[derive(ClapArgs, Debug)]
@@ -25,11 +33,23 @@ pub struct Args {
     #[arg(long = "id-regex", value_name = "REGEX", action = ArgAction::Append)]
     pub id_regexes: Vec<Regex>,
 
-    /// Print selected commands in execution order instead of running them
-    #[arg(long)]
+    /// Print selected commands and scripts instead of running them
+    #[arg(long, conflicts_with = "list")]
     pub dry_run: bool,
 
-    /// Stop at the first command that exits unsuccessfully
+    /// List selected commands, interpreters, and descriptions without running them
+    #[arg(long)]
+    pub list: bool,
+
+    /// Working directory for child processes (defaults to the caller's directory)
+    #[arg(long, value_name = "DIRECTORY")]
+    pub cwd: Option<PathBuf>,
+
+    /// Override a child environment variable; repeat to set more values
+    #[arg(long = "env", value_name = "NAME=VALUE", value_parser = parse_environment, action = ArgAction::Append)]
+    pub environment: Vec<(OsString, OsString)>,
+
+    /// Stop all commands at the first unsuccessful child exit
     #[arg(long)]
     pub exit_on_failure: bool,
 
@@ -40,133 +60,220 @@ pub struct Args {
     pub safe_mode: SafeMode,
 }
 
+fn parse_environment(value: &str) -> Result<(OsString, OsString), String> {
+    let (name, value) = value.split_once('=').ok_or("expected NAME=VALUE")?;
+    if name.is_empty() || name.contains('\0') || value.contains('\0') {
+        return Err(
+            "environment names must be nonempty and names and values must not contain NUL".into(),
+        );
+    }
+    Ok((name.into(), value.into()))
+}
+
 pub fn run(args: &Args) -> miette::Result<()> {
     let parser_options = acdc_parser::Options::builder()
         .with_safe_mode(args.safe_mode)
         .build()
-        .map_err(|e| error::display(&e))?;
-    let parsed =
-        acdc_parser::parse_file(&args.file, &parser_options).map_err(|e| error::display(&e))?;
-    report_warnings(&parsed, &args.file);
-    let graph = CommandGraph::try_from(&parsed)
-        .map_err(|e| miette::miette!("{}: {e}", args.file.display()))?;
+        .map_err(parser_report)?;
+    let parsed = acdc_parser::parse_file(&args.file, &parser_options).map_err(parser_report)?;
+    let graph = CommandGraph::try_from(&parsed).map_err(|error| {
+        let locations = error
+            .source_location()
+            .into_iter()
+            .chain(error.related_location())
+            .cloned()
+            .collect::<Vec<_>>();
+        miette::Report::new(LocatedError::new(error, locations))
+    })?;
+    report_warnings(&parsed)?;
+    drop(parsed);
     let selected = select(&graph, &args.ids, &args.id_regexes)?;
 
-    if args.dry_run {
-        print_plan(&selected);
+    if args.dry_run || args.list {
+        let mut stdout = io::stdout().lock();
+        if args.list {
+            write_list(&mut stdout, &selected).into_diagnostic()?;
+        } else {
+            write_plan(&mut stdout, &selected).into_diagnostic()?;
+        }
+        stdout.flush().into_diagnostic()?;
     } else {
-        execute_plan(&selected, args.exit_on_failure)?;
+        let report = selected.execute(&ExecutionOptions {
+            exit_on_failure: args.exit_on_failure,
+            process: ProcessOptions {
+                current_dir: args.cwd.clone(),
+                env: args.environment.clone(),
+            },
+        });
+        report_execution(report)?;
     }
-
     Ok(())
 }
 
-fn report_warnings(parsed: &ParseResult, file: &Path) {
-    let context = WarningReportContext::new().with_optional_file(Some(file));
-    for warning in parsed.warnings() {
-        eprintln!("{:?}", warning.to_report(context));
-    }
+fn parser_report(error: acdc_parser::Error) -> miette::Report {
+    let location = error.source_location().cloned();
+    miette::Report::new(LocatedError::new(error, location))
 }
 
-/// Resolve the `--id` / `--id-regex` selectors to the commands to run, with
-/// their transitive dependencies, in execution order. No selectors selects
-/// every command; any selector that matches nothing is an error.
-fn select(
-    graph: &CommandGraph,
+fn report_warnings(parsed: &ParseResult) -> miette::Result<()> {
+    let mut context = WarningReportContext::new();
+    let mut stderr = io::stderr().lock();
+    for warning in parsed.warnings() {
+        writeln!(stderr, "{:?}", warning.to_report(&mut context)).into_diagnostic()?;
+    }
+    Ok(())
+}
+
+/// Selectors form a union; each must match, and selected commands include their prerequisites.
+fn select<'graph>(
+    graph: &'graph CommandGraph,
     ids: &[String],
     id_regexes: &[Regex],
-) -> miette::Result<Vec<CommandBlock>> {
-    let mut selected: Vec<CommandId> = Vec::new();
-
+) -> miette::Result<ExecutionPlan<'graph>> {
     if ids.is_empty() && id_regexes.is_empty() {
-        selected.extend(graph.ids().cloned());
-    } else {
-        for id in ids {
-            let id = CommandId::new(id)
-                .map_err(|e| miette::miette!("invalid --id value {id:?}: {e}"))?;
-            if !graph.contains(id.as_str()) {
-                return Err(miette::miette!("unknown command id: {id}"));
-            }
-            selected.push(id);
+        return Ok(graph.plan_all());
+    }
+    let mut selected = Vec::new();
+    for id in ids {
+        let id = CommandId::new(id)
+            .map_err(|error| miette::miette!("invalid --id value {id:?}: {error}"))?;
+        if !graph.contains(id.as_str()) {
+            return Err(miette::miette!("unknown command id: {id}"));
         }
-        for regex in id_regexes {
-            let mut matches = 0;
-            for id in graph.ids() {
-                if regex.is_match(id.as_str()) {
-                    selected.push(id.clone());
-                    matches += 1;
-                }
-            }
-            if matches == 0 {
-                return Err(miette::miette!(
-                    "--id-regex `{}` matched no commands",
-                    regex.as_str()
-                ));
-            }
+        selected.push(id);
+    }
+    for regex in id_regexes {
+        let previous_count = selected.len();
+        selected.extend(
+            graph
+                .ids()
+                .filter(|id| regex.is_match(id.as_str()))
+                .cloned(),
+        );
+        if selected.len() == previous_count {
+            return Err(miette::miette!(
+                "--id-regex `{}` matched no commands",
+                regex.as_str()
+            ));
         }
     }
-
-    let queue = graph
-        .plan_for(&selected)
-        .map_err(|e| miette::miette!("{e}"))?;
-    Ok(queue.commands().cloned().collect())
+    graph.plan_for(&selected).into_diagnostic()
 }
 
-/// Print the selected commands and their scripts in the order they would run.
-fn print_plan(blocks: &[CommandBlock]) {
-    print!("{}", format_plan(blocks));
-}
-
-fn format_plan(blocks: &[CommandBlock]) -> String {
-    let mut output = String::new();
-    for block in blocks {
-        output.push_str(block.metadata.id.as_str());
-        output.push_str(" (");
-        output.push_str(&block.metadata.interpreter);
-        output.push_str(")\n");
+fn write_plan(output: &mut impl Write, plan: &ExecutionPlan<'_>) -> io::Result<()> {
+    for block in plan.commands() {
+        writeln!(
+            output,
+            "{} ({})",
+            block.metadata.id, block.metadata.interpreter
+        )?;
         for line in block.script.split_inclusive('\n') {
-            output.push_str("  ");
-            output.push_str(line);
+            write!(output, "  {line}")?;
         }
         if !block.script.ends_with('\n') {
-            output.push('\n');
+            writeln!(output)?;
         }
     }
-    output
+    Ok(())
 }
 
-/// Run the selected commands in order, inheriting stdio, environment, and the
-/// current working directory.
-fn execute_plan(blocks: &[CommandBlock], exit_on_failure: bool) -> miette::Result<()> {
-    let mut failures = Vec::new();
-    for block in blocks {
-        match block.execute() {
-            Ok(()) => {}
-            Err(ExecError::Failed(status)) => {
-                if exit_on_failure {
-                    return Err(miette::miette!(
-                        "command `{}` exited with {status}",
-                        block.metadata.id
-                    ));
+fn write_list(output: &mut impl Write, plan: &ExecutionPlan<'_>) -> io::Result<()> {
+    for block in plan.commands() {
+        write!(
+            output,
+            "{} ({})",
+            block.metadata.id, block.metadata.interpreter
+        )?;
+        if let Some(description) = &block.metadata.description {
+            write!(output, ": ")?;
+            let mut characters = description.chars().peekable();
+            while let Some(character) = characters.next() {
+                if character == '\r' && characters.peek() == Some(&'\n') {
+                    characters.next();
                 }
-                failures.push(format!("`{}` exited with {status}", block.metadata.id));
+                if matches!(character, '\r' | '\n') {
+                    write!(output, " ")?;
+                } else {
+                    write!(output, "{character}")?;
+                }
             }
-            Err(e) => return Err(miette::miette!("command `{}`: {e}", block.metadata.id)),
         }
+        writeln!(output)?;
     }
-    if failures.is_empty() {
+    Ok(())
+}
+
+#[derive(Debug, thiserror::Error)]
+enum CommandIssue {
+    #[error("command `{id}` {error}")]
+    Failed {
+        id: CommandId,
+        #[source]
+        error: ExecError,
+    },
+    #[error("command `{id}` skipped because prerequisite `{dependency}` did not succeed")]
+    Dependency {
+        id: CommandId,
+        dependency: CommandId,
+    },
+    #[error("command `{id}` skipped after failure of `{command}`")]
+    Stopped { id: CommandId, command: CommandId },
+}
+
+#[derive(Debug, Diagnostic, thiserror::Error)]
+#[error("command execution failed ({failed} failed, {skipped} skipped)")]
+struct ExecutionFailed {
+    failed: usize,
+    skipped: usize,
+    #[related]
+    issues: Vec<LocatedError<CommandIssue>>,
+}
+
+fn report_execution(report: ExecutionReport<'_>) -> miette::Result<()> {
+    if report.is_success() {
         return Ok(());
     }
-    let plural = if failures.len() == 1 {
-        "command"
-    } else {
-        "commands"
-    };
-    Err(miette::miette!(
-        "{} {plural} failed: {}",
-        failures.len(),
-        failures.join(", ")
-    ))
+    let mut failed = 0;
+    let mut skipped = 0;
+    let mut issues = Vec::new();
+    let mut sources = SourceCache::default();
+    for outcome in report.into_outcomes() {
+        let diagnostic = match outcome.state {
+            CommandState::Succeeded => continue,
+            CommandState::Failed(error) => {
+                failed += 1;
+                LocatedError::with_cached_source(
+                    CommandIssue::Failed {
+                        id: outcome.command.metadata.id.clone(),
+                        error,
+                    },
+                    &outcome.command.location,
+                    &mut sources,
+                )
+            }
+            CommandState::Skipped(reason) => {
+                skipped += 1;
+                let id = outcome.command.metadata.id.clone();
+                let issue = match reason {
+                    SkipReason::DependencyFailed { dependency } => CommandIssue::Dependency {
+                        id,
+                        dependency: dependency.clone(),
+                    },
+                    SkipReason::StoppedAfterFailure { command } => CommandIssue::Stopped {
+                        id,
+                        command: command.clone(),
+                    },
+                };
+                LocatedError::without_source(issue, &outcome.command.location)
+            }
+        };
+        issues.push(diagnostic);
+    }
+    Err(miette::Report::new(ExecutionFailed {
+        failed,
+        skipped,
+        issues,
+    }))
 }
 
 #[cfg(test)]
@@ -178,8 +285,8 @@ mod tests {
     use clap::Parser;
     use regex::Regex;
 
-    use super::{Args, execute_plan, format_plan, select};
-    use acdc_execute::{CommandBlock, CommandGraph};
+    use super::{Args, select, write_list, write_plan};
+    use acdc_execute::{CommandBlock, CommandGraph, CommandGraphBuilder};
 
     #[derive(Parser)]
     struct TestCli {
@@ -202,7 +309,7 @@ mod tests {
         let ids: Vec<String> = ids.iter().map(ToString::to_string).collect();
         select(graph, &ids, &regexes)
             .unwrap_or_else(|error| panic!("selection should succeed: {error}"))
-            .into_iter()
+            .commands()
             .map(|block| block.metadata.id.as_str().to_string())
             .collect()
     }
@@ -253,7 +360,12 @@ mod tests {
             None,
             acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
         );
-        assert_eq!(format_plan(&[block]), "build (sh)\n  echo hello\n  \n");
+        let mut builder = CommandGraphBuilder::new();
+        builder.add(block, Vec::new());
+        let graph = builder.build().unwrap();
+        let mut output = Vec::new();
+        write_plan(&mut output, &graph.plan_all()).unwrap();
+        assert_eq!(output, b"build (sh)\n  echo hello\n  \n");
     }
 
     #[test]
@@ -384,93 +496,115 @@ mod tests {
         assert!(error.to_string().contains("invalid --id value"));
     }
 
-    // ------------------------------------------------------------------
-    // Execution
-    // ------------------------------------------------------------------
-
-    fn fail_and_marker_plan(marker: &str) -> (Vec<CommandBlock>, String) {
-        let src = format!(
-            "{}\n{}",
-            cmd("bad", None, "exit 1"),
-            cmd("after", None, &format!("echo run >> {marker}")),
-        );
-        let graph = parse_graph(&src);
-        let blocks = select(&graph, &[], &[]).unwrap_or_else(|e| panic!("{e}"));
-        (blocks, marker.to_string())
+    #[test]
+    fn list_and_dry_run_conflict() {
+        let error = TestCli::try_parse_from(["test", "commands.adoc", "--list", "--dry-run"]);
+        assert!(error.is_err());
     }
 
     #[test]
-    fn successful_commands_run_in_dependency_order() -> Result<(), Box<dyn std::error::Error>> {
-        let dir = tempfile::tempdir()?;
-        let first = dir.path().join("first");
-        let second = dir.path().join("second");
+    fn parses_ordered_environment_overrides_and_cwd() {
+        let cli = TestCli::parse_from([
+            "test",
+            "commands.adoc",
+            "--cwd",
+            "work",
+            "--env",
+            "VALUE=first",
+            "--env",
+            "VALUE=last=kept",
+            "--env",
+            "EMPTY=",
+        ]);
+        assert_eq!(cli.args.cwd, Some(PathBuf::from("work")));
+        assert_eq!(
+            cli.args.environment,
+            vec![
+                ("VALUE".into(), "first".into()),
+                ("VALUE".into(), "last=kept".into()),
+                ("EMPTY".into(), "".into()),
+            ]
+        );
+    }
 
-        let src = format!(
-            "{}\n{}",
-            cmd("first", None, &format!("echo run >> {}", first.display())),
-            cmd(
-                "second",
-                Some("first"),
-                &format!("echo run >> {}", second.display())
+    #[test]
+    fn rejects_missing_environment_assignment_or_name() {
+        for value in ["NAME", "=value"] {
+            assert!(TestCli::try_parse_from(["test", "commands.adoc", "--env", value]).is_err());
+        }
+    }
+
+    #[test]
+    fn list_includes_descriptions_and_prerequisites_without_scripts() {
+        let graph = parse_graph(concat!(
+            "[.command,id=build,description=Compile]\n----\necho build\n----\n\n",
+            "[.command,id=test,deps=build]\n----\necho test\n----\n",
+        ));
+        let plan = select(&graph, &["test".into()], &[]).unwrap();
+        let mut output = Vec::new();
+        write_list(&mut output, &plan).unwrap();
+        assert_eq!(output, b"build (sh): Compile\ntest (sh)\n");
+    }
+
+    #[test]
+    fn list_descriptions_stay_on_one_line() {
+        let mut builder = CommandGraphBuilder::new();
+        builder.add(
+            CommandBlock::new(
+                "multiline".parse().unwrap(),
+                String::new(),
+                None,
+                acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
+            )
+            .with_description(Some("first\r\nsecond\nthird\rfourth".into())),
+            Vec::new(),
+        );
+        let graph = builder.build().unwrap();
+        let mut output = Vec::new();
+        write_list(&mut output, &graph.plan_all()).unwrap();
+        assert_eq!(output, b"multiline (sh): first second third fourth\n");
+    }
+
+    #[test]
+    fn dry_run_adds_only_a_display_newline() {
+        let mut builder = CommandGraphBuilder::new();
+        builder.add(
+            CommandBlock::new(
+                "literal".parse().unwrap(),
+                "last line".into(),
+                None,
+                acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
             ),
+            Vec::new(),
         );
-        let graph = parse_graph(&src);
-        let blocks = select(&graph, &[], &[]).map_err(|e| panic!("{e}"))?;
-        execute_plan(&blocks, false)?;
-
-        let first_meta = std::fs::metadata(&first)?;
-        let second_meta = std::fs::metadata(&second)?;
-        assert!(
-            first_meta.created()? <= second_meta.created()?,
-            "first must run before second"
-        );
-        Ok(())
+        let graph = builder.build().unwrap();
+        let plan = graph.plan_all();
+        let mut output = Vec::new();
+        write_plan(&mut output, &plan).unwrap();
+        assert_eq!(output, b"literal (sh)\n  last line\n");
+        assert_eq!(plan.commands().next().unwrap().script, "last line");
     }
 
     #[test]
-    fn failed_command_fails_the_run() {
-        let failing = CommandBlock::new(
-            "bad".parse().unwrap_or_else(|e| panic!("{e}")),
-            "exit 1".into(),
-            None,
-            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
+    fn output_write_errors_are_returned() {
+        struct BrokenOutput;
+        impl std::io::Write for BrokenOutput {
+            fn write(&mut self, _bytes: &[u8]) -> std::io::Result<usize> {
+                Err(std::io::ErrorKind::BrokenPipe.into())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let graph = parse_graph(&cmd("build", None, "true"));
+        let plan = graph.plan_all();
+        assert_eq!(
+            write_plan(&mut BrokenOutput, &plan).unwrap_err().kind(),
+            std::io::ErrorKind::BrokenPipe
         );
-        let error = execute_plan(&[failing], false).expect_err("should fail");
-        assert!(error.to_string().contains("`bad` exited with"));
-    }
-
-    #[test]
-    fn continue_on_failure_attempts_later_commands() -> Result<(), Box<dyn std::error::Error>> {
-        let dir = tempfile::tempdir()?;
-        let marker = dir.path().join("after");
-        let (blocks, _) = fail_and_marker_plan(&format!("{}", marker.display()));
-
-        let error = execute_plan(&blocks, false).expect_err("should fail");
-        assert!(error.to_string().contains("`bad` exited with"));
-        assert!(marker.exists(), "later commands must still be attempted");
-        Ok(())
-    }
-
-    #[test]
-    fn stop_on_failure_skips_later_commands() -> Result<(), Box<dyn std::error::Error>> {
-        let dir = tempfile::tempdir()?;
-        let marker = dir.path().join("after");
-        let (blocks, _) = fail_and_marker_plan(&format!("{}", marker.display()));
-
-        assert!(execute_plan(&blocks, true).is_err());
-        assert!(!marker.exists(), "later commands must not be attempted");
-        Ok(())
-    }
-
-    #[test]
-    fn missing_interpreter_fails_immediately() {
-        let block = CommandBlock::new(
-            "nope".parse().unwrap_or_else(|e| panic!("{e}")),
-            "true".into(),
-            Some("acdc-execute-nonexistent-interpreter".into()),
-            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
+        assert_eq!(
+            write_list(&mut BrokenOutput, &plan).unwrap_err().kind(),
+            std::io::ErrorKind::BrokenPipe
         );
-        let error = execute_plan(&[block], false).expect_err("should fail");
-        assert!(error.to_string().contains("could not run interpreter"));
     }
 }
