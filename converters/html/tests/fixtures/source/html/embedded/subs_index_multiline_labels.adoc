@@ -1,0 +1,26 @@
+= Multiline index labels
+
+Flow ((First
+Second)) and indexterm2:[Macro
+Label].
+
+Concealed (((Primary
+Term, Secondary
+Term, Tertiary
+Term))) and (((Alias
+Term >> Target
+Term))).
+
+((bold *First
+Second*)) and ((two  spaces	stay)).
+
+[source%linenums,text,subs=+macros]
+----
+  prefix	((Code
+Label))  suffix
+next	indexterm2:[Macro
+Code] line
+----
+
+[index]
+== Index

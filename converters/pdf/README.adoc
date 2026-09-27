@@ -170,6 +170,7 @@ An empty index section is omitted, and content inside an index section is ignore
 
 Use `subs=+macros` to enable index terms in listing and literal blocks.
 PDF page references follow their code lines, including when long lines wrap across pages.
+Newlines inside an index label become spaces; surrounding code whitespace stays unchanged.
 
 The bundled theme uses two columns with a 12 pt gap.
 Use `[index%notitle]` to hide the visible section heading.

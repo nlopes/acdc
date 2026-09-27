@@ -231,6 +231,12 @@ fn parse_index_term_inlines<'a>(
         return Ok(Vec::new());
     }
 
+    // Each label newline becomes one space; equal byte lengths preserve source offsets.
+    let text = if segment.text.contains('\n') {
+        state.intern_str(&segment.text.replace('\n', " "))
+    } else {
+        segment.text
+    };
     let end = segment.start + segment.text.len();
     let mut rules = state.inline_ctx.rules;
     rules.insert(InlineRules::AUTOLINKS);
@@ -240,7 +246,7 @@ fn parse_index_term_inlines<'a>(
         substitutions: state.inline_ctx.substitutions,
         rules,
     };
-    let mut child = ParserState::for_inline_parsing(segment.text, state, inline_ctx);
+    let mut child = ParserState::for_inline_parsing(text, state, inline_ctx);
     child.attribute_value_ranges = state
         .attribute_value_ranges
         .iter()
@@ -258,7 +264,7 @@ fn parse_index_term_inlines<'a>(
         .map(|offset| offset - segment.start)
         .collect();
 
-    let parsed = inline_parser::inlines(segment.text, &mut child)
+    let parsed = inline_parser::inlines(text, &mut child)
         .map_err(|_| "could not parse index term content")?;
 
     let mut parsed = parsed;

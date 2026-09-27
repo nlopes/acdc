@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Multiline index labels replace each newline with one space, matching Asciidoctor.
+  Whitespace outside the index macro stays unchanged, including in code blocks.
+
 - Section-looking lines in open, example, sidebar, and quote blocks stay text.
   Discrete headings remain in their parent section even at the same or a higher
   heading level. AsciiDoc table cells retain their own section scope, and blank
