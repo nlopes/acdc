@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Library callers now import command-discovery errors as
+  `acdc_execute::DiscoveryError`.
 - Building `acdc-execute` no longer enables unused graph implementations in its
   dependencies.
 
