@@ -172,6 +172,8 @@ bitflags! {
         const HARD_BREAKS = 1 << 2;
         /// Permit a trailing ` +` to end at end of input.
         const EOI_HARD_BREAK = 1 << 3;
+        /// Restrict label parsing to substitutions that precede index registration.
+        const INDEX_CATALOG = 1 << 4;
     }
 }
 

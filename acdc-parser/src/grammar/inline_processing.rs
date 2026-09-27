@@ -288,12 +288,14 @@ fn late_attribute_sources<'a>(
             continue;
         }
         expanded += replacement.absolute_start - original;
-        let attribute_passthrough = replacement.kind == ProcessedKind::Passthrough
-            && processed.passthroughs.iter().any(|pass| {
-                pass.kind == crate::PassthroughKind::AttributeRef
-                    && pass.location.absolute_start == replacement.absolute_start
-                    && pass.location.absolute_end == replacement.absolute_end
-            });
+        let attribute_passthrough = matches!(
+            replacement.kind,
+            ProcessedKind::Passthrough | ProcessedKind::Escape
+        ) && processed.passthroughs.iter().any(|pass| {
+            pass.kind == crate::PassthroughKind::AttributeRef
+                && pass.location.absolute_start == replacement.absolute_start
+                && pass.location.absolute_end == replacement.absolute_end
+        });
         if replacement.kind == ProcessedKind::Attribute || attribute_passthrough {
             sources.push((
                 expanded..expanded + replacement.byte_len,

@@ -1,0 +1,46 @@
+= Index label substitution stages
+:name: Expanded
+:acdc-index:
+
+[subs="specialcharacters,macros,replacements"]
+Late ((Copyright (C) A -- B ...)).
+
+[subs="specialcharacters,replacements,macros"]
+Early ((Copyright (C) A -- B ...)).
+
+[source,text,subs="specialcharacters,macros,replacements"]
+----
+Code ((Copyright (C) A -- B ...)).
+----
+
+[subs="specialcharacters,macros,attributes,quotes"]
+Escaped ((\*Literal*)) and ((Start \{name} *bold*)).
+
+[subs="specialcharacters,macros,attributes,quotes"]
+Literal \((Start {name} *bold*)) and \indexterm2:[Named *bold*].
+
+[subs="specialcharacters,quotes,attributes,macros"]
+Early literal \((Start {name} *bold*)).
+
+[subs="specialcharacters,macros,attributes,quotes"]
+Link ((Link https://example.org[Caption])) and ((Cross xref:target[Target])).
+
+[subs="specialcharacters,macros,attributes,quotes"]
+Nested ((Note footnote:[One])) after footnote:[Two].
+
+[subs="specialcharacters,macros,attributes,quotes"]
+Body footnote:[((Note {name})) and *literal* (C)].
+
+[subs="specialcharacters,macros,attributes,quotes"]
+Protected ((Start pass:attributes[{name}] *bold*)).
+
+[subs="specialcharacters,quotes,macros,attributes"]
+Early body footnote:[*bold* ((Early {name}))].
+
+[[target]]
+== Target
+
+Normal ((Ordinary *bold* term)) and ((Normal https://example.org[Caption])).
+
+[index]
+== Index

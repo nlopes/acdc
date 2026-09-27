@@ -42,6 +42,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve index registration order when later substitutions introduce delimiters, empty labels, formatting, or replacements. Keep links and footnotes literal in catalog labels, and recognize index terms across attribute expansions in inline passthroughs.
+- Preserve inclusive source spans for substituted index labels and passthrough fragments, including Unicode and newlines. Spans no longer include the following delimiter.
+
 - Index entries retain the labels registered before later attribute or quote
   substitutions. Visible terms still receive those later substitutions, matching
   Asciidoctor. Parsed index entries expose registered labels separately from visible

@@ -1,0 +1,20 @@
+= Passthrough source spans
+:value: café
+:styled: *é*
+:plus: +
+
+α +β+ γ
++δ+ ε.
+
+pass:[one]pass:[two]
+
+pass:quotes[*bold*] after.
+
+pass:attributes,macros[((Term {value} tail))]
+
+pass:macros,attributes[((Term {value} tail))]
+
+pass:attributes,quotes,macros[((Term {styled}))]
+
+pass:a,p[first {plus}
+second]

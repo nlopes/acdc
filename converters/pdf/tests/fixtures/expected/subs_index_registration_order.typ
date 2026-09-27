@@ -164,7 +164,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("F")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Footnote ")#counter(footnote).update(0)#footnote[#text("Only once")]#_acdc_index_pages((<__indexterm-15>,), "term")]
+#par(hanging-indent: 1em)[#text("Footnote footnote:[Only once]")#_acdc_index_pages((<__indexterm-15>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("G")]
 #v(0.25em)
@@ -188,7 +188,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("P")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Protected ")#text("{name}")#text(" ")#text("*plain*")#_acdc_index_pages((<__indexterm-17>,), "term")]
+#par(hanging-indent: 1em)[#text("Protected \\{name} ")#text("*plain*")#_acdc_index_pages((<__indexterm-17>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("R")]
 #v(0.25em)

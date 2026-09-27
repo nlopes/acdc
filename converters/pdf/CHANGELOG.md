@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep index labels unchanged by later substitutions and avoid duplicate footnotes from catalog labels, matching Asciidoctor PDF. Recognize index terms in ordered passthroughs and retain entries whose visible labels become empty.
+
 - Index catalogs retain literal attribute references and quote markers when `subs=` puts
   attributes or quotes after macros, matching Asciidoctor registration order. Visible
   terms still receive the later substitutions.

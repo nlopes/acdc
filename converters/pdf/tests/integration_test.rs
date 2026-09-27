@@ -11,6 +11,27 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/subs_index_stage_labels.adoc"))?;
+    let pages = pdf.get_pages().keys().copied().collect::<Vec<_>>();
+    let text = pdf
+        .extract_text(&pages)?
+        .split_whitespace()
+        .collect::<String>();
+    assert_eq!(text.matches("1One").count(), 1, "{text}");
+    assert_eq!(text.matches("2Two").count(), 1, "{text}");
+    assert_eq!(
+        text.matches("3Note{name}and*literal*(C)").count(),
+        1,
+        "{text}"
+    );
+    assert_eq!(text.matches("4boldEarly{name}").count(), 1, "{text}");
+    assert!(text.contains("Notefootnote:[One]"), "{text}");
+    Ok(())
+}
+
 fn render_input(input: &str) -> Result<PdfDocument, Error> {
     let parsed = parse(input, &Options::default())?;
     render_parsed(&parsed)

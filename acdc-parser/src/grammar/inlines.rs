@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, ops::Range, rc::Rc};
+use std::{borrow::Cow, ops::Range};
 
 use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
@@ -11,7 +11,10 @@ use crate::{
         inline_preprocessor::{InlinePreprocessorParserState, ProcessedKind, SourceMap},
         inline_processing::{process_inlines, process_inlines_no_autolinks},
     },
-    model::{strip_quotes, substitution::HEADER},
+    model::{
+        strip_quotes,
+        substitution::{HEADER, SubstitutionPlan},
+    },
 };
 
 use super::{
@@ -171,6 +174,7 @@ struct IndexTermSegment<'a> {
     start: usize,
 }
 
+#[derive(Clone)]
 enum IndexTermRelationshipSegments<'a> {
     See(IndexTermSegment<'a>),
     SeeAlso(Vec<IndexTermSegment<'a>>),
@@ -179,6 +183,26 @@ enum IndexTermRelationshipSegments<'a> {
 enum IndexTermMacroItem<'a> {
     Term(IndexTermSegment<'a>),
     Relationship(IndexTermRelationshipSegments<'a>),
+}
+
+#[derive(Clone, Copy)]
+enum IndexTermForm {
+    Flow,
+    Concealed,
+    NamedFlow,
+    NamedConcealed,
+}
+
+impl IndexTermForm {
+    fn visible(self) -> bool {
+        matches!(self, Self::Flow | Self::NamedFlow)
+    }
+}
+
+#[derive(Clone)]
+struct IndexTermParts<'a> {
+    terms: Vec<IndexTermSegment<'a>>,
+    relationship: Option<IndexTermRelationshipSegments<'a>>,
 }
 
 fn trimmed_index_term_segment(text: &str, start: usize) -> IndexTermSegment<'_> {
@@ -294,30 +318,265 @@ fn parse_index_term_inlines<'a>(
     Ok(parsed)
 }
 
-fn index_term_node(mut term: IndexTerm<'_>) -> InlineNode<'_> {
+fn index_term_node(mut term: IndexTerm<'_>, plan: SubstitutionPlan) -> InlineNode<'_> {
     if term.catalog.as_ref().is_some_and(|catalog| {
         catalog.kind == term.kind && catalog.relationship == term.relationship
-    }) {
+    }) && !plan.precedes(&Substitution::Macros, &Substitution::Replacements)
+    {
         term.catalog = None;
+    }
+    if term.catalog.is_some() {
+        term.catalog_substitutions = Some(plan);
     }
     InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)))
 }
 
-/// Capture only this macro's labels at registration time. The display parse still
-/// owns footnote registration; the snapshot uses its own tracker with the same numbers.
-fn parse_index_catalog<'a>(
-    state: &ParserState<'a>,
-    start: usize,
-    end: usize,
-) -> Result<Option<Box<IndexTerm<'a>>>, &'static str> {
-    let plan = state.inline_ctx.substitutions;
-    if !plan.precedes(&Substitution::Macros, &Substitution::Attributes)
-        && !plan.precedes(&Substitution::Macros, &Substitution::Quotes)
-    {
-        return Ok(None);
+fn expand_escaped_index_terms<'a>(
+    nodes: Vec<InlineNode<'a>>,
+    state: &mut ParserState<'a>,
+) -> Result<Vec<InlineNode<'a>>, &'static str> {
+    if !state.inline_ctx.rules.contains(InlineRules::INDEX_TERMS) || !state.input.contains('\\') {
+        return Ok(nodes);
     }
+    let mut expanded = Vec::with_capacity(nodes.len());
+    for node in nodes {
+        let InlineNode::PlainText(plain) = &node else {
+            expanded.push(node);
+            continue;
+        };
+        let tail = &state.input[plain.location.absolute_start..];
+        let escapes = tail.len() - tail.trim_start_matches('\\').len();
+        let index_literal = plain.content.starts_with("((")
+            || plain.content.starts_with("indexterm:[")
+            || plain.content.starts_with("indexterm2:[");
+        if escapes == 0 || !index_literal {
+            expanded.push(node);
+            continue;
+        }
+        // Escaping the macro leaves its label available to other substitutions.
+        let parsed = parse_index_term_inlines(
+            state,
+            IndexTermSegment {
+                text: plain.content,
+                start: plain.location.absolute_start + escapes,
+            },
+        )?;
+        if matches!(parsed.as_slice(), [InlineNode::PlainText(text)] if text.content == plain.content)
+        {
+            expanded.push(node);
+        } else {
+            expanded.extend(parsed);
+        }
+    }
+    Ok(expanded)
+}
+
+// Recognize a macro once, then use its registration-time parts for both catalog
+// and display labels. Later attribute values cannot introduce separators.
+fn parse_index_term<'a>(
+    state: &mut ParserState<'a>,
+    content: IndexTermSegment<'a>,
+    form: IndexTermForm,
+    location: crate::Location,
+) -> Result<InlineNode<'a>, &'static str> {
+    let (source, restored_ranges) = registration_source(state, content);
+    let mut parts = index_term_parts(state, source, form)?;
+    let plan = state.inline_ctx.substitutions;
+    let catalog = if plan.precedes(&Substitution::Macros, &Substitution::Attributes)
+        || plan.precedes(&Substitution::Macros, &Substitution::Quotes)
+        || plan.precedes(&Substitution::Macros, &Substitution::Replacements)
+        || source
+            .chars()
+            .any(|character| matches!(character, ':' | '<' | '[' | '@'))
+    {
+        let mut inline_ctx = state.inline_ctx;
+        inline_ctx.offset = 0;
+        inline_ctx.substitutions = plan.through(&Substitution::Macros);
+        inline_ctx.rules.insert(InlineRules::INDEX_CATALOG);
+        let mut child = ParserState::for_inline_parsing(source, state, inline_ctx);
+        if restored_ranges.is_empty() {
+            child.attribute_value_ranges = state
+                .attribute_value_ranges
+                .iter()
+                .filter_map(|range| {
+                    let start = range.start.max(content.start);
+                    let end = range.end.min(content.start + content.text.len());
+                    (start < end).then(|| start - content.start..end - content.start)
+                })
+                .collect();
+        }
+        let catalog_location = child.create_location(0, source.len().saturating_sub(1));
+        let term = parse_index_parts(&mut child, parts.clone(), form, catalog_location)?;
+        let mut node = InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)));
+        map_registered_inline(&mut node, state, content.start, &restored_ranges);
+        let InlineNode::Macro(InlineMacro::IndexTerm(mut term)) = node else {
+            return Err("missing index catalog labels");
+        };
+        term.location = location.clone();
+        Some(term)
+    } else {
+        None
+    };
+    let map_segment = |segment: &mut IndexTermSegment<'a>| {
+        let start = content.start + restored_label_offset(segment.start, &restored_ranges, false);
+        let end = content.start
+            + restored_label_offset(segment.start + segment.text.len(), &restored_ranges, false);
+        *segment = IndexTermSegment {
+            text: &state.input[start..end],
+            start,
+        };
+    };
+    for segment in &mut parts.terms {
+        map_segment(segment);
+    }
+    match &mut parts.relationship {
+        Some(IndexTermRelationshipSegments::See(target)) => map_segment(target),
+        Some(IndexTermRelationshipSegments::SeeAlso(targets)) => {
+            for target in targets {
+                map_segment(target);
+            }
+        }
+        None => {}
+    }
+    let mut term = parse_index_parts(state, parts, form, location)?;
+    term.catalog = catalog;
+    Ok(index_term_node(term, plan))
+}
+
+fn map_registered_inline(
+    node: &mut InlineNode<'_>,
+    state: &ParserState<'_>,
+    start: usize,
+    restored_ranges: &[RestoredRange],
+) {
+    super::location_walk::walk_inline_locations_mut(node, &mut |location| {
+        location.absolute_start =
+            start + restored_label_offset(location.absolute_start, restored_ranges, false);
+        location.absolute_end =
+            start + restored_label_offset(location.absolute_end, restored_ranges, true);
+        location.start = state
+            .line_map
+            .offset_to_position(location.absolute_start, state.input);
+        location.end = state
+            .line_map
+            .offset_to_position(location.absolute_end, state.input);
+    });
+}
+
+fn parse_footnote_content<'a>(
+    state: &mut ParserState<'a>,
+    content: IndexTermSegment<'a>,
+) -> Result<Vec<InlineNode<'a>>, &'static str> {
+    let plan = state.inline_ctx.substitutions;
+    let frozen = plan.precedes(&Substitution::Macros, &Substitution::Attributes)
+        || plan.precedes(&Substitution::Macros, &Substitution::Quotes)
+        || plan.precedes(&Substitution::Macros, &Substitution::Replacements);
+    if !frozen {
+        let metadata = BlockParsingMetadata {
+            substitutions: plan,
+            ..BlockParsingMetadata::default()
+        };
+        return process_inlines(
+            state,
+            &metadata,
+            content.start,
+            content.start + content.text.len(),
+            state.inline_ctx.offset,
+            content.text,
+        )
+        .map(|(nodes, _)| nodes)
+        .map_err(|_| "could not process footnote content");
+    }
+    let (source, ranges) = registration_source(state, content);
+    let mut inline_ctx = state.inline_ctx;
+    inline_ctx.offset = 0;
+    inline_ctx.substitutions = plan.through(&Substitution::Macros);
+    let mut child = ParserState::for_inline_parsing(source, state, inline_ctx);
+    let metadata = BlockParsingMetadata {
+        substitutions: inline_ctx.substitutions,
+        ..BlockParsingMetadata::default()
+    };
+    let (mut nodes, _) = process_inlines(&mut child, &metadata, 0, source.len(), 0, source)
+        .map_err(|_| "could not process footnote content")?;
+    for node in &mut nodes {
+        map_registered_inline(node, state, content.start, &ranges);
+    }
+    Ok(nodes)
+}
+
+// Freeze text only after passthrough expansion and all source mapping have finished.
+pub(crate) fn finalize_registered_inline(node: &mut InlineNode<'_>) {
+    if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+        if let Some(plan) = term.catalog_substitutions.take()
+            && let Some(catalog) = &mut term.catalog
+        {
+            catalog.for_each_label_mut(|nodes| freeze_registered_text(nodes, plan));
+        }
+    } else if let InlineNode::Macro(InlineMacro::Footnote(footnote)) = node {
+        finalize_footnote_text(footnote);
+    }
+}
+
+pub(crate) fn finalize_footnote_text(note: &mut Footnote<'_>) {
+    if let Some(plan) = note.registration_substitutions.take() {
+        freeze_registered_text(&mut note.content, plan);
+    }
+}
+
+fn freeze_registered_text(nodes: &mut [InlineNode<'_>], plan: SubstitutionPlan) {
+    let mut substitutions = vec![Substitution::SpecialChars];
+    if plan.precedes(&Substitution::Replacements, &Substitution::Macros) {
+        substitutions.push(Substitution::Replacements);
+    }
+    for node in nodes {
+        super::passthrough_processing::convert_plain_to_raw(node, &substitutions);
+    }
+}
+
+fn catalog_macro_allowed(state: &ParserState<'_>, start: usize) -> bool {
+    !state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG)
+        || [
+            "image:",
+            "icon:",
+            "kbd:",
+            "btn:",
+            "menu:",
+            "stem:",
+            "latexmath:",
+            "asciimath:",
+            "pass:",
+        ]
+        .iter()
+        .any(|prefix| state.input[start..].starts_with(prefix))
+}
+
+fn catalog_escape_allowed(state: &ParserState<'_>, start: usize) -> bool {
+    if !state.inline_ctx.rules.contains(InlineRules::INDEX_CATALOG) {
+        return true;
+    }
+    let tail = state.input[start..].trim_start_matches('\\');
+    match tail.as_bytes().first() {
+        Some(b'*' | b'_' | b'#' | b'`' | b'^' | b'~') => state
+            .inline_ctx
+            .substitutions
+            .enabled(&Substitution::Quotes),
+        Some(b'{') => state
+            .inline_ctx
+            .substitutions
+            .enabled(&Substitution::Attributes),
+        _ => true,
+    }
+}
+
+type RestoredRange = (Range<usize>, Range<usize>);
+
+fn registration_source<'a>(
+    state: &ParserState<'a>,
+    content: IndexTermSegment<'a>,
+) -> (&'a str, Vec<RestoredRange>) {
+    let end = content.start + content.text.len();
     let mut source = String::new();
-    let mut cursor = start;
+    let mut cursor = content.start;
     let mut restored_ranges = Vec::new();
     for (range, reference) in &state.late_attribute_sources {
         if range.start < cursor || range.end > end {
@@ -328,49 +587,90 @@ fn parse_index_catalog<'a>(
         source.push_str(reference);
         restored_ranges.push((
             restored_start..source.len(),
-            range.start - start..range.end - start,
+            range.start - content.start..range.end - content.start,
         ));
         cursor = range.end;
     }
-    source.push_str(&state.input[cursor..end]);
-    let source = state.intern_str(&source);
-    let mut context = state.inline_ctx;
-    context.offset = 0;
-    context.substitutions = plan.through(&Substitution::Macros);
-    let mut child = ParserState::for_inline_parsing(source, state, context);
-    child.footnote_tracker = Rc::new(RefCell::new(state.footnote_tracker.borrow().clone()));
-    let mut nodes = inline_parser::inlines(source, &mut child)
-        .map_err(|_| "could not parse index catalog labels")?;
-    if !matches!(
-        nodes.as_slice(),
-        [InlineNode::Macro(InlineMacro::IndexTerm(_))]
-    ) {
-        return Err("could not recognize index catalog labels");
+    if restored_ranges.is_empty() {
+        return (content.text, restored_ranges);
     }
-    let mut node = nodes.pop().ok_or("missing index catalog labels")?;
-    super::location_walk::walk_inline_locations_mut(&mut node, &mut |location| {
-        location.absolute_start =
-            start + restored_label_offset(location.absolute_start, &restored_ranges, false);
-        location.absolute_end =
-            start + restored_label_offset(location.absolute_end, &restored_ranges, true);
-        location.start = state
-            .line_map
-            .offset_to_position(location.absolute_start, state.input);
-        location.end = state
-            .line_map
-            .offset_to_position(location.absolute_end, state.input);
-    });
-    let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node else {
-        return Err("missing index catalog labels");
-    };
-    Ok(Some(term))
+    source.push_str(&state.input[cursor..end]);
+    (state.intern_str(&source), restored_ranges)
 }
 
-fn restored_label_offset(
-    offset: usize,
-    ranges: &[(Range<usize>, Range<usize>)],
-    end: bool,
-) -> usize {
+fn index_term_parts<'a>(
+    state: &mut ParserState<'a>,
+    text: &'a str,
+    form: IndexTermForm,
+) -> Result<IndexTermParts<'a>, &'static str> {
+    let content = trimmed_index_term_segment(text, 0);
+    let (terms, relationship) = match form {
+        IndexTermForm::Flow => {
+            let (term, relationship) = split_index_term_relationship(content);
+            (vec![term], relationship)
+        }
+        IndexTermForm::Concealed => {
+            let (terms, relationship) = split_index_term_relationship(content);
+            let terms = inline_parser::index_term_list(terms.text, state, terms.start)
+                .map_err(|_| "could not parse index terms")?;
+            (terms, relationship)
+        }
+        IndexTermForm::NamedFlow | IndexTermForm::NamedConcealed => {
+            let items = inline_parser::index_term_macro_list(content.text, state, content.start)
+                .map_err(|_| "could not parse index term attributes")?;
+            let (terms, relationship) = partition_index_term_macro_items(items);
+            let terms = if matches!(form, IndexTermForm::NamedFlow) && relationship.is_none() {
+                vec![content]
+            } else {
+                terms
+            };
+            (terms, relationship)
+        }
+    };
+    Ok(IndexTermParts {
+        terms,
+        relationship,
+    })
+}
+
+fn parse_index_parts<'a>(
+    state: &mut ParserState<'a>,
+    parts: IndexTermParts<'a>,
+    form: IndexTermForm,
+    location: crate::Location,
+) -> Result<IndexTerm<'a>, &'static str> {
+    let mut terms = parts.terms.into_iter();
+    let term = parse_index_term_inlines(
+        state,
+        terms
+            .next()
+            .unwrap_or(IndexTermSegment { text: "", start: 0 }),
+    )?;
+    let kind = if form.visible() {
+        IndexTermKind::Flow(term)
+    } else {
+        IndexTermKind::Concealed {
+            term,
+            secondary: terms
+                .next()
+                .map(|segment| parse_index_term_inlines(state, segment))
+                .transpose()?,
+            tertiary: terms
+                .next()
+                .map(|segment| parse_index_term_inlines(state, segment))
+                .transpose()?,
+        }
+    };
+    Ok(IndexTerm {
+        kind,
+        relationship: parse_index_term_relationship(state, parts.relationship)?,
+        catalog: None,
+        catalog_substitutions: None,
+        location,
+    })
+}
+
+fn restored_label_offset(offset: usize, ranges: &[RestoredRange], end: bool) -> usize {
     let Some((restored, original)) = ranges.iter().rev().find(|(range, _)| offset >= range.start)
     else {
         return offset;
@@ -500,6 +800,26 @@ fn structural_token_allowed(
         .substitutions
         .precedes(substitution, &Substitution::Attributes)
         || !(start..start + len).any(|position| byte_came_from_attribute(state, position))
+}
+
+fn index_token_allowed(state: &ParserState<'_>, start: usize, len: usize) -> bool {
+    structural_token_allowed(state, &Substitution::Macros, start, len)
+        && (!state
+            .inline_ctx
+            .substitutions
+            .precedes(&Substitution::Macros, &Substitution::Attributes)
+            || !state
+                .empty_attribute_offsets
+                .iter()
+                .any(|offset| start < *offset && *offset < start + len))
+}
+
+fn index_content_present(state: &ParserState<'_>, start: usize, text: &str) -> bool {
+    !text.is_empty()
+        || state
+            .late_attribute_sources
+            .iter()
+            .any(|(range, _)| range.start == start && range.is_empty())
 }
 
 fn has_inline_line_break_prefix(state: &ParserState<'_>, span_start: usize) -> bool {
@@ -642,13 +962,13 @@ peg::parser! {
         inject span_end(_input, _l, r) -> usize { r }
 
         pub(crate) rule inlines() -> Vec<InlineNode<'input>>
-        = (non_plain_text() / plain_text())+
+        = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
 
         pub(crate) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
-        = (non_plain_text() / plain_text())+
+        = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
 
         pub(crate) rule verbatim_index_inlines() -> Vec<InlineNode<'input>>
-        = (verbatim_index_term() / quotes_non_plain_text() / verbatim_plain_text())+
+        = nodes:(verbatim_index_term() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
 
         rule verbatim_index_term() -> InlineNode<'input>
         = check_index_terms() node:(
@@ -813,7 +1133,7 @@ peg::parser! {
         /// Only matches when there's a complete pattern (content with no spaces
         /// followed by closing marker).
         rule escaped_superscript_subscript() -> InlineNode<'input>
-        = "\\" content:escaped_super_sub_pattern() {
+        = check_catalog_escape() "\\" content:escaped_super_sub_pattern() {
             InlineNode::PlainText(Plain {
                 content,
                 location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
@@ -831,7 +1151,7 @@ peg::parser! {
         /// Handles paired delimiters (`<<...>>`, `[...]`) as complete units,
         /// and simple content until stop characters (space, punctuation).
         rule escaped_syntax() -> InlineNode<'input>
-        = "\\" content:escaped_content() {
+        = check_catalog_escape() "\\" content:escaped_content() {
             InlineNode::PlainText(Plain {
                 content,
                 location: state.create_location(span_start + state.inline_ctx.offset, span_end + state.inline_ctx.offset),
@@ -896,7 +1216,7 @@ peg::parser! {
         ///
         /// Double backslash + escapable pattern or a single escapable pattern
         rule escaped_syntax_match() -> ()
-        = "\\" "\\"? escapable_pattern_match()
+        = check_catalog_escape() "\\" "\\"? escapable_pattern_match()
 
         rule literal_pass_macro()
         = "pass:" {?
@@ -931,11 +1251,6 @@ peg::parser! {
 
             tracing::debug!(?id, content = %content_str, "Found footnote inline");
 
-            let bm = BlockParsingMetadata {
-                substitutions: state.inline_ctx.substitutions,
-                ..BlockParsingMetadata::default()
-            };
-
             // If content_str is empty or only whitespace, we should not try to process
             // inlines, it just means this footnote has no content and therefore the user
             // has already added the content in a footnote with the same id but with
@@ -943,14 +1258,14 @@ peg::parser! {
             let content = if content_str.trim().is_empty() {
                 vec![]
             } else {
-                let (content, _) = process_inlines_or_err!(
-                    process_inlines(state, &bm, content_start, end, state.inline_ctx.offset, content_str),
-                    "could not process footnote content"
-                )?;
-                content
+                parse_footnote_content(state, IndexTermSegment { text: content_str, start: content_start })?
             };
 
+            let plan = state.inline_ctx.substitutions;
+            let registration_substitutions = [Substitution::Attributes, Substitution::Quotes, Substitution::Replacements]
+                .iter().any(|stage| plan.precedes(&Substitution::Macros, stage)).then_some(plan);
             let mut footnote = Footnote {
+                registration_substitutions,
                 id,
                 content,
                 number: 0, // Will be set by register_footnote
@@ -1057,104 +1372,28 @@ peg::parser! {
         rule inline_pass_match()
         = "pass:" ([^('[' | ']' | ',')]+ ("," [^('[' | ']' | ',')]+)*)? "[" [^']']* "]"
 
-        /// Concealed index term: (((primary, secondary, tertiary)))
-        /// Only appears in the index, not in the text.
-        /// Supports hierarchical entries with up to three levels.
         rule index_term_concealed() -> InlineNode<'input>
-        = content:index_term_concealed_content()
-        {?
-            let (content, relationship) = split_index_term_relationship(content);
-            let terms = index_term_list(content.text, state, content.start)
-                .map_err(|_| "could not parse index terms")?;
-            let mut iter = terms.into_iter();
-            let term = iter.next().unwrap_or(IndexTermSegment { text: "", start: span_start + 3 });
-            let secondary = iter.next();
-            let tertiary = iter.next();
-            tracing::debug!(term = %term.text, secondary = ?secondary.map(|segment| segment.text), tertiary = ?tertiary.map(|segment| segment.text), "Found concealed index term");
-            Ok(index_term_node(IndexTerm {
-                catalog: parse_index_catalog(state, span_start, span_end)?,
-                kind: IndexTermKind::Concealed {
-                    term: parse_index_term_inlines(state, term)?,
-                    secondary: secondary
-                        .map(|segment| parse_index_term_inlines(state, segment))
-                        .transpose()?,
-                    tertiary: tertiary
-                        .map(|segment| parse_index_term_inlines(state, segment))
-                        .transpose()?,
-                },
-                relationship: parse_index_term_relationship(state, relationship)?,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+        = content:index_term_concealed_content() {?
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
+            parse_index_term(state, content, IndexTermForm::Concealed, location)
         }
 
-        /// Flow index term: ((term))
-        /// Appears both in the text and in the index.
-        /// Only supports a primary term.
         rule index_term_flow() -> InlineNode<'input>
-        = content:index_term_flow_content()
-        {?
-            let (term, relationship) = split_index_term_relationship(content);
-            tracing::debug!(term = %term.text, "Found flow index term");
-            Ok(index_term_node(IndexTerm {
-                catalog: parse_index_catalog(state, span_start, span_end)?,
-                kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
-                relationship: parse_index_term_relationship(state, relationship)?,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+        = content:index_term_flow_content() {?
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
+            parse_index_term(state, content, IndexTermForm::Flow, location)
         }
 
-        /// indexterm macro: indexterm:[primary, secondary, tertiary]
-        /// Concealed (hidden) form - same as (((primary, secondary, tertiary)))
         rule indexterm_macro() -> InlineNode<'input>
-        = "indexterm:" content:index_term_macro_content()
-        {?
-            let items = index_term_macro_list(content.text, state, content.start)
-                .map_err(|_| "could not parse index term attributes")?;
-            let (terms, relationship) = partition_index_term_macro_items(items);
-            let mut iter = terms.into_iter();
-            let term = iter.next().unwrap_or(IndexTermSegment { text: "", start: span_start + "indexterm:[".len() });
-            let secondary = iter.next();
-            let tertiary = iter.next();
-            tracing::debug!(term = %term.text, secondary = ?secondary.map(|segment| segment.text), tertiary = ?tertiary.map(|segment| segment.text), "Found indexterm macro");
-            Ok(index_term_node(IndexTerm {
-                catalog: parse_index_catalog(state, span_start, span_end)?,
-                kind: IndexTermKind::Concealed {
-                    term: parse_index_term_inlines(state, term)?,
-                    secondary: secondary
-                        .map(|segment| parse_index_term_inlines(state, segment))
-                        .transpose()?,
-                    tertiary: tertiary
-                        .map(|segment| parse_index_term_inlines(state, segment))
-                        .transpose()?,
-                },
-                relationship: parse_index_term_relationship(state, relationship)?,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+        = start:position!() "indexterm:" content:index_term_macro_content() check_index_token(start, 11) {?
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
+            parse_index_term(state, content, IndexTermForm::NamedConcealed, location)
         }
 
-        /// indexterm2 macro: indexterm2:[term]
-        /// Flow (visible) form - same as ((term))
         rule indexterm2_macro() -> InlineNode<'input>
-        = "indexterm2:" content:index_term_macro_content()
-        {?
-            let items = index_term_macro_list(content.text, state, content.start)
-                .map_err(|_| "could not parse index term attributes")?;
-            let (terms, relationship) = partition_index_term_macro_items(items);
-            let term = if relationship.is_none() {
-                trimmed_index_term_segment(content.text, content.start)
-            } else {
-                terms.into_iter().next().unwrap_or(IndexTermSegment {
-                    text: "",
-                    start: span_start + "indexterm2:[".len(),
-                })
-            };
-            tracing::debug!(term = %term.text, "Found indexterm2 macro");
-            Ok(index_term_node(IndexTerm {
-                catalog: parse_index_catalog(state, span_start, span_end)?,
-                kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
-                relationship: parse_index_term_relationship(state, relationship)?,
-                location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))
+        = start:position!() "indexterm2:" content:index_term_macro_content() check_index_token(start, 12) {?
+            let location = state.create_block_location(span_start, span_end, state.inline_ctx.offset);
+            parse_index_term(state, content, IndexTermForm::NamedFlow, location)
         }
 
         pub(crate) rule index_term_macro_list(base: usize) -> Vec<IndexTermMacroItem<'input>>
@@ -1211,24 +1450,29 @@ peg::parser! {
         }
 
         // Shorthand ends at a delimiter even inside quotes or nested parentheses.
-        rule index_term_shorthand_close() = "))" !")"
-        rule index_term_concealed_close() = ")" index_term_shorthand_close()
+        rule check_index_token(start: usize, len: usize)
+        = {? index_token_allowed(state, start, len).then_some(()).ok_or("index syntax introduced after macros") }
+
+        rule index_term_shorthand_close() = start:position!() "))" check_index_token(start, 2) !")"
+        rule index_term_concealed_close() = start:position!() ")" index_term_shorthand_close() check_index_token(start, 3)
 
         rule index_term_concealed_content() -> IndexTermSegment<'input>
-        = !escaped_index_inner() "(((" start:position!()
+        = !escaped_index_inner() open:position!() "(((" check_index_token(open, 3) start:position!()
           content:$((!(index_term_concealed_close() / index_term_shorthand_close()) [_])*)
           index_term_concealed_close() {
             IndexTermSegment { text: content, start }
         }
 
         // An extra closing parenthesis remains outside a visible index term.
-        rule index_term_flow_close() = "))" !"))"
+        rule index_term_flow_close() = start:position!() "))" check_index_token(start, 2) !"))"
 
         rule index_term_flow_content() -> IndexTermSegment<'input>
-        = (escaped_index_inner() / !"(((") "((" start:position!()
-          content:$((!index_term_flow_close() [_])+)
-          index_term_flow_close() {
-            IndexTermSegment { text: content, start }
+        = (escaped_index_inner() / !"(((") open:position!() "((" check_index_token(open, 2) start:position!()
+          content:$((!index_term_flow_close() [_])*)
+          index_term_flow_close() {?
+            index_content_present(state, start, content)
+                .then_some(IndexTermSegment { text: content, start })
+                .ok_or("empty index term")
         }
 
         // Escaping a concealed shorthand leaves its inner visible term active.
@@ -1247,15 +1491,20 @@ peg::parser! {
         }
 
         rule index_term_macro_content() -> IndexTermSegment<'input>
-        = "[" start:position!() content:$(("\\]" / !"]" [_])+) "]" {
-            IndexTermSegment { text: content, start }
+        = "[" start:position!() content:$(("\\]" / !index_term_macro_close() [_])*) index_term_macro_close() {?
+            index_content_present(state, start, content)
+                .then_some(IndexTermSegment { text: content, start })
+                .ok_or("empty index term")
         }
+
+        rule index_term_macro_close() = start:position!() "]" check_index_token(start, 1)
 
         /// Match index term patterns without consuming (for negative lookahead in plain_text)
         rule index_term_match() -> ()
         = index_term_concealed_content() {}
         / index_term_flow_content() {}
-        / ("indexterm:" / "indexterm2:") index_term_macro_content() {}
+        / start:position!() "indexterm:" index_term_macro_content() check_index_token(start, 11) {}
+        / start:position!() "indexterm2:" index_term_macro_content() check_index_token(start, 12) {}
 
         rule inline_menu() -> InlineNode<'input>
         = check_experimental() "menu:"
@@ -1435,6 +1684,7 @@ peg::parser! {
         = position:position!() {?
             if state.inline_ctx.substitutions.enabled(&Substitution::Macros)
                 && structural_token_allowed(state, &Substitution::Macros, position, 1)
+                && catalog_macro_allowed(state, position)
             {
                 Ok(())
             } else {
@@ -1471,6 +1721,9 @@ peg::parser! {
 
         rule check_quotes() -> ()
         = {? if state.inline_ctx.substitutions.enabled(&Substitution::Quotes) { Ok(()) } else { Err("quotes disabled") } }
+
+        rule check_catalog_escape()
+        = position:position!() {? catalog_escape_allowed(state, position).then_some(()).ok_or("escape belongs to a later substitution") }
 
         rule check_quote_markers(open: (usize, usize), close: (usize, usize)) -> ()
         = {?

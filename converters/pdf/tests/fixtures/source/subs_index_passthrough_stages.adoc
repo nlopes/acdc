@@ -1,0 +1,31 @@
+= Index terms in ordered passthroughs
+:name: Expanded
+:unicode: café
+:empty:
+:open: ((
+:close: ))
+:markup: *bold*
+:acdc-index:
+
+Expanded pass:attributes,macros[((Inside {name}))].
+
+Literal pass:macros[((Inside {name}))].
+
+Late pass:macros,attributes[((Late {name}))].
+
+Unicode pass:attributes,macros[((Éclair {unicode} tail))].
+
+Empty pass:attributes,macros[((Before{empty}After))].
+
+Created pass:attributes,macros[{open}Created{close}].
+
+Formatted pass:attributes,quotes,macros[((Styled {markup}))].
+
+Late quotes pass:attributes,macros,quotes[((Late {markup}))].
+
+Escaped pass:attributes,macros[\((Literal {name}))].
+
+Footnote pass:macros,attributes[footnote:[((Footnote {name}))]].
+
+[index]
+== Index

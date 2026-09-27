@@ -1506,7 +1506,7 @@ fn insert_untitled_reference<'a>(
     );
 }
 
-fn finalize_cross_references<'a>(
+fn finalize_inline_semantics<'a>(
     state: &ParserState<'a>,
     document: &mut Document<'a>,
     reference_ids: &HashSet<&'a str>,
@@ -1528,7 +1528,11 @@ fn finalize_cross_references<'a>(
         .filter_map(|(target, reference)| Some((*target, reference.section.as_ref()?.name)))
         .collect::<HashMap<_, _>>();
 
+    for footnote in &mut document.footnotes {
+        super::inlines::finalize_footnote_text(footnote);
+    }
     walk_document_inline_nodes_mut(document, &mut |inline| {
+        super::inlines::finalize_registered_inline(inline);
         let InlineNode::Macro(InlineMacro::CrossReference(xref)) = inline else {
             return;
         };
@@ -3166,7 +3170,7 @@ peg::parser! {
                     ));
                 }
             }
-            finalize_cross_references(
+            finalize_inline_semantics(
                 state,
                 &mut document,
                 &reference_ids,

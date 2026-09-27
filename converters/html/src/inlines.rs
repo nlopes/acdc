@@ -1467,6 +1467,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
     ) -> Result<IndexTermLabel, Error> {
         let mut catalog_options = options.clone();
         catalog_options.toc_mode = true;
+        catalog_options.inlines_verbatim = false;
         let mut visitor = HtmlVisitor::new(
             Vec::new(),
             Rc::clone(&self.processor),

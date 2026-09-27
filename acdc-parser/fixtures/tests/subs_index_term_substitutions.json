@@ -196,6 +196,37 @@
               "attributes": {}
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "direct https://example.com[Ada]",
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 3
+                    },
+                    {
+                      "line": 13,
+                      "col": 33
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 13,
+                "col": 1
+              },
+              {
+                "line": 13,
+                "col": 35
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -281,6 +312,37 @@
               "attributes": {}
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "attribute https://example.com[Ada]",
+                  "location": [
+                    {
+                      "line": 15,
+                      "col": 3
+                    },
+                    {
+                      "line": 15,
+                      "col": 20
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 15,
+                "col": 1
+              },
+              {
+                "line": 15,
+                "col": 22
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -454,7 +516,7 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "late {person} and {styled-person}",
                   "location": [
@@ -540,7 +602,7 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "macro before attributes {linked}",
                   "location": [

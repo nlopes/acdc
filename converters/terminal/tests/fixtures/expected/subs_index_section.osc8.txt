@@ -33,7 +33,7 @@ Late substitutions: late Ada and [1mattribute bold[22m.
   bold [1mprimary[22m
 
 [38;5;14m[1mD[0m
-  direct [38;5;12m]8;;https://example.com\Ada]8;;\[39m
+  direct https://example.com[Ada]
 
 [38;5;14m[1mF[0m
   formatting
@@ -49,7 +49,7 @@ Late substitutions: late Ada and [1mattribute bold[22m.
 
 [38;5;14m[1mL[0m
   late {name} and {styled}
-  linked [38;5;12m]8;;https://example.com\Ada]8;;\[39m
+  linked https://example.com[Ada]
   literal *attribute bold*
 
 [38;5;14m[1mM[0m

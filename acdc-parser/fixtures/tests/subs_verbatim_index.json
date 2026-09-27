@@ -730,7 +730,7 @@
             "kind": {
               "Flow": [
                 {
-                  "name": "text",
+                  "name": "raw",
                   "type": "string",
                   "value": "Late {name}",
                   "location": [

@@ -1,0 +1,30 @@
+= Index boundaries at registration
+:acdc-index:
+:close: ))
+:bracket: ]
+:empty:
+:relationship: >> Target
+:pair: Alpha,Beta
+
+[subs="specialcharacters,macros,attributes"]
+Before ((Start {close} End)) and indexterm2:[Named {bracket} End] after.
+
+[subs="specialcharacters,macros,attributes"]
+Before ({empty}(Joined)) and (({empty})) and indexterm2:[{empty}] after.
+
+[subs="specialcharacters,macros,attributes"]
+Before ((Start {relationship} End)) and ((({pair},Child))) after.
+
+[subs="specialcharacters,macros,quotes"]
+Before ((Outer ((Inner)))) and ((function(x))) and ((Term))) after.
+
+[source,text,subs="specialcharacters,macros,attributes,quotes"]
+----
+((Start {close} End)) and indexterm2:[Named {bracket} End]
+({empty}(Joined)) (({empty})) indexterm2:[{empty}]
+((Start {relationship} End)) ((({pair},Child)))
+((Outer ((Inner)))) ((function(x))) ((Term)))
+----
+
+[index]
+== Index

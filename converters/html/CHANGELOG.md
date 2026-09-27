@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- With `acdc-index`, retain index labels from their registration stage, including terms in source blocks. Later substitutions still affect visible terms, matching Asciidoctor; catalog labels follow Asciidoctor PDF.
+
 - Opted-in index catalogs retain literal attribute references and quote markers when
   `subs=` puts attributes or quotes after macros. Visible terms still receive the later
   substitutions.

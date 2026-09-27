@@ -35,6 +35,9 @@ pub enum PassthroughKind {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Footnote<'a> {
+    /// Capture the body before later substitutions; consumed after source mapping.
+    #[serde(skip)]
+    pub(crate) registration_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<&'a str>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -464,17 +467,48 @@ pub struct IndexTerm<'a> {
     /// The relationship from this entry to other index terms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relationship: Option<IndexTermRelationship<'a>>,
-    /// Labels registered before later attribute or quote substitutions.
+    /// Labels captured at index registration, before later substitutions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) catalog: Option<Box<IndexTerm<'a>>>,
+    /// Consumed after catalog source locations and passthroughs are resolved.
+    #[serde(skip)]
+    pub(crate) catalog_substitutions: Option<crate::model::substitution::SubstitutionPlan>,
     pub location: Location,
 }
 
 impl<'a> IndexTerm<'a> {
+    pub(crate) fn for_each_label_mut(&mut self, mut visit: impl FnMut(&mut Vec<InlineNode<'a>>)) {
+        match &mut self.kind {
+            IndexTermKind::Flow(term) => visit(term),
+            IndexTermKind::Concealed {
+                term,
+                secondary,
+                tertiary,
+            } => {
+                visit(term);
+                if let Some(secondary) = secondary {
+                    visit(secondary);
+                }
+                if let Some(tertiary) = tertiary {
+                    visit(tertiary);
+                }
+            }
+        }
+        match &mut self.relationship {
+            Some(IndexTermRelationship::See { target }) => visit(target),
+            Some(IndexTermRelationship::SeeAlso { targets }) => {
+                for target in targets {
+                    visit(target);
+                }
+            }
+            None => {}
+        }
+    }
+
     /// Returns the labels registered in the index catalog.
     ///
-    /// These can differ from the displayed term when attributes or quotes are
-    /// substituted after macros. The returned entry is not another occurrence.
+    /// These can differ from the displayed term when substitutions run after
+    /// index registration. The returned entry is not another occurrence.
     #[must_use]
     pub fn catalog_entry(&self) -> &Self {
         self.catalog.as_deref().unwrap_or(self)

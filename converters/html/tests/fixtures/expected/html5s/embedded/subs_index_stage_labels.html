@@ -1,0 +1,73 @@
+<section id="preamble" aria-label="Preamble">
+<p>Late <a id="_indexterm_0"></a>Copyright &#169; A&thinsp;&mdash;&thinsp;B &#8230;&#8203;.</p>
+<p>Early <a id="_indexterm_1"></a>Copyright &#169; A&thinsp;&mdash;&thinsp;B &#8230;&#8203;.</p>
+<div class="listing-block">
+<pre class="highlight"><code class="language-text" data-lang="text">Code <a id="_indexterm_2"></a>Copyright &#169; A&thinsp;&mdash;&thinsp;B &#8230;&#8203;.</code></pre>
+</div>
+<p>Escaped <a id="_indexterm_3"></a>*Literal* and <a id="_indexterm_4"></a>Start {name} <strong>bold</strong>.</p>
+<p>Literal ((Start Expanded <strong>bold</strong>)) and indexterm2:[Named <strong>bold</strong>].</p>
+<p>Early literal ((Start Expanded <strong>bold</strong>)).</p>
+<p>Link <a id="_indexterm_5"></a>Link <a href="https://example.org">Caption</a> and <a id="_indexterm_6"></a>Cross <a href="#target">Target</a>.</p>
+<p>Nested <a id="_indexterm_7"></a>Note <sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup> after <sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup>.</p>
+<p>Body <sup class="footnote-ref" id="_footnoteref_3">[<a href="#_footnote_3" title="View footnote 3" role="doc-noteref">3</a>]</sup>.</p>
+<p>Protected <a id="_indexterm_8"></a>Start Expanded <strong>bold</strong>.</p>
+<p>Early body <sup class="footnote-ref" id="_footnoteref_4">[<a href="#_footnote_4" title="View footnote 4" role="doc-noteref">4</a>]</sup>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="target">Target</h2>
+<p>Normal <a id="_indexterm_9"></a>Ordinary <strong>bold</strong> term and <a id="_indexterm_10"></a>Normal <a href="https://example.org">Caption</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_index">Index</h2>
+<h3 class="indexletter">@</h3>
+<dl class="indexterms">
+<dt>\*Literal*
+ <a href="#_indexterm_3">top</a></dt>
+</dl>
+<h3 class="indexletter">C</h3>
+<dl class="indexterms">
+<dt>Copyright &#169; A&thinsp;&mdash;&thinsp;B &#8230;&#8203;
+ <a href="#_indexterm_1">top</a></dt>
+<dt>Copyright (C) A -- B ...
+ <a href="#_indexterm_0">top</a>, <a href="#_indexterm_2">top (2)</a></dt>
+<dt>Cross xref:target[Target]
+ <a href="#_indexterm_6">top</a></dt>
+</dl>
+<h3 class="indexletter">L</h3>
+<dl class="indexterms">
+<dt>Link https://example.org[Caption]
+ <a href="#_indexterm_5">top</a></dt>
+</dl>
+<h3 class="indexletter">N</h3>
+<dl class="indexterms">
+<dt>Normal https://example.org[Caption]
+ <a href="#_indexterm_10">Target</a></dt>
+<dt>Note footnote:[One]
+ <a href="#_indexterm_7">top</a></dt>
+</dl>
+<h3 class="indexletter">O</h3>
+<dl class="indexterms">
+<dt>Ordinary <strong>bold</strong> term
+ <a href="#_indexterm_9">Target</a></dt>
+</dl>
+<h3 class="indexletter">S</h3>
+<dl class="indexterms">
+<dt>Start Expanded *bold*
+ <a href="#_indexterm_8">top</a></dt>
+<dt>Start \{name} *bold*
+ <a href="#_indexterm_4">top</a></dt>
+</dl>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+One <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+Two <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_3" role="doc-endnote">
+<a id="_indexterm_11"></a>Note {name} and *literal* (C) <a class="footnote-backref" href="#_footnoteref_3" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_4" role="doc-endnote">
+<strong>bold</strong> <a id="_indexterm_12"></a>Early {name} <a class="footnote-backref" href="#_footnoteref_4" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>
