@@ -48,7 +48,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
     let parsed =
         acdc_parser::parse_file(&args.file, &parser_options).map_err(|e| error::display(&e))?;
     report_warnings(&parsed, &args.file);
-    let graph = CommandGraph::try_from(parsed.document())
+    let graph = CommandGraph::try_from(&parsed)
         .map_err(|e| miette::miette!("{}: {e}", args.file.display()))?;
     let selected = select(&graph, &args.ids, &args.id_regexes)?;
 
@@ -107,9 +107,9 @@ fn select(
     }
 
     let queue = graph
-        .queue_for(&selected)
+        .plan_for(&selected)
         .map_err(|e| miette::miette!("{e}"))?;
-    Ok(queue.collect())
+    Ok(queue.commands().cloned().collect())
 }
 
 /// Print the selected commands and their scripts in the order they would run.
@@ -190,7 +190,7 @@ mod tests {
     fn parse_graph(src: &str) -> CommandGraph {
         let parsed = acdc_parser::parse(src, &Options::default())
             .unwrap_or_else(|error| panic!("parse failed: {error}"));
-        CommandGraph::try_from(parsed.document())
+        CommandGraph::try_from(&parsed)
             .unwrap_or_else(|error| panic!("graph should build: {error}"))
     }
 
@@ -251,7 +251,7 @@ mod tests {
             "build".parse().unwrap_or_else(|e| panic!("{e}")),
             "echo hello\n\n".into(),
             None,
-            acdc_parser::Location::default(),
+            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
         );
         assert_eq!(format_plan(&[block]), "build (sh)\n  echo hello\n  \n");
     }
@@ -433,7 +433,7 @@ mod tests {
             "bad".parse().unwrap_or_else(|e| panic!("{e}")),
             "exit 1".into(),
             None,
-            acdc_parser::Location::default(),
+            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
         );
         let error = execute_plan(&[failing], false).expect_err("should fail");
         assert!(error.to_string().contains("`bad` exited with"));
@@ -468,9 +468,9 @@ mod tests {
             "nope".parse().unwrap_or_else(|e| panic!("{e}")),
             "true".into(),
             Some("acdc-execute-nonexistent-interpreter".into()),
-            acdc_parser::Location::default(),
+            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
         );
         let error = execute_plan(&[block], false).expect_err("should fail");
-        assert!(error.to_string().contains("could not spawn interpreter"));
+        assert!(error.to_string().contains("could not run interpreter"));
     }
 }

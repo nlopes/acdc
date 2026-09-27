@@ -1,187 +1,289 @@
-//! Parsing `AsciiDoc` documents into command graphs via `acdc-parser`.
+//! Discover executable commands from parsed `AsciiDoc` source.
+
+use acdc_converters_core::{TraversalContext, visitor::Visitor};
+use acdc_parser as acdc;
 
 use crate::command::{
     BuildError, CommandBlock, CommandGraph, CommandGraphBuilder, CommandId, InvalidCommandId,
 };
-use acdc_parser as acdc;
 
-impl TryFrom<&acdc::Document<'_>> for CommandGraph {
+impl TryFrom<&acdc::ParseResult> for CommandGraph {
     type Error = Error;
 
-    fn try_from(value: &acdc::Document<'_>) -> Result<Self, Self::Error> {
-        let mut builder = CommandGraphBuilder::new();
-        collect_commands(&value.blocks, &mut builder)?;
-        Ok(builder.build()?)
+    fn try_from(parsed: &acdc::ParseResult) -> Result<Self, Self::Error> {
+        validate_source(parsed)?;
+        let document = parsed.document();
+        let mut traversal = TraversalContext::new(&document.attributes);
+        let mut collector = CommandCollector {
+            parsed,
+            builder: CommandGraphBuilder::new(),
+        };
+        collector.visit_document(&mut traversal, document)?;
+        Ok(collector.builder.build()?)
     }
 }
 
-/// Error converting a parsed [`Document`](acdc::Document) into a [`CommandGraph`].
+/// A document could not provide a complete, valid command graph.
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// A command or one of its dependencies had an invalid id.
-    #[error("invalid command id: {0}")]
-    InvalidId(#[from] InvalidCommandId),
-    /// Resolving the parsed commands into a graph failed.
+    /// The parser could not preserve source content, structure, or requested substitutions.
+    #[error("cannot execute recovered source: {source}")]
+    RecoveredSource {
+        /// The parser's typed recovery diagnostic.
+        #[source]
+        source: acdc::WarningKind,
+        /// The original source position, when available.
+        location: Option<Box<acdc::SourceLocation>>,
+    },
+    /// A command or dependency has an invalid identifier.
+    #[error("command `{command}`: {source}")]
+    InvalidId {
+        /// The command declaring the invalid identifier or dependency.
+        command: String,
+        /// The identifier validation error.
+        source: InvalidCommandId,
+        /// Where the command is declared.
+        location: Box<acdc::SourceLocation>,
+    },
+    /// Command dependencies could not form a valid graph.
     #[error(transparent)]
     Build(#[from] BuildError),
-    /// A block carried the `command` role but declared no id.
-    #[error("command block at line {line} is missing an id")]
+    /// A command block has no identifier.
+    #[error("command block is missing an id")]
     MissingId {
-        /// Source line where the offending block begins.
-        line: u32,
+        /// Where the block is declared.
+        location: Box<acdc::SourceLocation>,
     },
-    /// A block carried the `command` role and an id but was not a listing (script) block.
-    #[error("command `{id}` at line {line} is not a listing block")]
+    /// A marked block is not a listing or source paragraph.
+    #[error("command `{id}` is not a listing or source block")]
     NotAScript {
-        /// The id declared on the offending block.
+        /// The declared identifier.
         id: String,
-        /// Source line where the offending block begins.
-        line: u32,
+        /// Where the block is declared.
+        location: Box<acdc::SourceLocation>,
+    },
+    /// A script block has no retained source text.
+    #[error("command `{id}` has no retained script source")]
+    MissingSource {
+        /// The declared identifier.
+        id: String,
+        /// Where the block is declared.
+        location: Box<acdc::SourceLocation>,
+    },
+    /// An interpreter must be a nonempty executable name or path.
+    #[error("command `{id}` requires a nonempty interpreter name or path without NUL bytes")]
+    InvalidInterpreter {
+        /// The declared identifier.
+        id: String,
+        /// Where the block is declared.
+        location: Box<acdc::SourceLocation>,
+    },
+    /// Attribute substitution referenced an unset or unknown document attribute.
+    #[error("command `{id}` references missing document attribute `{name}`")]
+    MissingAttribute {
+        /// The command containing the reference.
+        id: String,
+        /// The first unresolved attribute name in the script.
+        name: String,
+        /// Where the command is declared.
+        location: Box<acdc::SourceLocation>,
     },
 }
 
-/// Walk `blocks`, registering every command block with `builder`. Recurses into every block that
-/// nests other blocks — sections, admonitions, list items (ordered, unordered, callout, and
-/// description), and the container delimited blocks — so a command placed under a heading, inside a
-/// `NOTE`, or attached to a list step is found, not just top-level ones. Blocks that can only hold
-/// inline content (paragraphs, media, tables, verbatim delimited blocks) are left alone.
-pub(crate) fn collect_commands(
-    blocks: &[acdc::Block<'_>],
-    builder: &mut CommandGraphBuilder,
-) -> Result<(), Error> {
-    for block in blocks {
-        if let acdc::Block::DelimitedBlock(db) = block
-            && db.metadata.roles.contains(&"command")
-        {
-            let (command, deps) = parse_command_block(db)?;
-            builder.add(command, deps);
-            continue; // Listing blocks have no nested content to traverse.
+impl Error {
+    /// The original file and position associated with this error, when known.
+    #[must_use]
+    pub fn source_location(&self) -> Option<&acdc::SourceLocation> {
+        match self {
+            Self::RecoveredSource { location, .. } => location.as_deref(),
+            Self::Build(error) => Some(error.source_location()),
+            Self::InvalidId { location, .. }
+            | Self::MissingId { location }
+            | Self::NotAScript { location, .. }
+            | Self::MissingSource { location, .. }
+            | Self::InvalidInterpreter { location, .. }
+            | Self::MissingAttribute { location, .. } => Some(location),
         }
-        for nested in child_blocks(block) {
-            collect_commands(nested, builder)?;
+    }
+
+    /// A second source position involved in a duplicate identifier or cycle.
+    #[must_use]
+    pub fn related_location(&self) -> Option<&acdc::SourceLocation> {
+        match self {
+            Self::Build(error) => error.related_location(),
+            Self::RecoveredSource { .. }
+            | Self::InvalidId { .. }
+            | Self::MissingId { .. }
+            | Self::NotAScript { .. }
+            | Self::MissingSource { .. }
+            | Self::InvalidInterpreter { .. }
+            | Self::MissingAttribute { .. } => None,
         }
+    }
+}
+
+fn validate_source(parsed: &acdc::ParseResult) -> Result<(), Error> {
+    if let Some(warning) = parsed.source_recovery() {
+        return Err(Error::RecoveredSource {
+            source: warning.kind.clone(),
+            location: warning.source_location().cloned().map(Box::new),
+        });
     }
     Ok(())
 }
 
-/// Every child-block slice that `block` nests, in document order, or an empty vector for leaf
-/// blocks (paragraphs, media, tables, and verbatim delimited blocks such as listings) that cannot
-/// contain a command. A list contributes one slice per item, since each item carries its own
-/// attached blocks.
-fn child_blocks<'a, 'b>(block: &'b acdc::Block<'a>) -> Vec<&'b [acdc::Block<'a>]> {
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "Block is non_exhaustive; leaf variants added later hold no nested blocks"
-    )]
-    match block {
-        acdc::Block::Section(section) => vec![section.content.as_slice()],
-        acdc::Block::Admonition(admonition) => vec![admonition.blocks.as_slice()],
-        acdc::Block::UnorderedList(list) => {
-            list.items.iter().map(|i| i.blocks.as_slice()).collect()
+struct CommandCollector<'parsed> {
+    parsed: &'parsed acdc::ParseResult,
+    builder: CommandGraphBuilder,
+}
+
+impl<'doc> Visitor<'doc> for CommandCollector<'_> {
+    type Error = Error;
+
+    fn before_block(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        block: &'doc acdc::Block<'doc>,
+    ) -> Result<(), Self::Error> {
+        if let Some(metadata) = block.metadata()
+            && metadata.roles.contains(&"command")
+        {
+            let (command, dependencies) = parse_command_block(
+                block,
+                metadata,
+                self.parsed.source_location(block.location()),
+                traversal,
+            )?;
+            self.builder.add(command, dependencies);
         }
-        acdc::Block::OrderedList(list) => list.items.iter().map(|i| i.blocks.as_slice()).collect(),
-        acdc::Block::CalloutList(list) => list.items.iter().map(|i| i.blocks.as_slice()).collect(),
-        acdc::Block::DescriptionList(list) => list
-            .items
-            .iter()
-            .map(|i| i.description.as_slice())
-            .collect(),
-        acdc::Block::DelimitedBlock(db) => nested_blocks(db).into_iter().collect(),
-        _ => Vec::new(),
+        Ok(())
+    }
+
+    fn visit_inline_nodes(
+        &mut self,
+        _traversal: &mut TraversalContext<'doc>,
+        _nodes: &[acdc::InlineNode<'_>],
+    ) -> Result<(), Self::Error> {
+        Ok(())
     }
 }
 
-/// The child blocks of a delimited block that nests other blocks, or `None` for the leaf
-/// (inline-bearing) variants such as listings.
-fn nested_blocks<'a, 'b>(db: &'b acdc::DelimitedBlock<'a>) -> Option<&'b [acdc::Block<'a>]> {
+fn parse_command_block(
+    block: &acdc::Block<'_>,
+    metadata: &acdc::BlockMetadata<'_>,
+    location: acdc::SourceLocation,
+    traversal: &TraversalContext<'_>,
+) -> Result<(CommandBlock, Vec<CommandId>), Error> {
+    let anchor = metadata.id.as_ref().ok_or_else(|| Error::MissingId {
+        location: Box::new(location.clone()),
+    })?;
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "DelimitedBlockType is non_exhaustive; verbatim variants hold no nested blocks"
+        reason = "Only script block variants are accepted"
     )]
-    match &db.inner {
-        // `DelimitedOpen` structurally nests blocks but in practice cannot carry a command:
-        // AsciiDoc allows a listing inside an open block, but the parser misparses the
-        // nested `----` against the open `--`, swallowing the `[.command, id=...]` line as
-        // literal paragraph text and dropping the listing. The arm is kept so open blocks
-        // are at least traversed rather than silently skipped.
-        acdc::DelimitedBlockType::DelimitedExample(blocks)
-        | acdc::DelimitedBlockType::DelimitedOpen(blocks)
-        | acdc::DelimitedBlockType::DelimitedSidebar(blocks)
-        | acdc::DelimitedBlockType::DelimitedQuote(blocks) => Some(blocks),
-        _ => None,
+    let source_text = match block {
+        acdc::Block::DelimitedBlock(block)
+            if matches!(block.inner, acdc::DelimitedBlockType::DelimitedListing(_)) =>
+        {
+            block.source_text()
+        }
+        acdc::Block::Paragraph(paragraph)
+            if matches!(metadata.style, Some("source" | "listing")) =>
+        {
+            paragraph.source_text()
+        }
+        _ => {
+            return Err(Error::NotAScript {
+                id: anchor.id.to_owned(),
+                location: Box::new(location),
+            });
+        }
     }
-}
+    .ok_or_else(|| Error::MissingSource {
+        id: anchor.id.to_owned(),
+        location: Box::new(location.clone()),
+    })?;
 
-/// Parse a [`CommandBlock`] and its declared dependencies from a delimited block already known to
-/// carry the `command` role. A command must declare an id ([`Error::MissingId`]) and be a listing
-/// block ([`Error::NotAScript`]); a malformed id yields [`Error::InvalidId`].
-fn parse_command_block(
-    db: &acdc::DelimitedBlock<'_>,
-) -> Result<(CommandBlock, Vec<CommandId>), Error> {
-    let meta = &db.metadata;
-    let line = db.location.start.line;
-    let anchor = meta.id.as_ref().ok_or(Error::MissingId { line })?;
-    let acdc::DelimitedBlockType::DelimitedListing(inlines) = &db.inner else {
-        return Err(Error::NotAScript {
-            id: anchor.id.to_owned(),
-            line,
-        });
+    let invalid_id = |source| Error::InvalidId {
+        command: anchor.id.to_owned(),
+        source,
+        location: Box::new(location.clone()),
     };
-
-    let id: CommandId = anchor.id.parse()?;
-    let deps = meta
+    let id = anchor.id.parse().map_err(invalid_id)?;
+    let dependencies = metadata
         .attributes
         .get_string("deps")
-        .map(|d| {
-            d.split(',')
+        .map(|dependencies| {
+            dependencies
+                .split(',')
                 .map(str::trim)
-                .filter(|s| !s.is_empty())
+                .filter(|dependency| !dependency.is_empty())
                 .map(str::parse)
-                .collect::<Result<_, _>>()
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(invalid_id)
         })
         .transpose()?
         .unwrap_or_default();
-    let interpreter = source_interpreter(meta);
-    let description = meta
+    let interpreter = source_interpreter(metadata).map_err(|()| Error::InvalidInterpreter {
+        id: anchor.id.to_owned(),
+        location: Box::new(location.clone()),
+    })?;
+    let description = metadata
         .attributes
         .get_string("description")
         .map(std::borrow::Cow::into_owned);
-    let script = listing_inlines_to_string(inlines);
-
+    let script = if metadata.uses_substitution(&acdc::Substitution::Attributes, acdc::VERBATIM) {
+        prepare_script(source_text, traversal, anchor.id, &location)?
+    } else {
+        source_text.to_owned()
+    };
     Ok((
-        CommandBlock::new(id, script, interpreter, db.location.clone())
-            .with_description(description),
-        deps,
+        CommandBlock::new(id, script, interpreter, location).with_description(description),
+        dependencies,
     ))
 }
 
-/// The interpreter selected by a `[source,<lang>]` block, e.g. `bash` for `[source, bash]`.
-fn source_interpreter(meta: &acdc::BlockMetadata<'_>) -> Option<String> {
-    if meta.style != Some("source") {
-        return None;
+fn prepare_script(
+    source: &str,
+    traversal: &TraversalContext<'_>,
+    id: &str,
+    location: &acdc::SourceLocation,
+) -> Result<String, Error> {
+    let mut missing = None;
+    let script = acdc::substitute_attributes(source, |name| {
+        let value = traversal.get(name);
+        if value.is_none() && missing.is_none() {
+            missing = Some(name.to_owned());
+        }
+        value
+    });
+    if let Some(name) = missing {
+        return Err(Error::MissingAttribute {
+            id: id.to_owned(),
+            name,
+            location: Box::new(location.clone()),
+        });
     }
-    meta.attributes
-        .get_string("language")
-        .map(std::borrow::Cow::into_owned)
+    Ok(script.into_owned())
 }
 
-/// Render listing inline content as script text.
-fn listing_inlines_to_string(inlines: &[acdc::InlineNode<'_>]) -> String {
-    let mut out = String::new();
-    for node in inlines {
-        #[expect(
-            clippy::wildcard_enum_match_arm,
-            reason = "InlineNode is non_exhaustive; future variants carry no script text"
-        )]
-        match node {
-            acdc::InlineNode::PlainText(text) => out.push_str(text.content),
-            acdc::InlineNode::RawText(text) => out.push_str(text.content),
-            acdc::InlineNode::VerbatimText(text) => out.push_str(text.content),
-            acdc::InlineNode::LineBreak(_) => out.push('\n'),
-            _ => {}
-        }
+fn source_interpreter(metadata: &acdc::BlockMetadata<'_>) -> Result<Option<String>, ()> {
+    let interpreter = match metadata.attributes.get("interpreter") {
+        Some(acdc::AttributeValue::String(value)) => Some(value.to_string()),
+        Some(_) => return Err(()),
+        None if metadata.style == Some("source") => metadata
+            .attributes
+            .get_string("language")
+            .map(std::borrow::Cow::into_owned),
+        None => None,
+    };
+    if interpreter
+        .as_ref()
+        .is_some_and(|value| value.trim().is_empty() || value.contains('\0'))
+    {
+        return Err(());
     }
-    out
+    Ok(interpreter)
 }
 
 #[cfg(test)]

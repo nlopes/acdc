@@ -1,0 +1,37 @@
+= `acdc-execute`
+
+Run named commands from AsciiDoc documents, with dependency ordering and execution reports.
+For command-line use, see the link:../acdc-cli/README.adoc[CLI guide].
+
+== Example
+
+Save a command in `tasks.adoc`:
+
+[source,asciidoc]
+....
+[source,sh,role=command,id=hello]
+----
+printf 'Hello\n'
+----
+....
+
+Parse it, build a command graph, and run its execution plan:
+
+[source,rust]
+----
+use acdc_execute::{CommandGraph, ExecutionOptions};
+use acdc_parser::{Options, parse_file};
+
+let parsed = parse_file("tasks.adoc", &Options::default())?;
+let graph = CommandGraph::try_from(&parsed)?;
+let report = graph.plan_all().execute(&ExecutionOptions::default());
+
+println!("All commands succeeded: {}", report.is_success());
+----
+
+The report records which commands succeeded, failed, or were skipped.
+A failed command blocks its dependents; independent commands continue by default.
+
+Commands run with the caller's permissions, so only execute documents you trust.
+
+See the link:../acdc-cli/README.adoc[CLI guide] for command syntax and substitution rules, and the link:src/command.rs[library API] for selection, process options, and result handling.
