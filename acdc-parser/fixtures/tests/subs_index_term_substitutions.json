@@ -450,6 +450,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "late {person} and {styled-person}",
+                  "location": [
+                    {
+                      "line": 21,
+                      "col": 3
+                    },
+                    {
+                      "line": 21,
+                      "col": 35
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 21,
+                "col": 1
+              },
+              {
+                "line": 21,
+                "col": 37
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
@@ -505,6 +536,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "macro before attributes {linked}",
+                  "location": [
+                    {
+                      "line": 24,
+                      "col": 3
+                    },
+                    {
+                      "line": 24,
+                      "col": 34
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 24,
+                "col": 1
+              },
+              {
+                "line": 24,
+                "col": 36
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {

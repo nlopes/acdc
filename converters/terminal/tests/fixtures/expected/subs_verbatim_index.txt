@@ -64,7 +64,7 @@ Indented IndentedTerm.
 
 [38;5;14m[1mL[0m
   Labeled AttributeTerm
-  Late AttributeTerm
+  Late {name}
   ListingTerm
   LiteralHidden
   LiteralTerm

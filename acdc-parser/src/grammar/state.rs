@@ -52,6 +52,8 @@ pub(crate) struct ParserState<'a> {
     pub(crate) empty_attribute_offsets: Vec<usize>,
     /// Attribute-produced spans used to preserve substitution order in nested parsing.
     pub(crate) attribute_value_ranges: Vec<Range<usize>>,
+    /// Original references for index labels registered before attribute substitution.
+    pub(crate) late_attribute_sources: Vec<(Range<usize>, &'a str)>,
     pub(crate) line_map: Rc<LineMap>,
     /// Parse options, shared via `Rc` so the per-inline-parse
     /// `for_inline_parsing` sub-state is cheap to construct — the old
@@ -504,6 +506,7 @@ impl<'a> ParserState<'a> {
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
+            late_attribute_sources: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -542,6 +545,7 @@ impl<'a> ParserState<'a> {
             hardbreaks: false,
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
+            late_attribute_sources: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena,
@@ -581,6 +585,7 @@ impl<'a> ParserState<'a> {
             hardbreaks: parent.hardbreaks,
             empty_attribute_offsets: Vec::new(),
             attribute_value_ranges: Vec::new(),
+            late_attribute_sources: Vec::new(),
             line_map: Rc::new(LineMap::new(input)),
             input,
             arena: parent.arena,

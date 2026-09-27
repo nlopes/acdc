@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index catalogs retain literal attribute references and quote markers when `subs=` puts
+  attributes or quotes after macros, matching Asciidoctor registration order. Visible
+  terms still receive the later substitutions.
+
 - Index terms enabled with `subs=+macros` in listings and literal blocks join
   the automatic catalog while preserving preformatted text.
 

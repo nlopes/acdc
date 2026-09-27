@@ -916,6 +916,7 @@ impl<'a, 'd, W: Write> MarkdownVisitor<'a, 'd, W> {
         traversal: &mut TraversalContext<'a>,
         term: &IndexTerm<'_>,
     ) -> Result<(), Error> {
+        let term = term.catalog_entry();
         if self.collect_index_terms && self.processor.generate_index() {
             let primary = self.render_index_term_label(traversal, term.term())?;
             let secondary = term

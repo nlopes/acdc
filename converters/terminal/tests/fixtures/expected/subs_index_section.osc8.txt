@@ -48,7 +48,7 @@ Late substitutions: late Ada and [1mattribute bold[22m.
   italic [3mprimary[23m
 
 [38;5;14m[1mL[0m
-  late Ada and [1mattribute bold[22m
+  late {name} and {styled}
   linked [38;5;12m]8;;https://example.com\Ada]8;;\[39m
   literal *attribute bold*
 

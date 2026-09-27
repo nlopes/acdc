@@ -504,6 +504,9 @@ where
     if let Some(relationship) = &i.relationship {
         map.serialize_entry("relationship", relationship)?;
     }
+    if let Some(catalog) = &i.catalog {
+        map.serialize_entry("catalog", catalog)?;
+    }
     map.serialize_entry("visible", &i.is_visible())?;
     map.serialize_entry("location", &i.location)
 }

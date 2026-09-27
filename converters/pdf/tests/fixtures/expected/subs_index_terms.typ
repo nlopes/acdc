@@ -192,7 +192,7 @@
 #v(0.75em)
 #text(weight: "bold")[#text("L")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("late Ada and ")#strong[#text("attribute bold")]#_acdc_index_pages((<__indexterm-25>,), "term")]
+#par(hanging-indent: 1em)[#text("late {name} and {styled}")#_acdc_index_pages((<__indexterm-25>,), "term")]
 #par(hanging-indent: 1em)[#text("linked ")#link("https://example.com")[#text("Ada")]#_acdc_index_pages((<__indexterm-17>,), "term")]
 #par(hanging-indent: 1em)[#text("literal *attribute bold*")#_acdc_index_pages((<__indexterm-16>,), "term")]
 #par(hanging-indent: 1em)[#text("literal *markers*")#_acdc_index_pages((<__indexterm-26>,), "term")]

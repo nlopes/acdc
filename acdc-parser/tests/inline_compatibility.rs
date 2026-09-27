@@ -4,6 +4,29 @@ type Error = Box<dyn std::error::Error>;
 
 #[cfg(feature = "pre-spec-subs")]
 #[test]
+fn index_catalog_snapshots_do_not_register_footnotes_twice() -> Result<(), Error> {
+    let source = include_str!("../fixtures/tests/subs_index_registration_order.adoc");
+    let parsed = parse(source, &Options::default())?;
+    let notes = &parsed.document().footnotes;
+    assert_eq!(notes.len(), 2);
+    for (note, expected) in notes
+        .iter()
+        .zip(["footnote:[Only once]", "footnote:[Second note]"])
+    {
+        assert_eq!(
+            source.get(note.location.absolute_start..=note.location.absolute_end),
+            Some(expected)
+        );
+    }
+    assert_eq!(
+        notes.iter().map(|note| note.number).collect::<Vec<_>>(),
+        [1, 2]
+    );
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
 fn disabled_attribute_substitutions_do_not_warn_about_counters() -> Result<(), Error> {
     for subs in ["quotes", "none", "normal,-attributes"] {
         let source = format!(

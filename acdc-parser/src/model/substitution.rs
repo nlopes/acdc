@@ -97,6 +97,20 @@ impl SubstitutionPlan {
         };
         *first != DISABLED_SUBSTITUTION && *second != DISABLED_SUBSTITUTION && first < second
     }
+
+    pub(crate) fn through(mut self, substitution: &Substitution) -> Self {
+        if let Some(last) = substitution_stage_index(substitution)
+            .and_then(|index| self.ranks.get(index))
+            .copied()
+        {
+            for rank in &mut self.ranks {
+                if *rank > last {
+                    *rank = DISABLED_SUBSTITUTION;
+                }
+            }
+        }
+        self
+    }
 }
 
 impl Default for SubstitutionPlan {

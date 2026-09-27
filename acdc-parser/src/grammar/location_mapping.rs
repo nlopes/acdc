@@ -571,41 +571,56 @@ fn map_inline_macro<'a>(
         InlineMacro::Stem(stem) => stem.location = ctx.map_location(&stem.location, form)?,
         InlineMacro::Pass(pass) => pass.location = ctx.map_location(&pass.location, form)?,
         InlineMacro::IndexTerm(index_term) => {
-            index_term.location = ctx.map_location(&index_term.location, form)?;
-            match &mut index_term.kind {
-                IndexTermKind::Flow(term) => {
-                    *term = map_inline_locations(state, processed, take(term), location)?;
-                }
-                IndexTermKind::Concealed {
-                    term,
-                    secondary,
-                    tertiary,
-                } => {
-                    *term = map_inline_locations(state, processed, take(term), location)?;
-                    if let Some(secondary) = secondary {
-                        *secondary =
-                            map_inline_locations(state, processed, take(secondary), location)?;
-                    }
-                    if let Some(tertiary) = tertiary {
-                        *tertiary =
-                            map_inline_locations(state, processed, take(tertiary), location)?;
-                    }
-                }
+            map_index_term_locations(state, processed, index_term, location)?;
+        }
+    }
+    Ok(())
+}
+
+fn map_index_term_locations<'a>(
+    state: &ParserState<'a>,
+    processed: &ProcessedContent<'a>,
+    index_term: &mut crate::IndexTerm<'a>,
+    location: &Location,
+) -> Result<(), Error> {
+    let ctx = LocationMappingContext {
+        state,
+        processed,
+        base_location: location,
+    };
+    index_term.location = ctx.map_location(&index_term.location, None)?;
+    match &mut index_term.kind {
+        IndexTermKind::Flow(term) => {
+            *term = map_inline_locations(state, processed, take(term), location)?;
+        }
+        IndexTermKind::Concealed {
+            term,
+            secondary,
+            tertiary,
+        } => {
+            *term = map_inline_locations(state, processed, take(term), location)?;
+            if let Some(secondary) = secondary {
+                *secondary = map_inline_locations(state, processed, take(secondary), location)?;
             }
-            if let Some(relationship) = &mut index_term.relationship {
-                match relationship {
-                    IndexTermRelationship::See { target } => {
-                        *target = map_inline_locations(state, processed, take(target), location)?;
-                    }
-                    IndexTermRelationship::SeeAlso { targets } => {
-                        for target in targets {
-                            *target =
-                                map_inline_locations(state, processed, take(target), location)?;
-                        }
-                    }
+            if let Some(tertiary) = tertiary {
+                *tertiary = map_inline_locations(state, processed, take(tertiary), location)?;
+            }
+        }
+    }
+    if let Some(relationship) = &mut index_term.relationship {
+        match relationship {
+            IndexTermRelationship::See { target } => {
+                *target = map_inline_locations(state, processed, take(target), location)?;
+            }
+            IndexTermRelationship::SeeAlso { targets } => {
+                for target in targets {
+                    *target = map_inline_locations(state, processed, take(target), location)?;
                 }
             }
         }
+    }
+    if let Some(catalog) = &mut index_term.catalog {
+        map_index_term_locations(state, processed, catalog, location)?;
     }
     Ok(())
 }

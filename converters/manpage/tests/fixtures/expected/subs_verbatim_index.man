@@ -137,7 +137,7 @@ IndentedTerm
 .RS 4
 Labeled AttributeTerm
 .br
-Late AttributeTerm
+Late {name}
 .br
 ListingTerm
 .br

@@ -81,7 +81,7 @@ Indented IndentedTerm.
 ### L
 
 - Labeled AttributeTerm — [top](#_indexterm_7)
-- Late AttributeTerm — [top](#_indexterm_9)
+- Late {name} — [top](#_indexterm_9)
 - ListingTerm — [top](#_indexterm_0)
 - LiteralHidden — [top](#_indexterm_6)
 - LiteralTerm — [top](#_indexterm_4)

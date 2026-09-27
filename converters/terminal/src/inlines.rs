@@ -797,6 +797,7 @@ pub(crate) fn register_index_term<'a>(
     processor: &Processor<'a>,
     traversal: &mut TraversalContext<'a>,
 ) -> Result<(), Error> {
+    let term = term.catalog_entry();
     let mut render_label = |inlines: &[InlineNode]| -> Result<IndexTermLabel, Error> {
         Ok(IndexTermLabel {
             plain: InlineTextTransform::default().to_string(inlines),

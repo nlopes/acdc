@@ -3343,6 +3343,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         traversal: &mut TraversalContext<'a>,
         term: &IndexTerm<'_>,
     ) -> Result<CatalogEntry, Error> {
+        let term = term.catalog_entry();
         let primary = self.render_index_catalog_term(traversal, term.term())?;
         let secondary = term
             .secondary()

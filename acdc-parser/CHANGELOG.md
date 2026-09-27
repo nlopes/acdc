@@ -42,6 +42,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index entries retain the labels registered before later attribute or quote
+  substitutions. Visible terms still receive those later substitutions, matching
+  Asciidoctor. Parsed index entries expose registered labels separately from visible
+  text.
+
 - Multiline index labels replace each newline with one space, matching Asciidoctor.
   Whitespace outside the index macro stays unchanged, including in code blocks.
 

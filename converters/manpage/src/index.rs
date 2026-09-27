@@ -149,6 +149,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
         traversal: &mut TraversalContext<'a>,
         term: &IndexTerm<'_>,
     ) -> Result<(), Error> {
+        let term = term.catalog_entry();
         if self.index_collection == IndexCollection::Enabled
             && self.processor.has_valid_index_section
         {

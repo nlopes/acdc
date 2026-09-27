@@ -221,34 +221,7 @@ where
             InlineMacro::Url(u) => self.inlines(&mut u.text),
             InlineMacro::Mailto(m) => self.inlines(&mut m.text),
             InlineMacro::CrossReference(x) => self.inlines(&mut x.text),
-            InlineMacro::IndexTerm(term) => {
-                match &mut term.kind {
-                    crate::IndexTermKind::Flow(term) => self.inlines(term),
-                    crate::IndexTermKind::Concealed {
-                        term,
-                        secondary,
-                        tertiary,
-                    } => {
-                        self.inlines(term);
-                        if let Some(secondary) = secondary {
-                            self.inlines(secondary);
-                        }
-                        if let Some(tertiary) = tertiary {
-                            self.inlines(tertiary);
-                        }
-                    }
-                }
-                if let Some(relationship) = &mut term.relationship {
-                    match relationship {
-                        crate::IndexTermRelationship::See { target } => self.inlines(target),
-                        crate::IndexTermRelationship::SeeAlso { targets } => {
-                            for target in targets {
-                                self.inlines(target);
-                            }
-                        }
-                    }
-                }
-            }
+            InlineMacro::IndexTerm(term) => self.index_term(term),
             InlineMacro::Icon(_)
             | InlineMacro::Image(_)
             | InlineMacro::Keyboard(_)
@@ -257,6 +230,40 @@ where
             | InlineMacro::Autolink(_)
             | InlineMacro::Pass(_)
             | InlineMacro::Stem(_) => {}
+        }
+    }
+
+    fn index_term(&mut self, term: &mut crate::IndexTerm<'a>) {
+        match &mut term.kind {
+            crate::IndexTermKind::Flow(term) => self.inlines(term),
+            crate::IndexTermKind::Concealed {
+                term,
+                secondary,
+                tertiary,
+            } => {
+                self.inlines(term);
+                if let Some(secondary) = secondary {
+                    self.inlines(secondary);
+                }
+                if let Some(tertiary) = tertiary {
+                    self.inlines(tertiary);
+                }
+            }
+        }
+        if let Some(relationship) = &mut term.relationship {
+            match relationship {
+                crate::IndexTermRelationship::See { target } => self.inlines(target),
+                crate::IndexTermRelationship::SeeAlso { targets } => {
+                    for target in targets {
+                        self.inlines(target);
+                    }
+                }
+            }
+        }
+        if let Some(catalog) = &mut term.catalog {
+            // Catalog labels share locations but are not new occurrences.
+            (self.visit_location)(&mut catalog.location);
+            self.index_term(catalog);
         }
     }
 

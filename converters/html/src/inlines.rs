@@ -1395,6 +1395,7 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         options: &RenderOptions,
         subs: &[Substitution],
     ) -> Result<Option<String>, Error> {
+        let it = it.catalog_entry();
         // Occurrence anchors serve the opted-in catalog; TOC copies are not
         // additional source occurrences.
         if !options.toc_mode && self.processor.generate_index() {

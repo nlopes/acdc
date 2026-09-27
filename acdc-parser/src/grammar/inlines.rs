@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, cell::RefCell, ops::Range, rc::Rc};
 
 use crate::{
     Anchor, AttributeValue, Autolink, BlockMetadata, Bold, Button, CurvedApostrophe,
@@ -263,6 +263,17 @@ fn parse_index_term_inlines<'a>(
         .filter(|offset| segment.start <= **offset && **offset <= end)
         .map(|offset| offset - segment.start)
         .collect();
+    child.late_attribute_sources = state
+        .late_attribute_sources
+        .iter()
+        .filter(|(range, _)| range.start >= segment.start && range.end <= end)
+        .map(|(range, source)| {
+            (
+                range.start - segment.start..range.end - segment.start,
+                *source,
+            )
+        })
+        .collect();
 
     let parsed = inline_parser::inlines(text, &mut child)
         .map_err(|_| "could not parse index term content")?;
@@ -281,6 +292,96 @@ fn parse_index_term_inlines<'a>(
         });
     }
     Ok(parsed)
+}
+
+fn index_term_node(mut term: IndexTerm<'_>) -> InlineNode<'_> {
+    if term.catalog.as_ref().is_some_and(|catalog| {
+        catalog.kind == term.kind && catalog.relationship == term.relationship
+    }) {
+        term.catalog = None;
+    }
+    InlineNode::Macro(InlineMacro::IndexTerm(Box::new(term)))
+}
+
+/// Capture only this macro's labels at registration time. The display parse still
+/// owns footnote registration; the snapshot uses its own tracker with the same numbers.
+fn parse_index_catalog<'a>(
+    state: &ParserState<'a>,
+    start: usize,
+    end: usize,
+) -> Result<Option<Box<IndexTerm<'a>>>, &'static str> {
+    let plan = state.inline_ctx.substitutions;
+    if !plan.precedes(&Substitution::Macros, &Substitution::Attributes)
+        && !plan.precedes(&Substitution::Macros, &Substitution::Quotes)
+    {
+        return Ok(None);
+    }
+    let mut source = String::new();
+    let mut cursor = start;
+    let mut restored_ranges = Vec::new();
+    for (range, reference) in &state.late_attribute_sources {
+        if range.start < cursor || range.end > end {
+            continue;
+        }
+        source.push_str(&state.input[cursor..range.start]);
+        let restored_start = source.len();
+        source.push_str(reference);
+        restored_ranges.push((
+            restored_start..source.len(),
+            range.start - start..range.end - start,
+        ));
+        cursor = range.end;
+    }
+    source.push_str(&state.input[cursor..end]);
+    let source = state.intern_str(&source);
+    let mut context = state.inline_ctx;
+    context.offset = 0;
+    context.substitutions = plan.through(&Substitution::Macros);
+    let mut child = ParserState::for_inline_parsing(source, state, context);
+    child.footnote_tracker = Rc::new(RefCell::new(state.footnote_tracker.borrow().clone()));
+    let mut nodes = inline_parser::inlines(source, &mut child)
+        .map_err(|_| "could not parse index catalog labels")?;
+    if !matches!(
+        nodes.as_slice(),
+        [InlineNode::Macro(InlineMacro::IndexTerm(_))]
+    ) {
+        return Err("could not recognize index catalog labels");
+    }
+    let mut node = nodes.pop().ok_or("missing index catalog labels")?;
+    super::location_walk::walk_inline_locations_mut(&mut node, &mut |location| {
+        location.absolute_start =
+            start + restored_label_offset(location.absolute_start, &restored_ranges, false);
+        location.absolute_end =
+            start + restored_label_offset(location.absolute_end, &restored_ranges, true);
+        location.start = state
+            .line_map
+            .offset_to_position(location.absolute_start, state.input);
+        location.end = state
+            .line_map
+            .offset_to_position(location.absolute_end, state.input);
+    });
+    let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node else {
+        return Err("missing index catalog labels");
+    };
+    Ok(Some(term))
+}
+
+fn restored_label_offset(
+    offset: usize,
+    ranges: &[(Range<usize>, Range<usize>)],
+    end: bool,
+) -> usize {
+    let Some((restored, original)) = ranges.iter().rev().find(|(range, _)| offset >= range.start)
+    else {
+        return offset;
+    };
+    if offset >= restored.end {
+        original.end + offset - restored.end
+    } else if end {
+        original.end.saturating_sub(1).max(original.start)
+    } else {
+        original.start
+    }
 }
 
 fn parse_index_term_relationship<'a>(
@@ -970,7 +1071,8 @@ peg::parser! {
             let secondary = iter.next();
             let tertiary = iter.next();
             tracing::debug!(term = %term.text, secondary = ?secondary.map(|segment| segment.text), tertiary = ?tertiary.map(|segment| segment.text), "Found concealed index term");
-            Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
+            Ok(index_term_node(IndexTerm {
+                catalog: parse_index_catalog(state, span_start, span_end)?,
                 kind: IndexTermKind::Concealed {
                     term: parse_index_term_inlines(state, term)?,
                     secondary: secondary
@@ -982,7 +1084,7 @@ peg::parser! {
                 },
                 relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            }))
         }
 
         /// Flow index term: ((term))
@@ -993,11 +1095,12 @@ peg::parser! {
         {?
             let (term, relationship) = split_index_term_relationship(content);
             tracing::debug!(term = %term.text, "Found flow index term");
-            Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
+            Ok(index_term_node(IndexTerm {
+                catalog: parse_index_catalog(state, span_start, span_end)?,
                 kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
                 relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            }))
         }
 
         /// indexterm macro: indexterm:[primary, secondary, tertiary]
@@ -1013,7 +1116,8 @@ peg::parser! {
             let secondary = iter.next();
             let tertiary = iter.next();
             tracing::debug!(term = %term.text, secondary = ?secondary.map(|segment| segment.text), tertiary = ?tertiary.map(|segment| segment.text), "Found indexterm macro");
-            Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
+            Ok(index_term_node(IndexTerm {
+                catalog: parse_index_catalog(state, span_start, span_end)?,
                 kind: IndexTermKind::Concealed {
                     term: parse_index_term_inlines(state, term)?,
                     secondary: secondary
@@ -1025,7 +1129,7 @@ peg::parser! {
                 },
                 relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            }))
         }
 
         /// indexterm2 macro: indexterm2:[term]
@@ -1045,11 +1149,12 @@ peg::parser! {
                 })
             };
             tracing::debug!(term = %term.text, "Found indexterm2 macro");
-            Ok(InlineNode::Macro(InlineMacro::IndexTerm(Box::new(IndexTerm {
+            Ok(index_term_node(IndexTerm {
+                catalog: parse_index_catalog(state, span_start, span_end)?,
                 kind: IndexTermKind::Flow(parse_index_term_inlines(state, term)?),
                 relationship: parse_index_term_relationship(state, relationship)?,
                 location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
-            }))))
+            }))
         }
 
         pub(crate) rule index_term_macro_list(base: usize) -> Vec<IndexTermMacroItem<'input>>

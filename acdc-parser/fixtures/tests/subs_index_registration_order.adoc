@@ -1,0 +1,39 @@
+= Index registration order
+:acdc-index:
+:name: Expanded
+:styled: *Styled*
+:empty:
+:pair: Alpha,Beta
+
+Default ((Early {name})) and ((Early *bold*)).
+
+[subs="macros,attributes,quotes"]
+Late ((Late {name} *bold*)) and indexterm2:[Macro {name} *bold*].
+
+[subs="macros,attributes,quotes"]
+Hidden (((Root {name}, Child *bold*, Leaf {empty}end))) and indexterm:[{pair},Second].
+
+[subs="macros,attributes,quotes"]
+(((Alias {name} >> Target {name}))) (((Related *bold* &> Other *bold*)))
+
+[subs="quotes,macros,attributes"]
+*Outer ((Nested {name})) word* and ((Early *bold* {name})).
+
+[subs="attributes,macros,quotes"]
+((Expanded {styled})) and (((Hidden *bold*))).
+
+[source%linenums,text,subs="specialcharacters,macros,attributes,quotes"]
+----
+Before
+((Code {name} *bold*)) and ((Gone{empty}))
+After
+----
+
+[subs="macros,quotes"]
+((Footnote footnote:[Only once])) and footnote:[Second note].
+
+[subs="macros,attributes,quotes"]
+((Character {amp} {asterisk})) and ((Protected \{name} +*plain*+)).
+
+[index]
+== Index

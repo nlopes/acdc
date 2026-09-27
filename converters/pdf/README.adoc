@@ -171,6 +171,8 @@ An empty index section is omitted, and content inside an index section is ignore
 Use `subs=+macros` to enable index terms in listing and literal blocks.
 PDF page references follow their code lines, including when long lines wrap across pages.
 Newlines inside an index label become spaces; surrounding code whitespace stays unchanged.
+Attribute and quote substitutions affect catalog labels only when they precede macros.
+For example, with `subs="macros,attributes"`, `((term {name}))` displays the expanded name but registers `term {name}` in the catalog, matching Asciidoctor.
 
 The bundled theme uses two columns with a 12 pt gap.
 Use `[index%notitle]` to hide the visible section heading.

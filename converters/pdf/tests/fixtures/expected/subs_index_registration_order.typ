@@ -1,7 +1,7 @@
 #set document(
-  title: "Verbatim indexes",
+  title: "Index registration order",
 )
-#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Verbatim indexes]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
+#set page(paper: "a4", margin: (x: 2.5cm, y: 2.5cm), fill: rgb("#ffffff"), header: context if counter(page).get().first() > 1 { align(left + horizon)[#text(fill: rgb("#374151"), weight: 500, size: 11pt)[Index registration order]] }, footer: text(fill: rgb("#9ca3af"), size: 9pt)[#grid(columns: (1fr, 1fr, 1fr), align(left)[], align(center)[#context counter(page).display()], align(right)[])])
 #set text(font: ("IBM Plex Serif", "Noto Color Emoji"), size: 11pt, weight: 400, fill: rgb("#111111"), tracking: 0em, lang: "en")
 #set par(leading: 0.65em, spacing: 19.15pt, justify: false)
 #set block(spacing: 19.15pt)
@@ -73,78 +73,34 @@
 #set page(numbering: "1")
 #counter(page).update(1)
 #align(center)[
-#text(size: 22pt, weight: "bold")[#text("Verbatim indexes")]
+#text(size: 22pt, weight: "bold")[#text("Index registration order")]
 ]
 #v(1em)
 
+#text(size: 1.25em)[#text("Default ")#metadata(none) <__indexterm-1>#text("Early Expanded")#text(" and ")#metadata(none) <__indexterm-2>#text("Early ")#strong[#text("bold")]#text(".")]
+
+#text("Late ")#metadata(none) <__indexterm-3>#text("Late Expanded ")#strong[#text("bold")]#text(" and ")#metadata(none) <__indexterm-4>#text("Macro Expanded ")#strong[#text("bold")]#text(".")
+
+#text("Hidden ")#metadata(none) <__indexterm-5>#text(" and ")#metadata(none) <__indexterm-6>#text(".")
+
+#metadata(none) <__indexterm-7>#text(" ")#metadata(none) <__indexterm-8>
+
+#strong[#text("Outer ")#metadata(none) <__indexterm-9>#text("Nested Expanded")#text(" word")]#text(" and ")#metadata(none) <__indexterm-10>#text("Early ")#strong[#text("bold")]#text(" Expanded")#text(".")
+
+#metadata(none) <__indexterm-11>#text("Expanded ")#strong[#text("Styled")]#text(" and ")#metadata(none) <__indexterm-12>#text(".")
+
 #{
   let index-anchors = (
-    [#metadata(none)<__indexterm-1>],
-    [#metadata(none)<__indexterm-2>#metadata(none)<__indexterm-3>],
-    [#metadata(none)<__indexterm-4>],
+    [],
+    [#metadata(none)<__indexterm-13>#metadata(none)<__indexterm-14>],
     [],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "let x = \"ListingTerm\"; (1)\nNamedVisible\n((EscapedVisible)) (EscapedHidden)\n*not bold* and {name} and \\*escaped*")
+  raw(block: true, "Before\nCode Expanded bold and Gone\nAfter")
 }
-#grid(columns: (auto, 1fr), column-gutter: 0.5em, row-gutter: 0.5em, align: (x, _) => if x == 0 { right + top } else { left + top },
-[#text("(1)")], [#text("A callout.")],
-)
+#metadata(none) <__indexterm-15>#text("Footnote ")#counter(footnote).update(0)#footnote[#text("Only once")]#text(" and ")#counter(footnote).update(1)#footnote[#text("Second note")]#text(".")
 
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-5>],
-    [],
-    [#metadata(none)<__indexterm-6>],
-    [#metadata(none)<__indexterm-7>],
-  )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "  LiteralTerm\n\n  BlankLineTerm\n  concealed term")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-8>],
-    [#metadata(none)<__indexterm-9>],
-  )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "Labeled AttributeTerm\nFromAttribute")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-10>],
-    [],
-  )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "Late AttributeTerm\n((FromAttribute))")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-11>],
-  )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "Styled StyledTerm.")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-12>],
-  )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "Literal StyledLiteral.")
-}
-#{
-  let index-anchors = (
-    [#metadata(none)<__indexterm-13>],
-  )
-  show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
-  raw(block: true, "Indented IndentedTerm.")
-}
-#raw(block: true, "((DefaultOff))")
-
-#raw(block: true, "((ExplicitOff))")
-
-#raw(block: true, "((StyledDefaultOff)).")
-
-#raw(block: true, "((StyledExplicitOff)).")
+#metadata(none) <__indexterm-16>#text("Character ")#text("&")#text(" ")#text("*")#text(" and ")#metadata(none) <__indexterm-17>#text("Protected ")#text("{name}")#text(" ")#text("*plain*")#text(".")
 
 #heading(level: 1)[#text("Index")] <id-5f696e646578>
 
@@ -185,41 +141,60 @@
   }
 }
 #columns(2, gutter: 12pt)[
-#text(weight: "bold")[#text("B")]
+#text(weight: "bold")[#text("@")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("BlankLineTerm")#_acdc_index_pages((<__indexterm-6>,), "term")]
+#par(hanging-indent: 1em)[#text("{pair}")]
+#pad(left: 1 * 1.25em)[#par(hanging-indent: 1em)[#text("Second")#_acdc_index_pages((<__indexterm-6>,), "term")]]
+#v(0.75em)
+#text(weight: "bold")[#text("A")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Alias {name}") (see #text("Target {name}"))]
+#v(0.75em)
+#text(weight: "bold")[#text("C")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Character {amp} {asterisk}")#_acdc_index_pages((<__indexterm-16>,), "term")]
+#par(hanging-indent: 1em)[#text("Code {name} *bold*")#_acdc_index_pages((<__indexterm-13>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("E")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("EscapedHidden")#_acdc_index_pages((<__indexterm-4>,), "term")]
+#par(hanging-indent: 1em)[#text("Early ")#strong[#text("bold")]#_acdc_index_pages((<__indexterm-2>,), "term")]
+#par(hanging-indent: 1em)[#text("Early ")#strong[#text("bold")]#text(" {name}")#_acdc_index_pages((<__indexterm-10>,), "term")]
+#par(hanging-indent: 1em)[#text("Early Expanded")#_acdc_index_pages((<__indexterm-1>,), "term")]
+#par(hanging-indent: 1em)[#text("Expanded *Styled*")#_acdc_index_pages((<__indexterm-11>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("F")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("FromAttribute")#_acdc_index_pages((<__indexterm-9>,), "term")]
+#par(hanging-indent: 1em)[#text("Footnote ")#counter(footnote).update(0)#footnote[#text("Only once")]#_acdc_index_pages((<__indexterm-15>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("G")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Gone{empty}")#_acdc_index_pages((<__indexterm-14>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("H")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Hidden")]
-#pad(left: 1 * 1.25em)[#par(hanging-indent: 1em)[#text("Secondary")#_acdc_index_pages((<__indexterm-2>,), "term")]]
-#v(0.75em)
-#text(weight: "bold")[#text("I")]
-#v(0.25em)
-#par(hanging-indent: 1em)[#text("IndentedTerm")#_acdc_index_pages((<__indexterm-13>,), "term")]
+#par(hanging-indent: 1em)[#text("Hidden *bold*")#_acdc_index_pages((<__indexterm-12>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("L")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("Labeled AttributeTerm")#_acdc_index_pages((<__indexterm-8>,), "term")]
-#par(hanging-indent: 1em)[#text("Late {name}")#_acdc_index_pages((<__indexterm-10>,), "term")]
-#par(hanging-indent: 1em)[#text("ListingTerm")#_acdc_index_pages((<__indexterm-1>,), "term")]
-#par(hanging-indent: 1em)[#text("LiteralHidden")#_acdc_index_pages((<__indexterm-7>,), "term")]
-#par(hanging-indent: 1em)[#text("LiteralTerm")#_acdc_index_pages((<__indexterm-5>,), "term")]
+#par(hanging-indent: 1em)[#text("Late {name} *bold*")#_acdc_index_pages((<__indexterm-3>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("M")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Macro {name} *bold*")#_acdc_index_pages((<__indexterm-4>,), "term")]
 #v(0.75em)
 #text(weight: "bold")[#text("N")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("NamedVisible")#_acdc_index_pages((<__indexterm-3>,), "term")]
+#par(hanging-indent: 1em)[#text("Nested {name}")#_acdc_index_pages((<__indexterm-9>,), "term")]
 #v(0.75em)
-#text(weight: "bold")[#text("S")]
+#text(weight: "bold")[#text("P")]
 #v(0.25em)
-#par(hanging-indent: 1em)[#text("StyledLiteral")#_acdc_index_pages((<__indexterm-12>,), "term")]
-#par(hanging-indent: 1em)[#text("StyledTerm")#_acdc_index_pages((<__indexterm-11>,), "term")]
+#par(hanging-indent: 1em)[#text("Protected ")#text("{name}")#text(" ")#text("*plain*")#_acdc_index_pages((<__indexterm-17>,), "term")]
+#v(0.75em)
+#text(weight: "bold")[#text("R")]
+#v(0.25em)
+#par(hanging-indent: 1em)[#text("Related *bold*")#_acdc_index_pages((<__indexterm-8>,), "term")]
+#pad(left: 1 * 1.25em)[#par(hanging-indent: 1em)[(see also #text("Other *bold*"))]]
+#par(hanging-indent: 1em)[#text("Root {name}")]
+#pad(left: 1 * 1.25em)[#par(hanging-indent: 1em)[#text("Child *bold*")]]
+#pad(left: 2 * 1.25em)[#par(hanging-indent: 1em)[#text("Leaf {empty}end")#_acdc_index_pages((<__indexterm-5>,), "term")]]
 ]

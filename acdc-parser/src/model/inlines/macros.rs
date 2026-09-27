@@ -464,10 +464,22 @@ pub struct IndexTerm<'a> {
     /// The relationship from this entry to other index terms.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub relationship: Option<IndexTermRelationship<'a>>,
+    /// Labels registered before later attribute or quote substitutions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) catalog: Option<Box<IndexTerm<'a>>>,
     pub location: Location,
 }
 
 impl<'a> IndexTerm<'a> {
+    /// Returns the labels registered in the index catalog.
+    ///
+    /// These can differ from the displayed term when attributes or quotes are
+    /// substituted after macros. The returned entry is not another occurrence.
+    #[must_use]
+    pub fn catalog_entry(&self) -> &Self {
+        self.catalog.as_deref().unwrap_or(self)
+    }
+
     /// Returns the primary term.
     #[must_use]
     pub fn term(&self) -> &[InlineNode<'a>] {

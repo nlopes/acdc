@@ -3,7 +3,10 @@ use std::{borrow::Cow, ops::Range};
 use crate::{
     Error, InlineNode, InlinePreprocessorParserState, Location, Plain, Position, ProcessedContent,
     SourceLocation,
-    grammar::{inline_preprocessor::SourceMap, utf8_utils},
+    grammar::{
+        inline_preprocessor::{ProcessedKind, SourceMap},
+        utf8_utils,
+    },
     inline_preprocessing,
     model::{BibliographyLabel, SourceRange, Substitution},
 };
@@ -234,6 +237,13 @@ fn parse_processed_inlines<'a>(
         .source_map
         .empty_attribute_offsets(location.absolute_start);
     inline_peg_state.attribute_value_ranges = attribute_value_ranges(processed, state, location);
+    if inline_ctx
+        .substitutions
+        .precedes(&Substitution::Macros, &Substitution::Attributes)
+    {
+        inline_peg_state.late_attribute_sources =
+            late_attribute_sources(processed, state, location);
+    }
     let inlines = if verbatim {
         inline_parser::verbatim_index_inlines(text, &mut inline_peg_state)
     } else if !autolinks {
@@ -263,6 +273,52 @@ fn parse_processed_inlines<'a>(
         }
     }
     Ok(inlines)
+}
+
+fn late_attribute_sources<'a>(
+    processed: &ProcessedContent<'a>,
+    state: &ParserState<'a>,
+    location: &Location,
+) -> Vec<(Range<usize>, &'a str)> {
+    let mut sources = Vec::new();
+    let mut original = location.absolute_start;
+    let mut expanded = 0;
+    for replacement in &processed.source_map.replacements {
+        if replacement.absolute_start < original {
+            continue;
+        }
+        expanded += replacement.absolute_start - original;
+        let attribute_passthrough = replacement.kind == ProcessedKind::Passthrough
+            && processed.passthroughs.iter().any(|pass| {
+                pass.kind == crate::PassthroughKind::AttributeRef
+                    && pass.location.absolute_start == replacement.absolute_start
+                    && pass.location.absolute_end == replacement.absolute_end
+            });
+        if replacement.kind == ProcessedKind::Attribute || attribute_passthrough {
+            sources.push((
+                expanded..expanded + replacement.byte_len,
+                &state.input[replacement.absolute_start..replacement.absolute_end],
+            ));
+        }
+        expanded += replacement.byte_len;
+        original = replacement.absolute_end;
+    }
+    sources.extend(
+        state
+            .late_attribute_sources
+            .iter()
+            .filter(|(range, _)| {
+                range.start >= location.absolute_start && range.end <= location.absolute_end + 1
+            })
+            .map(|(range, source)| {
+                (
+                    range.start - location.absolute_start..range.end - location.absolute_start,
+                    *source,
+                )
+            }),
+    );
+    sources.sort_unstable_by_key(|(range, _)| range.start);
+    sources
 }
 
 fn parse_bibliography_label<'a>(

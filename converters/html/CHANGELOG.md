@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Opted-in index catalogs retain literal attribute references and quote markers when
+  `subs=` puts attributes or quotes after macros. Visible terms still receive the later
+  substitutions.
+
 - Index macros enabled with `subs=+macros` in listings and literal blocks render
   their visible text and join opted-in catalogs, including highlighted code.
 

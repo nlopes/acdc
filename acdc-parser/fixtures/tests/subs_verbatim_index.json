@@ -726,6 +726,37 @@
               ]
             }
           ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Late {name}",
+                  "location": [
+                    {
+                      "line": 31,
+                      "col": 3
+                    },
+                    {
+                      "line": 31,
+                      "col": 13
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 31,
+                "col": 1
+              },
+              {
+                "line": 31,
+                "col": 15
+              }
+            ]
+          },
           "visible": true,
           "location": [
             {
