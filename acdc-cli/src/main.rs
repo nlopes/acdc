@@ -154,9 +154,7 @@ fn main() {
         Commands::Convert(args) => subcommands::convert::run(&args),
 
         #[cfg(feature = "execute")]
-        Commands::Execute(args) => {
-            subcommands::execute::run(&args).map_err(|e| miette::miette!("Execute failed: {e}"))
-        }
+        Commands::Execute(args) => subcommands::execute::run(&args),
 
         #[cfg(feature = "inspect")]
         Commands::Inspect(args) => {

@@ -1,7 +1,7 @@
 = `acdc` command-line interface
 
 `acdc` is the command-line entry point for the acdc AsciiDoc toolchain.
-It converts documents, runs project lints, displays a structural parser outline, and provides the AsciiDoc TCK adapter.
+It converts documents, runs project lints and command blocks, displays a structural parser outline, and provides the AsciiDoc TCK adapter.
 
 Use `acdc <command> --help` for the exhaustive option reference.
 This guide focuses on common workflows and build-time features.
@@ -96,7 +96,8 @@ Build with `pdf` (or `all-backends`) and select `--backend pdf`:
 [source,console]
 ....
 cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
-  --page letter \
+  --page a3 \
+  --page-layout landscape \
   --font-dir fonts \
   --logo assets/logo.svg \
   --title "Internal Architecture" \
@@ -105,6 +106,10 @@ cargo run -p acdc-cli --features pdf -- convert --backend pdf document.adoc \
   --toc
 ....
 
+`--page` accepts A3, A4, A5, Executive, Legal, Letter, or Tabloid.
+`--page-layout` accepts `portrait` or `landscape`.
+The `pdf-page-size` document attribute also accepts custom dimensions, and
+`pdf-page-margin` sets one to four margins for that document.
 `--theme` selects a YAML theme, `--plain` removes page chrome, and `--emit-typst` writes the generated Typst markup for one input.
 `--strict` makes unresolved PDF images or logos fatal.
 Remote PDF assets additionally require the `network` feature and remain subject to the PDF converter's asset safety policy.
@@ -159,17 +164,20 @@ Color is used only on interactive stdout and respects `NO_COLOR`.
 === `execute`
 
 Build with `execute` to run *command blocks* defined in an AsciiDoc document.
-A command block is a listing block carrying the `command` role and an explicit `id`; it may declare a `deps` attribute naming the ids of commands that must run first, and a `[source, <lang>]` header selects the interpreter (default `sh`). The `command` role and `id` are required; the source header and `deps` attribute are optional. The interpreter value is passed directly to the operating system as an executable name or path without an allowlist, so executing a document is not a sandbox boundary.
+A command block is a listing or source block carrying the `command` role and an explicit `id`.
+Ids contain only ASCII letters, digits, `_`, and `-`; they must be nonempty and cannot start with `-`.
+The optional `deps` attribute names prerequisites, separated by commas.
+The optional `description` attribute supplies a summary for `--list`.
 
 [source,asciidoc]
 ....
-[.command, id=build]
+[.command, id=build, description="Build the project"]
 [source, bash]
 ----
 cargo build
 ----
 
-[.command, id=test, deps="build"]
+[.command, id=test, deps="build", description="Run the tests"]
 [source, bash]
 ----
 cargo nextest run
@@ -179,16 +187,66 @@ cargo nextest run
 [source,console]
 ....
 acdc execute --dry-run README.adoc
+acdc execute --list README.adoc
 acdc execute --id build README.adoc
 acdc execute --id-regex '^test-' --exit-on-failure README.adoc
+acdc execute --id test --cwd project --env MODE=ci README.adoc
 ....
 
-Commands are discovered in document order, including inside nested containers and included files, then executed in dependency order.
+Commands are discovered in document order, including inside nested containers, AsciiDoc table cells, and included files, then executed in dependency order.
 Exact `--id` and `--id-regex` selectors form a union, and selected commands always run together with their transitive dependencies; each command runs at most once.
 Without selectors, every command is selected.
-`--dry-run` prints the plan without running anything.
+An unknown id or a regex that matches no commands is an error.
+`--dry-run` prints the selected commands and scripts; `--list` prints their ids, interpreters, and descriptions.
+Both include dependencies and run no commands; the two options cannot be combined.
+
+The block attribute `interpreter` overrides the source language: `[source,python,role=command,id=check,interpreter=python3]` uses Python highlighting and runs `python3`.
+Without an override, the source language selects the interpreter; a block without either uses `sh`.
+The interpreter is one executable name or path, passed directly to the operating system without shell argument splitting or an allowlist.
+Relative interpreter paths are resolved from the caller's working directory, including when `--cwd` is set; bare executable names use the operating system's search rules.
+
+Includes and conditionals are processed before execution.
+Preprocessing normalizes line endings and removes trailing whitespace from lines.
+Script bodies are literal by default, including attribute references and callout markers.
+Enable attribute expansion with `subs=attributes`, `subs=+attributes`, or `subs=attributes+` on a command block.
+The `normal` group also enables attributes; `subs=none` and `subs=-attributes` keep them literal.
+Only enabled attribute references are expanded; other rendering substitutions do not change the script, and callouts remain literal.
+Use comments in the script language for annotations.
+
+[source,asciidoc]
+....
+:target: build-output
+
+[.command,id=show-target,subs=+attributes]
+----
+printf '%s\n' '{target}'
+----
+....
+
+Attribute values are inserted as text without shell quoting; write the quoting required by the selected interpreter.
+When attribute expansion is enabled, `\{name}` becomes literal `{name}` without looking up the attribute.
+An empty attribute value is valid; a missing unescaped attribute is an error.
+Each command uses the attributes active at its source position.
+Attributes defined inside an AsciiDoc table cell stay in that cell; values inherited by the cell cannot be reassigned there.
+All scripts are prepared before selection or execution, so a missing attribute in an unselected command also stops the invocation.
+Dry-run displays the same prepared script that execution passes to the interpreter.
+Malformed command blocks, incomplete structural recovery, and missing required includes are errors before any command starts.
+
+A command that exits with a nonzero status blocks its dependent commands; independent commands still run.
+`--exit-on-failure` stops at the first failed command.
+A signal termination or an error creating the script or starting its interpreter always stops the run.
+Any failed command makes the invocation fail, including when independent commands finish successfully.
+
+Each command inherits the caller's working directory, environment, and standard streams.
+`--cwd PATH` changes the child working directory; relative paths are resolved from the caller's directory.
+It does not change how the input document or its includes are resolved.
+Repeat `--env NAME=VALUE` to override variables for the children; the last value for a name wins.
+An empty value is allowed, and only the first `=` separates the name from its value.
+These options leave the calling process unchanged.
 `-S`/`--safe-mode` limits what the document may include while parsing; it does not sandbox the executed commands.
 A build with the `execute` feature only is available via `cargo build -p acdc-cli --no-default-features --features execute`.
+Add `pre-spec-subs` to that feature list to enable command attribute substitutions.
+Without this feature, documents that request any `subs` setting are rejected before execution.
 
 === `tck`
 
