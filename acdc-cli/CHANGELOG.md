@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `execute --list` now prints one bullet per command with labeled ids,
+  interpreters, enclosing section titles, direct dependencies, and optional
+  descriptions. Commands outside sections omit the section title. Quoted
+  values escape control characters so each command stays on one line.
+
 ### Fixed
 
 - Warning batches read each referenced source file once, reducing repeated I/O
