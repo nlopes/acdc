@@ -5,7 +5,9 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use acdc_parser::{Block, InlineMacro, InlineNode, Options, ParseResult, SafeMode, parse_file};
+use acdc_parser::{
+    Block, InlineMacro, InlineNode, Options, ParseResult, SafeMode, WarningKind, parse_file,
+};
 
 type TestResult = Result<(), Box<dyn Error>>;
 
@@ -70,7 +72,19 @@ fn assert_denied_uri_fallback(result: &ParseResult, target: &str) -> TestResult 
     );
     assert_eq!(fallback.location.start.line, 3);
     assert!(fallback.location.start.file.is_none());
-    assert!(result.warnings().is_empty());
+    let [warning] = result.warnings() else {
+        return Err("expected a content-recovery warning".into());
+    };
+    assert!(matches!(warning.kind, WarningKind::ContentRecovery { .. }));
+    assert_eq!(
+        warning
+            .source_location()
+            .ok_or("missing warning location")?
+            .location
+            .start
+            .line,
+        3
+    );
     Ok(())
 }
 
@@ -106,6 +120,14 @@ fn compat_mode_omits_include_role_from_denied_uri_fallback() -> TestResult {
     };
     assert_eq!(link.target.to_string(), target);
     assert_eq!(link.attributes.iter().count(), 0);
-    assert!(result.warnings().is_empty());
+    let [warning] = result.warnings() else {
+        return Err("expected a content-recovery warning".into());
+    };
+    assert!(matches!(warning.kind, WarningKind::ContentRecovery { .. }));
+    let location = warning
+        .source_location()
+        .ok_or("missing warning location")?;
+    assert_eq!(location.file.as_deref(), Some(document.path.as_path()));
+    assert_eq!(location.location.start.line, 1);
     Ok(())
 }

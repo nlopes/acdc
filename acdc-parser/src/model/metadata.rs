@@ -11,6 +11,7 @@ use super::{
     attribution::{Attribution, CiteTitle},
     caption::Caption,
     location::Location,
+    substitution::Substitution,
 };
 
 pub type Role<'a> = &'a str;
@@ -131,6 +132,23 @@ impl<'a> BlockMetadata<'a> {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Whether a substitution is enabled after applying this block's `subs` setting.
+    ///
+    /// `defaults` contains individual substitutions, such as [`crate::VERBATIM`]
+    /// for source blocks. Without `pre-spec-subs`, only these defaults apply.
+    #[must_use]
+    pub fn uses_substitution(
+        &self,
+        substitution: &Substitution,
+        defaults: &[Substitution],
+    ) -> bool {
+        #[cfg(feature = "pre-spec-subs")]
+        if let Some(spec) = &self.substitutions {
+            return spec.contains(substitution, defaults);
+        }
+        defaults.contains(substitution)
     }
 
     /// The anchor that defines this block's id: the explicit `id` (`[#id]`),

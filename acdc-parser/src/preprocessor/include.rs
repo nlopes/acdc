@@ -870,13 +870,13 @@ impl<'a> Include<'a> {
             if target.starts_with(base_dir) {
                 return Ok(target);
             }
-            self.warn_unlocated("include file is outside of jail; recovering automatically");
+            self.warn_located("include file is outside of jail; recovering automatically");
             return Ok(Self::rebase_absolute_target(base_dir, &target));
         }
 
         let mut resolved = absolute_normalized(current_parent)?;
         if !resolved.starts_with(base_dir) {
-            self.warn_unlocated("include file is outside of jail; recovering automatically");
+            self.warn_located("include file is outside of jail; recovering automatically");
             return Ok(Self::rebase_absolute_target(base_dir, target));
         }
 
@@ -896,7 +896,7 @@ impl<'a> Include<'a> {
             }
         }
         if recovered {
-            self.warn_unlocated(
+            self.warn_located(
                 "include file has illegal reference to ancestor of jail; recovering automatically",
             );
         }
@@ -1031,6 +1031,9 @@ impl<'a> Include<'a> {
         attribute_list_as_written: &str,
     ) -> Result<UrlIncludeOutcome, Error> {
         if !self.context.allows_uri_read {
+            self.warn_located(format!(
+                "include uri not read because URI access is disabled: {url}"
+            ));
             return Ok(UrlIncludeOutcome::Fallback(IncludeResult::link_fallback(
                 self.target_as_written(),
                 self.options.document_attributes.contains_key("compat-mode"),
@@ -1088,6 +1091,10 @@ impl<'a> Include<'a> {
 
     pub(crate) fn process(&self, attribute_list_as_written: &str) -> Result<IncludeResult, Error> {
         if self.options.safe_mode == SafeMode::Secure {
+            self.warn_located(format!(
+                "include not read in secure mode: {}",
+                self.target_as_written()
+            ));
             return Ok(IncludeResult::link_fallback(
                 self.target_as_written(),
                 self.options.document_attributes.contains_key("compat-mode"),
@@ -1117,7 +1124,10 @@ impl<'a> Include<'a> {
                         (memory_base.as_path(), memory_base.as_path())
                     }
                     SourceOrigin::Uri(_) => {
-                        tracing::error!(?target, "local include target has a URI source origin");
+                        self.warn_located(format!(
+                            "local include target has a URI source origin: {}",
+                            target.display()
+                        ));
                         return Ok(IncludeResult::empty());
                     }
                 };
@@ -1165,6 +1175,9 @@ impl<'a> Include<'a> {
             }
             Target::UnsupportedUri(uri) => {
                 if !self.context.allows_uri_read {
+                    self.warn_located(format!(
+                        "include uri not read because URI access is disabled: {uri}"
+                    ));
                     return Ok(IncludeResult::link_fallback(
                         self.target_as_written(),
                         self.options.document_attributes.contains_key("compat-mode"),
@@ -1211,18 +1224,11 @@ impl<'a> Include<'a> {
             location: Location::point(crate::Position::from_line_col(self.line_number, 1)),
         };
         let warning = Warning::new(
-            crate::WarningKind::Other(message.into()),
+            crate::WarningKind::ContentRecovery {
+                message: message.into(),
+            },
             Some(source_location),
         );
-        tracing::warn!("{warning}");
-        self.warnings.borrow_mut().push(warning);
-    }
-
-    /// Push a warning with no source location. The remaining callers are
-    /// Safe/Server jail-recovery conditions whose location contract is tracked
-    /// separately from directive-specific read failures.
-    fn warn_unlocated(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
-        let warning = Warning::new(crate::WarningKind::Other(message.into()), None);
         tracing::warn!("{warning}");
         self.warnings.borrow_mut().push(warning);
     }

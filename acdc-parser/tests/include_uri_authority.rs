@@ -175,7 +175,18 @@ fn assert_include_fallback(result: &ParseResult, target: &str) -> TestResult {
         link.attributes.get_string("role").as_deref(),
         Some("include")
     );
-    assert!(result.warnings().is_empty());
+    let [warning] = result.warnings() else {
+        return Err("expected a content-recovery warning".into());
+    };
+    assert!(matches!(
+        warning.kind,
+        acdc_parser::WarningKind::ContentRecovery { .. }
+    ));
+    let location = warning
+        .source_location()
+        .ok_or("missing recovery location")?;
+    assert!(location.file.is_some());
+    assert_eq!(location.location.start.line, paragraph.location.start.line);
     Ok(())
 }
 

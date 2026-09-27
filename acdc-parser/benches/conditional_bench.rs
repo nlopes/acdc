@@ -12,6 +12,8 @@
 //! `slow_path_control` forces the ordinary preprocessor rebuild without using a
 //! conditional. Keep the controls when comparing revisions so uniform machine
 //! or codegen shifts are distinguishable from conditional-path changes.
+//! `conditional_files` repeats empty conditionals through `parse_file` to measure
+//! file-path overhead separately from parsing their contents.
 //!
 //! For an acceptance comparison, put this same benchmark in the old and new
 //! worktrees, then run
@@ -19,9 +21,9 @@
 //! The runner performs seven alternating pairs and fails unless both active and
 //! inactive cases improve by at least 2% after adjustment by `plain_control`.
 
-use std::{fmt::Write as _, hint::black_box};
+use std::{fmt::Write as _, fs, hint::black_box};
 
-use acdc_parser::{Options, parse};
+use acdc_parser::{Options, parse, parse_file};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 const LINE_COUNTS: [usize; 2] = [1_000, 10_000];
@@ -103,6 +105,25 @@ fn conditional_benchmark(c: &mut Criterion) {
         );
     }
 
+    group.finish();
+
+    let mut group = c.benchmark_group("conditional_files");
+    let path = std::env::temp_dir().join(format!(
+        "acdc-conditional-benchmark-{}.adoc",
+        std::process::id()
+    ));
+    drop(fs::File::create_new(&path).expect("create benchmark file"));
+    for count in LINE_COUNTS {
+        let input = "ifdef::bench-active[]\nendif::bench-active[]\n".repeat(count);
+        fs::write(&path, input).expect("write file conditionals");
+        for (name, options) in [("active", &active_options), ("inactive", &inactive_options)] {
+            assert!(parse_file(&path, options).is_ok());
+            group.bench_with_input(BenchmarkId::new(name, count), options, |b, options| {
+                b.iter(|| black_box(parse_file(black_box(&path), options)));
+            });
+        }
+    }
+    fs::remove_file(path).expect("remove benchmark file");
     group.finish();
 }
 

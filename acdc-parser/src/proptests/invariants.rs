@@ -10,8 +10,8 @@ use proptest::prelude::*;
 use std::rc::Rc;
 
 use crate::{
-    Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location, Options,
-    model::Locateable, parse, parse_inline,
+    Block, DelimitedBlock, DelimitedBlockType, Document, InlineNode, Location, Options, parse,
+    parse_inline,
 };
 
 use super::generators::*;

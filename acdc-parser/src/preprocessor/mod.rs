@@ -340,6 +340,7 @@ pub(super) fn absolute_normalized(path: &Path) -> Result<PathBuf, Error> {
 struct ConditionalFrame<'input> {
     conditional: conditional::Conditional<'input>,
     active: bool,
+    opening_line: usize,
 }
 
 /// Mutable state accumulated during preprocessing.
@@ -673,6 +674,17 @@ impl Preprocessor {
         tracing::warn!(?warning);
         self.warnings.borrow_mut().push(warning);
     }
+
+    fn recover_content_at(&self, message: impl Into<Cow<'static, str>>, location: SourceLocation) {
+        let warning = Warning::new(
+            WarningKind::ContentRecovery {
+                message: message.into(),
+            },
+            Some(location),
+        );
+        tracing::warn!(?warning);
+        self.warnings.borrow_mut().push(warning);
+    }
 }
 
 impl Preprocessor {
@@ -886,7 +898,10 @@ impl Preprocessor {
                 .map_or("", |(_, attributes)| attributes);
             return Ok(Some(include.process(attribute_list_as_written)?));
         }
-        tracing::error!(%line, "source origin is missing - include directive cannot be processed");
+        self.recover_content_at(
+            format!("source origin is missing; include directive cannot be processed: {line}"),
+            Self::create_source_location(line_number, None),
+        );
         Ok(None)
     }
 
@@ -1117,6 +1132,7 @@ impl Preprocessor {
                 stack.push(ConditionalFrame {
                     conditional,
                     active,
+                    opening_line: ctx.source_line,
                 });
             }
             return Ok(true);
@@ -1158,15 +1174,16 @@ impl Preprocessor {
             out.note_source_line(ctx.input_line);
             out.push_line(Cow::Borrowed(&line[1..]));
         } else if has_include_directive_shape(line) {
-            // A limit of 0 disables built-in includes silently; exceeding a
-            // positive limit preserves the directive and warns.
             if let Some(limit) = self.include_context.blocked_limit(options.safe_mode) {
-                if limit != 0 {
-                    self.add_warning_at(
-                        format!("maximum include depth of {limit} exceeded"),
-                        Self::create_source_location(ctx.source_line, ctx.current_file()),
-                    );
-                }
+                let message = if limit == 0 {
+                    "include not read because maximum include depth is zero".to_owned()
+                } else {
+                    format!("maximum include depth of {limit} exceeded")
+                };
+                self.recover_content_at(
+                    message,
+                    Self::create_source_location(ctx.source_line, ctx.current_file()),
+                );
                 out.push_source_line(line, ctx.input_line);
                 return Ok(());
             }
@@ -1420,6 +1437,13 @@ impl Preprocessor {
             line_number += 1;
         }
 
+        let file = source_origin.and_then(SourceOrigin::as_path);
+        for frame in conditional_stack {
+            self.recover_content_at(
+                "conditional directive has no matching endif",
+                Self::create_source_location(frame.opening_line, file),
+            );
+        }
         out.flush_run();
         out.flush_borrowed_run();
 

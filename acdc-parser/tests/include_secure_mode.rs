@@ -45,7 +45,24 @@ fn secure_mode_preserves_local_and_uri_includes_without_reading_them()
         assert_eq!(paragraph.location.start.line, expected_line);
         assert!(paragraph.location.start.file.is_none());
     }
-    assert!(result.warnings().is_empty());
+    assert_eq!(result.warnings().len(), 2);
+    for (warning, line) in result.warnings().iter().zip([3, 5]) {
+        assert!(matches!(
+            warning.kind,
+            acdc_parser::WarningKind::ContentRecovery { .. }
+        ));
+        let location = warning
+            .source_location()
+            .ok_or("missing recovery location")?;
+        assert_eq!(location.location.start.line, line);
+        assert_eq!(
+            location
+                .file
+                .as_deref()
+                .and_then(std::path::Path::file_name),
+            Some(std::ffi::OsStr::new("secure_include_main.adoc"))
+        );
+    }
 
     Ok(())
 }

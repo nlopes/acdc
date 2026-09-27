@@ -89,15 +89,25 @@ fn paragraph_texts(result: &ParseResult) -> Result<Vec<&str>, Box<dyn Error>> {
         .collect()
 }
 
-fn assert_single_unlocated_warning(
+fn assert_single_recovery_warning(
     result: &ParseResult,
     expected: &str,
+    file: &Path,
+    line: u32,
 ) -> Result<(), Box<dyn Error>> {
     let [warning] = result.warnings() else {
         return Err(format!("expected one warning, got {:?}", result.warnings()).into());
     };
     assert_eq!(warning.kind.to_string(), expected);
-    assert!(warning.source_location().is_none());
+    assert!(matches!(
+        warning.kind,
+        acdc_parser::WarningKind::ContentRecovery { .. }
+    ));
+    let location = warning
+        .source_location()
+        .ok_or("missing recovery location")?;
+    assert_eq!(location.file.as_deref(), Some(file));
+    assert_eq!(location.location.start.line, line);
     Ok(())
 }
 
@@ -127,7 +137,7 @@ fn ancestor_traversal_is_moved_inside_the_entry_directory() -> TestResult {
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
         assert_eq!(paragraph_texts(&result)?, ["REBASED ENTRY OUTSIDE"]);
-        assert_single_unlocated_warning(&result, ANCESTOR_RECOVERY_WARNING)?;
+        assert_single_recovery_warning(&result, ANCESTOR_RECOVERY_WARNING, &tree.main, 1)?;
     }
 
     Ok(())
@@ -157,7 +167,7 @@ fn absolute_outside_targets_are_moved_inside_the_entry_directory() -> TestResult
             paragraph_texts(&result)?,
             ["REBASED ABSOLUTE OUTSIDE", "ABSOLUTE INSIDE"]
         );
-        assert_single_unlocated_warning(&result, OUTSIDE_RECOVERY_WARNING)?;
+        assert_single_recovery_warning(&result, OUTSIDE_RECOVERY_WARNING, &tree.main, 1)?;
     }
 
     Ok(())
@@ -179,7 +189,12 @@ fn nested_includes_keep_the_entry_directory_boundary() -> TestResult {
             paragraph_texts(&result)?,
             ["INNER START", "ENTRY OUTSIDE", "INNER END"]
         );
-        assert_single_unlocated_warning(&result, ANCESTOR_RECOVERY_WARNING)?;
+        assert_single_recovery_warning(
+            &result,
+            ANCESTOR_RECOVERY_WARNING,
+            &tree.entry_dir.join("sub/inner.adoc"),
+            3,
+        )?;
     }
 
     Ok(())
@@ -193,7 +208,7 @@ fn optional_missing_recovered_target_keeps_only_the_recovery_warning() -> TestRe
     for safe_mode in [SafeMode::Safe, SafeMode::Server] {
         let result = parse_file(&tree.main, &options(safe_mode)?)?;
         assert!(result.document().blocks.is_empty());
-        assert_single_unlocated_warning(&result, ANCESTOR_RECOVERY_WARNING)?;
+        assert_single_recovery_warning(&result, ANCESTOR_RECOVERY_WARNING, &tree.main, 1)?;
     }
 
     Ok(())

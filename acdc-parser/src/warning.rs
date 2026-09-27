@@ -80,7 +80,7 @@ impl Warning {
             WarningKind::InvalidDocumentAttribute { .. } => {
                 Some("Use a value in the attribute's documented domain")
             }
-            WarningKind::Other(_) => None,
+            WarningKind::ContentRecovery { .. } | WarningKind::Other(_) => None,
         }
     }
 }
@@ -254,6 +254,16 @@ pub enum WarningKind {
         value: String,
         /// Short description of the registered value domain.
         expected: &'static str,
+    },
+
+    /// Requested source content or substitutions were omitted, replaced, or recovered.
+    ///
+    /// Rendering can continue, but consumers that require complete source content
+    /// must handle this condition before using the recovered document.
+    #[error("{message}")]
+    ContentRecovery {
+        /// The recovery and the source content it affected.
+        message: Cow<'static, str>,
     },
 
     /// Ad-hoc message not yet categorised into a typed variant.
