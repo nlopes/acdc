@@ -22,36 +22,6 @@ cargo nextest run
 
 See link:./acdc-cli/README.adoc[acdc-cli README] for all CLI options, backends, and feature flags.
 
-== Project structure
-
-----
-acdc/
-├── acdc-cli/                 # Command-line interface
-│   └── src/
-│       └── main.rs           # CLI entry point
-├── acdc-lint/                # Lint command support for recommended-practice checks
-├── acdc-lsp/                 # Language Server Protocol server
-│   └── src/
-│       ├── capabilities/     # LSP features (diagnostics, hover, completion, rename, references, semantic tokens, …)
-│       └── state/            # Document and workspace state (cross-file anchor index)
-├── acdc-parser/              # Core parser and AST
-│   ├── src/
-│   │   ├── grammar/          # PEG grammar definitions
-│   │   ├── model/            # AST data structures
-│   │   ├── preprocessor/     # Include and conditional handling
-│   │   └── proptests/        # Property-based testing
-│   └── fixtures/             # Test fixtures
-├── acdc-editor-wasm/         # WASM live editor (syntax highlight + preview)
-└── converters/               # Output converters
-    ├── core/                 # Shared traits (Processable, Visitor)
-    ├── dev/                  # Development utilities (unpublished)
-    ├── html/                 # HTML5 converter
-    ├── manpage/              # Native roff/troff manpage output
-    ├── markdown/             # Markdown converter (CommonMark & GFM)
-    ├── pdf/                  # PDF output backed by the Rust Typst engine
-    └── terminal/             # Rich terminal output
-----
-
 == Tooling
 
 * link:./acdc-cli[acdc-cli] - AsciiDoc processor (CLI)

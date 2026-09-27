@@ -14,6 +14,44 @@
 - **Never use CLI for fixtures**: use the examples directly (CLI adds `last_updated` timestamps)
 - **asciidoctor is reference**: compare one source using the built `acdc` CLI and the matching asciidoctor backend first. Compare observable behavior, not byte-identical output, and avoid temporary Rust harnesses. Use the `compare-asciidoc-output` agent only after a direct comparison confirms a divergence or deeper research is needed. For PDF comparisons, keep clearly named `*-acdc.pdf` and `*-asciidoctor.pdf` outputs; do not create raster previews unless the user asks.
 
+## Project structure
+
+Workspace crates and key source directories are listed below.
+Check the root `Cargo.toml` for workspace membership and read any directory-specific `AGENTS.md` before editing that area.
+
+```text
+acdc/
+├── acdc-cli/                 # Command-line interface
+│   └── src/main.rs           # CLI entry point
+├── acdc-editor-wasm/         # WASM live editor with syntax highlighting and preview
+├── acdc-execute/             # Discover and run AsciiDoc command blocks
+├── acdc-lint/                # Recommended-practice lint checks
+├── acdc-lsp/                 # Language Server Protocol server
+│   └── src/
+│       ├── capabilities/     # Diagnostics, hover, completion, rename, references, semantic tokens
+│       └── state/            # Document and workspace state, cross-file anchor index
+├── acdc-parser/              # Core parser and AST
+│   ├── src/
+│   │   ├── grammar/          # PEG grammar definitions
+│   │   ├── model/            # AST data structures
+│   │   ├── preprocessor/     # Include and conditional handling
+│   │   └── proptests/        # Property-based tests
+│   └── fixtures/             # Parser test fixtures
+└── converters/              # Output converters
+    ├── core/                # Shared converter traits and utilities
+    ├── dev/                 # Development and testing utilities
+    ├── html/                # HTML5 converter
+    ├── manpage/             # Native roff/troff manpage output
+    ├── markdown/            # CommonMark and GitHub Flavored Markdown output
+    ├── pdf/                 # PDF output backed by the Rust Typst engine
+    │   └── crates/
+    │       ├── images/      # Local, remote, and data URI image resolution
+    │       ├── render/      # Typst compilation to PDF
+    │       ├── theme/       # YAML themes, bundled fonts, and syntax theme
+    │       └── typst/       # Shared Typst writing utilities
+    └── terminal/            # Rich terminal output
+```
+
 ## Validation workflow
 
 - Never run Cargo commands concurrently against the same target directory.
