@@ -98,6 +98,8 @@ pub struct CommandMetadata {
     pub interpreter: String,
     /// A short, human-readable summary of what the command does, shown when listing commands.
     pub description: Option<String>,
+    /// Plain-text title of the nearest enclosing section, or `None` outside a section.
+    pub section_title: Option<String>,
 }
 
 /// A single command with its metadata.
@@ -125,6 +127,7 @@ impl CommandBlock {
                 id,
                 interpreter: interpreter.unwrap_or_else(|| DEFAULT_INTERPRETER.to_string()),
                 description: None,
+                section_title: None,
             },
             script,
             location,
@@ -240,6 +243,22 @@ impl CommandGraph {
     #[must_use]
     pub fn contains(&self, id: &str) -> bool {
         self.index.contains_key(id)
+    }
+
+    /// Direct prerequisites of `id`, each returned once in unspecified order.
+    ///
+    /// Returns `None` if `id` does not name a command in this graph.
+    #[must_use]
+    pub fn dependencies<'graph>(
+        &'graph self,
+        id: &str,
+    ) -> Option<impl Iterator<Item = &'graph CommandId> + use<'graph>> {
+        let &node = self.index.get(id)?;
+        Some(
+            self.graph
+                .neighbors_directed(node, Direction::Incoming)
+                .map(|dependency| &self.graph[dependency].metadata.id),
+        )
     }
 
     /// Select every command in execution order without copying script bodies.
@@ -989,6 +1008,25 @@ mod tests {
         );
         assert!(built.contains("b"));
         assert!(!built.contains("z"));
+    }
+
+    #[test]
+    fn dependencies_return_only_unique_direct_prerequisites() {
+        let built = graph(&[
+            ("deploy", &["test", "build", "test"]),
+            ("test", &["build"]),
+            ("build", &["prepare"]),
+            ("prepare", &[]),
+        ]);
+        let dependencies = {
+            let id = String::from("deploy");
+            built.dependencies(&id).unwrap()
+        };
+        let mut dependencies = dependencies.map(CommandId::as_str).collect::<Vec<_>>();
+        dependencies.sort_unstable();
+        assert_eq!(dependencies, ["build", "test"]);
+        assert_eq!(built.dependencies("prepare").unwrap().count(), 0);
+        assert!(built.dependencies("missing").is_none());
     }
 
     // --------------------------------------------------------------------------

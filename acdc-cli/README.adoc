@@ -171,11 +171,15 @@ The optional `description` attribute supplies a summary for `--list`.
 
 [source,asciidoc]
 ....
+== Build
+
 [.command, id=build, description="Build the project"]
 [source, bash]
 ----
 cargo build
 ----
+
+== Test
 
 [.command, id=test, deps="build", description="Run the tests"]
 [source, bash]
@@ -197,8 +201,20 @@ Commands are discovered in document order, including inside nested containers, A
 Exact `--id` and `--id-regex` selectors form a union, and selected commands always run together with their transitive dependencies; each command runs at most once.
 Without selectors, every command is selected.
 An unknown id or a regex that matches no commands is an error.
-`--dry-run` prints the selected commands and scripts; `--list` prints their ids, interpreters, and descriptions.
+`--dry-run` prints the selected commands and scripts; `--list` prints a bulleted list with labeled ids, interpreters, enclosing section titles, direct dependencies, and optional descriptions.
 Both include dependencies and run no commands; the two options cannot be combined.
+
+For the example above, `--list` prints:
+
+[source,text]
+....
+- id=build, interpreter="bash", section="Build", description="Build the project"
+- id=test, interpreter="bash", section="Test", deps="build", description="Run the tests"
+....
+
+Dependency ids are sorted alphabetically.
+The section is the nearest enclosing section's title as plain text; commands outside sections omit it.
+Interpreters, section titles, and descriptions are quoted, with control characters escaped to keep each command on one line.
 
 The block attribute `interpreter` overrides the source language: `[source,python,role=command,id=check,interpreter=python3]` uses Python highlighting and runs `python3`.
 Without an override, the source language selects the interpreter; a block without either uses `sh`.
