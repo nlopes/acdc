@@ -7,8 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Applications can inspect block metadata and source locations without matching
+  each block variant.
+- Applications can read block bodies after preprocessing and before inline
+  substitutions, with normalized line endings, and resolve source locations to
+  the original included files. Serialized output and semantic equality are unchanged.
+- Applications can distinguish omitted or recovered source content from
+  presentation warnings before acting on a parsed document, even after routing
+  the warning list elsewhere. Rendering can continue with the existing recovery
+  behavior. Includes disabled by a zero depth limit, secure mode, or URI access
+  policy now produce located warnings.
+
 ### Changed
 
+- Parsing file-based conditionals and checking enabled block substitutions use
+  fewer temporary allocations.
 - Repeated automatic cross-references use less memory when document attributes
   stay unchanged. Caption and section-signifier changes still apply in source order.
 
@@ -65,6 +80,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Escaped concealed index shorthand retains its outer parentheses and processes
   the inner visible term, matching Asciidoctor. Escaped visible terms remain literal.
+
+- Textual attribute substitution preserves escaped references without looking
+  them up, accepts empty values, and leaves non-reference braces unchanged.
+  Builds without `pre-spec-subs` now classify ignored `subs` requests as source
+  recovery, so applications can reject incomplete substitution behavior even
+  after routing parser warnings elsewhere.
 
 - Description-list values now report accurate source locations after extra
   whitespace or a line break following the term. A newline between formatted

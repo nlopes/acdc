@@ -15,11 +15,47 @@
 //! `OwnedSource` covers the parse-failure case (we have the text but no
 //! AST) without paying for an empty arena.
 
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc};
 
 use bumpalo::Bump;
 
-use crate::{Document, InlineNode, Warning};
+use crate::{
+    Document, InlineNode, Location, SourceLocation, Warning, WarningKind, model::SourceRange,
+};
+
+#[derive(Debug, Default)]
+pub(crate) struct SourceFiles {
+    primary: Option<PathBuf>,
+    included: HashMap<Vec<String>, PathBuf>,
+}
+
+impl SourceFiles {
+    pub(crate) fn new(primary: Option<PathBuf>, ranges: &[SourceRange]) -> Self {
+        let mut included = HashMap::new();
+        for range in ranges {
+            if !range.file_chain.is_empty()
+                && let Some(file) = &range.file
+                && !included.contains_key(range.file_chain.as_slice())
+            {
+                included.insert(range.file_chain.clone(), file.clone());
+            }
+        }
+        Self { primary, included }
+    }
+
+    fn location(&self, location: &Location) -> SourceLocation {
+        let file = match location
+            .start
+            .file
+            .as_deref()
+            .filter(|chain| !chain.is_empty())
+        {
+            Some(chain) => self.included.get(chain.as_slice()),
+            None => self.primary.as_ref(),
+        };
+        SourceLocation::at_location(file.cloned(), location.clone())
+    }
+}
 
 /// Owner-side of the self-referential parse cell: holds the preprocessed
 /// source text and the arena that parser-allocated strings live in. The
@@ -80,22 +116,40 @@ self_cell::self_cell! {
 pub struct ParseResult {
     cell: ParsedDocumentCell,
     warnings: Vec<Warning>,
+    source_recovery: Option<Box<Warning>>,
+    source_files: SourceFiles,
 }
 
 impl ParseResult {
-    /// Internal constructor used by the `parse_*` entry points. Takes the
-    /// owner, a shared warnings handle (the `ParserState` holds its own
-    /// clone of this `Rc`; we recover the collected warnings after the
-    /// builder returns), and a fallible dependent builder.
+    /// Build the document with its source map and collect warnings after construction.
     pub(crate) fn try_new<E>(
         owner: OwnedInput,
         warnings_handle: Rc<RefCell<Vec<Warning>>>,
+        source_files: SourceFiles,
         builder: impl for<'a> FnOnce(&'a OwnedInput) -> Result<Document<'a>, E>,
     ) -> Result<Self, E> {
         let cell = ParsedDocumentCell::try_new(owner, builder)?;
+        let warnings = recover_warnings(warnings_handle);
+        let source_recovery = warnings
+            .iter()
+            .find(|warning| {
+                matches!(
+                    warning.kind,
+                    WarningKind::ContentRecovery { .. }
+                        | WarningKind::UnterminatedDelimitedBlock { .. }
+                        | WarningKind::UnterminatedTable { .. }
+                        | WarningKind::TableUnknownFormat { .. }
+                        | WarningKind::TableIncompleteRow
+                        | WarningKind::TableCellOverflow { .. }
+                        | WarningKind::TableColumnCount { .. }
+                )
+            })
+            .map(|warning| Box::new(Warning::new(warning.kind.clone(), warning.location.clone())));
         Ok(Self {
             cell,
-            warnings: recover_warnings(warnings_handle),
+            warnings,
+            source_recovery,
+            source_files,
         })
     }
 
@@ -115,10 +169,30 @@ impl ParseResult {
         &self.cell.borrow_owner().source
     }
 
+    /// Resolve a location from this result's AST to its original source file and position.
+    ///
+    /// Includes use the file resolved during preprocessing, even when selection
+    /// or indentation changed the parsed text. A span crossing files is anchored
+    /// in the file containing its start. Unknown include chains have no file.
+    #[must_use]
+    pub fn source_location(&self, location: &Location) -> SourceLocation {
+        self.source_files.location(location)
+    }
+
     /// Borrow the collected warnings.
     #[must_use]
     pub fn warnings(&self) -> &[Warning] {
         &self.warnings
+    }
+
+    /// The first warning for recovered source content or structure, when present.
+    ///
+    /// This includes omitted content, ignored substitutions, and unmatched block
+    /// boundaries, but excludes presentation warnings. It remains available after
+    /// [`Self::take_warnings`].
+    #[must_use]
+    pub fn source_recovery(&self) -> Option<&Warning> {
+        self.source_recovery.as_deref()
     }
 
     /// Take the warnings out of this result, leaving an empty warnings

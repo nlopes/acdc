@@ -164,7 +164,15 @@ fn safe_and_server_confinement_use_overridden_base() -> TestResult {
             return Err(format!("unexpected warnings: {:?}", result.warnings()).into());
         };
         assert_eq!(warning.kind.to_string(), ANCESTOR_RECOVERY_WARNING);
-        assert!(warning.source_location().is_none());
+        assert!(matches!(
+            warning.kind,
+            acdc_parser::WarningKind::ContentRecovery { .. }
+        ));
+        let location = warning
+            .source_location()
+            .ok_or("missing recovery location")?;
+        assert_eq!(location.file.as_deref(), Some(main.as_path()));
+        assert_eq!(location.location.start.line, 1);
     }
     Ok(())
 }

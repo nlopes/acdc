@@ -130,11 +130,6 @@ impl SourceRange {
     }
 }
 
-pub(crate) trait Locateable {
-    /// Get a reference to the location.
-    fn location(&self) -> &Location;
-}
-
 /// A `Location` represents a location in a document.
 ///
 /// After parsing completes, a `Location` is **original-source-relative**: its

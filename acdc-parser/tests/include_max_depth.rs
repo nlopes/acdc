@@ -130,7 +130,11 @@ fn assert_depth_warning(result: &ParseResult, max: usize, file: &Path, line: u32
     };
     assert_eq!(
         warning.kind.to_string(),
-        format!("maximum include depth of {max} exceeded")
+        if max == 0 {
+            "include not read because maximum include depth is zero".to_owned()
+        } else {
+            format!("maximum include depth of {max} exceeded")
+        }
     );
     let Some(location) = warning.source_location() else {
         return Err("expected depth warning to have a source location".into());
@@ -177,14 +181,14 @@ fn default_depth_is_defined_for_conditionals_without_being_explicit() -> TestRes
 }
 
 #[test]
-fn zero_disables_built_in_includes_without_a_diagnostic() -> TestResult {
+fn zero_disables_built_in_includes_with_a_recovery_diagnostic() -> TestResult {
     let tree = IncludeTree::chain("")?;
 
     let result = parse_file(&tree.main, &options("0")?)?;
 
     assert_max_depth(&result, "0")?;
     assert_chain(&result, "0", Expansion::BlockedAtMain)?;
-    assert!(result.warnings().is_empty());
+    assert_depth_warning(&result, 0, &tree.main, 5)?;
     Ok(())
 }
 
@@ -313,7 +317,7 @@ fn boolean_true_disables_includes_without_crashing() -> TestResult {
     );
     // A boolean has no string form, so the reference substitutes to nothing.
     assert_chain(&result, "", Expansion::BlockedAtMain)?;
-    assert!(result.warnings().is_empty());
+    assert_depth_warning(&result, 0, &tree.main, 5)?;
     Ok(())
 }
 

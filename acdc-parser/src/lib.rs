@@ -484,7 +484,8 @@ fn parse_input(
     // unwraps it.
     let warnings_for_state = Rc::clone(&warnings_handle);
 
-    ParseResult::try_new(owner, warnings_handle, move |owner| {
+    let source_files = parsed::SourceFiles::new(file_path.clone(), &source_ranges);
+    ParseResult::try_new(owner, warnings_handle, source_files, move |owner| {
         let mut state = grammar::ParserState::new(&owner.source, &owner.arena);
         state.document_attributes = Rc::new(options_owned.document_attributes.clone());
         state.options = Rc::new(options_owned);

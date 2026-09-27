@@ -6,9 +6,9 @@
 //! underlying work directly: allocation and reallocation counts plus requested
 //! bytes. Keep this file to one test because allocator regions are process-wide.
 
-use std::{alloc::System, fmt::Write as _, hint::black_box};
+use std::{alloc::System, fmt::Write as _, hint::black_box, path::Path};
 
-use acdc_parser::{Error, Options, parse};
+use acdc_parser::{Error, Options, parse, parse_file};
 use stats_alloc::{INSTRUMENTED_SYSTEM, Region, Stats, StatsAlloc};
 
 #[global_allocator]
@@ -156,6 +156,47 @@ fn measure_steady_state(input: &str, options: &Options) -> Result<Stats, Error> 
     })
 }
 
+fn measure_file(path: &Path, options: &Options) -> Result<Stats, Error> {
+    let region = Region::new(GLOBAL);
+    let parsed = parse_file(black_box(path), black_box(options))?;
+    black_box(&parsed);
+    let stats = region.change();
+    drop(parsed);
+    Ok(stats)
+}
+
+fn conditional_file_paths_have_constant_allocation_overhead()
+-> Result<(), Box<dyn std::error::Error>> {
+    let path = std::env::temp_dir().join(format!(
+        "acdc-conditional-allocation-{}.adoc",
+        std::process::id()
+    ));
+    drop(std::fs::File::create_new(&path)?);
+    let options = Options::default();
+    let mut first_overhead = None;
+    for count in [1, 1_000] {
+        let input = "ifdef::missing[]\nendif::missing[]\n".repeat(count);
+        std::fs::write(&path, &input)?;
+        let _ = parse_file(&path, &options)?;
+        let from_string = measure_steady_state(&input, &options)?;
+        let first = measure_file(&path, &options)?;
+        let second = measure_file(&path, &options)?;
+        let file_allocations = first.allocations.min(second.allocations);
+        let overhead = file_allocations.saturating_sub(from_string.allocations);
+        let baseline = *first_overhead.get_or_insert(overhead);
+        assert!(
+            overhead <= baseline + 4,
+            "file path allocation overhead grew with {count} conditionals: {overhead} > {baseline} + 4"
+        );
+        eprintln!(
+            "conditional file allocations/{count}: string={} file={file_allocations}",
+            from_string.allocations
+        );
+    }
+    std::fs::remove_file(path)?;
+    Ok(())
+}
+
 fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Budget) {
     let allocated_byte_limit = budget
         .bytes_allocated
@@ -188,7 +229,7 @@ fn assert_within_budget(case: &str, line_count: usize, stats: Stats, budget: Bud
 }
 
 #[test]
-fn conditional_allocation_work_stays_within_budget() -> Result<(), Error> {
+fn conditional_allocation_work_stays_within_budget() -> Result<(), Box<dyn std::error::Error>> {
     let active_options = Options::builder()
         .with_attribute("bench-active", true)
         .build()?;
@@ -231,5 +272,5 @@ fn conditional_allocation_work_stays_within_budget() -> Result<(), Error> {
             budget.slow_control,
         );
     }
-    Ok(())
+    conditional_file_paths_have_constant_allocation_overhead()
 }

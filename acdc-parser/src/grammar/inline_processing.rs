@@ -76,7 +76,7 @@ pub(crate) fn adjust_peg_error_position(
 
 /// Helper for error recovery when parsing from a substring
 ///
-/// Adjusts error positions to the original document and logs the error
+/// Records a content-recovery warning at the original source position.
 pub(crate) fn adjust_and_log_parse_error(
     err: &peg::error::ParseError<peg::str::LineCol>,
     parsed_text: &str,
@@ -85,6 +85,12 @@ pub(crate) fn adjust_and_log_parse_error(
     context: &str,
 ) {
     let adjusted_error = adjust_peg_error_position(err, parsed_text, doc_start_offset, state);
+    state.add_warning(crate::Warning::new(
+        crate::WarningKind::ContentRecovery {
+            message: format!("{context}: {adjusted_error}").into(),
+        },
+        adjusted_error.source_location().cloned(),
+    ));
     tracing::error!(?adjusted_error, ?context, "Parsing error occurred");
 }
 

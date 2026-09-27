@@ -9,7 +9,7 @@ mod text;
 pub use macros::*;
 pub use text::*;
 
-use crate::{Anchor, ElementAttributes, Image, Location, Source, model::Locateable};
+use crate::{Anchor, ElementAttributes, Image, Location, Source};
 
 /// An `InlineNode` represents an inline node in a document.
 ///
@@ -44,12 +44,6 @@ impl InlineNode<'_> {
     /// Returns the source location of this inline node.
     #[must_use]
     pub fn location(&self) -> &Location {
-        <Self as Locateable>::location(self)
-    }
-}
-
-impl Locateable for InlineNode<'_> {
-    fn location(&self) -> &Location {
         match self {
             InlineNode::PlainText(t) => &t.location,
             InlineNode::RawText(t) => &t.location,
@@ -96,30 +90,8 @@ impl InlineNode<'_> {
     }
 }
 
-impl Locateable for InlineMacro<'_> {
-    fn location(&self) -> &Location {
-        match self {
-            Self::Footnote(f) => &f.location,
-            Self::Icon(i) => &i.location,
-            Self::Image(img) => &img.location,
-            Self::Keyboard(k) => &k.location,
-            Self::Button(b) => &b.location,
-            Self::Menu(m) => &m.location,
-            Self::Url(u) => &u.location,
-            Self::Mailto(m) => &m.location,
-            Self::Link(l) => &l.location,
-            Self::Autolink(a) => &a.location,
-            Self::CrossReference(x) => &x.location,
-            Self::Pass(p) => &p.location,
-            Self::Stem(s) => &s.location,
-            Self::IndexTerm(i) => &i.location,
-        }
-    }
-}
-
 impl InlineMacro<'_> {
-    /// Mutable access to this macro's own location. Counterpart to
-    /// [`Locateable::location`] for [`InlineMacro`].
+    /// Mutable access to this macro's own location. Counterpart to [`Self::location`].
     pub(crate) fn location_mut(&mut self) -> &mut Location {
         match self {
             Self::Footnote(f) => &mut f.location,
@@ -214,7 +186,22 @@ impl InlineMacro<'_> {
     /// Returns the source location of this inline macro.
     #[must_use]
     pub fn location(&self) -> &Location {
-        <Self as Locateable>::location(self)
+        match self {
+            Self::Footnote(f) => &f.location,
+            Self::Icon(i) => &i.location,
+            Self::Image(img) => &img.location,
+            Self::Keyboard(k) => &k.location,
+            Self::Button(b) => &b.location,
+            Self::Menu(m) => &m.location,
+            Self::Url(u) => &u.location,
+            Self::Mailto(m) => &m.location,
+            Self::Link(l) => &l.location,
+            Self::Autolink(a) => &a.location,
+            Self::CrossReference(x) => &x.location,
+            Self::Pass(p) => &p.location,
+            Self::Stem(s) => &s.location,
+            Self::IndexTerm(i) => &i.location,
+        }
     }
 }
 

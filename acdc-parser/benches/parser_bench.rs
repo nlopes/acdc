@@ -7,6 +7,14 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 fn parse_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("parser");
 
+    group.bench_function("parse_inline/control", |b| {
+        b.iter(|| {
+            black_box(
+                Parser::new(black_box("Plain words with *strong* and _emphasis_.")).parse_inline(),
+            )
+        });
+    });
+
     let fixture_files_without_ext = vec![
         "basic_header",
         "stem_blocks",

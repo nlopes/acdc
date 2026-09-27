@@ -36,8 +36,8 @@ use crate::{
         table::parse_table_cell,
     },
     model::{
-        Caption, CaptionKind, LeveloffsetRange, ListLevel, Locateable, PositionalAttribute,
-        SectionKind, SectionLevel, Substitution, caption, section, strip_quotes, substitute,
+        Caption, CaptionKind, LeveloffsetRange, ListLevel, PositionalAttribute, SectionKind,
+        SectionLevel, Substitution, caption, section, strip_quotes, substitute,
         substitution::{HEADER, SubstitutionPlan, VERBATIM},
     },
 };
@@ -419,6 +419,7 @@ struct DelimitedParams<'input> {
     /// Language captured after a Markdown ```` ``` ```` fence, if any.
     lang: Option<&'input str>,
     content: &'input str,
+    source_text: &'input str,
     open_start: usize,
     start: usize,
     content_start: usize,
@@ -475,7 +476,7 @@ fn build_delimited_block<'input>(
 
     Ok(assemble_delimited(
         metadata,
-        p.open_delim,
+        p,
         inner,
         block_metadata.title.clone(),
         location,
@@ -487,7 +488,7 @@ fn build_delimited_block<'input>(
 /// Assemble the common `Block::DelimitedBlock` shell shared by every kind.
 fn assemble_delimited<'input>(
     metadata: BlockMetadata<'input>,
-    open_delim: &'input str,
+    p: &DelimitedParams<'input>,
     inner: DelimitedBlockType<'input>,
     title: Title<'input>,
     location: Location,
@@ -496,12 +497,13 @@ fn assemble_delimited<'input>(
 ) -> Block<'input> {
     Block::DelimitedBlock(DelimitedBlock {
         metadata,
-        delimiter: open_delim,
+        delimiter: p.open_delim,
         inner,
         title,
         location,
         open_delimiter_location: Some(open_delimiter_location),
         close_delimiter_location,
+        source_text: Some(p.source_text),
     })
 }
 
@@ -537,7 +539,7 @@ fn build_example_block<'input>(
     }
     Ok(assemble_delimited(
         metadata,
-        p.open_delim,
+        p,
         DelimitedBlockType::DelimitedExample(blocks),
         block_metadata.title.clone(),
         location,
@@ -1160,10 +1162,12 @@ fn store_named_block_attribute<'input>(
                 metadata.substitutions = Some(parse_subs_attribute(value));
             }
             #[cfg(not(feature = "pre-spec-subs"))]
-            state.add_generic_warning_at(
-                "The subs= attribute is not honoured in this build (the `pre-spec-subs` feature is disabled). The draft AsciiDoc spec drops the substitution model in favour of an inline parsing grammar; this attribute will be silently ignored.".to_string(),
-                location.clone().unwrap_or_default(),
-            );
+            state.add_warning(Warning::new(
+                WarningKind::ContentRecovery {
+                    message: "The subs= attribute is not honoured in this build (the `pre-spec-subs` feature is disabled). Requested content substitutions were ignored.".into(),
+                },
+                Some(state.create_error_source_location(location.clone().unwrap_or_default())),
+            ));
         }
         "attribution" => {
             metadata.attribution = Some(Attribution::new(plain_attribute_value(value, location)));
@@ -2211,6 +2215,7 @@ fn get_literal_paragraph<'input>(
     #[cfg(not(feature = "pre-spec-subs"))]
     let _ = content_start;
     Ok(Block::Paragraph(Paragraph {
+        source_text: Some(content),
         content: inlines,
         metadata,
         title: block_metadata.title.clone(),
@@ -2811,6 +2816,7 @@ fn parse_table_block_impl<'input>(
         .with_presentation(presentation);
 
     Ok(Block::DelimitedBlock(DelimitedBlock {
+        source_text: None,
         metadata: metadata.clone(),
         delimiter: state.intern_str(open_delim),
         inner: DelimitedBlockType::DelimitedTable(table),
@@ -4321,16 +4327,23 @@ peg::parser! {
         // recovery; `build_delimited_block` emits the unterminated warning).
         rule generic_delimited_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open:block_open() (eol() / ![_])
-              content_start:position!() content:until_block_close(open.1) content_end:position!()
-              close:(eol() close_start:position!() close_delim:block_close_delim(open.1) { (close_start, close_delim) })?
+              content_start:position!()
+              source_text:$(until_block_close(open.1) (eol() &block_close_delim(open.1))?) body_end:position!()
+              close:(close_start:position!() close_delim:block_close_delim(open.1) { (close_start, close_delim) })?
         {
+            let content = if close.is_some() {
+                source_text.strip_suffix('\n').unwrap_or(source_text)
+            } else {
+                source_text
+            };
+            let content_end = body_end - (source_text.len() - content.len());
             let kind = match (open.0, block_metadata.metadata.style) {
                 (DelimitedKind::Open, Some("source" | "listing")) => DelimitedKind::Listing,
                 (DelimitedKind::Open, Some("literal")) => DelimitedKind::Literal,
                 (kind, _) => kind,
             };
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind, open_delim: open.1, lang: open.2, content,
+                kind, open_delim: open.1, lang: open.2, content, source_text,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
@@ -4370,11 +4383,18 @@ peg::parser! {
         // entry point reuses the shared skeleton and builder.
         rule comment_block(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
             = open_start:position!() open_delim:comment_delimiter() (eol() / ![_])
-              content_start:position!() content:until_block_close(open_delim) content_end:position!()
-              close:(eol() close_start:position!() close_delim:block_close_delim(open_delim) { (close_start, close_delim) })?
+              content_start:position!()
+              source_text:$(until_block_close(open_delim) (eol() &block_close_delim(open_delim))?) body_end:position!()
+              close:(close_start:position!() close_delim:block_close_delim(open_delim) { (close_start, close_delim) })?
         {
+            let content = if close.is_some() {
+                source_text.strip_suffix('\n').unwrap_or(source_text)
+            } else {
+                source_text
+            };
+            let content_end = body_end - (source_text.len() - content.len());
             build_delimited_block(state, block_metadata, &DelimitedParams {
-                kind: DelimitedKind::Comment, open_delim, lang: None, content,
+                kind: DelimitedKind::Comment, open_delim, lang: None, content, source_text,
                 open_start, start, content_start, content_end, end: span_end, offset, close,
             })
         }
@@ -5957,6 +5977,12 @@ peg::parser! {
                 match content {
                     Ok(blocks) => description.extend(blocks),
                     Err(e) => {
+                        state.add_warning(Warning::new(
+                            WarningKind::ContentRecovery {
+                                message: format!("discarded attached content: {e}").into(),
+                            },
+                            e.source_location().cloned(),
+                        ));
                         tracing::error!(?e, "Error processing attached content");
                     }
                 }
@@ -6137,6 +6163,7 @@ peg::parser! {
             }
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
+                source_text: None,
                 metadata,
                 delimiter: "\"",
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
@@ -6219,6 +6246,7 @@ peg::parser! {
             };
 
             Ok(Block::DelimitedBlock(DelimitedBlock {
+                source_text: None,
                 metadata,
                 delimiter: ">",
                 inner: DelimitedBlockType::DelimitedQuote(blocks),
@@ -6309,6 +6337,7 @@ peg::parser! {
                 return get_literal_paragraph(state, content, start, content_start, span_end, offset, block_metadata);
             }
 
+            let source_text = content;
             let content = if is_styled_verbatim {
                 let content_location =
                     state.create_block_location(content_start, span_end, offset);
@@ -6376,6 +6405,7 @@ peg::parser! {
                     metadata: block_metadata.metadata.clone(),
                     title,
                     blocks: vec![Block::Paragraph(Paragraph {
+                        source_text: Some(source_text),
                         content,
                         metadata: block_metadata.metadata.clone(),
                         title: Title::default(),
@@ -6391,6 +6421,7 @@ peg::parser! {
 
                 tracing::debug!(?content, "found paragraph block");
                 Ok(Block::Paragraph(Paragraph {
+                    source_text: Some(source_text),
                     content,
                     metadata,
                     title,

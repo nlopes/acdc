@@ -92,7 +92,18 @@ fn denied_non_http_uri_uses_link_fallback_instead_of_local_file_handling() -> Te
             link.attributes.get_string("role").as_deref(),
             (!compat_mode).then_some("include")
         );
-        assert!(result.warnings().is_empty());
+        let [warning] = result.warnings() else {
+            return Err("expected a content-recovery warning".into());
+        };
+        assert!(matches!(
+            warning.kind,
+            acdc_parser::WarningKind::ContentRecovery { .. }
+        ));
+        let location = warning
+            .source_location()
+            .ok_or("missing recovery location")?;
+        assert_eq!(location.file.as_deref(), Some(document.main.as_path()));
+        assert_eq!(location.location.start.line, 3);
     }
     Ok(())
 }
