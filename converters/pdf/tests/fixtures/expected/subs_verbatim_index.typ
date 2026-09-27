@@ -79,9 +79,9 @@
 
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-1>],
-    [#metadata(none) <__indexterm-2>#metadata(none) <__indexterm-3>],
-    [#metadata(none) <__indexterm-4>],
+    [#metadata(none)<__indexterm-1>],
+    [#metadata(none)<__indexterm-2>#metadata(none)<__indexterm-3>],
+    [#metadata(none)<__indexterm-4>],
     [],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
@@ -93,25 +93,25 @@
 
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-5>],
+    [#metadata(none)<__indexterm-5>],
     [],
-    [#metadata(none) <__indexterm-6>],
-    [#metadata(none) <__indexterm-7>],
+    [#metadata(none)<__indexterm-6>],
+    [#metadata(none)<__indexterm-7>],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "  LiteralTerm\n\n  BlankLineTerm\n  concealed term")
 }
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-8>],
-    [#metadata(none) <__indexterm-9>],
+    [#metadata(none)<__indexterm-8>],
+    [#metadata(none)<__indexterm-9>],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "Labeled AttributeTerm\nFromAttribute")
 }
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-10>],
+    [#metadata(none)<__indexterm-10>],
     [],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
@@ -119,21 +119,21 @@
 }
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-11>],
+    [#metadata(none)<__indexterm-11>],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "Styled StyledTerm.")
 }
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-12>],
+    [#metadata(none)<__indexterm-12>],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "Literal StyledLiteral.")
 }
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-13>],
+    [#metadata(none)<__indexterm-13>],
   )
   show raw.line: line => index-anchors.at(line.number - 1, default: []) + line
   raw(block: true, "Indented IndentedTerm.")

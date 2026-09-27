@@ -90,8 +90,8 @@
 
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-1>],
-    [#metadata(none) <__indexterm-2>],
+    [#metadata(none)<__indexterm-1>],
+    [#metadata(none)<__indexterm-2>],
   )
   let numbers = (1, 2, )
   let highlighted = (false, true, )
@@ -118,7 +118,7 @@
 #_acdc_autofit_code("AutofitTerm", extra-width: 1.4em)[
 #{
   let index-anchors = (
-    [#metadata(none) <__indexterm-3>],
+    [#metadata(none)<__indexterm-3>],
   )
   let numbers = (1, )
   let highlighted = (false, )

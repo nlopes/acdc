@@ -1563,7 +1563,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         for anchors in lines {
             self.writer.raw("    [");
             for anchor in anchors {
-                let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+                let _ = write!(self.writer, "#metadata(none)<__indexterm-{anchor}>");
             }
             self.writer.raw("],\n");
         }
@@ -1725,7 +1725,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         } else {
             // A concealed term can leave no raw line to carry its locator.
             for (_, anchor) in positions {
-                let _ = write!(self.writer, "#metadata(none) <__indexterm-{anchor}>");
+                let _ = write!(self.writer, "#metadata(none)<__indexterm-{anchor}>");
             }
         }
         lines

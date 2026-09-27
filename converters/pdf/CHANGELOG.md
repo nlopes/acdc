@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Index terms in numbered source blocks keep their code aligned with the line
+  numbers. Page links remain on the term's page when a code line is near a page break.
+
 - Index terms enabled with `subs=+macros` in listings and literal blocks join
   the catalog with page links to their code lines, including highlighted and
   numbered source blocks.

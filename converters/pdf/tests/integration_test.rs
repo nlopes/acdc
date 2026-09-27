@@ -98,6 +98,126 @@ fn verbatim_index_locators_follow_the_rendered_code_pages() -> Result<(), Error>
     Ok(())
 }
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_index_anchors_preserve_numbered_code_alignment() -> Result<(), Error> {
+    for autofit in ["", ",options=autofit"] {
+        for index in ["", "\n[index]\n== Index\n"] {
+            let input = format!(
+                "= Code layout\n:source-highlighter: rouge\n\n[source%linenums,text,subs=+macros,highlight=2{autofit}]\n----\nBeforeLine\n((MarkedLine))(((Hidden)))\nAfterLine\n----\n{index}"
+            );
+            let pdf = render_input(&input)?;
+            let before = text_origin(&pdf, 1, "BeforeLine")?;
+            let marked = text_origin(&pdf, 1, "MarkedLine")?;
+            let after = text_origin(&pdf, 1, "AfterLine")?;
+            let number = text_origin(&pdf, 1, "2")?;
+            assert!((before.0 - marked.0).abs() < 0.01, "{before:?} {marked:?}");
+            assert!((after.0 - marked.0).abs() < 0.01, "{after:?} {marked:?}");
+            assert!((number.1 - marked.1).abs() < 0.01, "{number:?} {marked:?}");
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_index_locators_match_occurrences_at_page_boundaries() -> Result<(), Error> {
+    use std::fmt::Write as _;
+    for marker_line in 49..59 {
+        let mut input = String::from(
+            "= Page boundary\n:source-highlighter: rouge\n\n[source%linenums,text,subs=+macros]\n----\n",
+        );
+        for line in 1..70 {
+            if line == marker_line {
+                input.push_str("((BoundaryMarker))\n");
+            } else {
+                writeln!(input, "padding line {line}")?;
+            }
+        }
+        input.push_str("----\n\n[index]\n== Index\n");
+        let pdf = render_input(&input)?;
+        let mut occurrence_page = None;
+        let mut catalog_page = None;
+        for page in pdf.get_pages().keys() {
+            let text = pdf.extract_text(&[*page])?;
+            if text.contains("BoundaryMarker") && occurrence_page.is_none() {
+                occurrence_page = Some(*page);
+            }
+            if text.contains("Index") {
+                catalog_page = Some(*page);
+            }
+        }
+        let occurrence_page = occurrence_page.ok_or("missing code term")?;
+        let catalog_page = catalog_page.ok_or("missing index")?;
+        assert_eq!(
+            internal_link_pages(&pdf, catalog_page)?,
+            [occurrence_page],
+            "source line {marker_line}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+fn text_origin(pdf: &PdfDocument, page: u32, needle: &str) -> Result<(f32, f32), Error> {
+    let page_id = *pdf.get_pages().get(&page).ok_or("missing page")?;
+    let encodings = pdf
+        .get_page_fonts(page_id)?
+        .into_iter()
+        .map(|(name, font)| Ok((name, font.get_font_encoding(pdf)?)))
+        .collect::<Result<HashMap<_, _>, Error>>()?;
+    let content = lopdf::content::Content::decode(&pdf.get_page_content(page_id))?;
+    let mut encoding = None;
+    let mut origin = (0.0, 0.0);
+    let mut transform = [1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+    let mut transforms = Vec::new();
+    for operation in content.operations {
+        match (operation.operator.as_str(), operation.operands.as_slice()) {
+            ("q", []) => transforms.push(transform),
+            ("Q", []) => transform = transforms.pop().ok_or("missing saved transform")?,
+            ("cm", [xx, yx, xy, yy, tx, ty]) => {
+                let [xx, yx, xy, yy, tx, ty] = [xx, yx, xy, yy, tx, ty].map(Object::as_float);
+                let [xx, yx, xy, yy, tx, ty] = [xx?, yx?, xy?, yy?, tx?, ty?];
+                transform = [
+                    transform[0] * xx + transform[2] * yx,
+                    transform[1] * xx + transform[3] * yx,
+                    transform[0] * xy + transform[2] * yy,
+                    transform[1] * xy + transform[3] * yy,
+                    transform[0] * tx + transform[2] * ty + transform[4],
+                    transform[1] * tx + transform[3] * ty + transform[5],
+                ];
+            }
+            ("Tf", [font, _]) => encoding = encodings.get(font.as_name()?),
+            ("Tm", [_, _, _, _, x, y]) => {
+                let (x, y) = (x.as_float()?, y.as_float()?);
+                let [xx, yx, xy, yy, tx, ty] = transform;
+                origin = (xx * x + xy * y + tx, yx * x + yy * y + ty);
+            }
+            ("Tj", [Object::String(text, _)]) => {
+                if PdfDocument::decode_text(encoding.ok_or("missing font")?, text)? == needle {
+                    return Ok(origin);
+                }
+            }
+            ("TJ", [Object::Array(parts)]) => {
+                let mut text = String::new();
+                for part in parts {
+                    if let Object::String(bytes, _) = part {
+                        text.push_str(&PdfDocument::decode_text(
+                            encoding.ok_or("missing font")?,
+                            bytes,
+                        )?);
+                    }
+                }
+                if text == needle {
+                    return Ok(origin);
+                }
+            }
+            _ => {}
+        }
+    }
+    Err(format!("missing text {needle:?}").into())
+}
+
 #[test]
 fn included_source_references_create_internal_pdf_destinations() -> Result<(), Error> {
     let parsed = parse_file(
