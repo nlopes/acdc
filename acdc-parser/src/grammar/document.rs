@@ -5900,6 +5900,7 @@ peg::parser! {
         rule description_list_additional_items(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<DescriptionListItem<'input>, Error>
         = !at_dlist_block_boundary()
         eol()*
+        !attribute_or_anchor_line_match()
         check_start_of_description_list(offset)
         item:description_list_item(offset, block_metadata)
         {
@@ -5935,7 +5936,7 @@ peg::parser! {
              !table_delimiter()
              !(open_delimiter() (whitespace()* eol()))
              !markdown_code_delimiter()
-             !attributes_line()                           // not a block attributes line
+             !attribute_or_anchor_line_match()             // not block metadata
              !heading_boundary(offset)  // not a section heading
              (!eol() [_])+                             // continuation line content
             )*
@@ -6037,12 +6038,23 @@ peg::parser! {
         }
 
         rule description_list_auto_attached_list(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
-        = eol()* // Consume any blank lines before the list
+        = eol()* list:description_list_auto_attached_list_with_metadata(offset, block_metadata) { list }
+        / eol()* // Consume any blank lines before the list
         &(whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
         list_start:position!()
         list:(unordered_list(list_start, offset, block_metadata, None, true, true) / ordered_list(list_start, offset, block_metadata, None, true, true))
         {
             tracing::debug!("Auto-attaching list to description list item");
+            Ok(vec![list?])
+        }
+
+        // Metadata belongs to a nested list only when a list marker follows it.
+        rule description_list_auto_attached_list_with_metadata(offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Vec<Block<'input>>, Error>
+        = &((attribute_or_anchor_line_match() eol()*)+ whitespace()* (unordered_list_marker() / ordered_list_marker()) whitespace())
+          list_start:position!()
+          metadata:parsed_nested_list_metadata(offset, block_metadata.parent_section_level)
+          list:(unordered_list(list_start, offset, &metadata, None, true, false) / ordered_list(list_start, offset, &metadata, None, true, false))
+        {
             Ok(vec![list?])
         }
 
@@ -6283,6 +6295,15 @@ peg::parser! {
             (author.trim().to_string(), author_start, None)
         }
 
+        rule paragraph_anchor_boundary(block_metadata: &BlockParsingMetadata<'input>)
+        = anchor_line_match() {?
+            if matches!(block_metadata.metadata.style, Some("source" | "listing" | "literal")) {
+                Err("anchor syntax is verbatim text")
+            } else {
+                Ok(())
+            }
+        }
+
         rule paragraph(start: usize, offset: usize, block_metadata: &BlockParsingMetadata<'input>) -> Result<Block<'input>, Error>
         = admonition:admonition()?
         content_start:position!()
@@ -6292,6 +6313,7 @@ peg::parser! {
             eol()*<2,>
             / eol()* ![_]
             / eol() &attributes_line()
+            / eol() &paragraph_anchor_boundary(block_metadata)
             / eol() example_delimiter()
             / eol() listing_delimiter()
             / eol() literal_delimiter()

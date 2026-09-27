@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Standalone anchors after paragraphs and description-list text now identify the following block. Anchors and attributes before a nested bullet or numbered list stay with that list, matching Asciidoctor. Verbatim paragraphs keep anchor syntax literal. Existing targets after bullet and numbered list items remain available, including cases where Asciidoctor drops the target but emits links to it.
+
 - Preserve index registration order when later substitutions introduce delimiters, empty labels, formatting, or replacements. Keep links and footnotes literal in catalog labels, and recognize index terms across attribute expansions in inline passthroughs.
 - Preserve inclusive source spans for substituted index labels and passthrough fragments, including Unicode and newlines. Spans no longer include the following delimiter.
 

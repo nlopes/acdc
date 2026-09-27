@@ -179,7 +179,6 @@ fn verbatim_index_locators_match_occurrences_at_page_boundaries() -> Result<(), 
     Ok(())
 }
 
-#[cfg(feature = "pre-spec-subs")]
 fn text_origin(pdf: &PdfDocument, page: u32, needle: &str) -> Result<(f32, f32), Error> {
     let page_id = *pdf.get_pages().get(&page).ok_or("missing page")?;
     let encodings = pdf
@@ -309,6 +308,42 @@ fn horizontal_description_term_anchors_target_visible_content() -> Result<(), Er
     )?;
     assert_eq!(pdf.get_pages().len(), 2);
     assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+    Ok(())
+}
+
+#[test]
+fn standalone_anchors_target_the_following_paragraph() -> Result<(), Error> {
+    for before in [
+        "Before.",
+        "Term:: Before.",
+        "Term:: Principal.\n+\nBefore.",
+        "* Principal.\n+\nBefore.",
+    ] {
+        let input = format!(
+            "= Anchor ownership\n\nSee <<target>>.\n\n<<<\n\n{before}\n[[target,Target]]\nFollowing.\n"
+        );
+        let pdf = render_input(&input)?;
+        assert_eq!(internal_link_pages(&pdf, 1)?, [2]);
+        let page = *pdf.get_pages().get(&1).ok_or("missing link page")?;
+        let annotations = pdf.get_page_annotations(page)?;
+        let [link] = annotations.as_slice() else {
+            return Err("expected one paragraph link".into());
+        };
+        let target = link
+            .get(b"Dest")
+            .or_else(|_| link.get(b"A")?.as_dict()?.get(b"D"))?;
+        let (_, target) = pdf.dereference(target)?;
+        let [_, kind, _, top, ..] = target.as_array()?.as_slice() else {
+            return Err("incomplete paragraph destination".into());
+        };
+        assert_eq!(kind.as_name()?, b"XYZ");
+        let top = top.as_float()?;
+        let (_, baseline) = text_origin(&pdf, 2, "Following.")?;
+        assert!(
+            (0.0..20.0).contains(&(top - baseline)),
+            "{before}: destination {top}, paragraph {baseline}"
+        );
+    }
     Ok(())
 }
 

@@ -1,0 +1,128 @@
+<section id="preamble" aria-label="Preamble">
+<p>See <a href="#after-description">Following paragraph</a>, <a href="#next-description">Next description list</a>, <a href="#nested-unordered">Nested bullets</a>,
+<a href="#nested-ordered">Nested steps</a>, <a href="#after-attached">After attached paragraph</a>, <a href="#attached">Attached paragraph</a>, and <a href="#paragraph">Second paragraph</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description_paragraph_boundary">Description paragraph boundary</h2>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+Description text.</dd>
+</dl>
+</div>
+<p id="after-description">Following paragraph.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_description_list_boundary">Description list boundary</h2>
+<div class="dlist">
+<dl>
+<dt>
+First</dt>
+<dd>
+First description.</dd>
+</dl>
+</div>
+<div id="next-description" class="dlist">
+<dl>
+<dt>
+Next</dt>
+<dd>
+Second description.</dd>
+</dl>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_nested_unordered_list">Nested unordered list</h2>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+<p>Description before nested bullets.</p>
+<ul>
+<li>
+Nested bullet.</li>
+</ul>
+</dd>
+</dl>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_nested_ordered_list_after_a_blank">Nested ordered list after a blank</h2>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+<p>Description before nested steps.</p>
+<ol class="loweralpha" type="a">
+<li>
+Nested step.</li>
+</ol>
+</dd>
+</dl>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_attached_paragraph_boundary">Attached paragraph boundary</h2>
+<div class="dlist">
+<dl>
+<dt>
+Term</dt>
+<dd>
+<p>Principal text.</p>
+<p>Attached paragraph.</p>
+</dd>
+</dl>
+</div>
+<p id="after-attached">Following paragraph outside the list.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_explicit_continuation">Explicit continuation</h2>
+<div class="ulist">
+<ul>
+<li>
+Principal text.<p id="attached">Attached paragraph with its own ID.</p>
+</li>
+</ul>
+</div>
+</section>
+<section class="doc-section level-1">
+<h2 id="_ordinary_paragraph_boundary">Ordinary paragraph boundary</h2>
+<p>First paragraph.</p>
+<p id="paragraph">Second paragraph.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_preserved_list_anchors">Preserved list anchors</h2>
+<div class="ulist">
+<ul>
+<li>
+Principal text.
+<a id="preserved"></a>
+Continued principal text.</li>
+</ul>
+</div>
+<p>See <a href="#preserved">Preserved target</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_inline_and_escaped_controls">Inline and escaped controls</h2>
+<div class="ulist">
+<ul>
+<li>
+<a id="inline"></a>Principal text.
+<a id="inline-with-text"></a>More principal text.
+[[escaped]]</li>
+</ul>
+</div>
+<p>See <a href="#inline">Inline target</a> and <a href="#inline-with-text">[inline-with-text]</a>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="_verbatim_control">Verbatim control</h2>
+<div class="listing-block">
+<pre>Before.
+[[literal-anchor]]
+After.</pre>
+</div>
+</section>

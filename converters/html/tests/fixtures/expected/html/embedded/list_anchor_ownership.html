@@ -1,0 +1,176 @@
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p>See <a href="#after-description">Following paragraph</a>, <a href="#next-description">Next description list</a>, <a href="#nested-unordered">Nested bullets</a>,
+<a href="#nested-ordered">Nested steps</a>, <a href="#after-attached">After attached paragraph</a>, <a href="#attached">Attached paragraph</a>, and <a href="#paragraph">Second paragraph</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description_paragraph_boundary">Description paragraph boundary</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Term</dt>
+<dd>
+<p>Description text.</p>
+</dd>
+</dl>
+</div>
+<div id="after-description" class="paragraph">
+<p>Following paragraph.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_description_list_boundary">Description list boundary</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">First</dt>
+<dd>
+<p>First description.</p>
+</dd>
+</dl>
+</div>
+<div id="next-description" class="dlist">
+<dl>
+<dt class="hdlist1">Next</dt>
+<dd>
+<p>Second description.</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_nested_unordered_list">Nested unordered list</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Term</dt>
+<dd>
+<p>Description before nested bullets.</p>
+<div id="nested-unordered" class="ulist marked">
+<ul>
+<li>
+<p>Nested bullet.</p>
+</li>
+</ul>
+</div>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_nested_ordered_list_after_a_blank">Nested ordered list after a blank</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Term</dt>
+<dd>
+<p>Description before nested steps.</p>
+<div id="nested-ordered" class="olist loweralpha">
+<ol class="loweralpha" type="a">
+<li>
+<p>Nested step.</p>
+</li>
+</ol>
+</div>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_attached_paragraph_boundary">Attached paragraph boundary</h2>
+<div class="sectionbody">
+<div class="dlist">
+<dl>
+<dt class="hdlist1">Term</dt>
+<dd>
+<p>Principal text.</p>
+<div class="paragraph">
+<p>Attached paragraph.</p>
+</div>
+</dd>
+</dl>
+</div>
+<div id="after-attached" class="paragraph">
+<p>Following paragraph outside the list.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_explicit_continuation">Explicit continuation</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Principal text.</p>
+<div id="attached" class="paragraph">
+<p>Attached paragraph with its own ID.</p>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_ordinary_paragraph_boundary">Ordinary paragraph boundary</h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p>First paragraph.</p>
+</div>
+<div id="paragraph" class="paragraph">
+<p>Second paragraph.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_preserved_list_anchors">Preserved list anchors</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p>Principal text.
+<a id="preserved"></a>
+Continued principal text.</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>See <a href="#preserved">Preserved target</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_inline_and_escaped_controls">Inline and escaped controls</h2>
+<div class="sectionbody">
+<div class="ulist">
+<ul>
+<li>
+<p><a id="inline"></a>Principal text.
+<a id="inline-with-text"></a>More principal text.
+[[escaped]]</p>
+</li>
+</ul>
+</div>
+<div class="paragraph">
+<p>See <a href="#inline">Inline target</a> and <a href="#inline-with-text">[inline-with-text]</a>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_verbatim_control">Verbatim control</h2>
+<div class="sectionbody">
+<div class="listingblock">
+<div class="content">
+<pre>Before.
+[[literal-anchor]]
+After.</pre>
+</div>
+</div>
+</div>
+</div>

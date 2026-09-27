@@ -1,0 +1,75 @@
+= List anchor ownership
+
+See <<after-description>>, <<next-description>>, <<nested-unordered>>,
+<<nested-ordered>>, <<after-attached>>, <<attached>>, and <<paragraph>>.
+
+== Description paragraph boundary
+
+Term:: Description text.
+[[after-description,Following paragraph]]
+Following paragraph.
+
+== Description list boundary
+
+First:: First description.
+[[next-description,Next description list]]
+Next:: Second description.
+
+== Nested unordered list
+
+Term:: Description before nested bullets.
+[[nested-unordered,Nested bullets]]
+[.marked]
+* Nested bullet.
+
+== Nested ordered list after a blank
+
+Term:: Description before nested steps.
+
+[[nested-ordered,Nested steps]]
+[loweralpha]
+. Nested step.
+
+== Attached paragraph boundary
+
+Term:: Principal text.
++
+Attached paragraph.
+[[after-attached,After attached paragraph]]
+Following paragraph outside the list.
+
+== Explicit continuation
+
+* Principal text.
++
+[[attached,Attached paragraph]]
+Attached paragraph with its own ID.
+
+== Ordinary paragraph boundary
+
+First paragraph.
+[[paragraph,Second paragraph]]
+Second paragraph.
+
+== Preserved list anchors
+
+* Principal text.
+[[preserved,Preserved target]]
+Continued principal text.
+
+See <<preserved>>.
+
+== Inline and escaped controls
+
+* [[inline,Inline target]]Principal text.
+[[inline-with-text]]More principal text.
+\[[escaped]]
+
+See <<inline>> and <<inline-with-text>>.
+
+== Verbatim control
+
+[source]
+Before.
+[[literal-anchor]]
+After.
