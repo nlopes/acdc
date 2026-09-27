@@ -141,6 +141,28 @@ assert_eq!(depth.text(), Some("064"));
 `with_defaults` replaces earlier defaults.
 Use `false` or `()` to unset an attribute, including one supplied by defaults.
 
+== Source text and diagnostics
+
+`Paragraph::source_text()` and `DelimitedBlock::source_text()` expose the block body after document preprocessing and before inline substitutions.
+Preprocessing normalizes line endings, removes trailing whitespace from lines, and processes includes and conditionals.
+Delimited block text excludes metadata and delimiters, but retains the newline before the closing delimiter.
+These methods return `None` for programmatically constructed or synthetic blocks without retained source text.
+Retained text does not change ASG serialization or semantic equality.
+
+Consumers can use `BlockMetadata::uses_substitution(&Substitution::Attributes, VERBATIM)` to check whether a block enables attribute substitution with verbatim defaults.
+The `substitute_attributes` helper performs one textual pass: valid unescaped references use the supplied lookup, and `\{name}` becomes literal `{name}` without a lookup.
+Missing references remain in the text so the caller can report them; present empty values replace the reference with empty text.
+The helper does not apply shell quoting or other inline substitutions.
+
+Use `ParseResult::source_location(&location)` to resolve an AST location to the file that supplied it, including nested and partial includes.
+A location that crosses files is anchored in the file containing its start.
+Unknown include chains have no resolved file.
+`WarningKind::ContentRecovery` identifies omitted, replaced, or recovered source content separately from presentation warnings.
+`ParseResult::source_recovery()` returns the first warning that affects source content or structure, including unmatched block boundaries and incomplete tables.
+It excludes presentation warnings and remains available after `take_warnings()` moves the warning list elsewhere.
+In builds without `pre-spec-subs`, an explicit `subs` setting records source recovery rather than silently permitting execution with different substitution behavior.
+Rendering can continue after recovery; applications that require complete input must check `source_recovery()` before using recovered content.
+
 == Intrinsic document attributes
 
 acdc initializes the intrinsic backend, input, time, safe-mode, and environment attributes before preprocessing.
@@ -215,11 +237,11 @@ let options = acdc_parser::Options::builder()
 ----
 
 The entry document does not count toward the limit; each currently open included file counts as one level.
-A value of `0` disables built-in include processing and leaves each directive as literal content without a diagnostic.
+A value of `0` disables built-in include processing and leaves each directive as literal content with a located content-recovery warning.
 A string value can have surrounding Unicode whitespace, but the complete trimmed value must be a non-negative ASCII decimal integer.
 Malformed, empty, decimal-fraction, and negative values return an `InvalidDocumentAttribute` configuration error when options are built.
 The original spelling of a valid value remains visible as the document attribute, and very large positive values saturate safely without overflow.
-At a positive limit, the blocked directive is preserved, a located diagnostic is added to `ParseResult::warnings()`, and parsing continues.
+At a positive limit, the blocked directive is preserved, a located content-recovery warning is added to `ParseResult::warnings()`, and parsing continues.
 Only an exact `include::` directive is processed; block macro names that merely begin with `include` remain ordinary content without include diagnostics.
 Declarations in document content are consumed but cannot change or unset the trusted value and do not appear as `Block::DocumentAttribute` nodes in the AST.
 

@@ -17,7 +17,7 @@ use bitflags::bitflags;
 
 /// Expand known attribute references, leaving unresolved references unchanged.
 ///
-/// The result borrows `text` when no reference is replaced.
+/// The result borrows `text` when no reference is replaced or escape removed.
 #[must_use]
 pub fn substitute_attributes<'text>(
     text: &'text str,

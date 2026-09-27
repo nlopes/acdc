@@ -122,6 +122,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Cell catalogs share preceding terms with the containing document; later terms
   remain excluded.
 
+- Escaped attribute references such as `\{name}` stay literal when expanding
+  source-block text with `subs=attributes`, matching asciidoctor.
+
 - References resolved within an included document keep local fallback text,
   including IDs with punctuation. Document-top references use `[^top]` when
   the document has no title or reference label.

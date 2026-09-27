@@ -346,8 +346,33 @@ pub enum Block<'a> {
 }
 
 impl<'a> Block<'a> {
+    /// The source location of this block.
+    #[must_use]
+    pub fn location(&self) -> &Location {
+        match self {
+            Block::Section(s) => &s.location,
+            Block::Paragraph(p) => &p.location,
+            Block::UnorderedList(l) => &l.location,
+            Block::OrderedList(l) => &l.location,
+            Block::DescriptionList(l) => &l.location,
+            Block::CalloutList(l) => &l.location,
+            Block::DelimitedBlock(d) => &d.location,
+            Block::Admonition(a) => &a.location,
+            Block::TableOfContents(t) => &t.location,
+            Block::DiscreteHeader(h) => &h.location,
+            Block::DocumentAttribute(a) => &a.location,
+            Block::ThematicBreak(tb) => &tb.location,
+            Block::PageBreak(pb) => &pb.location,
+            Block::Image(i) => &i.location,
+            Block::Audio(a) => &a.location,
+            Block::Video(v) => &v.location,
+            Block::Comment(c) => &c.location,
+        }
+    }
+
     /// This block's metadata, for the blocks that carry any.
-    pub(crate) fn metadata(&self) -> Option<&BlockMetadata<'a>> {
+    #[must_use]
+    pub fn metadata(&self) -> Option<&BlockMetadata<'a>> {
         match self {
             Block::Section(block) => Some(&block.metadata),
             Block::DelimitedBlock(block) => Some(&block.metadata),
@@ -437,33 +462,9 @@ impl<'a> Block<'a> {
     }
 }
 
-impl Locateable for Block<'_> {
-    fn location(&self) -> &Location {
-        match self {
-            Block::Section(s) => &s.location,
-            Block::Paragraph(p) => &p.location,
-            Block::UnorderedList(l) => &l.location,
-            Block::OrderedList(l) => &l.location,
-            Block::DescriptionList(l) => &l.location,
-            Block::CalloutList(l) => &l.location,
-            Block::DelimitedBlock(d) => &d.location,
-            Block::Admonition(a) => &a.location,
-            Block::TableOfContents(t) => &t.location,
-            Block::DiscreteHeader(h) => &h.location,
-            Block::DocumentAttribute(a) => &a.location,
-            Block::ThematicBreak(tb) => &tb.location,
-            Block::PageBreak(pb) => &pb.location,
-            Block::Image(i) => &i.location,
-            Block::Audio(a) => &a.location,
-            Block::Video(v) => &v.location,
-            Block::Comment(c) => &c.location,
-        }
-    }
-}
-
 impl Block<'_> {
     /// Mutable access to this block's own location (the post-parse source remap
-    /// pass rewrites it). Counterpart to [`Locateable::location`].
+    /// pass rewrites it). Counterpart to [`Self::location`].
     pub(crate) fn location_mut(&mut self) -> &mut Location {
         match self {
             Block::Section(s) => &mut s.location,
@@ -673,13 +674,23 @@ impl Serialize for TableOfContents<'_> {
 }
 
 /// A `Paragraph` represents a paragraph in a document.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct Paragraph<'a> {
     pub metadata: BlockMetadata<'a>,
     pub title: Title<'a>,
     pub content: Vec<InlineNode<'a>>,
     pub location: Location,
+    pub(crate) source_text: Option<&'a str>,
+}
+
+impl PartialEq for Paragraph<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata == other.metadata
+            && self.title == other.title
+            && self.content == other.content
+            && self.location == other.location
+    }
 }
 
 impl<'a> Paragraph<'a> {
@@ -691,7 +702,17 @@ impl<'a> Paragraph<'a> {
             title: Title::default(),
             content,
             location,
+            source_text: None,
         }
+    }
+
+    /// The paragraph body after document preprocessing, before inline substitutions.
+    ///
+    /// Absent for programmatically constructed paragraphs. This text is not part
+    /// of ASG serialization or semantic equality.
+    #[must_use]
+    pub fn source_text(&self) -> Option<&'a str> {
+        self.source_text
     }
 
     /// Set the metadata.
@@ -710,7 +731,7 @@ impl<'a> Paragraph<'a> {
 }
 
 /// A `DelimitedBlock` represents a delimited block in a document.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 #[non_exhaustive]
 pub struct DelimitedBlock<'a> {
     pub metadata: BlockMetadata<'a>,
@@ -720,6 +741,19 @@ pub struct DelimitedBlock<'a> {
     pub location: Location,
     pub open_delimiter_location: Option<Location>,
     pub close_delimiter_location: Option<Location>,
+    pub(crate) source_text: Option<&'a str>,
+}
+
+impl PartialEq for DelimitedBlock<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.metadata == other.metadata
+            && self.inner == other.inner
+            && self.delimiter == other.delimiter
+            && self.title == other.title
+            && self.location == other.location
+            && self.open_delimiter_location == other.open_delimiter_location
+            && self.close_delimiter_location == other.close_delimiter_location
+    }
 }
 
 impl<'a> DelimitedBlock<'a> {
@@ -734,7 +768,18 @@ impl<'a> DelimitedBlock<'a> {
             location,
             open_delimiter_location: None,
             close_delimiter_location: None,
+            source_text: None,
         }
+    }
+
+    /// The body after document preprocessing, before inline substitutions.
+    ///
+    /// Delimiters and metadata are excluded; a newline before the closing delimiter
+    /// is retained. Absent for programmatically constructed or synthetic blocks.
+    /// This text is not part of ASG serialization or semantic equality.
+    #[must_use]
+    pub fn source_text(&self) -> Option<&'a str> {
+        self.source_text
     }
 
     /// Set the metadata.

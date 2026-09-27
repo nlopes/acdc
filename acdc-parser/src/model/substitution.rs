@@ -330,6 +330,28 @@ impl Serialize for SubstitutionSpec {
 
 #[cfg(feature = "pre-spec-subs")]
 impl SubstitutionSpec {
+    pub(crate) fn contains(&self, substitution: &Substitution, defaults: &[Substitution]) -> bool {
+        match self {
+            Self::Explicit(substitutions) => substitutions.contains(substitution),
+            // The last operation affecting a substitution determines its membership.
+            Self::Modifiers(operations) => operations
+                .iter()
+                .rev()
+                .find_map(|operation| {
+                    let (affected, enabled) = match operation {
+                        SubstitutionOp::Append(affected) | SubstitutionOp::Prepend(affected) => {
+                            (affected, true)
+                        }
+                        SubstitutionOp::Remove(affected) => (affected, false),
+                    };
+                    substitution_members(affected, GroupContext::Block)
+                        .contains(substitution)
+                        .then_some(enabled)
+                })
+                .unwrap_or_else(|| defaults.contains(substitution)),
+        }
+    }
+
     /// Apply modifier operations to a default substitution list.
     ///
     /// This is used by converters to resolve modifiers with the appropriate baseline.
@@ -630,6 +652,37 @@ mod group_tests {
 mod tests {
     use super::*;
     use crate::AttributeValue;
+
+    proptest::proptest! {
+        #[test]
+        fn membership_matches_resolved_modifier_order(
+            operations in proptest::collection::vec((0_usize..9, 0_u8..3), 0..20),
+        ) {
+            let substitutions = [
+                Substitution::SpecialChars, Substitution::Attributes,
+                Substitution::Replacements, Substitution::Macros,
+                Substitution::PostReplacements, Substitution::Quotes,
+                Substitution::Callouts, Substitution::Normal, Substitution::Verbatim,
+            ];
+            let operations = operations.into_iter().filter_map(|(index, operation)| {
+                substitutions.get(index).map(|substitution| match operation {
+                    0 => SubstitutionOp::Append(substitution.clone()),
+                    1 => SubstitutionOp::Prepend(substitution.clone()),
+                    _ => SubstitutionOp::Remove(substitution.clone()),
+                })
+            }).collect();
+            let spec = SubstitutionSpec::Modifiers(operations);
+            for defaults in [NORMAL, VERBATIM, &[]] {
+                let resolved = spec.resolve(defaults);
+                for substitution in &substitutions {
+                    proptest::prop_assert_eq!(
+                        spec.contains(substitution, defaults),
+                        resolved.contains(substitution),
+                    );
+                }
+            }
+        }
+    }
 
     // Helper to extract explicit list from SubstitutionSpec
     #[allow(clippy::panic)]
@@ -1195,9 +1248,14 @@ mod tests {
     }
 }
 
-/// Expand known attribute references, leaving unresolved references unchanged.
+/// Expand known attribute references once, leaving unresolved references unchanged.
 ///
-/// The returned text borrows the input when no reference is replaced.
+/// Names contain one or more ASCII letters, digits, underscores, or hyphens.
+/// A backslash before a valid reference is removed and protects that reference
+/// from lookup. Only valid, unescaped references call `lookup`; inserted values
+/// are not scanned again. Other text and line endings are preserved.
+///
+/// The result borrows the input when no reference is replaced or escape removed.
 #[must_use]
 pub fn substitute_attributes<'text, 'value>(
     text: &'text str,
@@ -1206,14 +1264,30 @@ pub fn substitute_attributes<'text, 'value>(
     let mut remaining = text;
     let mut unwritten = text;
     let mut output: Option<String> = None;
-    while let Some((_, candidate)) = remaining.split_once('{') {
-        let Some((name, rest)) = candidate.split_once('}') else {
-            break;
+    while let Some((prefix, candidate)) = remaining.split_once('{') {
+        let name_len = candidate
+            .bytes()
+            .take_while(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'-'))
+            .count();
+        let (name, after_name) = candidate.split_at(name_len);
+        let Some(rest) = after_name.strip_prefix('}') else {
+            remaining = after_name;
+            continue;
         };
         remaining = rest;
-        if let Some(value) = lookup(name) {
+        if name.is_empty() {
+            continue;
+        }
+        let prefix_len = unwritten.len() - candidate.len() - 1;
+        if prefix.ends_with('\\') {
             let output = output.get_or_insert_with(|| String::with_capacity(text.len()));
-            let prefix_len = unwritten.len() - candidate.len() - 1;
+            output.push_str(unwritten.split_at(prefix_len - 1).0);
+            output.push('{');
+            output.push_str(name);
+            output.push('}');
+            unwritten = rest;
+        } else if let Some(value) = lookup(name) {
+            let output = output.get_or_insert_with(|| String::with_capacity(text.len()));
             output.push_str(unwritten.split_at(prefix_len).0);
             let _ = value.write_text(output);
             unwritten = rest;
@@ -1225,5 +1299,126 @@ pub fn substitute_attributes<'text, 'value>(
             Cow::Owned(output)
         }
         None => Cow::Borrowed(text),
+    }
+}
+
+#[cfg(test)]
+mod attribute_substitution_tests {
+    use std::borrow::Cow;
+
+    use crate::{DocumentAttributeValue, Options};
+
+    use super::substitute_attributes;
+
+    #[rstest::rstest]
+    #[case(r"\{shell}", "{shell}")]
+    #[case(r"\\{shell}", r"\{shell}")]
+    #[case(r"\\\{missing}", r"\\{missing}")]
+    fn escaped_references_do_not_call_lookup(#[case] input: &str, #[case] expected: &str) {
+        let value = DocumentAttributeValue::from("unexpected");
+        let mut names = Vec::new();
+        let output = substitute_attributes(input, |name| {
+            names.push(name.to_owned());
+            Some(&value)
+        });
+        assert_eq!(output, expected);
+        assert!(names.is_empty());
+    }
+
+    #[rstest::rstest]
+    #[case("λ plain\r\ntext\n", &[])]
+    #[case("{missing}", &["missing"])]
+    #[case("{{missing}}", &["missing"])]
+    #[case("{} {bad name} {name.part} {café} {counter:n}", &[])]
+    #[case(r"\{bad name} {shell\} ${shell:-fallback}", &[])]
+    #[case("{unfinished", &[])]
+    fn unchanged_text_stays_borrowed(#[case] input: &str, #[case] expected_names: &[&str]) {
+        let mut names = Vec::new();
+        let output = substitute_attributes(input, |name| {
+            names.push(name.to_owned());
+            None
+        });
+        assert!(matches!(output, Cow::Borrowed(value) if std::ptr::eq(value, input)));
+        assert_eq!(names, expected_names);
+    }
+
+    #[test]
+    fn adjacent_escaped_known_and_unknown_references_are_distinct() {
+        let value = DocumentAttributeValue::from("zsh");
+        let mut names = Vec::new();
+        let output = substitute_attributes(r"{shell}\{shell}{missing}{shell}", |name| {
+            names.push(name.to_owned());
+            (name == "shell").then_some(&value)
+        });
+        assert_eq!(output, "zsh{shell}{missing}zsh");
+        assert_eq!(names, ["shell", "missing", "shell"]);
+    }
+
+    #[rstest::rstest]
+    #[case("{{shell}}", "{zsh}", 1)]
+    #[case("{outer{shell}}", "{outerzsh}", 1)]
+    #[case(r"\{{shell}}", r"\{zsh}", 1)]
+    #[case(r"{\{shell}}", "{{shell}}", 0)]
+    #[case(r"\{outer{shell}}", r"\{outerzsh}", 1)]
+    #[case("{é{shell}}", "{ézsh}", 1)]
+    fn valid_inner_references_expand_once(
+        #[case] input: &str,
+        #[case] expected: &str,
+        #[case] calls: usize,
+    ) {
+        let value = DocumentAttributeValue::from("zsh");
+        let mut names = Vec::new();
+        let output = substitute_attributes(input, |name| {
+            names.push(name.to_owned());
+            Some(&value)
+        });
+        assert_eq!(output, expected);
+        assert_eq!(names, vec!["shell"; calls]);
+    }
+
+    #[test]
+    fn names_follow_the_parser_reference_grammar() {
+        let value = DocumentAttributeValue::from("x");
+        let mut names = Vec::new();
+        let output = substitute_attributes("{_}{-}{0}{A-b_2}", |name| {
+            names.push(name.to_owned());
+            Some(&value)
+        });
+        assert_eq!(output, "xxxx");
+        assert_eq!(names, ["_", "-", "0", "A-b_2"]);
+    }
+
+    #[test]
+    fn replacement_text_is_not_scanned_again() {
+        let first = DocumentAttributeValue::from("{second}\\{third}\r\n");
+        let second = DocumentAttributeValue::from("done");
+        let mut names = Vec::new();
+        let output = substitute_attributes("{first}/{second}", |name| {
+            names.push(name.to_owned());
+            match name {
+                "first" => Some(&first),
+                "second" => Some(&second),
+                _ => None,
+            }
+        });
+        assert_eq!(output, "{second}\\{third}\r\n/done");
+        assert_eq!(names, ["first", "second"]);
+    }
+
+    #[test]
+    fn values_keep_lexical_spelling_and_empty_values_are_present() -> Result<(), crate::Error> {
+        let options = Options::builder()
+            .with_attribute("max-include-depth", "003")
+            .with_attribute("quoted", "\"word\"")
+            .with_attribute("empty", "")
+            .with_attribute("present", true)
+            .build()?;
+        let attributes = options.document_attributes();
+        let output = substitute_attributes(
+            "\r\n{max-include-depth}/{quoted}/{empty}/{present}\n",
+            |name| attributes.get(name),
+        );
+        assert_eq!(output, "\r\n003/\"word\"//\n");
+        Ok(())
     }
 }
