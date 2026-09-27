@@ -1,23 +1,29 @@
 //! Command construction and execution.
 
-use std::borrow::Borrow;
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap, HashSet};
-use std::fmt;
-use std::io::Write as _;
+use std::{
+    borrow::{Borrow, Cow},
+    cmp::Reverse,
+    collections::{BinaryHeap, HashMap, HashSet},
+    ffi::OsString,
+    fmt,
+    io::Write as _,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
-use acdc_parser::Location;
-use petgraph::graph::{DiGraph, NodeIndex};
-use petgraph::prelude::Direction;
-use petgraph::visit::{Dfs, EdgeRef, Reversed};
+use acdc_parser::SourceLocation;
+use petgraph::{
+    graph::{DiGraph, NodeIndex},
+    prelude::Direction,
+    visit::{Dfs, EdgeRef, Reversed},
+};
 
 const DEFAULT_INTERPRETER: &str = "sh";
 
 /// A unique identifier for a command.
 ///
-/// Ids are restricted to ASCII alphanumerics, `-`, and `_`, so they are safe to use unquoted on
-/// the command line and as `AsciiDoc` element ids. Construct via [`CommandId::new`] or
-/// [`str::parse`]; the inner string is validated on construction and never exposed for mutation.
+/// IDs contain only ASCII alphanumerics, `-`, and `_`, and must not start with `-`.
+/// Construct via [`CommandId::new`] or [`str::parse`].
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct CommandId(String);
 
@@ -26,7 +32,8 @@ impl CommandId {
     ///
     /// # Errors
     ///
-    /// Returns [`InvalidCommandId`] if `id` is empty, starts with `-`, or contains whitespace.
+    /// Returns [`InvalidCommandId`] if `id` is empty, starts with `-`, or contains
+    /// a character outside ASCII alphanumerics, `-`, and `_`.
     pub fn new(id: impl Into<String>) -> Result<Self, InvalidCommandId> {
         let id: String = id.into();
         if id.is_empty() {
@@ -118,24 +125,19 @@ pub struct CommandBlock {
     pub metadata: CommandMetadata,
     /// The script body.
     pub script: String,
-    /// Where the command block starts in the document. Positions retain the
-    /// `include::` chain for content that came from an included file.
-    pub location: Location,
+    /// The resolved source file and original document location of this command.
+    pub location: SourceLocation,
 }
 
 impl CommandBlock {
-    /// Construct a [`CommandBlock`], defaulting `interpreter` to `"sh"` when absent.
+    /// Preserve `script` unchanged and default `interpreter` to `"sh"` when absent.
     #[must_use]
     pub fn new(
         id: CommandId,
         script: String,
         interpreter: Option<String>,
-        location: Location,
+        location: SourceLocation,
     ) -> Self {
-        let mut script = script;
-        if !script.ends_with('\n') {
-            script.push('\n');
-        }
         Self {
             metadata: CommandMetadata {
                 id,
@@ -154,37 +156,55 @@ impl CommandBlock {
         self
     }
 
-    /// Execute the script.
-    ///
-    /// The script is written to a freshly created temporary file with owner-only permissions, and
-    /// the configured interpreter is invoked with that file as its argument. The interpreter is
-    /// invoked explicitly rather than through a shebang and the OS loader: shebangs are honored
-    /// only on Unix and require the executable bit, which would ignore
-    /// [`CommandMetadata::interpreter`]. Explicit invocation is portable across platforms and
-    /// interpreters.
-    ///
-    /// The command runs in the current working directory of the calling process and inherits its
-    /// environment. The temporary file is deleted once the child exits; on Windows a file held
-    /// open by another process cannot be unlinked, so the child's exit is the earliest safe
-    /// deletion point.
+    /// Execute the script with inherited working directory, environment, and stdio.
     ///
     /// # Errors
     ///
-    /// Returns [`ExecError::TempFile`] if the temporary file cannot be created or written,
-    /// [`ExecError::Spawn`] if the interpreter cannot be spawned, or [`ExecError::Failed`] if the
-    /// process exits with a non-zero status.
+    /// Returns [`ExecError`] if preparing, running, or waiting for the script fails.
     pub fn execute(&self) -> Result<(), ExecError> {
-        use std::process::Command;
+        self.execute_with(&ProcessOptions::default())
+    }
 
+    /// Execute the exact script bytes with options applied only to the child process.
+    ///
+    /// The interpreter receives a temporary script file as one argument. Stdio is inherited,
+    /// and the temporary file is removed after the child exits. Scripts are not sandboxed.
+    /// Explicit relative interpreter paths are resolved from the caller's directory, including
+    /// when a child working directory is set. Bare interpreter names use the operating system's
+    /// executable search.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ExecError::TempFile`] if the script cannot be written, [`ExecError::Process`]
+    /// if starting or waiting for the interpreter fails, or [`ExecError::Failed`] if the
+    /// child exits unsuccessfully.
+    pub fn execute_with(&self, options: &ProcessOptions) -> Result<(), ExecError> {
         let mut tmp = tempfile::NamedTempFile::new().map_err(ExecError::TempFile)?;
         tmp.write_all(self.script.as_bytes())
             .map_err(ExecError::TempFile)?;
         tmp.flush().map_err(ExecError::TempFile)?;
 
-        let status = Command::new(&self.metadata.interpreter)
+        let interpreter = Path::new(&self.metadata.interpreter);
+        let resolved_interpreter = if options.current_dir.is_some()
+            && interpreter.is_relative()
+            && self.metadata.interpreter.contains(std::path::is_separator)
+        {
+            Some(
+                std::env::current_dir()
+                    .map_err(ExecError::Process)?
+                    .join(interpreter),
+            )
+        } else {
+            None
+        };
+        let mut child = Command::new(resolved_interpreter.as_deref().unwrap_or(interpreter));
+        child
             .arg(tmp.path())
-            .status()
-            .map_err(ExecError::Spawn)?;
+            .envs(options.env.iter().map(|(name, value)| (name, value)));
+        if let Some(directory) = &options.current_dir {
+            child.current_dir(directory);
+        }
+        let status = child.status().map_err(ExecError::Process)?;
 
         drop(tmp);
 
@@ -196,17 +216,37 @@ impl CommandBlock {
     }
 }
 
+/// Child-process settings. Defaults inherit the caller's working directory and environment.
+#[derive(Clone, Debug, Default)]
+pub struct ProcessOptions {
+    /// Working directory for each child; relative paths are resolved from the caller's directory.
+    pub current_dir: Option<PathBuf>,
+    /// Environment overrides, applied in order so the last value for a name wins.
+    pub env: Vec<(OsString, OsString)>,
+}
+
+/// Policy and child-process settings for an execution plan.
+#[derive(Clone, Debug, Default)]
+pub struct ExecutionOptions {
+    /// Stop all remaining commands after the first unsuccessful child exit.
+    ///
+    /// Infrastructure errors and signal termination always stop the plan.
+    pub exit_on_failure: bool,
+    /// Working directory and environment applied to each child.
+    pub process: ProcessOptions,
+}
+
 /// Error returned when a [`CommandBlock`] fails to execute.
 #[derive(Debug, thiserror::Error)]
 pub enum ExecError {
     /// The temporary script file could not be created or written.
     #[error("could not write temporary script file: {0}")]
     TempFile(#[source] std::io::Error),
-    /// The interpreter could not be spawned.
-    #[error("could not spawn interpreter: {0}")]
-    Spawn(#[source] std::io::Error),
-    /// The interpreter ran but exited with a non-zero status.
-    #[error("script exited with {0}")]
+    /// Starting or waiting for the interpreter failed.
+    #[error("could not run interpreter: {0}")]
+    Process(#[source] std::io::Error),
+    /// The child exited unsuccessfully, including termination by a signal.
+    #[error("exited with {0}")]
     Failed(std::process::ExitStatus),
 }
 
@@ -214,11 +254,25 @@ pub enum ExecError {
 #[derive(Debug, thiserror::Error)]
 pub enum BuildError {
     /// Two commands share the same id.
-    #[error("duplicate command id: {0}")]
-    DuplicateId(CommandId),
+    #[error("duplicate command id: {id}")]
+    DuplicateId {
+        /// The repeated id.
+        id: CommandId,
+        /// The first declaration.
+        first_location: Box<SourceLocation>,
+        /// The duplicate declaration.
+        duplicate_location: Box<SourceLocation>,
+    },
     /// A declared dependency does not name any added command.
-    #[error("unknown dependency: {0}")]
-    UnknownDep(CommandId),
+    #[error("command `{command}` declares unknown dependency: {dep}")]
+    UnknownDep {
+        /// The command declaring the dependency.
+        command: CommandId,
+        /// The dependency that could not be resolved.
+        dep: CommandId,
+        /// The dependent command's declaration.
+        location: Box<SourceLocation>,
+    },
     /// A dependency edge would introduce a cycle.
     ///
     /// The reported edge runs from `dep` (the prerequisite) to `command` (the dependent) and is
@@ -229,7 +283,37 @@ pub enum BuildError {
         command: CommandId,
         /// The prerequisite that closes the cycle.
         dep: CommandId,
+        /// The dependent command's declaration.
+        command_location: Box<SourceLocation>,
+        /// The prerequisite's declaration.
+        dep_location: Box<SourceLocation>,
     },
+}
+
+impl BuildError {
+    /// The declaration that caused graph validation to fail.
+    #[must_use]
+    pub fn source_location(&self) -> &SourceLocation {
+        match self {
+            Self::DuplicateId {
+                duplicate_location, ..
+            } => duplicate_location,
+            Self::UnknownDep { location, .. } => location,
+            Self::Cycle {
+                command_location, ..
+            } => command_location,
+        }
+    }
+
+    /// The other declaration involved in a duplicate id or dependency cycle.
+    #[must_use]
+    pub fn related_location(&self) -> Option<&SourceLocation> {
+        match self {
+            Self::DuplicateId { first_location, .. } => Some(first_location),
+            Self::Cycle { dep_location, .. } => Some(dep_location),
+            Self::UnknownDep { .. } => None,
+        }
+    }
 }
 
 /// Error returned when a command id is not found in a [`CommandGraph`].
@@ -261,28 +345,26 @@ impl CommandGraph {
         self.index.contains_key(id)
     }
 
-    fn collect_queue(&self, filter: &HashSet<NodeIndex>) -> CommandQueue {
-        // Ordering is load-bearing: `order` is topological and filtering by membership
-        // preserves it. Do not iterate `filter`.
-        let queue: Vec<CommandBlock> = self
-            .order
-            .iter()
-            .filter(|idx| filter.contains(idx))
-            .map(|idx| self.graph[*idx].clone())
-            .collect();
-        CommandQueue(queue.into_iter())
+    /// Select every command in execution order without copying script bodies.
+    #[must_use]
+    pub fn plan_all(&self) -> ExecutionPlan<'_> {
+        ExecutionPlan {
+            graph: self,
+            order: Cow::Borrowed(&self.order),
+        }
     }
 
-    /// Build a [`CommandQueue`] for the given commands and all of their transitive dependencies,
-    /// in execution order.
+    /// Select the given commands and their transitive dependencies in execution order.
+    ///
+    /// Each selected command appears once. The plan borrows script bodies from this graph.
     ///
     /// # Errors
     ///
     /// Returns [`UnknownCommand`] if any id in `ids` is not in the graph.
-    pub fn queue_for(&self, ids: &[CommandId]) -> Result<CommandQueue, UnknownCommand> {
+    pub fn plan_for(&self, ids: &[CommandId]) -> Result<ExecutionPlan<'_>, UnknownCommand> {
         let rev = Reversed(&self.graph);
         let mut dfs = Dfs::empty(rev);
-        let mut relevant: HashSet<NodeIndex> = HashSet::new();
+        let mut relevant = vec![false; self.graph.node_count()];
 
         // Reuse one DFS so shared ancestors are visited once; `move_to` resets the stack while
         // retaining the visitor's visited set.
@@ -294,11 +376,22 @@ impl CommandGraph {
 
             dfs.move_to(target);
             while let Some(node) = dfs.next(rev) {
-                relevant.insert(node);
+                if let Some(selected) = relevant.get_mut(node.index()) {
+                    *selected = true;
+                }
             }
         }
 
-        Ok(self.collect_queue(&relevant))
+        let order = self
+            .order
+            .iter()
+            .copied()
+            .filter(|node| relevant.get(node.index()) == Some(&true))
+            .collect();
+        Ok(ExecutionPlan {
+            graph: self,
+            order: Cow::Owned(order),
+        })
     }
 }
 
@@ -344,8 +437,12 @@ impl CommandGraphBuilder {
         let mut edges: Vec<(NodeIndex, Vec<CommandId>)> = Vec::with_capacity(self.pending.len());
         for (block, deps) in self.pending {
             let id = block.metadata.id.clone();
-            if graph.index.contains_key::<str>(id.borrow()) {
-                return Err(BuildError::DuplicateId(id));
+            if let Some(&first) = graph.index.get::<str>(id.borrow()) {
+                return Err(BuildError::DuplicateId {
+                    id,
+                    first_location: Box::new(graph.graph[first].location.clone()),
+                    duplicate_location: Box::new(block.location),
+                });
             }
             let node = graph.graph.add_node(block);
             graph.index.insert(id, node);
@@ -356,14 +453,19 @@ impl CommandGraphBuilder {
         for (node, deps) in edges {
             let mut seen: HashSet<NodeIndex> = HashSet::new();
             for dep in deps {
-                let dep_node = *graph
-                    .index
-                    .get::<str>(dep.borrow())
-                    .ok_or_else(|| BuildError::UnknownDep(dep.clone()))?;
+                let dep_node = *graph.index.get::<str>(dep.borrow()).ok_or_else(|| {
+                    BuildError::UnknownDep {
+                        command: graph.graph[node].metadata.id.clone(),
+                        dep: dep.clone(),
+                        location: Box::new(graph.graph[node].location.clone()),
+                    }
+                })?;
                 if dep_node == node {
                     return Err(BuildError::Cycle {
                         command: graph.graph[node].metadata.id.clone(),
                         dep,
+                        command_location: Box::new(graph.graph[node].location.clone()),
+                        dep_location: Box::new(graph.graph[node].location.clone()),
                     });
                 }
                 // A dep listed twice would add a parallel edge; skip the repeat.
@@ -375,29 +477,30 @@ impl CommandGraphBuilder {
         }
 
         // Pass 3: Kahn's algorithm, smallest insertion index first, so commands
-        // without dependencies keep document order. Leftover indegree means the
-        // dependencies are cyclic; report the lowest-indexed cycle member with
-        // one of its prerequisites.
+        // without dependencies keep document order. Remaining prerequisite edges
+        // after sorting contain a cycle.
         let count = graph.graph.node_count();
-        let mut indegree: HashMap<usize, usize> = HashMap::new();
+        let mut indegree = vec![0_usize; count];
         for edge in graph.graph.edge_references() {
-            *indegree.entry(edge.target().index()).or_default() += 1;
+            if let Some(degree) = indegree.get_mut(edge.target().index()) {
+                *degree += 1;
+            }
         }
-        let mut ready: BinaryHeap<Reverse<usize>> = (0..count)
-            .filter(|i| !indegree.contains_key(i))
-            .map(Reverse)
+        let mut ready: BinaryHeap<Reverse<usize>> = indegree
+            .iter()
+            .enumerate()
+            .filter(|(_, degree)| **degree == 0)
+            .map(|(index, _)| Reverse(index))
             .collect();
         graph.order = Vec::with_capacity(count);
         while let Some(Reverse(i)) = ready.pop() {
             let node = NodeIndex::new(i);
             for successor in graph.graph.neighbors(node) {
-                match indegree.remove(&successor.index()) {
-                    Some(1) => ready.push(Reverse(successor.index())),
-                    // `Some(count)` is at least 2 here; the decrement keeps it positive.
-                    Some(count) => {
-                        indegree.insert(successor.index(), count - 1);
+                if let Some(degree) = indegree.get_mut(successor.index()) {
+                    *degree -= 1;
+                    if *degree == 0 {
+                        ready.push(Reverse(successor.index()));
                     }
-                    None => {}
                 }
             }
             graph.order.push(node);
@@ -407,6 +510,8 @@ impl CommandGraphBuilder {
             return Err(BuildError::Cycle {
                 command: graph.graph[command].metadata.id.clone(),
                 dep: graph.graph[dep].metadata.id.clone(),
+                command_location: Box::new(graph.graph[command].location.clone()),
+                dep_location: Box::new(graph.graph[dep].location.clone()),
             });
         }
 
@@ -416,12 +521,11 @@ impl CommandGraphBuilder {
 
 fn cycle_edge(
     graph: &DiGraph<CommandBlock, ()>,
-    remaining_indegree: &HashMap<usize, usize>,
+    remaining_indegree: &[usize],
 ) -> (NodeIndex, NodeIndex) {
     let start = remaining_indegree
-        .keys()
-        .copied()
-        .min()
+        .iter()
+        .position(|degree| *degree > 0)
         .map_or_else(|| NodeIndex::new(0), NodeIndex::new);
     let mut visited = HashSet::new();
     let mut command = start;
@@ -430,7 +534,11 @@ fn cycle_edge(
         visited.insert(command);
         let dep = graph
             .neighbors_directed(command, Direction::Incoming)
-            .filter(|node| remaining_indegree.contains_key(&node.index()))
+            .filter(|node| {
+                remaining_indegree
+                    .get(node.index())
+                    .is_some_and(|degree| *degree > 0)
+            })
             .min()
             .unwrap_or(command);
         if visited.contains(&dep) {
@@ -440,42 +548,148 @@ fn cycle_edge(
     }
 }
 
-impl IntoIterator for CommandGraph {
-    type Item = CommandBlock;
-    type IntoIter = CommandQueue;
-
-    fn into_iter(mut self) -> Self::IntoIter {
-        let (nodes, _edges) = self.graph.into_nodes_edges();
-        let mut blocks: Vec<Option<CommandBlock>> =
-            nodes.into_iter().map(|n| Some(n.weight)).collect();
-        // `order` holds every node index exactly once, so every slot is filled.
-        let queue: Vec<CommandBlock> = self
-            .order
-            .drain(..)
-            .filter_map(|idx| blocks.get_mut(idx.index()).and_then(Option::take))
-            .collect();
-        CommandQueue(queue.into_iter())
-    }
-}
-
-/// A queue of commands in execution order, produced by [`CommandGraph::queue_for`] or by
-/// iterating a [`CommandGraph`].
+/// Selected commands and their prerequisites, borrowing their scripts from a validated graph.
 #[derive(Debug)]
-pub struct CommandQueue(std::vec::IntoIter<CommandBlock>);
+pub struct ExecutionPlan<'graph> {
+    graph: &'graph CommandGraph,
+    order: Cow<'graph, [NodeIndex]>,
+}
 
-impl Iterator for CommandQueue {
-    type Item = CommandBlock;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
+impl<'graph> ExecutionPlan<'graph> {
+    /// Selected commands in execution order, including their prerequisites.
+    #[must_use]
+    pub fn commands(&self) -> impl ExactSizeIterator<Item = &'graph CommandBlock> + '_ {
+        self.order.iter().map(|node| &self.graph.graph[*node])
     }
 
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
+    /// Number of selected commands, including prerequisites.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.order.len()
+    }
+
+    /// Whether no commands were selected.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.order.is_empty()
+    }
+
+    /// Run commands synchronously and return an outcome for every selected command.
+    ///
+    /// Commands with unsuccessful prerequisites are skipped. Independent commands continue
+    /// after ordinary nonzero exits unless [`ExecutionOptions::exit_on_failure`] is set.
+    /// Infrastructure errors and signal termination always stop all remaining commands.
+    #[must_use]
+    pub fn execute(&self, options: &ExecutionOptions) -> ExecutionReport<'graph> {
+        let mut outcomes = Vec::with_capacity(self.len());
+        let mut succeeded = vec![false; self.graph.graph.node_count()];
+        let mut stopped_after = None;
+
+        for &node in self.order.iter() {
+            let command = &self.graph.graph[node];
+            let state = if let Some(command) = stopped_after {
+                CommandState::Skipped(SkipReason::StoppedAfterFailure { command })
+            } else if let Some(dependency) = self
+                .graph
+                .graph
+                .neighbors_directed(node, Direction::Incoming)
+                .filter(|dependency| succeeded.get(dependency.index()) != Some(&true))
+                .min()
+            {
+                CommandState::Skipped(SkipReason::DependencyFailed {
+                    dependency: &self.graph.graph[dependency].metadata.id,
+                })
+            } else {
+                match command.execute_with(&options.process) {
+                    Ok(()) => {
+                        if let Some(success) = succeeded.get_mut(node.index()) {
+                            *success = true;
+                        }
+                        CommandState::Succeeded
+                    }
+                    Err(error) => {
+                        let must_stop = match &error {
+                            ExecError::Failed(status) => {
+                                options.exit_on_failure || status.code().is_none()
+                            }
+                            ExecError::TempFile(_) | ExecError::Process(_) => true,
+                        };
+                        if must_stop {
+                            stopped_after = Some(&command.metadata.id);
+                        }
+                        CommandState::Failed(error)
+                    }
+                }
+            };
+            outcomes.push(CommandOutcome { command, state });
+        }
+
+        ExecutionReport { outcomes }
     }
 }
 
-impl ExactSizeIterator for CommandQueue {}
+/// Results in plan order, including commands that were skipped.
+#[derive(Debug)]
+pub struct ExecutionReport<'graph> {
+    outcomes: Vec<CommandOutcome<'graph>>,
+}
+
+impl<'graph> ExecutionReport<'graph> {
+    /// Results in the order commands appeared in the plan.
+    #[must_use]
+    pub fn outcomes(&self) -> &[CommandOutcome<'graph>] {
+        &self.outcomes
+    }
+
+    /// Whether every selected command succeeded. An empty plan succeeds.
+    #[must_use]
+    pub fn is_success(&self) -> bool {
+        self.outcomes
+            .iter()
+            .all(|outcome| matches!(outcome.state, CommandState::Succeeded))
+    }
+
+    /// Take the outcomes, preserving structured errors for the caller.
+    #[must_use]
+    pub fn into_outcomes(self) -> Vec<CommandOutcome<'graph>> {
+        self.outcomes
+    }
+}
+
+/// A command's outcome and its source metadata.
+#[derive(Debug)]
+pub struct CommandOutcome<'graph> {
+    /// The command that ran or was skipped.
+    pub command: &'graph CommandBlock,
+    /// The result of executing this command.
+    pub state: CommandState<'graph>,
+}
+
+/// Execution result for one selected command.
+#[derive(Debug)]
+pub enum CommandState<'graph> {
+    /// The child exited successfully.
+    Succeeded,
+    /// Preparing or running the child failed.
+    Failed(ExecError),
+    /// The command was not started.
+    Skipped(SkipReason<'graph>),
+}
+
+/// Why a selected command was not started.
+#[derive(Clone, Copy, Debug)]
+pub enum SkipReason<'graph> {
+    /// A prerequisite failed or was itself skipped.
+    DependencyFailed {
+        /// The first unsuccessful prerequisite in document order.
+        dependency: &'graph CommandId,
+    },
+    /// Execution stopped after an earlier command failed.
+    StoppedAfterFailure {
+        /// The command whose failure stopped execution.
+        command: &'graph CommandId,
+    },
+}
 
 #[cfg(test)]
 #[allow(clippy::unwrap_used, clippy::expect_used, clippy::panic)]

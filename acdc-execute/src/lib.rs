@@ -6,5 +6,6 @@ pub mod command;
 pub use adoc::Error as AdocError;
 pub use command::{
     BuildError, CommandBlock, CommandGraph, CommandGraphBuilder, CommandId, CommandMetadata,
-    CommandQueue, ExecError, InvalidCommandId, UnknownCommand,
+    CommandOutcome, CommandState, ExecError, ExecutionOptions, ExecutionPlan, ExecutionReport,
+    InvalidCommandId, ProcessOptions, SkipReason, UnknownCommand,
 };
