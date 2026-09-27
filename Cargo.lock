@@ -161,6 +161,7 @@ dependencies = [
 name = "acdc-execute"
 version = "0.1.0"
 dependencies = [
+ "acdc-converters-core",
  "acdc-parser",
  "petgraph",
  "rstest",

@@ -12,7 +12,14 @@ publish = false
 [lints]
 workspace = true
 
+[features]
+default = ["pre-spec-subs", "setext"]
+pre-spec-subs = ["acdc-parser/pre-spec-subs", "acdc-converters-core/pre-spec-subs"]
+setext = ["acdc-parser/setext"]
+network = ["acdc-parser/network"]
+
 [dependencies]
+acdc-converters-core.workspace = true
 acdc-parser.workspace = true
 petgraph.workspace = true
 tempfile.workspace = true
