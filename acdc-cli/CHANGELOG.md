@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Warning batches read each referenced source file once, reducing repeated I/O
+  for documents with many warnings, including commands that use `subs=attributes`.
 - `lint -D one-sentence-per-line` now rejects description-list values with
   multiple sentences on one line or a sentence split across lines, including
   values written after the term's delimiter.
@@ -98,9 +100,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page sizes can use portrait or landscape output, `pdf-page-size` accepts
   custom dimensions, `pdf-page-margin` sets per-document margins, and `--strict` makes
   unresolved PDF images or logos fail instead of falling back with a warning.
-- Builds with the `execute` feature expose placeholder exact-ID, regex-ID,
-  dry-run, stop-on-failure, and parser safe-mode options for a future command
-  block runner. Invoking the command is not supported yet.
+- Builds with the `execute` feature run listing and source blocks marked with
+  the `command` role. Use `--id` or `--id-regex` to select commands and their
+  dependencies, `--dry-run` to inspect scripts, and `--list` to see descriptions.
+  `interpreter=` overrides the source language; `--cwd` and repeated `--env`
+  options configure child processes.
+- Command execution preserves literal script text after includes and conditionals;
+  `subs=attributes` or `subs=+attributes` expands document attributes from each
+  command's source position without shell quoting or removing callouts. Missing
+  enabled attributes and incomplete command input fail before any process starts.
+  Dry-run shows the prepared script. Builds without `pre-spec-subs` reject explicit
+  `subs` settings. Failed commands block dependents while independent commands
+  continue; `--exit-on-failure`
+  stops sooner. Source diagnostics identify commands in included files.
 - The `terminal-emulator` build feature renders `[terminal]` session blocks
   through `libghostty-vt` on the `--backend terminal` path. Requires a Zig
   toolchain to build the bundled library, which is statically linked so the

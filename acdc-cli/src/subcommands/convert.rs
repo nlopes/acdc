@@ -690,18 +690,18 @@ trait WarningRenderer {
 
 impl WarningRenderer for [Warning] {
     fn render(&self, context: WarningRenderContext<'_>) {
-        let context = WarningReportContext::new().with_optional_file(context.file);
+        let mut context = WarningReportContext::new().with_optional_file(context.file);
         for warning in self {
-            eprintln!("{:?}", warning.to_report(context));
+            eprintln!("{:?}", warning.to_report(&mut context));
         }
     }
 }
 
 impl WarningRenderer for [acdc_converters_core::Warning] {
     fn render(&self, context: WarningRenderContext<'_>) {
-        let context = WarningReportContext::new().with_optional_file(context.file);
+        let mut context = WarningReportContext::new().with_optional_file(context.file);
         for warning in self {
-            eprintln!("{:?}", warning.to_report(context));
+            eprintln!("{:?}", warning.to_report(&mut context));
         }
     }
 }

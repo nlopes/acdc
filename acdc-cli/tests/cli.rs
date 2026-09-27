@@ -597,7 +597,7 @@ fn execute_dry_run_prints_the_plan_in_dependency_order() -> Result<(), Box<dyn s
     Ok(())
 }
 
-#[cfg(feature = "execute")]
+#[cfg(all(feature = "execute", unix))]
 #[test]
 fn execute_runs_selected_commands() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
@@ -622,7 +622,7 @@ fn execute_runs_selected_commands() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[cfg(feature = "execute")]
+#[cfg(all(feature = "execute", unix))]
 #[test]
 fn execute_failure_returns_a_failing_exit() -> Result<(), Box<dyn std::error::Error>> {
     let temp = tempfile::tempdir()?;
@@ -636,6 +636,370 @@ fn execute_failure_returns_a_failing_exit() -> Result<(), Box<dyn std::error::Er
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr.contains("`fail` exited with"));
     Ok(())
+}
+
+#[cfg(all(feature = "execute", unix))]
+mod execution {
+    use std::path::Path;
+
+    use super::*;
+
+    fn run_document(
+        directory: &Path,
+        source: &str,
+        flags: &[&str],
+    ) -> Result<Output, Box<dyn Error>> {
+        let document = directory.join("commands.adoc");
+        fs::write(&document, source)?;
+        Ok(Command::new(env!("CARGO_BIN_EXE_acdc"))
+            .arg("execute")
+            .arg(&document)
+            .args(flags)
+            .current_dir(directory)
+            .env("ACDC_EXECUTE_INHERITED", "inherited")
+            .output()?)
+    }
+
+    #[test]
+    fn execute_blocks_transitive_dependents_but_runs_independent_commands()
+    -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let output = run_document(
+            directory.path(),
+            concat!(
+                "[.command,id=build]\n----\nexit 7\n----\n\n",
+                "[.command,id=test,deps=build]\n----\ntouch test\n----\n\n",
+                "[.command,id=deploy,deps=test]\n----\ntouch deploy\n----\n\n",
+                "[.command,id=independent]\n----\ntouch independent\n----\n",
+            ),
+            &[],
+        )?;
+        assert_eq!(output.status.code(), Some(1));
+        let stderr = output_text(&output.stderr);
+        assert!(stderr.contains("command `build` exited with"), "{stderr}");
+        assert!(
+            stderr.contains("prerequisite `build` did not succeed"),
+            "{stderr}"
+        );
+        assert!(
+            stderr.contains("prerequisite `test` did not succeed"),
+            "{stderr}"
+        );
+        assert!(!directory.path().join("test").exists());
+        assert!(!directory.path().join("deploy").exists());
+        assert!(directory.path().join("independent").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn execute_exit_on_failure_stops_independent_commands() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let output = run_document(
+            directory.path(),
+            concat!(
+                "[.command,id=bad]\n----\nexit 7\n----\n\n",
+                "[.command,id=after]\n----\ntouch after\n----\n",
+            ),
+            &["--exit-on-failure"],
+        )?;
+        assert_eq!(output.status.code(), Some(1));
+        assert!(!directory.path().join("after").exists());
+        assert!(output_text(&output.stderr).contains("skipped after failure of `bad`"));
+        Ok(())
+    }
+
+    #[test]
+    fn execute_cwd_and_env_override_only_child_settings() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        fs::create_dir(directory.path().join("child"))?;
+        let output = run_document(
+            directory.path(),
+            concat!(
+                "[.command,id=child]\n----\n",
+                "printf '%s|%s' \"$ACDC_EXECUTE_INHERITED\" \"$ACDC_EXECUTE_VALUE\" > value\n----\n",
+            ),
+            &[
+                "--cwd",
+                "child",
+                "--env",
+                "ACDC_EXECUTE_VALUE=first",
+                "--env",
+                "ACDC_EXECUTE_VALUE=last=kept",
+            ],
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("child/value"))?,
+            "inherited|last=kept"
+        );
+        assert!(!directory.path().join("value").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn execute_defaults_inherit_caller_directory_and_environment() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let output = run_document(
+            directory.path(),
+            "[.command,id=defaults]\n----\nprintf '%s' \"$ACDC_EXECUTE_INHERITED\" > inherited\n----\n",
+            &[],
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_eq!(
+            fs::read_to_string(directory.path().join("inherited"))?,
+            "inherited"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn execute_list_includes_prerequisites_and_descriptions_without_running()
+    -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let output = run_document(
+            directory.path(),
+            concat!(
+                "[.command,id=build,description=Compile]\n----\ntouch build\n----\n\n",
+                "[.command,id=test,deps=build]\n----\ntouch test\n----\n",
+            ),
+            &["--list", "--id", "test"],
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_eq!(
+            output_text(&output.stdout),
+            "build (sh): Compile\ntest (sh)\n"
+        );
+        assert!(!directory.path().join("build").exists());
+        assert!(!directory.path().join("test").exists());
+        Ok(())
+    }
+
+    #[test]
+    fn execute_rejects_recovered_source_before_any_child_starts() -> Result<(), Box<dyn Error>> {
+        for source in [
+            "[.command,id=incomplete]\n----\ntouch marker\n",
+            "[.command,id=missing]\n----\ninclude::missing.sh[]\ntouch marker\n----\n",
+        ] {
+            let directory = tempfile::tempdir()?;
+            let output = run_document(directory.path(), source, &[])?;
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{}",
+                output_text(&output.stderr)
+            );
+            assert!(!directory.path().join("marker").exists());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn execute_preserves_callout_text_in_heredocs() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let output = run_document(
+            directory.path(),
+            "[.command,id=literal]\n----\ncat <<'EOF'\n<1>\nEOF\n----\n",
+            &[],
+        )?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_eq!(output.stdout, b"<1>\n");
+        Ok(())
+    }
+
+    #[test]
+    fn execute_keeps_attribute_references_literal_by_default() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let source = concat!(
+            "= Commands\n:value: expanded\n\n",
+            "[.command,id=literal]\n----\n",
+            "printf '%s' '{value}|\\{value}|<1>'\n----\n",
+        );
+        let dry_run = run_document(directory.path(), source, &["--dry-run"])?;
+        assert!(dry_run.status.success(), "{}", output_text(&dry_run.stderr));
+        assert_eq!(
+            output_text(&dry_run.stdout),
+            "literal (sh)\n  printf '%s' '{value}|\\{value}|<1>'\n"
+        );
+        let executed = run_document(directory.path(), source, &[])?;
+        assert!(
+            executed.status.success(),
+            "{}",
+            output_text(&executed.stderr)
+        );
+        assert_eq!(executed.stdout, b"{value}|\\{value}|<1>");
+        Ok(())
+    }
+
+    #[cfg(feature = "pre-spec-subs")]
+    #[test]
+    fn execute_dry_run_and_interpreter_use_the_same_attribute_substitutions()
+    -> Result<(), Box<dyn Error>> {
+        for substitutions in ["attributes", "+attributes", "attributes+", "normal"] {
+            let directory = tempfile::tempdir()?;
+            let source = format!(
+                "= Commands\n:value: hello <1>\n:empty:\n\n\
+                 [.command,id=expanded,subs=\"{substitutions}\"]\n----\n\
+                 printf '%s|%s|%s|%s' '{{value}}' '\\{{missing}}' '{{empty}}' '<2>'\n----\n"
+            );
+            let dry_run = run_document(directory.path(), &source, &["--dry-run"])?;
+            assert!(
+                dry_run.status.success(),
+                "{substitutions}: {}",
+                output_text(&dry_run.stderr)
+            );
+            assert_eq!(
+                output_text(&dry_run.stdout),
+                "expanded (sh)\n  printf '%s|%s|%s|%s' 'hello <1>' '{missing}' '' '<2>'\n",
+                "{substitutions}"
+            );
+            let executed = run_document(directory.path(), &source, &[])?;
+            assert!(
+                executed.status.success(),
+                "{substitutions}: {}",
+                output_text(&executed.stderr)
+            );
+            assert_eq!(
+                executed.stdout, b"hello <1>|{missing}||<2>",
+                "{substitutions}"
+            );
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "pre-spec-subs")]
+    #[test]
+    fn execute_keeps_disabled_attribute_substitutions_literal() -> Result<(), Box<dyn Error>> {
+        for substitutions in ["none", "-attributes"] {
+            let directory = tempfile::tempdir()?;
+            let source = format!(
+                "= Commands\n:value: expanded\n\n\
+                 [.command,id=literal,subs=\"{substitutions}\"]\n----\n\
+                 printf '%s' '{{value}}|\\{{value}}|<1>'\n----\n"
+            );
+            let output = run_document(directory.path(), &source, &[])?;
+            assert!(
+                output.status.success(),
+                "{substitutions}: {}",
+                output_text(&output.stderr)
+            );
+            assert_eq!(output.stdout, b"{value}|\\{value}|<1>", "{substitutions}");
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "pre-spec-subs")]
+    #[test]
+    fn execute_rejects_missing_attributes_in_unselected_commands_before_starting()
+    -> Result<(), Box<dyn Error>> {
+        for flags in [vec!["--id", "first"], vec!["--id", "first", "--dry-run"]] {
+            let directory = tempfile::tempdir()?;
+            let output = run_document(
+                directory.path(),
+                concat!(
+                    "[.command,id=first]\n----\nprintf ran > marker\n----\n\n",
+                    "[.command,id=broken,subs=attributes]\n----\nprintf '%s' '{missing}'\n----\n",
+                ),
+                &flags,
+            )?;
+            assert_eq!(output.status.code(), Some(1));
+            let stderr = output_text(&output.stderr);
+            assert!(
+                stderr.contains("command `broken` references missing document attribute `missing`"),
+                "{stderr}"
+            );
+            assert!(stderr.contains("commands.adoc"), "{stderr}");
+            assert!(!directory.path().join("marker").exists());
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "pre-spec-subs")]
+    #[test]
+    fn execute_attribute_substitutions_follow_source_order() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        let source = concat!(
+            "= Commands\n:value: first\n\n",
+            "[.command,id=first,subs=attributes]\n----\nprintf '%s\\n' '{value}'\n----\n\n",
+            ":value: second\n\n",
+            "[.command,id=second,subs=attributes]\n----\nprintf '%s\\n' '{value}'\n----\n",
+        );
+        let dry_run = run_document(directory.path(), source, &["--dry-run"])?;
+        assert!(dry_run.status.success(), "{}", output_text(&dry_run.stderr));
+        assert_eq!(
+            output_text(&dry_run.stdout),
+            concat!(
+                "first (sh)\n  printf '%s\\n' 'first'\n",
+                "second (sh)\n  printf '%s\\n' 'second'\n",
+            )
+        );
+        let output = run_document(directory.path(), source, &[])?;
+        assert!(output.status.success(), "{}", output_text(&output.stderr));
+        assert_eq!(output.stdout, b"first\nsecond\n");
+        Ok(())
+    }
+
+    #[cfg(not(feature = "pre-spec-subs"))]
+    #[test]
+    fn execute_without_substitution_support_rejects_explicit_subs_before_starting()
+    -> Result<(), Box<dyn Error>> {
+        for substitutions in ["attributes", "none"] {
+            let directory = tempfile::tempdir()?;
+            let source = format!(
+                "[.command,id=first]\n----\nprintf ran > marker\n----\n\n\
+                 [.command,id=unsupported,subs={substitutions}]\n----\nprintf '%s' '{{value}}'\n----\n"
+            );
+            let output = run_document(directory.path(), &source, &["--id", "first"])?;
+            assert_eq!(output.status.code(), Some(1));
+            let stderr = output_text(&output.stderr);
+            assert!(stderr.contains("subs"), "{stderr}");
+            assert!(stderr.contains("commands.adoc"), "{stderr}");
+            assert!(!directory.path().join("marker").exists());
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn execute_reports_the_resolved_included_file_for_invalid_commands()
+    -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        fs::create_dir(directory.path().join("nested"))?;
+        let included = directory.path().join("nested/broken.adoc");
+        fs::write(&included, "[.command]\n----\ntrue\n----\n")?;
+        let output = run_document(directory.path(), "include::nested/broken.adoc[]\n", &[])?;
+        assert_eq!(output.status.code(), Some(1));
+        let stderr = output_text(&output.stderr);
+        assert!(stderr.contains("missing an id"), "{stderr}");
+        assert!(
+            stderr.contains(included.to_string_lossy().as_ref()),
+            "{stderr}"
+        );
+        assert!(stderr.contains("[.command]"), "{stderr}");
+        Ok(())
+    }
+
+    #[test]
+    fn execute_keeps_both_duplicate_declarations_in_diagnostics() -> Result<(), Box<dyn Error>> {
+        let directory = tempfile::tempdir()?;
+        fs::write(
+            directory.path().join("first.adoc"),
+            "[.command,id=duplicate]\n----\ntrue\n----\n",
+        )?;
+        fs::write(
+            directory.path().join("second.adoc"),
+            "[.command,id=duplicate]\n----\ntrue\n----\n",
+        )?;
+        let output = run_document(
+            directory.path(),
+            "include::first.adoc[]\n\ninclude::second.adoc[]\n",
+            &[],
+        )?;
+        assert_eq!(output.status.code(), Some(1));
+        let stderr = output_text(&output.stderr);
+        assert!(stderr.contains("duplicate command id"), "{stderr}");
+        assert!(stderr.contains("first.adoc"), "{stderr}");
+        assert!(stderr.contains("second.adoc"), "{stderr}");
+        Ok(())
+    }
 }
 
 #[cfg(feature = "execute")]

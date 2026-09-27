@@ -4,7 +4,11 @@
 // https://github.com/zkat/miette/pull/459 for more details.
 #![allow(unused_assignments)]
 
-use std::path::Path;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 #[cfg(any(
     feature = "html",
@@ -21,7 +25,14 @@ use miette::{Diagnostic, NamedSource, Report, SourceSpan};
 #[cfg(feature = "lint")]
 use miette::{LabeledSpan, Severity};
 
-/// Rich error wrapper for beautiful miette display with source code
+/// An error with its source snippet.
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "pdf",
+    feature = "terminal"
+))]
 #[derive(Debug, Diagnostic, thiserror::Error)]
 #[error("{message}")]
 #[diagnostic()]
@@ -39,6 +50,115 @@ pub(crate) struct RichError {
     position_advice: String,
 }
 
+#[cfg(feature = "execute")]
+#[derive(Debug, Diagnostic, thiserror::Error)]
+#[error("{error}")]
+pub(crate) struct LocatedError<E: std::error::Error + Send + Sync + 'static> {
+    #[source]
+    error: E,
+    #[related]
+    locations: Vec<SourceContext>,
+}
+
+#[cfg(feature = "execute")]
+impl<E: std::error::Error + Send + Sync + 'static> LocatedError<E> {
+    pub(crate) fn new(error: E, locations: impl IntoIterator<Item = SourceLocation>) -> Self {
+        Self {
+            error,
+            locations: locations
+                .into_iter()
+                .map(|location| SourceContext::new(&location))
+                .collect(),
+        }
+    }
+
+    pub(crate) fn with_cached_source(
+        error: E,
+        location: &SourceLocation,
+        sources: &mut SourceCache,
+    ) -> Self {
+        let content = location.file.as_deref().and_then(|path| sources.load(path));
+        Self {
+            error,
+            locations: vec![SourceContext::with_content(location, content)],
+        }
+    }
+
+    pub(crate) fn without_source(error: E, location: &SourceLocation) -> Self {
+        Self {
+            error,
+            locations: vec![SourceContext::with_content(location, None)],
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct SourceCache {
+    sources: HashMap<PathBuf, Option<Arc<String>>>,
+}
+
+impl SourceCache {
+    fn load(&mut self, path: &Path) -> Option<Arc<String>> {
+        if let Some(source) = self.sources.get(path) {
+            return source.clone();
+        }
+        let source = std::fs::read_to_string(path).ok().map(Arc::new);
+        self.sources.insert(path.to_owned(), source.clone());
+        source
+    }
+}
+
+#[cfg(feature = "execute")]
+#[derive(Debug, Diagnostic, thiserror::Error)]
+#[error("{description}")]
+struct SourceContext {
+    description: String,
+    #[source_code]
+    src: Option<NamedSource<Arc<String>>>,
+    #[label("command source")]
+    span: Option<SourceSpan>,
+}
+
+#[cfg(feature = "execute")]
+impl SourceContext {
+    fn new(location: &SourceLocation) -> Self {
+        let content = location
+            .file
+            .as_deref()
+            .and_then(|path| std::fs::read_to_string(path).ok())
+            .map(Arc::new);
+        Self::with_content(location, content)
+    }
+
+    fn with_content(location: &SourceLocation, content: Option<Arc<String>>) -> Self {
+        let (line, column) = source_location_line_column(location);
+        let mut description = match &location.file {
+            Some(path) => format!("{}:{line}:{column}", path.display()),
+            None => format!("line {line}, column {column}"),
+        };
+        if let Some(chain) = location
+            .location
+            .start
+            .file
+            .as_deref()
+            .filter(|chain| !chain.is_empty())
+        {
+            description.push_str(" (include chain: ");
+            description.push_str(&chain.join(" -> "));
+            description.push(')');
+        }
+        let span = content
+            .as_deref()
+            .map(|source| source_span_from_source_location(location, source));
+        let src = content.map(|source| NamedSource::new(description.clone(), source));
+        Self {
+            description,
+            src,
+            span,
+        }
+    }
+}
+
 /// Rich warning wrapper: same shape as `RichError` but with `severity = Warning` so
 /// miette renders it in the warning palette (yellow, `⚠`) rather than the error palette
 /// (red, `✗`).
@@ -52,7 +172,7 @@ pub(crate) struct RichWarning {
     advice: Option<String>,
 
     #[source_code]
-    src: NamedSource<String>,
+    src: NamedSource<Arc<String>>,
 
     #[label("{position_advice}")]
     span: SourceSpan,
@@ -71,16 +191,24 @@ pub(crate) struct PlainWarning {
     advice: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default)]
 pub(crate) struct WarningReportContext<'a> {
     file: Option<&'a Path>,
+    sources: SourceCache,
 }
 
 impl<'a> WarningReportContext<'a> {
-    pub(crate) const fn new() -> Self {
-        Self { file: None }
+    pub(crate) fn new() -> Self {
+        Self::default()
     }
 
+    #[cfg(any(
+        feature = "html",
+        feature = "manpage",
+        feature = "markdown",
+        feature = "pdf",
+        feature = "terminal"
+    ))]
     pub(crate) const fn with_optional_file(mut self, file: Option<&'a Path>) -> Self {
         self.file = file;
         self
@@ -88,7 +216,7 @@ impl<'a> WarningReportContext<'a> {
 }
 
 pub(crate) trait WarningReport {
-    fn to_report(&self, context: WarningReportContext<'_>) -> Report;
+    fn to_report(&self, context: &mut WarningReportContext<'_>) -> Report;
 }
 
 #[cfg(feature = "lint")]
@@ -245,22 +373,17 @@ fn offset_from_position(source: &str, line: u32, column: u32) -> usize {
     source.len()
 }
 
-/// Build a miette `Report` from extracted warning fields.
-///
-/// Tries to load the referenced source file and produce a `RichWarning` with a
-/// span/snippet; falls back to a source-less `PlainWarning` when the warning has
-/// no location, no file path, or the file can't be read. `fallback_file`
-/// (typically the file being processed) is used when the warning's own
-/// `SourceLocation` has no path; pass `None` for stdin input.
+/// Attach a source snippet when the warning's file or the context's fallback is readable.
+/// Warnings in one context share source text; missing files remain source-less.
 fn build_warning_report(
     message: String,
     advice: Option<String>,
     location: Option<&SourceLocation>,
-    fallback_file: Option<&Path>,
+    context: &mut WarningReportContext<'_>,
 ) -> Report {
     let rich = location.and_then(|loc| {
-        let path = loc.file.as_deref().or(fallback_file)?;
-        let source_str = std::fs::read_to_string(path).ok()?;
+        let path = loc.file.as_deref().or(context.file)?;
+        let source_str = context.sources.load(path)?;
         let span = source_span_from_source_location(loc, &source_str);
         let (line, column) = source_location_line_column(loc);
         Some(RichWarning {
@@ -279,12 +402,12 @@ fn build_warning_report(
 }
 
 impl WarningReport for ParserWarning {
-    fn to_report(&self, context: WarningReportContext<'_>) -> Report {
+    fn to_report(&self, context: &mut WarningReportContext<'_>) -> Report {
         build_warning_report(
             self.kind.to_string(),
             self.advice().map(str::to_string),
             self.source_location(),
-            context.file,
+            context,
         )
     }
 }
@@ -297,12 +420,12 @@ impl WarningReport for ParserWarning {
     feature = "terminal"
 ))]
 impl WarningReport for ConverterWarning {
-    fn to_report(&self, context: WarningReportContext<'_>) -> Report {
+    fn to_report(&self, context: &mut WarningReportContext<'_>) -> Report {
         build_warning_report(
             self.to_string(),
             self.advice().map(str::to_string),
             self.source_location(),
-            context.file,
+            context,
         )
     }
 }
@@ -369,6 +492,13 @@ impl LintDiagnosticReport for LintDiagnostic {
     }
 }
 
+#[cfg(any(
+    feature = "html",
+    feature = "manpage",
+    feature = "markdown",
+    feature = "pdf",
+    feature = "terminal"
+))]
 pub(crate) fn display<E: std::error::Error + 'static>(e: &E) -> Report {
     if let Some(parser_error) = acdc_converters_core::find_parser_error(e)
         && let Some(source_location) = parser_error.source_location()
@@ -407,6 +537,41 @@ mod tests {
     use acdc_parser::{Location, Position, SourceLocation};
 
     use super::*;
+
+    #[test]
+    fn warning_reports_reuse_the_first_source_snapshot() -> Result<(), Box<dyn std::error::Error>> {
+        let file = tempfile::NamedTempFile::new()?;
+        std::fs::write(file.path(), "original source\n")?;
+        let location =
+            SourceLocation::at_position(Some(file.path().to_owned()), Position::new(1, 1));
+        let mut context = WarningReportContext::new();
+        let first = build_warning_report("first".into(), None, Some(&location), &mut context);
+        std::fs::write(file.path(), "changed source\n")?;
+        let second = build_warning_report("second".into(), None, Some(&location), &mut context);
+        let first = first
+            .downcast_ref::<RichWarning>()
+            .ok_or("missing first source")?;
+        let second = second
+            .downcast_ref::<RichWarning>()
+            .ok_or("missing second source")?;
+        assert_eq!(second.src.inner().as_str(), "original source\n");
+        assert!(Arc::ptr_eq(first.src.inner(), second.src.inner()));
+        Ok(())
+    }
+
+    #[test]
+    fn warning_reports_cache_unreadable_sources() -> Result<(), Box<dyn std::error::Error>> {
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join("missing.adoc");
+        let location = SourceLocation::at_position(Some(path.clone()), Position::new(1, 1));
+        let mut context = WarningReportContext::new();
+        let first = build_warning_report("first".into(), None, Some(&location), &mut context);
+        std::fs::write(path, "created later\n")?;
+        let second = build_warning_report("second".into(), None, Some(&location), &mut context);
+        assert!(first.downcast_ref::<PlainWarning>().is_some());
+        assert!(second.downcast_ref::<PlainWarning>().is_some());
+        Ok(())
+    }
 
     #[test]
     fn resolves_unicode_columns_to_byte_offsets() {
@@ -456,5 +621,79 @@ mod tests {
 
         assert_eq!(span.offset(), 6);
         assert_eq!(span.len(), 3);
+    }
+
+    #[cfg(feature = "execute")]
+    #[test]
+    fn unresolved_command_sources_keep_the_include_chain() {
+        let mut position = Position::new(7, 3);
+        position.file = Some(Arc::new(vec![
+            "outer.adoc".into(),
+            "nested/inner.adoc".into(),
+        ]));
+        let context = SourceContext::new(&SourceLocation::at_position(None, position));
+
+        assert_eq!(
+            context.description,
+            "line 7, column 3 (include chain: outer.adoc -> nested/inner.adoc)"
+        );
+        assert!(context.src.is_none());
+        assert!(context.span.is_none());
+    }
+
+    #[cfg(feature = "execute")]
+    #[test]
+    fn skipped_command_diagnostics_do_not_load_source_text()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let file = tempfile::NamedTempFile::new()?;
+        std::fs::write(file.path(), "source must not be retained")?;
+        let location =
+            SourceLocation::at_position(Some(file.path().to_owned()), Position::new(1, 1));
+        let report = LocatedError::without_source(std::io::Error::other("skipped"), &location);
+        let context = report
+            .locations
+            .first()
+            .ok_or("missing source coordinates")?;
+
+        assert!(
+            context
+                .description
+                .contains(file.path().to_string_lossy().as_ref())
+        );
+        assert!(context.src.is_none());
+        assert!(context.span.is_none());
+        Ok(())
+    }
+
+    #[cfg(feature = "execute")]
+    #[test]
+    fn execution_failures_share_one_source_allocation_per_file()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let file = tempfile::NamedTempFile::new()?;
+        std::fs::write(file.path(), "first\nsecond\n")?;
+        let location =
+            SourceLocation::at_position(Some(file.path().to_owned()), Position::new(1, 1));
+        let mut cache = SourceCache::default();
+        let first =
+            LocatedError::with_cached_source(std::io::Error::other("first"), &location, &mut cache);
+        let second = LocatedError::with_cached_source(
+            std::io::Error::other("second"),
+            &location,
+            &mut cache,
+        );
+        let first = first
+            .locations
+            .first()
+            .and_then(|context| context.src.as_ref())
+            .ok_or("missing first source")?;
+        let second = second
+            .locations
+            .first()
+            .and_then(|context| context.src.as_ref())
+            .ok_or("missing second source")?;
+
+        assert!(Arc::ptr_eq(first.inner(), second.inner()));
+        assert_eq!(cache.sources.len(), 1);
+        Ok(())
     }
 }

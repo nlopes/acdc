@@ -54,6 +54,7 @@ pre-spec-subs = [
     "acdc-converters-manpage?/pre-spec-subs",
     "acdc-converters-pdf?/pre-spec-subs",
     "acdc-converters-terminal?/pre-spec-subs",
+    "acdc-execute?/pre-spec-subs",
     "acdc-lint?/pre-spec-subs",
 ]
 
@@ -88,8 +89,8 @@ inspect = []  # AST inspection tool for debugging parser output
 tck = []      # Technology Compatibility Kit for spec compliance testing
 
 # Compatibility features
-setext = ["acdc-parser/setext", "acdc-lint?/setext"]  # Enable Setext-style (underlined) header parsing
-network = ["acdc-parser/network", "acdc-lint?/network", "acdc-converters-pdf?/network"]  # Enable remote include parsing and remote PDF images
+setext = ["acdc-parser/setext", "acdc-execute?/setext", "acdc-lint?/setext"]  # Enable Setext-style (underlined) header parsing
+network = ["acdc-parser/network", "acdc-execute?/network", "acdc-lint?/network", "acdc-converters-pdf?/network"]  # Enable remote include parsing and remote PDF images
 
 # Feature groups for convenience
 all-backends = ["html", "manpage", "markdown", "pdf", "terminal"]  # Enable all output converters
