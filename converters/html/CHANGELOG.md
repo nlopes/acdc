@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep links and cross-references functional in highlighted source blocks with `subs=+macros`, including line numbers and class-based highlighting. This intentionally avoids Asciidoctor HTML's highlighter-dependent loss of enabled links.
+
 - With `acdc-index`, retain index labels from their registration stage, including terms in source blocks. Later substitutions still affect visible terms, matching Asciidoctor; catalog labels follow Asciidoctor PDF.
 
 - Opted-in index catalogs retain literal attribute references and quote markers when

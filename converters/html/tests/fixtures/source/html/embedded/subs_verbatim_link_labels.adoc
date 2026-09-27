@@ -1,0 +1,39 @@
+= Link labels
+:source-highlighter: rouge
+:relfilesuffix: .xhtml
+:hide-uri-scheme:
+:acdc-index:
+
+[source,rust,subs="+quotes,+macros"]
+----
+<<outer>>
+let a = link:https://example.org/a[*Bold*];
+*link:https://example.org/nested[Nested]*
+((link:https://example.org/index[Index link]))
+<<#,Top>> xref:other.adoc#target[]
+link:https://example.org/id[ID label,id=code-link,role=custom,window=_blank]
+https://example.org/hidden[] <dev@example.org>
+----
+
+<<code-link>>
+
+[source,rust,subs=+macros]
+----
+link:https://example.org/empty[(((Hidden label))),id=empty-code]after
+----
+
+[source,rust,subs=+macros]
+----
+link:https://example.org/empty-block[(((Hidden block))),id=empty-block]
+----
+
+<<empty-code>> and <<empty-block>>.
+
+[[outer]]
+== Outer <<destination>>
+
+[[destination]]
+== Destination
+
+[index]
+== Index

@@ -1,5 +1,8 @@
 use acdc_parser::{AttributeValue, BlockMetadata};
 
+mod link;
+pub use link::{CodeLink, CodeLinkTarget, code_inline_children, code_link_text, resolve_code_link};
+
 /// Line-oriented rendering options for a source block.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct SourceLineOptions {

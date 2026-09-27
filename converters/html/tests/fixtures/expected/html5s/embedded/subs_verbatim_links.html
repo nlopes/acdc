@@ -1,0 +1,56 @@
+<section id="preamble" aria-label="Preamble">
+<div class="listing-block">
+<pre class="highlight"><code class="language-rust" data-lang="rust">let web = <a href="https://example.org/path?q=one&amp;x=two">Web &amp; label</a>;
+let named = <a href="#destination">Named label</a>;
+let automatic = <a href="#destination">Destination</a>;
+let unicode = <a href="https://example.org/unicode">Été &amp; 日本語</a>;
+<a href="https://example.org/empty" class="bare">https://example.org/empty</a> <a href="mailto:dev@example.org">Write mail</a>
+<a href="https://example.org/bare" class="bare">https://example.org/bare</a> <a href="https://example.org/named">URL label</a>
+link:https://example.org/escaped[Escaped] xref:destination[Escaped reference] &lt;&lt;destination&gt;&gt;
+https://example.org/escaped-url &lt;https://example.org/bracketed&gt; dev@example.org
+link:broken[unfinished</code></pre>
+</div>
+<div class="literal-block">
+<pre>  <a href="https://example.org/literal">Literal label</a>
+
+  <a href="#destination">Literal reference</a></pre>
+</div>
+<div class="listing-block">
+<pre>Styled <a href="https://example.org/styled">Styled link</a> and <a href="#destination">Destination</a>.</pre>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>Literal <a href="https://example.org/styled-literal">Styled literal</a> and <a href="#destination">Destination</a>.</pre>
+</div>
+</div>
+<div class="literalblock">
+<div class="content">
+<pre>Indented <a href="https://example.org/indented">Indented link</a> and <a href="#destination">Destination</a>.</pre>
+</div>
+</div>
+<div class="listing-block">
+<pre><a href="https://example.org/early">Early label</a> <a href="https://example.org/from-attribute">From attribute</a></pre>
+</div>
+<div class="listing-block">
+<pre><a href="https://example.org/early">Early label</a> link:https://example.org/from-attribute[From attribute]</pre>
+</div>
+<div class="listing-block">
+<pre>link:https://example.org/disabled[Disabled] &lt;&lt;destination&gt;&gt;</pre>
+</div>
+<div class="listing-block">
+<pre>link:https://example.org/disabled-explicit[Disabled explicit] xref:destination[]</pre>
+</div>
+<div class="listing-block">
+<pre><a href="#missing">[missing]</a> <a href="other.html#part">Other document</a> <a href="#">Top</a></pre>
+</div>
+<div class="listing-block">
+<pre><a href="https://example.org/arrow">-</a>&gt;
+&lt;<a href="https://example.org/arrow">-</a>
+<a href="https://example.org/inside">&#8594;</a></pre>
+</div>
+<div style="page-break-after: always;"></div>
+</section>
+<section class="doc-section level-1">
+<h2 id="destination">Destination</h2>
+<p>Target body.</p>
+</section>

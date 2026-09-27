@@ -32,6 +32,95 @@ fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error>
     Ok(())
 }
 
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_links_preserve_clickable_labels_and_spacing() -> Result<(), Error> {
+    for highlighter in ["", ":source-highlighter: rouge\n"] {
+        let input = format!(
+            "= Links\n{highlighter}\n[source,rust,subs=+macros]\n----\nprefix = link:https://example.org/?a=1&b=2[LinkedLabel];\n----\n"
+        );
+        let pdf = render_input(&input)?;
+        let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+        let annotations = pdf.get_page_annotations(page)?;
+        assert_eq!(annotations.len(), 1);
+        let annotation = annotations.first().ok_or("missing link")?;
+        let action = annotation.get(b"A")?.as_dict()?;
+        assert_eq!(
+            action.get(b"URI")?.as_str()?,
+            b"https://example.org/?a=1&b=2"
+        );
+        let rect = annotation.get(b"Rect")?.as_array()?;
+        let [left, _, right, _] = rect.as_slice() else {
+            return Err("invalid rectangle".into());
+        };
+        let (label_x, _) = text_origin(&pdf, 1, "LinkedLabel")?;
+        let (suffix_x, _) = text_origin(&pdf, 1, ";")?;
+        assert!((left.as_float()? - label_x).abs() < 0.1);
+        assert!((right.as_float()? - suffix_x).abs() < 0.1);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_cross_references_reach_the_target_page() -> Result<(), Error> {
+    for highlighter in ["", ":source-highlighter: rouge\n"] {
+        for options in ["", ",linenums", ",%autofit"] {
+            let input = format!(
+                "= Links\n{highlighter}\n[source,rust{options},subs=+macros]\n----\nlet a = <<destination>>;\nlet b = xref:destination[Named];\n----\n\n<<<\n\n[[destination]]\n== Destination\n"
+            );
+            let pdf = render_input(&input)?;
+            assert_eq!(internal_link_pages(&pdf, 1)?, [2, 2]);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_link_ids_and_wrapped_links_compile() -> Result<(), Error> {
+    let pdf = render_input(include_str!("fixtures/source/subs_verbatim_links.adoc"))?;
+    let text = pdf
+        .extract_text(&pdf.get_pages().keys().copied().collect::<Vec<_>>())?
+        .split_whitespace()
+        .collect::<String>();
+    assert!(text.contains("->"), "{text}");
+    assert!(text.contains("<-"), "{text}");
+    assert!(text.contains('→'), "{text}");
+
+    let pdf = render_input(include_str!(
+        "fixtures/source/subs_verbatim_link_labels.adoc"
+    ))?;
+    assert!(
+        !pdf.get_page_annotations(*pdf.get_pages().get(&1).ok_or("missing page")?)?
+            .is_empty()
+    );
+    let pdf = render_input(include_str!(
+        "fixtures/source/subs_verbatim_links_highlighting.adoc"
+    ))?;
+    let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+    let mut tops = Vec::new();
+    for annotation in pdf.get_page_annotations(page)? {
+        if let Ok(action) = annotation.get(b"A")
+            && let Ok(uri) = action.as_dict()?.get(b"URI")
+            && uri.as_str()? == b"https://example.org/wrapped"
+        {
+            let rect = annotation.get(b"Rect")?.as_array()?;
+            let [_, _, _, top] = rect.as_slice() else {
+                return Err("invalid rectangle".into());
+            };
+            tops.push(top.as_float()?);
+        }
+    }
+    tops.sort_by(f32::total_cmp);
+    tops.dedup();
+    assert!(
+        tops.len() >= 2,
+        "wrapped link must remain clickable on each line: {tops:?}"
+    );
+    Ok(())
+}
+
 fn render_input(input: &str) -> Result<PdfDocument, Error> {
     let parsed = parse(input, &Options::default())?;
     render_parsed(&parsed)

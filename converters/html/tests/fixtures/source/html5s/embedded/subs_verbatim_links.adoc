@@ -1,0 +1,72 @@
+= Verbatim links
+:site: https://example.org/early
+:label: Early label
+:linkmacro: link:https://example.org/from-attribute[From attribute]
+
+[source,rust,subs=+macros]
+----
+let web = link:https://example.org/path?q=one&x=two[Web & label];
+let named = xref:destination[Named label];
+let automatic = <<destination>>;
+let unicode = link:https://example.org/unicode[Été & 日本語];
+link:https://example.org/empty[] mailto:dev@example.org[Write mail]
+https://example.org/bare https://example.org/named[URL label]
+\link:https://example.org/escaped[Escaped] \xref:destination[Escaped reference] \<<destination>>
+\https://example.org/escaped-url \<https://example.org/bracketed> \dev@example.org
+link:broken[unfinished
+----
+
+[subs=+macros]
+....
+  link:https://example.org/literal[Literal label]
+
+  <<destination,Literal reference>>
+....
+
+[source,subs=+macros]
+Styled link:https://example.org/styled[Styled link] and <<destination>>.
+
+[literal,subs=+macros]
+Literal link:https://example.org/styled-literal[Styled literal] and xref:destination[].
+
+[subs=+macros]
+ Indented link:https://example.org/indented[Indented link] and <<destination>>.
+
+[source,subs="specialcharacters,attributes,macros"]
+----
+link:{site}[{label}] {linkmacro}
+----
+
+[source,subs="specialcharacters,macros,attributes"]
+----
+link:{site}[{label}] {linkmacro}
+----
+
+[source]
+----
+link:https://example.org/disabled[Disabled] <<destination>>
+----
+
+[source,subs="verbatim,-macros"]
+----
+link:https://example.org/disabled-explicit[Disabled explicit] xref:destination[]
+----
+
+[source,subs=+macros]
+----
+xref:missing[] xref:other.adoc#part[Other document] <<#,Top>>
+----
+
+[source,subs="+macros,+replacements"]
+----
+link:https://example.org/arrow[-]>
+<link:https://example.org/arrow[-]
+link:https://example.org/inside[->]
+----
+
+<<<
+
+[[destination]]
+== Destination
+
+Target body.

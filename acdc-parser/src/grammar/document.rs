@@ -44,8 +44,7 @@ use crate::{
 
 #[cfg(feature = "pre-spec-subs")]
 use crate::{
-    grammar::inline_processing::process_verbatim_index_terms,
-    model::substitution::parse_subs_attribute,
+    grammar::inline_processing::process_verbatim_macros, model::substitution::parse_subs_attribute,
 };
 
 use super::{
@@ -594,7 +593,7 @@ fn verbatim_inner<'input>(
     );
     state.last_block_was_verbatim = true;
     state.last_verbatim_callouts = callouts;
-    let inlines = resolve_verbatim_index_terms(state, block_metadata, inlines)?;
+    let inlines = resolve_verbatim_macros(state, block_metadata, inlines)?;
     Ok(if p.kind == DelimitedKind::Literal {
         DelimitedBlockType::DelimitedLiteral(inlines)
     } else {
@@ -612,7 +611,7 @@ fn verbatim_substitutions(metadata: &BlockParsingMetadata<'_>) -> SubstitutionPl
 }
 
 #[cfg(feature = "pre-spec-subs")]
-fn resolve_verbatim_index_terms<'a>(
+fn resolve_verbatim_macros<'a>(
     state: &mut ParserState<'a>,
     metadata: &BlockParsingMetadata<'_>,
     inlines: Vec<InlineNode<'a>>,
@@ -628,7 +627,7 @@ fn resolve_verbatim_index_terms<'a>(
     let mut resolved = Vec::new();
     for node in inlines {
         if let InlineNode::VerbatimText(text) = node {
-            resolved.extend(process_verbatim_index_terms(
+            resolved.extend(process_verbatim_macros(
                 state,
                 &metadata,
                 text.location.absolute_start,
@@ -642,7 +641,7 @@ fn resolve_verbatim_index_terms<'a>(
 }
 
 #[cfg(not(feature = "pre-spec-subs"))]
-fn resolve_verbatim_index_terms<'a>(
+fn resolve_verbatim_macros<'a>(
     _state: &mut ParserState<'a>,
     _metadata: &BlockParsingMetadata<'_>,
     inlines: Vec<InlineNode<'a>>,
@@ -2185,7 +2184,7 @@ fn get_literal_paragraph<'input>(
         .as_ref()
         .is_some_and(|spec| spec.resolve(VERBATIM).contains(&Substitution::Macros))
     {
-        let mut parsed = resolve_verbatim_index_terms(
+        let mut parsed = resolve_verbatim_macros(
             state,
             block_metadata,
             vec![InlineNode::VerbatimText(Verbatim {
@@ -6390,7 +6389,7 @@ peg::parser! {
                     )?
                     .0
                 } else {
-                    resolve_verbatim_index_terms(state, block_metadata, verbatim_content)?
+                    resolve_verbatim_macros(state, block_metadata, verbatim_content)?
                 };
                 state.last_block_was_verbatim = true;
                 state.last_verbatim_callouts = callouts;

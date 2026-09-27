@@ -112,6 +112,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Resolve link labels and destinations consistently for highlighted HTML and PDF code, including automatic cross-reference labels and interdocument links.
+
 - Index catalogs can activate from AsciiDoc table cells inside compound blocks
   and list continuations. Ordinary heading-looking text does not activate a catalog.
 

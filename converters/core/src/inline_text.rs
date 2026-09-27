@@ -66,6 +66,14 @@ impl<'t, 'd> InlineTextTransform<'t, 'd> {
         self
     }
 
+    /// Keep cross-references inside reference text from expanding another title.
+    pub(crate) fn in_reference(self) -> Self {
+        Self {
+            resolving_xref: true,
+            ..self
+        }
+    }
+
     /// Write plain text extracted from `inlines` into `w`.
     ///
     /// # Errors

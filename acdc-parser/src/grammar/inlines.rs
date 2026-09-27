@@ -967,8 +967,31 @@ peg::parser! {
         pub(crate) rule inlines_no_autolinks() -> Vec<InlineNode<'input>>
         = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
 
-        pub(crate) rule verbatim_index_inlines() -> Vec<InlineNode<'input>>
-        = nodes:(verbatim_index_term() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+        pub(crate) rule verbatim_inlines() -> Vec<InlineNode<'input>>
+        = nodes:(verbatim_index_term() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule verbatim_link() -> InlineNode<'input>
+        = check_macros() node:(
+            &("\\"+ verbatim_link_match()) node:escaped_syntax() { node }
+            / "\\" content:$(check_autolinks() inline_autolink_match()) {
+                InlineNode::PlainText(Plain {
+                    content,
+                    location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                    escaped: false,
+                })
+            }
+            / &['<'] node:cross_reference_shorthand() { node }
+            / &['x'] node:cross_reference_macro() { node }
+            / &['l'] node:link_macro() { node }
+            / &['m'] node:mailto_macro() { node }
+            / &['h' | 'f'] node:url_macro() { node }
+            / check_autolinks() node:inline_autolink() { node }
+        ) { node }
+
+        rule verbatim_link_match()
+        = cross_reference_shorthand_match() / cross_reference_macro_match()
+        / link_macro_match() / mailto_macro_match() / url_macro_match()
+        / check_autolinks() inline_autolink_match()
 
         rule verbatim_index_term() -> InlineNode<'input>
         = check_index_terms() node:(
@@ -983,6 +1006,11 @@ peg::parser! {
         rule verbatim_plain_text() -> InlineNode<'input>
         = content:$((
             !(check_index_terms() ("\\"+ index_term_match() / index_term_match()))
+            !(check_macros() (
+                verbatim_link_match()
+                / &("\\"+ verbatim_link_match()) escaped_syntax_match()
+                / "\\" check_autolinks() inline_autolink_match()
+            ))
             !(check_quotes() (
                 escaped_syntax_match() / bold_text_unconstrained_match() / bold_text_constrained_match()
                 / italic_text_unconstrained_match() / italic_text_constrained_match()

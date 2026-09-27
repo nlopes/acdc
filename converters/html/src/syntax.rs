@@ -79,6 +79,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     inlines: &[InlineNode],
     metadata: &BlockMetadata<'_>,
     options: HighlightOptions<'_>,
+    links: &[HighlightedLink],
     diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> Result<(), Error> {
     let HighlightOptions {
@@ -95,7 +96,7 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
         .unwrap_or_else(|| syntax_set.find_syntax_plain_text());
 
     let options = SourceLineOptions::resolve(metadata, &code);
-    if options.is_empty() {
+    if options.is_empty() && links.is_empty() {
         return match mode {
             HighlightMode::Inline => highlight_code_inline(
                 writer,
@@ -113,22 +114,46 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
     }
 
     let mut highlighted = Vec::new();
+    let no_callouts = HashMap::new();
+    let highlight_callouts = if links.is_empty() {
+        &callouts
+    } else {
+        &no_callouts
+    };
     match mode {
         HighlightMode::Inline => highlight_code_inline(
             &mut highlighted,
             &code,
-            &callouts,
+            highlight_callouts,
             inlines,
             &syntax_set,
             syntax,
             theme_name,
         ),
-        HighlightMode::Class => {
-            highlight_code_classed(&mut highlighted, &code, &callouts, &syntax_set, syntax)
-        }
+        HighlightMode::Class => highlight_code_classed(
+            &mut highlighted,
+            &code,
+            highlight_callouts,
+            &syntax_set,
+            syntax,
+        ),
     }?;
 
-    let highlighted = close_spans_at_line_boundaries(&String::from_utf8_lossy(&highlighted));
+    let highlighted = String::from_utf8_lossy(&highlighted);
+    let linked = insert_highlighted_links(&highlighted, links);
+    let linked = if links.is_empty() || callouts.is_empty() {
+        linked
+    } else {
+        match mode {
+            HighlightMode::Inline => insert_callouts_into_highlighted_html(&linked, &callouts),
+            HighlightMode::Class => insert_callouts_into_classed_html(&linked, &callouts),
+        }
+    };
+    if options.is_empty() {
+        writer.write_all(linked.as_bytes())?;
+        return Ok(());
+    }
+    let highlighted = close_spans_at_line_boundaries(&linked);
     let decorated = decorate_source_lines(&highlighted, &code, &options, theme_name);
     writer.write_all(decorated.as_bytes())?;
     Ok(())
@@ -136,30 +161,47 @@ pub(crate) fn highlight_code<W: Write + ?Sized>(
 
 #[cfg(feature = "highlighting")]
 fn close_spans_at_line_boundaries(html: &str) -> String {
-    // Syntect can keep a colour span open across lines. Close and reopen it so
-    // the later line wrapper never crosses a span boundary.
+    // Reopen syntax spans and linked labels inside each source-line wrapper.
     let mut output = String::with_capacity(html.len());
-    let mut open_spans = Vec::new();
+    let mut open_tags: Vec<String> = Vec::new();
     let mut remaining = html;
-
     while !remaining.is_empty() {
-        if remaining.starts_with("<span")
+        if remaining.starts_with('<')
             && let Some(end) = remaining.find('>')
         {
             let (tag, rest) = remaining.split_at(end + 1);
             output.push_str(tag);
-            open_spans.push(tag);
-            remaining = rest;
-        } else if let Some(rest) = remaining.strip_prefix("</span>") {
-            output.push_str("</span>");
-            open_spans.pop();
+            let name = tag
+                .trim_start_matches('<')
+                .split([' ', '>'])
+                .next()
+                .unwrap_or_default();
+            if name.starts_with('/') {
+                open_tags.pop();
+            } else if !matches!(name, "br" | "img" | "wbr") {
+                open_tags.push(tag.to_owned());
+            }
             remaining = rest;
         } else if let Some(rest) = remaining.strip_prefix('\n') {
-            for _ in open_spans.iter().rev() {
-                output.push_str("</span>");
+            for tag in open_tags.iter().rev() {
+                let name = tag
+                    .trim_start_matches('<')
+                    .split([' ', '>'])
+                    .next()
+                    .unwrap_or_default();
+                output.push_str("</");
+                output.push_str(name);
+                output.push('>');
             }
             output.push('\n');
-            for tag in &open_spans {
+            for tag in &mut open_tags {
+                // Repeated fragments share the destination, but not an explicit ID.
+                if let Some(start) = tag.find(" id=\"")
+                    && let Some(rest) = tag.get(start + 5..)
+                    && let Some(end) = rest.find('"')
+                {
+                    tag.replace_range(start..start + 6 + end, "");
+                }
                 output.push_str(tag);
             }
             remaining = rest;
@@ -171,7 +213,6 @@ fn close_spans_at_line_boundaries(html: &str) -> String {
             remaining = &remaining[character.len_utf8()..];
         }
     }
-
     output
 }
 
@@ -431,7 +472,7 @@ fn write_escaped_code_with_callouts<W: Write + ?Sized>(
 /// Returns the code text (without callout markers) and a map of line numbers
 /// to callout numbers.
 #[cfg(feature = "highlighting")]
-fn extract_text_and_callouts(
+pub(crate) fn extract_text_and_callouts(
     inlines: &[InlineNode],
     mut diagnostics: Option<&mut Diagnostics<'_>>,
 ) -> (String, HashMap<usize, usize>) {
@@ -588,6 +629,7 @@ mod tests {
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
             },
+            &[],
             None,
         )?;
 
@@ -624,6 +666,7 @@ mod tests {
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
             },
+            &[],
             None,
         )?;
 
@@ -652,6 +695,7 @@ mod tests {
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Inline,
             },
+            &[],
             None,
         )?;
 
@@ -682,6 +726,7 @@ mod tests {
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Class,
             },
+            &[],
             None,
         )?;
 
@@ -723,6 +768,7 @@ mod tests {
                 theme_name: DEFAULT_THEME_LIGHT,
                 mode: HighlightMode::Class,
             },
+            &[],
             None,
         )?;
 
@@ -786,5 +832,90 @@ mod tests {
             close_spans_at_line_boundaries("<span class=\"syntax\">one\ntwo</span>"),
             "<span class=\"syntax\">one</span>\n<span class=\"syntax\">two</span>"
         );
+    }
+}
+
+#[cfg(feature = "highlighting")]
+pub(crate) struct HighlightedLink {
+    pub(crate) range: std::ops::Range<usize>,
+    pub(crate) html: String,
+}
+
+#[cfg(feature = "highlighting")]
+fn insert_highlighted_links(html: &str, links: &[HighlightedLink]) -> String {
+    if links.is_empty() {
+        return html.to_owned();
+    }
+    let mut output = String::with_capacity(html.len());
+    let mut remaining = html;
+    let mut offset = 0;
+    let mut links = links.iter().peekable();
+    while !remaining.is_empty() {
+        if remaining.starts_with('<')
+            && let Some(end) = remaining.find('>')
+        {
+            let (tag, rest) = remaining.split_at(end + 1);
+            output.push_str(tag);
+            remaining = rest;
+            continue;
+        }
+        while links.peek().is_some_and(|link| link.range.end <= offset) {
+            if let Some(link) = links.next()
+                && link.range.is_empty()
+                && link.range.start == offset
+            {
+                output.push_str(&link.html);
+            }
+        }
+        let link = links.peek();
+        if let Some(link) = link
+            && link.range.start == offset
+        {
+            output.push_str(&link.html);
+        }
+        let Some(character) = remaining.chars().next() else {
+            break;
+        };
+        let (length, decoded_length) = if character == '&'
+            && let Some(end) = remaining.find(';')
+            && let Some(entity) = remaining.get(..=end)
+            && let Some(decoded) = decoded_entity(entity)
+        {
+            (end + 1, decoded.len_utf8())
+        } else {
+            (character.len_utf8(), character.len_utf8())
+        };
+        let (text, rest) = remaining.split_at(length);
+        if link.is_none_or(|link| offset < link.range.start) {
+            output.push_str(text);
+        }
+        offset += decoded_length;
+        remaining = rest;
+    }
+    for link in links {
+        if link.range.is_empty() && link.range.start == offset {
+            output.push_str(&link.html);
+        }
+    }
+    output
+}
+
+#[cfg(feature = "highlighting")]
+fn decoded_entity(entity: &str) -> Option<char> {
+    match entity {
+        "&amp;" => Some('&'),
+        "&lt;" => Some('<'),
+        "&gt;" => Some('>'),
+        "&quot;" => Some('"'),
+        "&apos;" => Some('\''),
+        _ => {
+            let number = entity.strip_prefix("&#")?.strip_suffix(';')?;
+            let value = if let Some(hex) = number.strip_prefix('x') {
+                u32::from_str_radix(hex, 16).ok()?
+            } else {
+                number.parse().ok()?
+            };
+            char::from_u32(value)
+        }
     }
 }

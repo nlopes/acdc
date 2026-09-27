@@ -1,0 +1,49 @@
+= Highlighted links
+:source-highlighter: rouge
+:acdc-index:
+
+[source,rust,linenums,highlight=2,subs=+macros]
+----
+let web = link:https://example.org/path?q=one&x=two[Web & label];
+let target = xref:destination[Named label]; // <1>
+let automatic = <<destination>>;
+let unicode = link:https://example.org/unicode[Été & 日本語];
+let indexed = ((Visible)) + (((Hidden)))link:https://example.org/index[Indexed link];
+link:https://example.org/wrapped[One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty twentyone twentytwo]
+----
+<1> Callout text.
+
+[source,rust,%autofit,subs=+macros]
+----
+let target = <<destination>>; let web = link:https://example.org/autofit[Autofit];
+----
+
+[source,rust,subs=+macros]
+----
+let tabbed =	link:https://example.org/tab[Tab label];
+----
+
+[source,rust]
+----
+let disabled = link:https://example.org/disabled[Disabled] + <<destination>>;
+----
+
+[source,rust,linenums,subs=+macros]
+----
+let first = link:https://example.org/multiline[First
+second,id=multiline-link];
+let second = <<destination,First
+second>>;
+----
+
+<<multiline-link>>
+
+<<<
+
+[[destination]]
+== Destination
+
+Target body.
+
+[index]
+== Index

@@ -873,6 +873,55 @@ fn apply_attribute_subs<'a>(
 }
 
 #[cfg(feature = "highlighting")]
+fn capture_code_links<'a, W: std::io::Write>(
+    traversal: &mut TraversalContext<'a>,
+    highlight_inlines: &[InlineNode<'_>],
+    visitor: &mut HtmlVisitor<'a, '_, W>,
+    subs: &[Substitution],
+) -> Result<(Vec<Option<String>>, Vec<syntax::HighlightedLink>), Error> {
+    let labels = highlight_inlines
+        .iter()
+        .map(|node| {
+            let (text, linked) = acdc_converters_core::code::code_link_text(
+                std::slice::from_ref(node),
+                &visitor.processor.references,
+                "html",
+            );
+            linked.then_some(text)
+        })
+        .collect::<Vec<_>>();
+    let mut links = Vec::new();
+    let mut offset = 0;
+    for (node, label) in highlight_inlines.iter().zip(&labels) {
+        if let Some(label) = label {
+            let mut options = visitor.render_options.clone();
+            options.embedded = true;
+            let mut capture = HtmlVisitor::new(
+                Vec::new(),
+                visitor.processor.clone(),
+                options,
+                visitor.diagnostics.reborrow(),
+            );
+            capture.current_subs = subs.to_vec();
+            capture
+                .current_section_title
+                .clone_from(&visitor.current_section_title);
+            capture.visit_inline_nodes(traversal, std::slice::from_ref(node))?;
+            links.push(syntax::HighlightedLink {
+                range: offset..offset + label.len(),
+                html: String::from_utf8_lossy(&capture.into_writer()).into_owned(),
+            });
+            offset += label.len();
+        } else {
+            offset += syntax::extract_text_and_callouts(std::slice::from_ref(node), None)
+                .0
+                .len();
+        }
+    }
+    Ok((labels, links))
+}
+
+#[cfg(feature = "highlighting")]
 fn render_highlighted_code<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     highlight_inlines: &[InlineNode<'_>],
@@ -881,6 +930,23 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     subs: &[Substitution],
     options: syntax::HighlightOptions<'_>,
 ) -> Result<(), Error> {
+    let (labels, links) = capture_code_links(traversal, highlight_inlines, visitor, subs)?;
+    let resolved = highlight_inlines
+        .iter()
+        .zip(&labels)
+        .map(|(node, label)| {
+            label.as_ref().map_or_else(
+                || node.clone(),
+                |label| {
+                    InlineNode::VerbatimText(acdc_parser::Verbatim {
+                        content: label,
+                        location: node.location().clone(),
+                    })
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    let highlight_inlines = &resolved;
     let mut anchors = std::collections::BTreeMap::<usize, Vec<String>>::new();
     let mut line = 0;
     for node in highlight_inlines {
@@ -916,6 +982,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
         highlight_inlines,
         metadata,
         options,
+        &links,
         Some(&mut visitor.diagnostics),
     )?;
     if !anchors.is_empty() {

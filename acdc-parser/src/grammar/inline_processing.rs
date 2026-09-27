@@ -251,7 +251,7 @@ fn parse_processed_inlines<'a>(
             late_attribute_sources(processed, state, location);
     }
     let inlines = if verbatim {
-        inline_parser::verbatim_index_inlines(text, &mut inline_peg_state)
+        inline_parser::verbatim_inlines(text, &mut inline_peg_state)
     } else if !autolinks {
         inline_parser::inlines_no_autolinks(text, &mut inline_peg_state)
     } else if inline_peg_state.quotes_only {
@@ -404,7 +404,7 @@ pub(crate) fn process_inlines<'a>(
 }
 
 #[cfg(feature = "pre-spec-subs")]
-pub(crate) fn process_verbatim_index_terms<'a>(
+pub(crate) fn process_verbatim_macros<'a>(
     state: &mut ParserState<'a>,
     block_metadata: &BlockParsingMetadata,
     content_start: usize,
