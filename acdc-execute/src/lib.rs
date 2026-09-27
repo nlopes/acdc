@@ -1,11 +1,11 @@
 //! Discover and run command blocks defined in `AsciiDoc` documents.
 
-pub mod adoc;
 pub mod command;
+pub mod discovery;
 
-pub use adoc::Error as AdocError;
 pub use command::{
     BuildError, CommandBlock, CommandGraph, CommandGraphBuilder, CommandId, CommandMetadata,
     CommandOutcome, CommandState, ExecError, ExecutionOptions, ExecutionPlan, ExecutionReport,
     InvalidCommandId, ProcessOptions, SkipReason, UnknownCommand,
 };
+pub use discovery::DiscoveryError;
