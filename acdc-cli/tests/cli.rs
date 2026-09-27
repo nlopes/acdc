@@ -759,15 +759,21 @@ mod execution {
         let output = run_document(
             directory.path(),
             concat!(
+                "= Commands\n\n",
                 "[.command,id=build,description=Compile]\n----\ntouch build\n----\n\n",
-                "[.command,id=test,deps=build]\n----\ntouch test\n----\n",
+                "== Tests\n\n",
+                "[source,bash,role=command,id=test,deps=build,interpreter=sh]\n",
+                "----\ntouch test\n----\n",
             ),
             &["--list", "--id", "test"],
         )?;
         assert!(output.status.success(), "{}", output_text(&output.stderr));
         assert_eq!(
             output_text(&output.stdout),
-            "build (sh): Compile\ntest (sh)\n"
+            concat!(
+                "- id=build, interpreter=\"sh\", description=\"Compile\"\n",
+                "- id=test, interpreter=\"sh\", section=\"Tests\", deps=\"build\"\n",
+            )
         );
         assert!(!directory.path().join("build").exists());
         assert!(!directory.path().join("test").exists());

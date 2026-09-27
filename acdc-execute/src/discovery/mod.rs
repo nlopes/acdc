@@ -4,9 +4,9 @@ mod error;
 
 pub use error::DiscoveryError;
 
-use acdc_converters_core::{TraversalContext, visitor::Visitor};
+use acdc_converters_core::{InlineTextTransform, TraversalContext, visitor::Visitor};
 use acdc_parser::{
-    AttributeValue, Block, BlockMetadata, DelimitedBlockType, InlineNode, ParseResult,
+    AttributeValue, Block, BlockMetadata, DelimitedBlockType, InlineNode, ParseResult, Section,
     SourceLocation, Substitution, VERBATIM, substitute_attributes,
 };
 
@@ -22,6 +22,7 @@ impl TryFrom<&ParseResult> for CommandGraph {
         let mut collector = CommandCollector {
             parsed,
             builder: CommandGraphBuilder::new(),
+            section_title: None,
         };
         collector.visit_document(&mut traversal, document)?;
         Ok(collector.builder.build()?)
@@ -38,12 +39,13 @@ fn validate_source(parsed: &ParseResult) -> Result<(), DiscoveryError> {
     Ok(())
 }
 
-struct CommandCollector<'parsed> {
-    parsed: &'parsed ParseResult,
+struct CommandCollector<'doc> {
+    parsed: &'doc ParseResult,
     builder: CommandGraphBuilder,
+    section_title: Option<&'doc [InlineNode<'doc>]>,
 }
 
-impl<'doc> Visitor<'doc> for CommandCollector<'_> {
+impl<'doc> Visitor<'doc> for CommandCollector<'doc> {
     type Error = DiscoveryError;
 
     fn before_block(
@@ -54,15 +56,32 @@ impl<'doc> Visitor<'doc> for CommandCollector<'_> {
         if let Some(metadata) = block.metadata()
             && metadata.roles.contains(&"command")
         {
-            let (command, dependencies) = parse_command_block(
+            let (mut command, dependencies) = parse_command_block(
                 block,
                 metadata,
                 self.parsed.source_location(block.location()),
                 traversal,
             )?;
+            command.metadata.section_title = self.section_title.map(|title| {
+                InlineTextTransform::default()
+                    .decode_char_refs(true)
+                    .references(&self.parsed.document().references)
+                    .to_string(title)
+            });
             self.builder.add(command, dependencies);
         }
         Ok(())
+    }
+
+    fn visit_section(
+        &mut self,
+        traversal: &mut TraversalContext<'doc>,
+        section: &'doc Section<'doc>,
+    ) -> Result<(), Self::Error> {
+        let parent = self.section_title.replace(&section.title);
+        let result = traversal.visit_blocks(self, &section.content);
+        self.section_title = parent;
+        result
     }
 
     fn visit_inline_nodes(
@@ -323,6 +342,60 @@ mod tests {
     }
 
     #[test]
+    fn commands_keep_the_nearest_section_title_as_plain_text() {
+        let built = graph(&format!(
+            concat!(
+                "= Commands\n:project: acdc\n\n{}\n",
+                "== *Build* {{project}}{{apos}}s tools\n\n{}\n",
+                "=== _Unit_ tests\n\n--\n{}--\n\n",
+                "== Deploy\n\n{}\n",
+                "[discrete]\n=== A separate heading\n\n{}\n",
+            ),
+            cmd("preamble", None, None, "true"),
+            cmd("build", None, None, "true"),
+            cmd("test", None, None, "true"),
+            cmd("deploy", None, None, "true"),
+            cmd("after-discrete", None, None, "true"),
+        ));
+        assert_eq!(find(&built, "preamble").metadata.section_title, None);
+        assert_eq!(
+            find(&built, "build").metadata.section_title.as_deref(),
+            Some("Build acdc's tools")
+        );
+        assert_eq!(
+            find(&built, "test").metadata.section_title.as_deref(),
+            Some("Unit tests")
+        );
+        for id in ["deploy", "after-discrete"] {
+            assert_eq!(
+                find(&built, id).metadata.section_title.as_deref(),
+                Some("Deploy")
+            );
+        }
+    }
+
+    #[rstest]
+    #[case(None)]
+    #[case(Some("Outer section"))]
+    fn table_cell_sections_restore_the_enclosing_section(#[case] parent: Option<&str>) {
+        let body = format!(
+            "[cols=a]\n|===\na|== Cell section\n\n{}\n|===\n\n{}",
+            cmd("cell", None, None, "true"),
+            cmd("after", None, None, "true"),
+        );
+        let source = parent.map_or_else(|| body.clone(), |title| section(title, &body));
+        let built = graph(&format!("= Commands\n\n{source}"));
+        assert_eq!(
+            find(&built, "cell").metadata.section_title.as_deref(),
+            Some("Cell section")
+        );
+        assert_eq!(
+            find(&built, "after").metadata.section_title.as_deref(),
+            parent
+        );
+    }
+
+    #[test]
     fn commands_across_distinct_list_items_are_all_found() {
         let src = format!(
             "= Doc\n\n. First\n+\n{}\n. Second\n+\n{}",
@@ -379,7 +452,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap_or_else(|e| panic!("{e}"));
         let main = dir.path().join("main.adoc");
         let included = dir.path().join("commands.adoc");
-        std::fs::write(&main, "= Doc\n\ninclude::commands.adoc[]\n")
+        std::fs::write(&main, "= Doc\n\n== Build\n\ninclude::commands.adoc[]\n")
             .unwrap_or_else(|e| panic!("{e}"));
         std::fs::write(&included, cmd("build", None, None, "echo hi"))
             .unwrap_or_else(|e| panic!("{e}"));
@@ -389,6 +462,10 @@ mod tests {
         let built = CommandGraph::try_from(&parsed).unwrap_or_else(|e| panic!("{e}"));
 
         assert_eq!(ids(&built), ["build"]);
+        assert_eq!(
+            find(&built, "build").metadata.section_title.as_deref(),
+            Some("Build")
+        );
     }
 
     // --------------------------------------------------------------------------

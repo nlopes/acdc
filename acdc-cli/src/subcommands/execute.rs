@@ -37,7 +37,7 @@ pub struct Args {
     #[arg(long, conflicts_with = "list")]
     pub dry_run: bool,
 
-    /// List selected commands, interpreters, and descriptions without running them
+    /// List command ids, interpreters, sections, dependencies, and descriptions without running them
     #[arg(long)]
     pub list: bool,
 
@@ -92,7 +92,7 @@ pub fn run(args: &Args) -> miette::Result<()> {
     if args.dry_run || args.list {
         let mut stdout = io::stdout().lock();
         if args.list {
-            write_list(&mut stdout, &selected).into_diagnostic()?;
+            write_list(&mut stdout, &graph, &selected).into_diagnostic()?;
         } else {
             write_plan(&mut stdout, &selected).into_diagnostic()?;
         }
@@ -177,26 +177,39 @@ fn write_plan(output: &mut impl Write, plan: &ExecutionPlan<'_>) -> io::Result<(
     Ok(())
 }
 
-fn write_list(output: &mut impl Write, plan: &ExecutionPlan<'_>) -> io::Result<()> {
+fn write_list(
+    output: &mut impl Write,
+    graph: &CommandGraph,
+    plan: &ExecutionPlan<'_>,
+) -> io::Result<()> {
     for block in plan.commands() {
         write!(
             output,
-            "{} ({})",
+            "- id={}, interpreter={:?}",
             block.metadata.id, block.metadata.interpreter
         )?;
-        if let Some(description) = &block.metadata.description {
-            write!(output, ": ")?;
-            let mut characters = description.chars().peekable();
-            while let Some(character) = characters.next() {
-                if character == '\r' && characters.peek() == Some(&'\n') {
-                    characters.next();
+        if let Some(section) = &block.metadata.section_title {
+            write!(output, ", section={section:?}")?;
+        }
+        let mut dependencies = graph
+            .dependencies(block.metadata.id.as_str())
+            .into_iter()
+            .flatten()
+            .map(CommandId::as_str)
+            .collect::<Vec<_>>();
+        dependencies.sort_unstable();
+        if !dependencies.is_empty() {
+            write!(output, ", deps=\"")?;
+            for (index, dependency) in dependencies.iter().enumerate() {
+                if index > 0 {
+                    write!(output, ",")?;
                 }
-                if matches!(character, '\r' | '\n') {
-                    write!(output, " ")?;
-                } else {
-                    write!(output, "{character}")?;
-                }
+                write!(output, "{dependency}")?;
             }
+            write!(output, "\"")?;
+        }
+        if let Some(description) = &block.metadata.description {
+            write!(output, ", description={description:?}")?;
         }
         writeln!(output)?;
     }
@@ -537,32 +550,51 @@ mod tests {
     #[test]
     fn list_includes_descriptions_and_prerequisites_without_scripts() {
         let graph = parse_graph(concat!(
+            "= Commands\n\n",
             "[.command,id=build,description=Compile]\n----\necho build\n----\n\n",
-            "[.command,id=test,deps=build]\n----\necho test\n----\n",
+            "== Quality\n\n",
+            "[source,bash,role=command,id=lint,deps=build]\n----\necho lint\n----\n\n",
+            "=== *Unit* tests\n\n",
+            "[source,python,role=command,id=test,deps=\"lint,build,lint\",interpreter=python3]\n",
+            "----\nprint('test')\n----\n",
         ));
         let plan = select(&graph, &["test".into()], &[]).unwrap();
         let mut output = Vec::new();
-        write_list(&mut output, &plan).unwrap();
-        assert_eq!(output, b"build (sh): Compile\ntest (sh)\n");
+        write_list(&mut output, &graph, &plan).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            concat!(
+                "- id=build, interpreter=\"sh\", description=\"Compile\"\n",
+                "- id=lint, interpreter=\"bash\", section=\"Quality\", deps=\"build\"\n",
+                "- id=test, interpreter=\"python3\", section=\"Unit tests\", deps=\"build,lint\"\n",
+            )
+        );
     }
 
     #[test]
-    fn list_descriptions_stay_on_one_line() {
+    fn list_quotes_paths_and_escapes_control_characters() {
         let mut builder = CommandGraphBuilder::new();
-        builder.add(
-            CommandBlock::new(
-                "multiline".parse().unwrap(),
-                String::new(),
-                None,
-                acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
-            )
-            .with_description(Some("first\r\nsecond\nthird\rfourth".into())),
-            Vec::new(),
-        );
+        let mut command = CommandBlock::new(
+            "multiline".parse().unwrap(),
+            String::new(),
+            Some("tools/my \"shell\"\n\u{1b}".into()),
+            acdc_parser::SourceLocation::at_location(None, acdc_parser::Location::default()),
+        )
+        .with_description(Some("first\r\nsecond\nthird\rfourth\t\u{1b}".into()));
+        command.metadata.section_title = Some("Setup \"tools\"\n\u{1b}".into());
+        builder.add(command, Vec::new());
         let graph = builder.build().unwrap();
         let mut output = Vec::new();
-        write_list(&mut output, &graph.plan_all()).unwrap();
-        assert_eq!(output, b"multiline (sh): first second third fourth\n");
+        write_list(&mut output, &graph, &graph.plan_all()).unwrap();
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            concat!(
+                r#"- id=multiline, interpreter="tools/my \"shell\"\n\u{1b}""#,
+                r#", section="Setup \"tools\"\n\u{1b}""#,
+                r#", description="first\r\nsecond\nthird\rfourth\t\u{1b}""#,
+                "\n",
+            )
+        );
     }
 
     #[test]
@@ -603,7 +635,9 @@ mod tests {
             std::io::ErrorKind::BrokenPipe
         );
         assert_eq!(
-            write_list(&mut BrokenOutput, &plan).unwrap_err().kind(),
+            write_list(&mut BrokenOutput, &graph, &plan)
+                .unwrap_err()
+                .kind(),
             std::io::ErrorKind::BrokenPipe
         );
     }

@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Library callers can inspect a command's direct prerequisites and nearest
+  enclosing section title.
 - Creating execution plans uses less temporary memory.
 - Discover and run listing and source blocks marked with the `command` role,
   including commands in nested containers, AsciiDoc table cells, and included files.
