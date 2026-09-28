@@ -1,0 +1,44 @@
+= Code cross-reference footnotes
+:source-highlighter: rouge
+:highlight-css: class
+:name: Éva
+
+[[target]]
+== Target
+
+[source,rust,subs=+macros]
+----
+xref:target[Before footnote:code[Code note.] after]
+xref:target[Before footnote:code[] after]
+xref:target[footnote:[Note-only label.]]
+----
+
+[source,rust,linenums,subs=+macros]
+----
+xref:target[Before footnote:[Numbered note.] after]
+----
+
+[subs=+macros]
+....
+xref:target[Before footnote:[Literal block note.] after]
+....
+
+[source,rust,subs="specialchars,macros,attributes,quotes,replacements"]
+----
+xref:target[Before footnote:[{name} *literal* (C).] after]
+----
+
+[source,rust,subs="specialchars,attributes,quotes,replacements,macros"]
+----
+xref:target[Before footnote:[{name} *bold* (C).] after]
+----
+
+[source,rust]
+----
+xref:target[Before footnote:[Disabled note.] after]
+----
+
+[source,rust,subs="verbatim,-macros"]
+----
+xref:target[Before footnote:[Explicitly disabled note.] after]
+----

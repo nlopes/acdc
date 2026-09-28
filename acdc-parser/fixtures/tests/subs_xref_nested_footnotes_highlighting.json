@@ -1,0 +1,908 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Code cross-reference footnotes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 32
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 4,
+        "col": 10
+      }
+    ]
+  },
+  "attributes": {
+    "highlight-css": "class",
+    "name": "Éva",
+    "source-highlighter": "rouge"
+  },
+  "blocks": [
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Target",
+          "location": [
+            {
+              "line": 7,
+              "col": 4
+            },
+            {
+              "line": 7,
+              "col": 9
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "anchors": [
+          {
+            "id": "target",
+            "location": [
+              {
+                "line": 6,
+                "col": 1
+              },
+              {
+                "line": 6,
+                "col": 11
+              }
+            ]
+          }
+        ]
+      },
+      "blocks": [
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust"
+            },
+            "style": "source",
+            "substitutions": [
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 13
+                    },
+                    {
+                      "line": 11,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": "code",
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Code note.",
+                      "location": [
+                        {
+                          "line": 11,
+                          "col": 34
+                        },
+                        {
+                          "line": 11,
+                          "col": 43
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 20
+                    },
+                    {
+                      "line": 11,
+                      "col": 44
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 11,
+                      "col": 45
+                    },
+                    {
+                      "line": 11,
+                      "col": 50
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 11,
+                  "col": 1
+                },
+                {
+                  "line": 11,
+                  "col": 51
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 52
+                },
+                {
+                  "line": 11,
+                  "col": 52
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 13
+                    },
+                    {
+                      "line": 12,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": "code",
+                  "inlines": [],
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 20
+                    },
+                    {
+                      "line": 12,
+                      "col": 34
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 12,
+                      "col": 35
+                    },
+                    {
+                      "line": 12,
+                      "col": 40
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 12,
+                  "col": 1
+                },
+                {
+                  "line": 12,
+                  "col": 41
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": "\n",
+              "location": [
+                {
+                  "line": 12,
+                  "col": 42
+                },
+                {
+                  "line": 12,
+                  "col": 42
+                }
+              ]
+            },
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Note-only label.",
+                      "location": [
+                        {
+                          "line": 13,
+                          "col": 23
+                        },
+                        {
+                          "line": 13,
+                          "col": 38
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 13,
+                      "col": 13
+                    },
+                    {
+                      "line": 13,
+                      "col": 39
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 13,
+                  "col": 1
+                },
+                {
+                  "line": 13,
+                  "col": 40
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 9,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust",
+              "linenums": "linenums"
+            },
+            "style": "source",
+            "substitutions": [
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 13
+                    },
+                    {
+                      "line": 18,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Numbered note.",
+                      "location": [
+                        {
+                          "line": 18,
+                          "col": 30
+                        },
+                        {
+                          "line": 18,
+                          "col": 43
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 20
+                    },
+                    {
+                      "line": 18,
+                      "col": 44
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 18,
+                      "col": 45
+                    },
+                    {
+                      "line": 18,
+                      "col": 50
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 18,
+                  "col": 1
+                },
+                {
+                  "line": 18,
+                  "col": 51
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 19,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "literal",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "....",
+          "metadata": {
+            "substitutions": [
+              "+macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 13
+                    },
+                    {
+                      "line": 23,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Literal block note.",
+                      "location": [
+                        {
+                          "line": 23,
+                          "col": 30
+                        },
+                        {
+                          "line": 23,
+                          "col": 48
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 20
+                    },
+                    {
+                      "line": 23,
+                      "col": 49
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 23,
+                      "col": 50
+                    },
+                    {
+                      "line": 23,
+                      "col": 55
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 23,
+                  "col": 1
+                },
+                {
+                  "line": 23,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 21,
+              "col": 1
+            },
+            {
+              "line": 24,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust"
+            },
+            "style": "source",
+            "substitutions": [
+              "special_chars",
+              "macros",
+              "attributes",
+              "quotes",
+              "replacements"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 13
+                    },
+                    {
+                      "line": 28,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "raw",
+                      "type": "string",
+                      "value": "{name} *literal* (C).",
+                      "location": [
+                        {
+                          "line": 28,
+                          "col": 30
+                        },
+                        {
+                          "line": 28,
+                          "col": 50
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 20
+                    },
+                    {
+                      "line": 28,
+                      "col": 51
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 28,
+                      "col": 52
+                    },
+                    {
+                      "line": 28,
+                      "col": 57
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 28,
+                  "col": 1
+                },
+                {
+                  "line": 28,
+                  "col": 58
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 26,
+              "col": 1
+            },
+            {
+              "line": 29,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust"
+            },
+            "style": "source",
+            "substitutions": [
+              "special_chars",
+              "attributes",
+              "quotes",
+              "replacements",
+              "macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "xref",
+              "type": "inline",
+              "target": "target",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Before ",
+                  "location": [
+                    {
+                      "line": 33,
+                      "col": 13
+                    },
+                    {
+                      "line": 33,
+                      "col": 19
+                    }
+                  ]
+                },
+                {
+                  "name": "footnote",
+                  "type": "inline",
+                  "id": null,
+                  "inlines": [
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": "Éva ",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 30
+                        },
+                        {
+                          "line": 33,
+                          "col": 36
+                        }
+                      ]
+                    },
+                    {
+                      "name": "span",
+                      "type": "inline",
+                      "variant": "strong",
+                      "form": "constrained",
+                      "inlines": [
+                        {
+                          "name": "text",
+                          "type": "string",
+                          "value": "bold",
+                          "location": [
+                            {
+                              "line": 33,
+                              "col": 38
+                            },
+                            {
+                              "line": 33,
+                              "col": 41
+                            }
+                          ]
+                        }
+                      ],
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 37
+                        },
+                        {
+                          "line": 33,
+                          "col": 42
+                        }
+                      ]
+                    },
+                    {
+                      "name": "text",
+                      "type": "string",
+                      "value": " (C).",
+                      "location": [
+                        {
+                          "line": 33,
+                          "col": 43
+                        },
+                        {
+                          "line": 33,
+                          "col": 47
+                        }
+                      ]
+                    }
+                  ],
+                  "location": [
+                    {
+                      "line": 33,
+                      "col": 20
+                    },
+                    {
+                      "line": 33,
+                      "col": 48
+                    }
+                  ]
+                },
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": " after",
+                  "location": [
+                    {
+                      "line": 33,
+                      "col": 49
+                    },
+                    {
+                      "line": 33,
+                      "col": 54
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 33,
+                  "col": 1
+                },
+                {
+                  "line": 33,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 31,
+              "col": 1
+            },
+            {
+              "line": 34,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust"
+            },
+            "style": "source"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "xref:target[Before footnote:[Disabled note.] after]",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 1
+                },
+                {
+                  "line": 38,
+                  "col": 51
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 36,
+              "col": 1
+            },
+            {
+              "line": 39,
+              "col": 4
+            }
+          ]
+        },
+        {
+          "name": "listing",
+          "type": "block",
+          "form": "delimited",
+          "delimiter": "----",
+          "metadata": {
+            "attributes": {
+              "language": "rust"
+            },
+            "style": "source",
+            "substitutions": [
+              "+verbatim",
+              "-macros"
+            ]
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "xref:target[Before footnote:[Explicitly disabled note.] after]",
+              "location": [
+                {
+                  "line": 43,
+                  "col": 1
+                },
+                {
+                  "line": 43,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 41,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 4
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 44,
+          "col": 4
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 44,
+      "col": 4
+    }
+  ]
+}

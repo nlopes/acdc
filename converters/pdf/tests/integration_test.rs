@@ -11,6 +11,46 @@ use acdc_converters_pdf::{PdfOptions, Processor};
 
 type Error = Box<dyn std::error::Error>;
 
+#[test]
+fn xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> {
+    for label in [
+        "xref:target[Before footnote:[Nested body.] after]",
+        "<<target,Before footnote:[Nested body.] after>>",
+    ] {
+        let input = format!("= Notes\n\n[[target]]\n== Target\n\n<<<\n\n{label}\n");
+        let pdf = render_input(&input)?;
+        let mut pages = internal_link_pages(&pdf, 2)?;
+        pages.sort_unstable();
+        assert_eq!(
+            pages,
+            [1, 1, 2, 2],
+            "surrounding text links to page 1; the note and backlink to page 2"
+        );
+        assert_eq!(pdf.extract_text(&[2])?.matches("Nested body.").count(), 1);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_xref_nested_footnotes_keep_their_own_page_destination() -> Result<(), Error> {
+    for highlighter in ["", ":source-highlighter: rouge\n"] {
+        let input = format!(
+            "= Notes\n{highlighter}\n[[target]]\n== Target\n\n<<<\n\n[source,rust,subs=+macros]\n----\nxref:target[Before footnote:[Nested body.] after]\n----\n"
+        );
+        let pdf = render_input(&input)?;
+        let mut pages = internal_link_pages(&pdf, 2)?;
+        pages.sort_unstable();
+        assert_eq!(
+            pages,
+            [1, 1, 2, 2],
+            "surrounding code links to page 1; the note and backlink to page 2"
+        );
+        assert_eq!(pdf.extract_text(&[2])?.matches("Nested body.").count(), 1);
+    }
+    Ok(())
+}
+
 #[cfg(feature = "pre-spec-subs")]
 #[test]
 fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error> {

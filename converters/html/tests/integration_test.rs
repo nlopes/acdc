@@ -17,6 +17,16 @@ use acdc_parser::{AttributeValue, Options as ParserOptions, SafeMode, parse, par
 type Error = Box<dyn StdError>;
 
 #[test]
+fn xref_nested_footnotes_have_separate_unique_targets() -> Result<(), Error> {
+    check_link_label_footnote_targets("xref_nested_footnotes")?;
+    #[cfg(feature = "pre-spec-subs")]
+    check_link_label_footnote_targets("subs_xref_nested_footnotes")?;
+    #[cfg(all(feature = "pre-spec-subs", feature = "highlighting"))]
+    check_link_label_footnote_targets("subs_xref_nested_footnotes_highlighting")?;
+    Ok(())
+}
+
+#[test]
 fn footnotes_in_link_labels_have_separate_unique_targets() -> Result<(), Error> {
     check_link_label_footnote_targets("footnotes_in_link_labels")
 }

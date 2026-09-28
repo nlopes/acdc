@@ -1,0 +1,54 @@
+= Footnotes in cross-reference labels
+:name: Éva
+
+[[target]]
+== Target
+
+xref:target[Before footnote:[Square note.] after]
+
+<<target,Before footnote:[Angle note.] after>>
+
+xref:target[Before footnote:shared[Shared note.] after]
+
+xref:target[Before footnote:shared[] after]
+
+xref:target[Before footnote:shared[Shared note.] after]
+
+xref:target[Before footnote:shared[Ignored replacement.] after]
+
+xref:target[footnote:[First note.] after]
+
+xref:target[Before footnote:[Last note.]]
+
+xref:target[footnote:shared[]]
+
+xref:target[Before footnote:[One.]footnote:[Two.] after]
+
+xref:target[Before *bold footnote:[Bold note.] after* tail]
+
+xref:target[Before footnote:[Note with [nested] brackets.] after]
+
+xref:target[Before footnote:[Note for {name}.] after,role=hot]
+
+xref:target["Éva \"quoted\" footnote:[Note {name}, with commas.] after",role=quoted]
+
+xref:target[Before footnote:[First line
+second line.] after]
+
+xref:target[Before footnote:[A link:https://example.org[site] and ((IndexEntry)).] after]
+
+xref:other.adoc#there[Before footnote:shared[] after]
+
+xref:target[Before footnote:missing[] after]
+
+xref:target[Before \footnote:[Escaped note.] after]
+
+xref:target[Before literal \] bracket after]
+
+xref:target[Before [ordinary] after]
+
+xref:target[Before xref:target[inner] after]
+
+xref:target[Before footnote:[] after]
+
+xref:target[xrefstyle=short,role=automatic]

@@ -133,6 +133,8 @@ fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
         .with_attribute("experimental", true)
         .build()?;
     for (nested, expected_kind) in [
+        ("footnote:[note]", "footnote"),
+        ("footnote:named[note]", "footnote"),
         ("mailto:user@example.com[mail]", "mailto"),
         ("image:missing.png[alt]", "image"),
         ("icon:heart[]", "icon"),
@@ -167,6 +169,7 @@ fn xref_text_accepts_protected_inline_macro_forms() -> Result<(), Error> {
                 matches!(
                     (expected_kind, inline),
                     ("anchor", InlineNode::InlineAnchor(_))
+                        | ("footnote", InlineNode::Macro(InlineMacro::Footnote(_)))
                         | ("raw", InlineNode::RawText(_))
                         | ("mailto", InlineNode::Macro(InlineMacro::Mailto(_)))
                         | ("image", InlineNode::Macro(InlineMacro::Image(_)))
@@ -199,7 +202,6 @@ fn xref_macro_honors_closing_bracket_boundaries() -> Result<(), Error> {
     for (nested, expected_xref_text) in [
         ("[bracket]", "literal [bracket"),
         ("xref:target[inner]", "literal xref:target[inner"),
-        ("footnote:[note]", "literal footnote:[note"),
     ] {
         let input = format!("xref:target[literal {nested} tail]");
         let parsed = parse_inline(&input, &Options::default())?;

@@ -57,6 +57,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Parse footnotes inside `xref:target[...]` labels without ending the reference
+  at the footnote's closing bracket. Named notes, trailing label text, and code
+  with `subs=+macros` now work like the `<<target,...>>` form. The resulting
+  HTML and PDF intentionally differ from Asciidoctor's malformed output for
+  these nested macros: note bodies and surrounding link text stay separate.
+
 - Warn when a named footnote is repeated with different text, with the locations
   of both definitions. Keep the first body; identical repeats and empty references
   do not warn. Asciidoctor silently ignores conflicting replacement bodies.

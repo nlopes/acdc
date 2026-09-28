@@ -2247,8 +2247,8 @@ peg::parser! {
 
         /// Parse explicit xref text without balancing arbitrary brackets.
         ///
-        /// Asciidoctor protects escaped closing brackets and macros processed
-        /// before xrefs, but an unprotected `]` still ends the xref.
+        /// Escaped closing brackets and supported nested macros belong to the label.
+        /// Other closing brackets end the xref.
         rule cross_reference_macro_text() -> &'input str
         = text:$(cross_reference_macro_text_part()*) { text }
 
@@ -2263,6 +2263,7 @@ peg::parser! {
             &['['] inline_anchor_match()
             / &['a' | 's'] inline_stem_match()
             / &['b'] inline_button_match()
+            / &['f'] footnote_match() {}
             / &['f' | 'h'] url_macro_match()
             / &['i'] (
                 (check_index_terms() index_term_match())
