@@ -1,0 +1,21 @@
+= Footnotes in code link labels
+:source-highlighter: rouge
+:highlight-css: class
+
+[source,rust,subs=+macros]
+----
+link:https://example.org/code[Before footnote:code[Code note.] after]
+https://example.org/reuse[Before footnote:code[] after]
+mailto:hello@example.org[Before footnote:[Mail note.] after]
+link:https://example.org/only[footnote:code[]]
+----
+
+[source,rust,linenums,subs=+macros]
+----
+link:https://example.org/numbered[Before footnote:[Numbered note.] after]
+----
+
+[source,rust]
+----
+link:https://example.org/disabled[Before footnote:[Disabled note.] after]
+----

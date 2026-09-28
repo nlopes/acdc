@@ -1,0 +1,82 @@
+<nav id="toc" class="toc" role="doc-toc">
+<h2 id="toc-title">Table of Contents</h2>
+<ol class="toc-list level-1">
+<li>
+<a href="#target">1. Target <sup class="footnote-ref">[10]</sup></a>
+</li>
+<li>
+<a href="#appendix">Appendix A: Appendix <sup class="footnote-ref">[12]</sup></a>
+</li>
+<li>
+<a href="#linked-heading">2. Heading Label <sup class="footnote-ref">[13]</sup> after</a>
+</li>
+</ol>
+</nav>
+<section id="preamble" aria-label="Preamble">
+<p><a href="https://example.org/plain">Before </a><sup class="footnote-ref" id="_footnoteref_1">[<a href="#_footnote_1" title="View footnote 1" role="doc-noteref">1</a>]</sup><a href="https://example.org/plain"> after</a></p>
+<p><a href="https://example.org/named">Before </a><sup class="footnote-ref" id="_footnoteref_2">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><a href="https://example.org/named"> after</a></p>
+<p><a href="mailto:hello@example.org">Before </a><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><a href="mailto:hello@example.org"> after</a></p>
+<p><a href="https://example.org/repeated">Before </a><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><a href="https://example.org/repeated"> after</a></p>
+<p><a href="https://example.org/attributes?a=1&amp;b=2" id="outer" class="hot" target="_blank" rel="noopener">Before </a><strong><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener">bold </a><em><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener">italic </a><sup class="footnote-ref" id="_footnoteref_3">[<a href="#_footnote_3" title="View footnote 3" role="doc-noteref">3</a>]</sup><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener"> after</a></em><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener"> tail</a></strong><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener"> end</a></p>
+<p><span id="first"></span><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><a href="https://example.org/first"> after</a></p>
+<p><a href="https://example.org/last">Before </a><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup></p>
+<p><span id="only"></span><sup class="footnote-ref" id="_footnoteref_4">[<a href="#_footnote_4" title="View footnote 4" role="doc-noteref">4</a>]</sup></p>
+<p><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><sup class="footnote-ref">[<a href="#_footnote_4" title="View footnote 4" role="doc-noteref">4</a>]</sup><a href="https://example.org/adjacent"> after</a></p>
+<p><a href="https://example.org/format">Before </a><code><a href="https://example.org/format">mono </a><sup class="footnote-ref" id="_footnoteref_5">[<a href="#_footnote_5" title="View footnote 5" role="doc-noteref">5</a>]</sup><a href="https://example.org/format"> after</a></code><a href="https://example.org/format"> end</a></p>
+<p><a href="https://example.org/mark">Before </a><span class="hot"><a href="https://example.org/mark">mark </a><sup class="footnote-ref" id="_footnoteref_6">[<a href="#_footnote_6" title="View footnote 6" role="doc-noteref">6</a>]</sup><a href="https://example.org/mark"> after</a></span><a href="https://example.org/mark"> end</a></p>
+<p><a href="https://example.org/quote">Before </a><a href="https://example.org/quote">&ldquo;quote </a><sup class="footnote-ref" id="_footnoteref_7">[<a href="#_footnote_7" title="View footnote 7" role="doc-noteref">7</a>]</sup><a href="https://example.org/quote"> after</a><a href="https://example.org/quote">&rdquo;</a><a href="https://example.org/quote"> end</a></p>
+<p><a href="https://example.org/super">Before </a><sup><a href="https://example.org/super">super</a><sup class="footnote-ref" id="_footnoteref_8">[<a href="#_footnote_8" title="View footnote 8" role="doc-noteref">8</a>]</sup><a href="https://example.org/super">after</a></sup><a href="https://example.org/super"> end</a></p>
+<p><a href="https://example.org/sub">Before </a><sub><a href="https://example.org/sub">sub</a><sup class="footnote-ref" id="_footnoteref_9">[<a href="#_footnote_9" title="View footnote 9" role="doc-noteref">9</a>]</sup><a href="https://example.org/sub">after</a></sub><a href="https://example.org/sub"> end</a></p>
+<p><a href="https://example.org/missing">Before [missing] after</a></p>
+<p><a href="https://example.org/control">Before <strong>bold</strong> and <em>italic</em> after</a></p>
+<p><a href="https://example.org/empty" class="bare">https://example.org/empty</a></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="target">1. Target <sup class="footnote-ref" id="_footnoteref_10">[<a href="#_footnote_10" title="View footnote 10" role="doc-noteref">10</a>]</sup></h2>
+<p><a href="#target">Before </a><sup class="footnote-ref" id="_footnoteref_11">[<a href="#_footnote_11" title="View footnote 11" role="doc-noteref">11</a>]</sup><a href="#target"> after</a></p>
+<p><a href="other.html#target">Before </a><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><a href="other.html#target"> after</a></p>
+<p><a href="#target">Target </a><sup class="footnote-ref">[<a href="#_footnote_10" title="View footnote 10" role="doc-noteref">10</a>]</sup> and <a href="#target">Target </a><sup class="footnote-ref">[<a href="#_footnote_10" title="View footnote 10" role="doc-noteref">10</a>]</sup> again.</p>
+<p><a href="https://example.org/reference">Before </a><a href="#target">Target </a><sup class="footnote-ref">[<a href="#_footnote_10" title="View footnote 10" role="doc-noteref">10</a>]</sup><a href="https://example.org/reference"> after</a></p>
+<p><a href="https://example.org/formatted-reference">Before </a><strong><a href="https://example.org/formatted-reference">bold </a><a href="#target">Target </a><sup class="footnote-ref">[<a href="#_footnote_10" title="View footnote 10" role="doc-noteref">10</a>]</sup><a href="https://example.org/formatted-reference"> tail</a></strong><a href="https://example.org/formatted-reference"> after</a></p>
+<p><a href="#target">Section 1, &#8220;Target </a><sup class="footnote-ref">[<a href="#_footnote_10" title="View footnote 10" role="doc-noteref">10</a>]</sup><a href="#target">&#8221;</a></p>
+</section>
+<section class="doc-section level-1">
+<h2 id="appendix">Appendix A: Appendix <sup class="footnote-ref" id="_footnoteref_12">[<a href="#_footnote_12" title="View footnote 12" role="doc-noteref">12</a>]</sup></h2>
+<p><a href="#appendix">Appendix </a><sup class="footnote-ref">[<a href="#_footnote_12" title="View footnote 12" role="doc-noteref">12</a>]</sup> and <a href="#appendix">Appendix A, </a><em><a href="#appendix">Appendix </a><sup class="footnote-ref">[<a href="#_footnote_12" title="View footnote 12" role="doc-noteref">12</a>]</sup></em>.</p>
+</section>
+<section class="doc-section level-1">
+<h2 id="linked-heading">2. Heading <a href="https://example.org/heading">Label </a><sup class="footnote-ref" id="_footnoteref_13">[<a href="#_footnote_13" title="View footnote 13" role="doc-noteref">13</a>]</sup><a href="https://example.org/heading"> after</a></h2>
+<p><a href="#linked-heading">Heading </a><a href="https://example.org/heading">Label </a><sup class="footnote-ref">[<a href="#_footnote_13" title="View footnote 13" role="doc-noteref">13</a>]</sup><a href="https://example.org/heading"> after</a></p>
+<p><a href="https://outer.example.org">Outer </a><a href="https://inner.example.org">Inner </a><sup class="footnote-ref">[<a href="#_footnote_2" title="View footnote 2" role="doc-noteref">2</a>]</sup><a href="https://inner.example.org"> tail</a><a href="https://outer.example.org"> end</a></p>
+</section>
+<section class="footnotes" aria-label="Footnotes" role="doc-endnotes">
+<hr>
+<ol class="footnotes">
+<li class="footnote" id="_footnote_1" role="doc-endnote">
+Ordinary note. <a class="footnote-backref" href="#_footnoteref_1" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_2" role="doc-endnote">
+Shared note. <a class="footnote-backref" href="#_footnoteref_2" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_3" role="doc-endnote">
+Formatted note. <a class="footnote-backref" href="#_footnoteref_3" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_4" role="doc-endnote">
+Only note. <a class="footnote-backref" href="#_footnoteref_4" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_5" role="doc-endnote">
+Mono note. <a class="footnote-backref" href="#_footnoteref_5" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_6" role="doc-endnote">
+Mark note. <a class="footnote-backref" href="#_footnoteref_6" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_7" role="doc-endnote">
+Quote note. <a class="footnote-backref" href="#_footnoteref_7" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_8" role="doc-endnote">
+Super <a class="footnote-backref" href="#_footnoteref_8" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_9" role="doc-endnote">
+Sub <a class="footnote-backref" href="#_footnoteref_9" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_10" role="doc-endnote">
+Heading note. <a class="footnote-backref" href="#_footnoteref_10" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_11" role="doc-endnote">
+Reference note. <a class="footnote-backref" href="#_footnoteref_11" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_12" role="doc-endnote">
+Appendix note. <a class="footnote-backref" href="#_footnoteref_12" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+<li class="footnote" id="_footnote_13" role="doc-endnote">
+Linked title note. <a class="footnote-backref" href="#_footnoteref_13" role="doc-backlink" title="Jump to the first occurrence in the text">&#8617;</a></li>
+</ol>
+</section>

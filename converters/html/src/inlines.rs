@@ -327,9 +327,138 @@ struct CurvedForm<'a> {
     literal: char,
 }
 
+pub(crate) struct InlineLink {
+    href: String,
+    id: String,
+    attributes: String,
+    open: bool,
+}
+
+impl InlineLink {
+    fn new(href: String, id: String, attributes: String) -> Self {
+        Self {
+            href,
+            id,
+            attributes,
+            open: false,
+        }
+    }
+
+    fn open(&mut self, writer: &mut dyn Write) -> io::Result<()> {
+        if !self.open {
+            write!(
+                writer,
+                "<a href=\"{}\"{}{}>",
+                self.href, self.id, self.attributes
+            )?;
+            self.id.clear();
+            self.open = true;
+        }
+        Ok(())
+    }
+
+    fn close(&mut self, writer: &mut dyn Write) -> io::Result<()> {
+        if self.open {
+            write!(writer, "</a>")?;
+            self.open = false;
+        } else if !self.id.is_empty() {
+            // Keep the explicit target when a label starts with a footnote marker.
+            write!(writer, "<span{}></span>", self.id)?;
+            self.id.clear();
+        }
+        Ok(())
+    }
+}
+
+fn link_label_needs_split(node: &InlineNode<'_>, in_reference: bool) -> bool {
+    let children = match node {
+        InlineNode::Macro(InlineMacro::Footnote(_)) => return true,
+        // An automatic reference can supply a footnote from its target's title.
+        InlineNode::Macro(InlineMacro::CrossReference(n)) if n.text.is_empty() && !in_reference => {
+            return true;
+        }
+        InlineNode::Macro(InlineMacro::Link(n)) => &n.text,
+        InlineNode::Macro(InlineMacro::Url(n)) => &n.text,
+        InlineNode::Macro(InlineMacro::Mailto(n)) => &n.text,
+        InlineNode::Macro(InlineMacro::CrossReference(n)) => &n.text,
+        InlineNode::BoldText(n) => &n.content,
+        InlineNode::ItalicText(n) => &n.content,
+        InlineNode::MonospaceText(n) => &n.content,
+        InlineNode::HighlightText(n) => &n.content,
+        InlineNode::SubscriptText(n) => &n.content,
+        InlineNode::SuperscriptText(n) => &n.content,
+        InlineNode::CurvedQuotationText(n) => &n.content,
+        InlineNode::CurvedApostropheText(n) => &n.content,
+        InlineNode::Macro(InlineMacro::IndexTerm(n)) if n.is_visible() => n.term(),
+        InlineNode::PlainText(_)
+        | InlineNode::RawText(_)
+        | InlineNode::VerbatimText(_)
+        | InlineNode::StandaloneCurvedApostrophe(_)
+        | InlineNode::LineBreak(_)
+        | InlineNode::InlineAnchor(_)
+        | InlineNode::Macro(_)
+        | InlineNode::CalloutRef(_)
+        | _ => return false,
+    };
+    children
+        .iter()
+        .any(|node| link_label_needs_split(node, in_reference))
+}
+
 impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
-    /// Internal implementation for visiting inline nodes.
+    /// Render inline content while keeping footnote links outside surrounding links.
     pub(crate) fn render_inline_node(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        node: &InlineNode,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        if let Some(mut link) = self.inline_link.take() {
+            if link_label_needs_split(node, self.processor.xref_guard.is_resolving()) {
+                link.close(self.writer_mut())?;
+                self.inline_link = Some(link);
+                self.render_inline_node_content(traversal, node, options, subs)?;
+                return self.close_inline_link();
+            }
+            link.open(self.writer_mut())?;
+            let result = self.render_inline_node_content(traversal, node, options, subs);
+            self.inline_link = Some(link);
+            return result;
+        }
+        self.render_inline_node_content(traversal, node, options, subs)
+    }
+
+    pub(crate) fn close_inline_link(&mut self) -> Result<(), Error> {
+        if let Some(mut link) = self.inline_link.take() {
+            let result = link.close(self.writer_mut());
+            self.inline_link = Some(link);
+            result?;
+        }
+        Ok(())
+    }
+
+    fn open_inline_link(&mut self) -> Result<(), Error> {
+        if let Some(mut link) = self.inline_link.take() {
+            let result = link.open(self.writer_mut());
+            self.inline_link = Some(link);
+            result?;
+        }
+        Ok(())
+    }
+
+    fn with_inline_link(
+        &mut self,
+        link: InlineLink,
+        render: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        let previous = self.inline_link.replace(link);
+        let result = render(self).and_then(|()| self.close_inline_link());
+        self.inline_link = previous;
+        result
+    }
+
+    fn render_inline_node_content(
         &mut self,
         traversal: &mut TraversalContext<'a>,
         node: &InlineNode,
@@ -454,24 +583,25 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         } = *form;
         let quotes_on = subs.contains(&Substitution::Quotes);
         let has_attrs = id.is_some() || role.is_some();
-        let w = self.writer_mut();
+        if quotes_on && has_attrs {
+            write_tag_with_attrs(self.writer_mut(), "span", id, role)?;
+        }
+        self.open_inline_link()?;
         if quotes_on {
-            if has_attrs {
-                write_tag_with_attrs(w, "span", id, role)?;
-            }
-            write!(w, "{open_entity}")?;
+            write!(self.writer_mut(), "{open_entity}")?;
         } else {
-            write!(w, "{literal}")?;
+            write!(self.writer_mut(), "{literal}")?;
         }
         self.visit_inline_nodes(traversal, content)?;
-        let w = self.writer_mut();
+        self.open_inline_link()?;
         if quotes_on {
-            write!(w, "{close_entity}")?;
-            if has_attrs {
-                write!(w, "</span>")?;
-            }
+            write!(self.writer_mut(), "{close_entity}")?;
         } else {
-            write!(w, "{literal}")?;
+            write!(self.writer_mut(), "{literal}")?;
+        }
+        self.close_inline_link()?;
+        if quotes_on && has_attrs {
+            write!(self.writer_mut(), "</span>")?;
         }
         Ok(())
     }
@@ -911,20 +1041,24 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let id_attr = link_id_attr(&l.attributes);
         let class_attr = link_class_attr(role_from_attrs(&l.attributes), l.text.is_empty());
         let target_attr = window_attrs(&l.attributes);
-        write!(
-            self.writer_mut(),
-            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
-            escape_href(&target_str)
-        )?;
-        if l.text.is_empty() {
-            write!(self.writer_mut(), "{fallback}")?;
-        } else {
-            for inline in &l.text {
-                self.render_inline_node(traversal, inline, options, subs)?;
-            }
-        }
-        write!(self.writer_mut(), "</a>")?;
-        Ok(())
+        self.with_inline_link(
+            InlineLink::new(
+                escape_href(&target_str),
+                id_attr,
+                format!("{class_attr}{target_attr}"),
+            ),
+            |visitor| {
+                if l.text.is_empty() {
+                    visitor.open_inline_link()?;
+                    write!(visitor.writer_mut(), "{fallback}")?;
+                } else {
+                    for inline in &l.text {
+                        visitor.render_inline_node(traversal, inline, options, subs)?;
+                    }
+                }
+                Ok(())
+            },
+        )
     }
 
     fn render_inline_image(
@@ -1018,20 +1152,24 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let id_attr = link_id_attr(&u.attributes);
         let class_attr = link_class_attr(role_from_attrs(&u.attributes), u.text.is_empty());
         let target_attr = window_attrs(&u.attributes);
-        write!(
-            self.writer_mut(),
-            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
-            escape_href(&target_str)
-        )?;
-        if u.text.is_empty() {
-            write!(self.writer_mut(), "{fallback}")?;
-        } else {
-            for inline in &u.text {
-                self.render_inline_node(traversal, inline, options, subs)?;
-            }
-        }
-        write!(self.writer_mut(), "</a>")?;
-        Ok(())
+        self.with_inline_link(
+            InlineLink::new(
+                escape_href(&target_str),
+                id_attr,
+                format!("{class_attr}{target_attr}"),
+            ),
+            |visitor| {
+                if u.text.is_empty() {
+                    visitor.open_inline_link()?;
+                    write!(visitor.writer_mut(), "{fallback}")?;
+                } else {
+                    for inline in &u.text {
+                        visitor.render_inline_node(traversal, inline, options, subs)?;
+                    }
+                }
+                Ok(())
+            },
+        )
     }
 
     fn render_mailto(
@@ -1059,26 +1197,30 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
         let id_attr = link_id_attr(&m.attributes);
         let class_attr = link_class_attr(role_from_attrs(&m.attributes), false);
         let target_attr = window_attrs(&m.attributes);
-        write!(
-            self.writer_mut(),
-            "<a href=\"{}\"{id_attr}{class_attr}{target_attr}>",
-            escape_href(&target_str)
-        )?;
-        if m.text.is_empty() {
-            write!(self.writer_mut(), "{fallback}")?;
-        } else {
-            for inline in &m.text {
-                self.render_inline_node(traversal, inline, options, subs)?;
-            }
-        }
-        write!(self.writer_mut(), "</a>")?;
-        Ok(())
+        self.with_inline_link(
+            InlineLink::new(
+                escape_href(&target_str),
+                id_attr,
+                format!("{class_attr}{target_attr}"),
+            ),
+            |visitor| {
+                if m.text.is_empty() {
+                    visitor.open_inline_link()?;
+                    write!(visitor.writer_mut(), "{fallback}")?;
+                } else {
+                    for inline in &m.text {
+                        visitor.render_inline_node(traversal, inline, options, subs)?;
+                    }
+                }
+                Ok(())
+            },
+        )
     }
 
     fn render_footnote(&mut self, f: &Footnote<'_>, options: &RenderOptions) -> Result<(), Error> {
-        // A named footnote reference (footnote:name[] with empty content)
-        // uses class="footnoteref" and no IDs, matching asciidoctor.
-        let is_ref = f.id.is_some() && f.content.is_empty();
+        // Reused notes and copies in reference text must not repeat the original IDs.
+        let is_ref =
+            self.processor.xref_guard.is_resolving() || (f.id.is_some() && f.content.is_empty());
         let is_semantic = self.processor.variant() == HtmlVariant::Semantic;
         let w = self.writer_mut();
         let number = f.number;
@@ -1202,48 +1344,16 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             let linked = !(options.inlines_basic
                 || options.toc_mode
                 || matches!(display, XrefDisplay::Nested(_)));
-            if linked {
-                write!(self.writer_mut(), "<a href=\"#{target}\"{class}>")?;
-            }
-            match display {
-                XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
-                    for inline in inlines {
-                        self.render_inline_node(traversal, inline, options, subs)?;
-                    }
-                }
-                XrefDisplay::ShortCaption(prefix) => {
-                    write!(self.writer_mut(), "{}", escape_pcdata(&prefix))?;
-                }
-                XrefDisplay::FullCaption(prefix, inlines, _scope) => {
-                    write!(self.writer_mut(), "{}, &#8220;", escape_pcdata(&prefix))?;
-                    for inline in inlines {
-                        self.render_inline_node(traversal, inline, options, subs)?;
-                    }
-                    write!(self.writer_mut(), "&#8221;")?;
-                }
-                XrefDisplay::Emphasized(prefix, inlines, _scope) => {
-                    if let Some(prefix) = prefix {
-                        write!(self.writer_mut(), "{}, ", escape_pcdata(&prefix))?;
-                    }
-                    write!(self.writer_mut(), "<em>")?;
-                    for inline in inlines {
-                        self.render_inline_node(traversal, inline, options, subs)?;
-                    }
-                    write!(self.writer_mut(), "</em>")?;
-                }
-                XrefDisplay::Fallback(text)
-                | XrefDisplay::Unresolved(text)
-                | XrefDisplay::Nested(text) => {
-                    write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
-                }
-                XrefDisplay::External(target) => {
-                    write!(self.writer_mut(), "{}", escape_pcdata(&target))?;
-                }
-            }
-            if linked {
-                write!(self.writer_mut(), "</a>")?;
-            }
-            return Ok(());
+            let render =
+                |visitor: &mut Self| visitor.render_xref_display(traversal, display, options, subs);
+            return if linked {
+                self.with_inline_link(
+                    InlineLink::new(format!("#{target}"), String::new(), class),
+                    render,
+                )
+            } else {
+                render(self)
+            };
         }
 
         if options.inlines_basic || options.toc_mode {
@@ -1253,21 +1363,80 @@ impl<'a, W: Write> HtmlVisitor<'a, '_, W> {
             return Ok(());
         }
 
-        if !xref.target_is_local
+        let href = if !xref.target_is_local
             && let Some((external_target, _)) = Self::interdocument_xref(traversal, target)
         {
-            write!(
-                self.writer_mut(),
-                "<a href=\"{}\"{class}>",
-                escape_href(&external_target)
-            )?;
+            escape_href(&external_target)
         } else {
-            write!(self.writer_mut(), "<a href=\"#{target}\"{class}>")?;
+            format!("#{target}")
+        };
+        self.with_inline_link(InlineLink::new(href, String::new(), class), |visitor| {
+            for inline in &xref.text {
+                visitor.render_inline_node(traversal, inline, options, subs)?;
+            }
+            Ok(())
+        })
+    }
+
+    fn render_xref_display(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        display: XrefDisplay<'_, '_>,
+        options: &RenderOptions,
+        subs: &[Substitution],
+    ) -> Result<(), Error> {
+        match display {
+            XrefDisplay::Title(inlines, _scope) | XrefDisplay::Label(inlines, _scope) => {
+                for inline in inlines {
+                    self.render_inline_node(traversal, inline, options, subs)?;
+                }
+            }
+            XrefDisplay::ShortCaption(prefix) => {
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "{}", escape_pcdata(&prefix))?;
+            }
+            XrefDisplay::FullCaption(prefix, inlines, _scope) => {
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "{}, &#8220;", escape_pcdata(&prefix))?;
+                for inline in inlines {
+                    self.render_inline_node(traversal, inline, options, subs)?;
+                }
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "&#8221;")?;
+            }
+            XrefDisplay::Emphasized(prefix, inlines, _scope) => {
+                if let Some(prefix) = prefix {
+                    self.open_inline_link()?;
+                    write!(self.writer_mut(), "{}, ", escape_pcdata(&prefix))?;
+                }
+                let split = inlines.iter().any(|node| {
+                    link_label_needs_split(node, self.processor.xref_guard.is_resolving())
+                });
+                if split {
+                    self.close_inline_link()?;
+                } else {
+                    self.open_inline_link()?;
+                }
+                write!(self.writer_mut(), "<em>")?;
+                for inline in inlines {
+                    self.render_inline_node(traversal, inline, options, subs)?;
+                }
+                if split {
+                    self.close_inline_link()?;
+                }
+                write!(self.writer_mut(), "</em>")?;
+            }
+            XrefDisplay::Fallback(text)
+            | XrefDisplay::Unresolved(text)
+            | XrefDisplay::Nested(text) => {
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "{}", escape_pcdata(&text))?;
+            }
+            XrefDisplay::External(target) => {
+                self.open_inline_link()?;
+                write!(self.writer_mut(), "{}", escape_pcdata(&target))?;
+            }
         }
-        for inline in &xref.text {
-            self.render_inline_node(traversal, inline, options, subs)?;
-        }
-        write!(self.writer_mut(), "</a>")?;
         Ok(())
     }
 

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Keep footnote markers outside their surrounding links in both HTML variants,
+  including formatted labels and code with `subs=+macros`. Text on either side
+  remains clickable, and cross-references to headings reuse footnotes without
+  duplicate IDs. For footnotes inside link labels, generated HTML intentionally
+  no longer matches Asciidoctor's output: acdc avoids nested anchors and keeps
+  trailing label text outside the note.
+
 - Render enabled code footnotes with one definition and working links, including highlighted and numbered source blocks. Highlighted footnotes remain functional where Asciidoctor HTML with Rouge leaves their syntax literal.
 
 - Keep links and cross-references functional in highlighted source blocks with `subs=+macros`, including line numbers and class-based highlighting. This intentionally avoids Asciidoctor HTML's highlighter-dependent loss of enabled links.

@@ -1,0 +1,140 @@
+<div id="toc" class="toc">
+<div id="toctitle">Table of Contents</div>
+<ul class="sectlevel1">
+<li>
+<a href="#target">1. Target <sup class="footnote">[10]</sup></a>
+</li>
+<li>
+<a href="#appendix">Appendix A: Appendix <sup class="footnote">[12]</sup></a>
+</li>
+<li>
+<a href="#linked-heading">2. Heading Label <sup class="footnote">[13]</sup> after</a>
+</li>
+</ul>
+</div>
+<div id="preamble">
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="https://example.org/plain">Before </a><sup class="footnote">[<a id="_footnoteref_1" class="footnote" href="#_footnotedef_1" title="View footnote.">1</a>]</sup><a href="https://example.org/plain"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/named">Before </a><sup class="footnote" id="_footnote_shared">[<a id="_footnoteref_2" class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><a href="https://example.org/named"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="mailto:hello@example.org">Before </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><a href="mailto:hello@example.org"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/repeated">Before </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><a href="https://example.org/repeated"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/attributes?a=1&amp;b=2" id="outer" class="hot" target="_blank" rel="noopener">Before </a><strong><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener">bold </a><em><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener">italic </a><sup class="footnote" id="_footnote_formatted">[<a id="_footnoteref_3" class="footnote" href="#_footnotedef_3" title="View footnote.">3</a>]</sup><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener"> after</a></em><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener"> tail</a></strong><a href="https://example.org/attributes?a=1&amp;b=2" class="hot" target="_blank" rel="noopener"> end</a></p>
+</div>
+<div class="paragraph">
+<p><span id="first"></span><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><a href="https://example.org/first"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/last">Before </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup></p>
+</div>
+<div class="paragraph">
+<p><span id="only"></span><sup class="footnote" id="_footnote_only">[<a id="_footnoteref_4" class="footnote" href="#_footnotedef_4" title="View footnote.">4</a>]</sup></p>
+</div>
+<div class="paragraph">
+<p><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_4" title="View footnote.">4</a>]</sup><a href="https://example.org/adjacent"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/format">Before </a><code><a href="https://example.org/format">mono </a><sup class="footnote">[<a id="_footnoteref_5" class="footnote" href="#_footnotedef_5" title="View footnote.">5</a>]</sup><a href="https://example.org/format"> after</a></code><a href="https://example.org/format"> end</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/mark">Before </a><span class="hot"><a href="https://example.org/mark">mark </a><sup class="footnote">[<a id="_footnoteref_6" class="footnote" href="#_footnotedef_6" title="View footnote.">6</a>]</sup><a href="https://example.org/mark"> after</a></span><a href="https://example.org/mark"> end</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/quote">Before </a><a href="https://example.org/quote">&ldquo;quote </a><sup class="footnote">[<a id="_footnoteref_7" class="footnote" href="#_footnotedef_7" title="View footnote.">7</a>]</sup><a href="https://example.org/quote"> after</a><a href="https://example.org/quote">&rdquo;</a><a href="https://example.org/quote"> end</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/super">Before </a><sup><a href="https://example.org/super">super</a><sup class="footnote">[<a id="_footnoteref_8" class="footnote" href="#_footnotedef_8" title="View footnote.">8</a>]</sup><a href="https://example.org/super">after</a></sup><a href="https://example.org/super"> end</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/sub">Before </a><sub><a href="https://example.org/sub">sub</a><sup class="footnote">[<a id="_footnoteref_9" class="footnote" href="#_footnotedef_9" title="View footnote.">9</a>]</sup><a href="https://example.org/sub">after</a></sub><a href="https://example.org/sub"> end</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/missing">Before [missing] after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/control">Before <strong>bold</strong> and <em>italic</em> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/empty" class="bare">https://example.org/empty</a></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="target">1. Target <sup class="footnote" id="_footnote_heading">[<a id="_footnoteref_10" class="footnote" href="#_footnotedef_10" title="View footnote.">10</a>]</sup></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="#target">Before </a><sup class="footnote">[<a id="_footnoteref_11" class="footnote" href="#_footnotedef_11" title="View footnote.">11</a>]</sup><a href="#target"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="other.html#target">Before </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><a href="other.html#target"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="#target">Target </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_10" title="View footnote.">10</a>]</sup> and <a href="#target">Target </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_10" title="View footnote.">10</a>]</sup> again.</p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/reference">Before </a><a href="#target">Target </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_10" title="View footnote.">10</a>]</sup><a href="https://example.org/reference"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://example.org/formatted-reference">Before </a><strong><a href="https://example.org/formatted-reference">bold </a><a href="#target">Target </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_10" title="View footnote.">10</a>]</sup><a href="https://example.org/formatted-reference"> tail</a></strong><a href="https://example.org/formatted-reference"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="#target">Section 1, &#8220;Target </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_10" title="View footnote.">10</a>]</sup><a href="#target">&#8221;</a></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="appendix">Appendix A: Appendix <sup class="footnote" id="_footnote_appendix">[<a id="_footnoteref_12" class="footnote" href="#_footnotedef_12" title="View footnote.">12</a>]</sup></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="#appendix">Appendix </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_12" title="View footnote.">12</a>]</sup> and <a href="#appendix">Appendix A, </a><em><a href="#appendix">Appendix </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_12" title="View footnote.">12</a>]</sup></em>.</p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="linked-heading">2. Heading <a href="https://example.org/heading">Label </a><sup class="footnote" id="_footnote_linked-title">[<a id="_footnoteref_13" class="footnote" href="#_footnotedef_13" title="View footnote.">13</a>]</sup><a href="https://example.org/heading"> after</a></h2>
+<div class="sectionbody">
+<div class="paragraph">
+<p><a href="#linked-heading">Heading </a><a href="https://example.org/heading">Label </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_13" title="View footnote.">13</a>]</sup><a href="https://example.org/heading"> after</a></p>
+</div>
+<div class="paragraph">
+<p><a href="https://outer.example.org">Outer </a><a href="https://inner.example.org">Inner </a><sup class="footnoteref">[<a class="footnote" href="#_footnotedef_2" title="View footnote.">2</a>]</sup><a href="https://inner.example.org"> tail</a><a href="https://outer.example.org"> end</a></p>
+</div>
+</div>
+</div>
+<div id="footnotes">
+<hr>
+<div class="footnote" id="_footnotedef_1">
+<a href="#_footnoteref_1">1</a>. Ordinary note.</div>
+<div class="footnote" id="_footnotedef_2">
+<a href="#_footnoteref_2">2</a>. Shared note.</div>
+<div class="footnote" id="_footnotedef_3">
+<a href="#_footnoteref_3">3</a>. Formatted note.</div>
+<div class="footnote" id="_footnotedef_4">
+<a href="#_footnoteref_4">4</a>. Only note.</div>
+<div class="footnote" id="_footnotedef_5">
+<a href="#_footnoteref_5">5</a>. Mono note.</div>
+<div class="footnote" id="_footnotedef_6">
+<a href="#_footnoteref_6">6</a>. Mark note.</div>
+<div class="footnote" id="_footnotedef_7">
+<a href="#_footnoteref_7">7</a>. Quote note.</div>
+<div class="footnote" id="_footnotedef_8">
+<a href="#_footnoteref_8">8</a>. Super</div>
+<div class="footnote" id="_footnotedef_9">
+<a href="#_footnoteref_9">9</a>. Sub</div>
+<div class="footnote" id="_footnotedef_10">
+<a href="#_footnoteref_10">10</a>. Heading note.</div>
+<div class="footnote" id="_footnotedef_11">
+<a href="#_footnoteref_11">11</a>. Reference note.</div>
+<div class="footnote" id="_footnotedef_12">
+<a href="#_footnoteref_12">12</a>. Appendix note.</div>
+<div class="footnote" id="_footnotedef_13">
+<a href="#_footnoteref_13">13</a>. Linked title note.</div>
+</div>

@@ -193,6 +193,8 @@ pub struct HtmlVisitor<'a, 'd, W: Write> {
     /// Plain-text title of the section currently being rendered, used as the
     /// label for index back-links. `None` outside any section (e.g. preamble).
     pub(crate) current_section_title: Option<String>,
+    /// Surrounding label link, suspended around footnotes and their formatting.
+    pub(crate) inline_link: Option<crate::inlines::InlineLink>,
     pub(crate) captured_raw_fragments: Option<Vec<String>>,
     /// Resolved docinfo content for injection at head, header, and footer positions.
     docinfo: DocInfo,
@@ -228,6 +230,7 @@ impl<'a, 'd, W: Write> HtmlVisitor<'a, 'd, W> {
             section_style: None,
             current_section_title: None,
             captured_raw_fragments: None,
+            inline_link: None,
             docinfo,
             text_boundaries: TextBoundaries::BOTH,
         }
@@ -1181,7 +1184,7 @@ impl<'a, W: Write> Visitor<'a> for HtmlVisitor<'a, '_, W> {
                 );
                 self.visit_inline_node(traversal, node)?;
             }
-            Ok(())
+            self.close_inline_link()
         })();
         self.text_boundaries = previous_boundaries;
         result

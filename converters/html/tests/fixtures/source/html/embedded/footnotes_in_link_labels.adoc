@@ -1,0 +1,64 @@
+= Footnotes in link labels
+:toc:
+:sectnums:
+
+link:https://example.org/plain[Before footnote:[Ordinary note.] after]
+
+https://example.org/named[Before footnote:shared[Shared note.] after]
+
+mailto:hello@example.org[Before footnote:shared[] after]
+
+link:https://example.org/repeated[Before footnote:shared[Shared note.] after]
+
+link:https://example.org/attributes?a=1&b=2[Before *bold _italic footnote:formatted[Formatted note.] after_ tail* end,role=hot,window=_blank,id=outer]
+
+link:https://example.org/first[footnote:shared[] after,id=first]
+
+link:https://example.org/last[Before footnote:shared[]]
+
+link:https://example.org/only[footnote:only[Only note.],id=only]
+
+link:https://example.org/adjacent[footnote:shared[]footnote:only[] after]
+
+link:https://example.org/format[Before `mono footnote:[Mono note.] after` end]
+
+link:https://example.org/mark[Before [.hot]#mark footnote:[Mark note.] after# end]
+
+link:https://example.org/quote[Before "`quote footnote:[Quote note.] after`" end]
+
+link:https://example.org/super[Before ^superfootnote:[Super]after^ end]
+
+link:https://example.org/sub[Before ~subfootnote:[Sub]after~ end]
+
+link:https://example.org/missing[Before footnote:missing[] after]
+
+link:https://example.org/control[Before *bold* and _italic_ after]
+
+link:https://example.org/empty[]
+
+[[target]]
+== Target footnote:heading[Heading note.]
+
+<<target,Before footnote:[Reference note.] after>>
+
+<<other.adoc#target,Before footnote:shared[] after>>
+
+xref:target[] and xref:target[] again.
+
+link:https://example.org/reference[Before <<target>> after]
+
+link:https://example.org/formatted-reference[Before *bold <<target>> tail* after]
+
+xref:target[xrefstyle=full]
+
+[appendix#appendix]
+== Appendix footnote:appendix[Appendix note.]
+
+xref:appendix[] and xref:appendix[xrefstyle=full].
+
+[[linked-heading]]
+== Heading link:https://example.org/heading[Label footnote:linked-title[Linked title note.] after]
+
+xref:linked-heading[]
+
+link:https://outer.example.org[Outer link:https://inner.example.org[Inner footnote:shared[] tail] end]
