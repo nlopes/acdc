@@ -1,0 +1,5 @@
+= Included footnotes
+
+include::footnote_conflict_first.adoc[]
+
+include::footnote_conflict_second.adoc[]

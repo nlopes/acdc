@@ -105,7 +105,7 @@
 
 #text(size: 1.25em)[#text("This document is rendered through the converter API. It links to ")#link("https://example.com/kitchen-sink")[#text("the external test target")]#text(" and refers forward to ")#context link(query(<id-7265666572656e63652d7461626c65>).first().location())[#text("Table 1")#text(", “")#text("Repeated inventory")#text("”")]#text(", ")#context link(query(<id-776f726b666c6f772d6c697374696e67>).first().location())[#text("Listing 1")#text(", “")#text("API conversion")#text("”")]#text(", and ")#context link(query(<id-636f6e636c7573696f6e>).first().location())[#text("Section 3")#text(", “")#text("Conclusion")#text("”")]#text(".")]
 
-#text("The first named note is defined here.")#counter(footnote).update(0)#footnote[#text("Shared footnote text.")] <id-666f6f746e6f74653a736861726564>
+#text("The first named note is defined here.")#counter(footnote).update(0)#footnote[#text("Shared footnote text.")]<id-666f6f746e6f74653a736861726564>
 
 #heading(level: 1)[#text("1. ")#text("Overview")] <id-6f76657276696577>
 

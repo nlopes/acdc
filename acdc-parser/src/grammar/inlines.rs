@@ -968,7 +968,19 @@ peg::parser! {
         = nodes:(non_plain_text() / plain_text())+ {? expand_escaped_index_terms(nodes, state) }
 
         pub(crate) rule verbatim_inlines() -> Vec<InlineNode<'input>>
-        = nodes:(verbatim_index_term() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+        = nodes:(verbatim_index_term() / verbatim_footnote() / verbatim_link() / quotes_non_plain_text() / verbatim_plain_text())+ {? expand_escaped_index_terms(nodes, state) }
+
+        rule verbatim_footnote() -> InlineNode<'input>
+        = check_macros() node:(
+            "\\" &footnote_match() content:$("footnote:" id()? "[") {
+                InlineNode::PlainText(Plain {
+                    content,
+                    location: state.create_block_location(span_start, span_end, state.inline_ctx.offset),
+                    escaped: false,
+                })
+            }
+            / node:footnote() { node }
+        ) { node }
 
         rule verbatim_link() -> InlineNode<'input>
         = check_macros() node:(
@@ -1006,6 +1018,7 @@ peg::parser! {
         rule verbatim_plain_text() -> InlineNode<'input>
         = content:$((
             !(check_index_terms() ("\\"+ index_term_match() / index_term_match()))
+            !(check_macros() ("\\"? footnote_match()))
             !(check_macros() (
                 verbatim_link_match()
                 / &("\\"+ verbatim_link_match()) escaped_syntax_match()
@@ -1279,12 +1292,17 @@ peg::parser! {
 
             tracing::debug!(?id, content = %content_str, "Found footnote inline");
 
-            // If content_str is empty or only whitespace, we should not try to process
-            // inlines, it just means this footnote has no content and therefore the user
-            // has already added the content in a footnote with the same id but with
-            // content.
-            let content = if content_str.trim().is_empty() {
+            // Repeated definitions use the first body without registering its macros again.
+            let content = if content_str.is_empty()
+                || id.is_some_and(|id| state.footnote_tracker.borrow().contains(id))
+            {
                 vec![]
+            } else if content_str.trim().is_empty() {
+                vec![InlineNode::PlainText(Plain {
+                    content: content_str,
+                    location: state.create_block_location(content_start, end - 1, state.inline_ctx.offset),
+                    escaped: false,
+                })]
             } else {
                 parse_footnote_content(state, IndexTermSegment { text: content_str, start: content_start })?
             };
@@ -1293,24 +1311,35 @@ peg::parser! {
             let registration_substitutions = [Substitution::Attributes, Substitution::Quotes, Substitution::Replacements]
                 .iter().any(|stage| plan.precedes(&Substitution::Macros, stage)).then_some(plan);
             let mut footnote = Footnote {
+                definition_source: (id.is_some() && !content_str.is_empty()).then(|| {
+                    registration_source(state, IndexTermSegment { text: content_str, start: content_start }).0
+                }),
                 registration_substitutions,
                 id,
                 content,
-                number: 0, // Will be set by register_footnote
+                number: 0,
                 location: state.create_block_location(start, end, state.inline_ctx.offset),
             };
-            state.footnote_tracker.borrow_mut().push(&mut footnote);
+            if !state.footnote_tracker.borrow_mut().push(&mut footnote) {
+                let id = id.unwrap_or_default();
+                state.add_generic_warning(format!("invalid footnote reference: {id}"));
+                return Ok(InlineNode::PlainText(Plain {
+                    content: state.intern_fmt(format_args!("[{id}]")),
+                    location: footnote.location,
+                    escaped: false,
+                }));
+            }
 
             Ok(InlineNode::Macro(InlineMacro::Footnote(footnote)))
         }
 
         rule footnote_match() -> (usize, Option<&'input str>, usize, &'input str, usize)
         = "footnote:"
-        // TODO(nlopes): we should change this so that we require an id if content is empty
         id:id()? "[" content_start:position!() content:balanced_bracket_content() "]"
-        {
-            (span_start, id, content_start, content, span_end)
-
+        {?
+            (id.is_some() || !content.is_empty())
+                .then_some((span_start, id, content_start, content, span_end))
+                .ok_or("footnote body or reference id")
         }
 
         /// Parse content that may contain balanced square brackets (general case)

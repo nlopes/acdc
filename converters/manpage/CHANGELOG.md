@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Footnotes enabled with `subs=+macros` in listing, source, and literal blocks
+  display numbered markers and appear in the NOTES section. Repeated named
+  definitions keep the first body, matching Asciidoctor.
+
 - Index catalogs retain literal attribute references and quote markers when `subs=` puts
   attributes or quotes after macros, matching Asciidoctor registration order. Visible
   terms still receive the later substitutions.

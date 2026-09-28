@@ -10,7 +10,7 @@ use acdc_converters_core::substitutions::{
 use acdc_converters_core::{
     Diagnostics, Doctype, InlineTextTransform, TraversalContext,
     code::{
-        CodeLink, CodeLinkTarget, SourceLineOptions, code_inline_children, detect_language,
+        CodeLinkTarget, SourceLineOptions, code_inline_children, detect_language,
         resolve_code_link, source_line_count,
     },
     document_attribute_text,
@@ -50,16 +50,65 @@ use crate::{
     warn_with_advice_at,
 };
 
+#[derive(Default)]
 struct CodeText {
     source: String,
     indexes: Vec<(usize, usize)>,
     links: Vec<CodeSpan>,
 }
 
+impl CodeText {
+    fn wrap_link(&mut self, target: Option<CodeLinkTarget>, anchor: Option<String>) {
+        if target.is_none() && anchor.is_none() {
+            return;
+        }
+        let mut spans = Vec::new();
+        let mut start = 0;
+        let mut anchor = anchor;
+        for span in self.links.drain(..) {
+            if start < span.range.start || anchor.is_some() {
+                spans.push(CodeSpan {
+                    range: start..span.range.start,
+                    target: target.clone(),
+                    anchor: anchor.take(),
+                    footnote: None,
+                });
+            }
+            start = span.range.end;
+            spans.push(span);
+        }
+        if start < self.source.len() || anchor.is_some() {
+            spans.push(CodeSpan {
+                range: start..self.source.len(),
+                target,
+                anchor,
+                footnote: None,
+            });
+        }
+        self.links = spans;
+    }
+
+    fn append(&mut self, child: Self) {
+        let offset = self.source.len();
+        self.source.push_str(&child.source);
+        self.indexes.extend(
+            child
+                .indexes
+                .into_iter()
+                .map(|(position, id)| (position + offset, id)),
+        );
+        self.links.extend(child.links.into_iter().map(|mut link| {
+            link.range = link.range.start + offset..link.range.end + offset;
+            link
+        }));
+    }
+}
+
 struct CodeSpan {
     range: Range<usize>,
     target: Option<CodeLinkTarget>,
     anchor: Option<String>,
+    footnote: Option<String>,
 }
 
 #[derive(Default)]
@@ -1697,8 +1746,6 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
         nodes: &[InlineNode<'_>],
         tab_size: usize,
     ) -> Result<CodeText, Error> {
-        let mut positions = Vec::new();
-        let references = Rc::clone(&self.processor.references);
         let extension = traversal
             .get("relfilesuffix")
             .and_then(|v| v.text())
@@ -1706,17 +1753,11 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             .unwrap_or("pdf")
             .trim_start_matches('.')
             .to_owned();
-        let (mut text, mut links) = code_text_without_callout_guards(
-            nodes,
-            &mut |node| resolve_code_link(node, &references, &extension),
-            &mut |term, offset| {
-                let entry = self.render_index_entry(traversal, term)?;
-                if let Some(anchor) = self.index_catalog.add(entry) {
-                    positions.push((offset, anchor));
-                }
-                Ok::<(), Error>(())
-            },
-        )?;
+        let CodeText {
+            source: mut text,
+            indexes: mut positions,
+            mut links,
+        } = self.collect_code_text(traversal, nodes, &extension, false)?;
         for link in &mut links {
             link.anchor = link.anchor.as_deref().and_then(|id| self.anchors.claim(id));
         }
@@ -1752,6 +1793,101 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
             indexes: positions,
             links,
         })
+    }
+
+    fn collect_code_text(
+        &mut self,
+        traversal: &mut TraversalContext<'a>,
+        nodes: &[InlineNode<'_>],
+        extension: &str,
+        suppress_indexes: bool,
+    ) -> Result<CodeText, Error> {
+        let mut code = CodeText::default();
+        let transform = InlineTextTransform::default().line_break("\n");
+
+        for (index, node) in nodes.iter().enumerate() {
+            if !suppress_indexes && let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
+                let entry = self.render_index_entry(traversal, term)?;
+                if let Some(anchor) = self.index_catalog.add(entry) {
+                    code.indexes.push((code.source.len(), anchor));
+                }
+            }
+            if let InlineNode::Macro(inline_macro @ InlineMacro::Footnote(_)) = node {
+                let output = replace(&mut self.writer, Writer::new());
+                let result = self.write_inline_macro(traversal, inline_macro);
+                let markup = replace(&mut self.writer, output).into_string();
+                result?;
+                let start = code.source.len();
+                // One indivisible placeholder keeps note-only lines and cannot split a note when wrapping.
+                code.source.push('\u{fffc}');
+                code.links.push(CodeSpan {
+                    range: start..code.source.len(),
+                    target: None,
+                    anchor: None,
+                    footnote: Some(markup),
+                });
+            } else if let Some(children) = code_inline_children(node) {
+                let child = self.collect_code_text(
+                    traversal,
+                    children,
+                    extension,
+                    suppress_indexes
+                        || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))),
+                )?;
+                code.append(child);
+            } else if let Some(link) =
+                resolve_code_link(node, &self.processor.references, extension)
+            {
+                let child = if let InlineNode::Macro(InlineMacro::Link(link)) = node {
+                    Some(link.text.as_slice())
+                } else if let InlineNode::Macro(InlineMacro::Url(link)) = node {
+                    Some(link.text.as_slice())
+                } else if let InlineNode::Macro(InlineMacro::Mailto(link)) = node {
+                    Some(link.text.as_slice())
+                } else if let InlineNode::Macro(InlineMacro::CrossReference(link)) = node {
+                    Some(link.text.as_slice())
+                } else {
+                    None
+                };
+                let mut child = if let Some(children) = child.filter(|nodes| !nodes.is_empty()) {
+                    self.collect_code_text(traversal, children, extension, suppress_indexes)?
+                } else {
+                    CodeText {
+                        source: link.text,
+                        ..CodeText::default()
+                    }
+                };
+                child.wrap_link(link.target, link.anchor);
+                code.append(child);
+            } else if let InlineNode::VerbatimText(verbatim) = node {
+                let mut content = verbatim.content;
+                if index
+                    .checked_sub(1)
+                    .is_some_and(|previous| is_xml_callout(nodes, previous))
+                {
+                    content = content.strip_prefix("-->").unwrap_or(content);
+                }
+                if index
+                    .checked_add(1)
+                    .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
+                {
+                    if index
+                        .checked_add(1)
+                        .is_some_and(|next| is_xml_callout(nodes, next))
+                    {
+                        content = content.strip_suffix("<!--").unwrap_or(content);
+                    }
+                    content = strip_pdf_callout_guard(content);
+                }
+                code.source.push_str(content);
+            } else if let InlineNode::CalloutRef(callout) = node {
+                let _ = write!(code.source, "({})", callout.number);
+            } else {
+                let _ = transform.write(&mut code.source, std::slice::from_ref(node));
+            }
+        }
+
+        Ok(code)
     }
 
     fn code_link_lines(
@@ -1794,7 +1930,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         let start = link.range.start.max(offset);
                         let stop = link.range.end.min(end);
                         let empty_anchor = link.range.is_empty()
-                            && link.anchor.is_some()
+                            && (link.anchor.is_some() || link.footnote.is_some())
                             && link.range.start >= offset
                             && (link.range.start < end
                                 || (link.range.start == end
@@ -1803,6 +1939,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                         (start < stop || empty_anchor).then(|| CodeSpan {
                             range: start - offset..stop - offset,
                             target: link.target.clone(),
+                            footnote: link.footnote.clone(),
                             anchor: (start == link.range.start)
                                 .then(|| link.anchor.clone())
                                 .flatten(),
@@ -1835,23 +1972,29 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                 if let Some(anchor) = &span.anchor {
                     let _ = write!(self.writer, "[#metadata(none)<{anchor}>] + ");
                 }
-                match &span.target {
-                    Some(CodeLinkTarget::External(target)) => {
-                        self.writer.raw("link(");
-                        self.writer.string_literal(target);
-                        self.writer.raw(", body)");
+                if let Some(replacement) = &span.footnote {
+                    self.writer.raw("[");
+                    self.writer.raw(replacement);
+                    self.writer.raw("]");
+                } else {
+                    match &span.target {
+                        Some(CodeLinkTarget::External(target)) => {
+                            self.writer.raw("link(");
+                            self.writer.string_literal(target);
+                            self.writer.raw(", body)");
+                        }
+                        Some(CodeLinkTarget::Internal(target)) => {
+                            let _ = write!(
+                                self.writer,
+                                "context link(query(<{}>).first().location(), body)",
+                                encode_label(target)
+                            );
+                        }
+                        Some(CodeLinkTarget::DocumentTop) => {
+                            self.writer.raw("link((page: 1, x: 0pt, y: 0pt), body)");
+                        }
+                        None => self.writer.raw("body"),
                     }
-                    Some(CodeLinkTarget::Internal(target)) => {
-                        let _ = write!(
-                            self.writer,
-                            "context link(query(<{}>).first().location(), body)",
-                            encode_label(target)
-                        );
-                    }
-                    Some(CodeLinkTarget::DocumentTop) => {
-                        self.writer.raw("link((page: 1, x: 0pt, y: 0pt), body)");
-                    }
-                    None => self.writer.raw("body"),
                 }
                 self.writer.raw("), ");
             }
@@ -3410,7 +3553,7 @@ impl<'a, 'd, 'm> PdfVisitor<'a, 'd, 'm> {
                     self.write_inlines(traversal, &footnote.content)?;
                     self.writer.raw("]");
                     if let Some(id) = footnote.id {
-                        let _ = write!(self.writer, " <{}>", encode_footnote_label(id));
+                        let _ = write!(self.writer, "<{}>", encode_footnote_label(id));
                     }
                 }
             }
@@ -4323,82 +4466,6 @@ fn transform_code_text(
         }
         *text = transformed;
     }
-}
-
-fn code_text_without_callout_guards<E>(
-    nodes: &[InlineNode<'_>],
-    resolve_link: &mut dyn FnMut(&InlineNode<'_>) -> Option<CodeLink>,
-    visit: &mut dyn FnMut(&IndexTerm<'_>, usize) -> Result<(), E>,
-) -> Result<(String, Vec<CodeSpan>), E> {
-    let mut text = String::new();
-    let mut links = Vec::new();
-    let transform = InlineTextTransform::default().line_break("\n");
-
-    for (index, node) in nodes.iter().enumerate() {
-        if let InlineNode::Macro(InlineMacro::IndexTerm(term)) = node {
-            visit(term, text.len())?;
-        }
-        if let Some(children) = code_inline_children(node) {
-            let offset = text.len();
-            let (child_text, child_links) = code_text_without_callout_guards(
-                children,
-                resolve_link,
-                &mut |term, child_offset| {
-                    if matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(_))) {
-                        Ok(())
-                    } else {
-                        visit(term, offset + child_offset)
-                    }
-                },
-            )?;
-            text.push_str(&child_text);
-            links.extend(child_links.into_iter().map(|mut link| {
-                link.range = link.range.start + offset..link.range.end + offset;
-                link
-            }));
-        } else if let Some(link) = resolve_link(node) {
-            acdc_converters_core::index::visit_index_terms(
-                std::slice::from_ref(node),
-                &mut |term, offset| visit(term, text.len() + offset),
-            )?;
-            let start = text.len();
-            text.push_str(&link.text);
-            if link.target.is_some() || link.anchor.is_some() {
-                links.push(CodeSpan {
-                    range: start..text.len(),
-                    target: link.target,
-                    anchor: link.anchor,
-                });
-            }
-        } else if let InlineNode::VerbatimText(verbatim) = node {
-            let mut content = verbatim.content;
-            if index
-                .checked_sub(1)
-                .is_some_and(|previous| is_xml_callout(nodes, previous))
-            {
-                content = content.strip_prefix("-->").unwrap_or(content);
-            }
-            if index
-                .checked_add(1)
-                .is_some_and(|next| matches!(nodes.get(next), Some(InlineNode::CalloutRef(_))))
-            {
-                if index
-                    .checked_add(1)
-                    .is_some_and(|next| is_xml_callout(nodes, next))
-                {
-                    content = content.strip_suffix("<!--").unwrap_or(content);
-                }
-                content = strip_pdf_callout_guard(content);
-            }
-            text.push_str(content);
-        } else if let InlineNode::CalloutRef(callout) = node {
-            let _ = write!(text, "({})", callout.number);
-        } else {
-            let _ = transform.write(&mut text, std::slice::from_ref(node));
-        }
-    }
-
-    Ok((text, links))
 }
 
 fn is_xml_callout(nodes: &[InlineNode<'_>], index: usize) -> bool {

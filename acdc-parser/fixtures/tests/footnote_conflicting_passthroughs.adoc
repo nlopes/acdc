@@ -1,0 +1,17 @@
+= Passthrough definitions
+:fn-note: footnote:attribute[+First text.+]
+:fn-same: footnote:same[+Unchanged text.+]
+
+First footnote:markup[*Bold*].
+Changed footnote:markup[+*Bold*+].
+
+First from attribute {fn-note}
+
+:fn-note: footnote:attribute[+Changed text.+]
+
+Changed from attribute {fn-note}
+
+Identical attributes {fn-same} and {fn-same}
+
+First macro footnote:macro[pass:[First text.]]
+Changed macro footnote:macro[pass:[Changed text.]]

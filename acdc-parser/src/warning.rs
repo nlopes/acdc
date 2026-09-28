@@ -74,6 +74,9 @@ impl Warning {
             WarningKind::DuplicateId { .. } => Some(
                 "Assign a unique id to each target. Cross-references use the first definition.",
             ),
+            WarningKind::ConflictingFootnote { .. } => Some(
+                "Use footnote:id[] to reuse the first definition, or choose a different id for a new footnote.",
+            ),
             WarningKind::LegacyFloatDiscreteHeading => Some(
                 "Replace the `float` attribute with `discrete` (e.g. `[discrete]`). `float` here does not control layout; it is an older name for a discrete (free-floating) heading.",
             ),
@@ -232,6 +235,15 @@ pub enum WarningKind {
     #[error("id already in use: {id} (first defined at {})", first_definition(.first))]
     DuplicateId {
         /// The original, unencoded ID.
+        id: String,
+        /// The first definition, including its original file and position.
+        first: Box<SourceLocation>,
+    },
+
+    /// A named footnote is repeated with different text. The first body is retained.
+    #[error("footnote '{id}' has different text from its first definition at {}; keeping the first definition", first_definition(.first))]
+    ConflictingFootnote {
+        /// The repeated footnote ID.
         id: String,
         /// The first definition, including its original file and position.
         first: Box<SourceLocation>,

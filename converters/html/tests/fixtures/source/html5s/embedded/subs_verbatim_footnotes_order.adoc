@@ -1,0 +1,25 @@
+= Footnote stages
+:name: Early
+:fn-note: footnote:attribute[Attribute *body* {name}.]
+:acdc-index:
+
+[source,subs="specialcharacters,attributes,macros,quotes,replacements"]
+----
+Early footnote:[Early {name} *literal* (C).] {fn-note}
+----
+
+[source,subs="specialcharacters,macros,attributes,quotes,replacements"]
+----
+Late footnote:[Late {name} *literal* (C).] {fn-note}
+----
+
+[source,subs="specialcharacters,quotes,replacements,macros"]
+----
+Quotes footnote:[*Bold* and (C).]
+((Term footnote:[Term note.]))
+----
+
+After footnote:[Last note.]
+
+[index]
+== Index

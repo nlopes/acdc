@@ -1,0 +1,10 @@
+= Footnote reuse and recovery
+
+First footnote:shared[Shared body.]
+Repeated footnote:shared[Ignored body.]
+Reference footnote:shared[].
+Unknown footnote:missing[].
+Empty footnote:[] and whitespace footnote:[ ].
+Later footnote:missing[Later definition.]
+Reference footnote:missing[].
+Last footnote:[Last body.]

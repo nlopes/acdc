@@ -1,0 +1,3 @@
+Second file.
+
+Éva link:https://example.org[Label footnote:shared[Replacement text.]]

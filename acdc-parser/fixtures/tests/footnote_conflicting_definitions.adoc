@@ -1,0 +1,28 @@
+= Conflicting footnotes
+:name: Alpha
+
+First footnote:shared[Original text.]
+Identical footnote:shared[Original text.] and reference footnote:shared[].
+
+Changed footnote:shared[Replacement with ((Bananas)).]
+Changed again footnote:shared[Another replacement.]
+Original again footnote:shared[Original text.]
+
+Attribute footnote:expanded[Text {name}.]
+Literal equivalent footnote:expanded[Text Alpha.]
+
+:name: Beta
+
+Changed attribute footnote:expanded[Text {name}.]
+
+Pass footnote:pass[Value +literal+.]
+Identical pass footnote:pass[Value +literal+.]
+Different pass footnote:pass[Value +changed+.]
+
+Whitespace footnote:blank[ ] and identical footnote:blank[ ].
+Empty reference footnote:blank[].
+
+Escaped \footnote:shared[Escaped replacement.]
+Literal +footnote:shared[Passthrough replacement.]+.
+
+Final footnote:[Last note.]

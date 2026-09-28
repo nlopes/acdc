@@ -1,0 +1,66 @@
+= verbatim-footnotes(1)
+:doctype: manpage
+:revdate: 2026-09-28
+:manmanual: Footnote tests
+:mansource: acdc
+
+== Name
+
+verbatim-footnotes - render enabled footnotes in code
+
+== Description
+
+Before footnote:shared[Shared note.]
+
+[subs=+macros]
+----
+Listing footnote:listing[Listing note.]
+Reuse footnote:listing[] and footnote:shared[]
+Identical footnote:listing[Listing note.]
+Repeated footnote:listing[Ignored listing replacement.]
+----
+
+[subs=+macros]
+....
+  Literal footnote:[Literal block note.]
+....
+
+[source,rust,subs=+macros]
+----
+let x = 1; footnote:code[Code note with *bold*.]
+Repeated footnote:code[Ignored code replacement.]
+Adjacent footnote:[Adjacent one.]footnote:[Adjacent two.]
+Escaped \footnote:[Literal [brackets]]
+----
+
+[source,subs=+macros]
+Styled footnote:[Styled source note.]
+
+[literal,subs=+macros]
+Styled literal footnote:[Styled literal note.]
+
+[subs=+macros]
+ Indented footnote:[Indented note.]
+
+[source,subs=+macros]
+----
+footnote:only[Only note.]
+----
+
+[source,rust,linenums,subs=+macros]
+----
+footnote:only[]
+footnote:[Last line note.]
+----
+
+[source,rust]
+----
+footnote:[Disabled note.]
+----
+
+[subs="+macros,-macros"]
+....
+footnote:[Explicitly disabled note.]
+....
+
+After footnote:code[] and footnote:[Final note.]

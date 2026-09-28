@@ -873,7 +873,7 @@ fn apply_attribute_subs<'a>(
 }
 
 #[cfg(feature = "highlighting")]
-fn capture_code_links<'a, W: std::io::Write>(
+fn capture_code_inlines<'a, W: std::io::Write>(
     traversal: &mut TraversalContext<'a>,
     highlight_inlines: &[InlineNode<'_>],
     visitor: &mut HtmlVisitor<'a, '_, W>,
@@ -882,7 +882,7 @@ fn capture_code_links<'a, W: std::io::Write>(
     let labels = highlight_inlines
         .iter()
         .map(|node| {
-            let (text, linked) = acdc_converters_core::code::code_link_text(
+            let (text, linked) = acdc_converters_core::code::code_inline_text(
                 std::slice::from_ref(node),
                 &visitor.processor.references,
                 "html",
@@ -930,7 +930,7 @@ fn render_highlighted_code<'a, W: std::io::Write>(
     subs: &[Substitution],
     options: syntax::HighlightOptions<'_>,
 ) -> Result<(), Error> {
-    let (labels, links) = capture_code_links(traversal, highlight_inlines, visitor, subs)?;
+    let (labels, links) = capture_code_inlines(traversal, highlight_inlines, visitor, subs)?;
     let resolved = highlight_inlines
         .iter()
         .zip(&labels)

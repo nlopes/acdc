@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Named footnote markers no longer add an unwanted space before the following text or code.
+
+- Render footnotes enabled by `subs=+macros` in code and literal blocks, including highlighting, wrapping, line numbers, note-only lines, and link labels. Markers and backlinks remain clickable, including cases where Asciidoctor PDF with Rouge loses links.
+
 - Keep links and cross-references functional in verbatim blocks with `subs=+macros`, including highlighted, numbered, wrapped, and autofit code. Explicit link IDs remain valid destinations, and unresolved references render as text. Unlike Asciidoctor PDF with Rouge, highlighted links retain clickable destinations.
 
 - Keep index labels unchanged by later substitutions and avoid duplicate footnotes from catalog labels, matching Asciidoctor PDF. Recognize index terms in ordered passthroughs and retain entries whose visible labels become empty.

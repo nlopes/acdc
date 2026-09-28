@@ -28,6 +28,9 @@ terminal_fixture_catalog!([
     (admonition_block, false),
     (admonition_icons, false),
     (footnotes, false),
+    (footnote_reuse, false),
+    (subs_verbatim_footnotes, false, requires: feature = "highlighting"),
+    (subs_verbatim_footnotes_order, false),
     (url_macro, true),
     (basic_image_block, false, requires: feature = "images"),
     (

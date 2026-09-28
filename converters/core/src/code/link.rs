@@ -1,6 +1,6 @@
-//! Link labels and destinations used inside code blocks.
+//! Link labels, destinations, and footnote markers used inside code blocks.
 
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, fmt::Write as _};
 
 use acdc_parser::{InlineMacro, InlineNode, Reference};
 
@@ -187,13 +187,13 @@ pub fn code_inline_children<'n, 'a>(node: &'n InlineNode<'a>) -> Option<&'n [Inl
     }
 }
 
-/// Resolve the text of a code fragment and report whether it contains links.
+/// Resolve code text and report whether it needs inline links or footnote markers.
 #[must_use]
 #[expect(
     clippy::implicit_hasher,
     reason = "InlineTextTransform uses the parser reference catalog type"
 )]
-pub fn code_link_text(
+pub fn code_inline_text(
     nodes: &[InlineNode<'_>],
     references: &HashMap<&str, Reference<'_>>,
     output_extension: &str,
@@ -201,11 +201,14 @@ pub fn code_link_text(
     let mut text = String::new();
     let mut linked = false;
     for node in nodes {
-        if let Some(link) = resolve_code_link(node, references, output_extension) {
+        if let InlineNode::Macro(InlineMacro::Footnote(note)) = node {
+            let _ = write!(text, "[{}]", note.number);
+            linked = true;
+        } else if let Some(link) = resolve_code_link(node, references, output_extension) {
             text.push_str(&link.text);
             linked = true;
         } else if let Some(children) = code_inline_children(node) {
-            let (child, has_links) = code_link_text(children, references, output_extension);
+            let (child, has_links) = code_inline_text(children, references, output_extension);
             text.push_str(&child);
             linked |= has_links;
         } else {

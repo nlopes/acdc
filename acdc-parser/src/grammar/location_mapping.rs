@@ -2,7 +2,7 @@ use std::{borrow::Cow, mem::take};
 
 use crate::{
     AttributeValue, Error, Form, IndexTermKind, IndexTermRelationship, InlineMacro, InlineNode,
-    Location, PassthroughKind, Plain, ProcessedContent, Source,
+    Location, PassthroughKind, Plain, ProcessedContent, Source, Warning, WarningKind,
 };
 
 use super::{
@@ -480,6 +480,12 @@ fn restore_macro_passthroughs<'a>(
     }
 
     let text = match inline_macro {
+        InlineMacro::Footnote(footnote) => {
+            footnote.definition_source = footnote
+                .definition_source
+                .map(|body| restore_reference_label_passthroughs(body, ctx.state, ctx.processed));
+            None
+        }
         InlineMacro::Stem(stem) => Some(&mut stem.content),
         InlineMacro::Button(button) => Some(&mut button.label),
         InlineMacro::Menu(menu) => {
@@ -490,8 +496,7 @@ fn restore_macro_passthroughs<'a>(
             }
             Some(&mut menu.target)
         }
-        InlineMacro::Footnote(_)
-        | InlineMacro::Icon(_)
+        InlineMacro::Icon(_)
         | InlineMacro::Image(_)
         | InlineMacro::Keyboard(_)
         | InlineMacro::Url(_)
@@ -526,11 +531,19 @@ fn map_inline_macro<'a>(
             footnote.location = ctx.map_location(&footnote.location, form)?;
             footnote.content =
                 map_inline_locations(state, processed, take(&mut footnote.content), location)?;
-            // The footnote tracker captured this footnote during parsing in
-            // preprocessed-local coordinates; propagate the now document-absolute
-            // location/content to its `Document.footnotes` entry so the post-parse
-            // remap can map it to origin like the in-tree copy.
-            state.footnote_tracker.borrow_mut().finalize(footnote);
+            // Nested labels still use local coordinates; finalize at the document boundary.
+            if state.scope == super::state::ParserScope::Document
+                && let Some(first) = state.footnote_tracker.borrow_mut().finalize(footnote)
+                && let Some(id) = footnote.id
+            {
+                state.add_warning(Warning::new(
+                    WarningKind::ConflictingFootnote {
+                        id: id.to_owned(),
+                        first: Box::new(state.create_error_source_location(first)),
+                    },
+                    Some(state.create_error_source_location(footnote.location.clone())),
+                ));
+            }
         }
         InlineMacro::Url(url) => {
             url.location = ctx.map_location(&url.location, form)?;

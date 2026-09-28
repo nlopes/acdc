@@ -34,6 +34,97 @@ fn index_catalog_labels_do_not_create_extra_pdf_footnotes() -> Result<(), Error>
 
 #[cfg(feature = "pre-spec-subs")]
 #[test]
+fn verbatim_footnotes_keep_clickable_markers_and_reuse_definitions() -> Result<(), Error> {
+    for highlighter in ["", ":source-highlighter: rouge\n"] {
+        for options in ["", ",linenums", ",%autofit"] {
+            let input = format!(
+                "= Notes\n{highlighter}\n[source,rust{options},subs=+macros]\n----\nfootnote:first[First body.]footnote:second[Second body.]\nfootnote:first[Ignored body.]\n----\n\n<<<\n\nReuse footnote:second[].\n"
+            );
+            let pdf = render_input(&input)?;
+            let text = pdf
+                .extract_text(&[1, 2])?
+                .split_whitespace()
+                .collect::<String>();
+            assert_eq!(text.matches("Firstbody.").count(), 1, "{text}");
+            assert_eq!(text.matches("Secondbody.").count(), 1, "{text}");
+            assert!(!text.contains("Ignored"), "{text}");
+            assert_eq!(internal_link_pages(&pdf, 1)?, [1, 1, 1, 1, 1]);
+            assert_eq!(internal_link_pages(&pdf, 2)?, [1]);
+        }
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn verbatim_footnotes_inside_link_labels_keep_their_own_destination() -> Result<(), Error> {
+    for highlighter in ["", ":source-highlighter: rouge\n"] {
+        let input = format!(
+            "= Notes\n{highlighter}\n[source,rust,subs=+macros]\n----\nlink:https://example.org[Before footnote:[Nested body.] after]\n----\n"
+        );
+        let pdf = render_input(&input)?;
+        let page = *pdf.get_pages().get(&1).ok_or("missing page")?;
+        let mut internal = 0;
+        let mut external = 0;
+        for annotation in pdf.get_page_annotations(page)? {
+            if annotation.has(b"Dest") {
+                internal += 1;
+            } else {
+                let action = annotation.get(b"A")?.as_dict()?;
+                if action.get(b"S")?.as_name()? == b"GoTo" {
+                    internal += 1;
+                } else {
+                    assert_eq!(action.get(b"URI")?.as_str()?, b"https://example.org");
+                    external += 1;
+                }
+            }
+        }
+        assert_eq!(
+            internal, 2,
+            "marker and backlink must each have a destination"
+        );
+        assert_eq!(
+            external, 2,
+            "link text before and after the marker stays clickable"
+        );
+        assert_eq!(pdf.extract_text(&[1])?.matches("Nested body.").count(), 1);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn wrapped_verbatim_footnotes_render_once() -> Result<(), Error> {
+    for prefix in 60..=100 {
+        let input = format!(
+            "= Notes\n:source-highlighter: rouge\n\n[source,rust,linenums,subs=+macros]\n----\n{}footnote:[Wrapped body.]{}\n----\n",
+            "x".repeat(prefix),
+            "y".repeat(100)
+        );
+        let pdf = render_input(&input)?;
+        assert_eq!(pdf.extract_text(&[1])?.matches("Wrapped body.").count(), 1);
+        assert_eq!(internal_link_pages(&pdf, 1)?, [1, 1]);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
+fn named_footnotes_do_not_insert_spaces_in_code() -> Result<(), Error> {
+    for highlighter in ["", ":source-highlighter: rouge\n"] {
+        let input = format!(
+            "= Spacing\n{highlighter}\n[source,rust,subs=+macros]\n----\nafootnote:[Anonymous.]b\nafootnote:named[Named.]b\n----\n"
+        );
+        let pdf = render_input(&input)?;
+        let text = pdf.extract_text(&[1])?.replace('\n', "");
+        assert!(text.contains("a1b"), "{text:?}");
+        assert!(text.contains("a2b"), "{text:?}");
+    }
+    Ok(())
+}
+
+#[cfg(feature = "pre-spec-subs")]
+#[test]
 fn verbatim_links_preserve_clickable_labels_and_spacing() -> Result<(), Error> {
     for highlighter in ["", ":source-highlighter: rouge\n"] {
         let input = format!(

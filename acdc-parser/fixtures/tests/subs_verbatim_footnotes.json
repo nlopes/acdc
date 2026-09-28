@@ -1,0 +1,1466 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Verbatim footnotes",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 20
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 2,
+        "col": 12
+      }
+    ]
+  },
+  "attributes": {
+    "acdc-index": true
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Before ",
+          "location": [
+            {
+              "line": 4,
+              "col": 1
+            },
+            {
+              "line": 4,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "shared",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Shared note.",
+              "location": [
+                {
+                  "line": 4,
+                  "col": 24
+                },
+                {
+                  "line": 4,
+                  "col": 35
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 4,
+              "col": 8
+            },
+            {
+              "line": 4,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 4,
+          "col": 1
+        },
+        {
+          "line": 4,
+          "col": 36
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source",
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "let x = 1; ",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 11
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "code",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Code note with *bold* and ",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 26
+                },
+                {
+                  "line": 8,
+                  "col": 51
+                }
+              ]
+            },
+            {
+              "name": "indexterm",
+              "type": "inline",
+              "term": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "InsideNote",
+                  "location": [
+                    {
+                      "line": 8,
+                      "col": 54
+                    },
+                    {
+                      "line": 8,
+                      "col": 63
+                    }
+                  ]
+                }
+              ],
+              "visible": true,
+              "location": [
+                {
+                  "line": 8,
+                  "col": 52
+                },
+                {
+                  "line": 8,
+                  "col": 65
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": ".",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 66
+                },
+                {
+                  "line": 8,
+                  "col": 66
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 12
+            },
+            {
+              "line": 8,
+              "col": 67
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nReuse ",
+          "location": [
+            {
+              "line": 8,
+              "col": 68
+            },
+            {
+              "line": 9,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "code",
+          "inlines": [],
+          "location": [
+            {
+              "line": 9,
+              "col": 7
+            },
+            {
+              "line": 9,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 9,
+              "col": 22
+            },
+            {
+              "line": 9,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "shared",
+          "inlines": [],
+          "location": [
+            {
+              "line": 9,
+              "col": 27
+            },
+            {
+              "line": 9,
+              "col": 43
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nRepeated ",
+          "location": [
+            {
+              "line": 9,
+              "col": 44
+            },
+            {
+              "line": 10,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "code",
+          "inlines": [],
+          "location": [
+            {
+              "line": 10,
+              "col": 10
+            },
+            {
+              "line": 10,
+              "col": 44
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nAdjacent ",
+          "location": [
+            {
+              "line": 10,
+              "col": 45
+            },
+            {
+              "line": 11,
+              "col": 9
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Adjacent one.",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 20
+                },
+                {
+                  "line": 11,
+                  "col": 32
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 10
+            },
+            {
+              "line": 11,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Adjacent two.",
+              "location": [
+                {
+                  "line": 11,
+                  "col": 44
+                },
+                {
+                  "line": 11,
+                  "col": 56
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 11,
+              "col": 34
+            },
+            {
+              "line": 11,
+              "col": 57
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nMissing ",
+          "location": [
+            {
+              "line": 11,
+              "col": 58
+            },
+            {
+              "line": 12,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "[missing]",
+          "location": [
+            {
+              "line": 12,
+              "col": 9
+            },
+            {
+              "line": 12,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and empty footnote:[]\nEscaped ",
+          "location": [
+            {
+              "line": 12,
+              "col": 27
+            },
+            {
+              "line": 13,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "footnote:[",
+          "location": [
+            {
+              "line": 13,
+              "col": 9
+            },
+            {
+              "line": 13,
+              "col": 19
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Literal [brackets] ",
+          "location": [
+            {
+              "line": 13,
+              "col": 20
+            },
+            {
+              "line": 13,
+              "col": 38
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "EscapedBodyTerm",
+              "location": [
+                {
+                  "line": 13,
+                  "col": 41
+                },
+                {
+                  "line": 13,
+                  "col": 55
+                }
+              ]
+            }
+          ],
+          "visible": true,
+          "location": [
+            {
+              "line": 13,
+              "col": 39
+            },
+            {
+              "line": 13,
+              "col": 57
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "]",
+          "location": [
+            {
+              "line": 13,
+              "col": 58
+            },
+            {
+              "line": 13,
+              "col": 58
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 6,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "literal",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "....",
+      "metadata": {
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "  Literal ",
+          "location": [
+            {
+              "line": 18,
+              "col": 1
+            },
+            {
+              "line": 18,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Literal block note.",
+              "location": [
+                {
+                  "line": 18,
+                  "col": 21
+                },
+                {
+                  "line": 18,
+                  "col": 39
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 18,
+              "col": 11
+            },
+            {
+              "line": 18,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 19,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Styled ",
+          "location": [
+            {
+              "line": 22,
+              "col": 1
+            },
+            {
+              "line": 22,
+              "col": 7
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Styled source note.",
+              "location": [
+                {
+                  "line": 22,
+                  "col": 18
+                },
+                {
+                  "line": 22,
+                  "col": 36
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 22,
+              "col": 8
+            },
+            {
+              "line": 22,
+              "col": 37
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "source",
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 21,
+          "col": 1
+        },
+        {
+          "line": 22,
+          "col": 37
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Styled literal ",
+          "location": [
+            {
+              "line": 25,
+              "col": 1
+            },
+            {
+              "line": 25,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Styled literal note.",
+              "location": [
+                {
+                  "line": 25,
+                  "col": 26
+                },
+                {
+                  "line": 25,
+                  "col": 45
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 25,
+              "col": 16
+            },
+            {
+              "line": 25,
+              "col": 46
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "literal",
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 24,
+          "col": 1
+        },
+        {
+          "line": 25,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Indented ",
+          "location": [
+            {
+              "line": 28,
+              "col": 1
+            },
+            {
+              "line": 28,
+              "col": 10
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Indented note.",
+              "location": [
+                {
+                  "line": 28,
+                  "col": 21
+                },
+                {
+                  "line": 28,
+                  "col": 34
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 28,
+              "col": 11
+            },
+            {
+              "line": 28,
+              "col": 35
+            }
+          ]
+        }
+      ],
+      "metadata": {
+        "style": "literal",
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "location": [
+        {
+          "line": 27,
+          "col": 1
+        },
+        {
+          "line": 28,
+          "col": 35
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source",
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "only",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Only note.",
+              "location": [
+                {
+                  "line": 32,
+                  "col": 15
+                },
+                {
+                  "line": 32,
+                  "col": 24
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 32,
+              "col": 1
+            },
+            {
+              "line": 32,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 30,
+          "col": 1
+        },
+        {
+          "line": 33,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust",
+          "linenums": "linenums"
+        },
+        "style": "source",
+        "substitutions": [
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "only",
+          "inlines": [],
+          "location": [
+            {
+              "line": 37,
+              "col": 1
+            },
+            {
+              "line": 37,
+              "col": 15
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n",
+          "location": [
+            {
+              "line": 37,
+              "col": 16
+            },
+            {
+              "line": 37,
+              "col": 16
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Last line note.",
+              "location": [
+                {
+                  "line": 38,
+                  "col": 11
+                },
+                {
+                  "line": 38,
+                  "col": 25
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 38,
+              "col": 1
+            },
+            {
+              "line": 38,
+              "col": 26
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 35,
+          "col": 1
+        },
+        {
+          "line": 39,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source",
+        "substitutions": [
+          "+quotes",
+          "+macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "span",
+          "type": "inline",
+          "variant": "strong",
+          "form": "constrained",
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Bold ",
+              "location": [
+                {
+                  "line": 43,
+                  "col": 2
+                },
+                {
+                  "line": 43,
+                  "col": 6
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": null,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold note.",
+                  "location": [
+                    {
+                      "line": 43,
+                      "col": 17
+                    },
+                    {
+                      "line": 43,
+                      "col": 26
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 43,
+                  "col": 7
+                },
+                {
+                  "line": 43,
+                  "col": 27
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 43,
+              "col": 1
+            },
+            {
+              "line": 43,
+              "col": 28
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n",
+          "location": [
+            {
+              "line": 43,
+              "col": 29
+            },
+            {
+              "line": 43,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "ref",
+          "type": "inline",
+          "variant": "link",
+          "target": {
+            "type": "url",
+            "value": "https://example.org"
+          },
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Label ",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 26
+                },
+                {
+                  "line": 44,
+                  "col": 31
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": null,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Link label note.",
+                  "location": [
+                    {
+                      "line": 44,
+                      "col": 42
+                    },
+                    {
+                      "line": 44,
+                      "col": 57
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 44,
+                  "col": 32
+                },
+                {
+                  "line": 44,
+                  "col": 58
+                }
+              ]
+            },
+            {
+              "name": "text",
+              "type": "string",
+              "value": " end",
+              "location": [
+                {
+                  "line": 44,
+                  "col": 59
+                },
+                {
+                  "line": 44,
+                  "col": 62
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 44,
+              "col": 1
+            },
+            {
+              "line": 44,
+              "col": 63
+            }
+          ],
+          "attributes": {}
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\n",
+          "location": [
+            {
+              "line": 44,
+              "col": 64
+            },
+            {
+              "line": 44,
+              "col": 64
+            }
+          ]
+        },
+        {
+          "name": "indexterm",
+          "type": "inline",
+          "term": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Indexed ",
+              "location": [
+                {
+                  "line": 45,
+                  "col": 3
+                },
+                {
+                  "line": 45,
+                  "col": 10
+                }
+              ]
+            },
+            {
+              "name": "footnote",
+              "type": "inline",
+              "id": null,
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Index label note.",
+                  "location": [
+                    {
+                      "line": 45,
+                      "col": 21
+                    },
+                    {
+                      "line": 45,
+                      "col": 37
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 45,
+                  "col": 11
+                },
+                {
+                  "line": 45,
+                  "col": 38
+                }
+              ]
+            }
+          ],
+          "catalog": {
+            "kind": {
+              "Flow": [
+                {
+                  "name": "raw",
+                  "type": "string",
+                  "value": "Indexed footnote:[Index label note.]",
+                  "location": [
+                    {
+                      "line": 45,
+                      "col": 3
+                    },
+                    {
+                      "line": 45,
+                      "col": 38
+                    }
+                  ]
+                }
+              ]
+            },
+            "location": [
+              {
+                "line": 45,
+                "col": 1
+              },
+              {
+                "line": 45,
+                "col": 40
+              }
+            ]
+          },
+          "visible": true,
+          "location": [
+            {
+              "line": 45,
+              "col": 1
+            },
+            {
+              "line": 45,
+              "col": 40
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 41,
+          "col": 1
+        },
+        {
+          "line": 46,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source"
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "footnote:[Disabled note.]",
+          "location": [
+            {
+              "line": 50,
+              "col": 1
+            },
+            {
+              "line": 50,
+              "col": 25
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 48,
+          "col": 1
+        },
+        {
+          "line": 51,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "listing",
+      "type": "block",
+      "form": "delimited",
+      "delimiter": "----",
+      "metadata": {
+        "attributes": {
+          "language": "rust"
+        },
+        "style": "source",
+        "substitutions": [
+          "+verbatim",
+          "-macros"
+        ]
+      },
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "footnote:[Explicitly disabled note.]",
+          "location": [
+            {
+              "line": 55,
+              "col": 1
+            },
+            {
+              "line": 55,
+              "col": 36
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 53,
+          "col": 1
+        },
+        {
+          "line": 56,
+          "col": 4
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "After ",
+          "location": [
+            {
+              "line": 58,
+              "col": 1
+            },
+            {
+              "line": 58,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "code",
+          "inlines": [],
+          "location": [
+            {
+              "line": 58,
+              "col": 7
+            },
+            {
+              "line": 58,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 58,
+              "col": 22
+            },
+            {
+              "line": 58,
+              "col": 26
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": null,
+          "inlines": [
+            {
+              "name": "text",
+              "type": "string",
+              "value": "Final note.",
+              "location": [
+                {
+                  "line": 58,
+                  "col": 37
+                },
+                {
+                  "line": 58,
+                  "col": 47
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 58,
+              "col": 27
+            },
+            {
+              "line": 58,
+              "col": 48
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 58,
+          "col": 1
+        },
+        {
+          "line": 58,
+          "col": 48
+        }
+      ]
+    },
+    {
+      "name": "section",
+      "type": "block",
+      "title": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Index",
+          "location": [
+            {
+              "line": 61,
+              "col": 4
+            },
+            {
+              "line": 61,
+              "col": 8
+            }
+          ]
+        }
+      ],
+      "level": 1,
+      "metadata": {
+        "style": "index"
+      },
+      "location": [
+        {
+          "line": 60,
+          "col": 1
+        },
+        {
+          "line": 61,
+          "col": 8
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 61,
+      "col": 8
+    }
+  ]
+}

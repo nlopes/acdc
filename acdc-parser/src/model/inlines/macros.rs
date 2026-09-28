@@ -35,6 +35,9 @@ pub enum PassthroughKind {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[non_exhaustive]
 pub struct Footnote<'a> {
+    /// Keep discarded named bodies available for conflict diagnostics.
+    #[serde(skip)]
+    pub(crate) definition_source: Option<&'a str>,
     /// Capture the body before later substitutions; consumed after source mapping.
     #[serde(skip)]
     pub(crate) registration_substitutions: Option<crate::model::substitution::SubstitutionPlan>,

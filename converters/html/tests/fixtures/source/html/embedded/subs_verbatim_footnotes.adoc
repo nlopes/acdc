@@ -1,0 +1,61 @@
+= Verbatim footnotes
+:acdc-index:
+
+Before footnote:shared[Shared note.]
+
+[source,rust,subs=+macros]
+----
+let x = 1; footnote:code[Code note with *bold* and ((InsideNote)).]
+Reuse footnote:code[] and footnote:shared[]
+Repeated footnote:code[Ignored replacement.]
+Adjacent footnote:[Adjacent one.]footnote:[Adjacent two.]
+Missing footnote:missing[] and empty footnote:[]
+Escaped \footnote:[Literal [brackets] ((EscapedBodyTerm))]
+----
+
+[subs=+macros]
+....
+  Literal footnote:[Literal block note.]
+....
+
+[source,subs=+macros]
+Styled footnote:[Styled source note.]
+
+[literal,subs=+macros]
+Styled literal footnote:[Styled literal note.]
+
+[subs=+macros]
+ Indented footnote:[Indented note.]
+
+[source,rust,subs=+macros]
+----
+footnote:only[Only note.]
+----
+
+[source,rust,linenums,subs=+macros]
+----
+footnote:only[]
+footnote:[Last line note.]
+----
+
+[source,rust,subs="+quotes,+macros"]
+----
+*Bold footnote:[Bold note.]*
+link:https://example.org[Label footnote:[Link label note.] end]
+((Indexed footnote:[Index label note.]))
+----
+
+[source,rust]
+----
+footnote:[Disabled note.]
+----
+
+[source,rust,subs="verbatim,-macros"]
+----
+footnote:[Explicitly disabled note.]
+----
+
+After footnote:code[] and footnote:[Final note.]
+
+[index]
+== Index

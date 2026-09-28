@@ -1,0 +1,489 @@
+{
+  "name": "document",
+  "type": "block",
+  "header": {
+    "title": [
+      {
+        "name": "text",
+        "type": "string",
+        "value": "Passthrough definitions",
+        "location": [
+          {
+            "line": 1,
+            "col": 3
+          },
+          {
+            "line": 1,
+            "col": 25
+          }
+        ]
+      }
+    ],
+    "location": [
+      {
+        "line": 1,
+        "col": 1
+      },
+      {
+        "line": 3,
+        "col": 42
+      }
+    ]
+  },
+  "attributes": {
+    "fn-note": "footnote:attribute[+First text.+]",
+    "fn-same": "footnote:same[+Unchanged text.+]"
+  },
+  "blocks": [
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First ",
+          "location": [
+            {
+              "line": 5,
+              "col": 1
+            },
+            {
+              "line": 5,
+              "col": 6
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "markup",
+          "inlines": [
+            {
+              "name": "span",
+              "type": "inline",
+              "variant": "strong",
+              "form": "constrained",
+              "inlines": [
+                {
+                  "name": "text",
+                  "type": "string",
+                  "value": "Bold",
+                  "location": [
+                    {
+                      "line": 5,
+                      "col": 24
+                    },
+                    {
+                      "line": 5,
+                      "col": 27
+                    }
+                  ]
+                }
+              ],
+              "location": [
+                {
+                  "line": 5,
+                  "col": 23
+                },
+                {
+                  "line": 5,
+                  "col": 28
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 5,
+              "col": 7
+            },
+            {
+              "line": 5,
+              "col": 29
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".\nChanged ",
+          "location": [
+            {
+              "line": 5,
+              "col": 30
+            },
+            {
+              "line": 6,
+              "col": 8
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "markup",
+          "inlines": [],
+          "location": [
+            {
+              "line": 6,
+              "col": 9
+            },
+            {
+              "line": 6,
+              "col": 33
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": ".",
+          "location": [
+            {
+              "line": 6,
+              "col": 34
+            },
+            {
+              "line": 6,
+              "col": 34
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 5,
+          "col": 1
+        },
+        {
+          "line": 6,
+          "col": 34
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First from attribute ",
+          "location": [
+            {
+              "line": 8,
+              "col": 1
+            },
+            {
+              "line": 8,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "attribute",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "First text.",
+              "location": [
+                {
+                  "line": 8,
+                  "col": 22
+                },
+                {
+                  "line": 8,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 8,
+              "col": 22
+            },
+            {
+              "line": 8,
+              "col": 30
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 8,
+          "col": 1
+        },
+        {
+          "line": 8,
+          "col": 30
+        }
+      ]
+    },
+    {
+      "name": "fn-note",
+      "type": "attribute",
+      "value": "footnote:attribute[+Changed text.+]",
+      "location": [
+        {
+          "line": 10,
+          "col": 1
+        },
+        {
+          "line": 10,
+          "col": 46
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Changed from attribute ",
+          "location": [
+            {
+              "line": 12,
+              "col": 1
+            },
+            {
+              "line": 12,
+              "col": 23
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "attribute",
+          "inlines": [],
+          "location": [
+            {
+              "line": 12,
+              "col": 24
+            },
+            {
+              "line": 12,
+              "col": 32
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 12,
+          "col": 1
+        },
+        {
+          "line": 12,
+          "col": 32
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "Identical attributes ",
+          "location": [
+            {
+              "line": 14,
+              "col": 1
+            },
+            {
+              "line": 14,
+              "col": 21
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "same",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "Unchanged text.",
+              "location": [
+                {
+                  "line": 14,
+                  "col": 22
+                },
+                {
+                  "line": 14,
+                  "col": 30
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 14,
+              "col": 22
+            },
+            {
+              "line": 14,
+              "col": 30
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": " and ",
+          "location": [
+            {
+              "line": 14,
+              "col": 31
+            },
+            {
+              "line": 14,
+              "col": 35
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "same",
+          "inlines": [],
+          "location": [
+            {
+              "line": 14,
+              "col": 36
+            },
+            {
+              "line": 14,
+              "col": 44
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 14,
+          "col": 1
+        },
+        {
+          "line": 14,
+          "col": 44
+        }
+      ]
+    },
+    {
+      "name": "paragraph",
+      "type": "block",
+      "inlines": [
+        {
+          "name": "text",
+          "type": "string",
+          "value": "First macro ",
+          "location": [
+            {
+              "line": 16,
+              "col": 1
+            },
+            {
+              "line": 16,
+              "col": 12
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "macro",
+          "inlines": [
+            {
+              "name": "raw",
+              "type": "string",
+              "value": "First text.",
+              "location": [
+                {
+                  "line": 16,
+                  "col": 34
+                },
+                {
+                  "line": 16,
+                  "col": 44
+                }
+              ]
+            }
+          ],
+          "location": [
+            {
+              "line": 16,
+              "col": 13
+            },
+            {
+              "line": 16,
+              "col": 46
+            }
+          ]
+        },
+        {
+          "name": "text",
+          "type": "string",
+          "value": "\nChanged macro ",
+          "location": [
+            {
+              "line": 16,
+              "col": 47
+            },
+            {
+              "line": 17,
+              "col": 14
+            }
+          ]
+        },
+        {
+          "name": "footnote",
+          "type": "inline",
+          "id": "macro",
+          "inlines": [],
+          "location": [
+            {
+              "line": 17,
+              "col": 15
+            },
+            {
+              "line": 17,
+              "col": 50
+            }
+          ]
+        }
+      ],
+      "location": [
+        {
+          "line": 16,
+          "col": 1
+        },
+        {
+          "line": 17,
+          "col": 50
+        }
+      ]
+    }
+  ],
+  "location": [
+    {
+      "line": 1,
+      "col": 1
+    },
+    {
+      "line": 17,
+      "col": 50
+    }
+  ]
+}

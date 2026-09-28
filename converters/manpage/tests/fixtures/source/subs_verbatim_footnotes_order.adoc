@@ -1,0 +1,42 @@
+= footnote-stages(1)
+:doctype: manpage
+:revdate: 2026-09-28
+:manmanual: Footnote tests
+:mansource: acdc
+:name: Early
+:fn-note: footnote:attribute[Attribute *body* {name}.]
+
+== Name
+
+footnote-stages - apply substitutions around footnotes
+
+== Description
+
+[source,subs="specialcharacters,attributes,macros,quotes,replacements"]
+----
+Early footnote:early[Early {name} *literal* (C).] {fn-note}
+----
+
+[source,subs="specialcharacters,macros,attributes,quotes,replacements"]
+----
+Late footnote:late[Late {name} *literal* (C).] {fn-note}
+----
+
+:name: Changed
+
+[source,subs="specialcharacters,attributes,macros,quotes,replacements"]
+----
+Changed early footnote:early[Early {name} *literal* (C).]
+----
+
+[source,subs="specialcharacters,macros,attributes,quotes,replacements"]
+----
+Same captured late footnote:late[Late {name} *literal* (C).]
+----
+
+[source,subs="specialcharacters,quotes,replacements,macros"]
+----
+Quotes footnote:[(C). *Bold*]
+----
+
+After footnote:[Last note.]

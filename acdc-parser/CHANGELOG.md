@@ -57,6 +57,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Warn when a named footnote is repeated with different text, with the locations
+  of both definitions. Keep the first body; identical repeats and empty references
+  do not warn. Asciidoctor silently ignores conflicting replacement bodies.
+
+- Keep document-absolute source locations for footnotes nested in link labels.
+
+- Recognise footnotes in listing, source, and literal blocks with `subs=+macros`, preserving document-wide numbering and substitution order. Repeated named definitions reuse the first body; undefined references warn without consuming a number, and empty anonymous macros remain literal. Index terms in ignored replacement text are not added to the index; Asciidoctor adds them.
+
 - Recognise links, URLs, email links, and cross-references in listing, source, and literal blocks when `subs=+macros` enables macro substitution. Default verbatim blocks keep the source syntax literal.
 
 - Standalone anchors after paragraphs and description-list text now identify the following block. Anchors and attributes before a nested bullet or numbered list stay with that list, matching Asciidoctor. Verbatim paragraphs keep anchor syntax literal. Existing targets after bullet and numbered list items remain available, including cases where Asciidoctor drops the target but emits links to it.

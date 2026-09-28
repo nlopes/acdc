@@ -79,24 +79,24 @@
 
 #text(size: 1.25em)[#text("An unnamed marker.")#counter(footnote).update(0)#footnote[#text("Anonymous note.")]]
 
-#text("A single definition.")#counter(footnote).update(1)#footnote[#text("Single note.")] <id-666f6f746e6f74653a73696e676c65>
+#text("A single definition.")#counter(footnote).update(1)#footnote[#text("Single note.")]<id-666f6f746e6f74653a73696e676c65>
 
 #text("A single reference.")#footnote(<id-666f6f746e6f74653a73696e676c65>)
 
-#text("A multiple definition.")#counter(footnote).update(2)#footnote[#text("Multiple note.")] <id-666f6f746e6f74653a6d756c7469706c65>
+#text("A multiple definition.")#counter(footnote).update(2)#footnote[#text("Multiple note.")]<id-666f6f746e6f74653a6d756c7469706c65>
 
 #text("Multiple reference one.")#footnote(<id-666f6f746e6f74653a6d756c7469706c65>)
 
 #text("Multiple reference two.")#footnote(<id-666f6f746e6f74653a6d756c7469706c65>)
 
-#heading(level: 1)[#text("Heading ")#counter(footnote).update(3)#footnote[#text("Title note.")] <id-666f6f746e6f74653a7469746c65>] <id-5f68656164696e67>
+#heading(level: 1)[#text("Heading ")#counter(footnote).update(3)#footnote[#text("Title note.")]<id-666f6f746e6f74653a7469746c65>] <id-5f68656164696e67>
 
-#text("A ")#strong[#text("formatted ")#counter(footnote).update(4)#footnote[#text("Formatted note.")] <id-666f6f746e6f74653a666f726d6174746564>]#text(".")
+#text("A ")#strong[#text("formatted ")#counter(footnote).update(4)#footnote[#text("Formatted note.")]<id-666f6f746e6f74653a666f726d6174746564>]#text(".")
 
-#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell ")#counter(footnote).update(5)#footnote[#text("Cell note.")] <id-666f6f746e6f74653a63656c6c>
+#table(columns: (1fr), align: (left + top), stroke: none, table.cell(x: 0, y: 0, stroke: (left: 0.5pt + rgb("#dddddd"), right: 0.5pt + rgb("#dddddd"), top: 0.5pt + rgb("#dddddd"), bottom: 0.5pt + rgb("#dddddd"), ))[#text("Cell ")#counter(footnote).update(5)#footnote[#text("Cell note.")]<id-666f6f746e6f74653a63656c6c>
 
 ])
 
-  - #text("Item ")#counter(footnote).update(6)#footnote[#text("List note.")] <id-666f6f746e6f74653a6c697374>
+  - #text("Item ")#counter(footnote).update(6)#footnote[#text("List note.")]<id-666f6f746e6f74653a6c697374>
 
 #text("References ")#footnote(<id-666f6f746e6f74653a7469746c65>)#text(", ")#footnote(<id-666f6f746e6f74653a666f726d6174746564>)#text(", ")#footnote(<id-666f6f746e6f74653a63656c6c>)#text(", and ")#footnote(<id-666f6f746e6f74653a6c697374>)#text(".")

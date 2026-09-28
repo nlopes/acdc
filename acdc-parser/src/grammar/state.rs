@@ -197,16 +197,18 @@ pub(crate) enum BlockContext {
 }
 
 #[derive(Debug, Clone)]
+struct NamedFootnote<'a> {
+    number: u32,
+    definition: Option<(&'a str, Location)>,
+}
+
+#[derive(Debug, Clone)]
 pub(crate) struct FootnoteTracker<'a> {
     /// All registered footnotes in the order they were encountered.
     pub(crate) footnotes: Vec<Footnote<'a>>,
     /// The last assigned footnote number (starts at 1)
     last_footnote_position: u32,
-    /// Map of named footnote IDs to their assigned numbers
-    ///
-    /// This helps ensure that named footnotes are only assigned a number once and reused.
-    /// If it's an anonymous footnote (no ID), it always gets a new number.
-    named_footnote_numbers: HashMap<&'a str, u32>,
+    named_footnotes: HashMap<&'a str, NamedFootnote<'a>>,
     /// Footnote numbers whose stored entry has already had its location/content
     /// finalized to document-absolute coordinates (see [`Self::finalize`]). The first
     /// occurrence of a number wins, so a later bare reference of a named footnote does
@@ -219,47 +221,65 @@ impl<'a> FootnoteTracker<'a> {
         Self {
             footnotes: Vec::new(),
             last_footnote_position: 1,
-            named_footnote_numbers: HashMap::new(),
+            named_footnotes: HashMap::new(),
             location_finalized: HashSet::new(),
         }
     }
 
-    /// Replace the stored entry's location and content with `footnote`'s, which the
-    /// caller has just mapped to document-absolute coordinates. Footnotes are recorded
-    /// during inline parsing in preprocessed-*local* coordinates (offset 0), so the
-    /// stored copy is otherwise mislocated; `map_inline_locations` calls this once the
-    /// in-tree copy has been mapped. Entries are kept in number order, so `number - 1`
-    /// indexes the stored entry. First occurrence wins: a later bare reference of a
-    /// named footnote leaves the defining occurrence's content and location intact.
-    pub(crate) fn finalize(&mut self, footnote: &Footnote<'a>) {
+    /// Update the first definition after its locations become document-absolute.
+    /// Later occurrences keep that body and location. Return the first location
+    /// when a repeated definition has different captured text.
+    pub(crate) fn finalize(&mut self, footnote: &mut Footnote<'a>) -> Option<Location> {
+        let conflict = footnote.definition_source.take().and_then(|body| {
+            let entry = self.named_footnotes.get_mut(footnote.id?)?;
+            if let Some((original, location)) = &entry.definition {
+                (body != *original).then(|| location.clone())
+            } else {
+                entry.definition = Some((body, footnote.location.clone()));
+                None
+            }
+        });
         if self.location_finalized.insert(footnote.number)
             && let Some(index) = footnote.number.checked_sub(1)
             && let Some(entry) = self.footnotes.get_mut(index as usize)
         {
             entry.location = footnote.location.clone();
             entry.content.clone_from(&footnote.content);
+            entry.definition_source = None;
         }
+        conflict
     }
 
-    /// Register a footnote and assign it a number. Named footnotes are
-    /// deduplicated: subsequent occurrences with the same id reuse the first
-    /// number and are not re-added to the list. Anonymous footnotes always
-    /// get a fresh number.
+    pub(crate) fn contains(&self, id: &str) -> bool {
+        self.named_footnotes.contains_key(id)
+    }
+
+    /// Assign a number, reusing named definitions. Return false for an undefined reference.
     #[tracing::instrument(skip_all, fields(?footnote))]
-    pub(crate) fn push(&mut self, footnote: &mut Footnote<'a>) {
+    pub(crate) fn push(&mut self, footnote: &mut Footnote<'a>) -> bool {
         if let Some(id) = footnote.id
-            && let Some(&existing) = self.named_footnote_numbers.get(id)
+            && let Some(existing) = self.named_footnotes.get(id)
         {
-            footnote.number = existing;
-            return;
+            footnote.number = existing.number;
+            footnote.content.clear();
+            return true;
+        }
+        if footnote.content.is_empty() {
+            return false;
         }
         footnote.number = self.last_footnote_position;
         if let Some(id) = footnote.id {
-            self.named_footnote_numbers
-                .insert(id, self.last_footnote_position);
+            self.named_footnotes.insert(
+                id,
+                NamedFootnote {
+                    number: self.last_footnote_position,
+                    definition: None,
+                },
+            );
         }
         self.footnotes.push(footnote.clone());
         self.last_footnote_position += 1;
+        true
     }
 }
 

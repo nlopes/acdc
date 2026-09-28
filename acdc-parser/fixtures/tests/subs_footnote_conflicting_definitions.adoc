@@ -1,0 +1,37 @@
+= Footnote definitions and substitution order
+:name: Alpha
+
+[source,subs="specialcharacters,macros,attributes"]
+----
+First footnote:late[Text {name}.]
+----
+
+:name: Beta
+
+[source,subs="specialcharacters,macros,attributes"]
+----
+Same captured body footnote:late[Text {name}.]
+----
+
+[source,subs="specialcharacters,attributes,macros"]
+----
+First footnote:early[Text {name}.]
+----
+
+:name: Gamma
+
+[source,subs="specialcharacters,attributes,macros"]
+----
+Different captured body footnote:early[Text {name}.]
+----
+
+[source]
+----
+footnote:early[Disabled macros.]
+----
+
+[source,subs=+macros]
+----
+\footnote:early[Escaped macro.]
+Reference footnote:early[]
+----

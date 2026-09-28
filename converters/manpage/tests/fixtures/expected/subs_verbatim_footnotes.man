@@ -1,0 +1,113 @@
+'\" t
+.\"     Title: verbatim-footnotes
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-28
+.\"    Manual: Footnote tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "VERBATIM\-FOOTNOTES" "1" "2026-09-28" "acdc" "Footnote tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+verbatim\-footnotes \- render enabled footnotes in code
+.SH "DESCRIPTION"
+.sp
+Before [1]
+.EX
+Listing [2]
+Reuse [2] and [1]
+Identical [2]
+Repeated [2]
+.EE
+.nf
+  Literal [3]
+.fi
+.EX
+let x = 1; [4]
+Repeated [4]
+Adjacent [5][6]
+Escaped footnote:[Literal [brackets]]
+.EE
+.sp
+.if n .RS 4
+.nf
+.fam C
+Styled [7]
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+Styled literal [8]
+.fam
+.fi
+.if n .RE
+.sp
+.if n .RS 4
+.nf
+.fam C
+Indented [9]
+.fam
+.fi
+.if n .RE
+.EX
+[10]
+.EE
+.EX
+[10]
+[11]
+.EE
+.EX
+footnote:[Disabled note.]
+.EE
+.nf
+footnote:[Explicitly disabled note.]
+.fi
+.sp
+After [4] and [12]
+.SH "NOTES"
+.IP [1] 4
+Shared note.
+.IP [2] 4
+Listing note.
+.IP [3] 4
+Literal block note.
+.IP [4] 4
+Code note with *bold*.
+.IP [5] 4
+Adjacent one.
+.IP [6] 4
+Adjacent two.
+.IP [7] 4
+Styled source note.
+.IP [8] 4
+Styled literal note.
+.IP [9] 4
+Indented note.
+.IP [10] 4
+Only note.
+.IP [11] 4
+Last line note.
+.IP [12] 4
+Final note.
