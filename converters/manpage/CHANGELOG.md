@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Preserve spaces after inline formatting when the following text contains
+  symbols or characters that need roff escaping, including in footnote bodies.
+  Remove indentation after wrapped lines and explicit line breaks while keeping
+  nonbreaking spaces, matching Asciidoctor.
+
 - Footnotes enabled with `subs=+macros` in listing, source, and literal blocks
   display numbered markers and appear in the NOTES section. Repeated named
   definitions keep the first body, matching Asciidoctor.

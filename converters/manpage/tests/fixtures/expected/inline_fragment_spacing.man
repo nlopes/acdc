@@ -1,0 +1,118 @@
+'\" t
+.\"     Title: inline-spacing
+.\"    Author: [see the "AUTHOR(S)" section]
+.\" Generator: acdc 0.1.0
+.\"      Date: 2026-09-28
+.\"    Manual: Spacing tests
+.\"    Source: acdc
+.\"  Language: English
+.\"
+.TH "INLINE\-SPACING" "1" "2026-09-28" "acdc" "Spacing tests"
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.ss \n[.ss] 0
+.nh
+.ad l
+.de URL
+\fI\\$2\fP <\\$1>\\$3
+..
+.als MTO URL
+.if \n[.g] \{\
+.  mso www.tmac
+.  am URL
+.    ad l
+.  .
+.  am MTO
+.    ad l
+.  .
+.  LINKSTYLE blue R < >
+.\}
+.SH "NAME"
+inline\-spacing \- preserve spaces around inline formatting
+.SH "DESCRIPTION"
+.sp
+Copyright \fBBold\fP and \(co.
+.sp
+Registered \fIItalic\fP and \(rg.
+.sp
+Trademark \f(CRCode\fP and \(tm.
+.sp
+Hyphen \fBBold\fP \- dash.
+.sp
+Backslash \fBBold\fP path\eto\efile.
+.sp
+Quotes \fBBold\fP \(lqquoted\(rq\&.
+.sp
+Ellipsis \fBBold\fP .\|.\|. end.
+.sp
+Nested \fBBold \fIItalic\fP\fP and \(co.
+.sp
+Raw \fBBold\fP and \(co.
+.sp
+Adjacent \fBBold\fP\(co.
+.sp
+Multiple \fBBold\fP spaces and \(co.
+.sp
+Wrapped plain
+next line.
+.sp
+Wrapped symbol
+next \(co line.
+.sp
+Wrapped indentation
+next line \- normalized.
+.sp
+Protected period \fBBold\fP
+\&.leading\-period
+.sp
+Protected apostrophe \fBBold\fP
+\&'leading\-apostrophe
+.sp
+Hard break \fBBold\fP
+.br
+next \(co line.
+.sp
+Formatted hard break before
+.br
+\fBBold\fP and \(co.
+.sp
+Marker hard break before
+.br
+[1] and \(co.
+.sp
+Raw hard break before
+.br
+next \(co.
+.sp
+Nonbreaking hard break before
+.br
+\ next \(co.
+.sp
+Anchor hard break before
+.br
+.\" anchor: after-break
+next \(co.
+.sp
+Hidden index hard break before
+.br
+.\" anchor: after-hidden
+next \(co.
+.sp
+Visible index hard break before
+.br
+Visible and \(co.
+.sp
+Link \c
+.URL "https://example.org" "Example" ""
+and \(co.
+.sp
+Note [2]
+Reuse [2]\&.
+.nf
+  keep   spaces \(co
+.fi
+.SH "NOTES"
+.IP [1] 4
+Break note.
+.IP [2] 4
+\fBBold\fP and \(co.

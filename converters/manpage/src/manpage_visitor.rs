@@ -41,8 +41,7 @@ pub struct ManpageVisitor<'a, 'd, W: Write> {
     pub(crate) list_depth: usize,
     /// Whether the current section supplies the manpage name metadata.
     pub(crate) in_name_section: bool,
-    /// Whether the next text node should have leading whitespace stripped.
-    /// Set after `.URL`/`.MTO` macros which end with a newline.
+    /// Strip ASCII indentation from the next text node after a link macro or hard break.
     pub(crate) strip_next_leading_space: bool,
     /// Whether we are inside an inline formatting span (bold, italic, etc.).
     /// When true, em-dash boundary replacement at string start/end is suppressed.
@@ -502,6 +501,7 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
         let last = nodes.len().saturating_sub(1);
         let result = (|| {
             let mut i = 0;
+            let mut after_hard_break = false;
             while i < nodes.len() {
                 let follows_break =
                     i > 0 && matches!(nodes.get(i - 1), Some(InlineNode::LineBreak(_)));
@@ -519,6 +519,15 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
                 let Some(node) = nodes.get(i) else {
                     break;
                 };
+                if after_hard_break
+                    && matches!(node, InlineNode::PlainText(_) | InlineNode::RawText(_))
+                {
+                    self.strip_next_leading_space = true;
+                }
+                let invisible = matches!(node, InlineNode::InlineAnchor(_))
+                    || matches!(node, InlineNode::Macro(InlineMacro::IndexTerm(term)) if !term.is_visible());
+                after_hard_break =
+                    matches!(node, InlineNode::LineBreak(_)) || (after_hard_break && invisible);
 
                 // Check if this is a mailto autolink - collect all trailing non-whitespace
                 if let InlineNode::Macro(InlineMacro::Autolink(al)) = node
@@ -539,7 +548,9 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
                         let remaining = &text.content[partial_bytes..];
                         let content = if self.strip_next_leading_space {
                             self.strip_next_leading_space = false;
-                            remaining.trim_start()
+                            remaining.trim_start_matches(|character: char| {
+                                character.is_ascii_whitespace()
+                            })
                         } else {
                             remaining
                         };
@@ -569,7 +580,9 @@ impl<'a, W: Write> Visitor<'a> for ManpageVisitor<'a, '_, W> {
                         let remaining = &text.content[partial_bytes..];
                         let content = if self.strip_next_leading_space {
                             self.strip_next_leading_space = false;
-                            remaining.trim_start()
+                            remaining.trim_start_matches(|character: char| {
+                                character.is_ascii_whitespace()
+                            })
                         } else {
                             remaining
                         };

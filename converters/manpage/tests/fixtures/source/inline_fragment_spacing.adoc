@@ -1,0 +1,81 @@
+= inline-spacing(1)
+:doctype: manpage
+:revdate: 2026-09-28
+:manmanual: Spacing tests
+:mansource: acdc
+
+== Name
+
+inline-spacing - preserve spaces around inline formatting
+
+== Description
+
+Copyright *Bold* and (C).
+
+Registered _Italic_ and (R).
+
+Trademark `Code` and (TM).
+
+Hyphen *Bold* - dash.
+
+Backslash *Bold* path\to\file.
+
+Quotes *Bold* "`quoted`".
+
+Ellipsis *Bold* ... end.
+
+Nested *Bold _Italic_* and (C).
+
+Raw *Bold*+++ and ©.+++
+
+Adjacent *Bold*(C).
+
+Multiple *Bold*  spaces and (C).
+
+Wrapped plain
+ next line.
+
+Wrapped symbol
+ next (C) line.
+
+Wrapped indentation
+   next line - normalized.
+
+Protected period *Bold*
+ .leading-period
+
+Protected apostrophe *Bold*
+ 'leading-apostrophe
+
+Hard break *Bold* +
+ next (C) line.
+
+Formatted hard break before +
+*Bold* and (C).
+
+Marker hard break before +
+footnote:[Break note.] and (C).
+
+Raw hard break before +
++++ next ©.+++
+
+Nonbreaking hard break before +
+{nbsp}next (C).
+
+Anchor hard break before +
+[[after-break]] next (C).
+
+Hidden index hard break before +
+(((Hidden)))[[after-hidden]] next (C).
+
+Visible index hard break before +
+((Visible)) and (C).
+
+Link https://example.org[Example] and (C).
+
+Note footnote:spacing[*Bold* and (C).]
+Reuse footnote:spacing[].
+
+....
+  keep   spaces ©
+....

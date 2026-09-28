@@ -196,7 +196,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
     fn render_plain_text(&mut self, text: &str) -> Result<(), Error> {
         let content = if self.strip_next_leading_space {
             self.strip_next_leading_space = false;
-            text.trim_start()
+            text.trim_start_matches(|character: char| character.is_ascii_whitespace())
         } else {
             text
         };
@@ -230,7 +230,7 @@ impl<'a, W: Write> ManpageVisitor<'a, '_, W> {
                 let decoded = decode_numeric_char_refs(text.content);
                 let content = if self.strip_next_leading_space {
                     self.strip_next_leading_space = false;
-                    decoded.trim_start()
+                    decoded.trim_start_matches(|character: char| character.is_ascii_whitespace())
                 } else {
                     &decoded
                 };

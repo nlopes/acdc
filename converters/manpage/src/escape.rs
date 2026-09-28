@@ -12,8 +12,8 @@ use std::borrow::Cow;
 /// Escape modes for different content types.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EscapeMode {
-    /// Normalize whitespace (collapse multiple spaces to one).
-    /// Default mode for regular paragraph text.
+    /// Collapse repeated spaces and remove indentation after newlines.
+    /// Retain a leading separator when text continues an inline fragment.
     #[default]
     Normalize,
 
@@ -152,19 +152,18 @@ fn needs_escaping(text: &str, mode: EscapeMode) -> bool {
 
     // Check for whitespace normalization needs
     match mode {
-        EscapeMode::Normalize => text.contains("  ") || text.contains('\t'),
+        EscapeMode::Normalize => text.contains("  ") || text.contains('\t') || text.contains("\n "),
         EscapeMode::Collapse => text.contains('\n') || text.contains("  ") || text.contains('\t'),
         EscapeMode::Preserve => false,
     }
 }
 
-/// Collapse multiple whitespace characters to single space.
-/// Also strips leading whitespace from each line (important for roff output
-/// where leading spaces on continuation lines would be rendered incorrectly).
+/// Collapse repeated whitespace while keeping the separator before an inline fragment.
+/// Strip indentation after newlines so roff does not treat wrapped prose as indented text.
 fn collapse_whitespace(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let mut prev_whitespace = false;
-    let mut at_line_start = true;
+    let mut at_line_start = false;
 
     for ch in text.chars() {
         if ch == '\n' {
